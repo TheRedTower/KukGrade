@@ -625,18 +625,13 @@ export async function getPromotionEligibility(session: number): Promise<Promotio
   );
 }
 
-export async function createCandidateOutcome(candidateId: number): Promise<CandidateOutcome> {
-  return apiRequest<CandidateOutcome>(`/api/gradings/candidates/${candidateId}/create-outcome/`, {
-    method: "POST",
-  });
-}
-
+/** The first proposal opens the candidate's outcome record; later ones revise it. */
 export async function proposeCandidateOutcome(
-  outcomeId: number,
-  data: Schemas["PatchedCandidateOutcomeProposalRequest"],
+  candidateId: number,
+  data: Schemas["CandidateOutcomeProposalRequest"],
 ): Promise<CandidateOutcome> {
-  return apiRequest<CandidateOutcome>(`/api/gradings/outcomes/${outcomeId}/propose/`, {
-    method: "PATCH",
+  return apiRequest<CandidateOutcome>(`/api/gradings/candidates/${candidateId}/propose-outcome/`, {
+    method: "POST",
     body: JSON.stringify(data),
   });
 }

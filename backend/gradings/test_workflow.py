@@ -168,22 +168,15 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     assert lock_response.status_code == 200
     assert lock_response.json()["status"] == GradingSession.Status.LOCKED
 
-    outcome_response = instructor.post(
-        f"/api/gradings/candidates/{candidate_id}/create-outcome/",
-    )
-    assert outcome_response.status_code == 201
-    outcome_body = outcome_response.json()
-    outcome_id = outcome_body["id"]
-    assert outcome_body["status"] == CandidateOutcome.Status.DRAFT
-
-    propose_response = instructor.patch(
-        f"/api/gradings/outcomes/{outcome_id}/propose/",
+    propose_response = instructor.post(
+        f"/api/gradings/candidates/{candidate_id}/propose-outcome/",
         {
             "proposed_outcome": CandidateOutcome.Outcome.PASS,
             "proposal_notes": "Recommended for promotion.",
         },
         format="json",
     )
+    outcome_id = propose_response.json()["id"]
     assert propose_response.status_code == 200
     propose_body = propose_response.json()
     assert propose_body["status"] == CandidateOutcome.Status.PROPOSED

@@ -131,6 +131,31 @@ def create_candidate_outcome(
     return outcome
 
 
+@transaction.atomic
+def propose_for_candidate(
+    candidate: GradingCandidate,
+    proposed_outcome: str,
+    proposal_notes: str,
+    actor: User,
+) -> CandidateOutcome:
+    """Propose an outcome for a candidate in one step.
+
+    The candidate's outcome record is opened by the first proposal and revised
+    by later ones, decided under the session lock so two proposals arriving
+    together cannot both try to open it.
+    """
+    locked_candidate = lock_in_session(
+        GradingCandidate.objects.select_related("session"),
+        candidate.pk,
+        session_path="session_id",
+        name="candidate",
+    )
+    outcome = CandidateOutcome.objects.filter(candidate=locked_candidate).first()
+    if outcome is None:
+        outcome = create_candidate_outcome(locked_candidate, actor)
+    return propose_candidate_outcome(outcome, proposed_outcome, proposal_notes, actor)
+
+
 def _validate_outcome_choice(value: str, field_name: str) -> None:
     if value not in CandidateOutcome.Outcome.values:
         raise ValidationError({field_name: ["That is not a valid outcome."]})

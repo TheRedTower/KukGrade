@@ -1246,16 +1246,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           })),
         });
       }
-      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
-        return jsonResponse(201, {
-          ...testOutcomes[0],
-          id: 401,
-          status: "DRAFT",
-          proposed_outcome: null,
-          proposal_notes: "",
-        });
-      }
-      if (url.includes("/api/gradings/outcomes/401/propose/") && init?.method === "PATCH") {
+      if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
         const body = JSON.parse(init.body as string);
         return jsonResponse(200, {
           ...testOutcomes[0],
@@ -1326,10 +1317,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
 
-    // Verify create-outcome and propose endpoints were called
+    // One call opens the outcome record and proposes
     await waitFor(() => {
       const proposeCall = fetchMock.mock.calls.find(([url, init]) =>
-        url.includes("/propose/") && init?.method === "PATCH",
+        url.includes("/propose-outcome/") && init?.method === "POST",
       );
       expect(proposeCall).toBeDefined();
       const body = JSON.parse(proposeCall![1]!.body as string);
@@ -1392,7 +1383,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
-      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
+      if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
         return jsonResponse(400, {
           error: { code: "validation_error", message: "The assessment is not completed." },
         });
@@ -1417,19 +1408,15 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       "The assessment is not completed.",
     );
     expect(screen.getByRole("dialog")).toBeVisible();
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/propose/"))).toBe(false);
   });
 
-  it("retries a refused proposal against the outcome it already created", async () => {
+  it("retries a refused proposal with the same single call", async () => {
     const user = userEvent.setup();
     let proposeAttempts = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
-      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
-        return jsonResponse(201, { ...testOutcomes[0], id: 401, proposed_outcome: null });
-      }
-      if (url.includes("/api/gradings/outcomes/401/propose/") && init?.method === "PATCH") {
+      if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
         proposeAttempts += 1;
         if (proposeAttempts === 1) {
           return jsonResponse(400, {
@@ -1458,56 +1445,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-    const creates = fetchMock.mock.calls.filter(
-      ([url, init]) => String(url).includes("/create-outcome/") && init?.method === "POST",
-    );
-    expect(creates).toHaveLength(1);
     expect(proposeAttempts).toBe(2);
-  });
-
-  it("resumes with the outcome a lost creation response already made", async () => {
-    const user = userEvent.setup();
-    let created = false;
-    const madeOutcome = { ...testOutcomes[0], id: 401, candidate: 102, proposed_outcome: null };
-    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
-      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
-        // The server made it; the response never arrived.
-        created = true;
-        throw new TypeError("Failed to fetch");
-      }
-      if (url.includes("/api/gradings/outcomes/401/propose/") && init?.method === "PATCH") {
-        return jsonResponse(200, { ...madeOutcome, proposed_outcome: "PASS" });
-      }
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
-      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
-      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
-      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
-      if (url.includes("/api/gradings/outcomes/")) {
-        const results = created ? [madeOutcome] : [];
-        return jsonResponse(200, { count: results.length, next: null, previous: null, results });
-      }
-      return jsonResponse(404, {});
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<App />);
-    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
-    const drawer = await screen.findByRole("dialog");
-    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
-
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    const creates = fetchMock.mock.calls.filter(([url]) => String(url).includes("/create-outcome/"));
-    expect(creates).toHaveLength(1);
-    expect(
-      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/gradings/outcomes/401/propose/")),
-    ).toBe(true);
-    // Found by asking for that candidate's outcome, not by downloading the session's.
-    expect(
-      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/gradings/outcomes/?candidate=102")),
-    ).toBe(true);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/create-outcome/"))).toBe(false);
   });
 
   it("will not submit a proposal while its evidence failed to load", async () => {
@@ -1531,6 +1470,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     expect(await within(drawer).findByText(/could not be loaded/)).toBeVisible();
     expect(within(drawer).getByRole("button", { name: "Submit proposal" })).toBeDisabled();
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/create-outcome/"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/propose-outcome/"))).toBe(false);
   });
 });

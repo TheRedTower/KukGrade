@@ -617,28 +617,11 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
     client = APIClient()
     client.force_authenticate(user=actor)
 
-    unauthenticated = APIClient().post(
-        f"/api/gradings/candidates/{built.id}/create-outcome/",
-    )
-    create_response = client.post(
-        f"/api/gradings/candidates/{built.id}/create-outcome/",
-    )
+    propose_url = f"/api/gradings/candidates/{built.id}/propose-outcome/"
+    unauthenticated = APIClient().post(propose_url)
     arbitrary_post = client.post("/api/gradings/outcomes/", {}, format="json")
-
-    assert unauthenticated.status_code == 403
-    assert create_response.status_code == 201
-    assert arbitrary_post.status_code == 405
-    payload = create_response.json()
-    outcome_id = payload["id"]
-    assert payload["candidate"] == built.id
-
-    direct_patch = client.patch(
-        f"/api/gradings/outcomes/{outcome_id}/",
-        {"status": CandidateOutcome.Status.FINALISED},
-        format="json",
-    )
-    propose_response = client.patch(
-        f"/api/gradings/outcomes/{outcome_id}/propose/",
+    propose_response = client.post(
+        propose_url,
         {
             "proposed_outcome": CandidateOutcome.Outcome.FAIL,
             "proposal_notes": "Evidence indicates a fail.",
@@ -646,6 +629,23 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
             "proposed_at": "2030-01-01T00:00:00Z",
         },
         format="json",
+    )
+    outcome_id = propose_response.json()["id"]
+    direct_patch = client.patch(
+        f"/api/gradings/outcomes/{outcome_id}/",
+        {"status": CandidateOutcome.Status.FINALISED},
+        format="json",
+    )
+    revised_response = client.post(
+        propose_url,
+        {"proposed_outcome": CandidateOutcome.Outcome.FAIL},
+        format="json",
+    )
+    retired = (
+        client.post(f"/api/gradings/candidates/{built.id}/create-outcome/"),
+        client.patch(
+            f"/api/gradings/outcomes/{outcome_id}/propose/", {}, format="json"
+        ),
     )
     forbidden_finalise = client.patch(
         f"/api/gradings/outcomes/{outcome_id}/finalise/",
@@ -679,8 +679,14 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
     )
 
     # No detail route: an outcome is written only through propose/finalise.
+    assert unauthenticated.status_code == 403
+    assert arbitrary_post.status_code == 405
     assert direct_patch.status_code == 404
     assert propose_response.status_code == 200
+    assert propose_response.json()["candidate"] == built.id
+    # A second proposal revises the same record rather than opening another.
+    assert revised_response.json()["id"] == outcome_id
+    assert [response.status_code for response in retired] == [404, 404]
     assert propose_response.json()["proposed_by_name"] == actor.get_full_name()
     assert forbidden_finalise.status_code == 403
     assert finalise_response.status_code == 200
@@ -706,3 +712,32 @@ def test_candidate_outcome_admin_is_read_only_and_has_no_bulk_finalisation() -> 
     assert model_admin.actions == ()
     with pytest.raises(ValidationError):
         model_admin.save_model(request, outcome, form, True)
+
+
+def test_proposing_for_a_candidate_opens_the_record_once_and_then_revises_it() -> None:
+    from gradings.outcome_services import propose_for_candidate
+
+    built, _generated = locked_completed_candidate()
+    actor = user("propose-once@example.com")
+
+    first = propose_for_candidate(built, CandidateOutcome.Outcome.PASS, "Good.", actor)
+    second = propose_for_candidate(built, CandidateOutcome.Outcome.FAIL, "Hmm.", actor)
+
+    assert first.pk == second.pk
+    assert CandidateOutcome.objects.filter(candidate=built).count() == 1
+    assert second.proposed_outcome == CandidateOutcome.Outcome.FAIL
+
+
+def test_proposing_for_a_candidate_who_cannot_have_an_outcome_is_refused() -> None:
+    from gradings.outcome_services import propose_for_candidate
+
+    built = candidate()
+
+    with pytest.raises(ValidationError):
+        propose_for_candidate(
+            built,
+            CandidateOutcome.Outcome.PASS,
+            "",
+            user("propose-refused@example.com"),
+        )
+    assert not CandidateOutcome.objects.filter(candidate=built).exists()

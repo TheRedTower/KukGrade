@@ -1148,30 +1148,6 @@ paths:
       responses:
         '204':
           description: No response body
-  /api/gradings/candidates/{id}/create-outcome/:
-    post:
-      operationId: gradings_candidates_create_outcome_create
-      description: |-
-        Registrations are created by bulk-register only. PATCH and DELETE
-        change or remove one while its session is draft or open.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this grading candidate.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateOutcome'
-          description: ''
   /api/gradings/candidates/{id}/generate-assessment/:
     post:
       operationId: gradings_candidates_generate_assessment_create
@@ -1195,6 +1171,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CandidateAssessment'
+          description: ''
+  /api/gradings/candidates/{id}/propose-outcome/:
+    post:
+      operationId: gradings_candidates_propose_outcome_create
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading candidate.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcomeProposalRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcomeProposalRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcomeProposalRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateOutcome'
           description: ''
   /api/gradings/candidates/{id}/withdraw/:
     post:
@@ -1885,38 +1897,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Promotion'
-          description: ''
-  /api/gradings/outcomes/{id}/propose/:
-    patch:
-      operationId: gradings_outcomes_propose_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this candidate outcome.
-        required: true
-      tags:
-      - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeProposalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeProposalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeProposalRequest'
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateOutcome'
           description: ''
   /api/gradings/outcomes/{id}/staged-decision/:
     put:
@@ -3755,6 +3735,15 @@ components:
         * `PASS` - Pass
         * `FAIL` - Fail
         * `CONDITIONAL` - Conditional
+    CandidateOutcomeProposalRequest:
+      type: object
+      properties:
+        proposed_outcome:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        proposal_notes:
+          type: string
+      required:
+      - proposed_outcome
     CandidateOutcomeStatusEnum:
       enum:
       - DRAFT
@@ -5566,13 +5555,6 @@ components:
         decision_notes:
           type: string
         conditional_requirements:
-          type: string
-    PatchedCandidateOutcomeProposalRequest:
-      type: object
-      properties:
-        proposed_outcome:
-          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
-        proposal_notes:
           type: string
     PatchedGradingCandidateRequest:
       type: object

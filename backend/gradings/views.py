@@ -53,9 +53,9 @@ from gradings.models import (
 )
 from gradings.outcome_services import (
     bulk_promote_candidates,
-    create_candidate_outcome,
     discard_staged_decision,
     promotion_eligibility_for_session,
+    propose_for_candidate,
     staged_decisions_for_session,
 )
 from gradings.read_models import candidate_assessment_summary, with_overall_counts
@@ -244,7 +244,10 @@ class GradingCandidateViewSet(
         # These create other models, so they are named for what they make
         # rather than for the candidate they hang off.
         "generate_assessment": ("gradings.add_candidateassessment",),
-        "create_outcome": ("gradings.add_candidateoutcome",),
+        "propose_outcome": (
+            "gradings.add_candidateoutcome",
+            "gradings.change_candidateoutcome",
+        ),
         "bulk_register": ("gradings.add_gradingcandidate",),
         "bulk_generate_assessments": ("gradings.add_candidateassessment",),
         "bulk_update_status": ("gradings.change_gradingcandidate",),
@@ -409,18 +412,29 @@ class GradingCandidateViewSet(
             GradingCandidateSerializer(updated, context={"request": request}).data,
         )
 
-    @extend_schema(request=None, responses={201: CandidateOutcomeSerializer})
-    @action(detail=True, methods=["post"], url_path="create-outcome")
-    def create_outcome(
+    @extend_schema(
+        request=CandidateOutcomeProposalSerializer,
+        responses=CandidateOutcomeSerializer,
+    )
+    @action(detail=True, methods=["post"], url_path="propose-outcome")
+    def propose_outcome(
         self,
         request: Request,
         *args: object,
         **kwargs: object,
     ) -> Response:
         candidate = self.get_object()
-        outcome = create_candidate_outcome(candidate, cast(User, request.user))
-        serializer = CandidateOutcomeSerializer(outcome, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        serializer = CandidateOutcomeProposalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        outcome = propose_for_candidate(
+            candidate,
+            proposed_outcome=str(serializer.validated_data["proposed_outcome"]),
+            proposal_notes=str(serializer.validated_data.get("proposal_notes", "")),
+            actor=cast(User, request.user),
+        )
+        return Response(
+            CandidateOutcomeSerializer(outcome, context={"request": request}).data,
+        )
 
 
 class CandidateAssessmentViewSet(
@@ -559,7 +573,6 @@ class CandidateOutcomeViewSet(
     http_method_names = ["get", "patch", "post", "put", "delete", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateoutcome",),
-        "propose": ("gradings.change_candidateoutcome",),
         "staged_decision": ("gradings.view_candidateoutcome",),
         "staged_decisions": ("gradings.view_candidateoutcome",),
         # The sensitive half of these two is enforced by the dedicated
@@ -656,32 +669,6 @@ class CandidateOutcomeViewSet(
         )
         serializer.is_valid(raise_exception=True)
         return Response(StagedDecisionSerializer(serializer.save()).data)
-
-    @extend_schema(
-        request=CandidateOutcomeProposalSerializer,
-        responses=CandidateOutcomeSerializer,
-    )
-    @action(detail=True, methods=["patch"])
-    def propose(
-        self,
-        request: Request,
-        *args: object,
-        **kwargs: object,
-    ) -> Response:
-        outcome = self.get_object()
-        serializer = CandidateOutcomeProposalSerializer(
-            outcome,
-            data=request.data,
-            partial=True,
-            context={"request": request},
-        )
-        serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
-        response_serializer = CandidateOutcomeSerializer(
-            updated,
-            context={"request": request},
-        )
-        return Response(response_serializer.data)
 
     @extend_schema(
         request=CandidateOutcomeFinaliseSerializer,

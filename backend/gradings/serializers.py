@@ -24,7 +24,6 @@ from gradings.models import (
 from gradings.outcome_services import (
     finalise_candidate_outcome,
     promote_candidate,
-    propose_candidate_outcome,
     stage_final_decision,
 )
 from gradings.read_models import OverallAssessmentSummary, assessment_overall
@@ -504,19 +503,6 @@ class CandidateOutcomeProposalSerializer(serializers.Serializer):
         required=False,
         trim_whitespace=True,
     )
-
-    def update(
-        self,
-        instance: CandidateOutcome,
-        validated_data: dict[str, Any],
-    ) -> CandidateOutcome:
-        request = self.context["request"]
-        return propose_candidate_outcome(
-            instance,
-            proposed_outcome=str(validated_data["proposed_outcome"]),
-            proposal_notes=str(validated_data.get("proposal_notes", "")),
-            actor=cast(User, request.user),
-        )
 
 
 class StagedDecisionSerializer(serializers.ModelSerializer):

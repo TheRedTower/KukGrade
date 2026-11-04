@@ -527,37 +527,40 @@ def test_reinstating_and_registering_elsewhere_cannot_both_hold_the_student() ->
     )
 
 
-def test_moving_a_candidate_waits_for_an_edit_to_its_student() -> None:
-    """A move checks the testing rank against the student, so it locks them.
+def test_registering_waits_for_an_edit_to_the_students_rank() -> None:
+    """Registering checks the testing rank against the student, so it locks them.
 
-    The candidate was read with its student joined before any student lock;
-    checked against that copy, a move went through on a rank an
-    administrator had just corrected (audit D1).
+    The student was read before any student lock; checked against that copy,
+    a registration went through on a rank an administrator had just corrected
+    (audit D1). A registered student's rank can no longer be edited, so the
+    race is an edit of an unregistered student against their registration.
     """
-    source = grading_session(status=GradingSession.Status.OPEN, title="Source")
-    target = grading_session(status=GradingSession.Status.OPEN, title="Target")
-    moving = candidate(session=source)
+    session = grading_session(status=GradingSession.Status.OPEN)
+    person = student()
     editor = user("race-rank-editor@example.com")
-    mover = user("race-rank-mover@example.com")
-    stale_student = Student.objects.get(pk=moving.student_id)
-    stale_moving = GradingCandidate.objects.get(pk=moving.pk)
-    stale_target = GradingSession.objects.get(pk=target.pk)
+    registrar = user("race-rank-registrar@example.com")
+    stale_student = Student.objects.get(pk=person.pk)
+    stale_session = GradingSession.objects.get(pk=session.pk)
 
-    edited, moved = interleave(
+    edited, registered = interleave(
         lambda: update_student(
             stale_student,
             current_rank=rank("YELLOW_STRIPE"),
             actor=editor,
         ),
-        lambda: apply_candidate_update(stale_moving, session=stale_target, actor=mover),
+        lambda: register_candidate(
+            session=stale_session,
+            student=stale_student,
+            testing_for_rank=rank("YELLOW_STRIPE"),
+            actor=registrar,
+        ),
         pause_first_at="students.services.record",
     )
 
     assert isinstance(edited, Student)
     # Now Yellow stripe, the student tests for Yellow, not Yellow stripe.
-    refused(moved, "next active rank")
-    moving.refresh_from_db()
-    assert moving.session_id == source.pk
+    refused(registered, "next active rank")
+    assert not GradingCandidate.objects.filter(session=session, student=person).exists()
 
 
 def test_candidate_move_and_session_lock_cannot_interleave() -> None:

@@ -18,6 +18,7 @@ from students.models import (
 )
 from students.services import (
     check_date_of_birth_correction,
+    check_rank_change,
     create_student,
     delete_student,
     update_student,
@@ -72,6 +73,11 @@ class StudentAdminForm(forms.ModelForm):
         if self.instance.pk and date_of_birth and "date_of_birth" in self.changed_data:
             try:
                 check_date_of_birth_correction(self.instance, date_of_birth)
+            except ValidationError as error:
+                self.add_error(None, error)
+        if self.instance.pk and "current_rank" in self.changed_data:
+            try:
+                check_rank_change(self.instance.pk)
             except ValidationError as error:
                 self.add_error(None, error)
         return cleaned

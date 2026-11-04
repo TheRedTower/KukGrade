@@ -419,3 +419,81 @@ def test_a_locked_other_withdrawal_needs_a_note() -> None:
         )
 
     assert "withdrawal_note" in exc_info.value.message_dict
+
+
+@pytest.mark.parametrize(
+    "final",
+    [
+        CandidateOutcome.Outcome.PASS,
+        CandidateOutcome.Outcome.FAIL,
+    ],
+)
+def test_a_session_with_a_final_decision_cannot_be_cancelled(final: str) -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built, proposed=final, final=final)
+    session = GradingSession.objects.get(pk=built.session_id)
+
+    with pytest.raises(ValidationError) as exc_info:
+        transition_grading_session(
+            session,
+            GradingSession.Status.CANCELLED,
+            actor=override_master("cancel-after-final@example.com"),
+            reason="Abandoned.",
+        )
+
+    assert "final decision cannot be cancelled" in str(exc_info.value)
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+    assert not AuditEvent.objects.filter(
+        action=AuditAction.SESSION_TRANSITIONED,
+        entity_id=str(session.pk),
+        metadata__after__status="CANCELLED",
+    ).exists()
+
+
+def test_a_session_with_only_proposals_can_still_be_cancelled() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = create_candidate_outcome(built, user("proposal-only@example.com"))
+    propose_candidate_outcome(
+        outcome,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("proposal-only-proposer@example.com"),
+    )
+    session = GradingSession.objects.get(pk=built.session_id)
+
+    cancelled = transition_grading_session(
+        session,
+        GradingSession.Status.CANCELLED,
+        actor=override_master("cancel-proposal-only@example.com"),
+        reason="Venue lost; grading abandoned.",
+    )
+
+    assert cancelled.status == GradingSession.Status.CANCELLED
+
+
+def test_the_api_refuses_to_cancel_a_session_with_a_final_decision() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built)
+    canceller = user("api-cancel-final@example.com", role=User.Role.ADMINISTRATOR)
+    canceller.user_permissions.add(
+        Permission.objects.get(
+            codename="can_override_locked_session",
+            content_type=ContentType.objects.get_for_model(GradingSession),
+        ),
+    )
+    client = APIClient()
+    client.force_authenticate(user=User.objects.get(pk=canceller.pk))
+
+    response = client.patch(
+        f"/api/gradings/sessions/{built.session_id}/",
+        {"status": "CANCELLED", "cancellation_reason": "Abandoned."},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "final decision cannot be cancelled" in response.json()["error"]["message"]
+    assert (
+        GradingSession.objects.get(pk=built.session_id).status
+        == GradingSession.Status.LOCKED
+    )

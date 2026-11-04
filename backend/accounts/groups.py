@@ -74,8 +74,6 @@ _USER_ADMINISTRATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
 _DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "delete_any_gradingsession"),
     ("gradings", "delete_candidateassessment"),
-    ("gradings", "delete_candidateoutcome"),
-    ("gradings", "delete_promotion"),
     ("students", "delete_student"),
 )
 

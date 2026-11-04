@@ -224,6 +224,21 @@ def test_only_administrators_manage_users() -> None:
     assert admin.has_perm("gradings.add_gradingsession") is True
 
 
+def test_nobody_holds_a_delete_grant_nothing_reads() -> None:
+    # Outcomes and promotions are never deleted directly: no endpoint exists
+    # and the admin refuses, so a grant would only suggest otherwise.
+    admin = User.objects.create_user(
+        email="no-delete-grant@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    assert admin.has_perm("gradings.delete_candidateoutcome") is False
+    assert admin.has_perm("gradings.delete_promotion") is False
+    # Deleting a session or a student, which the services do gate, is kept.
+    assert admin.has_perm("gradings.delete_any_gradingsession") is True
+    assert admin.has_perm("students.delete_student") is True
+
+
 def test_a_user_in_no_group_is_denied() -> None:
     user = User.objects.create_user(email="groupless@example.com")
     user.groups.clear()

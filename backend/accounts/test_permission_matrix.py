@@ -134,8 +134,8 @@ def test_instructor_can_run_a_grading_end_to_end() -> None:
 
 def test_instructor_may_propose_an_outcome() -> None:
     # 404 rather than 403: the authority is there, the object is not.
-    response = instructor("proposes@example.com").patch(
-        "/api/gradings/outcomes/99999999/propose/",
+    response = instructor("proposes@example.com").post(
+        "/api/gradings/candidates/99999999/propose-outcome/",
         {"proposed_outcome": "PASS"},
         format="json",
     )

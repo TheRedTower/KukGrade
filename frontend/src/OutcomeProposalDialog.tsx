@@ -15,8 +15,6 @@ import {
   type CandidateOutcome,
   type CandidateOutcomeOutcome,
   type GradingCandidate,
-  createCandidateOutcome,
-  getAllCandidateOutcomes,
   proposeCandidateOutcome,
 } from "./api";
 import { Dialog } from "./Dialog";
@@ -46,24 +44,16 @@ export function OutcomeProposalDialog({
     existingOutcome?.proposed_outcome ?? "PASS",
   );
   const [proposalNotes, setProposalNotes] = useState(existingOutcome?.proposal_notes ?? "");
-  // Kept in state so a retry after a refused proposal reuses the outcome the
-  // first attempt created instead of creating a second one.
-  const [outcomeId, setOutcomeId] = useState(existingOutcome?.id);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const submitMutation = useMutation({
-    mutationFn: async () => {
-      // A candidate has no outcome record until the first proposal creates it.
-      let id = outcomeId;
-      if (id === undefined) {
-        id = await createOrFindOutcome(candidate);
-        setOutcomeId(id);
-      }
-      return proposeCandidateOutcome(id, {
+    // The first proposal opens the candidate's outcome record; a retry or a
+    // revision lands on the same one.
+    mutationFn: () =>
+      proposeCandidateOutcome(candidate.id, {
         proposed_outcome: selectedOutcome,
         proposal_notes: proposalNotes.trim() || undefined,
-      });
-    },
+      }),
     onSuccess: (updated) => onSuccess(updated),
     onError: (err) => setSubmitError(errorMessage(err, "The proposal could not be submitted.")),
   });
@@ -163,23 +153,4 @@ export function OutcomeProposalDialog({
       </form>
     </Dialog>
   );
-}
-
-/**
- * The candidate's outcome, created if it does not exist yet. A
- * creation can succeed on the server while its response is lost, or the
- * outcome can have been created since this drawer loaded; either way the
- * retry resumes with that outcome instead of being refused as a duplicate.
- */
-async function createOrFindOutcome(candidate: GradingCandidate): Promise<number> {
-  try {
-    return (await createCandidateOutcome(candidate.id)).id;
-  } catch (err) {
-    const existing = await getAllCandidateOutcomes({ candidate: candidate.id }).catch(
-      () => null,
-    );
-    const found = existing?.results.find((outcome) => outcome.candidate === candidate.id);
-    if (found) return found.id;
-    throw err;
-  }
 }

@@ -608,26 +608,6 @@ export interface paths {
         patch: operations["gradings_candidates_partial_update"];
         trace?: never;
     };
-    "/api/gradings/candidates/{id}/create-outcome/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * @description Registrations are created by bulk-register only. PATCH and DELETE
-         *     change or remove one while its session is draft or open.
-         */
-        post: operations["gradings_candidates_create_outcome_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/gradings/candidates/{id}/generate-assessment/": {
         parameters: {
             query?: never;
@@ -642,6 +622,26 @@ export interface paths {
          *     change or remove one while its session is draft or open.
          */
         post: operations["gradings_candidates_generate_assessment_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/candidates/{id}/propose-outcome/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
+        post: operations["gradings_candidates_propose_outcome_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1017,22 +1017,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/outcomes/{id}/propose/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: operations["gradings_outcomes_propose_partial_update"];
         trace?: never;
     };
     "/api/gradings/outcomes/{id}/staged-decision/": {
@@ -1853,6 +1837,10 @@ export interface components {
          * @enum {string}
          */
         CandidateOutcomeOutcomeEnum: "PASS" | "FAIL" | "CONDITIONAL";
+        CandidateOutcomeProposalRequest: {
+            proposed_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            proposal_notes?: string;
+        };
         /**
          * @description * `DRAFT` - Draft
          *     * `PROPOSED` - Proposed
@@ -2700,10 +2688,6 @@ export interface components {
             final_outcome?: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             decision_notes?: string;
             conditional_requirements?: string;
-        };
-        PatchedCandidateOutcomeProposalRequest: {
-            proposed_outcome?: components["schemas"]["CandidateOutcomeOutcomeEnum"];
-            proposal_notes?: string;
         };
         PatchedGradingCandidateRequest: {
             session?: number;
@@ -4143,28 +4127,6 @@ export interface operations {
             };
         };
     };
-    gradings_candidates_create_outcome_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this grading candidate. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
-                };
-            };
-        };
-    };
     gradings_candidates_generate_assessment_create: {
         parameters: {
             query?: never;
@@ -4183,6 +4145,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CandidateAssessment"];
+                };
+            };
+        };
+    };
+    gradings_candidates_propose_outcome_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this grading candidate. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateOutcomeProposalRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandidateOutcomeProposalRequest"];
+                "multipart/form-data": components["schemas"]["CandidateOutcomeProposalRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateOutcome"];
                 };
             };
         };
@@ -4691,34 +4681,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Promotion"];
-                };
-            };
-        };
-    };
-    gradings_outcomes_propose_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate outcome. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedCandidateOutcomeProposalRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeProposalRequest"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeProposalRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
                 };
             };
         };

@@ -126,10 +126,10 @@ serializers and the committed frontend types match the schema.
   The scales are: type `--font-size-xs` to `-3xl` (eight steps, 0.75rem to 2rem) and
   `--font-weight-normal` to `-title` (400 to 800); corners `--radius-xs`, `-sm`, `-control`,
   `--radius` and `-pill`; elevation `--shadow-xs` to `-lg` and `--shadow-up`; and the focus and
-  validation marks `--ring-*` and `--edge-accent`; letter-spacing `--tracking-label`, `-display` and `-tight`; line height `--line-height-tight`, `-snug` and `-body`; and one change time, `--duration` (a `transition` names what changes, never `all`). A value that sits between two steps takes the
+  validation marks `--ring-*` and `--edge-accent`; space `--space-1` to `-7` (0.25rem to 3rem; a hairline offset of 0.2rem or less and a clearance over 3.25rem are not steps); letter-spacing `--tracking-label`, `-display` and `-tight`; line height `--line-height-tight`, `-snug` and `-body`; and one change time, `--duration` (a `transition` names what changes, never `all`). A value that sits between two steps takes the
   nearer one; if a design really needs a new step, add it to the scale for everyone.
   `tokenRules.test.ts` counts what each stylesheet still holds outside them (raw colours,
-  dark-mode patches, `!important`, type, letter-spacing, line-height, transition, radius and shadow literals, z-index) and fails if
+  dark-mode patches, `!important`, type, space, letter-spacing, line-height, transition, radius and shadow literals, z-index) and fails if
   the count goes up; `tokenBaseline.json` only ever shrinks. It also fails on a `var()`
   fallback, a token that is used but not defined (or defined but never used), a design token
   defined outside those two files, and a class used in the code that no stylesheet defines

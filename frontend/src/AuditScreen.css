@@ -36,14 +36,14 @@
 }
 
 .audit-integrity-note {
-  margin: 0.8rem 0 0;
+  margin: var(--space-3) 0 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   text-align: right;
 }
 
 .audit-detail-section h3 {
-  margin: 0 0 0.55rem;
+  margin: 0 0 var(--space-2);
   font-size: var(--font-size-md);
 }
 

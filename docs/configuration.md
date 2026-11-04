@@ -112,7 +112,5 @@ Only for [the demo site](demo.md). Leave these unset on a real install.
 | Variable | Meaning |
 | --- | --- |
 | `DJANGO_DEBUG` | `true` for local development. Defaults to `false`; with it off, a missing secret key stops the app from starting rather than falling back to a known one. |
-| `DJANGO_CORS_ALLOWED_ORIGINS` | Origins allowed to call the API cross-origin, such as the Vite dev server (`http://localhost:5173`). Not needed in production: the frontend is served from the same origin. |
-| `VITE_API_BASE_URL` | Where the dev frontend finds the API (default `http://localhost:8000`). |
 
 See [development.md](development.md).

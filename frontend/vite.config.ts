@@ -13,6 +13,11 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },
+  server: {
+    // The browser talks only to this server, as it does to the app in
+    // production, so there is no cross-origin traffic to allow.
+    proxy: { "/api": "http://localhost:8000" },
+  },
   test: {
     environment: "jsdom",
     // Each file still gets its own context, but the jsdom set-up is not

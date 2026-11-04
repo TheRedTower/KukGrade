@@ -155,13 +155,13 @@ describe("API pagination", () => {
         return jsonResponse(200, {
           count: 2,
           next: null,
-          previous: "http://localhost:8000/api/gradings/candidates/?page=1",
+          previous: "/api/gradings/candidates/?page=1",
           results: [{ id: 2 }],
         });
       }
       return jsonResponse(200, {
         count: 2,
-        next: "http://localhost:8000/api/gradings/candidates/?page=2",
+        next: "/api/gradings/candidates/?page=2",
         previous: null,
         results: [{ id: 1 }],
       });

@@ -56,7 +56,7 @@ describe("App authentication", () => {
       screen.getByRole("link", { name: "Casey Instructor, Instructor: your account" }),
     ).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:8000/api/auth/me/",
+      "/api/auth/me/",
       expect.objectContaining({ credentials: "include" }),
     );
   });
@@ -178,7 +178,7 @@ describe("App authentication", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:8000/api/auth/login/",
+      "/api/auth/login/",
       expect.objectContaining({
         body: JSON.stringify({
           email: "casey@example.com",
@@ -281,7 +281,7 @@ describe("App authentication", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:8000/api/auth/logout/",
+      "/api/auth/logout/",
       expect.objectContaining({
         credentials: "include",
         method: "POST",

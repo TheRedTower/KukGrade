@@ -226,11 +226,11 @@ export function StudentDetailScreen() {
         <div className="detail-left-column">
           {/* Card 1: Student details */}
           <div className="card">
-            <h2 className="detail-section-title">Student details</h2>
-            <dl className="detail-kv-grid">
-              <div className="detail-kv-row">
-                <dt className="detail-kv-label">Date of birth</dt>
-                <dd className="detail-kv-value">
+            <h2 className="section-title section-title--ruled">Student details</h2>
+            <dl className="facts-list">
+              <div>
+                <dt>Date of birth</dt>
+                <dd>
                   <span>{formatLongDate(student.date_of_birth)}</span>
                   <div className="privacy-badge-inline" title="Confidential: visible only on record">
                     <LockIcon size={14} className="privacy-icon" />
@@ -238,19 +238,19 @@ export function StudentDetailScreen() {
                 </dd>
               </div>
 
-              <div className="detail-kv-row">
-                <dt className="detail-kv-label">Age band</dt>
-                <dd className="detail-kv-value">{student.age_band_display}</dd>
+              <div>
+                <dt>Age band</dt>
+                <dd>{student.age_band_display}</dd>
               </div>
 
-              <div className="detail-kv-row">
-                <dt className="detail-kv-label">Current rank</dt>
-                <dd className="detail-kv-value cell-rank-highlight">{student.current_rank_name}</dd>
+              <div>
+                <dt>Current rank</dt>
+                <dd className="cell-rank-highlight">{student.current_rank_name}</dd>
               </div>
 
-              <div className="detail-kv-row">
-                <dt className="detail-kv-label">Added to KukGrade</dt>
-                <dd className="detail-kv-value">{formatLongDate(student.created_at)}</dd>
+              <div>
+                <dt>Added to KukGrade</dt>
+                <dd>{formatLongDate(student.created_at)}</dd>
               </div>
             </dl>
           </div>
@@ -258,12 +258,12 @@ export function StudentDetailScreen() {
           {/* What an imported file said that KukGrade has no field for. */}
           {student.extra_information.length > 0 ? (
             <div className="card">
-              <h2 className="detail-section-title">Extra information</h2>
-              <dl className="detail-kv-grid">
+              <h2 className="section-title section-title--ruled">Extra information</h2>
+              <dl className="facts-list">
                 {student.extra_information.map((info) => (
-                  <div className="detail-kv-row" key={info.label}>
-                    <dt className="detail-kv-label">{info.label}</dt>
-                    <dd className="detail-kv-value">{info.value}</dd>
+                  <div key={info.label}>
+                    <dt>{info.label}</dt>
+                    <dd>{info.value}</dd>
                   </div>
                 ))}
               </dl>
@@ -272,7 +272,7 @@ export function StudentDetailScreen() {
 
           {/* Card 2: Grading history - native + linked historical records */}
           <div className="card">
-            <h2 className="detail-section-title">Grading history</h2>
+            <h2 className="section-title section-title--ruled">Grading history</h2>
             {gradingHistoryItems.length > 0 ? (
               <ResponsiveTable
                 label="Grading history"
@@ -331,7 +331,7 @@ export function StudentDetailScreen() {
 
           {/* Card 3: Rank history timeline */}
           <div className="card">
-            <h2 className="detail-section-title">Rank history</h2>
+            <h2 className="section-title section-title--ruled">Rank history</h2>
             <div className="rank-timeline-track">
               {/* Promotion nodes from newest to oldest */}
               {promotions.map((p, idx) => (
@@ -370,7 +370,7 @@ export function StudentDetailScreen() {
         <div className="detail-right-column">
           {/* Card 1: Grading readiness */}
           <div className="card">
-            <h2 className="detail-section-title">Grading readiness</h2>
+            <h2 className="section-title section-title--ruled">Grading readiness</h2>
             <div className="readiness-body">
               <div className="readiness-row">
                 <span className="readiness-label">Next rank</span>
@@ -400,7 +400,7 @@ export function StudentDetailScreen() {
 
           {/* Card 2: Record status */}
           <div className="card">
-            <h2 className="detail-section-title">Record status</h2>
+            <h2 className="section-title section-title--ruled">Record status</h2>
             <div className="record-status-body">
               <div className="record-status-badge-row">
                 <span className="record-status-label">Status</span>

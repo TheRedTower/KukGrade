@@ -6,6 +6,7 @@ import { Dialog } from "./Dialog";
 import { formatTime } from "./dates";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { Button } from "./Button";
+import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
 
 function AssessorIcon() {
@@ -36,9 +37,7 @@ export function CategoryHeader({ group }: { group: CategoryGroup }) {
           ? `${group.requiredCount} of ${group.requiredCount} required`
           : `${group.requiredAssessedCount} of ${group.requiredCount} required`}
       </span>
-      <span aria-hidden="true" className="caw-band-track">
-        <span className="caw-band-track-fill" style={{ width: `${filled}%` }} />
-      </span>
+      <Meter className="caw-band-meter" segments={[{ percent: filled, tone: "success" }]} />
     </div>
   );
 }

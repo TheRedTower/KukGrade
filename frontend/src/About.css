@@ -41,7 +41,7 @@
 }
 
 .ab-main {
-  line-height: 1.5;
+  line-height: var(--line-height-body);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -111,7 +111,7 @@
 
 .st-hero h2 {
   font-size: var(--font-size-3xl);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-tight);
 }
 
 .st-accent {
@@ -123,7 +123,7 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.14em;
+  letter-spacing: var(--tracking-display);
   text-transform: uppercase;
 }
 
@@ -142,7 +142,7 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -179,55 +179,9 @@
   outline-offset: -2px;
 }
 
-.st-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
-  gap: 1rem 1.5rem;
-  margin: 1rem 0 0;
-  padding: 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-sunken);
-}
-
-.st-details dt {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-}
-
-.st-details dd {
-  margin: 0;
-  font-weight: var(--font-weight-semibold);
-  overflow-wrap: anywhere;
-}
-
 .st-mono {
   font-family: var(--font-mono);
   font-size: var(--font-size-md);
-}
-
-.ab-facts {
-  margin: 0;
-}
-
-.ab-facts > div {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.25rem 2rem;
-  padding: 0.9rem 1.5rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.ab-facts dt {
-  color: var(--color-text-muted);
-}
-
-.ab-facts dd {
-  margin: 0;
-  font-weight: var(--font-weight-strong);
 }
 
 /* Documents. */
@@ -301,7 +255,7 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.14em;
+  letter-spacing: var(--tracking-display);
   text-transform: uppercase;
 }
 

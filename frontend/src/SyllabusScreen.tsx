@@ -290,7 +290,7 @@ export function SyllabusScreen() {
             {coreAreas.length > 0 && (
               <div className="syl-section-block">
                 <div className="syl-section-title-wrap">
-                  <h3 className="syl-section-title">Core grading areas</h3>
+                  <h3 className="section-title">Core grading areas</h3>
                   <p className="syl-section-subtitle">The same areas at every rank.</p>
                 </div>
                 <div className="syl-core-grid">
@@ -310,7 +310,7 @@ export function SyllabusScreen() {
             {ledgers.map((ledger) => (
               <div key={ledger.category} className="syl-section-block">
                 <div className="syl-section-title-wrap">
-                  <h3 className="syl-section-title">{ledger.title}</h3>
+                  <h3 className="section-title">{ledger.title}</h3>
                   <p className="syl-section-subtitle">
                     Where a later rank extended an item, its latest range is shown.
                   </p>

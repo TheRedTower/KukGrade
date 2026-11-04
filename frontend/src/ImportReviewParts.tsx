@@ -133,7 +133,7 @@ export function ListHead({ title, lead, search }: { title: string; lead: string;
   return (
     <div className="ix-row ix-align-end">
       <div className="ix-row-main">
-        <h2 className="ix-heading" id="ix-review-list">
+        <h2 className="section-title" id="ix-review-list">
           {title}
         </h2>
         <p className="ix-muted ix-small">{lead}</p>

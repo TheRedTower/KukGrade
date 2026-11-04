@@ -14,6 +14,7 @@ import { formatDayMonth, formatTime } from "./dates";
 import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
+import { Meter } from "./Meter";
 import { buttonClass } from "./buttonClass";
 import { assessmentTone } from "./badgeClass";
 import { AssessmentItemRow, CategoryHeader, DeleteAssessmentDialog } from "./AssessmentParts";
@@ -393,10 +394,13 @@ export function CandidateAssessmentScreen() {
           <span className="caw-mat-figure-label">required assessed</span>
         </div>
 
-        <span aria-hidden="true" className="caw-mat-track">
-          <span className="caw-mat-track-met" style={{ width: `${metWidth}%` }} />
-          <span className="caw-mat-track-not-met" style={{ width: `${notMetWidth}%` }} />
-        </span>
+        <Meter
+          className="caw-mat-meter"
+          segments={[
+            { percent: metWidth, tone: "success" },
+            { percent: notMetWidth, tone: "danger" },
+          ]}
+        />
 
         <span className="caw-mat-tally caw-mat-tally-met">
           <CheckIcon size={13} />

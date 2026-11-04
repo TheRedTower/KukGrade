@@ -9,7 +9,9 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
 
+import { Button } from "./Button";
 import { formatTime } from "./dates";
+import { ErrorText } from "./ErrorText";
 import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
 import "./SealedAssessmentEvidence.css";
@@ -43,19 +45,18 @@ export function SealedAssessmentEvidence({
       {assessmentId === undefined ? (
         <p className="evd-muted">No assessment recorded.</p>
       ) : failed ? (
-        <p className="evd-error" role="alert">
+        <ErrorText>
           The sealed assessment could not be loaded.{" "}
-          <button
-            type="button"
-            className="evd-retry"
+          <Button
+            variant="link"
             onClick={() => {
               void summaryQuery.refetch();
               void itemsQuery.refetch();
             }}
           >
             Try again
-          </button>
-        </p>
+          </Button>
+        </ErrorText>
       ) : overall ? (
         <p className="evd-counts">
           {overall.required_met} / {overall.required} required met

@@ -1,29 +1,7 @@
-.audit-filter-summary button:focus-visible {
-  border-color: var(--color-gold-strong);
-  outline: 2px solid var(--color-accent-strong);
-  outline-offset: 1px;
-}
-
 .audit-filter-summary {
   min-height: 1.5rem;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-}
-
-.audit-filter-summary button {
-  border: 0;
-  background: transparent;
-  color: var(--color-accent-text);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  padding: 0.2rem;
-  cursor: pointer;
-}
-
-.audit-filter-summary button:hover {
-  color: var(--color-accent-text);
-  text-decoration: underline;
-  text-underline-offset: 0.2rem;
 }
 
 .audit-ledger {

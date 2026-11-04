@@ -375,7 +375,7 @@ function RowsLedger({
   return (
     <section aria-labelledby="ix-rows-h" className="card card--flush">
       <div className="ix-row ix-align-end">
-        <h2 className="ix-heading ix-flush ix-grow" id="ix-rows-h">
+        <h2 className="section-title ix-grow" id="ix-rows-h">
           {roster ? "Every row" : "Every record"}
         </h2>
         <label className="ix-field">

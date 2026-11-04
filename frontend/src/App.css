@@ -159,7 +159,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   color: var(--color-text-on-ink-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-display);
   text-transform: uppercase;
 }
 
@@ -170,7 +170,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   color: var(--color-text-on-ink);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-display);
   text-transform: uppercase;
 }
 
@@ -215,7 +215,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   background: var(--color-surface);
   box-shadow: var(--shadow-xs);
   transform: translateX(calc(var(--theme-toggle-active-index) * 1.75rem));
-  transition: transform 200ms ease;
+  transition: transform var(--duration) ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -391,7 +391,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   color: var(--color-accent-text);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -405,7 +405,7 @@ h1 {
   margin-bottom: 1.25rem;
   color: var(--color-text);
   font-size: var(--font-size-3xl);
-  line-height: 1.1;
+  line-height: var(--line-height-tight);
 }
 
 h2 {
@@ -530,7 +530,7 @@ h2 {
 .must-change-password-subtitle {
   color: var(--color-text-muted);
   font-size: var(--font-size-md);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
   margin: 0 0 1.25rem 0;
 }
 
@@ -555,7 +555,7 @@ h2 {
   text-transform: uppercase;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-title);
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-label);
   color: var(--color-accent);
 }
 
@@ -584,7 +584,7 @@ h2 {
 }
 
 .chevron-icon {
-  transition: transform 200ms ease;
+  transition: transform var(--duration) ease;
   font-size: var(--font-size-xl);
   color: var(--color-text-muted);
   flex-shrink: 0;
@@ -605,7 +605,7 @@ h2 {
 .gsd-modal-message {
   font-size: var(--font-size-base);
   color: var(--color-text-muted);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
   margin: 0;
 }
 

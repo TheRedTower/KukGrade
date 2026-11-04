@@ -13,7 +13,7 @@
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-strong);
   color: var(--color-text);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 .caw-rank-arrow {
@@ -97,7 +97,7 @@
   align-items: center;
   gap: 0.4rem;
   font-size: var(--font-size-xs);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
   color: var(--color-text-muted);
 }
 
@@ -159,20 +159,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.caw-band-track {
-  width: 84px;
-  height: 4px;
-  border-radius: var(--radius-xs);
-  background: var(--color-border);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.caw-band-track-fill {
-  display: block;
-  height: 100%;
-  background: var(--color-success);
-  transition: width 160ms ease;
+.caw-band-meter {
+  width: 5.25rem;
 }
 
 /* ── Requirement rows: divider-led, not cards ──────────────────── */
@@ -242,7 +230,7 @@
   margin: 0.3rem 0 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
 }
 
 .caw-row-meta {
@@ -291,7 +279,7 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-medium);
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition: background var(--duration) ease, border-color var(--duration) ease, color var(--duration) ease;
 }
 
 .caw-verdict:hover:not(:disabled) {
@@ -369,7 +357,7 @@
 .caw-clear-confirm p {
   margin: 0 0 0.5rem;
   font-size: var(--font-size-xs);
-  line-height: 1.45;
+  line-height: var(--line-height-snug);
   color: var(--color-text);
 }
 
@@ -424,24 +412,9 @@
   color: var(--color-text-muted);
 }
 
-.caw-mat-track {
+.caw-mat-meter {
   flex-grow: 1;
-  max-width: 300px;
-  height: 6px;
-  border-radius: var(--radius-xs);
-  background: var(--color-border);
-  overflow: hidden;
-  display: flex;
-}
-
-.caw-mat-track-met {
-  background: var(--color-success);
-  transition: width 160ms ease;
-}
-
-.caw-mat-track-not-met {
-  background: var(--color-danger);
-  transition: width 160ms ease;
+  max-width: 19rem;
 }
 
 .caw-mat-tally {
@@ -505,15 +478,12 @@
     overscroll-behavior: auto;
   }
 
-  .caw-mat-track {
+  .caw-mat-meter {
     display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .caw-band-track-fill,
-  .caw-mat-track-met,
-  .caw-mat-track-not-met,
   .caw-verdict {
     transition: none;
   }
@@ -583,7 +553,7 @@
 .acp-org {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.22em;
+  letter-spacing: var(--tracking-display);
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
@@ -592,7 +562,7 @@
   margin: 0.45rem 0 0;
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-strong);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 .acp-sheet-head > * {
@@ -604,7 +574,7 @@
   flex-shrink: 0;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.16em;
+  letter-spacing: var(--tracking-display);
   text-transform: uppercase;
   color: var(--color-gold-strong);
   border: 1.5px solid var(--color-gold-strong);
@@ -636,7 +606,7 @@
 .acp-label {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.1em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
@@ -644,7 +614,7 @@
 .acp-candidate-name {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-strong);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--tracking-tight);
   margin-top: 0.25rem;
 }
 
@@ -678,7 +648,7 @@
   margin: 1.35rem 0 0.55rem;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.12em;
+  letter-spacing: var(--tracking-display);
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
@@ -691,7 +661,7 @@
   margin: 0 0 0.55rem;
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
 }
 
 /* ── Core grading areas strip ────────────────────────────────────────────── */
@@ -767,7 +737,7 @@
 .acp-ledger th {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--color-text-muted);
   text-align: left;
@@ -844,7 +814,7 @@
 .acp-note-body {
   margin: 0.2rem 0 0;
   font-size: var(--font-size-sm);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
   color: var(--color-text-muted);
 }
 
@@ -859,7 +829,7 @@
   padding: 0.6rem 0.75rem;
   font: inherit;
   font-size: var(--font-size-md);
-  line-height: 1.6;
+  line-height: var(--line-height-body);
   resize: vertical;
   background: var(--color-surface-sunken);
   color: var(--color-text);
@@ -868,7 +838,7 @@
 .acp-sealed-note {
   margin: 0;
   font-size: var(--font-size-md);
-  line-height: 1.6;
+  line-height: var(--line-height-body);
   color: var(--color-text);
 }
 
@@ -940,38 +910,9 @@
   margin: 0 0 0.6rem;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--color-text-muted);
-}
-
-.acp-dl {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-}
-
-.acp-dl > div {
-  display: flex;
-  gap: 0.6rem;
-  padding: 0.3rem 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.acp-dl > div:last-child {
-  border-bottom: none;
-}
-
-.acp-dl dt {
-  color: var(--color-text-muted);
-  width: 6.8rem;
-  flex-shrink: 0;
-}
-
-.acp-dl dd {
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .acp-count-figure {
@@ -983,7 +924,7 @@
 .acp-count-figure strong {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-strong);
-  letter-spacing: -0.03em;
+  letter-spacing: var(--tracking-tight);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1003,7 +944,7 @@
   margin: 0.5rem 0 0;
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  line-height: 1.5;
+  line-height: var(--line-height-body);
 }
 
 .acp-card-notice {
@@ -1029,7 +970,7 @@
 .acp-notice-row p {
   margin: 0;
   font-size: var(--font-size-sm);
-  line-height: 1.55;
+  line-height: var(--line-height-body);
 }
 
 .acp-proofread {
@@ -1038,7 +979,7 @@
   gap: 0.55rem;
   margin-top: 0.75rem;
   font-size: var(--font-size-sm);
-  line-height: 1.45;
+  line-height: var(--line-height-snug);
   cursor: pointer;
 }
 

@@ -216,14 +216,14 @@ export function AuditScreen(): React.ReactElement {
             )}
           </span>
           {hasFilters && (
-            <button
-              type="button"
+            <Button
+              variant="link"
               onClick={() => {
                 setSearchParams({}, { replace: true });
               }}
             >
               Clear filters
-            </button>
+            </Button>
           )}
         </div>
       </form>

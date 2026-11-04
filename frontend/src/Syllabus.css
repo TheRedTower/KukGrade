@@ -40,8 +40,8 @@
   font-weight: var(--font-weight-title);
   color: var(--color-text);
   margin: 0 0 0.25rem 0;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--line-height-tight);
 }
 
 .syl-rank-subtitle {
@@ -71,13 +71,6 @@
   gap: 0.25rem;
 }
 
-.syl-section-title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-  margin: 0;
-}
-
 .syl-section-subtitle {
   font-size: var(--font-size-md);
   color: var(--color-text-muted);
@@ -101,7 +94,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform var(--duration) ease, box-shadow var(--duration) ease;
 }
 
 .syl-core-name {

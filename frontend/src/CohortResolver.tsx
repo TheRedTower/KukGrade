@@ -96,7 +96,7 @@ export function CohortResolver({
       <section className="bgc-section bgc-resolver-section">
         <div className="bgc-section-header">
           <div>
-            <h2 className="bgc-section-title">
+            <h2 className="section-title">
               {flaggedCount === 1 ? "1 candidate needs attention" : `${flaggedCount} candidates need attention`}
             </h2>
             <p className="bgc-section-subtext">

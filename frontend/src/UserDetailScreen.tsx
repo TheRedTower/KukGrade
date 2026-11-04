@@ -453,7 +453,7 @@ export function UserDetailScreen(): React.ReactElement {
         <aside className="user-detail-aside">
           <section>
             <h2>Account information</h2>
-            <dl>
+            <dl className="facts-list facts-list--aligned">
               <div><dt>Joined</dt><dd>{formatLongDate(managedUser.date_joined, "Never")}</dd></div>
               <div><dt>Last active</dt><dd>{formatDateTime(managedUser.last_login, "Never")}</dd></div>
               <div><dt>Role</dt><dd>{managedUser.role_display}</dd></div>

@@ -62,7 +62,7 @@ export function AboutOverview() {
             </div>
             <Badge tone="info">Administrators only</Badge>
           </div>
-          <dl className="ab-facts">
+          <dl className="facts-list facts-list--inset">
             <div>
               <dt>Club name</dt>
               <dd>{data.school.club_name}</dd>

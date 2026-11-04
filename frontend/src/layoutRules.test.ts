@@ -12,8 +12,9 @@ import { BREAKPOINTS_REM } from "./layout";
  * page only at a breakpoint of layout.ts, and never with a width of its own.
  */
 
-const WIDTH_QUERY =
-  /@(?:media|container)[^{]*(?:(?:min|max)-(?:width|inline-size)|(?:width|inline-size)\s*[<>]=?)/g;
+const QUERY = /@(?:media|container)[^{]*/g;
+// A width condition, in either syntax; colour-scheme and reduced-motion queries are not layout.
+const WIDTH_CONDITION = /(?:(?:min|max)-(?:width|inline-size)|(?:width|inline-size)\s*[<>]=?)/;
 
 const BREAKPOINTS = new Set<number>(Object.values(BREAKPOINTS_REM));
 
@@ -37,7 +38,7 @@ function countViolations(css: string): Record<string, number> {
     const found = css.match(pattern)?.length ?? 0;
     if (found > 0) counts[name] = found;
   }
-  const widthQueries = (css.match(WIDTH_QUERY) ?? []).filter(offScale).length;
+  const widthQueries = (css.match(QUERY) ?? []).filter((query) => WIDTH_CONDITION.test(query) && offScale(query)).length;
   if (widthQueries > 0) counts.widthQueries = widthQueries;
   return counts;
 }
@@ -45,6 +46,13 @@ function countViolations(css: string): Record<string, number> {
 const cssFiles = allCssFiles().filter((name) => name !== "layout.css");
 
 describe("layout rules", () => {
+  it("flags a width query of a screen's own, and passes a breakpoint", () => {
+    expect(countViolations("@media (max-width: 600px) { a { top: 0 } }")).toEqual({ widthQueries: 1 });
+    expect(countViolations("@container (min-width: 73rem) { a { top: 0 } }")).toEqual({ widthQueries: 1 });
+    expect(countViolations("@media (max-width: 56rem) { a { top: 0 } }")).toEqual({});
+    expect(countViolations("@media (prefers-color-scheme: dark) { a { top: 0 } }")).toEqual({});
+  });
+
   it.each(cssFiles)("%s has no layout numbers of its own", (file) => {
     expect(countViolations(readCss(file))).toEqual({});
   });

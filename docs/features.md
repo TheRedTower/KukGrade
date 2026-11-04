@@ -58,6 +58,7 @@ Every step is recorded in the [audit log](#audit-log).
   or the national black belt ID format (`A-12345`). Old IDs are remembered and never reused.
 - A student's page shows their rank history and a single timeline of every grading,
   native and imported.
+- Correcting a date of birth moves the student's open registrations to the right age band, unless an assessment form is already prepared in a different band: then it is refused until the form is removed.
 - Search by name or ID (every word must match, in any order, so "Alex Kim" finds Alex Kim); filter by rank and status.
 
 ## The syllabus

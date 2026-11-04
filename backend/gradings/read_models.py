@@ -125,6 +125,15 @@ class GradingHistoryItem(TypedDict):
     # Anything else a historical sheet said beside the record; blank for a
     # KukGrade grading.
     note: str
+    # What a KukGrade grading still requires of a Conditional result, the
+    # rank and age band it was assessed at, and where its record is. Blank or
+    # null on a historical record, which carries none of these.
+    conditional_requirements: str
+    from_rank_name: str | None
+    age_band: str | None
+    age_band_display: str
+    session_id: int | None
+    candidate_id: int | None
 
 
 class StudentGradingHistory(TypedDict):
@@ -146,17 +155,20 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
 
     Deliberately separate from student_rank_timeline / `/rank-history/`,
     which stays Promotion-only - this is a read model for
-    display, not a second claim about rank history. A native item's
-    "current rank at the time" is not tracked as its own field anywhere in
-    the native workflow (only testing_for_rank is), so it is left out here
-    rather than guessed from promotion history.
+    display, not a second claim about rank history. A native item's rank at
+    the time is the candidate's own `from_rank`, recorded at registration, so
+    it is read from there and never guessed from promotion history.
     """
     dated_items: list[tuple[date, GradingHistoryItem]] = []
 
     finalised_outcomes = CandidateOutcome.objects.filter(
         candidate__student=student,
         status=CandidateOutcome.Status.FINALISED,
-    ).select_related("candidate__session", "candidate__testing_for_rank")
+    ).select_related(
+        "candidate__session",
+        "candidate__testing_for_rank",
+        "candidate__from_rank",
+    )
     for outcome in finalised_outcomes:
         session = outcome.candidate.session
         testing_for_rank = outcome.candidate.testing_for_rank
@@ -173,6 +185,12 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "attendance_status": "ATTENDED",
             "comments": outcome.decision_notes,
             "note": "",
+            "conditional_requirements": outcome.conditional_requirements,
+            "from_rank_name": outcome.candidate.from_rank.name,
+            "age_band": outcome.candidate.age_band,
+            "age_band_display": outcome.candidate.get_age_band_display(),
+            "session_id": session.pk,
+            "candidate_id": outcome.candidate.pk,
         }
         dated_items.append((session.grading_date, native_item))
 
@@ -201,6 +219,12 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "attendance_status": legacy.attendance_status,
             "comments": legacy.comments,
             "note": legacy.admin_note,
+            "conditional_requirements": "",
+            "from_rank_name": None,
+            "age_band": None,
+            "age_band_display": "",
+            "session_id": None,
+            "candidate_id": None,
         }
         dated_items.append((sort_date, legacy_item))
 

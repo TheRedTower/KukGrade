@@ -2018,6 +2018,22 @@ export interface components {
             comments: string;
             /** @description Anything else a historical sheet said beside the record. */
             note: string;
+            /** @description What a Conditional result still requires; blank otherwise. */
+            conditional_requirements: string;
+            /** @description The rank held when registered; null for a historical record. */
+            from_rank_name: string | null;
+            /**
+             * @description The age band assessed in; null for a historical record.
+             *
+             *     * `AGE_8_AND_UNDER` - 8 and under
+             *     * `AGE_9_TO_12` - 9-12
+             *     * `AGE_13_TO_17` - 13-17
+             *     * `AGE_18_AND_OVER` - 18+
+             */
+            age_band: (components["schemas"]["AgeBandEnum"] | components["schemas"]["NullEnum"]) | null;
+            age_band_display: string;
+            session_id: number | null;
+            candidate_id: number | null;
         };
         GradingSession: {
             readonly id: number;

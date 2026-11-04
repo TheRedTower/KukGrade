@@ -113,3 +113,47 @@ def test_instructor_can_view_grading_history_too() -> None:
 
     assert response.status_code == 200
     assert len(response.json()["items"]) == 1
+
+
+def test_a_conditional_native_item_carries_its_conditions_and_where_to_find_it() -> (
+    None
+):
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.CONDITIONAL,
+        final=CandidateOutcome.Outcome.CONDITIONAL,
+        conditional_requirements="Repeat the kicking set within three months.",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-5@example.com"))
+    response = client.get(f"/api/students/{built.student.pk}/grading-history/")
+
+    item = response.json()["items"][0]
+    assert item["outcome"] == CandidateOutcome.Outcome.CONDITIONAL
+    assert (
+        item["conditional_requirements"]
+        == "Repeat the kicking set within three months."
+    )
+    assert item["from_rank_name"] == built.from_rank.name
+    assert item["age_band"] == built.age_band
+    assert item["age_band_display"] == built.get_age_band_display()
+    assert item["session_id"] == built.session_id
+    assert item["candidate_id"] == built.pk
+
+
+def test_a_legacy_item_carries_no_native_record_fields() -> None:
+    built, _generated = locked_completed_candidate()
+    legacy_record(student=built.student)
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-6@example.com"))
+    item = client.get(f"/api/students/{built.student.pk}/grading-history/").json()[
+        "items"
+    ][0]
+
+    assert item["conditional_requirements"] == ""
+    assert item["from_rank_name"] is None
+    assert item["session_id"] is None
+    assert item["candidate_id"] is None

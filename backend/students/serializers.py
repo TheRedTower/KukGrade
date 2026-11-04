@@ -76,6 +76,22 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
         allow_blank=True,
         help_text="Anything else a historical sheet said beside the record.",
     )
+    conditional_requirements = serializers.CharField(
+        allow_blank=True,
+        help_text="What a Conditional result still requires; blank otherwise.",
+    )
+    from_rank_name = serializers.CharField(
+        allow_null=True,
+        help_text="The rank held when registered; null for a historical record.",
+    )
+    age_band = serializers.ChoiceField(
+        choices=AgeBand.choices,
+        allow_null=True,
+        help_text="The age band assessed in; null for a historical record.",
+    )
+    age_band_display = serializers.CharField(allow_blank=True)
+    session_id = serializers.IntegerField(allow_null=True)
+    candidate_id = serializers.IntegerField(allow_null=True)
 
 
 class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHistory]):

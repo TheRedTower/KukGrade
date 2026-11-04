@@ -206,3 +206,43 @@ describe("StudentDetailScreen extra information", () => {
     expect(screen.queryByRole("heading", { name: "Extra information" })).not.toBeInTheDocument();
   });
 });
+
+describe("StudentDetailScreen grading history", () => {
+  it("shows what a conditional pass still requires and links to the assessment", async () => {
+    mockGetStudent.mockReset().mockResolvedValue(student);
+    mockGetStudentRankHistory.mockReset().mockResolvedValue(rankHistory);
+    mockGetStudentGradingHistory.mockReset().mockResolvedValue({
+      items: [
+        {
+          source: "KUKGRADE",
+          record_id: 7,
+          date: "2027-03-20",
+          cycle_year: 2027,
+          cycle_month: 3,
+          date_precision: "DAY",
+          testing_for_rank_name: "Yellow stripe",
+          source_testing_for_rank_text: "",
+          outcome: "CONDITIONAL",
+          attendance_status: "ATTENDED",
+          comments: "Good spirit.",
+          note: "",
+          conditional_requirements: "Repeat the kicking set within three months.",
+          from_rank_name: "White",
+          age_band: "AGE_9_TO_12",
+          age_band_display: "9-12",
+          session_id: 3,
+          candidate_id: 11,
+        },
+      ],
+    } satisfies StudentGradingHistory);
+
+    renderScreen();
+
+    expect(await screen.findByText(/Repeat the kicking set within three months/)).toBeVisible();
+    expect(screen.getByText(/From White · 9-12/)).toBeVisible();
+    expect(screen.getByRole("link", { name: /view assessment/ })).toHaveAttribute(
+      "href",
+      "/gradings/3/assessments/11/review",
+    );
+  });
+});

@@ -148,7 +148,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "corsheaders",
     "rest_framework",
     "health",
     "ranks",
@@ -163,7 +162,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -419,11 +417,6 @@ if not re.fullmatch("[0-9]{3}-[0-9]", SCHOOL_ID_PREFIX):
     msg = "KUKGRADE_SCHOOL_PREFIX must look like 123-4."
     raise ImproperlyConfigured(msg)
 
-CORS_ALLOWED_ORIGINS = env_list(
-    "DJANGO_CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173",
-)
-CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env_list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
     "http://localhost:5173",

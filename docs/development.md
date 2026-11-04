@@ -30,7 +30,8 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:5173>, enter the setup code on the setup page and create the
+The dev server forwards `/api` to the backend, so the browser only ever talks to
+<http://localhost:5173>. Open it, enter the setup code on the setup page and create the
 first administrator. The API's health check is <http://localhost:8000/api/health/>.
 
 With `DJANGO_DEBUG=true` the database defaults match `compose.yaml`, so no `.env`

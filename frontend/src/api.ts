@@ -1,7 +1,5 @@
 import type { components, operations } from "./api/schema";
 
-const DEFAULT_API_BASE_URL = "http://localhost:8000";
-
 // Generated from backend/schema.yml (`npm run generate:types`) rather than
 // hand-maintained, so these cannot silently drift from the serializers. Regenerate after any serializer change.
 // Every request and response body is declared in the schema; the only
@@ -98,7 +96,7 @@ export class ApiError extends Error {
 
 /**
  * Only a genuine "you are not signed in" answer from the server counts as
- * anonymous. A dropped connection, a 5xx, or a CORS rejection is not
+ * anonymous. A dropped connection or a 5xx is not
  * evidence about the viewer's session, and treating it as one signed people
  * out mid-grading.
  */
@@ -123,13 +121,6 @@ export function errorMessage(err: unknown, fallback: string): string {
   }
   if (err instanceof TypeError) return NETWORK_ERROR;
   return fallback;
-}
-
-function apiBaseUrl(): string {
-  return (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL).replace(
-    /\/$/,
-    "",
-  );
 }
 
 function csrfToken(): string | undefined {
@@ -165,7 +156,7 @@ async function apiRequest<T>(
     }
   }
 
-  const response = await fetch(`${apiBaseUrl()}${path}`, {
+  const response = await fetch(path, {
     ...init,
     credentials: "include",
     headers,
@@ -252,7 +243,7 @@ export async function getCredits(): Promise<Credits> {
 
 /** The full third-party licence notices, a text file the browser opens itself. */
 export function creditsNoticesUrl(): string {
-  return `${apiBaseUrl()}/api/about/credits/notices/`;
+  return "/api/about/credits/notices/";
 }
 
 export async function getCurrentUser(): Promise<AuthUser> {

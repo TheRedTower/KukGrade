@@ -1,0 +1,130 @@
+import { Badge } from "./Badge";
+import { ErrorText } from "./ErrorText";
+import { type BoardRow, type StagedDecision } from "./adjudicationBoard";
+import { outcomeTone } from "./badgeClass";
+import { CheckIcon } from "./Icons";
+import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { ResponsiveTable } from "./ResponsiveTable";
+import type { CandidateOutcomeOutcome } from "./api";
+
+interface CohortDecisionQueueProps {
+  rows: BoardRow[];
+  /** The row in focus. */
+  focusId: number | undefined;
+  staged: Record<number, StagedDecision>;
+  failures: Record<number, string>;
+  canDecide: boolean;
+  canStage: boolean;
+  onFocus: (candidateId: number, button: HTMLElement) => void;
+  onStage: (row: BoardRow, outcome: CandidateOutcomeOutcome) => void;
+}
+
+/** The cohort as a decision queue: evidence, proposal, and an inline Pass / Conditional / Fail. */
+export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide, canStage, onFocus, onStage }: CohortDecisionQueueProps) {
+  return (
+            <ResponsiveTable
+              label="Final decisions"
+              rows={rows}
+              rowKey={(row) => row.candidate.id}
+              rowTestId={(row) => `cab-row-${row.candidate.id}`}
+              selected={(row) => focusId === row.candidate.id}
+              columns={[
+                {
+                  key: "candidate",
+                  header: "Candidate",
+                  primary: true,
+                  render: (row) => (
+                    <>
+                      <button
+                        type="button"
+                        className="cab-row-name"
+                        onClick={(event) => {
+                          onFocus(row.candidate.id, event.currentTarget);
+                        }}
+                        aria-pressed={focusId === row.candidate.id}
+                      >
+                        {row.candidate.student_display_name}
+                      </button>
+                      <span className="cab-row-sub">
+                        {row.candidate.student_wksa_id} · {row.candidate.from_rank_name} →{" "}
+                        {row.candidate.testing_for_rank_name}
+                      </span>
+                    </>
+                  ),
+                },
+                {
+                  key: "evidence",
+                  header: "Evidence",
+                  render: (row) => {
+                    const overall = row.assessment?.overall;
+                    return overall ? (
+                      <>
+                        <span className="cab-counts">
+                          {overall.required_met} / {overall.required} met
+                        </span>
+                        <span className={overall.not_met > 0 ? "cab-flags cab-flags-shortfall" : "cab-flags"}>
+                          {overall.not_met > 0 ? `${overall.not_met} not met` : "no shortfalls"}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="cab-flags">No assessment</span>
+                    );
+                  },
+                },
+                {
+                  key: "proposal",
+                  header: "Proposal",
+                  render: (row) =>
+                    row.outcome?.proposed_outcome ? (
+                      <Badge tone={outcomeTone(row.outcome.proposed_outcome)}>{row.outcome.proposed_outcome_display}</Badge>
+                    ) : (
+                      <span className="cab-flags">Awaiting proposal</span>
+                    ),
+                },
+                {
+                  key: "decision",
+                  header: "Decision",
+                  render: (row) => {
+                    const outcome = row.outcome;
+                    const decision = outcome ? staged[outcome.id] : undefined;
+                    const failure = outcome ? failures[outcome.id] : undefined;
+                    return (
+                      <>
+                        {outcome?.status === "FINALISED" ? (
+                          <span className="cab-recorded">
+                            <CheckIcon size={14} /> Recorded · {outcome.final_outcome_display}
+                          </span>
+                        ) : row.decidable && canDecide && outcome ? (
+                          <div
+                            className="outcome-segments"
+                            role="group"
+                            aria-label={`Final outcome for ${row.candidate.student_display_name}`}
+                          >
+                            {OUTCOME_CHOICES.map((option) => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                className={`outcome-segment outcome-segment-${option.value.toLowerCase()}`}
+                                aria-pressed={decision?.outcome === option.value}
+                                disabled={!canStage}
+                                onClick={() => onStage(row, option.value)}
+                              >
+                                {decision?.outcome === option.value && <CheckIcon size={14} />}
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="cab-flags">Not open for decision</span>
+                        )}
+                        {failure && decision && (
+                          <ErrorText field>{failure}</ErrorText>
+                        )}
+                      </>
+                    );
+                  },
+                },
+              ]}
+            />
+  );
+}

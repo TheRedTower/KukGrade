@@ -38,7 +38,7 @@ export function SessionActionsMenu({ session, user, menu, onAction }: SessionAct
       </Button>
 
       {open && (
-        <div className="gsd-dropdown-menu" role="menu" onKeyDown={onMenuKeyDown}>
+        <div className="gsd-dropdown-menu menu-panel" role="menu" onKeyDown={onMenuKeyDown}>
           {session.status === "DRAFT" && (
             <>
               <MenuItem onClick={() => onAction("OPEN")}>Open session</MenuItem>

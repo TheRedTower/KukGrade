@@ -17,7 +17,7 @@ import { Pagination } from "./Pagination";
 import { StudentStatusBadge } from "./StatusBadge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
-import { SearchIcon } from "./Icons";
+import { SearchIcon, UserPlusIcon } from "./Icons";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
 
@@ -36,27 +36,6 @@ function ClearIcon() {
     >
       <line x1="18" x2="6" y1="6" y2="18" />
       <line x1="6" x2="18" y1="6" y2="18" />
-    </svg>
-  );
-}
-
-function UserPlusIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height="16"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="16"
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <line x1="19" x2="19" y1="8" y2="14" />
-      <line x1="22" x2="16" y1="11" y2="11" />
     </svg>
   );
 }
@@ -244,7 +223,8 @@ export function StudentsScreen() {
               title="No students registered yet"
               action={
                 <Button variant="primary" onClick={() => navigate("/students/new")}>
-                  Add student +
+                  <UserPlusIcon />
+                  <span>Add student</span>
                 </Button>
               }
             >

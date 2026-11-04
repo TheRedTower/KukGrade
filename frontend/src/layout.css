@@ -183,6 +183,15 @@
   justify-content: flex-end;
 }
 
+/* A menu opened from a button (anchored to its wrapper, which is `position:
+   relative`): as wide as the button, or as its widest item when that is more,
+   and never wider than the screen. */
+.menu-panel {
+  min-width: 100%;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+}
+
 /* ── Filters ───────────────────────────────────────────────────────────── */
 
 /* As many columns as fit, each at least 12rem, so it needs no breakpoint. */

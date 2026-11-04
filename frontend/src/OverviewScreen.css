@@ -102,7 +102,7 @@
 
 .metrics-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
@@ -135,8 +135,8 @@
 }
 
 .metric-divider {
+  align-self: stretch;
   width: 1px;
-  height: 2rem;
   background: var(--color-border);
 }
 

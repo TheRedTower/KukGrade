@@ -15,6 +15,7 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.db import connection, models, transaction
+from django.utils import timezone
 
 from accounts.models import User
 from audit.models import AuditAction
@@ -201,6 +202,106 @@ def create_students(
     return created
 
 
+def _unsettled_sessions(student_id: int) -> set[int]:
+    from gradings.services import unsettled_registrations
+
+    return set(
+        unsettled_registrations()
+        .filter(student_id=student_id)
+        .values_list("session_id", flat=True),
+    )
+
+
+def _lock_registration_sessions(
+    student_id: int,
+    date_of_birth: date | None,
+) -> set[int]:
+    """Lock the sessions a date-of-birth correction may re-band, before the
+    student, as every grading write orders its locks (gradings/locking.py)."""
+    if date_of_birth is None:
+        return set()
+    sessions = _unsettled_sessions(student_id)
+    lock_sessions(sessions)
+    return sessions
+
+
+def _check_registrations_still_in_session(
+    student_id: int,
+    locked_sessions: set[int],
+) -> None:
+    if _unsettled_sessions(student_id) - locked_sessions:
+        # Registered for another grading between reading and locking. Locking
+        # that session now would break the order, so start again instead.
+        raise ValidationError(
+            {
+                "date_of_birth": [
+                    "This student was registered for another grading while "
+                    "being changed. Try again.",
+                ],
+            },
+        )
+
+
+def _registrations_to_reband(student: Student) -> list[tuple[Any, str]]:
+    """The unsettled registrations whose band the student's date of birth
+    changes, with the band each moves to.
+
+    The band is what the assessment's syllabus was chosen from, so once the
+    form exists a different band cannot be applied quietly: the change is
+    refused and the form must be removed first. A settled registration keeps
+    the band it was graded in.
+    """
+    from gradings.age import resolve_age_band
+    from gradings.services import unsettled_registrations
+
+    moves: list[tuple[Any, str]] = []
+    registrations = unsettled_registrations().filter(student=student)
+    for registration in registrations.select_related("session", "assessment"):
+        band = resolve_age_band(
+            student.date_of_birth, registration.session.grading_date
+        )
+        if band == registration.age_band:
+            continue
+        if hasattr(registration, "assessment"):
+            raise ValidationError(
+                {
+                    "date_of_birth": [
+                        "This date of birth puts the student in a different "
+                        f"age band for '{registration.session.title}', where "
+                        "their assessment form is already prepared. Remove the "
+                        "assessment form first.",
+                    ],
+                },
+            )
+        moves.append((registration, band))
+    return moves
+
+
+def check_date_of_birth_correction(student: Student, date_of_birth: date) -> None:
+    """Refuse a date of birth that would strand a prepared assessment form.
+
+    Read-only, so a form can show the refusal before `update_student` runs.
+    """
+    _registrations_to_reband(Student(pk=student.pk, date_of_birth=date_of_birth))
+
+
+def _reband_registrations(student: Student) -> list[dict[str, object]]:
+    """Move each unsettled registration to the band the corrected date of
+    birth gives, until its assessment form is prepared."""
+    from gradings.models import GradingCandidate
+
+    rebanded: list[dict[str, object]] = []
+    for registration, band in _registrations_to_reband(student):
+        GradingCandidate.objects.filter(pk=registration.pk).update(
+            age_band=band,
+            updated_at=timezone.now(),
+        )
+        rebanded.append(
+            {"candidate": registration.pk, "from": registration.age_band, "to": band},
+        )
+    return rebanded
+
+
 @transaction.atomic
 def update_student(
     student: Student,
@@ -218,8 +319,11 @@ def update_student(
     # saving it as received wrote back every field another edit changed in
     # the meantime. The requested changes go onto the locked row -
     # the same student lock promotion and rank rollback take.
+    registered_in = _lock_registration_sessions(student.pk, date_of_birth)
     locked = lock_student(student.pk)
     before = _snapshot(locked)
+    if date_of_birth is not None:
+        _check_registrations_still_in_session(locked.pk, registered_in)
 
     # A student ID becoming the black belt ID, or a mistyped ID corrected;
     # Student.clean() refuses anything else (students/wksa_ids.py).
@@ -246,6 +350,11 @@ def update_student(
         # no row update and no audit event.
         return locked
     locked.save()
+    rebanded = (
+        _reband_registrations(locked)
+        if before["date_of_birth"] != after["date_of_birth"]
+        else []
+    )
     if wksa_ids.is_black_belt_change(before["wksa_id"], after["wksa_id"]):
         # The student ID a black belt ID replaced stays with them for good. A
         # corrected typo does not: it was never theirs, and may be someone
@@ -266,7 +375,7 @@ def update_student(
                 f"{before['status']} to {after['status']}."
             ),
             actor=actor,
-            metadata={"before": before, "after": after},
+            metadata={"before": before, "after": after, "rebanded": rebanded},
         )
     else:
         record(
@@ -274,7 +383,7 @@ def update_student(
             locked,
             f"Student {locked} updated.",
             actor=actor,
-            metadata={"before": before, "after": after},
+            metadata={"before": before, "after": after, "rebanded": rebanded},
         )
     return locked
 

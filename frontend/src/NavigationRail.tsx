@@ -52,7 +52,7 @@ function RailLink({
       to={to}
     >
       {icon}
-      <span className="nav-label">{label}</span>
+      <span className={strip ? "visually-hidden" : undefined}>{label}</span>
     </NavLink>
   );
 }

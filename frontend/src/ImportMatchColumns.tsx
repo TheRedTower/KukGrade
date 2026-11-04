@@ -303,7 +303,7 @@ export function ImportMatchColumns({
 
         {/* The file's own columns side by side, as in the spreadsheet: this one
             table scrolls sideways, so it can be reached and named by keyboard. */}
-        <div className="card card--flush ix-table-wrap" role="region" aria-label="Your file's columns and first rows" tabIndex={0}>
+        <div className="card card--flush scroll-region" role="region" aria-label="Your file's columns and first rows" tabIndex={0}>
           <table className="ix-table ix-table-cells">
             <thead>
               <tr>
@@ -378,7 +378,7 @@ export function ImportMatchColumns({
                             {isField ? (
                               cell(row, choice, header)
                             ) : (
-                              <span className={`ix-cell-text ${choice === EXTRA ? "ix-muted" : "ix-struck"}`}>
+                              <span className={`ix-cell-text scroll-region__nowrap ${choice === EXTRA ? "ix-muted" : "ix-struck"}`}>
                                 {row.cells[header] || "(blank)"}
                               </span>
                             )}
@@ -388,7 +388,7 @@ export function ImportMatchColumns({
                       {typedColumns.map((field) => (
                         <td key={`typed-${field}`}>{cell(row, field, null)}</td>
                       ))}
-                      <td className="ix-cell-reading">
+                      <td className="ix-cell-reading scroll-region__wide">
                         <Badge dot tone={state.tone}>{state.label}</Badge>
                         {row.outcome === "REVIEW_REQUIRED" && row.issues.length ? (
                           <span className="ix-muted ix-small">

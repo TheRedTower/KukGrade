@@ -1,4 +1,5 @@
 import { Alert } from "./Alert";
+import { Badge } from "./Badge";
 import { errorMessage } from "./api";
 import { CopyDetailsButton, DetailsList } from "./AboutDetailsView";
 import { versionDetails } from "./aboutDetails";
@@ -59,7 +60,7 @@ export function AboutOverview() {
               </h2>
               <p className="st-row-description">Set by whoever runs KukGrade, so it is only shown here.</p>
             </div>
-            <span className="ab-badge">Administrators only</span>
+            <Badge tone="info">Administrators only</Badge>
           </div>
           <dl className="ab-facts">
             <div>

@@ -216,7 +216,7 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
-  min-width: 1.5rem;
+  flex: 0 0 1.5rem;
 }
 
 .caw-row-name {
@@ -278,13 +278,12 @@
 }
 
 .caw-verdict {
-  flex: 1 1 0;
+  flex: 1 1 6rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
   min-height: 44px;
-  min-width: 96px;
   padding: 0 0.9rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
@@ -327,7 +326,6 @@
 }
 
 .caw-row-tool {
-  min-width: 44px;
   min-height: 44px;
   background: none;
   border: none;
@@ -628,8 +626,7 @@
 }
 
 .acp-identity-left {
-  flex-grow: 1;
-  min-width: 12rem;
+  flex: 1 1 12rem;
 }
 
 .acp-identity-right {

@@ -82,6 +82,48 @@
   min-width: 0;
 }
 
+/* Keeps a label available to assistive tech without showing it - e.g. the
+   theme toggle's icons are the visible label, but each button still needs
+   an accessible name. */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* A grid that is wider than its box by nature, a preview of the user's own
+   spreadsheet. It scrolls inside itself instead of squeezing its columns, and
+   is given role="region", a name and tabIndex 0 so a keyboard can reach it.
+   Each column keeps room for what it holds. */
+.scroll-region {
+  overflow-x: auto;
+}
+
+.scroll-region > table {
+  width: 100%;
+  min-width: 44rem;
+}
+
+.scroll-region th,
+.scroll-region .scroll-region__nowrap {
+  white-space: nowrap;
+}
+
+.scroll-region :is(input, select) {
+  min-width: 7rem;
+}
+
+.scroll-region .scroll-region__wide {
+  min-width: 13rem;
+}
+
 /* ── Surfaces ──────────────────────────────────────────────────────────── */
 
 .card {

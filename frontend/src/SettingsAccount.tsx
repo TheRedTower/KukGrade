@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "./Alert";
+import { Badge } from "./Badge";
 import { errorMessage } from "./api";
 import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
@@ -154,9 +155,7 @@ export function SettingsAccount() {
                 return (
                   <li key={capability.key}>
                     <span>{capability.label}</span>
-                    <span className={`st-badge ${granted ? "granted" : "not-granted"}`}>
-                      {granted ? "Granted" : "Not granted"}
-                    </span>
+                    <Badge tone={granted ? "success" : "neutral"}>{granted ? "Granted" : "Not granted"}</Badge>
                   </li>
                 );
               })}

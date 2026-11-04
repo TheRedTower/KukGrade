@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -8,19 +8,22 @@ import { BREAKPOINTS_REM } from "./layout";
 /**
  * Width and layout numbers live in layout.css. These checks stop a screen from
  * growing its own, so a width problem always has the same two places to look:
- * layout.css, or the screen's use of it. layoutBaseline.json lists the legacy
- * uses still to be converted; it only ever shrinks, and a file that is not in
- * it may have none. After converting a screen, lower the list with
- *   UPDATE_LAYOUT_BASELINE=1 npx vitest run src/layoutRules.test.ts
+ * layout.css, or the screen's use of it. A screen may query the window or its
+ * page only at a breakpoint of layout.ts, and never with a width of its own.
  */
 
-const BASELINE = join(SRC, "layoutBaseline.json");
+const WIDTH_QUERY =
+  /@(?:media|container)[^{]*(?:(?:min|max)-(?:width|inline-size)|(?:width|inline-size)\s*[<>]=?)/g;
+
+const BREAKPOINTS = new Set<number>(Object.values(BREAKPOINTS_REM));
+
+/** A width query is on the scale when every length in it is a breakpoint in rem. */
+function offScale(query: string): boolean {
+  const lengths = [...query.matchAll(/(\d+(?:\.\d+)?)([a-z%]*)/g)];
+  return lengths.some(([, value, unit]) => unit !== "rem" || !BREAKPOINTS.has(Number(value)));
+}
 
 const RULES: Record<string, RegExp> = {
-  // Width-based queries, in either syntax; colour-scheme and reduced-motion
-  // queries are not layout.
-  widthQueries:
-    /@(?:media|container)[^{]*(?:(?:min|max)-(?:width|inline-size)|(?:width|inline-size)\s*[<>]=?)/g,
   nowrap: /(?:white-space|text-wrap|text-wrap-mode):\s*nowrap/g,
   // overflow-x, and the shorthand when it makes a box scroll.
   overflowX: /overflow(?:-x|-inline)?:\s*(?:auto|scroll)/g,
@@ -34,41 +37,16 @@ function countViolations(css: string): Record<string, number> {
     const found = css.match(pattern)?.length ?? 0;
     if (found > 0) counts[name] = found;
   }
+  const widthQueries = (css.match(WIDTH_QUERY) ?? []).filter(offScale).length;
+  if (widthQueries > 0) counts.widthQueries = widthQueries;
   return counts;
 }
 
 const cssFiles = allCssFiles().filter((name) => name !== "layout.css");
 
-let baseline: Record<string, Record<string, number>> = JSON.parse(readFileSync(BASELINE, "utf8"));
-
-// The list can only be lowered here: a count that went up, or a file that was
-// not on it, is a layout number a screen must not add.
-if (process.env.UPDATE_LAYOUT_BASELINE) {
-  const fresh: Record<string, Record<string, number>> = {};
-  for (const file of cssFiles) {
-    const counts = countViolations(readCss(file));
-    for (const [rule, count] of Object.entries(counts)) {
-      if (count > (baseline[file]?.[rule] ?? 0)) {
-        throw new Error(`${file} adds ${rule}: ${count}, up from ${baseline[file]?.[rule] ?? 0}. Remove it instead.`);
-      }
-    }
-    if (Object.keys(counts).length > 0) fresh[file] = counts;
-  }
-  writeFileSync(BASELINE, `${JSON.stringify(fresh, null, 2)}\n`);
-  baseline = fresh;
-}
-
 describe("layout rules", () => {
-  it.each(cssFiles)("%s adds no layout numbers beyond its baseline", (file) => {
-    const actual = countViolations(readCss(file));
-    const allowed = baseline[file] ?? {};
-    expect(actual).toEqual(allowed);
-  });
-
-  it("lists only files that still exist", () => {
-    for (const file of Object.keys(baseline)) {
-      expect(cssFiles).toContain(file);
-    }
+  it.each(cssFiles)("%s has no layout numbers of its own", (file) => {
+    expect(countViolations(readCss(file))).toEqual({});
   });
 
   it("layout.css queries only at the breakpoints in layout.ts", () => {

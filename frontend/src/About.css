@@ -69,17 +69,6 @@
   font-size: var(--font-size-xl);
 }
 
-.ab-badge {
-  padding: 0.05rem 0.6rem;
-  border: 1px solid var(--color-info-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-info-surface);
-  color: var(--color-info);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  white-space: nowrap;
-}
-
 .ab-note {
   padding: 0.85rem 1rem;
   border: 1px solid var(--color-info-border);
@@ -394,7 +383,7 @@
 
 .ab-pledge li {
   display: grid;
-  grid-template-columns: 1.75rem minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 1.75rem minmax(0, 1fr);
   gap: 0.5rem 1.5rem;
   padding: 0.9rem 0;
   border-top: 1px solid var(--color-border);
@@ -402,6 +391,13 @@
 
 .ab-pledge p {
   margin: 0;
+}
+
+/* The English and the Korean side by side when there is room, stacked when not. */
+.ab-pledge-text {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.5rem 1.5rem;
 }
 
 .ab-pledge-korean {
@@ -419,16 +415,6 @@
   color: var(--color-on-gold);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-title);
-}
-
-@media (max-width: 40rem) {
-  .ab-pledge li {
-    grid-template-columns: 1.75rem minmax(0, 1fr);
-  }
-
-  .ab-pledge-korean {
-    grid-column: 2;
-  }
 }
 
 /* Support and credits. */

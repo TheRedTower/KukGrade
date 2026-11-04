@@ -173,21 +173,3 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
 }
-
-.st-badge {
-  padding: 0.05rem 0.6rem;
-  border-radius: var(--radius-pill);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  white-space: nowrap;
-}
-
-.st-badge.granted {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-}
-
-.st-badge.not-granted {
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-}

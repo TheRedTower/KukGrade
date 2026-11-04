@@ -107,3 +107,26 @@ def test_the_api_refuses_a_correction_that_would_change_a_prepared_form() -> Non
 
     assert response.status_code == 400
     assert "Remove the assessment form first" in response.json()["error"]["message"]
+
+
+def test_the_admin_form_shows_the_refusal_instead_of_crashing() -> None:
+    from students.admin import StudentAdminForm
+
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    assessment(candidate=built)
+    person = built.student
+
+    form = StudentAdminForm(
+        instance=person,
+        data={
+            "wksa_id": person.wksa_id,
+            "first_name": person.first_name,
+            "last_name": person.last_name,
+            "date_of_birth": CORRECTED.isoformat(),
+            "current_rank": person.current_rank_id,
+            "status": person.status,
+        },
+    )
+
+    assert not form.is_valid()
+    assert "Remove the assessment form first" in str(form.errors)

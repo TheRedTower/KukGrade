@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
+from django import forms
 from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from django.http import HttpRequest
 
@@ -14,7 +16,12 @@ from students.models import (
     Student,
     StudentExtraInfo,
 )
-from students.services import create_student, delete_student, update_student
+from students.services import (
+    check_date_of_birth_correction,
+    create_student,
+    delete_student,
+    update_student,
+)
 
 
 class PreviousWksaIdInline(admin.TabularInline):
@@ -47,8 +54,32 @@ class StudentExtraInfoInline(admin.TabularInline):
         return False
 
 
+class StudentAdminForm(forms.ModelForm):
+    class Meta:
+        model = Student
+        fields = (
+            "wksa_id",
+            "first_name",
+            "last_name",
+            "date_of_birth",
+            "current_rank",
+            "status",
+        )
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        date_of_birth = cleaned.get("date_of_birth")
+        if self.instance.pk and date_of_birth and "date_of_birth" in self.changed_data:
+            try:
+                check_date_of_birth_correction(self.instance, date_of_birth)
+            except ValidationError as error:
+                self.add_error(None, error)
+        return cleaned
+
+
 @admin.register(Student)
 class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
+    form = StudentAdminForm
     deletion_service = staticmethod(delete_student)
     list_display = (
         "wksa_id",

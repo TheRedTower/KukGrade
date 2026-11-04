@@ -242,9 +242,9 @@ def _check_registrations_still_in_session(
         )
 
 
-def _reband_registrations(student: Student) -> list[dict[str, object]]:
-    """Keep each unsettled registration's age band true to the corrected date
-    of birth, until its assessment form is prepared.
+def _registrations_to_reband(student: Student) -> list[tuple[Any, str]]:
+    """The unsettled registrations whose band the student's date of birth
+    changes, with the band each moves to.
 
     The band is what the assessment's syllabus was chosen from, so once the
     form exists a different band cannot be applied quietly: the change is
@@ -252,10 +252,9 @@ def _reband_registrations(student: Student) -> list[dict[str, object]]:
     the band it was graded in.
     """
     from gradings.age import resolve_age_band
-    from gradings.models import GradingCandidate
     from gradings.services import unsettled_registrations
 
-    rebanded: list[dict[str, object]] = []
+    moves: list[tuple[Any, str]] = []
     registrations = unsettled_registrations().filter(student=student)
     for registration in registrations.select_related("session", "assessment"):
         band = resolve_age_band(
@@ -274,6 +273,25 @@ def _reband_registrations(student: Student) -> list[dict[str, object]]:
                     ],
                 },
             )
+        moves.append((registration, band))
+    return moves
+
+
+def check_date_of_birth_correction(student: Student, date_of_birth: date) -> None:
+    """Refuse a date of birth that would strand a prepared assessment form.
+
+    Read-only, so a form can show the refusal before `update_student` runs.
+    """
+    _registrations_to_reband(Student(pk=student.pk, date_of_birth=date_of_birth))
+
+
+def _reband_registrations(student: Student) -> list[dict[str, object]]:
+    """Move each unsettled registration to the band the corrected date of
+    birth gives, until its assessment form is prepared."""
+    from gradings.models import GradingCandidate
+
+    rebanded: list[dict[str, object]] = []
+    for registration, band in _registrations_to_reband(student):
         GradingCandidate.objects.filter(pk=registration.pk).update(
             age_band=band,
             updated_at=timezone.now(),

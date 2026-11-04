@@ -172,6 +172,25 @@ def validate_session_transition(
             )
     if (
         current_status == GradingSession.Status.LOCKED
+        and next_status == GradingSession.Status.CANCELLED
+    ):
+        # A final decision is a record of the grading: cancelling would leave
+        # a cancelled grading that decided (and promoted) students. A candidate
+        # who cannot be decided is withdrawn instead.
+        decided = session.candidates.filter(
+            outcome__status=CandidateOutcome.Status.FINALISED,
+        ).exists()
+        if decided:
+            raise ValidationError(
+                {
+                    "status": [
+                        "A session with a final decision cannot be cancelled. "
+                        "Withdraw the candidates who cannot be decided instead.",
+                    ],
+                },
+            )
+    if (
+        current_status == GradingSession.Status.LOCKED
         and next_status == GradingSession.Status.COMPLETED
     ):
         missing_finalised_outcome = (

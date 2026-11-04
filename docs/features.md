@@ -44,7 +44,7 @@ flowchart LR
 7. **Lock and complete.** A session can only be locked when every assessment is
    complete. Mistakes can be corrected (a completed assessment can be reopened) until
    the session locks; after that, a candidate can be withdrawn with a recorded
-   reason by someone with the authority.
+   reason by someone with the authority. A session that has recorded a final decision can no longer be cancelled.
 
 Every step is recorded in the [audit log](#audit-log).
 

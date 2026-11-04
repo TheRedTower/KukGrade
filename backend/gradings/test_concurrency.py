@@ -634,38 +634,47 @@ def test_withdrawal_and_finalisation_cannot_interleave() -> None:
     assert events(AuditAction.CANDIDATE_WITHDRAWN, built) == 0
 
 
-def test_cancellation_and_promotion_follow_arrival_order() -> None:
-    """A promotion waits for a cancellation that got there first.
+def test_a_final_decision_and_a_cancellation_follow_arrival_order() -> None:
+    """A cancellation must not slip in beside a decision being recorded.
 
-    Unlike the races above this pairing was already serialisable: cancelling
-    reads nothing a promotion writes, so the old outcome - promotion first,
-    then the cancellation - was a valid order too. The protocol makes the
-    order the one the requests arrived in: the cancellation holds the
-    session, so the promotion runs after it and is refused.
+    The decision holds the session, so the cancellation reads the outcome as
+    finalised once it gets the lock, and is refused: a session that has
+    decided anyone is never cancelled.
     """
     built, _generated = locked_completed_candidate()
-    outcome = finalised_outcome(built)
+    outcome = create_candidate_outcome(built, user("race-cancel-creator@example.com"))
+    proposed = propose_candidate_outcome(
+        outcome,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("race-cancel-proposer@example.com"),
+    )
+    decider = master("race-cancel-master@example.com")
     canceller = override_master("race-cancel-override@example.com")
-    promoting_actor = promoter("race-cancel-promoter@example.com")
     stale_session = GradingSession.objects.get(pk=built.session_id)
-    stale_outcome = CandidateOutcome.objects.get(pk=outcome.pk)
+    stale_outcome = CandidateOutcome.objects.get(pk=proposed.pk)
 
-    cancelling, promoting = interleave(
+    finalising, cancelling = interleave(
+        lambda: finalise_candidate_outcome(
+            stale_outcome,
+            CandidateOutcome.Outcome.PASS,
+            "Confirmed.",
+            "",
+            decider,
+        ),
         lambda: transition_grading_session(
             stale_session,
             GradingSession.Status.CANCELLED,
             actor=canceller,
             reason="Abandoned.",
         ),
-        lambda: promote_candidate(stale_outcome, promoting_actor),
-        pause_first_at="gradings.services.record",
+        pause_first_at="gradings.outcome_services.record",
     )
 
-    assert isinstance(cancelling, GradingSession)
-    refused(promoting, "Promotions require a locked or completed grading session")
-    assert not Promotion.objects.filter(outcome=outcome).exists()
-    graded = Student.objects.get(pk=built.student_id)
-    assert graded.current_rank_id == built.from_rank_id
+    assert isinstance(finalising, CandidateOutcome)
+    refused(cancelling, "A session with a final decision cannot be cancelled")
+    stale_session.refresh_from_db()
+    assert stale_session.status == GradingSession.Status.LOCKED
 
 
 def test_session_details_edit_keeps_a_concurrent_cancellation() -> None:

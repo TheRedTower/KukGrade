@@ -127,8 +127,7 @@ export function OutcomeProposalDialog({
         </fieldset>
 
         <div className="opd-section">
-          <label className="outcome-field">
-            Notes for the Master
+          <label className="field field--sentence"><span>Notes for the Master</span>
             <textarea
               rows={4}
               value={proposalNotes}

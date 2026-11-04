@@ -111,7 +111,7 @@ serializers and the committed frontend types match the schema.
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
   on a narrow page), `Dialog` for every modal (a sheet on a phone), `.stack` on the box that holds a page's sections (the space between them is `--section-gap`, not a margin on each), `.filter-bar` and
-  `.field` for every labelled text box, select and date box (one size and one iOS date-box fix, in
+  `.field` (`.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help) for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
   Cancel and Save) for a row of buttons or a header, `.stats` for key figures, `.split` for a main
   column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `PageHeader` for every page's title area (title, subtitle, `back` link or `crumbs`, and the page's `actions`), `BackLink` for a way back outside one, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `.card` (with `.card--flush` when its contents bring their own padding) for every boxed section, `Badge` for every short status label, `ChoiceGroup` for a pick-one row of buttons (a switch, or filter chips with counts), `Pagination` for page controls, `ScrollRail` for a row

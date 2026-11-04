@@ -187,8 +187,7 @@ export function LinkRecordsScreen() {
       </PageHeader>
 
       <div className="ix-filters">
-        <label className="ix-field ix-field-wide">
-          Find a name
+        <label className="field field--sentence -wide"><span>Find a name</span>
           <input
             placeholder="Name as written"
             type="search"
@@ -200,8 +199,7 @@ export function LinkRecordsScreen() {
             }}
           />
         </label>
-        <label className="ix-field">
-          Import
+        <label className="field field--sentence"><span>Import</span>
           <select
             value={batch}
             onChange={(event) => {

@@ -330,8 +330,7 @@ export function ImportStartScreen() {
             </Alert>
           ) : null}
           {kind === "STUDENT_ROSTER" && loaded.sheet_names.length > 1 ? (
-            <label className="ix-field ix-field-narrow">
-              Sheet to read
+            <label className="field field--sentence -narrow"><span>Sheet to read</span>
               <select
                 disabled={sheet.isPending}
                 value={loaded.sheet}

@@ -203,6 +203,7 @@
 .field {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  align-content: start;
   gap: var(--space-2);
   min-width: 0;
 }
@@ -216,16 +217,47 @@
   text-transform: uppercase;
 }
 
+/* A field in a form: the label above its box in sentence case, not the
+   capitals of a filter. A hint or a small note ("(optional)") sits quietly. */
+.field--sentence > span,
+.field--sentence > label,
+.field__legend {
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.field small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+}
+
+.field__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-snug);
+}
+
+.required-star {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-strong);
+}
+
 /* One size for every text box, select and date box, so a row of them matches
    (the browser's own sizes differ). No weight, so a screen's own control
    style (a custom select, say) still wins. */
-:where(.field input, .field select, .field textarea, .form-text-input, .form-select-input) {
+:where(.field input, .field select, .field textarea) {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   padding: 0.62rem 0.72rem;
   color: var(--color-text);
+  font-family: inherit;
   font-size: var(--font-size-base);
   line-height: var(--line-height-tight);
 }
@@ -260,21 +292,36 @@ select:not([multiple]):not([size]) {
 
 /* iOS sizes a date box from its own content and draws it empty until it is
    touched: take it back into the box, and show its value. */
-:where(.field, .form-field-group) input[type="date"] {
+:where(.field) input[type="date"] {
   display: block;
   appearance: none;
   -webkit-appearance: none;
 }
 
-:where(.field, .form-field-group) input[type="date"]::-webkit-date-and-time-value {
+:where(.field) input[type="date"]::-webkit-date-and-time-value {
   min-height: 1.3em;
   text-align: left;
 }
 
-:where(.field input, .field select, .field textarea, .form-text-input, .form-select-input):focus {
+:where(.field input, .field select, .field textarea):focus {
   border-color: var(--color-gold-strong);
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 1px;
+}
+
+/* After the focus rule, so an error still shows while the box is focused. */
+.field :is(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--color-danger);
+  box-shadow: var(--ring-danger);
+}
+
+.field :is(input, select, textarea):disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.field textarea {
+  resize: vertical;
 }
 
 .field__row {

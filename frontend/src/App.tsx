@@ -146,8 +146,8 @@ function LoginPage() {
           <p className="login-subtitle">Sign in to KukGrade</p>
           <DemoSignIn busy={status === "loading" || isSubmitting} onSignIn={(a, p) => void signIn(a, p)} />
           <form className="login-form" onSubmit={handleSubmit}>
-            <label>
-              Email address
+            <label className="field field--sentence">
+              <span>Email address</span>
               <input
                 autoComplete="email"
                 name="email"
@@ -157,8 +157,8 @@ function LoginPage() {
                 value={email}
               />
             </label>
-            <label>
-              Password
+            <label className="field field--sentence">
+              <span>Password</span>
               <div className="password-field">
                 <input
                   autoComplete="current-password"

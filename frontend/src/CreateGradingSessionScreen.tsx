@@ -150,14 +150,13 @@ export function CreateGradingSessionScreen() {
         <div>
           <form className="cgs-form" noValidate onSubmit={handleSubmit}>
             {/* Session Title */}
-            <div className="cgs-field-group">
-              <label className="cgs-label" htmlFor="cgs-title-input">
-                Session title <span className="cgs-required-star">*</span>
+            <div className="field field--sentence">
+              <label htmlFor="cgs-title-input">
+                Session title <span className="required-star">*</span>
               </label>
               <input
                 aria-invalid={!!form.errorFor("title")}
                 aria-required="true"
-                className={`cgs-text-input ${form.errorFor("title") ? "cgs-input-error" : ""}`}
                 disabled={isSubmitting}
                 id="cgs-title-input"
                 name="title"
@@ -172,14 +171,14 @@ export function CreateGradingSessionScreen() {
             </div>
 
             {/* Grading Date (Day / Month / Year) */}
-            <div className="cgs-field-group">
-              <label className="cgs-label" htmlFor="cgs-day-select">
-                Grading date <span className="cgs-required-star">*</span>
+            <div className="field field--sentence">
+              <label htmlFor="cgs-day-select">
+                Grading date <span className="required-star">*</span>
               </label>
               <div className="cgs-date-row">
                 <select
                   aria-label="Grading day"
-                  className={`cgs-select ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
+                  aria-invalid={!!form.errorFor("grading_date")}
                   disabled={isSubmitting}
                   id="cgs-day-select"
                   onChange={(e) => setDay(e.target.value)}
@@ -193,7 +192,7 @@ export function CreateGradingSessionScreen() {
 
                 <select
                   aria-label="Grading month"
-                  className={`cgs-select ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
+                  aria-invalid={!!form.errorFor("grading_date")}
                   disabled={isSubmitting}
                   id="cgs-month-select"
                   onChange={(e) => setMonth(e.target.value)}
@@ -207,7 +206,7 @@ export function CreateGradingSessionScreen() {
 
                 <select
                   aria-label="Grading year"
-                  className={`cgs-select ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
+                  aria-invalid={!!form.errorFor("grading_date")}
                   disabled={isSubmitting}
                   id="cgs-year-select"
                   onChange={(e) => setYear(e.target.value)}
@@ -225,12 +224,11 @@ export function CreateGradingSessionScreen() {
             </div>
 
             {/* Location */}
-            <div className="cgs-field-group">
-              <label className="cgs-label" htmlFor="cgs-location-input">
-                Location <span className="cgs-optional-text">(optional)</span>
+            <div className="field field--sentence">
+              <label htmlFor="cgs-location-input">
+                Location <small>(optional)</small>
               </label>
               <input
-                className="cgs-text-input"
                 disabled={isSubmitting}
                 id="cgs-location-input"
                 name="location"
@@ -245,14 +243,13 @@ export function CreateGradingSessionScreen() {
             </div>
 
             {/* Staff Notes */}
-            <div className="cgs-field-group">
+            <div className="field field--sentence">
               <div>
-                <label className="cgs-label" htmlFor="cgs-notes-input">
-                  Staff notes <span className="cgs-optional-text">(optional)</span>
+                <label htmlFor="cgs-notes-input">
+                  Staff notes <small>(optional)</small>
                 </label>
               </div>
               <textarea
-                className="cgs-textarea"
                 disabled={isSubmitting}
                 id="cgs-notes-input"
                 maxLength={500}

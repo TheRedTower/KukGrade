@@ -85,8 +85,8 @@ export function ChangePasswordForm({
 
   return (
     <form aria-labelledby={labelledBy} className={className} onSubmit={handleSubmit}>
-      <label>
-        {currentPasswordLabel}
+      <label className="field field--sentence">
+        <span>{currentPasswordLabel}</span>
         <div className="password-field">
           {/* Named here rather than by the label, which also holds the
               Show button and would add its name to this field's. */}
@@ -111,8 +111,8 @@ export function ChangePasswordForm({
         {errorsFor("current_password")}
       </label>
 
-      <label>
-        New password
+      <label className="field field--sentence">
+        <span>New password</span>
         <div className="password-field">
           <input
             autoComplete="new-password"
@@ -127,8 +127,8 @@ export function ChangePasswordForm({
       </label>
       <PasswordRequirements password={newPassword} />
 
-      <label>
-        Confirm new password
+      <label className="field field--sentence">
+        <span>Confirm new password</span>
         <div className="password-field">
           <input
             autoComplete="new-password"

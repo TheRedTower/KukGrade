@@ -118,43 +118,7 @@
 
 /* Field Groups */
 
-.form-field-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-field-label {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  margin-bottom: 0.45rem;
-}
-
-.required-star {
-  color: var(--color-danger);
-  font-weight: var(--font-weight-strong);
-}
-
 /* Form Inputs */
-
-.form-text-input.input-error,
-.form-select-input.input-error {
-  border-color: var(--color-danger);
-  box-shadow: var(--ring-danger);
-}
-
-.form-text-input:disabled,
-.form-select-input:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.form-field-help {
-  margin: 0.4rem 0 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  line-height: var(--line-height-snug);
-}
 
 .privacy-badge-line {
   display: inline-flex;

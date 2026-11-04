@@ -91,8 +91,8 @@ export function SetupPage() {
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>
-            <label>
-              Setup code
+            <label className="field field--sentence">
+              <span>Setup code</span>
               <input
                 aria-describedby={described("code")}
                 aria-invalid={Boolean(fieldErrors.code)}
@@ -106,8 +106,8 @@ export function SetupPage() {
               />
             </label>
             {errorsFor("code")}
-            <label>
-              Email address
+            <label className="field field--sentence">
+              <span>Email address</span>
               <input
                 aria-describedby={described("email")}
                 aria-invalid={Boolean(fieldErrors.email)}
@@ -122,8 +122,8 @@ export function SetupPage() {
             {errorsFor("email")}
             <div className="setup-name-row">
               <div>
-                <label>
-                  First name
+                <label className="field field--sentence">
+                  <span>First name</span>
                   <input
                     aria-describedby={described("first_name")}
                     autoComplete="given-name"
@@ -135,8 +135,8 @@ export function SetupPage() {
                 {errorsFor("first_name")}
               </div>
               <div>
-                <label>
-                  Last name
+                <label className="field field--sentence">
+                  <span>Last name</span>
                   <input
                     aria-describedby={described("last_name")}
                     autoComplete="family-name"
@@ -148,8 +148,8 @@ export function SetupPage() {
                 {errorsFor("last_name")}
               </div>
             </div>
-            <label>
-              Password
+            <label className="field field--sentence">
+              <span>Password</span>
               <div className="password-field">
                 {/* Named here, not by the label that also holds the button. */}
                 <input
@@ -175,8 +175,8 @@ export function SetupPage() {
             </label>
             {errorsFor("password")}
             <PasswordRequirements password={password} />
-            <label>
-              Confirm password
+            <label className="field field--sentence">
+              <span>Confirm password</span>
               <input
                 aria-describedby={described("confirm")}
                 aria-invalid={Boolean(fieldErrors.confirm)}

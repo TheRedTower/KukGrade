@@ -118,6 +118,7 @@ export function LockedWithdrawalDialog({
         Use this only when the candidate cannot finish the locked grading. Existing assessment work remains on record; any unfinalised outcome proposal is removed.
       </p>
       <form
+        className="attendance-form"
         onSubmit={(event) => {
           event.preventDefault();
           if (!reason || noteMissing) return;
@@ -125,7 +126,7 @@ export function LockedWithdrawalDialog({
         }}
       >
         <fieldset className="attendance-candidate-list">
-          <legend className="attendance-field">Reason</legend>
+          <legend className="field__legend">Reason</legend>
           {reasons.map((option, index) => (
             <label key={option.code} className="attendance-candidate-option">
               <input
@@ -142,7 +143,7 @@ export function LockedWithdrawalDialog({
             </label>
           ))}
         </fieldset>
-        <label className="attendance-field">
+        <label className="field field--sentence">
           <span>
             {reason?.note_required ? "What happened" : "Additional note"}{" "}
             <small>{reason?.note_required ? "(required)" : "(optional)"}</small>
@@ -204,12 +205,13 @@ export function MoveRegistrationDialog({
         Moves this registration to another draft or open session. It is refused once an assessment has been prepared.
       </p>
       <form
+        className="attendance-form"
         onSubmit={(event) => {
           event.preventDefault();
           if (sessionId) onConfirm(Number(sessionId));
         }}
       >
-        <label className="attendance-field">
+        <label className="field field--sentence">
           <span>Move to</span>
           <select
             required

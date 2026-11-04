@@ -46,41 +46,14 @@
 }
 
 .attendance-candidate-option small,
-.attendance-field small {
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-normal);
-}
-
 .attendance-dialog-summary {
   margin-top: 0.75rem;
   color: var(--color-text-muted);
   font-size: var(--font-size-md);
 }
 
-.attendance-field {
-  display: grid;
-  gap: 0.4rem;
-  margin-top: 1rem;
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
-}
-
-.attendance-field select,
-.attendance-field textarea {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.7rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font: inherit;
-  font-weight: var(--font-weight-normal);
-}
-
-.attendance-field textarea {
-  resize: vertical;
+.attendance-form .field {
+  margin-top: var(--space-4);
 }
 
 .attendance-dialog-actions {

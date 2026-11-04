@@ -45,8 +45,8 @@ function NameRow() {
   return (
     <SettingsRow description="Shown on gradings and in the audit log." title="Name">
       <form className="st-name-form" onSubmit={save}>
-        <label>
-          <span className="st-small-label">First name</span>
+        <label className="field field--sentence">
+          <span>First name</span>
           <input
             onChange={(event) => {
               setFirstName(event.target.value);
@@ -55,8 +55,8 @@ function NameRow() {
             value={firstName}
           />
         </label>
-        <label>
-          <span className="st-small-label">Last name</span>
+        <label className="field field--sentence">
+          <span>Last name</span>
           <input
             onChange={(event) => {
               setLastName(event.target.value);

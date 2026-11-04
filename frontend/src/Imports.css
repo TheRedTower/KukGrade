@@ -283,15 +283,6 @@
   gap: 0.75rem;
 }
 
-.ix-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-}
-
 .ix-field-narrow {
   max-width: 22rem;
 }
@@ -302,18 +293,6 @@
 }
 
 .ix-hint {
-  font-weight: var(--font-weight-normal);
-}
-
-.ix-field select,
-.ix-field input {
-  min-height: 44px;
-  padding: 0 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
   font-weight: var(--font-weight-normal);
 }
 
@@ -577,6 +556,7 @@
 }
 
 .ix-tag {
+  text-align: center;
   flex: 0 0 auto;
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--color-border);

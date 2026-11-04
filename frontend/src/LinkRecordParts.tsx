@@ -31,8 +31,8 @@ export function RankFix({ record, onDone, showAll = false }: { record: LegacyGra
   return (
     <span className="ix-actions ix-rank-fix">
       {open.map((item) => (
-        <label className="ix-field ix-warning-text" key={item.which}>
-          {showAll ? `${item.which === "held" ? "Held rank" : "Testing for"} (as written: “${item.text || "blank"}”)` : `“${item.text}” is not matched to a rank yet`}
+        <label className="field field--sentence ix-warning-text" key={item.which}>
+          <span>{showAll ? `${item.which === "held" ? "Held rank" : "Testing for"} (as written: “${item.text || "blank"}”)` : `“${item.text}” is not matched to a rank yet`}</span>
           <select
             disabled={fix.isPending}
             value={showAll ? (item.which === "held" ? record.current_rank : record.testing_for_rank) ?? "" : ""}
@@ -78,10 +78,10 @@ export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingR
       onConfirm={() => voiding.mutate()}
     >
       <p className="ix-muted">It is kept, marked void with your reason, and is never linked to anyone.</p>
-      <label className="ix-field" htmlFor="ix-void-record-reason">
-        Why
-      </label>
-      <textarea data-dialog-autofocus id="ix-void-record-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+      <div className="field field--sentence">
+        <label htmlFor="ix-void-record-reason">Why</label>
+        <textarea data-dialog-autofocus id="ix-void-record-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+      </div>
     </ImportDialog>
   );
 }
@@ -97,8 +97,8 @@ export function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onCho
   });
   return (
     <div className="ix-student-search">
-      <label className="ix-field ix-field-wide">
-        Search every student
+      <label className="field field--sentence ix-field-wide">
+        <span>Search every student</span>
         <input placeholder="Type at least two letters" type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
       </label>
       {(found.data?.results ?? []).map((student) => {

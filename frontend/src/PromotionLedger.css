@@ -85,6 +85,7 @@
 /* Belt Chip */
 
 .pl-belt-chip {
+  text-align: center;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -148,6 +149,7 @@
 }
 
 .pl-batch-chip {
+  text-align: center;
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;

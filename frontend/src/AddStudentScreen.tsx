@@ -120,14 +120,13 @@ export function AddStudentScreen() {
           <h2 className="section-title section-title--ruled">Identity</h2>
 
           <div className="form-row-grid-2">
-            <div className="form-field-group">
-              <label htmlFor="first-name-input" className="form-field-label">
+            <div className="field field--sentence">
+              <label htmlFor="first-name-input">
                 First name <span className="required-star">*</span>
               </label>
               <input
                 id="first-name-input"
                 type="text"
-                className={`form-text-input ${form.errorFor("first_name") ? "input-error" : ""}`}
                 placeholder="e.g. Alex"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
@@ -141,14 +140,13 @@ export function AddStudentScreen() {
               )}
             </div>
 
-            <div className="form-field-group">
-              <label htmlFor="last-name-input" className="form-field-label">
+            <div className="field field--sentence">
+              <label htmlFor="last-name-input">
                 Last name <span className="required-star">*</span>
               </label>
               <input
                 id="last-name-input"
                 type="text"
-                className={`form-text-input ${form.errorFor("last_name") ? "input-error" : ""}`}
                 placeholder="e.g. Carter"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
@@ -163,14 +161,13 @@ export function AddStudentScreen() {
             </div>
           </div>
 
-          <div className="form-field-group">
-            <label htmlFor="wksa-id-input" className="form-field-label">
+          <div className="field field--sentence">
+            <label htmlFor="wksa-id-input">
               WKSA ID <span className="required-star">*</span>
             </label>
             <input
               id="wksa-id-input"
               type="text"
-              className={`form-text-input ${form.errorFor("wksa_id") ? "input-error" : ""}`}
               placeholder={idScheme ? `e.g. ${idScheme.forms.map((form) => form.example).join(" or ")}` : undefined}
               value={wksaId}
               onChange={(e) => setWksaId(e.target.value)}
@@ -182,7 +179,7 @@ export function AddStudentScreen() {
             {form.errorFor("wksa_id") ? (
               <ErrorText field id="wksa-id-error">{form.errorFor("wksa_id")}</ErrorText>
             ) : (
-              <p className="form-field-help">
+              <p className="field__hint">
                 {idScheme ? `${idScheme.hint} ` : ""}
                 A student ID changes only once, to the black belt ID handed out at the national grading.
               </p>
@@ -195,14 +192,13 @@ export function AddStudentScreen() {
           <h2 className="section-title section-title--ruled">Grading details</h2>
 
           <div className="form-row-grid-3">
-            <div className="form-field-group">
-              <label htmlFor="dob-input" className="form-field-label">
+            <div className="field field--sentence">
+              <label htmlFor="dob-input">
                 Date of birth <span className="required-star">*</span>
               </label>
               <input
                 id="dob-input"
                 type="date"
-                className={`form-text-input ${form.errorFor("date_of_birth") ? "input-error" : ""}`}
                 value={dateOfBirth}
                 max={todayIsoDate()}
                 onChange={(e) => setDateOfBirth(e.target.value)}
@@ -221,13 +217,12 @@ export function AddStudentScreen() {
               )}
             </div>
 
-            <div className="form-field-group">
-              <label htmlFor="rank-select-input" className="form-field-label">
+            <div className="field field--sentence">
+              <label htmlFor="rank-select-input">
                 Current rank <span className="required-star">*</span>
               </label>
               <select
                 id="rank-select-input"
-                className={`form-select-input ${form.errorFor("current_rank") ? "input-error" : ""}`}
                 value={effectiveRankId ?? ""}
                 onChange={(e) => setCurrentRank(Number(e.target.value))}
                 disabled={isSubmitting || ranksQuery.isLoading}
@@ -246,13 +241,12 @@ export function AddStudentScreen() {
               )}
             </div>
 
-            <div className="form-field-group">
-              <label htmlFor="status-select-input" className="form-field-label">
+            <div className="field field--sentence">
+              <label htmlFor="status-select-input">
                 Status <span className="required-star">*</span>
               </label>
               <select
                 id="status-select-input"
-                className="form-select-input"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as StudentStatus)}
                 disabled={isSubmitting}

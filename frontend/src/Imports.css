@@ -313,7 +313,6 @@
 .ix-field select,
 .ix-field input {
   min-height: 44px;
-  min-width: 10rem;
   padding: 0 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
@@ -327,13 +326,8 @@
   padding: 0 1.5rem 1rem;
 }
 
-.ix-table-wrap {
-  overflow-x: auto;
-}
-
 .ix-table {
   width: 100%;
-  min-width: 44rem;
   border-collapse: collapse;
   font-size: var(--font-size-md);
 }
@@ -347,7 +341,6 @@
   letter-spacing: 0.04em;
   text-align: left;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .ix-table td {
@@ -712,7 +705,6 @@
 /* Typing into a row. */
 .ix-cell-input {
   width: 100%;
-  min-width: 7rem;
   min-height: var(--target-min);
   padding: 0 0.5rem;
   border: 1px solid var(--color-border);
@@ -778,11 +770,6 @@
 .ix-cell-text {
   display: block;
   padding: 0.4rem 0.1rem;
-  white-space: nowrap;
-}
-
-.ix-table td.ix-cell-reading {
-  min-width: 13rem;
 }
 
 .ix-cell-reading .ix-small {
@@ -792,7 +779,6 @@
 
 .ix-col-select {
   width: 100%;
-  min-width: 8.5rem;
   min-height: var(--target-min);
   margin-top: 0.35rem;
   padding: 0 0.4rem;

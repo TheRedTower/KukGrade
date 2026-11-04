@@ -166,10 +166,12 @@ export function AboutConduct() {
                 <span aria-hidden="true" className="ab-number">
                   {index + 1}
                 </span>
-                <p>{point.english}</p>
-                <p className="ab-pledge-korean" lang="ko">
-                  {point.korean}
-                </p>
+                <div className="ab-pledge-text">
+                  <p>{point.english}</p>
+                  <p className="ab-pledge-korean" lang="ko">
+                    {point.korean}
+                  </p>
+                </div>
               </li>
             ))}
           </ol>

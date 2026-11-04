@@ -105,8 +105,8 @@ serializers and the committed frontend types match the schema.
 - **Layout numbers live in `frontend/src/layout.css`, nowhere else.** A screen adds its
   root class `page` (with `page--reading` or `page--wide`) and writes no
   width, gutter, max-width or breakpoint of its own; `layoutRules.test.ts` fails if a
-  stylesheet adds a width query, `nowrap`, sideways scroll or fixed `min-width`. The
-  legacy ones are counted in `layoutBaseline.json`, which only ever shrinks. Breakpoints
+  stylesheet adds `nowrap`, sideways scroll, a fixed `min-width`, or a width query that is
+  not at a breakpoint. Breakpoints
   (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
@@ -116,7 +116,7 @@ serializers and the committed frontend types match the schema.
   Cancel and Save) for a row of buttons or a header, `.stats` for key figures, `.split` for a main
   column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `PageHeader` for every page's title area (title, subtitle, `back` link or `crumbs`, and the page's `actions`), `BackLink` for a way back outside one, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `.card` (with `.card--flush` when its contents bring their own padding) for every boxed section, `Badge` for every short status label, `ChoiceGroup` for a pick-one row of buttons (a switch, or filter chips with counts), `Pagination` for page controls, `ScrollRail` for a row
   of choices too long for the screen (a plain native scroller: swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch; the
-  one place a screen may scroll sideways). A `ResponsiveTable` has one
+  one place a screen may scroll a row sideways; `.scroll-region` is the other, for a grid that is wide by nature, such as a preview of the user's own spreadsheet). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
   the table when there are no rows; `selected` marks the row a side panel shows; `flush` drops the border for a table that fills a card.
   `e2e/widthDebt.json` (Chrome) and `e2e/widthDebtWebkit.json` (per WebKit device) list screens that still do

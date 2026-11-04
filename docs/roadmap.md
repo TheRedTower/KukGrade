@@ -26,11 +26,6 @@ Want something here, or something that is missing? Open an
 - [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check
       (`frontend/src/layout.css`, Playwright width check, `frontend/e2e/widthDebt.json` empty).
       Done when the owner has checked the demo site on a real phone and tablet.
-- [ ] **Finish the one-source clean-up**: shared pieces, the data layer, and colours, type,
-      radius, shadows, spacing and stacking now all come from tokens (`tokenBaseline.json` holds
-      four justified entries). What is left is `layoutBaseline.json`: about thirty legacy width
-      queries, fixed widths and `nowrap` uses, each to be converted to the shared layout or
-      justified. Its check only ever shrinks.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.
 - [ ] **Other schools' spreadsheets**: the historical-workbook adapter was written for the first

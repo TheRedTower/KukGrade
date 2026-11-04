@@ -5,7 +5,7 @@
 .caw-page {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--space-4);
 }
 
 .caw-candidate-name {
@@ -29,7 +29,7 @@
 
 .caw-not-started-banner {
   margin-top: var(--section-gap);
-  padding: 1.25rem 1.5rem;
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-control);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -41,7 +41,7 @@
 }
 
 .caw-not-started-content h2 {
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 var(--space-1) 0;
   font-size: var(--font-size-lg);
   color: var(--color-text);
 }
@@ -73,7 +73,7 @@
 }
 
 .caw-run > .crumbs {
-  padding: 0.25rem 1.5rem 0;
+  padding: var(--space-1) var(--space-5) 0;
 }
 
 /* ── One-line identity header ────────────────────────────────────────────── */
@@ -81,9 +81,9 @@
 .caw-identity {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: var(--space-3);
   flex-wrap: wrap;
-  padding: 0.7rem 1.5rem;
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -95,7 +95,7 @@
 .caw-candidate-wksa {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-2);
   font-size: var(--font-size-xs);
   letter-spacing: var(--tracking-label);
   color: var(--color-text-muted);
@@ -134,8 +134,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 0.75rem;
-  padding: 0.55rem 1.5rem;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-5);
   background: var(--color-surface-sunken);
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
@@ -169,8 +169,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 0.6rem 1rem;
-  padding: 0.85rem 1.5rem;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -196,7 +196,7 @@
 .caw-row-title-line {
   display: flex;
   align-items: baseline;
-  gap: 0.55rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -222,22 +222,22 @@
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xs);
-  padding: 0.05rem 0.35rem;
+  padding: 0.05rem var(--space-1);
   font-variant-numeric: tabular-nums;
 }
 
 .caw-row-desc {
-  margin: 0.3rem 0 0;
+  margin: var(--space-1) 0 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   line-height: var(--line-height-body);
 }
 
 .caw-row-meta {
-  margin-top: 0.45rem;
+  margin-top: var(--space-2);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -246,7 +246,7 @@
   color: var(--color-text);
   background: var(--color-surface-sunken);
   border-left: 2px solid var(--color-border);
-  padding: 0.2rem 0.55rem;
+  padding: 0.2rem var(--space-2);
   border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
 }
 
@@ -257,12 +257,12 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.4rem;
+  gap: var(--space-2);
 }
 
 .caw-verdicts {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .caw-verdict {
@@ -270,9 +270,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: var(--space-1);
   min-height: 44px;
-  padding: 0 0.9rem;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -309,7 +309,7 @@
 .caw-row-tools {
   display: flex;
   justify-content: flex-end;
-  gap: 0.35rem;
+  gap: var(--space-1);
   align-items: center;
 }
 
@@ -317,7 +317,7 @@
   min-height: 44px;
   background: none;
   border: none;
-  padding: 0 0.25rem;
+  padding: 0 var(--space-1);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   text-decoration: underline;
@@ -336,7 +336,7 @@
   width: 100%;
   border: 1px solid var(--color-gold-strong);
   border-radius: var(--radius-sm);
-  padding: 0.5rem 0.65rem;
+  padding: var(--space-2) var(--space-3);
   font: inherit;
   font-size: var(--font-size-sm);
   resize: vertical;
@@ -351,11 +351,11 @@
   border: 1px solid var(--color-danger);
   background: var(--color-danger-surface);
   border-radius: var(--radius-sm);
-  padding: 0.55rem 0.7rem;
+  padding: var(--space-2) var(--space-3);
 }
 
 .caw-clear-confirm p {
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-2);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-snug);
   color: var(--color-text);
@@ -363,19 +363,19 @@
 
 .caw-clear-confirm-actions {
   display: flex;
-  gap: 0.45rem;
+  gap: var(--space-2);
   justify-content: flex-end;
 }
 
 .caw-clear-confirm-actions button {
   min-height: 44px;
-  padding: 0 0.75rem;
+  padding: 0 var(--space-3);
   font-size: var(--font-size-sm);
 }
 
 .caw-run-end {
   margin: 0;
-  padding: 1.1rem 1.5rem 0.4rem;
+  padding: var(--space-4) var(--space-5) var(--space-2);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   text-align: center;
@@ -387,9 +387,9 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
   flex-wrap: wrap;
-  padding: 0.7rem 1.5rem;
+  padding: var(--space-3) var(--space-5);
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   box-shadow: var(--shadow-up);
@@ -398,7 +398,7 @@
 .caw-mat-count {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .caw-mat-figure {
@@ -420,7 +420,7 @@
 .caw-mat-tally {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1);
   font-size: var(--font-size-sm);
 }
 
@@ -459,8 +459,8 @@
   .caw-row,
   .caw-mat-bar,
   .caw-run-end {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
   }
 
   .caw-mat-bar {
@@ -473,7 +473,7 @@
 
   /* Clear the fixed bar so the last requirement is never hidden behind it. */
   .caw-run-scroll {
-    padding-bottom: 7rem;
+    padding-bottom: var(--space-7);
     /* Here the page scrolls, not this: let a gesture over the rows reach it. */
     overscroll-behavior: auto;
   }
@@ -502,9 +502,9 @@
 .acp-topbar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   flex-wrap: wrap;
-  padding: 0.6rem 1.6rem;
+  padding: var(--space-2) var(--space-5);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
@@ -523,8 +523,8 @@
 .acp-layout {
   flex-grow: 1;
   display: flex;
-  gap: 1.5rem;
-  padding: 1.4rem 1.6rem;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-5);
   align-items: flex-start;
 }
 
@@ -537,15 +537,15 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xs);
   box-shadow: var(--shadow-sm);
-  padding: 2.1rem 2.5rem 1.9rem;
+  padding: var(--space-6) var(--space-6) var(--space-6);
 }
 
 .acp-sheet-head {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 1rem;
-  padding-bottom: 1rem;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
   /* The heavy rule is what makes this read as a document rather than a card. */
   border-bottom: 2px solid var(--color-text);
 }
@@ -559,7 +559,7 @@
 }
 
 .acp-sheet-title {
-  margin: 0.45rem 0 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-strong);
   letter-spacing: var(--tracking-tight);
@@ -579,7 +579,7 @@
   color: var(--color-gold-strong);
   border: 1.5px solid var(--color-gold-strong);
   border-radius: var(--radius-xs);
-  padding: 0.3rem 0.7rem;
+  padding: var(--space-1) var(--space-3);
 }
 
 .acp-stamp-sealed {
@@ -589,9 +589,9 @@
 
 .acp-identity {
   display: flex;
-  gap: 1.75rem;
+  gap: var(--space-5);
   flex-wrap: wrap;
-  padding: 1.1rem 0;
+  padding: var(--space-4) 0;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -615,28 +615,28 @@
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-strong);
   letter-spacing: var(--tracking-tight);
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
 }
 
 .acp-candidate-sub {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
 }
 
 .acp-rank-line {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.55rem;
-  margin-top: 0.45rem;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
   flex-wrap: wrap;
 }
 
 .acp-rank {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-2);
   font-size: var(--font-size-md);
 }
 
@@ -645,7 +645,7 @@
 }
 
 .acp-section {
-  margin: 1.35rem 0 0.55rem;
+  margin: var(--space-5) 0 var(--space-2);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
   letter-spacing: var(--tracking-display);
@@ -658,7 +658,7 @@
 }
 
 .acp-section-note {
-  margin: 0 0 0.55rem;
+  margin: 0 0 var(--space-2);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   line-height: var(--line-height-body);
@@ -678,10 +678,10 @@
   min-width: 0;
   overflow-wrap: anywhere;
   background: var(--color-surface);
-  padding: 0.6rem 0.7rem;
+  padding: var(--space-2) var(--space-3);
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: var(--space-2);
 }
 
 .acp-core-mark {
@@ -741,7 +741,7 @@
   text-transform: uppercase;
   color: var(--color-text-muted);
   text-align: left;
-  padding: 0 0 0.35rem;
+  padding: 0 0 var(--space-1);
   border-bottom: 1px solid var(--color-text-muted);
 }
 
@@ -754,7 +754,7 @@
 }
 
 .acp-ledger td {
-  padding: 0.55rem 0;
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
   font-size: var(--font-size-md);
   vertical-align: top;
@@ -774,7 +774,7 @@
 .acp-result {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
 }
@@ -794,15 +794,15 @@
 /* ── Recorded notes ──────────────────────────────────────────────────────── */
 
 .acp-note {
-  padding: 0.55rem 0 0.55rem 0.7rem;
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
   border-left: 2px solid var(--color-border);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 .acp-note-head {
   display: flex;
   align-items: baseline;
-  gap: 0.6rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -826,7 +826,7 @@
   width: 100%;
   border: 1px solid var(--color-gold-strong);
   border-radius: var(--radius-sm);
-  padding: 0.6rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
   font: inherit;
   font-size: var(--font-size-md);
   line-height: var(--line-height-body);
@@ -845,11 +845,11 @@
 /* ── Seal line ───────────────────────────────────────────────────────────── */
 
 .acp-seal-line {
-  margin-top: 1.6rem;
-  padding-top: 1rem;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
   border-top: 2px solid var(--color-text);
   display: flex;
-  gap: 2rem;
+  gap: var(--space-6);
   flex-wrap: wrap;
 }
 
@@ -862,7 +862,7 @@
 .acp-seal-value {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
 }
 
 .acp-seal-applied {
@@ -879,7 +879,7 @@
 .acp-seal-blank {
   height: 1.4rem;
   border-bottom: 1px dashed var(--color-border);
-  margin-top: 0.35rem;
+  margin-top: var(--space-1);
 }
 
 /* ── Side column ─────────────────────────────────────────────────────────── */
@@ -889,7 +889,7 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: var(--space-4);
   position: sticky;
   top: 1rem;
   /* Taller than the window, it scrolls itself; otherwise its foot could
@@ -903,11 +903,11 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
-  padding: 0.9rem 1rem;
+  padding: var(--space-4) var(--space-4);
 }
 
 .acp-card-title {
-  margin: 0 0 0.6rem;
+  margin: 0 0 var(--space-2);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--tracking-label);
@@ -918,7 +918,7 @@
 .acp-count-figure {
   display: flex;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: var(--space-2);
 }
 
 .acp-count-figure strong {
@@ -935,13 +935,13 @@
 
 .acp-count-tallies {
   display: flex;
-  gap: 0.9rem;
-  margin-top: 0.5rem;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
   flex-wrap: wrap;
 }
 
 .acp-count-optional {
-  margin: 0.5rem 0 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   line-height: var(--line-height-body);
@@ -959,7 +959,7 @@
 
 .acp-notice-row {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--space-2);
 }
 
 .acp-notice-row svg {
@@ -976,8 +976,8 @@
 .acp-proofread {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
-  margin-top: 0.75rem;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-snug);
   cursor: pointer;
@@ -998,8 +998,8 @@
 @container (max-width: 56rem) {
   .acp-topbar,
   .acp-layout {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
   }
 
   /* The sheet stops being a sheet and the controls move under the record. */
@@ -1010,7 +1010,7 @@
   .acp-sheet {
     max-width: none;
     width: 100%;
-    padding: 1.25rem 1.1rem;
+    padding: var(--space-4) var(--space-4);
   }
 
   .acp-aside {
@@ -1029,7 +1029,7 @@
 }
 
 .acp-reopen {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }
 
 .acp-ledger td .badge {

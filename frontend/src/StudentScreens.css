@@ -1,7 +1,7 @@
 /* Filter Bar */
 
 .students-filter-bar {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-5);
 }
 
 .students-results {
@@ -12,8 +12,8 @@
 .search-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0 0.75rem;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
@@ -33,7 +33,7 @@
   font-size: var(--font-size-base);
   color: var(--color-text);
   outline: none;
-  padding: 0.25rem 0;
+  padding: var(--space-1) 0;
 }
 
 .student-search-input::placeholder {
@@ -92,7 +92,7 @@
 /* Form Alert Banner */
 
 .form-alert {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-5);
 }
 
 /* Form Section Cards */
@@ -100,7 +100,7 @@
 .add-student-form-body {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: var(--space-5);
 }
 
 /* Grid Layouts */
@@ -109,11 +109,11 @@
 .form-row-grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: 1.5rem;
+  gap: var(--space-5);
 }
 
 .form-row-grid-2 {
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--space-4);
 }
 
 /* Field Groups */
@@ -123,8 +123,8 @@
 .privacy-badge-line {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
@@ -143,7 +143,7 @@
 .student-detail-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 2rem;
+  gap: var(--space-6);
   align-items: flex-start;
 }
 
@@ -160,7 +160,7 @@
 .detail-right-column {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: var(--space-5);
   min-width: 0;
 }
 
@@ -188,11 +188,11 @@
 
 .rank-timeline-track {
   position: relative;
-  padding-left: 2rem;
+  padding-left: var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-  margin-top: 0.5rem;
+  gap: var(--space-5);
+  margin-top: var(--space-2);
 }
 
 .rank-timeline-track::before {
@@ -257,7 +257,7 @@
 .readiness-body {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: var(--space-4);
 }
 
 .readiness-row {
@@ -265,7 +265,7 @@
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .readiness-label {
@@ -286,7 +286,7 @@
   color: var(--color-text-muted);
   line-height: var(--line-height-snug);
   margin: 0;
-  padding-top: 0.85rem;
+  padding-top: var(--space-3);
   border-top: 1px dashed var(--color-border);
 }
 
@@ -295,7 +295,7 @@
 .record-status-body {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: var(--space-4);
 }
 
 .record-status-badge-row {
@@ -316,7 +316,7 @@
   line-height: var(--line-height-snug);
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: var(--space-2);
 }
 
 .record-status-policy-note p {
@@ -328,20 +328,20 @@
 .modal-lead-text {
   font-size: var(--font-size-base);
   color: var(--color-text);
-  margin: 0 0 1.25rem;
+  margin: 0 0 var(--space-4);
 }
 
 .status-radio-options {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: var(--space-3);
 }
 
 .status-radio-card {
   display: flex;
   align-items: flex-start;
-  gap: 0.85rem;
-  padding: 1rem;
+  gap: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   cursor: pointer;
@@ -368,7 +368,7 @@
 .status-radio-content {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-1);
 }
 
 .status-radio-desc {

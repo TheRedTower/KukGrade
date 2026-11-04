@@ -48,6 +48,14 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   // A change takes the one duration, and names what changes: never `all`.
   transition: (prop, value) =>
     prop === "transition" && value !== "none" && (/\ball\b/.test(value) || /\b\d*\.?\d+m?s\b/.test(value)) ? 1 : 0,
+  // Space between and inside boxes is a step of the scale; a hairline offset (0.2rem or less) is not a step.
+  spacing: (prop, value) =>
+    /^(?:gap|row-gap|column-gap|margin|padding)(?:-[a-z]+)?$/.test(prop) &&
+    [...value.replace(/(?:calc|clamp|min|max|var)\((?:[^()]|\([^()]*\))*\)/g, "").matchAll(/(?<![\w.-])(\d*\.?\d+)rem\b/g)].some(
+      ([, n]) => Number(n) > 0.2,
+    )
+      ? 1
+      : 0,
   shadow: (prop, value) => (prop === "box-shadow" && !/^(?:none|var\()/.test(value) ? 1 : 0),
   zIndex: (prop, value) => (prop === "z-index" && !/^(?:var\(|1$)/.test(value) ? 1 : 0),
   outlineNone: (prop, value) => (prop === "outline" && /^(?:none|0)\b/.test(value) ? 1 : 0),

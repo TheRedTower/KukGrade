@@ -3,14 +3,14 @@
 .ab-rail {
   display: flex;
   flex-direction: column;
-  padding: 0.5rem;
+  padding: var(--space-2);
 }
 
 .ab-rail a {
   display: flex;
   align-items: center;
   min-height: 44px;
-  padding: 0 0.85rem;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-control);
   color: var(--color-text);
   font-weight: var(--font-weight-semibold);
@@ -33,8 +33,8 @@
 }
 
 .ab-rail-foot {
-  margin: 0.5rem 0 0;
-  padding: 0.75rem 0.85rem 0.5rem;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3) var(--space-3) var(--space-2);
   border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
@@ -44,7 +44,7 @@
   line-height: var(--line-height-body);
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--space-4);
 }
 
 .ab-main > header h2 {
@@ -53,7 +53,7 @@
 }
 
 .ab-main > header p {
-  margin: 0.25rem 0 0;
+  margin: var(--space-1) 0 0;
 }
 
 .ab-head {
@@ -61,7 +61,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem 1rem;
+  gap: var(--space-3) var(--space-4);
 }
 
 .ab-head h2 {
@@ -70,7 +70,7 @@
 }
 
 .ab-note {
-  padding: 0.85rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-info-border);
   border-radius: var(--radius-control);
   background: var(--color-info-surface);
@@ -86,8 +86,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1.25rem 1.75rem;
-  padding: 1.75rem;
+  gap: var(--space-4) var(--space-5);
+  padding: var(--space-5);
 }
 
 .st-hero-mark {
@@ -119,7 +119,7 @@
 }
 
 .st-eyebrow {
-  margin: 0.1rem 0 0.5rem;
+  margin: 0.1rem 0 var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
@@ -132,7 +132,7 @@
   flex-direction: column;
   align-items: center;
   margin: 0;
-  padding: 0.6rem 1.25rem;
+  padding: var(--space-2) var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface-sunken);
@@ -153,9 +153,9 @@
 .st-links a {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-height: 48px;
-  padding: 0 1.5rem;
+  padding: 0 var(--space-5);
   border-top: 1px solid var(--color-border);
   color: var(--color-text);
   font-weight: var(--font-weight-semibold);
@@ -188,33 +188,33 @@
 .ab-three {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
 }
 
 .ab-three > div {
-  padding: 1rem;
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background: var(--color-surface-sunken);
 }
 
 .ab-three h3 {
-  margin: 0 0 0.4rem;
+  margin: 0 0 var(--space-2);
   font-size: var(--font-size-lg);
 }
 
 .ab-three ul {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: var(--space-4);
   font-size: var(--font-size-md);
 }
 
 .ab-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 1.1rem;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
 }
 
 /* A line under a card's buttons. */
@@ -225,7 +225,7 @@
 .ab-licence-text {
   max-height: 24rem;
   overscroll-behavior: contain;
-  margin-top: 1rem;
+  margin-top: var(--space-4);
 }
 
 .ab-credit-link {
@@ -236,7 +236,7 @@
 .ab-doc-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.25rem;
+  gap: var(--space-4);
 }
 
 /* The sections, as a wrapping row of links above the text. */
@@ -244,14 +244,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem;
+  gap: var(--space-1);
+  padding: var(--space-2);
 }
 
 .ab-contents p {
   flex: 0 0 100%;
   margin: 0;
-  padding: 0.5rem 0.85rem;
+  padding: var(--space-2) var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
@@ -261,7 +261,7 @@
 
 .ab-contents button {
   min-height: var(--target-min);
-  padding: 0 0.85rem;
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
@@ -277,12 +277,12 @@
 /* Long text runs down the page: the page is the one thing that scrolls up and
    down, and long words and links wrap rather than push it sideways. */
 .ab-prose {
-  padding: 1.5rem;
+  padding: var(--space-5);
   overflow-wrap: anywhere;
 }
 
 .ab-prose h3 {
-  margin: 1.5rem 0 0.4rem;
+  margin: var(--space-5) 0 var(--space-2);
   font-size: var(--font-size-xl);
   scroll-margin-top: 1rem;
 }
@@ -297,7 +297,7 @@
 }
 
 .ab-prose h4 {
-  margin: 1.1rem 0 0.3rem;
+  margin: var(--space-4) 0 var(--space-1);
   font-size: var(--font-size-lg);
   scroll-margin-top: 1rem;
 }
@@ -308,13 +308,13 @@
 }
 
 .ab-prose p {
-  margin: 0.5rem 0;
+  margin: var(--space-2) 0;
 }
 
 .ab-prose ul,
 .ab-prose ol {
-  margin: 0.4rem 0;
-  padding-left: 1.3rem;
+  margin: var(--space-2) 0;
+  padding-left: var(--space-5);
 }
 
 .ab-prose a {
@@ -322,7 +322,7 @@
 }
 
 .ab-prose code {
-  padding: 0.05rem 0.3rem;
+  padding: 0.05rem var(--space-1);
   border-radius: var(--radius-xs);
   background: var(--color-surface-sunken);
   font-size: 0.9em;
@@ -330,7 +330,7 @@
 
 /* The pledge. */
 .ab-pledge {
-  margin: 1rem 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -338,8 +338,8 @@
 .ab-pledge li {
   display: grid;
   grid-template-columns: 1.75rem minmax(0, 1fr);
-  gap: 0.5rem 1.5rem;
-  padding: 0.9rem 0;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-4) 0;
   border-top: 1px solid var(--color-border);
 }
 
@@ -351,7 +351,7 @@
 .ab-pledge-text {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: 0.5rem 1.5rem;
+  gap: var(--space-2) var(--space-5);
 }
 
 .ab-pledge-korean {
@@ -373,15 +373,15 @@
 
 /* Support and credits. */
 .ab-steps {
-  margin: 0.75rem 0 0;
+  margin: var(--space-3) 0 0;
   padding: 0;
   list-style: none;
 }
 
 .ab-steps li {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
 }
 
 .ab-steps p {
@@ -393,8 +393,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem 1.5rem;
-  padding: 1rem 1.5rem;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border-top: 1px solid var(--color-border);
 }
 

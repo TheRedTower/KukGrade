@@ -48,11 +48,11 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   // A change takes the one duration, and names what changes: never `all`.
   transition: (prop, value) =>
     prop === "transition" && value !== "none" && (/\ball\b/.test(value) || /\b\d*\.?\d+m?s\b/.test(value)) ? 1 : 0,
-  // Space between and inside boxes is a step of the scale; a hairline offset (0.2rem or less) is not a step.
+  // Space between and inside boxes is a step of the scale; a hairline offset (0.2rem or less) or a clearance (over 3.25rem) is not a step.
   spacing: (prop, value) =>
     /^(?:gap|row-gap|column-gap|margin|padding)(?:-[a-z]+)?$/.test(prop) &&
     [...value.replace(/(?:calc|clamp|min|max|var)\((?:[^()]|\([^()]*\))*\)/g, "").matchAll(/(?<![\w.-])(\d*\.?\d+)rem\b/g)].some(
-      ([, n]) => Number(n) > 0.2,
+      ([, n]) => Number(n) > 0.2 && Number(n) <= 3.25,
     )
       ? 1
       : 0,

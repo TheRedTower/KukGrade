@@ -267,7 +267,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
 }
 
 .password-field input {
-  padding-right: var(--space-7);
+  padding-right: 3.75rem;
 }
 
 .password-toggle {

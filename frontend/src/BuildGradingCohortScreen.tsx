@@ -1,108 +1,49 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { keys } from "./queryKeys";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AgeBandEnum,
-  BulkCandidateRegistrationPayload,
-  BulkCandidateRegistrationResponse,
-  GradingSession,
-  Rank,
-  StudentListItem,
-  bulkRegisterCandidates,
-  getAllStudents,
-  getGradingSession,
-  errorMessage,
-} from "./api";
+import { Link, useParams } from "react-router-dom";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { type AgeBandEnum, type Rank, type StudentListItem, errorMessage, getAllStudents, getGradingSession } from "./api";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
-import { Dialog } from "./Dialog";
-import { Badge } from "./Badge";
-import { ResponsiveTable } from "./ResponsiveTable";
-import { SessionStatusBadge, StudentStatusBadge } from "./StatusBadge";
-import { BeltSwatch, type BeltRank } from "./Belt";
+import { SessionStatusBadge } from "./StatusBadge";
 import { formatSessionDate } from "./dates";
 import "./BuildGradingCohort.css";
-import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { CohortResolver, type FlaggedCandidateItem } from "./CohortResolver";
-
-
-interface CohortItem {
-  student: StudentListItem;
-  currentRank: Rank | null;
-  destinationRank: Rank | null;
-}
-
-
-
-/** A belt and its name. */
-function RankCell({ rank, fallback }: { rank: BeltRank | null | undefined; fallback: string }) {
-  return (
-    <div className="bgc-rank-cell">
-      <BeltSwatch rank={rank} />
-      <span className="bgc-rank-label">{rank?.name || fallback}</span>
-    </div>
-  );
-}
-
-/** From one rank to the next, on one line that wraps when it must. */
-function RankFlow({ from, to, fromFallback = "Unknown" }: {
-  from: BeltRank | null | undefined;
-  to: BeltRank | null | undefined;
-  fromFallback?: string;
-}) {
-  return (
-    <div className="bgc-rank-flow">
-      <RankCell rank={from} fallback={fromFallback} />
-      <span className="bgc-rank-arrow" aria-hidden="true">→</span>
-      <span className="visually-hidden">, next rank: </span>
-      {to ? <RankCell rank={to} fallback="—" /> : <span className="bgc-highest-rank">Highest rank</span>}
-    </div>
-  );
-}
+import { CohortResolver } from "./CohortResolver";
+import { type CohortItem, buildRankGroups, cohortBreakdown, newCohortItems, rankMaps } from "./cohortBuilder";
+import { CohortFindSection, type StatusFilter } from "./CohortFindSection";
+import { CohortRankGroupsSection } from "./CohortRankGroupsSection";
+import { CohortReviewDialog } from "./CohortReviewDialog";
+import { CohortTray } from "./CohortTray";
+import { useCohortRegistration } from "./useCohortRegistration";
 
 export function BuildGradingCohortScreen() {
   const { id } = useParams<{ id: string }>();
   const sessionId = Number(id);
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const valid = !isNaN(sessionId);
 
-  // Search and Filter controls
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState("ALL");
   const [ageFilter, setAgeFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState<"ACTIVE_INACTIVE" | "ACTIVE" | "INACTIVE">("ACTIVE_INACTIVE");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ACTIVE_INACTIVE");
 
-  // Selected cohort of candidates to register
+  // The students chosen to register, and whether to prepare their assessment forms now.
   const [cohort, setCohort] = useState<CohortItem[]>([]);
-
-  // Toggle for pre-generating assessment forms
   const [generateAssessments, setGenerateAssessments] = useState(true);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
-  // Exceptions modal state
-  const [exceptionsModalOpen, setExceptionsModalOpen] = useState(false);
-
-  // Submitting and registration results state
-  const [submitError, setSubmitError] = useState<string | null>(null);
-
-  // Exception Resolver state
-  const [registrationResult, setRegistrationResult] = useState<BulkCandidateRegistrationResponse | null>(null);
-  const [flaggedItems, setFlaggedItems] = useState<FlaggedCandidateItem[]>([]);
-
-  // Queries
   const sessionQuery = useQuery({
     queryKey: keys.gradingSessions.detail(sessionId),
     queryFn: () => getGradingSession(sessionId),
-    enabled: !isNaN(sessionId),
+    enabled: valid,
   });
+  const session = sessionQuery.data;
 
   const ranksQuery = useRanksQuery();
-
   const ageBandsQuery = useAgeBandsQuery();
   const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
 
@@ -119,278 +60,32 @@ export function BuildGradingCohortScreen() {
   const studentsQuery = useQuery({
     queryKey: keys.students.eligible(studentFilters),
     queryFn: () => getAllStudents(studentFilters),
-    enabled: !isNaN(sessionId),
+    enabled: valid,
     placeholderData: keepPreviousData,
   });
-
-  const session: GradingSession | undefined = sessionQuery.data;
-  const ranks: Rank[] = useMemo(() => {
-    const list = ranksQuery.data?.results ?? [];
-    return [...list].sort((a, b) => a.order - b.order);
-  }, [ranksQuery.data]);
-
-  // Rank lookup and destination rank progression mapping
-  const { rankMap, nextRankMap } = useMemo(() => {
-    const map = new Map<number, Rank>();
-    const nextMap = new Map<number, Rank>();
-
-    ranks.forEach((r) => map.set(r.id, r));
-    // Each rank's next rank as the server defines it (Rank.next_rank).
-    ranks.forEach((r) => {
-      const next = r.next_rank === null ? undefined : map.get(r.next_rank);
-      if (next) nextMap.set(r.id, next);
-    });
-
-    return { rankMap: map, nextRankMap: nextMap };
-  }, [ranks]);
-
+  const eligibleStudents = useMemo(() => studentsQuery.data?.results ?? [], [studentsQuery.data]);
   // While a new filter is typed or loading, the list on screen is not yet the
   // list "Add all" would mean.
-  const isRosterUpdating = studentsQuery.isPlaceholderData || search.trim() !== debouncedSearch;
+  const rosterUpdating = studentsQuery.isPlaceholderData || search.trim() !== debouncedSearch;
 
-  const filteredEligibleStudents = useMemo(
-    () => studentsQuery.data?.results ?? [],
-    [studentsQuery.data],
-  );
+  const ranks: Rank[] = useMemo(() => [...(ranksQuery.data?.results ?? [])].sort((a, b) => a.order - b.order), [ranksQuery.data]);
+  const { rankMap, nextRankMap } = useMemo(() => rankMaps(ranks), [ranks]);
+  const rankGroups = useMemo(() => buildRankGroups(eligibleStudents, ranks, nextRankMap, ageBands), [eligibleStudents, ranks, nextRankMap, ageBands]);
+  const breakdown = useMemo(() => cohortBreakdown(cohort), [cohort]);
+  const inCohort = useMemo(() => new Set(cohort.map((item) => item.student.id)), [cohort]);
 
-  // Group filtered eligible students by their current rank
-  const rankGroups = useMemo(() => {
-    const groups: {
-      rank: Rank;
-      destinationRank: Rank | null;
-      students: StudentListItem[];
-      activeCount: number;
-      inactiveCount: number;
-      programmeCounts: { label: string; count: number }[];
-    }[] = [];
-
-    // One count per programme, in the order the server lists the age bands
-    const programmes = ageBands.filter(
-      (band, index) => ageBands.findIndex((other) => other.programme === band.programme) === index,
-    );
-
-    // Group filtered eligible students by current_rank
-    const studentsByRank = new Map<number, StudentListItem[]>();
-    for (const s of filteredEligibleStudents) {
-      const list = studentsByRank.get(s.current_rank) || [];
-      list.push(s);
-      studentsByRank.set(s.current_rank, list);
-    }
-
-    // Iterate through active ranks in progression order
-    for (const r of ranks) {
-      const students = studentsByRank.get(r.id);
-      if (students && students.length > 0) {
-        const dest = nextRankMap.get(r.id) || null;
-        const activeCount = students.filter((s) => s.status === "ACTIVE").length;
-        const inactiveCount = students.filter((s) => s.status === "INACTIVE").length;
-        const programmeCounts = programmes.map((band) => ({
-          label: band.programme_display,
-          count: students.filter((s) =>
-            ageBands.some((b) => b.code === s.age_band && b.programme === band.programme),
-          ).length,
-        }));
-        groups.push({
-          rank: r,
-          destinationRank: dest,
-          students,
-          activeCount,
-          inactiveCount,
-          programmeCounts,
-        });
-      }
-    }
-
-    return groups;
-  }, [ranks, filteredEligibleStudents, nextRankMap, ageBands]);
-
-  // Cohort breakdown by rank group for the right-hand panel
-  const cohortBreakdown = useMemo(() => {
-    const breakdownMap = new Map<
-      number,
-      {
-        currentRank: Rank | null;
-        destinationRank: Rank | null;
-        count: number;
-        items: CohortItem[];
-      }
-    >();
-
-    for (const item of cohort) {
-      const rankId = item.student.current_rank;
-      const entry = breakdownMap.get(rankId) || {
-        currentRank: item.currentRank,
-        destinationRank: item.destinationRank,
-        count: 0,
-        items: [],
-      };
-      entry.count += 1;
-      entry.items.push(item);
-      breakdownMap.set(rankId, entry);
-    }
-
-    return Array.from(breakdownMap.entries()).map(([rankId, data]) => ({
-      rankId,
-      ...data,
-    }));
-  }, [cohort]);
-
-  // Set of student IDs currently in cohort
-  const cohortStudentIdSet = useMemo(() => {
-    return new Set(cohort.map((c) => c.student.id));
-  }, [cohort]);
-
-  // Add whole rank group to cohort
-  const handleAddRankGroup = (rankGroup: (typeof rankGroups)[0]) => {
-    setCohort((prev) => {
-      const existingIds = new Set(prev.map((c) => c.student.id));
-      const toAdd: CohortItem[] = rankGroup.students
-        .filter((s) => !existingIds.has(s.id))
-        .map((s) => ({
-          student: s,
-          currentRank: rankGroup.rank,
-          destinationRank: rankGroup.destinationRank,
-        }));
-      return [...prev, ...toAdd];
-    });
-  };
-
-  // Remove whole rank group from cohort
-  const handleRemoveRankGroup = (rankId: number) => {
-    setCohort((prev) => prev.filter((item) => item.student.current_rank !== rankId));
-  };
-
-  // Add individual student to cohort
-  const handleAddStudentToCohort = (student: StudentListItem) => {
-    setCohort((prev) => {
-      if (prev.some((c) => c.student.id === student.id)) return prev;
-      return [
-        ...prev,
-        {
-          student,
-          currentRank: rankMap.get(student.current_rank) || null,
-          destinationRank: nextRankMap.get(student.current_rank) || null,
-        },
-      ];
-    });
-  };
-
-  // Add all currently filtered eligible students to cohort
-  const handleAddAllFiltered = () => {
-    setCohort((prev) => {
-      const existingIds = new Set(prev.map((c) => c.student.id));
-      const toAdd: CohortItem[] = filteredEligibleStudents
-        .filter((s) => !existingIds.has(s.id))
-        .map((s) => ({
-          student: s,
-          currentRank: rankMap.get(s.current_rank) || null,
-          destinationRank: nextRankMap.get(s.current_rank) || null,
-        }));
-      return [...prev, ...toAdd];
-    });
-  };
-
-  // Remove individual student from cohort
-  const handleRemoveStudentFromCohort = (studentId: number) => {
-    setCohort((prev) => prev.filter((item) => item.student.id !== studentId));
-  };
-
-  // One registration request: the first for the whole cohort, or a retry of the
-  // flagged ones. `rows` are the people sent, in order: the server names a
-  // failure by its position in them.
-  const registerMutation = useMutation({
-    mutationFn: (request: {
-      payload: BulkCandidateRegistrationPayload;
-      rows: { student: StudentListItem; destinationRank: Rank | null }[];
-      retry: boolean;
-    }) => bulkRegisterCandidates(request.payload),
-    onSuccess: (response, request) => {
-      // Invalidate relevant queries so cache reflects newly registered candidates
-      queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.session(sessionId) });
-      queryClient.invalidateQueries({ queryKey: keys.students.eligible() });
-      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(sessionId) });
-      queryClient.invalidateQueries({ queryKey: keys.gradingSessions.detail(sessionId) });
-
-      const errorKeys = Object.keys(response.errors);
-      // A retry sends only the retryable rows, so the others stay as they are.
-      const unsent = request.retry ? flaggedItems.filter((item) => item.registered) : [];
-      if (errorKeys.length === 0 && unsent.length === 0) {
-        // Everything registered: on to the grading session.
-        navigate(`/gradings/${sessionId}`);
-        return;
-      }
-      // Partial success or errors: the Exception Resolver lists what is left.
-      setRegistrationResult((previous) =>
-        request.retry && previous ? { ...response, created: [...previous.created, ...response.created] } : response,
-      );
-      const flagged = errorKeys.map((idxStr) => {
-        const row = request.rows[Number(idxStr)];
-        const errorMsg = (response.errors[idxStr] || []).join(", ");
-        return {
-          key: row ? String(row.student.id) : idxStr,
-          student: row?.student,
-          destinationRank: row?.destinationRank ?? null,
-          error: errorMsg || "Registration failed",
-          registered: response.already_registered[idxStr],
-        };
-      });
-      setFlaggedItems([...unsent, ...flagged]);
-    },
-    onError: (err) => setSubmitError(errorMessage(err, "Failed to register grading candidates.")),
+  const rankFor = (student: StudentListItem) => ({
+    currentRank: rankMap.get(student.current_rank) ?? null,
+    destinationRank: nextRankMap.get(student.current_rank) ?? null,
   });
-  const isSubmitting = registerMutation.isPending;
+  const addStudents = (students: StudentListItem[], ranksOf = rankFor) =>
+    setCohort((prev) => [...prev, ...newCohortItems(prev, students, ranksOf)]);
+  const removeStudent = (studentId: number) => setCohort((prev) => prev.filter((item) => item.student.id !== studentId));
+  const removeRankGroup = (rankId: number) => setCohort((prev) => prev.filter((item) => item.student.current_rank !== rankId));
 
-  // Submit bulk candidate registration
-  const handleSubmitCohort = () => {
-    if (cohort.length === 0 || !session) return;
-    setSubmitError(null);
-    registerMutation.mutate({
-      payload: {
-        session: session.id,
-        candidates: cohort.map((item) => ({
-          student: item.student.id,
-          testing_for_rank: item.destinationRank?.id,
-        })),
-        generate_assessments: generateAssessments,
-      },
-      rows: cohort.map((item) => ({ student: item.student, destinationRank: item.destinationRank })),
-      retry: false,
-    });
-  };
+  const registration = useCohortRegistration({ sessionId, session, cohort, setCohort, generateAssessments });
 
-  // Exception Resolver: Remove flagged item from retry list
-  const handleRemoveFlaggedCandidate = (key: string) => {
-    const removed = flaggedItems.find((item) => item.key === key);
-    const remaining = flaggedItems.filter((item) => item.key !== key);
-    setFlaggedItems(remaining);
-    setCohort((prev) => prev.filter((item) => item.student.id !== removed?.student?.id));
-    if (remaining.length > 0) return;
-    // Nothing left to resolve: on to the session, or back to a cohort that no longer has them.
-    if (registrationResult?.created.length) navigate(`/gradings/${sessionId}`);
-    else setRegistrationResult(null);
-  };
-
-  // Exception Resolver: Retry remaining flagged candidates
-  const handleRetryFlagged = () => {
-    const retryableItems = flaggedItems.filter((item) => !item.registered);
-    if (retryableItems.length === 0 || !session) return;
-    setSubmitError(null);
-    registerMutation.mutate({
-      payload: {
-        session: session.id,
-        candidates: retryableItems.map((item) => ({
-          student: item.student.id,
-          testing_for_rank: item.destinationRank?.id,
-        })),
-        generate_assessments: generateAssessments,
-      },
-      rows: retryableItems.map((item) => ({ student: item.student, destinationRank: item.destinationRank })),
-      retry: true,
-    });
-  };
-
-  // Loading and error states for session
-  if (isNaN(sessionId)) {
+  if (!valid) {
     return (
       <section aria-labelledby="bgc-invalid-id-heading" className="page page--wide bgc-page" data-testid="bgc-page">
         <EmptyState
@@ -428,27 +123,21 @@ export function BuildGradingCohortScreen() {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // VIEW: Exception Resolver
-  // ══════════════════════════════════════════════════════════════════════════
-  if (registrationResult && flaggedItems.length > 0) {
+  if (registration.resolving && registration.registrationResult) {
     return (
       <CohortResolver
-        flaggedItems={flaggedItems}
-        isSubmitting={isSubmitting}
-        registrationResult={registrationResult}
+        flaggedItems={registration.flaggedItems}
+        isSubmitting={registration.isSubmitting}
+        registrationResult={registration.registrationResult}
         session={session}
-        submitError={submitError}
-        onDismissError={() => setSubmitError(null)}
-        onRemove={handleRemoveFlaggedCandidate}
-        onRetry={handleRetryFlagged}
+        submitError={registration.submitError}
+        onDismissError={registration.clearError}
+        onRemove={registration.removeFlagged}
+        onRetry={registration.retry}
       />
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // VIEW: Cohort Builder Workspace
-  // ══════════════════════════════════════════════════════════════════════════
   return (
     <section aria-labelledby="bgc-title" className="page page--wide bgc-page" data-testid="bgc-page">
       <Breadcrumbs
@@ -459,13 +148,11 @@ export function BuildGradingCohortScreen() {
         ]}
       />
 
-      {/* Header */}
       <header className="bgc-header">
         <h1 className="bgc-title" id="bgc-title">Build grading cohort</h1>
         <p className="bgc-subtitle">Add whole groups, then review any exceptions.</p>
       </header>
 
-      {/* Session Card Strip */}
       <div className="bgc-session-card">
         <div className="bgc-session-card-left">
           <span className="bgc-session-title">{session.title}</span>
@@ -478,431 +165,57 @@ export function BuildGradingCohortScreen() {
         </div>
       </div>
 
-      {submitError && (
-        <Alert onDismiss={() => setSubmitError(null)}>{submitError}</Alert>
-      )}
+      {registration.submitError && <Alert onDismiss={registration.clearError}>{registration.submitError}</Alert>}
 
-      {/* Main Dual-Column Workspace */}
       <div className="split">
-        {/* ── LEFT COLUMN: Finding & Adding Candidates ──────────────────── */}
         <div className="bgc-left-column">
-          {/* Section 1: Find eligible students */}
-          <section className="bgc-section" aria-labelledby="bgc-find-heading">
-            <h2 id="bgc-find-heading" className="section-title">
-              1. Find eligible students
-            </h2>
-            <p className="bgc-section-subtext">
-              Search and filter to find students to add. Left students are not shown (not eligible).
-            </p>
-
-            {/* Filter toolbar */}
-            <div className="filter-bar">
-              <div className="filter-bar__full bgc-search-field">
-                <span className="bgc-search-icon" aria-hidden="true">🔍</span>
-                <input
-                  type="search"
-                  className="bgc-search-input"
-                  placeholder="Search name or WKSA ID"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  aria-label="Search name or WKSA ID"
-                />
-              </div>
-
-              <div className="field">
-                <label htmlFor="bgc-rank-filter">Current rank</label>
-                <select
-                  id="bgc-rank-filter"
-                  value={rankFilter}
-                  onChange={(e) => setRankFilter(e.target.value)}
-                >
-                  <option value="ALL">All ranks</option>
-                  {ranks
-                    .filter((r) => nextRankMap.get(r.id)?.has_syllabus)
-                    .map((r) => (
-                      <option key={r.id} value={String(r.id)}>
-                        {r.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="field">
-                <label htmlFor="bgc-age-filter">Age group</label>
-                <select
-                  id="bgc-age-filter"
-                  value={ageFilter}
-                  onChange={(e) => setAgeFilter(e.target.value)}
-                  data-testid="bgc-age-filter"
-                >
-                  <option value="ALL">All ages</option>
-                  {ageBands.map((band) => (
-                    <option key={band.code} value={band.code}>
-                      {band.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="field">
-                <label htmlFor="bgc-status-filter">Status</label>
-                <select
-                  id="bgc-status-filter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as "ACTIVE_INACTIVE" | "ACTIVE" | "INACTIVE")}
-                >
-                  <option value="ACTIVE_INACTIVE">Active + Inactive</option>
-                  <option value="ACTIVE">Active only</option>
-                  <option value="INACTIVE">Inactive only</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Filter matching summary banner */}
-            <div className="action-row bgc-filter-summary-card">
-              <div className="bgc-summary-info">
-                <span className="bgc-info-icon" aria-hidden="true">ℹ</span>
-                <span>
-                  Students who have left, or are still registered for another grading that has not reached its result, are not listed.
-                </span>
-              </div>
-              <div className="action-row">
-                <span className="bgc-matching-count">
-                  {filteredEligibleStudents.length === 1
-                    ? "1 student matches"
-                    : `${filteredEligibleStudents.length} students match`}
-                </span>
-                <Button
-                  variant="primary" small
-                  onClick={handleAddAllFiltered}
-                  disabled={filteredEligibleStudents.length === 0 || isRosterUpdating}
-                  data-testid="bgc-add-all-filtered-btn"
-                >
-                  Add all {filteredEligibleStudents.length} filtered students
-                </Button>
-              </div>
-            </div>
-
-            {/* Filtered matching student records table */}
-            <div data-testid="bgc-filtered-students-table">
-              {filteredEligibleStudents.length === 0 ? (
-                <EmptyState framed data-testid="bgc-empty-filtered">
-                  No eligible students match the selected filters.
-                </EmptyState>
-              ) : (
-                <ResponsiveTable
-                  label="Matching eligible students"
-                  rows={filteredEligibleStudents}
-                  rowKey={(student) => student.id}
-                  rowTestId={(student) => `bgc-student-row-${student.id}`}
-                  columns={[
-                    {
-                      key: "student",
-                      header: "Student",
-                      primary: true,
-                      render: (student) => (
-                        <>
-                          <Link
-                            to={`/students/${student.id}`}
-                            className="bgc-student-name-link"
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {student.first_name} {student.last_name}
-                          </Link>
-                          <span className="bgc-student-id">{student.wksa_id || "—"}</span>
-                        </>
-                      ),
-                    },
-                    {
-                      key: "rank",
-                      header: "Rank",
-                      render: (student) => (
-                        <RankFlow
-                          from={rankMap.get(student.current_rank)}
-                          to={nextRankMap.get(student.current_rank)}
-                          fromFallback={student.current_rank_name || "—"}
-                        />
-                      ),
-                    },
-                    {
-                      key: "age-status",
-                      header: "Age and status",
-                      render: (student) => (
-                        <div className="bgc-chips">
-                          <Badge tone="neutral">{student.age_band_display || student.age_band || "—"}</Badge>
-                          <StudentStatusBadge status={student.status} label={student.status_display} />
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "action",
-                      header: "Action",
-                      actions: "inline",
-                      render: (student) =>
-                        cohortStudentIdSet.has(student.id) ? (
-                          <Button
-                            variant="ghost" small
-                            onClick={() => handleRemoveStudentFromCohort(student.id)}
-                            aria-label={`Added: remove ${student.first_name} ${student.last_name} from the cohort`}
-                            title="Click to remove from the cohort"
-                            data-testid={`bgc-student-added-${student.id}`}
-                          >
-                            Added ✓
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="primary" small
-                            onClick={() => handleAddStudentToCohort(student)}
-                            data-testid={`bgc-add-student-${student.id}`}
-                          >
-                            + Add
-                          </Button>
-                        ),
-                    },
-                  ]}
-                />
-              )}
-            </div>
-          </section>
-
-          {/* Section 2: Add whole rank groups */}
-          <section className="bgc-section" aria-labelledby="bgc-rank-groups-heading">
-            <h2 id="bgc-rank-groups-heading" className="section-title">
-              2. Add whole rank groups
-            </h2>
-            <p className="bgc-section-subtext">
-              Students are grouped by their current rank. Add whole groups to register them for the next rank.
-            </p>
-
-            <ResponsiveTable
-              label="Eligible rank groups"
-              rows={rankGroups}
-              rowKey={(group) => group.rank.id}
-              empty={
-                filteredEligibleStudents.length === 0
-                  ? "No eligible students match the selected filters."
-                  : "No eligible students found to register."
-              }
-              columns={[
-                {
-                  key: "rank",
-                  header: "Rank",
-                  primary: true,
-                  render: (group) => <RankFlow from={group.rank} to={group.destinationRank} />,
-                },
-                {
-                  key: "age-mix",
-                  header: "Age mix",
-                  render: (group) => (
-                    <Badge tone="neutral">
-                      {group.programmeCounts.map((entry) => `${entry.label} ${entry.count}`).join(" | ")}
-                    </Badge>
-                  ),
-                },
-                {
-                  key: "eligible",
-                  header: "Eligible",
-                  render: (group) => (
-                    <div className="bgc-eligible-count-cell">
-                      <span className="bgc-eligible-num">{group.students.length}</span>
-                      <span className="bgc-eligible-breakdown">
-                        ({group.activeCount} active
-                        {group.inactiveCount > 0 && (
-                          <>
-                            , <span className="bgc-inactive-alert">{group.inactiveCount} inactive</span>
-                          </>
-                        )}
-                        )
-                      </span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "action",
-                  header: "Action",
-                  actions: "inline",
-                  render: (group) => {
-                    const allGroupAdded = group.students.every((student) => cohortStudentIdSet.has(student.id));
-                    const someGroupAdded = group.students.some((student) => cohortStudentIdSet.has(student.id));
-                    return allGroupAdded ? (
-                      <Button
-                        variant="ghost" small
-                        onClick={() => handleRemoveRankGroup(group.rank.id)}
-                        aria-label={`Added: remove the ${group.rank.name} group from the cohort`}
-                        title="Click to remove the group"
-                        data-testid={`bgc-group-added-${group.rank.id}`}
-                      >
-                        Added ✓
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="primary" small
-                        onClick={() => handleAddRankGroup(group)}
-                        data-testid={`bgc-add-group-${group.rank.id}`}
-                      >
-                        {someGroupAdded ? `Add remaining` : `Add all ${group.students.length}`}
-                      </Button>
-                    );
-                  },
-                },
-              ]}
-            />
-          </section>
+          <CohortFindSection
+            search={search}
+            onSearch={setSearch}
+            rankFilter={rankFilter}
+            onRankFilter={setRankFilter}
+            ageFilter={ageFilter}
+            onAgeFilter={setAgeFilter}
+            statusFilter={statusFilter}
+            onStatusFilter={setStatusFilter}
+            ranks={ranks}
+            rankMap={rankMap}
+            nextRankMap={nextRankMap}
+            ageBands={ageBands}
+            students={eligibleStudents}
+            updating={rosterUpdating}
+            inCohort={inCohort}
+            onAdd={(student) => addStudents([student])}
+            onRemove={removeStudent}
+            onAddAll={() => addStudents(eligibleStudents)}
+          />
+          <CohortRankGroupsSection
+            groups={rankGroups}
+            filteredCount={eligibleStudents.length}
+            inCohort={inCohort}
+            onAddGroup={(group) =>
+              addStudents(group.students, () => ({ currentRank: group.rank, destinationRank: group.destinationRank }))
+            }
+            onRemoveGroup={removeRankGroup}
+          />
         </div>
 
-        {/* ── RIGHT COLUMN: Cohort Ledger & Confirmation ─────────────────── */}
         <div className="split__aside">
-          <aside className="bgc-cohort-tray" aria-label="Cohort to register">
-            <div>
-              <div className="action-row">
-                <h2 className="bgc-tray-title">Cohort to register</h2>
-                <span className="bgc-cohort-count" data-testid="bgc-cohort-count">
-                  {cohort.length} candidate{cohort.length === 1 ? "" : "s"} selected
-                </span>
-              </div>
-              <p className="bgc-tray-subtext">
-                Groups added to this cohort. You can review and remove individual students if needed.
-              </p>
-            </div>
-
-            {/* Selected groups table */}
-            <ResponsiveTable
-              label="Selected cohort groups"
-              rows={cohortBreakdown}
-              rowKey={(item) => item.rankId}
-              empty="No rank groups added yet. Add a group from the left panel to begin."
-              columns={[
-                {
-                  key: "rank",
-                  header: "Rank",
-                  primary: true,
-                  render: (item) => (
-                    <RankFlow from={item.currentRank} to={item.destinationRank} />
-                  ),
-                },
-                { key: "count", header: "Count", render: (item) => <span className="bgc-tray-count">{item.count}</span> },
-                {
-                  key: "remove",
-                  header: "Remove",
-                  actions: "inline",
-                  render: (item) => (
-                    <Button
-                      variant="danger-quiet"
-                      small
-                      onClick={() => handleRemoveRankGroup(item.rankId)}
-                      aria-label={`Remove ${item.currentRank?.name} group`}
-                    >
-                      ✕
-                    </Button>
-                  ),
-                },
-              ]}
-            />
-
-            {/* Review exceptions link */}
-            <div className="bgc-exceptions-callout">
-              <Button
-                variant="link"
-                onClick={() => setExceptionsModalOpen(true)}
-                disabled={cohort.length === 0}
-                data-testid="bgc-review-exceptions-btn"
-              >
-                Review exceptions →
-              </Button>
-              <p className="bgc-exceptions-help">
-                Remove individual students from the selected roster before registering. Only needed if there are exceptions.
-              </p>
-            </div>
-
-            {/* Assessment form pre-generation toggle */}
-            <div className="bgc-assessment-toggle-row">
-              <label className="bgc-switch-label" htmlFor="bgc-assessments-toggle">
-                <div className="bgc-switch">
-                  <input
-                    id="bgc-assessments-toggle"
-                    type="checkbox"
-                    checked={generateAssessments}
-                    onChange={(e) => setGenerateAssessments(e.target.checked)}
-                    data-testid="bgc-assessments-toggle"
-                  />
-                  <span className="bgc-switch-slider" aria-hidden="true" />
-                </div>
-                <div className="bgc-switch-text">
-                  <span className="bgc-switch-title">Prepare assessment forms now</span>
-                  <span className="bgc-switch-desc">Forms will be created as Not started.</span>
-                </div>
-              </label>
-            </div>
-
-            {/* Action buttons */}
-            <div className="action-row bgc-tray-actions">
-              <Link
-                to={`/gradings/${session.id}`}
-                className={buttonClass({ variant: "ghost" })}
-                data-testid="bgc-cancel-btn"
-              >
-                Cancel
-              </Link>
-              <Button
-                variant="primary" className="bgc-tray-primary"
-                onClick={handleSubmitCohort}
-                disabled={isSubmitting || cohort.length === 0}
-                data-testid="bgc-register-candidates-btn"
-              >
-                {isSubmitting ? "Registering..." : `Register ${cohort.length} candidate${cohort.length === 1 ? "" : "s"}`}
-              </Button>
-            </div>
-          </aside>
+          <CohortTray
+            sessionId={session.id}
+            count={cohort.length}
+            breakdown={breakdown}
+            generateAssessments={generateAssessments}
+            onGenerateAssessments={setGenerateAssessments}
+            submitting={registration.isSubmitting}
+            onRegister={registration.submit}
+            onRemoveGroup={removeRankGroup}
+            onReview={() => setReviewOpen(true)}
+          />
         </div>
       </div>
 
-      {/* ── Modal: Review Cohort Exceptions ──────────────────────────────── */}
-      {exceptionsModalOpen && (
-        <Dialog
-          title={`Review cohort candidates (${cohort.length})`}
-          onClose={() => setExceptionsModalOpen(false)}
-        >
-          <p className="gsd-modal-message">
-            Remove individual students who should not be registered in this grading cohort.
-          </p>
-
-          <ul className="bgc-modal-list">
-            {cohort.map((item) => (
-              <li key={item.student.id} className="bgc-modal-list-item">
-                <div className="bgc-modal-student-info">
-                  <span className="bgc-modal-student-name">
-                    {item.student.first_name} {item.student.last_name}
-                  </span>
-                  <span className="bgc-modal-student-wksa">{item.student.wksa_id}</span>
-                  <span className="bgc-modal-rank-flow">
-                    {item.currentRank?.name} ➔ {item.destinationRank?.name || "—"}
-                  </span>
-                  <StudentStatusBadge status={item.student.status} label={item.student.status_display} />
-                </div>
-                <Button
-                  variant="danger-quiet" small
-                  onClick={() => handleRemoveStudentFromCohort(item.student.id)}
-                  data-testid={`bgc-remove-student-${item.student.id}`}
-                >
-                  ✕ Remove
-                </Button>
-              </li>
-            ))}
-          </ul>
-
-          <div className="action-row dialog__actions">
-            <Button
-              variant="primary"
-              onClick={() => setExceptionsModalOpen(false)}
-              data-testid="bgc-modal-done-btn"
-              data-dialog-autofocus
-            >
-              Done
-            </Button>
-          </div>
-        </Dialog>
-      )}
+      {reviewOpen && <CohortReviewDialog cohort={cohort} onRemove={removeStudent} onClose={() => setReviewOpen(false)} />}
     </section>
   );
 }

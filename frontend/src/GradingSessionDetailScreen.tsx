@@ -1,27 +1,16 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { keys, refresh } from "./queryKeys";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { keys } from "./queryKeys";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CandidateAssessment,
-  CandidateOutcome,
-  GradingCandidate,
   GradingSession,
-  bulkGenerateCandidateAssessments,
-  bulkStartCandidateAssessments,
-  bulkUpdateCandidateStatus,
-  deleteGradingCandidate,
+  deleteGradingSession,
+  errorMessage,
   getAllCandidateAssessments,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
-  getAllGradingSessions,
   getGradingSession,
-  getWithdrawalReasons,
-  moveGradingCandidate,
   updateGradingSession,
-  deleteGradingSession,
-  withdrawLockedCandidate,
-  errorMessage,
 } from "./api";
 import { PageHeader } from "./PageHeader";
 import { EmptyState } from "./EmptyState";
@@ -29,33 +18,25 @@ import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { WarningIcon } from "./Icons";
 import { useAuth } from "./auth";
-import {
-  LockedWithdrawalDialog,
-  MoveRegistrationDialog,
-  NoShowDialog,
-  RemoveRegistrationDialog,
-  type AttendanceCandidate,
-} from "./GradingAttendanceDialogs";
-import { OutcomeProposalDialog } from "./OutcomeProposalDialog";
+import { CandidateDialogs } from "./CandidateDialogs";
+import { SessionActionsMenu } from "./SessionActionsMenu";
+import { SessionCandidatesSection } from "./SessionCandidatesSection";
+import { SessionConfirmDialog, type SessionConfirm } from "./SessionConfirmDialog";
 import { SessionStatusBadge } from "./StatusBadge";
-import { Dialog } from "./Dialog";
 import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
-import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { type EnrichedCandidate, SessionCandidateTable, SessionLifecycle, SessionNotes } from "./SessionParts";
-
-
-function toAttendanceCandidate(item: EnrichedCandidate): AttendanceCandidate {
-  return {
-    id: item.candidate.id,
-    name: item.candidate.student_display_name,
-    wksaId: item.candidate.student_wksa_id,
-  };
-}
-
-/** The least space left between an open menu and the screen's edge. */
-const MENU_EDGE_PX = 8;
+import { SessionLifecycle, SessionNotes } from "./SessionParts";
+import {
+  type SessionAction,
+  confirmDetails,
+  enrichCandidates,
+  filterCandidates,
+  nextActionFor,
+  toAttendanceCandidate,
+} from "./sessionDetail";
+import { useActionsMenu } from "./useActionsMenu";
+import { useCandidateWork } from "./useCandidateWork";
 
 export function GradingSessionDetailScreen(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -64,127 +45,37 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // Number(), not parseInt: "12abc" is no session, not session 12.
   const sessionId = Number(id);
+  const valid = !isNaN(sessionId);
   const { user: currentUser } = useAuth();
 
-  // Drawer state for the instructor outcome proposal
-  const [proposalDrawerItem, setProposalDrawerItem] = useState<EnrichedCandidate | null>(null);
-  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
-  const [withdrawalCandidate, setWithdrawalCandidate] = useState<EnrichedCandidate | null>(null);
-  const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
-  const [registrationAction, setRegistrationAction] = useState<{
-    kind: "move" | "remove";
-    item: EnrichedCandidate;
-  } | null>(null);
-  const [registrationError, setRegistrationError] = useState<string | null>(null);
-
-  // Search & Filter state
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  // Actions dropdown & modal state
-  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
-  const actionsMenuRef = useRef<HTMLDivElement>(null);
-  const actionsButtonRef = useRef<HTMLButtonElement>(null);
+  const menu = useActionsMenu();
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [confirmModal, setConfirmModal] = useState<{
-    open: boolean;
-    title: string;
-    message: string;
-    actionType: "LOCK" | "COMPLETE" | "CANCEL" | "DELETE" | "OPEN";
-  } | null>(null);
+  const [confirm, setConfirm] = useState<SessionConfirm | null>(null);
   const [cancellationReason, setCancellationReason] = useState("");
 
-  // Close actions dropdown on outside click or Escape key
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        actionsMenuRef.current &&
-        !actionsMenuRef.current.contains(event.target as Node)
-      ) {
-        setActionsMenuOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setActionsMenuOpen(false);
-        actionsButtonRef.current?.focus();
-      }
-    }
-
-    if (actionsMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [actionsMenuOpen]);
-
-  // A menu takes focus when it opens, and arrow keys, Home and End move within it.
-  useEffect(() => {
-    if (actionsMenuOpen) actionsMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  }, [actionsMenuOpen]);
-
-  function handleMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Tab") {
-      setActionsMenuOpen(false);
-      return;
-    }
-    const keys = ["ArrowDown", "ArrowUp", "Home", "End"];
-    if (!keys.includes(event.key)) return;
-    event.preventDefault();
-    const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)')];
-    const at = items.indexOf(document.activeElement as HTMLElement);
-    const next =
-      event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : event.key === "ArrowDown" ? (at + 1) % items.length : (at - 1 + items.length) % items.length;
-    items[next]?.focus();
-  }
-
-  // The menu opens from the button's right edge; where that would push it off the
-  // left of the screen (the button is near the left on a phone), open from the
-  // left edge instead.
-  useLayoutEffect(() => {
-    const menu = actionsMenuRef.current?.querySelector<HTMLElement>(".gsd-dropdown-menu");
-    if (!actionsMenuOpen || !menu) return;
-    const place = () => {
-      delete menu.dataset.align;
-      if (menu.getBoundingClientRect().left < MENU_EDGE_PX) menu.dataset.align = "start";
-    };
-    place();
-    // A phone turned round while the menu is open.
-    window.addEventListener("resize", place);
-    return () => window.removeEventListener("resize", place);
-  }, [actionsMenuOpen]);
-
-  // 1. Fetch session details
   const sessionQuery = useQuery({
     queryKey: keys.gradingSessions.detail(sessionId),
     queryFn: () => getGradingSession(sessionId),
-    enabled: !isNaN(sessionId),
+    enabled: valid,
   });
-
-  // 2. Fetch candidates for this session
   const candidatesQuery = useQuery({
     queryKey: keys.gradingCandidates.session(sessionId),
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
-    enabled: !isNaN(sessionId),
+    enabled: valid,
   });
-
-  // 3. Fetch candidate assessments for this session
   const assessmentsQuery = useQuery({
     queryKey: keys.candidateAssessments.session(sessionId),
     queryFn: () => getAllCandidateAssessments({ session: sessionId }),
-    enabled: !isNaN(sessionId),
+    enabled: valid,
   });
-
-  // 4. Fetch candidate outcomes for this session
   const outcomesQuery = useQuery({
     queryKey: keys.candidateOutcomes.session(sessionId),
     queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
-    enabled: !isNaN(sessionId),
+    enabled: valid,
   });
 
   const session = sessionQuery.data;
@@ -209,10 +100,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   }, [hasSessionActions]);
   const cancelReasonRequired = session?.status === "LOCKED";
 
-  // Mutations
   const updateSessionMutation = useMutation({
-    mutationFn: (payload: Parameters<typeof updateGradingSession>[1]) =>
-      updateGradingSession(sessionId, payload),
+    mutationFn: (payload: Parameters<typeof updateGradingSession>[1]) => updateGradingSession(sessionId, payload),
     onSuccess: (updated: GradingSession) => {
       // The response is the new state of this session; every list that
       // summarises it (the current and upcoming sessions, the years, the
@@ -222,13 +111,11 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         queryKey: keys.gradingSessions.all(),
         predicate: (query) => query.queryKey[1] !== "detail",
       });
-      setConfirmModal(null);
+      setConfirm(null);
       setCancellationReason("");
       setActionError(null);
     },
-    onError: (err: unknown) => {
-      setActionError(errorMessage(err, "Failed to update session."));
-    },
+    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to update session.")),
   });
 
   const deleteSessionMutation = useMutation({
@@ -237,219 +124,38 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       void queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
       void navigate("/gradings");
     },
-    onError: (err: unknown) => {
-      setActionError(errorMessage(err, "Failed to delete session."));
-    },
+    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to delete session.")),
   });
+  const confirmPending = updateSessionMutation.isPending || deleteSessionMutation.isPending;
 
-  const isConfirmModalMutationPending =
-    updateSessionMutation.isPending || deleteSessionMutation.isPending;
+  const work = useCandidateWork(sessionId, { setError: setActionError, setMessage: setActionMessage });
 
-  const refreshCandidateWork = () => refresh.sessionWork(queryClient, sessionId);
-
-  const bulkPrepareMutation = useMutation({
-    mutationFn: (candidateIds: number[]) => bulkGenerateCandidateAssessments(candidateIds),
-    onSuccess: ({ created, errors }) => {
-      refreshCandidateWork();
-      const failed = Object.keys(errors).length;
-      setActionMessage(
-        `${created.length} assessment${created.length === 1 ? "" : "s"} prepared${
-          failed ? `; ${failed} could not be prepared` : ""
-        }.`,
-      );
-      setActionError(failed ? Object.values(errors).flat().join(" ") : null);
-    },
-    onError: (err: unknown) => {
-      setActionError(errorMessage(err, "Failed to prepare assessments."));
-    },
-  });
-
-  const bulkStartMutation = useMutation({
-    mutationFn: (assessmentIds: number[]) => bulkStartCandidateAssessments(assessmentIds),
-    onSuccess: ({ started, errors }) => {
-      refreshCandidateWork();
-      const failed = Object.keys(errors).length;
-      setActionMessage(
-        `${started.length} assessment${started.length === 1 ? "" : "s"} started${
-          failed ? `; ${failed} could not be started` : ""
-        }.`,
-      );
-      setActionError(failed ? Object.values(errors).flat().join(" ") : null);
-    },
-    onError: (err: unknown) => {
-      setActionError(errorMessage(err, "Failed to start assessments."));
-    },
-  });
-
-  const attendanceMutation = useMutation({
-    mutationFn: (candidateIds: number[]) =>
-      // A no-show is by definition "did not attend".
-      bulkUpdateCandidateStatus({
-        candidates: candidateIds,
-        status: "WITHDRAWN",
-        withdrawal_reason: "ABSENT",
-      }),
-    onSuccess: ({ updated, errors }) => {
-      refreshCandidateWork();
-      setAttendanceDialogOpen(false);
-      const failed = Object.keys(errors).length;
-      setActionMessage(
-        `${updated.length} candidate${updated.length === 1 ? "" : "s"} marked as no-show${
-          failed ? `; ${failed} could not be updated` : ""
-        }.`,
-      );
-      setActionError(failed ? Object.values(errors).flat().join(" ") : null);
-    },
-    onError: (err: unknown) => {
-      setActionError(errorMessage(err, "Failed to confirm attendance."));
-    },
-  });
-
-  const withdrawalMutation = useMutation({
-    mutationFn: ({ candidateId, payload }: {
-      candidateId: number;
-      payload: Parameters<typeof withdrawLockedCandidate>[1];
-    }) => withdrawLockedCandidate(candidateId, payload),
-    onSuccess: (updated) => {
-      refreshCandidateWork();
-      setWithdrawalCandidate(null);
-      setWithdrawalError(null);
-      setActionError(null);
-      setActionMessage(`${updated.student_display_name} was withdrawn from the locked session.`);
-    },
-    onError: (err: unknown) => {
-      setWithdrawalError(
-        errorMessage(err, "Failed to withdraw the candidate."),
-      );
-    },
-  });
-
-  const withdrawalReasonsQuery = useQuery({
-    queryKey: keys.withdrawalReasons(),
-    queryFn: getWithdrawalReasons,
-    enabled: withdrawalCandidate !== null,
-  });
-
-  // Sessions a registration can move to; loaded only when the move dialog opens.
-  const moveTargetsQuery = useQuery({
-    queryKey: keys.gradingSessions.moveTargets(),
-    queryFn: () => getAllGradingSessions({ status: "DRAFT,OPEN" }),
-    enabled: registrationAction?.kind === "move",
-  });
-  const moveTargets = (moveTargetsQuery.data?.results ?? [])
-    .filter((target) => target.id !== sessionId)
-    .map((target) => ({
-      id: target.id,
-      label: `${target.title} · ${formatSessionDate(target.grading_date)}`,
-    }));
-
-  const closeRegistrationAction = () => {
-    setRegistrationAction(null);
-    setRegistrationError(null);
-  };
-
-  const registrationMutation = useMutation({
-    mutationFn: async ({ kind, candidateId, targetSessionId }: {
-      kind: "move" | "remove";
-      candidateId: number;
-      targetSessionId?: number;
-    }) => {
-      if (kind === "move") {
-        await moveGradingCandidate(candidateId, targetSessionId as number);
-      } else {
-        await deleteGradingCandidate(candidateId);
-      }
-    },
-    onSuccess: (_result, { kind }) => {
-      const name = registrationAction?.item.candidate.student_display_name ?? "The candidate";
-      refreshCandidateWork();
-      void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
-      closeRegistrationAction();
-      setActionError(null);
-      setActionMessage(
-        kind === "move"
-          ? `${name} was moved to another session.`
-          : `${name} was removed from this session.`,
-      );
-    },
-    onError: (err: unknown) => {
-      setRegistrationError(
-        errorMessage(err, "Failed to change the registration."),
-      );
-    },
-  });
-
-  // Combine data into EnrichedCandidate list
-  const enrichedCandidates: EnrichedCandidate[] = useMemo(() => {
-    const rawCandidates: GradingCandidate[] = candidatesQuery.data?.results ?? [];
-    const assessments: CandidateAssessment[] = assessmentsQuery.data?.results ?? [];
-    const outcomes: CandidateOutcome[] = outcomesQuery.data?.results ?? [];
-
-    const assessmentMap = new Map<number, CandidateAssessment>(assessments.map((a) => [a.candidate, a]));
-    const outcomeMap = new Map<number, CandidateOutcome>(outcomes.map((o) => [o.candidate, o]));
-
-    return rawCandidates.map((c: GradingCandidate) => {
-      const assessment = assessmentMap.get(c.id);
-      const outcome = outcomeMap.get(c.id);
-
-      return {
-        candidate: c,
-        assessment,
-        outcome,
-      };
-    });
-  }, [candidatesQuery.data, assessmentsQuery.data, outcomesQuery.data]);
+  const enrichedCandidates = useMemo(
+    () => enrichCandidates(candidatesQuery.data?.results ?? [], assessmentsQuery.data?.results ?? [], outcomesQuery.data?.results ?? []),
+    [candidatesQuery.data, assessmentsQuery.data, outcomesQuery.data],
+  );
+  const filteredCandidates = useMemo(
+    () => filterCandidates(enrichedCandidates, search, statusFilter),
+    [enrichedCandidates, search, statusFilter],
+  );
 
   // The server's count (completed, outcome not finalised - see
   // with_session_progress), the same number Overview and Gradings show. A
   // decision can only be made once the session is locked, so the banner
   // waits for that.
-  const awaitingDecisionCount =
-    session?.status === "LOCKED" ? session.awaiting_decision_count : 0;
+  const awaitingDecisionCount = session?.status === "LOCKED" ? session.awaiting_decision_count : 0;
 
-  // Filter candidates by search and status
-  const filteredCandidates = useMemo(() => {
-    return enrichedCandidates.filter((item) => {
-      const name = (item.candidate.student_display_name || "").toLowerCase();
-      const wksa = (item.candidate.student_wksa_id || "").toLowerCase();
-      const q = search.trim().toLowerCase();
-      const matchesSearch = !q || name.includes(q) || wksa.includes(q);
-
-      const aStatus = item.assessment?.status || "NOT_STARTED";
-      const matchesStatus =
-        statusFilter === "ALL" ||
-        (statusFilter === "WITHDRAWN" && item.candidate.status === "WITHDRAWN") ||
-        (item.candidate.status !== "WITHDRAWN" &&
-          ((statusFilter === "NOT_STARTED" && aStatus === "NOT_STARTED") ||
-            (statusFilter === "IN_PROGRESS" && aStatus === "IN_PROGRESS") ||
-            (statusFilter === "COMPLETED" && aStatus === "COMPLETED")));
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [enrichedCandidates, search, statusFilter]);
-
-  const unpreparedCandidateIds = enrichedCandidates
-    .filter((item) => item.candidate.status !== "WITHDRAWN" && !item.assessment)
-    .map((item) => item.candidate.id);
-  const preparedAssessmentIds = enrichedCandidates
-    .filter(
-      (item) =>
-        item.candidate.status !== "WITHDRAWN" && item.assessment?.status === "NOT_STARTED",
-    )
-    .map((item) => item.assessment!.id);
+  const active = enrichedCandidates.filter((item) => item.candidate.status !== "WITHDRAWN");
+  const unpreparedIds = active.filter((item) => !item.assessment).map((item) => item.candidate.id);
+  const preparedIds = active.filter((item) => item.assessment?.status === "NOT_STARTED").map((item) => item.assessment!.id);
   // A no-show is a candidate who never started: the server refuses to
   // withdraw one whose assessment work has begun (that needs a locked-session
   // withdrawal), so only those are offered.
-  const attendanceCandidates: AttendanceCandidate[] = enrichedCandidates
-    .filter(
-      (item) =>
-        item.candidate.status === "REGISTERED" &&
-        (!item.assessment || item.assessment.status === "NOT_STARTED"),
-    )
+  const attendanceCandidates = enrichedCandidates
+    .filter((item) => item.candidate.status === "REGISTERED" && (!item.assessment || item.assessment.status === "NOT_STARTED"))
     .map(toAttendanceCandidate);
 
-  // Loading & Error states
-  if (isNaN(sessionId)) {
+  if (!valid) {
     return (
       <section aria-labelledby="gsd-invalid-id-heading" className="page gsd-page" data-testid="gsd-page">
         <EmptyState
@@ -487,123 +193,27 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     );
   }
 
-  const handleActionClick = (actionType: "LOCK" | "COMPLETE" | "CANCEL" | "DELETE" | "OPEN") => {
-    setActionsMenuOpen(false);
+  const handleAction = (action: SessionAction) => {
+    menu.setOpen(false);
     setActionError(null);
     // The dropdown (and the menu item just clicked) unmounts in the same
     // render as the confirm modal mounting, so useDialogFocus would capture
     // document.body as "previously focused" unless focus is moved onto the
     // still-mounted trigger button before that happens.
-    actionsButtonRef.current?.focus();
-
-    if (actionType === "DELETE") {
-      const erasesFinalisedData = session.status === "LOCKED" || session.status === "COMPLETED";
-      setConfirmModal({
-        open: true,
-        title: "Delete Grading Session",
-        message: erasesFinalisedData
-          ? "Are you sure you want to permanently delete this grading session? This erases every finalised outcome and promotion recorded in it, reverting any promoted student's rank. This action cannot be undone."
-          : "Are you sure you want to permanently delete this grading session? This action cannot be undone.",
-        actionType: "DELETE",
-      });
-    } else if (actionType === "CANCEL") {
-      setConfirmModal({
-        open: true,
-        title: "Cancel Grading Session",
-        message: "Are you sure you want to cancel this grading session?",
-        actionType: "CANCEL",
-      });
-    } else if (actionType === "LOCK") {
-      setConfirmModal({
-        open: true,
-        title: "Lock Grading Session",
-        message: "Locking ends grading. Every assessment must be completed first, and after locking no result can be changed or reopened.",
-        actionType: "LOCK",
-      });
-    } else if (actionType === "COMPLETE") {
-      setConfirmModal({
-        open: true,
-        title: "Complete Grading Session",
-        message: "Completing this session finalises all grading results and records. Ensure all candidate decisions have been made.",
-        actionType: "COMPLETE",
-      });
-    } else if (actionType === "OPEN") {
-      const registered = enrichedCandidates.filter(
-        (item) => item.candidate.status !== "WITHDRAWN",
-      ).length;
-      setConfirmModal({
-        open: true,
-        title: "Open Grading Session",
-        message: `Opening starts the grading and cannot be undone: an open session does not go back to draft. ${
-          registered === 0
-            ? "No candidates are registered."
-            : `${registered} candidate${registered === 1 ? " is" : "s are"} registered.`
-        } Check the roster first. Once open, a candidate who already has an assessment can no longer be moved or removed; one who cannot attend can still be marked as a no-show.`,
-        actionType: "OPEN",
-      });
-    }
+    menu.buttonRef.current?.focus();
+    setConfirm({ action, ...confirmDetails(action, session, active.length) });
   };
 
-  const handleConfirmModalAction = () => {
-    if (!confirmModal) return;
-
-    if (confirmModal.actionType === "DELETE") {
-      deleteSessionMutation.mutate();
-    } else if (confirmModal.actionType === "CANCEL") {
-      updateSessionMutation.mutate({
-        status: "CANCELLED",
-        cancellation_reason: cancellationReason,
-      });
-    } else if (confirmModal.actionType === "OPEN") {
-      updateSessionMutation.mutate({ status: "OPEN" });
-    } else if (confirmModal.actionType === "LOCK") {
-      updateSessionMutation.mutate({ status: "LOCKED" });
-    } else if (confirmModal.actionType === "COMPLETE") {
-      updateSessionMutation.mutate({ status: "COMPLETED" });
-    }
+  const handleConfirm = () => {
+    if (!confirm) return;
+    if (confirm.action === "DELETE") deleteSessionMutation.mutate();
+    else if (confirm.action === "CANCEL") updateSessionMutation.mutate({ status: "CANCELLED", cancellation_reason: cancellationReason });
+    else if (confirm.action === "OPEN") updateSessionMutation.mutate({ status: "OPEN" });
+    else if (confirm.action === "LOCK") updateSessionMutation.mutate({ status: "LOCKED" });
+    else updateSessionMutation.mutate({ status: "COMPLETED" });
   };
 
-  // What a candidate's row offers next, from where their assessment and outcome stand.
-  const nextActionFor = (item: EnrichedCandidate) => {
-    const candidateId = item.candidate.id;
-    const assessmentStatus = item.assessment?.status;
-    const outcomeStatus = item.outcome?.status;
-    const decisionsUrl = `/gradings/${session.id}/decisions?candidate=${candidateId}`;
-    let label = assessmentStatus ? "Start assessment →" : "Prepare assessment →";
-    let url = `/gradings/${session.id}/assessments/${candidateId}`;
-    let opensProposalDrawer = false;
-
-    if (assessmentStatus === "IN_PROGRESS") {
-      label = "Continue assessment →";
-    } else if (assessmentStatus === "COMPLETED") {
-      if (outcomeStatus === "FINALISED") {
-        if (item.outcome?.final_outcome === "PASS") {
-          label = "Promotion ledger →";
-          url = `/gradings/${session.id}/promotions`;
-        } else {
-          label = "View record →";
-          url = decisionsUrl;
-        }
-      } else if (outcomeStatus === "PROPOSED") {
-        if (currentUser?.can_make_final_grading_decision) {
-          label = "Review decision →";
-          url = decisionsUrl;
-        } else {
-          label = "Review proposal →";
-          opensProposalDrawer = true;
-        }
-      } else if (session.status === "LOCKED") {
-        label = "Propose outcome →";
-        opensProposalDrawer = true;
-      } else {
-        // An outcome can only be created once the session is locked; until then
-        // the record can still be reopened from its review page.
-        label = "View record →";
-        url = `/gradings/${session.id}/assessments/${candidateId}/review`;
-      }
-    }
-    return { label, url, opensProposalDrawer };
-  };
+  const decided = session.status === "LOCKED" || session.status === "COMPLETED";
 
   return (
     <section aria-labelledby="gsd-title" className="page gsd-page" data-testid="gsd-page">
@@ -621,158 +231,35 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         }
         actions={
           <>
-          {(session.status === "LOCKED" || session.status === "COMPLETED") && (
-            <Link
-              to={`/gradings/${session.id}/decisions`}
-              className={buttonClass({ variant: "secondary" })}
-              data-testid="gsd-final-decisions-btn"
-            >
-              Final decisions →
-            </Link>
-          )}
-          {(session.status === "LOCKED" || session.status === "COMPLETED") && (
-            <Link
-              to={`/gradings/${session.id}/promotions`}
-              className={buttonClass({ variant: "secondary" })}
-              data-testid="gsd-promotion-ledger-btn"
-            >
-              Promotion ledger →
-            </Link>
-          )}
-
-          {/* Actions Dropdown */}
-          {hasSessionActions && (
-            <div className="gsd-dropdown-wrap" ref={actionsMenuRef} data-clip-ok>
-              <Button
-                ref={actionsButtonRef}
-                variant="ghost"
-                onClick={() => setActionsMenuOpen((prev) => !prev)}
-                aria-expanded={actionsMenuOpen}
-                aria-haspopup="menu"
-                data-testid="gsd-actions-btn"
-              >
-                Session actions <span className="gsd-chevron-down" aria-hidden="true">⌵</span>
-              </Button>
-
-              {actionsMenuOpen && (
-                <div className="gsd-dropdown-menu" role="menu" onKeyDown={handleMenuKeyDown}>
-                  {session.status === "DRAFT" && (
-                    <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="gsd-dropdown-item"
-                        onClick={() => handleActionClick("OPEN")}
-                      >
-                        Open session
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="gsd-dropdown-item gsd-danger-text"
-                        onClick={() => handleActionClick("CANCEL")}
-                      >
-                        Cancel session
-                      </button>
-                    </>
-                  )}
-
-                  {session.status === "OPEN" && (
-                    <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="gsd-dropdown-item"
-                        onClick={() => handleActionClick("LOCK")}
-                      >
-                        Lock session
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="gsd-dropdown-item gsd-danger-text"
-                        onClick={() => handleActionClick("CANCEL")}
-                      >
-                        Cancel session
-                      </button>
-                    </>
-                  )}
-
-                  {session.status === "LOCKED" && (
-                    <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="gsd-dropdown-item"
-                        onClick={() => handleActionClick("COMPLETE")}
-                      >
-                        Complete session
-                      </button>
-                      {currentUser?.can_override_locked_session && (
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="gsd-dropdown-item gsd-danger-text"
-                          onClick={() => handleActionClick("CANCEL")}
-                        >
-                          Cancel session
-                        </button>
-                      )}
-                    </>
-                  )}
-
-                  {currentUser?.can_read_audit_log && (
-                    <Link
-                      to={`/audit?entity_type=GradingSession&entity_id=${session.id}`}
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => setActionsMenuOpen(false)}
-                    >
-                      View audit events
-                    </Link>
-                  )}
-
-                  {/* The server decides, for this user, by the delete's own rule. */}
-                  {session.can_be_deleted && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item gsd-danger-text"
-                      onClick={() => handleActionClick("DELETE")}
-                    >
-                      Delete session
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Add candidate button */}
-          {(session.status === "DRAFT" || session.status === "OPEN") && (
-            <Link
-              to={`/gradings/${session.id}/register`}
-              className={buttonClass({ variant: "primary" })}
-              data-testid="gsd-add-candidate-btn"
-            >
-              Add candidate <span aria-hidden="true">→</span>
-            </Link>
-          )}
+            {decided && (
+              <Link to={`/gradings/${session.id}/decisions`} className={buttonClass({ variant: "secondary" })} data-testid="gsd-final-decisions-btn">
+                Final decisions →
+              </Link>
+            )}
+            {decided && (
+              <Link to={`/gradings/${session.id}/promotions`} className={buttonClass({ variant: "secondary" })} data-testid="gsd-promotion-ledger-btn">
+                Promotion ledger →
+              </Link>
+            )}
+            {hasSessionActions && <SessionActionsMenu session={session} user={currentUser} menu={menu} onAction={handleAction} />}
+            {(session.status === "DRAFT" || session.status === "OPEN") && (
+              <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })} data-testid="gsd-add-candidate-btn">
+                Add candidate <span aria-hidden="true">→</span>
+              </Link>
+            )}
           </>
         }
       />
 
-      {/* ── Action Error Banner ─────────────────────────────────────────── */}
-      {actionError && (
-        <Alert onDismiss={() => setActionError(null)}>{actionError}</Alert>
-      )}
+      {actionError && <Alert onDismiss={() => setActionError(null)}>{actionError}</Alert>}
       {actionMessage && (
-        <Alert tone="success" onDismiss={() => setActionMessage(null)}>{actionMessage}</Alert>
+        <Alert tone="success" onDismiss={() => setActionMessage(null)}>
+          {actionMessage}
+        </Alert>
       )}
 
       <SessionLifecycle status={session.status} />
 
-      {/* ── Operational Action Banner ───────────────────────────────────── */}
       {awaitingDecisionCount > 0 && (
         <Alert
           tone="warning"
@@ -780,11 +267,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           aria-label="Action required"
           icon={<WarningIcon size={18} />}
           action={
-            <Link
-              to={`/gradings/${session.id}/decisions`}
-              className={buttonClass({ variant: "ghost", small: true })}
-              data-testid="gsd-review-decisions-btn"
-            >
+            <Link to={`/gradings/${session.id}/decisions`} className={buttonClass({ variant: "ghost", small: true })} data-testid="gsd-review-decisions-btn">
               Review <span aria-hidden="true">→</span>
             </Link>
           }
@@ -793,135 +276,25 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         </Alert>
       )}
 
-      {/* ── Candidates Section ──────────────────────────────────────────── */}
-      <section className="gsd-candidates-section" aria-labelledby="candidates-heading">
-        <div className="action-row gsd-section-header">
-          <h2 id="candidates-heading" className="gsd-section-title">
-            Candidates
-          </h2>
-
-          <div className="action-row gsd-controls-row">
-            {(session.status === "DRAFT" || session.status === "OPEN") &&
-              attendanceCandidates.length > 0 && (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setActionError(null);
-                    setAttendanceDialogOpen(true);
-                  }}
-                >
-                  Confirm attendance
-                </Button>
-              )}
-            {(session.status === "DRAFT" || session.status === "OPEN") &&
-              unpreparedCandidateIds.length > 0 && (
-                <Button
-                  variant="secondary"
-                  onClick={() => bulkPrepareMutation.mutate(unpreparedCandidateIds)}
-                  disabled={bulkPrepareMutation.isPending}
-                >
-                  {bulkPrepareMutation.isPending
-                    ? "Preparing…"
-                    : `Prepare all (${unpreparedCandidateIds.length})`}
-                </Button>
-              )}
-            {session.status === "OPEN" && preparedAssessmentIds.length > 0 && (
-              <Button
-                variant="primary"
-                onClick={() => bulkStartMutation.mutate(preparedAssessmentIds)}
-                disabled={bulkStartMutation.isPending}
-              >
-                {bulkStartMutation.isPending
-                  ? "Starting…"
-                  : `Start all prepared (${preparedAssessmentIds.length})`}
-              </Button>
-            )}
-            {/* Search Input */}
-            <div className="gsd-search-wrap">
-              <span className="gsd-search-icon" aria-hidden="true">🔍</span>
-              <input
-                type="search"
-                className="gsd-search-input"
-                placeholder="Search candidate..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Search candidates by name or WKSA ID"
-                data-testid="gsd-candidate-search"
-              />
-            </div>
-
-            {/* Assessment status filter */}
-            <div className="gsd-filter-wrap">
-              <select
-                className="gsd-filter-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                aria-label="Filter by assessment status"
-                data-testid="gsd-status-filter"
-              >
-                <option value="ALL">Assessment status</option>
-                <option value="NOT_STARTED">Not started</option>
-                <option value="IN_PROGRESS">In progress</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="WITHDRAWN">Withdrawn</option>
-              </select>
-            </div>
-
-            <div className="gsd-count-chip">
-              {filteredCandidates.length} candidate{filteredCandidates.length === 1 ? "" : "s"}
-            </div>
-          </div>
-        </div>
-
-        {/* Candidate Roster Table */}
-        <div>
-          {enrichedCandidates.length === 0 ? (
-            <EmptyState
-              framed
-              data-testid="gsd-empty-roster"
-              title="No candidates registered in this grading session yet."
-              action={
-                <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })}>
-                  Add candidate <span aria-hidden="true">→</span>
-                </Link>
-              }
-            >
-              Add students to begin curriculum assessment and outcome tracking.
-            </EmptyState>
-          ) : filteredCandidates.length === 0 ? (
-            <EmptyState
-              framed
-              data-testid="gsd-empty-search"
-              title="No candidates match the search or filter criteria."
-              action={
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setSearch("");
-                    setStatusFilter("ALL");
-                  }}
-                >
-                  Clear filters
-                </Button>
-              }
-            />
-          ) : (
-            <SessionCandidateTable
-              candidates={filteredCandidates}
-              canOverrideLocked={Boolean(currentUser?.can_override_locked_session)}
-              nextActionFor={nextActionFor}
-              sessionStatus={session.status}
-              onMove={(item) => setRegistrationAction({ kind: "move", item })}
-              onPropose={setProposalDrawerItem}
-              onRemove={(item) => setRegistrationAction({ kind: "remove", item })}
-              onWithdraw={(item) => {
-                setWithdrawalError(null);
-                setWithdrawalCandidate(item);
-              }}
-            />
-          )}
-        </div>
-      </section>
+      <SessionCandidatesSection
+        session={session}
+        all={enrichedCandidates}
+        shown={filteredCandidates}
+        search={search}
+        onSearch={setSearch}
+        statusFilter={statusFilter}
+        onStatusFilter={setStatusFilter}
+        work={work}
+        attendanceCount={attendanceCandidates.length}
+        unpreparedIds={unpreparedIds}
+        preparedIds={preparedIds}
+        canOverrideLocked={Boolean(currentUser?.can_override_locked_session)}
+        nextActionFor={(item) => nextActionFor(item, session, Boolean(currentUser?.can_make_final_grading_decision))}
+        onConfirmAttendance={() => {
+          setActionError(null);
+          work.attendance.setOpen(true);
+        }}
+      />
 
       <SessionNotes
         notes={session.notes}
@@ -929,136 +302,28 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         onSave={(notes, saved) => updateSessionMutation.mutate({ notes }, { onSuccess: saved })}
       />
 
-      {/* ── Confirmation Modal ──────────────────────────────────────────── */}
-      {confirmModal && (
-        <Dialog title={confirmModal.title} closeButton={false} onClose={() => setConfirmModal(null)} canClose={!isConfirmModalMutationPending}>
-          <p className="gsd-modal-message">{confirmModal.message}</p>
-
-          {confirmModal.actionType === "CANCEL" && (
-            <div className="field field--sentence">
-              <label htmlFor="cancellation-reason">
-                {/* Abandoning a locked session must say why (server rule). */}
-                {cancelReasonRequired ? "Cancellation reason (required)" : "Cancellation reason (optional)"}
-              </label>
-              <textarea
-                id="cancellation-reason"
-                rows={3}
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                placeholder="Explain why the session is being cancelled…"
-              />
-            </div>
-          )}
-
-          <div className="action-row action-row--end">
-            <Button
-              variant={confirmModal.actionType === "CANCEL" || confirmModal.actionType === "DELETE" ? "danger" : "primary"}
-              onClick={handleConfirmModalAction}
-              disabled={
-                isConfirmModalMutationPending ||
-                (confirmModal.actionType === "CANCEL" &&
-                  cancelReasonRequired &&
-                  !cancellationReason.trim())
-              }
-              data-testid="gsd-modal-confirm-btn"
-            >
-              {confirmModal.actionType === "DELETE"
-                ? deleteSessionMutation.isPending
-                  ? "Deleting…"
-                  : "Delete session"
-                : "Confirm"}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setConfirmModal(null)}
-              disabled={isConfirmModalMutationPending}
-              data-dialog-autofocus
-            >
-              Cancel
-            </Button>
-          </div>
-        </Dialog>
-      )}
-
-      {attendanceDialogOpen && (
-        <NoShowDialog
-          candidates={attendanceCandidates}
-          pending={attendanceMutation.isPending}
-          error={actionError}
-          onClose={() => {
-            setAttendanceDialogOpen(false);
-            setActionError(null);
-          }}
-          onConfirm={(candidateIds) => attendanceMutation.mutate(candidateIds)}
+      {confirm && (
+        <SessionConfirmDialog
+          confirm={confirm}
+          pending={confirmPending}
+          deleting={deleteSessionMutation.isPending}
+          reasonRequired={cancelReasonRequired}
+          reason={cancellationReason}
+          onReason={setCancellationReason}
+          onConfirm={handleConfirm}
+          onClose={() => setConfirm(null)}
         />
       )}
 
-      {withdrawalCandidate && (
-        <LockedWithdrawalDialog
-          candidate={toAttendanceCandidate(withdrawalCandidate)}
-          reasons={withdrawalReasonsQuery.data?.results ?? []}
-          pending={withdrawalMutation.isPending}
-          error={withdrawalError}
-          onClose={() => {
-            setWithdrawalCandidate(null);
-            setWithdrawalError(null);
-          }}
-          onConfirm={(payload) =>
-            withdrawalMutation.mutate({
-              candidateId: withdrawalCandidate.candidate.id,
-              payload,
-            })
-          }
-        />
-      )}
-
-      {registrationAction?.kind === "move" && (
-        <MoveRegistrationDialog
-          candidate={toAttendanceCandidate(registrationAction.item)}
-          sessions={moveTargets}
-          pending={registrationMutation.isPending}
-          error={registrationError}
-          onClose={closeRegistrationAction}
-          onConfirm={(targetSessionId) =>
-            registrationMutation.mutate({
-              kind: "move",
-              candidateId: registrationAction.item.candidate.id,
-              targetSessionId,
-            })
-          }
-        />
-      )}
-
-      {registrationAction?.kind === "remove" && (
-        <RemoveRegistrationDialog
-          candidate={toAttendanceCandidate(registrationAction.item)}
-          pending={registrationMutation.isPending}
-          error={registrationError}
-          onClose={closeRegistrationAction}
-          onConfirm={() =>
-            registrationMutation.mutate({
-              kind: "remove",
-              candidateId: registrationAction.item.candidate.id,
-            })
-          }
-        />
-      )}
-
-      {/* ── Instructor Outcome Proposal Drawer ────────────────────── */}
-      {proposalDrawerItem && session && (
-        <OutcomeProposalDialog
-          key={proposalDrawerItem.candidate.id}
-          candidate={proposalDrawerItem.candidate}
-          assessment={proposalDrawerItem.assessment}
-          existingOutcome={proposalDrawerItem.outcome}
-          onClose={() => setProposalDrawerItem(null)}
-          onSuccess={() => {
-            refreshCandidateWork();
-            setProposalDrawerItem(null);
-          }}
-        />
-      )}
-
+      <CandidateDialogs
+        work={work}
+        attendanceCandidates={attendanceCandidates}
+        actionError={actionError}
+        onAttendanceClose={() => {
+          work.attendance.setOpen(false);
+          setActionError(null);
+        }}
+      />
     </section>
   );
 }

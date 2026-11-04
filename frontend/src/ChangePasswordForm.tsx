@@ -1,4 +1,5 @@
 import { ErrorText } from "./ErrorText";
+import { PasswordToggle } from "./PasswordToggle";
 import { useServerForm } from "./forms";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
@@ -99,14 +100,7 @@ export function ChangePasswordForm({
             type={inputType}
             value={currentPassword}
           />
-          <button
-            aria-label={showPasswords ? "Hide passwords" : "Show passwords"}
-            className="password-toggle"
-            onClick={() => setShowPasswords((prev) => !prev)}
-            type="button"
-          >
-            {showPasswords ? "Hide" : "Show"}
-          </button>
+          <PasswordToggle noun="passwords" onToggle={() => setShowPasswords((previous) => !previous)} shown={showPasswords} />
         </div>
         {errorsFor("current_password")}
       </label>

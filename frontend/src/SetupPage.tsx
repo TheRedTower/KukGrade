@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { PasswordToggle } from "./PasswordToggle";
 import { useServerForm } from "./forms";
 
 import { ErrorText } from "./ErrorText";
@@ -163,14 +164,7 @@ export function SetupPage() {
                   type={inputType}
                   value={password}
                 />
-                <button
-                  aria-label={showPasswords ? "Hide passwords" : "Show passwords"}
-                  className="password-toggle"
-                  onClick={() => setShowPasswords((previous) => !previous)}
-                  type="button"
-                >
-                  {showPasswords ? "Hide" : "Show"}
-                </button>
+                <PasswordToggle noun="passwords" onToggle={() => setShowPasswords((previous) => !previous)} shown={showPasswords} />
               </div>
             </label>
             {errorsFor("password")}

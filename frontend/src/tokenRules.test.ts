@@ -49,13 +49,16 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   transition: (prop, value) =>
     prop === "transition" && value !== "none" && (/\ball\b/.test(value) || /\b\d*\.?\d+m?s\b/.test(value)) ? 1 : 0,
   // Space between and inside boxes is a step of the scale; a hairline offset (0.2rem or less) or a clearance (over 3.25rem) is not a step.
-  spacing: (prop, value) =>
-    /^(?:gap|row-gap|column-gap|margin|padding)(?:-[a-z]+)?$/.test(prop) &&
-    [...value.replace(/(?:calc|clamp|min|max|var)\((?:[^()]|\([^()]*\))*\)/g, "").matchAll(/(?<![\w.-])(\d*\.?\d+)rem\b/g)].some(
-      ([, n]) => Number(n) > 0.2 && Number(n) <= 3.25,
-    )
+  spacing: (prop, value) => {
+    if (!/^(?:gap|row-gap|column-gap|margin|padding)(?:-[a-z]+)?$/.test(prop)) return 0;
+    const lengths = value.replace(/(?:calc|clamp|min|max|var)\((?:[^()]|\([^()]*\))*\)/g, "").matchAll(/(?<![\w.-])(\d*\.?\d+)(rem|px)\b/g);
+    return [...lengths].some(([, n, unit]) => {
+      const rem = unit === "px" ? Number(n) / 16 : Number(n);
+      return rem > 0.2 && rem <= 3.25;
+    })
       ? 1
-      : 0,
+      : 0;
+  },
   shadow: (prop, value) => (prop === "box-shadow" && !/^(?:none|var\()/.test(value) ? 1 : 0),
   zIndex: (prop, value) => (prop === "z-index" && !/^(?:var\(|1$)/.test(value) ? 1 : 0),
   outlineNone: (prop, value) => (prop === "outline" && /^(?:none|0)\b/.test(value) ? 1 : 0),

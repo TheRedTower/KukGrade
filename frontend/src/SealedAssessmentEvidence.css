@@ -64,7 +64,7 @@
 
 .evd-link {
   align-self: flex-start;
-  min-height: 44px;
+  min-height: var(--target-min);
   display: inline-flex;
   align-items: center;
   font-weight: var(--font-weight-semibold);

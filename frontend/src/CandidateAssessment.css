@@ -271,7 +271,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
@@ -314,7 +314,7 @@
 }
 
 .caw-row-tool {
-  min-height: 44px;
+  min-height: var(--target-min);
   background: none;
   border: none;
   padding: 0 var(--space-1);
@@ -368,7 +368,7 @@
 }
 
 .caw-clear-confirm-actions button {
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 0 var(--space-3);
   font-size: var(--font-size-sm);
 }

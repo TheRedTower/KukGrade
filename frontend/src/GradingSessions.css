@@ -473,6 +473,7 @@
 .gsd-candidate-wksa {
   display: block;
   width: max-content;
+  max-width: 100%;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-normal);
   color: var(--color-text-muted);

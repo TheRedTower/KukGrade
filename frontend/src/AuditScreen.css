@@ -9,7 +9,7 @@
 .audit-actor {
   display: block;
   width: max-content;
-  max-width: 14rem;
+  max-width: min(100%, 14rem);
 }
 
 .audit-ledger {

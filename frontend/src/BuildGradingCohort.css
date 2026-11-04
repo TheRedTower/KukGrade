@@ -18,7 +18,7 @@
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-title);
   color: var(--color-text);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--tracking-tight);
   margin: 0;
 }
 
@@ -77,14 +77,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-}
-
-.bgc-section-title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-  letter-spacing: -0.015em;
-  margin: 0;
 }
 
 .bgc-section-subtext {
@@ -234,7 +226,7 @@
 .bgc-tray-subtext {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  line-height: 1.4;
+  line-height: var(--line-height-snug);
   margin: 0.35rem 0 0 0;
 }
 
@@ -250,7 +242,7 @@
 .bgc-exceptions-help {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  line-height: 1.4;
+  line-height: var(--line-height-snug);
   margin: 0;
 }
 
@@ -292,7 +284,7 @@
   right: 0;
   bottom: 0;
   background-color: var(--color-border);
-  transition: 0.2s;
+  transition: background-color var(--duration) ease;
   border-radius: var(--radius-pill);
 }
 
@@ -309,7 +301,7 @@
   left: 3px;
   bottom: 3px;
   background-color: var(--color-knob);
-  transition: 0.2s;
+  transition: transform var(--duration) ease;
   border-radius: 50%;
 }
 
@@ -496,7 +488,7 @@
   font-size: var(--font-size-base);
   text-align: left;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--duration) ease;
 }
 
 .bgc-accordion-toggle:hover {

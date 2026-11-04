@@ -19,9 +19,9 @@
   text-decoration: none;
   cursor: pointer;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    filter 140ms ease;
+    background var(--duration) ease,
+    border-color var(--duration) ease,
+    filter var(--duration) ease;
 }
 
 .btn:focus-visible {
@@ -346,6 +346,35 @@
 
 .empty-state > .btn {
   margin-top: var(--space-2);
+}
+
+/* ── Meter (Meter.tsx) ────────────────────────────────────────────────── */
+
+.meter {
+  display: flex;
+  flex: 0 0 auto;
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--color-border);
+}
+
+.meter__fill {
+  transition: width var(--duration) ease;
+}
+
+.meter__fill--success {
+  background: var(--color-success);
+}
+
+.meter__fill--danger {
+  background: var(--color-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meter__fill {
+    transition: none;
+  }
 }
 
 /* ── Choice groups (ChoiceGroup) ──────────────────────────────────────── */

@@ -488,7 +488,7 @@ export function BuildGradingCohortScreen() {
         <div className="bgc-left-column">
           {/* Section 1: Find eligible students */}
           <section className="bgc-section" aria-labelledby="bgc-find-heading">
-            <h2 id="bgc-find-heading" className="bgc-section-title">
+            <h2 id="bgc-find-heading" className="section-title">
               1. Find eligible students
             </h2>
             <p className="bgc-section-subtext">
@@ -668,7 +668,7 @@ export function BuildGradingCohortScreen() {
 
           {/* Section 2: Add whole rank groups */}
           <section className="bgc-section" aria-labelledby="bgc-rank-groups-heading">
-            <h2 id="bgc-rank-groups-heading" className="bgc-section-title">
+            <h2 id="bgc-rank-groups-heading" className="section-title">
               2. Add whole rank groups
             </h2>
             <p className="bgc-section-subtext">

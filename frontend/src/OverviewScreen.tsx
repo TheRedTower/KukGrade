@@ -432,7 +432,7 @@ export function OverviewScreen() {
       {canViewAudit && (
       <div className="recent-activity-section">
         <div className="activity-section-header">
-          <h2 className="activity-section-title">Recent activity</h2>
+          <h2 className="section-title">Recent activity</h2>
           <Link className={buttonClass({ variant: "link" })} to="/audit">
             View all activity <span aria-hidden="true">&rarr;</span>
           </Link>

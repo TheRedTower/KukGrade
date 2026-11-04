@@ -876,29 +876,35 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         {/* Candidate Roster Table */}
         <div>
           {enrichedCandidates.length === 0 ? (
-            <div className="gsd-empty-roster" data-testid="gsd-empty-roster">
-              <p className="gsd-empty-title">No candidates registered in this grading session yet.</p>
-              <p className="gsd-empty-sub">Add students to begin curriculum assessment and outcome tracking.</p>
-              <Link
-                to={`/gradings/${session.id}/register`}
-                className={buttonClass({ variant: "primary" })}
-              >
-                Add candidate <span aria-hidden="true">→</span>
-              </Link>
-            </div>
+            <EmptyState
+              framed
+              data-testid="gsd-empty-roster"
+              title="No candidates registered in this grading session yet."
+              action={
+                <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })}>
+                  Add candidate <span aria-hidden="true">→</span>
+                </Link>
+              }
+            >
+              Add students to begin curriculum assessment and outcome tracking.
+            </EmptyState>
           ) : filteredCandidates.length === 0 ? (
-            <div className="gsd-empty-search" data-testid="gsd-empty-search">
-              <p>No candidates match the search or filter criteria.</p>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setSearch("");
-                  setStatusFilter("ALL");
-                }}
-              >
-                Clear filters
-              </Button>
-            </div>
+            <EmptyState
+              framed
+              data-testid="gsd-empty-search"
+              title="No candidates match the search or filter criteria."
+              action={
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter("ALL");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              }
+            />
           ) : (
             <SessionCandidateTable
               candidates={filteredCandidates}

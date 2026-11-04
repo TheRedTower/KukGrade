@@ -47,7 +47,7 @@ function Seal({
         ✓
       </span>
       <div className="ix-seal-text">
-        <h2 className="ix-heading" id="ix-seal-h" tabIndex={-1}>
+        <h2 className="section-title" id="ix-seal-h" tabIndex={-1}>
           {roster
             ? `Everything is sorted · ready to add ${counted(count, "student", "students")}`
             : `Ready to import ${counted(count, "historical record", "historical records")}`}

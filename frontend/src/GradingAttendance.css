@@ -2,7 +2,7 @@
 .attendance-dialog-copy {
   margin: 0 0 1rem;
   color: var(--color-text-muted);
-  line-height: 1.55;
+  line-height: var(--line-height-body);
 }
 
 .attendance-candidate-list {
@@ -101,7 +101,7 @@
   margin-top: 0.35rem;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
-  line-height: 1.35;
+  line-height: var(--line-height-snug);
 }
 
 .gsd-row-actions {

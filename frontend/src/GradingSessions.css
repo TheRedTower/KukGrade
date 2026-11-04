@@ -32,7 +32,7 @@
   background: var(--color-surface-sunken);
   color: var(--color-text);
   font-size: var(--font-size-base);
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  transition: border-color var(--duration) ease, box-shadow var(--duration) ease;
 }
 
 .gs-search-input:focus {
@@ -47,7 +47,7 @@
   background-color: var(--color-surface-sunken);
   font-size: var(--font-size-base);
   cursor: pointer;
-  transition: border-color 140ms ease;
+  transition: border-color var(--duration) ease;
 }
 
 .gs-filter-select:focus {
@@ -70,7 +70,7 @@
   color: var(--color-on-gold);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.1em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   padding: 0.35rem 1rem;
 }
@@ -204,7 +204,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   padding: 0.65rem 0.85rem;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color var(--duration) ease, box-shadow var(--duration) ease;
   box-sizing: border-box;
 }
 
@@ -238,7 +238,7 @@
 .cgs-textarea {
   resize: vertical;
   min-height: 100px;
-  line-height: 1.45;
+  line-height: var(--line-height-snug);
 }
 
 .cgs-char-counter {
@@ -282,7 +282,7 @@
   font-size: var(--font-size-md);
   color: var(--color-text-muted);
   margin: 0 0 1.35rem 0;
-  line-height: 1.45;
+  line-height: var(--line-height-snug);
 }
 
 .cgs-preview-placeholder {
@@ -344,7 +344,7 @@
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--duration) ease;
   text-decoration: none;
   display: flex;
   align-items: center;
@@ -397,7 +397,7 @@
   font-weight: var(--font-weight-title);
   border: 2px solid var(--color-text-muted);
   color: transparent;
-  transition: all 150ms ease;
+  transition: border-color var(--duration) ease, background var(--duration) ease, color var(--duration) ease;
 }
 
 .gsd-step-completed .gsd-step-circle {
@@ -549,34 +549,6 @@
 
 /* ── Row Action Button ───────────────────────────────────────────────────── */
 
-/* ── Empty states ────────────────────────────────────────────────────────── */
-
-.gsd-empty-roster,
-.gsd-empty-search {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  padding: 3rem 1.5rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.gsd-empty-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  margin: 0;
-}
-
-.gsd-empty-sub {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
-  margin: 0 0 1rem;
-}
-
 /* ── Session Notes Section ───────────────────────────────────────────────── */
 
 .gsd-notes-section {
@@ -612,7 +584,7 @@
 
 .gsd-notes-text {
   font-size: var(--font-size-base);
-  line-height: 1.6;
+  line-height: var(--line-height-body);
   color: var(--color-text);
   margin: 0;
   white-space: pre-wrap;

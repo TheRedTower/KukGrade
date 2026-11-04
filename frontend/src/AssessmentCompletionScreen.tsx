@@ -402,7 +402,7 @@ export function AssessmentCompletionScreen() {
         <aside aria-label="Record details and seal" className="acp-aside">
           <div className="acp-card">
             <h2 className="acp-card-title">Record details</h2>
-            <dl className="acp-dl">
+            <dl className="facts-list facts-list--aligned facts-list--compact">
               <div>
                 <dt>Form prepared</dt>
                 <dd>{assessment.generated_at ? formatShortDate(assessment.generated_at, "") : "—"}</dd>

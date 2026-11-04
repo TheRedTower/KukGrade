@@ -13,7 +13,7 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-title);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
 }
 
 .users-info-note,
@@ -92,7 +92,7 @@
 .users-issued-password-value code {
   font-family: var(--font-mono);
   font-size: var(--font-size-xl);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
   overflow-wrap: anywhere;
   user-select: all;
 }
@@ -169,25 +169,6 @@
 }
 
 .user-authority-footer p { margin: 0; }
-.user-detail-aside dl {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  margin: 0;
-}
-
-/* Each row spans the list and shares its columns, so the labels' column is
-   as wide as the longest label rather than a fixed guess. */
-.user-detail-aside dl > div {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  column-gap: 0.7rem;
-  border-bottom: 1px solid var(--color-border);
-  padding: 0.75rem 0;
-}
-
-.user-detail-aside dt { color: var(--color-text-muted); }
-.user-detail-aside dd { margin: 0; overflow-wrap: anywhere; }
 
 .user-activity-list {
   list-style: none;

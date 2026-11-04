@@ -6,7 +6,7 @@ import { Button } from "./Button";
 
 export function DetailsList({ details, columns }: { details: [string, string][]; columns?: 1 }) {
   return (
-    <dl className="st-details" style={columns === 1 ? { gridTemplateColumns: "1fr" } : undefined}>
+    <dl className="facts" style={columns === 1 ? { gridTemplateColumns: "1fr" } : undefined}>
       {details.map(([name, value]) => (
         <div key={name}>
           <dt>{name}</dt>

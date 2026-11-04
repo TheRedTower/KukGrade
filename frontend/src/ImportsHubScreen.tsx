@@ -132,7 +132,7 @@ function UnfinishedImports({
 function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefined; canLink: boolean }) {
   return (
     <section aria-labelledby="ix-start" className="ix-section">
-      <h2 className="ix-heading ix-flush" id="ix-start">
+      <h2 className="section-title" id="ix-start">
         Start an import
       </h2>
       <div className="ix-grid-2">

@@ -43,6 +43,11 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   radius: (prop, value) =>
     // A corner of 0 is square, not a size: only another number is hand-set.
     prop === "border-radius" && /\d/.test(value.replace(/var\([^)]*\)/g, "").replace(/\b0\b/g, "")) && value !== "50%" ? 1 : 0,
+  letterSpacing: (prop, value) => (prop === "letter-spacing" && !/^(?:0|normal|inherit|var\()/.test(value) ? 1 : 0),
+  lineHeight: (prop, value) => (prop === "line-height" && !/^(?:0|1|normal|inherit|var\()/.test(value) ? 1 : 0),
+  // A change takes the one duration, and names what changes: never `all`.
+  transition: (prop, value) =>
+    prop === "transition" && value !== "none" && (/\ball\b/.test(value) || /\b\d*\.?\d+m?s\b/.test(value)) ? 1 : 0,
   shadow: (prop, value) => (prop === "box-shadow" && !/^(?:none|var\()/.test(value) ? 1 : 0),
   zIndex: (prop, value) => (prop === "z-index" && !/^(?:var\(|1$)/.test(value) ? 1 : 0),
   outlineNone: (prop, value) => (prop === "outline" && /^(?:none|0)\b/.test(value) ? 1 : 0),

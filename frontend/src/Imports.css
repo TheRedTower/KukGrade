@@ -17,11 +17,6 @@
   font-size: var(--font-size-2xl);
 }
 
-.ix-heading {
-  margin: 0 0 0.25rem;
-  font-size: var(--font-size-xl);
-}
-
 .ix-minor {
   margin: 0;
   font-size: var(--font-size-xl);
@@ -45,7 +40,7 @@
   color: var(--color-accent-text);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -205,7 +200,7 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -338,7 +333,7 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
   text-align: left;
   text-transform: uppercase;
 }
@@ -633,7 +628,7 @@
 }
 
 .ix-disclosure svg {
-  transition: transform 160ms ease;
+  transition: transform var(--duration) ease;
 }
 
 .ix-disclosure[aria-expanded="true"] svg {
@@ -967,7 +962,7 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -1109,7 +1104,7 @@
   gap: 0.4rem;
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-title);
-  line-height: 1.1;
+  line-height: var(--line-height-tight);
 }
 
 .ix-tile-count [aria-hidden="true"] {

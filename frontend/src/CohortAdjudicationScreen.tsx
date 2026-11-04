@@ -616,7 +616,8 @@ export function CohortAdjudicationScreen() {
               <section className="cab-detail-section" aria-labelledby="cab-staged-title">
                 <h3 id="cab-staged-title">Staged: {OUTCOME_CHOICES.find((d) => d.value === focusDecision.outcome)?.label}</h3>
                 {focusDecision.outcome === "CONDITIONAL" && (
-                  <label className="field field--sentence"><span>Re-test requirements (required)</span>
+                  <label className="field field--sentence">
+                    <span>Re-test requirements (required)</span>
                     <textarea
                       value={focusDecision.conditionalRequirements}
                       onChange={(e) =>
@@ -627,7 +628,8 @@ export function CohortAdjudicationScreen() {
                     />
                   </label>
                 )}
-                <label className="field field--sentence"><span>Decision notes</span>
+                <label className="field field--sentence">
+                  <span>Decision notes</span>
                   <textarea
                     value={focusDecision.notes}
                     onChange={(e) => updateStaged(focusRow.outcome!.id, { notes: e.target.value })}

@@ -113,9 +113,9 @@ function RosterRowEditor({
               {corrected ? (
                 <span className="ix-fix-note">
                   File had “{row.file_values[field.field] || "nothing"}”
-                  <button aria-label={`Undo the fix to ${label}`} type="button" onClick={() => void save(field.field, null).catch(() => {})}>
+                  <Button variant="link" aria-label={`Undo the fix to ${label}`} onClick={() => void save(field.field, null).catch(() => {})}>
                     Undo
-                  </button>
+                  </Button>
                 </span>
               ) : null}
             </div>

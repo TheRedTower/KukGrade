@@ -81,7 +81,7 @@ button:not(.theme-toggle-option, .visually-hidden),
 select:not(.visually-hidden),
 input:not([type="checkbox"], [type="radio"], [type="hidden"], .visually-hidden),
 textarea:not(.visually-hidden) {
-  min-height: 44px;
+  min-height: var(--target-min);
 }
 
 button:not(.theme-toggle-option, .visually-hidden) {
@@ -95,7 +95,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
 .bgc-student-name-link {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--target-min);
 }
 
 .auth-page {

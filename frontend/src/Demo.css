@@ -30,7 +30,7 @@
   display: grid;
   gap: 0.125rem;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--target-min);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background: var(--color-surface);

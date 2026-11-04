@@ -194,13 +194,13 @@ export function ImportMatchColumns({
         {corrected ? (
           <span className="ix-fix-note">
             Your fix · file had “{original || "nothing"}”
-            <button
+            <Button
+              variant="link"
               aria-label={`Undo the fix to ${fieldName(field)}, row ${row.row_number}`}
-              type="button"
               onClick={() => correct.mutate({ row: row.row_number, field, value: null })}
             >
               Undo
-            </button>
+            </Button>
           </span>
         ) : null}
       </>
@@ -237,7 +237,8 @@ export function ImportMatchColumns({
             action={
               <>
                 {field.whole_file && field.field === "current_rank" ? (
-                  <label className="field field--sentence"><span>Same for everyone</span>
+                  <label className="field field--sentence">
+                    <span>Same for everyone</span>
                     <select
                       disabled={save.isPending || correct.isPending}
                       value=""

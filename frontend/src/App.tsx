@@ -5,6 +5,7 @@ import {
   Suspense,
   useState,
 } from "react";
+import { PasswordToggle } from "./PasswordToggle";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
@@ -168,14 +169,7 @@ function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                 />
-                <button
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="password-toggle"
-                  onClick={() => setShowPassword((previous) => !previous)}
-                  type="button"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
+                <PasswordToggle noun="password" onToggle={() => setShowPassword((previous) => !previous)} shown={showPassword} />
               </div>
             </label>
             {error ? <Alert>{error}</Alert> : null}

@@ -31,7 +31,7 @@
 .outcome-segment {
   position: relative;
   flex: 1 1 auto;
-  min-height: 44px;
+  min-height: var(--target-min);
   display: inline-flex;
   align-items: center;
   justify-content: center;

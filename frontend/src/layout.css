@@ -778,7 +778,7 @@ select:not([multiple]):not([size]) {
 .crumbs a {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--target-min);
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -803,7 +803,7 @@ select:not([multiple]):not([size]) {
   align-items: center;
   align-self: flex-start;
   gap: var(--space-2);
-  min-height: 44px;
+  min-height: var(--target-min);
   color: var(--color-text-muted);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
@@ -1037,7 +1037,7 @@ select:not([multiple]):not([size]) {
   flex: 1 1 auto;
   gap: var(--space-2);
   min-width: 0;
-  padding: 4px;
+  padding: var(--space-1);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-padding-inline: 4px;

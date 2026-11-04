@@ -39,7 +39,7 @@
 
 .cab-row-name {
   display: block;
-  min-height: 44px;
+  min-height: var(--target-min);
   padding: 0;
   border: 0;
   background: none;
@@ -124,7 +124,7 @@
 
 .cab-record-one,
 .cab-record-all {
-  min-height: 44px;
+  min-height: var(--target-min);
 }
 
 .cab-bar {

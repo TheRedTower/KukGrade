@@ -378,7 +378,8 @@ function RowsLedger({
         <h2 className="section-title ix-grow" id="ix-rows-h">
           {roster ? "Every row" : "Every record"}
         </h2>
-        <label className="field field--sentence"><span>Search</span>
+        <label className="field field--sentence">
+          <span>Search</span>
           <input
             placeholder={roster ? "Name or WKSA ID" : "Name or comment"}
             type="search"

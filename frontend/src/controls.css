@@ -127,6 +127,7 @@
   font-weight: var(--font-weight-semibold);
   /* A label breaks between words, never inside one, even in a table cell, and
      never runs past the box it sits in. */
+  width: max-content;
   max-width: 100%;
   overflow-wrap: normal;
 }
@@ -441,4 +442,12 @@
 .choices--segments button[aria-pressed="true"] {
   background: var(--color-gold);
   color: var(--color-on-gold);
+}
+
+/* A button in the actions column keeps its label whole and reads left to right:
+   the column grows to fit it, and the label wraps only between words. */
+.rtable [data-actions] .btn {
+  width: max-content;
+  max-width: 100%;
+  text-align: start;
 }

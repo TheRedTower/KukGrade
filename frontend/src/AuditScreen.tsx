@@ -267,7 +267,7 @@ export function AuditScreen(): React.ReactElement {
                 },
                 { key: "action", header: "Action", primary: true, render: (event) => event.action_display },
                 { key: "summary", header: "Summary", render: (event) => event.summary },
-                { key: "actor", header: "Actor", render: (event) => actorLabel(event) },
+                { key: "actor", header: "Actor", render: (event) => <span className="audit-actor">{actorLabel(event)}</span> },
                 {
                   key: "record",
                   header: "Record",

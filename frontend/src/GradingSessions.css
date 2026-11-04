@@ -472,6 +472,7 @@
 
 .gsd-candidate-wksa {
   display: block;
+  width: max-content;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-normal);
   color: var(--color-text-muted);
@@ -482,6 +483,14 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* From one rank to the next, on a line that wraps when it must. */
+.gsd-rank-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
 }
 
 /* ── Row Action Button ───────────────────────────────────────────────────── */

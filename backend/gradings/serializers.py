@@ -583,6 +583,22 @@ class CandidateOutcomeSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PromotionSerializer(serializers.ModelSerializer):
+    student_display_name = serializers.CharField(source="student", read_only=True)
+    to_rank_name = serializers.CharField(source="to_rank.name", read_only=True)
+
+    class Meta:
+        model = Promotion
+        fields = (
+            "id",
+            "student_display_name",
+            "grading_candidate",
+            "to_rank_name",
+            "effective_date",
+        )
+        read_only_fields = fields
+
+
 class GradingCandidateRosterSerializer(GradingCandidateSerializer):
     """A candidate as the session's roster shows them: with their assessment
     and outcome, and what their row offers next, so a screen needs one request
@@ -590,6 +606,12 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
 
     assessment = CandidateAssessmentSerializer(read_only=True, allow_null=True)
     outcome = CandidateOutcomeSerializer(read_only=True, allow_null=True)
+    promotion = serializers.SerializerMethodField(
+        help_text=(
+            "The promotion recorded for this candidate, when they have one and "
+            "the viewer may see promotions; otherwise null."
+        ),
+    )
     next_action = serializers.SerializerMethodField()
     can_be_finalised = serializers.SerializerMethodField(
         help_text=(
@@ -604,9 +626,18 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             *GradingCandidateSerializer.Meta.fields,
             "assessment",
             "outcome",
+            "promotion",
             "next_action",
             "can_be_finalised",
         )
+
+    @extend_schema_field(PromotionSerializer(allow_null=True))
+    def get_promotion(self, instance: GradingCandidate) -> dict[str, Any] | None:
+        promotion = getattr(instance, "promotion", None)
+        user = self.context["request"].user
+        if promotion is None or not user.has_perm("gradings.view_promotion"):
+            return None
+        return cast(dict[str, Any], PromotionSerializer(promotion).data)
 
     def get_can_be_finalised(self, instance: GradingCandidate) -> bool:
         outcome = getattr(instance, "outcome", None)
@@ -704,22 +735,6 @@ class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
             ),
             actor=cast(User, request.user),
         )
-
-
-class PromotionSerializer(serializers.ModelSerializer):
-    student_display_name = serializers.CharField(source="student", read_only=True)
-    to_rank_name = serializers.CharField(source="to_rank.name", read_only=True)
-
-    class Meta:
-        model = Promotion
-        fields = (
-            "id",
-            "student_display_name",
-            "grading_candidate",
-            "to_rank_name",
-            "effective_date",
-        )
-        read_only_fields = fields
 
 
 class CandidatePromotionSerializer(serializers.Serializer):

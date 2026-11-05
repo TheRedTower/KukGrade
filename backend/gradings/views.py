@@ -280,6 +280,8 @@ class GradingCandidateViewSet(
             "outcome__assessment",
             "outcome__proposed_by",
             "outcome__decided_by",
+            "promotion__student",
+            "promotion__to_rank",
         )
         if self.action in {"list", "retrieve"}:
             candidates = candidates.prefetch_related(

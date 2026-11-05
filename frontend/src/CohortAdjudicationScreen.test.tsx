@@ -223,6 +223,7 @@ const roster = cohort.map((row): GradingCandidateRoster => {
     assessment: assessments.find((a) => a.candidate === row.id) ?? null,
     outcome: found,
     next_action: "REVIEW_DECISION",
+    promotion: null,
     can_be_finalised: found?.status === "PROPOSED",
   };
 });

@@ -20,7 +20,7 @@ describe("forgetDeletedAssessment", () => {
     seed(["candidateAssessmentSummary", 70]);
     seed(["assessmentNotesDraft", 70]);
     seed(["candidateAssessmentItems", 71]);
-    for (const shared of ["candidateOutcomes", "promotions", "students", "gradingSessions"]) {
+    for (const shared of ["gradingCandidates", "students", "gradingSessions"]) {
       seed([shared, 1]);
     }
 
@@ -32,8 +32,8 @@ describe("forgetDeletedAssessment", () => {
     expect(queryClient.getQueryData(["assessmentNotesDraft", 70])).toBeUndefined();
     // Another assessment's data is left alone.
     expect(queryClient.getQueryData(["candidateAssessmentItems", 71])).toEqual({ seeded: true });
-    // A deletion can remove an outcome and promotion and revert a rank.
-    for (const shared of ["candidateOutcomes", "promotions", "students", "gradingSessions"]) {
+    // A deletion can remove an outcome and promotion (both on the roster) and revert a rank.
+    for (const shared of ["gradingCandidates", "students", "gradingSessions"]) {
       expect(queryClient.getQueryState([shared, 1])?.isInvalidated).toBe(true);
     }
   });

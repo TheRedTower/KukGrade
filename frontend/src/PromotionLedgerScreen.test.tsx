@@ -44,8 +44,27 @@ vi.mock("./auth", () => ({
 
 const mockGetGradingSession = vi.fn();
 const mockGetGradingCandidates = vi.fn();
+// The roster serves each candidate with their outcome and promotion. These two
+// stand for where those come from, and are folded into the candidates below.
 const mockGetCandidateOutcomes = vi.fn();
 const mockGetPromotions = vi.fn();
+
+async function roster(...args: unknown[]) {
+  const candidates = await mockGetGradingCandidates(...args);
+  const outcomes = (await mockGetCandidateOutcomes()).results as CandidateOutcome[];
+  const promotions = (await mockGetPromotions()).results as Promotion[];
+  return {
+    ...candidates,
+    results: (candidates.results as GradingCandidate[]).map((candidate) => ({
+      ...candidate,
+      assessment: null,
+      next_action: "PROMOTION_LEDGER",
+      can_be_finalised: false,
+      outcome: outcomes.find((outcome) => outcome.candidate === candidate.id) ?? null,
+      promotion: promotions.find((promotion) => promotion.grading_candidate === candidate.id) ?? null,
+    })),
+  };
+}
 const mockGetPromotionEligibility = vi.fn();
 const mockPromoteCandidateOutcome = vi.fn();
 const mockBulkPromoteCandidateOutcomes = vi.fn();
@@ -55,9 +74,7 @@ vi.mock("./api", async () => {
   return {
     ...actual,
     getGradingSession: (...args: unknown[]) => mockGetGradingSession(...args),
-    getAllGradingCandidates: (...args: unknown[]) => mockGetGradingCandidates(...args),
-    getAllCandidateOutcomes: (...args: unknown[]) => mockGetCandidateOutcomes(...args),
-    getAllPromotions: (...args: unknown[]) => mockGetPromotions(...args),
+    getAllGradingCandidates: (...args: unknown[]) => roster(...args),
     getPromotionEligibility: (...args: unknown[]) => mockGetPromotionEligibility(...args),
     promoteCandidateOutcome: (...args: unknown[]) => mockPromoteCandidateOutcome(...args),
     bulkPromoteCandidateOutcomes: (...args: unknown[]) => mockBulkPromoteCandidateOutcomes(...args),

@@ -4239,6 +4239,13 @@ components:
           - $ref: '#/components/schemas/CandidateOutcome'
           readOnly: true
           nullable: true
+        promotion:
+          allOf:
+          - $ref: '#/components/schemas/Promotion'
+          nullable: true
+          readOnly: true
+          description: The promotion recorded for this candidate, when they have one
+            and the viewer may see promotions; otherwise null.
         next_action:
           allOf:
           - $ref: '#/components/schemas/NextActionEnum'
@@ -4260,6 +4267,7 @@ components:
       - id
       - next_action
       - outcome
+      - promotion
       - session
       - status
       - student

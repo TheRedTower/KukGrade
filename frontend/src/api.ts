@@ -593,22 +593,6 @@ export async function addAssessmentItemComment(
   });
 }
 
-async function getCandidateOutcomes(
-  params?: ListQuery<"gradings_outcomes_list">,
-): Promise<PaginatedResponse<CandidateOutcome>> {
-  return apiRequest<PaginatedResponse<CandidateOutcome>>(
-    withQuery("/api/gradings/outcomes/", params),
-  );
-}
-
-export async function getAllCandidateOutcomes(
-  params: Omit<ListQuery<"gradings_outcomes_list">, "page" | "page_size"> = {},
-): Promise<PaginatedResponse<CandidateOutcome>> {
-  return collectAllPages((page) =>
-    getCandidateOutcomes({ ...params, page, page_size: 200 }),
-  );
-}
-
 export type PromotionEligibility = Schemas["PromotionEligibility"];
 
 export async function getPromotionEligibility(session: number): Promise<PromotionEligibility[]> {
@@ -761,20 +745,6 @@ export async function deleteStudent(id: number): Promise<void> {
   await apiRequest<void>(`/api/students/${id}/`, {
     method: "DELETE",
   });
-}
-
-async function getPromotions(params?: ListQuery<"gradings_promotions_list">): Promise<PaginatedResponse<Promotion>> {
-  return apiRequest<PaginatedResponse<Promotion>>(
-    withQuery("/api/gradings/promotions/", params),
-  );
-}
-
-export async function getAllPromotions(
-  params: Omit<ListQuery<"gradings_promotions_list">, "page" | "page_size"> = {},
-): Promise<PaginatedResponse<Promotion>> {
-  return collectAllPages((page) =>
-    getPromotions({ ...params, page, page_size: 200 }),
-  );
 }
 
 export async function promoteCandidateOutcome(

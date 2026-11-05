@@ -18,7 +18,6 @@ describe("query keys", () => {
     refresh.afterPromotion(queryClient, 10);
 
     expect(invalidate.mock.calls.map(([filters]) => filters?.queryKey)).toEqual([
-      ["promotions", 10],
       ["promotionEligibility", 10],
       ["gradingCandidates", 10],
       ["students"],

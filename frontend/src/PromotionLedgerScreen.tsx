@@ -17,9 +17,7 @@ import {
   type Promotion,
   type PromotionEligibility,
   bulkPromoteCandidateOutcomes,
-  getAllCandidateOutcomes,
   getAllGradingCandidates,
-  getAllPromotions,
   getGradingSession,
   getPromotionEligibility,
   promoteCandidateOutcome,
@@ -72,48 +70,20 @@ export function PromotionLedgerScreen(): React.ReactElement {
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
-  const outcomesQuery = useQuery({
-    queryKey: keys.candidateOutcomes.session(sessionId),
-    queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
-    enabled: !Number.isNaN(sessionId) && sessionId > 0,
-  });
-
-  const promotionsQuery = useQuery({
-    queryKey: keys.promotions.session(sessionId),
-    queryFn: () => getAllPromotions({ session: sessionId }),
-    enabled: !Number.isNaN(sessionId) && sessionId > 0,
-  });
   const eligibilityQuery = useQuery({
     queryKey: keys.promotionEligibility(sessionId),
     queryFn: () => getPromotionEligibility(sessionId),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
-  const ledgerQueries = [candidatesQuery, outcomesQuery, promotionsQuery, eligibilityQuery];
-  // The ledger needs all four answers; a missing or failed one must not read
+  const ledgerQueries = [candidatesQuery, eligibilityQuery];
+  // The ledger needs both answers (the roster carries each candidate's outcome
+  // and promotion); a missing or failed one must not read
   // as "nothing promoted yet".
   const ledgerFailed = ledgerQueries.some((query) => query.isError);
   const ledgerLoaded = ledgerQueries.every((query) => query.isSuccess);
   const candidatesData = ledgerLoaded ? candidatesQuery.data : undefined;
-  const outcomesData = ledgerLoaded ? outcomesQuery.data : undefined;
-  const promotionsData = ledgerLoaded ? promotionsQuery.data : undefined;
   const eligibilityData = ledgerLoaded ? eligibilityQuery.data : undefined;
-
-  // Promotions map
-  const promotionsMap = useMemo(() => {
-    const map = new Map<number, Promotion>();
-    promotionsData?.results.forEach((p) => {
-      map.set(p.grading_candidate, p);
-    });
-    return map;
-  }, [promotionsData]);
-
-  // Outcomes map
-  const outcomesMap = useMemo(() => {
-    const map = new Map<number, CandidateOutcome>();
-    outcomesData?.results.forEach((o) => map.set(o.candidate, o));
-    return map;
-  }, [outcomesData]);
 
   const eligibilityMap = useMemo(() => new Map(eligibilityData?.map((item) => [item.candidate, item])), [eligibilityData]);
 
@@ -122,8 +92,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
     if (!candidatesData?.results) return [];
 
     return candidatesData.results.map((candidate) => {
-      const outcome = outcomesMap.get(candidate.id);
-      const promotion = promotionsMap.get(candidate.id);
+      const outcome = candidate.outcome ?? undefined;
+      const promotion = candidate.promotion ?? undefined;
       const eligibility = eligibilityMap.get(candidate.id);
 
       const isPromoted = Boolean(promotion);
@@ -138,7 +108,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         isPromoted,
       };
     });
-  }, [candidatesData, outcomesMap, promotionsMap, eligibilityMap]);
+  }, [candidatesData, eligibilityMap]);
 
   // Eligible cohort
   const eligibleCohort = useMemo(() => rows.filter((r) => r.isEligible), [rows]);

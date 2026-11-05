@@ -930,6 +930,43 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
+  it("offers proposing as soon as locking the session succeeds", async () => {
+    let status: GradingSession["status"] = "OPEN";
+    const candidateRows = () => rosterRows(lockedCandidates, completedAssessments, [], status, false);
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        status = "LOCKED";
+        return jsonResponse(200, { ...testSession, status, status_display: "Locked" });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, { ...testSession, status, status_display: status === "LOCKED" ? "Locked" : "Open" });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        const rows = candidateRows();
+        return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      }
+      return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-102");
+    expect(within(row).getByRole("link", { name: "View record →" })).toBeVisible();
+    expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByTestId("propose-outcome-btn-102")).toBeVisible();
+  });
+
   it("closes confirmation modal on backdrop click and Escape key", async () => {
     const fetchMock = setupStandardMock();
     vi.stubGlobal("fetch", fetchMock);

@@ -99,6 +99,10 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         queryKey: keys.gradingSessions.all(),
         predicate: (query) => query.queryKey[1] !== "detail",
       });
+      // What each candidate's row offers next depends on the session's status
+      // (locking opens proposing), and the server names it, so the roster is
+      // read again.
+      void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.session(sessionId) });
       setConfirm(null);
       setCancellationReason("");
       setActionError(null);

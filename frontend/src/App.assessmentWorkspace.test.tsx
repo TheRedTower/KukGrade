@@ -899,6 +899,29 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull();
     });
 
+    it("lets a second person add a comment to a marked item that already has one, and keeps the mark", async () => {
+      // 1002 is Not met, marked by casey, with casey's comment already on it.
+      const { posts } = commentMock();
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+      const row = screen.getByTestId("caw-item-1002");
+      expect(within(row).getByText(/Guard dropped on turn/)).toBeVisible();
+
+      await user.click(screen.getByTestId("btn-comment-1002"));
+      await user.type(screen.getByTestId("caw-comment-input-1002"), "Also lost balance on the landing.{Enter}");
+
+      // Both observations stand, each with who wrote it.
+      expect(await within(row).findByText(/Also lost balance on the landing\./)).toBeVisible();
+      expect(within(row).getByText(/Guard dropped on turn/)).toBeVisible();
+      expect(within(row).getByText(/Casey Reed/)).toBeVisible();
+      expect(within(row).getByText(/Lee Coach/)).toBeVisible();
+      // The comment did not touch the mark or who made it.
+      expect(posts).toEqual(["Also lost balance on the landing."]);
+      expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("aria-pressed", "true");
+      expect(row).toHaveTextContent("casey@example.com");
+    });
+
     it("adds nothing when the box is left or dismissed without saving", async () => {
       const { posts } = commentMock();
       const user = userEvent.setup();

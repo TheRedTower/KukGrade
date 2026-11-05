@@ -405,8 +405,22 @@ class AssessmentItemCommentSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+COMMENT_MAX_LENGTH = 2000
+
+
 class AssessmentItemCommentRequestSerializer(serializers.Serializer):
-    body = serializers.CharField(max_length=2000, trim_whitespace=True)
+    body = serializers.CharField(
+        max_length=COMMENT_MAX_LENGTH,
+        trim_whitespace=True,
+        error_messages={
+            "required": "Write a comment to add.",
+            "blank": "Write a comment to add.",
+            "max_length": (
+                f"A comment can be at most {COMMENT_MAX_LENGTH} characters. "
+                "Shorten it, or add the rest as a second comment."
+            ),
+        },
+    )
 
 
 class CandidateAssessmentItemSerializer(serializers.ModelSerializer):

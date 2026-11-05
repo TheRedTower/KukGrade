@@ -3,9 +3,11 @@
 An item used to carry one note that every save overwrote. Comments replace it
 (2026-11-04, marking workflow), so what is written there is kept as a comment
 rather than lost. A note carried no author of its own, so it is credited to the
-person the record says wrote it: whoever last saved that exact note, as the
-audit trail has it; failing that, whoever marked the item; failing that, the
-Deleted user account, which holds history whose author is no longer known.
+person the record says wrote it: whoever last *changed the note to what it now
+says*, as the audit trail has it (an event that merely repeated the note while
+someone else changed the result does not count); failing that, whoever marked
+the item; failing that, the Deleted user account, which holds history whose
+author is no longer known.
 
 The note column stays for now, so this can be undone and nothing is lost if a
 comment has to be re-read; nothing writes it any more.
@@ -38,8 +40,15 @@ def carry_notes_into_comments(apps: Any, _schema_editor: Any) -> None:
             action="ITEM_RESULT_RECORDED",
         ).order_by("-occurred_at", "-pk")
         for event in events:
+            before = (event.metadata or {}).get("before") or {}
             after = (event.metadata or {}).get("after") or {}
-            if after.get("assessor_notes") == item.assessor_notes and event.actor_id:
+            # Every result change also carried the note as it stood, so the
+            # note must differ before and after to have been written by it.
+            changed_the_note = (
+                after.get("assessor_notes") == item.assessor_notes
+                and before.get("assessor_notes") != item.assessor_notes
+            )
+            if changed_the_note and event.actor_id:
                 author_id, written_at = event.actor_id, event.occurred_at
                 break
         if author_id is None and item.assessor_id:

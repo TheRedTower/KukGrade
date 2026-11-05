@@ -891,17 +891,74 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       expect(screen.getByTestId("btn-comment-save-1003")).toBeDisabled();
     });
 
-    it("says why when a comment is refused", async () => {
-      commentMock(true);
+    it("says why when a comment is refused, and keeps what was typed", async () => {
+      const { posts } = commentMock(true);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
 
       await user.click(screen.getByTestId("btn-comment-1003"));
-      await user.type(screen.getByTestId("caw-comment-input-1003"), "Too late.");
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "A long, careful observation.");
       await user.click(screen.getByTestId("btn-comment-save-1003"));
 
       expect(await screen.findByRole("alert")).toHaveTextContent("Items can only be commented on in an open session.");
+      // Nothing is lost: the box is still open with the text, ready to correct or retry.
+      expect(screen.getByTestId("caw-comment-input-1003")).toHaveValue("A long, careful observation.");
+      expect(posts).toEqual(["A long, careful observation."]);
+    });
+
+    it("can retry a comment that failed, and then saves it once", async () => {
+      let failures = 1;
+      const posts: string[] = [];
+      const base = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
+          const body = JSON.parse(String(init.body)).body as string;
+          posts.push(body);
+          if (failures-- > 0) return jsonResponse(500, { error: { code: "server_error", message: "Something went wrong." } });
+          return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
+        }
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+        if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+        if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+        if (url.includes("/api/gradings/assessments/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+        }
+        if (url.includes("/api/gradings/assessment-items/")) {
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      });
+      vi.stubGlobal("fetch", base);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "Worth keeping.");
+      await user.click(screen.getByTestId("btn-comment-save-1003"));
+      await screen.findByRole("alert");
+      expect(screen.getByTestId("caw-comment-input-1003")).toHaveValue("Worth keeping.");
+
+      await user.click(screen.getByTestId("btn-comment-save-1003"));
+
+      await waitFor(() => expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull());
+      expect(posts).toEqual(["Worth keeping.", "Worth keeping."]);
+    });
+
+    it("saves once however many times Enter is pressed while it is saving", async () => {
+      const { posts } = commentMock();
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "Once only.");
+      await user.keyboard("{Enter}{Enter}{Enter}");
+
+      await waitFor(() => expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull());
+      expect(posts).toEqual(["Once only."]);
     });
   });
 

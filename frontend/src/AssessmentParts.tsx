@@ -109,9 +109,10 @@ export function AssessmentItemRow({
   onCancelClear: () => void;
   onToggleComment: () => void;
   onUpdateResult: (result: CandidateAssessmentItemResult) => void;
-  onAddComment: (body: string) => void;
+  onAddComment: (body: string) => Promise<unknown>;
 }) {
   const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
   const keepButtonRef = useRef<HTMLButtonElement>(null);
   const clearButtonRef = useRef<HTMLButtonElement>(null);
   const metButtonRef = useRef<HTMLButtonElement>(null);
@@ -144,12 +145,21 @@ export function AssessmentItemRow({
   // On a computer that means Enter (Shift+Enter starts a new line). On a phone
   // or tablet the Enter key is how a line break is typed, and a stray tap on it
   // must not save a half-typed comment, so there only the button saves.
-  const submitComment = () => {
+  // The draft stays, and the box stays open, until the server has the comment:
+  // a refused or failed save (too long, no connection) must not cost the text.
+  const submitComment = async () => {
     const body = draft.trim();
-    if (!body) return;
-    onAddComment(body);
-    setDraft("");
-    onToggleComment();
+    if (!body || saving) return;
+    setSaving(true);
+    try {
+      await onAddComment(body);
+      setDraft("");
+      onToggleComment();
+    } catch {
+      // The screen says why it failed; the draft is left to correct or retry.
+    } finally {
+      setSaving(false);
+    }
   };
   const closeComment = () => {
     setDraft("");
@@ -313,7 +323,7 @@ export function AssessmentItemRow({
                   !window.matchMedia("(pointer: coarse)").matches
                 ) {
                   e.preventDefault();
-                  submitComment();
+                  void submitComment();
                 }
               }}
               data-testid={`caw-comment-input-${item.id}`}
@@ -323,7 +333,7 @@ export function AssessmentItemRow({
               <Button variant="secondary" onClick={closeComment}>
                 Cancel
               </Button>
-              <Button onClick={submitComment} disabled={!draft.trim()} data-testid={`btn-comment-save-${item.id}`}>
+              <Button onClick={() => void submitComment()} disabled={!draft.trim() || saving} data-testid={`btn-comment-save-${item.id}`}>
                 Save comment
               </Button>
             </div>

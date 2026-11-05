@@ -245,6 +245,23 @@ def test_the_api_refuses_a_missing_empty_or_overlong_comment(
     assert not item.comments.exists()
 
 
+def test_the_api_says_in_plain_words_what_is_wrong_with_a_comment() -> None:
+    item = started_item()
+    client = auth_client("api-plain-words@example.com")
+    url = f"/api/gradings/assessment-items/{item.pk}/comments/"
+
+    empty = client.post(url, {"body": "  "}, format="json").json()["error"]["message"]
+    long = client.post(url, {"body": "x" * 2001}, format="json").json()["error"][
+        "message"
+    ]
+
+    assert empty == "Write a comment to add."
+    assert long == (
+        "A comment can be at most 2000 characters. "
+        "Shorten it, or add the rest as a second comment."
+    )
+
+
 def test_the_api_needs_a_signed_in_person_who_may_mark() -> None:
     item = started_item()
     url = f"/api/gradings/assessment-items/{item.pk}/comments/"
@@ -273,6 +290,7 @@ def test_old_notes_become_comments_credited_to_the_best_known_author() -> None:
     )
     first, second, third, untouched = list(generated.items.all()[:4])
     wrote_it = user("wrote-the-note@example.com")
+    changed_result_only = user("changed-the-result@example.com")
     marked_it = user("marked-the-item@example.com")
     old_target = [("gradings", "0017_remove_draft_outcome_status")]
     executor = MigrationExecutor(connection)
@@ -296,14 +314,28 @@ def test_old_notes_become_comments_credited_to_the_best_known_author() -> None:
                 " result = 'MET', assessed_at = now() WHERE id = %s",
                 [marked_it.pk, second.pk],
             )
-        # The audit trail says who saved Note A; Note B has only a marker;
-        # Note C has neither.
+        # The audit trail says who changed the note to Note A; someone else
+        # later changed only the result, and that event carried the note too.
+        # Note B has only a marker; Note C has neither.
         event = record(
             AuditAction.ITEM_RESULT_RECORDED,
             first,
             "Notes updated.",
             actor=wrote_it,
-            metadata={"after": {"result": "NOT_ASSESSED", "assessor_notes": "Note A"}},
+            metadata={
+                "before": {"result": "NOT_ASSESSED", "assessor_notes": ""},
+                "after": {"result": "NOT_ASSESSED", "assessor_notes": "Note A"},
+            },
+        )
+        record(
+            AuditAction.ITEM_RESULT_RECORDED,
+            first,
+            "Recorded as MET.",
+            actor=changed_result_only,
+            metadata={
+                "before": {"result": "NOT_ASSESSED", "assessor_notes": "Note A"},
+                "after": {"result": "MET", "assessor_notes": "Note A"},
+            },
         )
 
         executor = MigrationExecutor(connection)

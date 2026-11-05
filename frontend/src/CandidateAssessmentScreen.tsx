@@ -368,7 +368,7 @@ export function CandidateAssessmentScreen() {
                     setConfirmingClearId(null);
                     updateItemMutation.mutate({ itemId: item.id, result });
                   }}
-                  onAddComment={(body) => addCommentMutation.mutate({ itemId: item.id, body })}
+                  onAddComment={(body) => addCommentMutation.mutateAsync({ itemId: item.id, body })}
                 />
               ))}
             </div>

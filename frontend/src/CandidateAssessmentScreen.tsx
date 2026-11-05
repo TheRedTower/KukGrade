@@ -107,7 +107,12 @@ export function CandidateAssessmentScreen() {
     mutationFn: ({ itemId, body }: { itemId: number; body: string }) => addAssessmentItemComment(itemId, body),
     onSuccess: (comment, { itemId }) => {
       patchItem(itemId, (item) => ({ ...item, comments: [...item.comments, comment] }));
-      queryClient.invalidateQueries({ queryKey: itemsKey });
+      // Not while scores are still being saved: a refetch now would show the
+      // server's older values over the ones just chosen. The last of those
+      // writes refetches the list, comments included.
+      if (queryClient.isMutating({ mutationKey: itemWriteKey }) === 0) {
+        queryClient.invalidateQueries({ queryKey: itemsKey });
+      }
     },
     onError: (err) => setActionError(errorMessage(err, "Could not add this comment.")),
   });

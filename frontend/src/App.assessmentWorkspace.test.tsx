@@ -983,6 +983,55 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
     });
 
+    it("does not refetch the items while scores are still saving, so a comment cannot undo a score", async () => {
+      let releasePatch: ((response: Response) => void) | undefined;
+      let itemFetches = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input);
+          if (/assessment-items\/1003\/$/.test(url) && init?.method === "PATCH") {
+            return new Promise<Response>((resolve) => {
+              releasePatch = resolve;
+            });
+          }
+          if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
+            const body = JSON.parse(String(init.body)).body as string;
+            return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
+          }
+          if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+          if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+          if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+          if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+          if (url.includes("/api/gradings/assessments/")) {
+            return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+          }
+          if (url.includes("/api/gradings/assessment-items/")) {
+            itemFetches += 1;
+            // The server has not seen the score yet: item 1003 is still unmarked.
+            return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+          }
+          return jsonResponse(404, { detail: "Not found" });
+        }),
+      );
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+      const fetchesBefore = itemFetches;
+
+      await user.click(screen.getByTestId("btn-met-1003"));
+      await waitFor(() => expect(releasePatch).toBeDefined());
+      await user.click(screen.getByTestId("btn-comment-1002"));
+      await user.type(screen.getByTestId("caw-comment-input-1002"), "Noted while saving.{Enter}");
+      expect(await screen.findByText(/Noted while saving\./)).toBeVisible();
+
+      expect(itemFetches).toBe(fetchesBefore);
+      expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
+
+      releasePatch?.(jsonResponse(200, { ...mockItem3, result: "MET", result_display: "Met" }) as Response);
+      await waitFor(() => expect(itemFetches).toBeGreaterThan(fetchesBefore));
+    });
+
     it("will not save an empty comment", async () => {
       commentMock();
       const user = userEvent.setup();

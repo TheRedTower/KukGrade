@@ -161,3 +161,50 @@ def test_the_marking_survives_a_change_of_rank_choices() -> None:
         DUPLICATE_OF_EARLIER_IMPORT in issues
         for issues in issues_by_name(second).values()
     )
+
+
+def test_a_workbook_uploaded_before_the_other_was_committed_is_still_caught() -> None:
+    first = legacy_batch(standard_workbook(ROWS), uploaded_by=import_admin())
+    second = legacy_batch(resaved(ROWS))
+    before = preview_legacy_grading_import(second)
+    commit_legacy_grading_import(first, actor=import_admin())
+
+    # An ordinary preview, as reopening the review makes: no rank choices.
+    after = preview_legacy_grading_import(second)
+
+    assert not any("earlier import" in w for w in before.warnings)
+    assert any("2 records in this workbook match" in w for w in after.warnings)
+    assert all(
+        DUPLICATE_OF_EARLIER_IMPORT in issues
+        for issues in issues_by_name(second).values()
+    )
+
+
+def test_voiding_the_earlier_records_lifts_the_marking_on_the_next_preview() -> None:
+    commit_first()
+    second = legacy_batch(resaved(ROWS))
+    assert any(
+        "earlier import" in w for w in preview_legacy_grading_import(second).warnings
+    )
+
+    for record in LegacyGradingRecord.objects.all():
+        void_legacy_record(record, reason="Set aside.", actor=import_admin())
+    after = preview_legacy_grading_import(second)
+
+    assert not any("earlier import" in w for w in after.warnings)
+    assert all(
+        DUPLICATE_OF_EARLIER_IMPORT not in issues
+        for issues in issues_by_name(second).values()
+    )
+
+
+def test_a_preview_keeps_the_other_reasons_a_row_has_when_it_marks_a_repeat() -> None:
+    commit_first()
+    second = legacy_batch(resaved(ROWS))
+
+    preview_legacy_grading_import(second)
+
+    own = issues_by_name(second)["A. Example"]
+    assert DUPLICATE_OF_EARLIER_IMPORT in own
+    assert any("not matched to a KukGrade rank" in issue for issue in own)
+    assert own.count(DUPLICATE_OF_EARLIER_IMPORT) == 1

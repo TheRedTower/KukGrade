@@ -1619,6 +1619,40 @@ def _legacy_issue_finder(
     return issues
 
 
+def _refresh_duplicate_issues(locked: ImportBatch) -> None:
+    """Mark, or unmark, the rows an earlier import now holds.
+
+    Against the records as they are now, not as they were at upload: another
+    upload may have been committed since, or an earlier record voided. Only
+    the rows whose answer changed are written.
+    """
+    stored_rows = list(locked.rows.all())
+    canonical = [CanonicalLegacyRow(**stored.raw) for stored in stored_rows]
+    held = _committed_legacy_keys(canonical)
+    changed: list[ImportRow] = []
+    for stored, row in zip(stored_rows, canonical, strict=True):
+        repeat = (
+            _legacy_key(
+                row.source_sheet,
+                row.source_locator,
+                row.source_name,
+                row.cycle_year,
+                row.cycle_month,
+            )
+            in held
+        )
+        marked = DUPLICATE_OF_EARLIER_IMPORT in stored.issues
+        if repeat == marked:
+            continue
+        stored.issues = (
+            [*stored.issues, DUPLICATE_OF_EARLIER_IMPORT]
+            if repeat
+            else [i for i in stored.issues if i != DUPLICATE_OF_EARLIER_IMPORT]
+        )
+        changed.append(stored)
+    ImportRow.objects.bulk_update(changed, ["issues"], batch_size=500)
+
+
 def _find_legacy_issues(locked: ImportBatch) -> None:
     """Store each historical row's reasons to look at it, after the rank
     choices change."""
@@ -1740,6 +1774,8 @@ def preview_legacy_grading_import(
     if rank_mappings is not None:
         _save_rank_mappings(locked, rank_mappings)
         _find_legacy_issues(locked)
+    # Every preview, since what earlier imports hold can change between two.
+    _refresh_duplicate_issues(locked)
     rows = [row for _, row in _stored_legacy_rows(locked)]
     resolve = _rank_resolver(locked.configuration_json.get("rank_mappings", {}))
 

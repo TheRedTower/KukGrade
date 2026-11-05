@@ -126,6 +126,29 @@ describe("SealedAssessmentEvidence", () => {
     expect(screen.queryByTestId("evd-change-5-1")).toBeNull();
   });
 
+  it("shows a first mark made after the lock, even on a met item with no comments", async () => {
+    mockGetSummary.mockResolvedValue(summary);
+    mockGetItems.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        item({
+          id: 6,
+          changes: [
+            { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Seen on the recording.", after_lock: true },
+          ],
+        }),
+      ],
+    });
+
+    renderEvidence();
+
+    const change = await screen.findByTestId("evd-change-6-1");
+    expect(change).toHaveTextContent("Seen on the recording.");
+    expect(change).toHaveTextContent("after the lock");
+  });
+
   it("says so, and requests nothing, when the candidate has no assessment", () => {
     renderEvidence(null);
 

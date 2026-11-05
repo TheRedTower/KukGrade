@@ -12,7 +12,7 @@ import { Link } from "react-router-dom";
 
 import { Button } from "./Button";
 import { formatShortDateTime, formatTime } from "./dates";
-import { RESULT_WORDS } from "./resultWords";
+import { isReasonedChange, RESULT_WORDS } from "./resultWords";
 import { ErrorText } from "./ErrorText";
 import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
@@ -37,7 +37,7 @@ export function SealedAssessmentEvidence({
     (item) =>
       item.result === "NOT_MET" ||
       item.comments.length > 0 ||
-      item.changes.some((change) => change.sequence > 1),
+      item.changes.some(isReasonedChange),
   );
   const shortfalls = notedItems.filter((item) => item.result === "NOT_MET");
   const otherNotes = notedItems.filter((item) => item.result !== "NOT_MET");
@@ -87,7 +87,7 @@ export function SealedAssessmentEvidence({
                       {!shortfall && ` · ${item.result_display}`}
                     </span>
                     {item.changes
-                      .filter((change) => change.sequence > 1)
+                      .filter(isReasonedChange)
                       .map((change) => (
                         <span key={change.sequence} className="evd-comment" data-testid={`evd-change-${item.id}-${change.sequence}`}>
                           <q>{change.reason}</q>

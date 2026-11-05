@@ -7,7 +7,7 @@ import { formatShortDateTime, formatTime } from "./dates";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { Button } from "./Button";
 import { ItemDraftBox } from "./ItemDraftBox";
-import { RESULT_WORDS } from "./resultWords";
+import { isReasonedChange, RESULT_WORDS } from "./resultWords";
 import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
 
@@ -170,7 +170,7 @@ export function AssessmentItemRow({
     if (isScored || hasHistory || reasonAlways) onAskChange(result);
     else onMark(result);
   };
-  const laterChanges = item.changes.filter((change) => change.sequence > 1);
+  const laterChanges = item.changes.filter(isReasonedChange);
   const clearing = pendingResult === "NOT_ASSESSED";
 
   return (

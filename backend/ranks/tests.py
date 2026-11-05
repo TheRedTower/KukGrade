@@ -26,7 +26,7 @@ REQUIRED_RANKS = [
     ("BROWN_STRIPE", "Brown Stripe", 8, Rank.Category.COLOURED_BELT),
     ("BROWN", "Brown", 9, Rank.Category.COLOURED_BELT),
     ("BLACK_STRIPE", "Black Stripe", 10, Rank.Category.COLOURED_BELT),
-    ("DAHN_BO", "Dahn Bo", 11, Rank.Category.BLACK_BELT_CANDIDATE),
+    ("DAHN_BO", "DBN", 11, Rank.Category.BLACK_BELT_CANDIDATE),
     ("JKN", "JKN", 12, Rank.Category.BLACK_BELT),
     ("KSN", "KSN", 13, Rank.Category.BLACK_BELT),
     ("PSBN", "PSBN", 14, Rank.Category.BLACK_BELT),
@@ -363,3 +363,16 @@ def test_the_rank_api_serves_each_belt() -> None:
     assert blue_stripe["belt_colour"] == "YELLOW"
     assert blue_stripe["stripe_colour"] == "BLUE"
     assert rows["BLUE"]["stripe_colour"] == ""
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("text", ["DBN", "dbn", "Dahn Bo", "Dahn Bo Nim", "DAHN_BO"])
+def test_every_spelling_of_dahn_bo_suggests_dbn(text: str) -> None:
+    from ranks.matching import active_rank_lookup, suggest_rank
+
+    rank, doubtful = suggest_rank(text, active_rank_lookup())
+
+    assert rank is not None
+    assert rank.code == "DAHN_BO"
+    assert rank.name == "DBN"
+    assert doubtful is False

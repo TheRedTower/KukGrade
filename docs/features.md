@@ -80,9 +80,9 @@ When an assessment is created, the full text of every requirement is copied into
 the candidate's own record. A later change to the syllabus therefore **cannot alter
 a past grading**; historical results always read exactly as they were assessed.
 
-Ranks run White, Yellow stripe, Yellow, Blue stripe, Blue, Red stripe, Red, Brown
-stripe, Brown, Black stripe, then the dahn and master titles from Dahn Bo Nim to
-Pyung Kwahn Jung Nim. Every screen draws ranks as the actual belt.
+Ranks run White, Yellow Stripe, Yellow, Blue Stripe, Blue, Red Stripe, Red, Brown
+Stripe, Brown, Black Stripe, then the dahn and master titles DBN, JKN, KSN, PSBN,
+SBN and PKJN (Dahn Bo Nim to Pyung Kwahn Jung Nim). Every screen draws ranks as the actual belt.
 
 ## Importing existing records
 

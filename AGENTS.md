@@ -66,24 +66,24 @@ Age bands:
 - 13-17
 - 18+
 
-Ranks:
+Ranks (as stored and shown; the black belt titles are abbreviated):
 
 - White
-- Yellow stripe
+- Yellow Stripe
 - Yellow
-- Blue stripe
+- Blue Stripe
 - Blue
-- Red stripe
+- Red Stripe
 - Red
-- Brown stripe
+- Brown Stripe
 - Brown
-- Black stripe
-- Dahn Bo Nim
-- Jo Kyo Nim
-- Kyo Sa Nim
-- Pu Sa buhm Nim
-- Sa Buhm nim
-- Pyung Kwahn Jung Nim
+- Black Stripe
+- DBN (Dahn Bo Nim)
+- JKN (Jo Kyo Nim)
+- KSN (Kyo Sa Nim)
+- PSBN (Pu Sa buhm Nim)
+- SBN (Sa Buhm nim)
+- PKJN (Pyung Kwahn Jung Nim)
 
 ## Security and Privacy
 

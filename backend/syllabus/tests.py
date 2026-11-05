@@ -791,7 +791,7 @@ def test_syllabus_migrations_apply_from_zero_and_seed_deterministic_records() ->
         executor = MigrationExecutor(connection)
         executor.migrate(
             [
-                ("ranks", "0003_belt_colours"),
+                ("ranks", "0004_rename_dahn_bo_to_dbn"),
                 ("syllabus", "0002_seed_wksa_2014_syllabus"),
             ],
         )

@@ -15,7 +15,10 @@ from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.services import delete_platform_user
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
-from gradings.assessment_services import add_item_comment
+from gradings.assessment_services import (
+    add_item_comment,
+    update_candidate_assessment_item,
+)
 from gradings.models import (
     AssessmentItemComment,
     CandidateAssessment,
@@ -184,6 +187,90 @@ def test_deleting_a_user_keeps_their_comments_under_the_deleted_user_account() -
     comment.refresh_from_db()
     assert comment.author.email == DELETED_USER_PLACEHOLDER_EMAIL
     assert comment.body == "Still here after I go."
+
+
+# --- an item that already has a mark ----------------------------------------
+
+
+@pytest.mark.parametrize("mark", ["MET", "NOT_MET"])
+def test_several_people_can_each_comment_on_an_item_that_is_already_marked(
+    mark: str,
+) -> None:
+    item = started_item()
+    marker = user("marker@example.com")
+    first_reviewer = user("first-reviewer@example.com")
+    second_reviewer = user("second-reviewer@example.com")
+    marked = update_candidate_assessment_item(item, result=mark, assessor=marker)
+    marked_at = marked.assessed_at
+    marking_events = AuditEvent.objects.filter(
+        action=AuditAction.ITEM_RESULT_RECORDED,
+    ).count()
+
+    # Two people each saw different technical things; neither is turned away
+    # because the item has a mark, and neither overwrites the other.
+    first = add_item_comment(
+        item, "Chamber too low on the second kick.", first_reviewer
+    )
+    second = add_item_comment(
+        item, "Weight stayed on the back foot throughout.", second_reviewer
+    )
+
+    assert [c.author for c in item.comments.all()] == [first_reviewer, second_reviewer]
+    assert [c.body for c in item.comments.all()] == [first.body, second.body]
+    assert first.created_at <= second.created_at
+    # Each is stamped in the audit trail by whoever wrote it ...
+    comment_events = AuditEvent.objects.filter(action=AuditAction.ITEM_COMMENT_ADDED)
+    assert {event.actor for event in comment_events} == {
+        first_reviewer,
+        second_reviewer,
+    }
+    # ... and the mark, its marker and its time are exactly as they were.
+    item.refresh_from_db()
+    assert item.result == mark
+    assert item.assessor == marker
+    assert item.assessed_at == marked_at
+    assert (
+        AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
+        == marking_events
+    )
+
+
+def test_the_same_person_can_add_a_second_comment_to_a_marked_item() -> None:
+    item = started_item()
+    author = user("adds-twice@example.com")
+    update_candidate_assessment_item(item, result="MET", assessor=author)
+
+    add_item_comment(item, "Good stance.", author)
+    add_item_comment(item, "Also a clean finish.", author)
+
+    assert item.comments.count() == 2
+
+
+def test_the_items_list_shows_every_persons_comment_on_a_marked_item() -> None:
+    item = started_item()
+    update_candidate_assessment_item(item, result="MET", assessor=user("m@example.com"))
+    for email, body in (
+        ("reviewer-one@example.com", "Technical point one."),
+        ("reviewer-two@example.com", "A different technical point."),
+    ):
+        response = auth_client(email).post(
+            f"/api/gradings/assessment-items/{item.pk}/comments/",
+            {"body": body},
+            format="json",
+        )
+        assert response.status_code == 201
+
+    listed = auth_client("reader@example.com").get(
+        f"/api/gradings/assessment-items/?assessment={item.assessment_id}",
+    )
+
+    [row] = [r for r in results(listed) if r["id"] == item.pk]
+    assert row["result"] == "MET"
+    assert [(c["author_name"], c["body"]) for c in row["comments"]] == [
+        ("reviewer-one@example.com", "Technical point one."),
+        ("reviewer-two@example.com", "A different technical point."),
+    ]
+    assert all(c["created_at"] for c in row["comments"])
 
 
 # --- the API --------------------------------------------------------------

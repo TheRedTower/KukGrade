@@ -28,7 +28,9 @@ flowchart LR
    cohort) as a copy of the **cumulative syllabus** for their age band, from White
    up to the rank they are testing for, and started deliberately. Assessors mark
    each item **Met** or **Not met**. Anyone marking or reviewing can add comments
-   to an item, which keep their author and time and are never edited or removed;
+   to an item, including one that is already marked and from several people (each
+   adds their own observations); they keep their author and time and are never
+   edited or removed, and adding one never changes the mark;
    category results are worked out from the items. Attendance is confirmed in bulk: tick the no-shows
    and confirm.
 4. **Propose an outcome.** Instructors propose **Pass**, **Fail** or

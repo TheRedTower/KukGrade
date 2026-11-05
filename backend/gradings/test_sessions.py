@@ -22,6 +22,7 @@ from gradings.models import (
 from gradings.outcome_services import propose_for_candidate
 from gradings.services import (
     apply_candidate_update,
+    create_grading_session,
     transition_grading_session,
     update_grading_session,
     validate_session_transition,
@@ -94,30 +95,57 @@ def test_grading_session_date_cannot_change_after_candidates_exist() -> None:
     session = grading_session()
     candidate(session=session)
 
-    session.grading_date = date(2027, 4, 1)
-
     with pytest.raises(ValidationError) as exc_info:
-        session.save()
+        update_grading_session(session, changes={"grading_date": date(2027, 4, 1)})
 
     assert "grading_date" in exc_info.value.message_dict
     session.refresh_from_db()
     assert session.grading_date == date(2027, 3, 20)
+    assert not AuditEvent.objects.filter(action=AuditAction.SESSION_UPDATED).exists()
+
+
+def test_grading_session_date_can_change_before_anyone_is_registered() -> None:
+    session = grading_session()
+
+    update_grading_session(session, changes={"grading_date": date(2027, 4, 1)})
+
+    session.refresh_from_db()
+    assert session.grading_date == date(2027, 4, 1)
 
 
 def test_grading_session_default_status_is_draft() -> None:
     assert grading_session().status == GradingSession.Status.DRAFT
 
 
-def test_new_grading_session_must_start_in_draft_status() -> None:
+def test_creating_a_session_refuses_any_status_but_draft() -> None:
+    creator = user("locked-on-create@example.com")
+
     with pytest.raises(ValidationError) as exc_info:
-        GradingSession.objects.create(
+        create_grading_session(
             title="Locked on create",
             grading_date=date(2027, 3, 20),
+            location="",
+            notes="",
+            created_by=creator,
             status=GradingSession.Status.LOCKED,
-            created_by=user("locked-on-create@example.com"),
         )
 
     assert "New grading sessions must start in draft status." in str(exc_info.value)
+    assert not GradingSession.objects.filter(title="Locked on create").exists()
+    assert not AuditEvent.objects.filter(action=AuditAction.SESSION_CREATED).exists()
+
+
+def test_creating_a_session_over_the_api_refuses_a_status_too() -> None:
+    client = auth_client("api-locked-on-create@example.com")
+
+    response = client.post(
+        "/api/gradings/sessions/",
+        {"title": "Locked on create", "grading_date": "2027-03-20", "status": "LOCKED"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not GradingSession.objects.filter(title="Locked on create").exists()
 
 
 def test_grading_session_ordering_is_deterministic() -> None:
@@ -469,16 +497,18 @@ def test_session_api_rejects_grading_date_change_after_candidates_exist() -> Non
     assert session.grading_date == date(2027, 3, 20)
 
 
-def test_direct_session_save_rejects_status_changes_and_allows_other_edits() -> None:
+def test_the_update_service_edits_details_but_never_moves_the_status() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    session.location = "New hall"
-    session.save()
+
+    update_grading_session(session, changes={"location": "New hall"})
     session.refresh_from_db()
     assert session.location == "New hall"
 
-    session.status = GradingSession.Status.LOCKED
     with pytest.raises(ValidationError) as exc_info:
-        session.save()
+        update_grading_session(
+            session,
+            changes={"status": GradingSession.Status.LOCKED},
+        )
 
     assert "transition_grading_session" in str(exc_info.value)
     session.refresh_from_db()

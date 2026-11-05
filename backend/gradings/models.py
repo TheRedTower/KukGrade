@@ -140,28 +140,9 @@ class GradingSession(models.Model):
 
         if not self.title:
             raise ValidationError({"title": ["Title is required."]})
-        if self._state.adding and self.status != self.Status.DRAFT:
-            raise ValidationError(
-                {"status": ["New grading sessions must start in draft status."]},
-            )
-        if not self._state.adding:
-            from gradings.services import validate_session_grading_date_change
-
-            validate_session_grading_date_change(self)
-            previous_status = (
-                GradingSession.objects.filter(pk=self.pk)
-                .values_list("status", flat=True)
-                .first()
-            )
-            if previous_status != self.status:
-                raise ValidationError(
-                    {
-                        "status": [
-                            "Use transition_grading_session() for grading "
-                            "session status changes.",
-                        ],
-                    },
-                )
+        # What a session may become, and when its date may change, is workflow:
+        # create_grading_session, update_grading_session and
+        # transition_grading_session enforce it, under the session's lock.
 
 
 class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):

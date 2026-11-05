@@ -47,8 +47,6 @@ from gradings.services import (
     session_can_be_restored,
     session_deletion_blocker,
     update_grading_session,
-    validate_session_grading_date_change,
-    validate_session_transition,
     with_session_progress,
     withdraw_locked_candidate,
 )
@@ -131,18 +129,6 @@ class GradingSessionSerializer(serializers.ModelSerializer):
                 GradingSession.objects.filter(pk=instance.pk),
             ).get()
         return super().to_representation(instance)
-
-    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
-        if self.instance is not None and "status" in attrs:
-            validate_session_transition(
-                self.instance.status,
-                str(attrs["status"]),
-                session=self.instance,
-            )
-        if self.instance is not None and "grading_date" in attrs:
-            self.instance.grading_date = attrs["grading_date"]
-            validate_session_grading_date_change(self.instance)
-        return attrs
 
     def create(self, validated_data: dict[str, Any]) -> GradingSession:
         request = self.context["request"]

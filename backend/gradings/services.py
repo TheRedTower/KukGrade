@@ -381,6 +381,12 @@ def _audit_value(value: object) -> object:
     return value
 
 
+NEW_SESSION_STATUS_MESSAGE = "New grading sessions must start in draft status."
+STATUS_CHANGE_MESSAGE = (
+    "Use transition_grading_session() for grading session status changes."
+)
+
+
 @transaction.atomic
 def update_grading_session(
     session: GradingSession,
@@ -399,10 +405,15 @@ def update_grading_session(
     has more editable fields than the API, which is why `changes` is a
     mapping.
     """
+    if "status" in changes:
+        raise ValidationError({"status": [STATUS_CHANGE_MESSAGE]})
     locked = lock_session(session.pk)
     before = {field: _audit_value(getattr(locked, field)) for field in changes}
     for field, value in changes.items():
         setattr(locked, field, value)
+    if "grading_date" in changes:
+        # Against the locked row, so a registration made while this waited counts.
+        validate_session_grading_date_change(locked)
     if changes:
         # The same normalising clean() that save() runs, so a resent value
         # that only differs by surrounding whitespace counts as unchanged.
@@ -917,16 +928,17 @@ def create_grading_session(
     created_by: User,
     status: str | None = None,
 ) -> GradingSession:
-    # Passed through rather than ignored so the model's "new sessions must
-    # start in draft" guard still rejects a client that supplies one, instead
-    # of silently overriding it.
+    # A client that supplies a status is refused, not silently overridden.
+    if status is not None and status != GradingSession.Status.DRAFT:
+        raise ValidationError(
+            {"status": [NEW_SESSION_STATUS_MESSAGE]},
+        )
     session = GradingSession.objects.create(
         title=title,
         grading_date=grading_date,
         location=location,
         notes=notes,
         created_by=created_by,
-        **({"status": status} if status is not None else {}),
     )
     record(
         AuditAction.SESSION_CREATED,

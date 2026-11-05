@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from django.db.models import QuerySet
 from drf_spectacular.utils import extend_schema
@@ -13,8 +13,13 @@ from rest_framework.viewsets import GenericViewSet
 from accounts.models import User
 from accounts.permissions import CanViewAuditLog, HasRequiredPermissions
 from audit.models import AuditAction, AuditEntity, AuditEvent, hidden_actions
-from audit.serializers import AuditEventSerializer, AuditLabelsSerializer
+from audit.serializers import (
+    AuditEventSerializer,
+    AuditLabelsSerializer,
+    student_id_of,
+)
 from kukgrade.filtering import choice, exact, on_date, search
+from students.models import Student
 
 
 class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
@@ -44,6 +49,24 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
             ("summary", "entity_type", "entity_id", "actor_email", "actor_name"),
         ),
     )
+
+    def paginate_queryset(self, queryset: QuerySet[Any]) -> list[Any] | None:
+        page = super().paginate_queryset(queryset)
+        # The page's students are read once, so a name costs one query however
+        # many events there are.
+        events = page if page is not None else []
+        ids = {i for i in map(student_id_of, events) if i is not None}
+        self._student_names = {
+            student.pk: student.full_name
+            for student in Student.objects.filter(pk__in=ids)
+        }
+        return page
+
+    def get_serializer_context(self) -> dict[str, Any]:
+        return {
+            **super().get_serializer_context(),
+            "student_names": getattr(self, "_student_names", {}),
+        }
 
     def get_queryset(self) -> QuerySet[AuditEvent]:
         # User-management events are excluded per row rather than through

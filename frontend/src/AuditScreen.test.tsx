@@ -35,6 +35,7 @@ const auditEvent: AuditEvent = {
   action_display: "Outcome finalised",
   entity_type: "CandidateOutcome",
   entity_type_display: "Outcome",
+  subject_name: "",
   entity_id: "103",
   actor_email: "master.kim@kuksoolwon.test",
   actor_name: "In Hyuk Kim",
@@ -66,6 +67,18 @@ describe("AuditScreen", () => {
       previous: null,
       results: [auditEvent],
     });
+  });
+
+  it("shows a student's current name beside an event that holds only their ID", async () => {
+    mockGetAuditEvents.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{ ...auditEvent, summary: "Student 123-4-001 created.", subject_name: "Alex Kim" }],
+    });
+    renderScreen();
+
+    expect(await screen.findByText("Student 123-4-001 created. (Alex Kim)")).toBeVisible();
   });
 
   it("shows the immutable event ledger and inspectable event detail", async () => {

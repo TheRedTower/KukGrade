@@ -40,9 +40,6 @@ Want something here, or something that is missing? Open an
       account or password action. Planned after 1.0.
 - [ ] **Instructor groups**: assign each candidate to an instructor's group so each marks
       their own at the mat. Wanted after the marking workflow.
-- [ ] **Audit events without personal details**: new events record the student's ID and which
-      fields changed, not names or dates of birth, plus a written and tested procedure to
-      redact older events on request.
 - [ ] **Reports and exports**, from an agreed reporting specification (for example a session
       summary or a student's grading history as a document).
 
@@ -62,6 +59,8 @@ Want something here, or something that is missing? Open an
 - **Explicit syllabus versions.** Copying requirement text into every assessment already keeps
   history reproducible, so publishing named syllabus versions is deferred until there is a need.
 - **Backup ownership and retention** guidance for schools that host it themselves.
+- **How long audit events are kept.** The log is permanent today and the retention period is
+  not set; the erasure procedure in [Privacy](privacy.md) works whatever it turns out to be.
 
 ## Deferred until there is a real need
 
@@ -73,7 +72,7 @@ and running more than one application worker (the sign-in throttle needs a share
 - The container serves HTTPS with a self-signed certificate by default, so browsers warn. Use one of
   the [proxy recipes](installation.md#choose-how-people-reach-it) or your own certificate for real use.
 - Backups are documented but not scheduled for you.
-- Data erasure (for example on request) is handled manually.
+- Data erasure on request: a student's name and date of birth can be erased from older audit events with `redact_student_audit` ([Privacy](privacy.md)); deleting the student, their grading history and any other copies (backups) remains manual.
 - The emergency Django admin is view-only for grading and student data. A record that
   needs correcting is corrected in KukGrade, or by calling the service from a shell.
 - The Cloudflare Tunnel and Pangolin Compose recipes follow the providers' documentation but have not

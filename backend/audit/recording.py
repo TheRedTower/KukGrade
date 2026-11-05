@@ -16,6 +16,16 @@ from accounts.models import User
 from audit.models import AuditEvent
 
 
+def student_label(student: models.Model, *, first: bool = False) -> str:
+    """How an event refers to a student: by WKSA ID only, never by name.
+
+    The audit log is permanent, so it holds no names or dates of birth. Screens
+    resolve the current name from the student's id while the student exists.
+    """
+    wksa_id = getattr(student, "wksa_id")  # noqa: B009 - any model with an ID
+    return f"{'Student' if first else 'student'} {wksa_id}"
+
+
 def record(
     action: str,
     entity: models.Model,

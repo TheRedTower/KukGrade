@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from audit.models import AuditAction
-from audit.recording import record, record_many
+from audit.recording import record, record_many, student_label
 from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
 from students import wksa_ids
@@ -35,6 +35,24 @@ def _snapshot(student: Student) -> dict[str, Any]:
         "date_of_birth": str(student.date_of_birth),
         "current_rank": student.current_rank.code,
         "status": student.status,
+    }
+
+
+# What a student event may carry: never a name or a date of birth. The audit log
+# is permanent, so the personal fields appear only as the fact that they changed.
+_PERSONAL_FIELDS = frozenset({"first_name", "last_name", "date_of_birth"})
+
+
+def _audited_change(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    rebanded: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "changed_fields": [key for key in before if before[key] != after[key]],
+        "before": {k: v for k, v in before.items() if k not in _PERSONAL_FIELDS},
+        "after": {k: v for k, v in after.items() if k not in _PERSONAL_FIELDS},
+        "rebanded": rebanded,
     }
 
 
@@ -85,7 +103,7 @@ def create_student(
     record(
         AuditAction.STUDENT_CREATED,
         student,
-        f"Student {student} created.",
+        f"{student_label(student, first=True)} created.",
         actor=actor,
     )
     return student
@@ -196,7 +214,10 @@ def create_students(
     )
     record_many(
         AuditAction.STUDENT_CREATED,
-        [(student, f"Student {student} created.") for student in created],
+        [
+            (student, f"{student_label(student, first=True)} created.")
+            for student in created
+        ],
         actor=actor,
     )
     return created
@@ -387,19 +408,19 @@ def update_student(
             AuditAction.STUDENT_STATUS_CHANGED,
             locked,
             (
-                f"Student {locked} status changed from "
+                f"{student_label(locked, first=True)} status changed from "
                 f"{before['status']} to {after['status']}."
             ),
             actor=actor,
-            metadata={"before": before, "after": after, "rebanded": rebanded},
+            metadata=_audited_change(before, after, rebanded),
         )
     else:
         record(
             AuditAction.STUDENT_UPDATED,
             locked,
-            f"Student {locked} updated.",
+            f"{student_label(locked, first=True)} updated.",
             actor=actor,
-            metadata={"before": before, "after": after, "rebanded": rebanded},
+            metadata=_audited_change(before, after, rebanded),
         )
     return locked
 
@@ -505,7 +526,7 @@ def delete_student(student: Student, actor: User) -> None:
     record(
         AuditAction.STUDENT_DELETED,
         locked,
-        f"Student {locked} permanently deleted.",
+        f"{student_label(locked, first=True)} permanently deleted.",
         actor=actor,
         metadata={
             "wksa_id": locked.wksa_id,

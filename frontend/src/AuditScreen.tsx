@@ -18,6 +18,7 @@ import { LoadingState } from "./LoadingState";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { Pagination } from "./Pagination";
+import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./AuditScreen.css";
 import { calendarDaysAgo, currentYear, formatApiDate, formatDateTime, formatTime } from "./dates";
@@ -266,7 +267,7 @@ export function AuditScreen(): React.ReactElement {
                   },
                 },
                 { key: "action", header: "Action", primary: true, render: (event) => event.action_display },
-                { key: "summary", header: "Summary", render: (event) => event.summary },
+                { key: "summary", header: "Summary", render: (event) => eventSummary(event) },
                 { key: "actor", header: "Actor", render: (event) => <span className="audit-actor">{actorLabel(event)}</span> },
                 {
                   key: "record",
@@ -326,7 +327,7 @@ export function AuditScreen(): React.ReactElement {
           </dl>
           <div className="audit-detail-section">
             <h3>Summary</h3>
-            <p>{selectedEvent.summary}</p>
+            <p>{eventSummary(selectedEvent)}</p>
           </div>
           <div className="audit-detail-section">
             <h3>Recorded details</h3>

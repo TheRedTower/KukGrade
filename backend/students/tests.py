@@ -368,7 +368,9 @@ def test_a_status_change_alongside_other_edits_writes_exactly_one_event() -> Non
     assert new_events.count() == 1
     event = new_events.get()
     assert event.action == AuditAction.STUDENT_STATUS_CHANGED
-    assert event.metadata["after"]["last_name"] == "NewLastName"
+    # The name changed, and the event says so without saying what it became.
+    assert event.metadata["changed_fields"] == ["last_name", "status"]
+    assert "NewLastName" not in str(event.metadata) + event.summary
     assert event.metadata["after"]["status"] == Student.Status.INACTIVE
     assert AuditEvent.objects.count() == before + 1
 

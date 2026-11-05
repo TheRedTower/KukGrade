@@ -109,6 +109,7 @@ paths:
           - ASSESSMENT_REOPENED
           - ASSESSMENT_STARTED
           - ASSESSMENT_UPDATED
+          - AUDIT_REDACTED
           - CANDIDATE_DELETED
           - CANDIDATE_REGISTERED
           - CANDIDATE_UPDATED
@@ -153,6 +154,7 @@ paths:
         schema:
           type: string
           enum:
+          - AuditLog
           - CandidateAssessment
           - CandidateAssessmentItem
           - CandidateOutcome
@@ -3032,6 +3034,7 @@ components:
       - LEGACY_GRADING_UNLINKED
       - LEGACY_GRADING_RANK_RESOLVED
       - LEGACY_GRADING_VOIDED
+      - AUDIT_REDACTED
       type: string
       description: |-
         * `SESSION_CREATED` - Grading session created
@@ -3071,6 +3074,7 @@ components:
         * `LEGACY_GRADING_UNLINKED` - Historical record unlinked
         * `LEGACY_GRADING_RANK_RESOLVED` - Historical record rank resolved
         * `LEGACY_GRADING_VOIDED` - Historical record voided
+        * `AUDIT_REDACTED` - Personal details erased from the audit log
     AgeBand:
       type: object
       description: 'One age band, from its code: label, description and programme.'
@@ -3305,6 +3309,7 @@ components:
       - User
       - ImportBatch
       - LegacyGradingRecord
+      - AuditLog
       type: string
       description: |-
         * `GradingSession` - Grading session
@@ -3317,6 +3322,7 @@ components:
         * `User` - User
         * `ImportBatch` - Import
         * `LegacyGradingRecord` - Historical grading record
+        * `AuditLog` - Audit log
     AuditEvent:
       type: object
       properties:
@@ -3354,6 +3360,11 @@ components:
         summary:
           type: string
           readOnly: true
+        subject_name:
+          type: string
+          readOnly: true
+          description: 'The current name of the student the event is about, read now:
+            events hold no names. Blank once the student no longer exists.'
         metadata:
           readOnly: true
       required:
@@ -3367,6 +3378,7 @@ components:
       - id
       - metadata
       - occurred_at
+      - subject_name
       - summary
     AuditLabels:
       type: object

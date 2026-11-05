@@ -22,6 +22,7 @@ import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIso
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
 import { OUTCOME_LABELS } from "./OutcomeControls";
+import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { PageHeader } from "./PageHeader";
 import { SessionStatusBadge } from "./StatusBadge";
@@ -170,7 +171,7 @@ function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
     id: event.id,
     timeDisplay: formatRelativeTime(event.occurred_at),
     actorName: event.actor_name || event.actor_email || "System",
-    summary: event.summary,
+    summary: eventSummary(event),
     statusType: type,
     statusLabel: outcomeLabel ? `${event.action_display} · ${outcomeLabel}` : event.action_display,
   };

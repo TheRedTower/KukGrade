@@ -35,6 +35,7 @@ from gradings.read_models import (
     CandidateNextAction,
     OverallAssessmentSummary,
     assessment_overall,
+    candidate_assessment_summary,
     candidate_next_action,
 )
 from gradings.services import (
@@ -547,6 +548,31 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             reason=str(validated_data.get("reason", "")),
             assessor=request.user,
         )
+
+
+class CandidateAssessmentItemSavedSerializer(CandidateAssessmentItemSerializer):
+    """What a mark returns: the item, and the assessment's rollup as the save
+    left it, so a screen need not ask for the counts again. Only the write
+    carries it; the list of items is unchanged."""
+
+    assessment_summary = serializers.SerializerMethodField(
+        help_text=(
+            "The assessment's overall and per-category counts after this save, "
+            "the same as GET assessments/<id>/summary/."
+        ),
+    )
+
+    class Meta(CandidateAssessmentItemSerializer.Meta):
+        fields = (  # type: ignore[assignment]
+            *CandidateAssessmentItemSerializer.Meta.fields,
+            "assessment_summary",
+        )
+
+    @extend_schema_field(CandidateAssessmentSummarySerializer)
+    def get_assessment_summary(self, obj: CandidateAssessmentItem) -> dict[str, Any]:
+        summary = candidate_assessment_summary(obj.assessment)
+        data = CandidateAssessmentSummarySerializer(summary).data
+        return cast(dict[str, Any], data)
 
 
 class CandidateOutcomeSerializer(serializers.ModelSerializer):

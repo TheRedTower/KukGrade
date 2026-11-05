@@ -470,6 +470,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /** @description Mark an item, and get the assessment's counts back with it. */
         patch: operations["gradings_assessment_items_partial_update"];
         trace?: never;
     };
@@ -1834,6 +1835,36 @@ export interface components {
             readonly assessed_at: string | null;
             readonly comments: components["schemas"]["AssessmentItemComment"][];
             readonly changes: components["schemas"]["AssessmentItemResultChange"][];
+        };
+        /**
+         * @description What a mark returns: the item, and the assessment's rollup as the save
+         *     left it, so a screen need not ask for the counts again. Only the write
+         *     carries it; the list of items is unchanged.
+         */
+        CandidateAssessmentItemSaved: {
+            readonly id: number;
+            readonly item_name: string;
+            readonly korean_name: string;
+            readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
+            readonly category_display: string;
+            /** @description Whether the category is one of the six core grading areas every rank shares, rather than rank-specific content. */
+            readonly category_is_core: boolean;
+            readonly position: number;
+            readonly required: boolean;
+            readonly display_range: string;
+            readonly requirement_notes: string;
+            /** @description The syllabus's display wording for this item's chart notation - 'Part 1 of 2', 'Parts 1-3' - as it stood when the assessment was generated; empty when there is none. */
+            readonly notation: string;
+            result?: components["schemas"]["ResultEnum"];
+            readonly result_display: string;
+            /** Format: email */
+            readonly assessor_email: string;
+            /** Format: date-time */
+            readonly assessed_at: string | null;
+            readonly comments: components["schemas"]["AssessmentItemComment"][];
+            readonly changes: components["schemas"]["AssessmentItemResultChange"][];
+            /** @description The assessment's overall and per-category counts after this save, the same as GET assessments/<id>/summary/. */
+            readonly assessment_summary: components["schemas"]["CandidateAssessmentSummary"];
         };
         /**
          * @description * `NOT_STARTED` - Not started
@@ -3938,7 +3969,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CandidateAssessmentItem"];
+                    "application/json": components["schemas"]["CandidateAssessmentItemSaved"];
                 };
             };
         };

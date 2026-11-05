@@ -1378,3 +1378,67 @@ def test_assessment_list_filters_by_one_or_several_statuses() -> None:
     assert ids("&status=COMPLETED,IN_PROGRESS") == {done.pk, working.pk}
     assert ids("&status=COMPLETED,NOPE") == set()
     assert ids("") == {untouched.pk, working.pk, done.pk}
+
+
+def test_a_mark_returns_the_assessments_counts_as_the_save_left_them() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    start_assessment(generated)
+    items = list(generated.items.filter(required=True).order_by("pk"))
+    client = auth_client("mark-returns-summary@example.com")
+
+    first = client.patch(
+        f"/api/gradings/assessment-items/{items[0].pk}/",
+        {"result": "MET"},
+        format="json",
+    )
+    second = client.patch(
+        f"/api/gradings/assessment-items/{items[1].pk}/",
+        {"result": "NOT_MET"},
+        format="json",
+    )
+    served = client.get(f"/api/gradings/assessments/{generated.pk}/summary/").json()
+
+    assert first.status_code == second.status_code == 200
+    assert first.json()["assessment_summary"]["overall"]["met"] == 1
+    # The second answer counts both marks, and is what the summary endpoint serves.
+    assert second.json()["assessment_summary"]["overall"]["met"] == 1
+    assert second.json()["assessment_summary"]["overall"]["not_met"] == 1
+    assert second.json()["assessment_summary"] == served
+
+
+def test_clearing_a_required_mark_returns_counts_that_say_it_is_open_again() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    start_assessment(generated)
+    required = list(generated.items.filter(required=True).order_by("pk"))
+    client = auth_client("mark-clears-summary@example.com")
+    for item in required:
+        client.patch(
+            f"/api/gradings/assessment-items/{item.pk}/",
+            {"result": "MET"},
+            format="json",
+        )
+
+    cleared = client.patch(
+        f"/api/gradings/assessment-items/{required[0].pk}/",
+        {"result": "NOT_ASSESSED", "reason": "Marked the wrong person."},
+        format="json",
+    )
+
+    overall = cleared.json()["assessment_summary"]["overall"]
+    assert overall["all_required_assessed"] is False
+    assert overall["required_not_assessed"] == 1
+
+
+def test_the_item_list_does_not_carry_the_assessments_counts() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    client = auth_client("items-list-shape@example.com")
+
+    rows = results(
+        client.get(f"/api/gradings/assessment-items/?assessment={generated.pk}"),
+    )
+
+    assert rows
+    assert all("assessment_summary" not in row for row in rows)

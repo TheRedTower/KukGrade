@@ -582,11 +582,14 @@ export async function getAllCandidateAssessmentItems(
   );
 }
 
+/** An item as a mark returns it: with the assessment's counts as the save left them. */
+export type CandidateAssessmentItemSaved = Schemas["CandidateAssessmentItemSaved"];
+
 export async function updateCandidateAssessmentItem(
   id: number,
   data: Schemas["PatchedCandidateAssessmentItemRequest"],
-): Promise<CandidateAssessmentItem> {
-  return apiRequest<CandidateAssessmentItem>(`/api/gradings/assessment-items/${id}/`, {
+): Promise<CandidateAssessmentItemSaved> {
+  return apiRequest<CandidateAssessmentItemSaved>(`/api/gradings/assessment-items/${id}/`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });

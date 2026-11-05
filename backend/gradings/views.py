@@ -76,6 +76,7 @@ from gradings.serializers import (
     BulkLinkLegacyRecordsSerializer,
     BulkPromotionResultSerializer,
     BulkPromotionSerializer,
+    CandidateAssessmentItemSavedSerializer,
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
     CandidateAssessmentSummarySerializer,
@@ -618,6 +619,20 @@ class CandidateAssessmentItemViewSet(
     }
 
     query_filters = (by_id("assessment", "assessment_id"),)
+
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        # A mark returns the assessment's counts too; the list does not.
+        if self.action == "partial_update":
+            return CandidateAssessmentItemSavedSerializer
+        return super().get_serializer_class()
+
+    @extend_schema(
+        request=CandidateAssessmentItemSerializer,
+        responses=CandidateAssessmentItemSavedSerializer,
+    )
+    def partial_update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Mark an item, and get the assessment's counts back with it."""
+        return super().partial_update(request, *args, **kwargs)
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
         return (

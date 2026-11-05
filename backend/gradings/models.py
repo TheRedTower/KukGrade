@@ -491,8 +491,6 @@ class CandidateOutcome(models.Model):
         decided_by_id: int | None
         promotion: Promotion
 
-    _allow_status_transition: bool = False
-
     class Outcome(models.TextChoices):
         PASS = "PASS", "Pass"
         FAIL = "FAIL", "Fail"
@@ -680,12 +678,9 @@ class CandidateOutcome(models.Model):
                 .first()
             )
             if previous is not None:
-                status_changed = previous["status"] != self.status
-                if status_changed and not self._allow_status_transition:
-                    errors["status"] = [
-                        "Use the candidate outcome workflow services for "
-                        "status changes.",
-                    ]
+                # How an outcome moves from proposed to final is workflow: the
+                # services propose and finalise it, under the session's lock.
+                # What stays here is what a final decision is: it never changes.
                 if previous["status"] == self.Status.FINALISED:
                     protected_changes = (
                         previous["candidate_id"] != self.candidate_id

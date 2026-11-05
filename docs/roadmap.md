@@ -72,6 +72,9 @@ and running more than one application worker (the sign-in throttle needs a share
 - The container serves HTTPS with a self-signed certificate by default, so browsers warn. Use one of
   the [proxy recipes](installation.md#choose-how-people-reach-it) or your own certificate for real use.
 - Backups are documented but not scheduled for you.
+- Abandoned import uploads are cleared by the next upload or the next start of the container, not on a
+  timer: a server that is never restarted and receives no uploads keeps one until then. For a firm
+  limit, run `expire_stale_import_batches` from a scheduler ([installation](installation.md#maintenance)).
 - Data erasure on request: a student's name and date of birth can be erased from older audit events with `redact_student_audit` ([Privacy](privacy.md)); deleting the student, their grading history and any other copies (backups) remains manual.
 - The emergency Django admin is view-only for grading and student data. A record that
   needs correcting is corrected in KukGrade, or by calling the service from a shell.

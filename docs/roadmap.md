@@ -71,5 +71,7 @@ and running more than one application worker (the sign-in throttle needs a share
   the [proxy recipes](installation.md#choose-how-people-reach-it) or your own certificate for real use.
 - Backups are documented but not scheduled for you.
 - Data erasure (for example on request) is handled manually.
+- The emergency Django admin is view-only for grading and student data. A record that
+  needs correcting is corrected in KukGrade, or by calling the service from a shell.
 - The Cloudflare Tunnel and Pangolin Compose recipes follow the providers' documentation but have not
   been tried against the real services.

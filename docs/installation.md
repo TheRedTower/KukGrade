@@ -237,6 +237,9 @@ docker compose exec -it kukgrade psql -U postgres           # the image's own da
 If you truly need the admin screens, the repository's `kukgrade.settings_admin`
 runs them on loopback only; stop the stack first and read the comments in
 [`backend/kukgrade/settings_admin.py`](../backend/kukgrade/settings_admin.py).
+Grading, student, rank and syllabus screens there are view-only: nothing is added,
+changed or deleted from them, because every such change goes through KukGrade, which
+checks it and records it. Account recovery is the one thing the admin can still do.
 
 ## Troubleshooting
 

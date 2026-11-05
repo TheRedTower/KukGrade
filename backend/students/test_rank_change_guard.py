@@ -7,7 +7,6 @@ from django.core.exceptions import ValidationError
 
 from gradings.models import GradingCandidate
 from gradings.testing import auth_client, candidate, rank, student
-from students.admin import StudentAdminForm
 from students.services import update_student
 
 pytestmark = pytest.mark.django_db
@@ -58,23 +57,3 @@ def test_the_api_refuses_a_rank_change_while_registered() -> None:
 
     assert response.status_code == 400
     assert "Withdraw them from it first" in response.json()["error"]["message"]
-
-
-def test_the_admin_form_shows_the_refusal() -> None:
-    built = candidate()
-    person = built.student
-
-    form = StudentAdminForm(
-        instance=person,
-        data={
-            "wksa_id": person.wksa_id,
-            "first_name": person.first_name,
-            "last_name": person.last_name,
-            "date_of_birth": person.date_of_birth.isoformat(),
-            "current_rank": rank("YELLOW").pk,
-            "status": person.status,
-        },
-    )
-
-    assert not form.is_valid()
-    assert "Withdraw them from it first" in str(form.errors)

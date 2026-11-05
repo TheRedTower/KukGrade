@@ -215,26 +215,6 @@ def validate_session_transition(
             )
 
 
-def validate_grading_session_transition(
-    session: GradingSession,
-    target_status: str,
-) -> None:
-    if session.pk is None:
-        raise ValidationError(
-            {"status": ["Unsaved grading sessions cannot be transitioned."]},
-        )
-    persisted = (
-        GradingSession.objects.filter(pk=session.pk)
-        .only("id", "status", "grading_date")
-        .first()
-    )
-    if persisted is None:
-        raise ValidationError(
-            {"status": ["Grading session no longer exists."]},
-        )
-    validate_session_transition(persisted.status, target_status, session=persisted)
-
-
 def validate_locked_session_override_actor(actor: User | None) -> None:
     if (
         actor is None
@@ -735,14 +715,7 @@ def validate_candidate_assessment_changes(
         )
 
 
-def validate_candidate_can_be_deleted(
-    candidate: GradingCandidate,
-    actor: User | None = None,
-) -> None:
-    # actor accepted but unused: candidate deletion has no administrator
-    # override, unlike validate_session_can_be_deleted. The parameter exists
-    # so gradings.admin.StateGatedDeleteMixin can call every
-    # deletion_validator with the same (obj, actor=...) signature.
+def validate_candidate_can_be_deleted(candidate: GradingCandidate) -> None:
     outcome = getattr(candidate, "outcome", None)
     if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
         raise ValidationError(

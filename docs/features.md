@@ -146,6 +146,9 @@ Notes:
 - Nobody can change their own role, status or authority.
 - Only a superuser (the first administrator) can change an account that can use the
   Django admin site.
+- The Django admin site (a shell-only emergency tool, not served by the app) shows
+  grading, student, rank and syllabus data but cannot add, change or delete it, so
+  every such change is checked and recorded by KukGrade. It still recovers accounts.
 - User-management events in the audit log are visible to administrators only.
 - Deleting is for correcting mistakes and clearing test data. Deleting a student or
   session removes its dependent records and is itself audited; removing a user keeps

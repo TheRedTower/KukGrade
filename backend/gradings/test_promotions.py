@@ -4,23 +4,17 @@ from __future__ import annotations
 
 import importlib
 from datetime import date
-from types import SimpleNamespace
-from typing import Any, cast
+from typing import cast
 
 import pytest
 from django.apps import apps
-from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.forms import ModelForm
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from gradings.admin import (
-    PromotionAdmin,
-)
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
@@ -38,7 +32,6 @@ from gradings.outcome_services import (
 from gradings.read_models import student_rank_timeline
 from gradings.services import transition_grading_session
 from gradings.testing import (
-    admin_request,
     assessment,
     auth_client,
     candidate,
@@ -664,23 +657,3 @@ def test_student_rank_timeline_ordering_is_deterministic() -> None:
         second.pk,
         first.pk,
     ]
-
-
-def test_promotion_admin_is_read_only_and_has_no_bulk_actions() -> None:
-    built, _generated = locked_completed_candidate()
-    promotion = promote_candidate(
-        finalised_outcome(built),
-        promoter("promotion-admin@example.com"),
-    )
-    model_admin = PromotionAdmin(Promotion, admin.site)
-    request = admin_request("promotion-admin-request@example.com")
-    promotion.notes = "Unsafe admin edit"
-    form = cast(
-        "ModelForm[Any]", SimpleNamespace(changed_data=["notes"], cleaned_data={})
-    )
-
-    assert model_admin.has_add_permission(request) is False
-    assert model_admin.has_delete_permission(request, promotion) is False
-    assert model_admin.actions == ()
-    with pytest.raises(ValidationError):
-        model_admin.save_model(request, promotion, form, True)

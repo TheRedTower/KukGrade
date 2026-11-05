@@ -58,8 +58,9 @@ and never hard-codes a rule.
 
 **Services own every state change.** Each app has a `services.py` that validates a
 change, writes it in a transaction, and records its audit event in that same
-transaction. Views, serializers and the Django admin all call the same services, so a
-change is validated and audited identically however it arrives.
+transaction. Views and serializers call the services, so a change is validated and
+audited the same way every time. The Django admin does not write grading or student
+data at all: it shows it, and recovers accounts.
 
 **Models refuse the worst mistakes themselves.** Session status transitions, deletion
 rules, and the immutability of finalised outcomes, promotions, audit events and

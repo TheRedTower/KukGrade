@@ -23,11 +23,10 @@ from gradings.models import (
     Promotion,
 )
 from gradings.outcome_services import (
-    create_candidate_outcome,
     finalise_candidate_outcome,
     promote_candidate,
     promotion_eligibility_for_session,
-    propose_candidate_outcome,
+    propose_for_candidate,
 )
 from gradings.read_models import student_rank_timeline
 from gradings.services import transition_grading_session
@@ -257,8 +256,10 @@ def test_promotion_database_constraints_and_model_validation() -> None:
     assessment_mismatch_built, _assessment_mismatch_generated = (
         locked_completed_candidate()
     )
-    assessment_mismatch_outcome = create_candidate_outcome(
+    assessment_mismatch_outcome = propose_for_candidate(
         assessment_mismatch_built,
+        CandidateOutcome.Outcome.PASS,
+        "",
         user("assessment-mismatch-creator@example.com"),
     )
     _foreign_built, foreign_generated = locked_completed_candidate()
@@ -324,7 +325,6 @@ def test_promotion_permission_is_separate_from_final_decision_authority() -> Non
 @pytest.mark.parametrize(
     ("status", "final_outcome"),
     [
-        (CandidateOutcome.Status.DRAFT, None),
         (CandidateOutcome.Status.PROPOSED, None),
         (CandidateOutcome.Status.FINALISED, CandidateOutcome.Outcome.FAIL),
         (CandidateOutcome.Status.FINALISED, CandidateOutcome.Outcome.CONDITIONAL),
@@ -335,21 +335,14 @@ def test_promotion_rejects_ineligible_outcome_states(
     final_outcome: str | None,
 ) -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user(f"promotion-state-{status}@x.com"))
-    if status == CandidateOutcome.Status.PROPOSED:
-        outcome = propose_candidate_outcome(
-            outcome,
-            CandidateOutcome.Outcome.PASS,
-            "",
-            user("promotion-state-proposer@example.com"),
-        )
-    elif status == CandidateOutcome.Status.FINALISED:
-        proposed = propose_candidate_outcome(
-            outcome,
-            CandidateOutcome.Outcome.PASS,
-            "",
-            user(f"promotion-state-proposer-{final_outcome}@example.com"),
-        )
+    outcome = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "",
+        user(f"promotion-state-proposer-{status}-{final_outcome}@example.com"),
+    )
+    if status == CandidateOutcome.Status.FINALISED:
+        proposed = outcome
         outcome = finalise_candidate_outcome(
             proposed,
             cast(str, final_outcome),
@@ -394,8 +387,10 @@ def test_promotion_rejects_invalid_candidate_assessment_and_session_states() -> 
     # the database refuses to create it. Not finalised, so the
     # write reaches the constraint rather than the immutable-outcome guard.
     mismatch_built, _mismatch_generated = locked_completed_candidate()
-    mismatch_outcome = create_candidate_outcome(
+    mismatch_outcome = propose_for_candidate(
         mismatch_built,
+        CandidateOutcome.Outcome.PASS,
+        "",
         user("promotion-mismatch-creator@example.com"),
     )
     _foreign_built, foreign_generated = locked_completed_candidate()

@@ -20,7 +20,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.outcome_services import create_candidate_outcome
+from gradings.outcome_services import propose_for_candidate
 from gradings.testing import (
     assessment,
     candidate,
@@ -266,6 +266,47 @@ def test_existing_assessment_items_keep_the_order_they_were_listed_in() -> None:
         executor.migrate(final_targets)
 
 
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_empty_draft_outcomes_are_removed_and_real_proposals_kept() -> None:
+    kept_candidate, _ = locked_completed_candidate()
+    kept = propose_for_candidate(
+        kept_candidate, "PASS", "", user("draft-kept@example.com")
+    )
+    stray_candidate, _ = locked_completed_candidate()
+    stray = propose_for_candidate(
+        stray_candidate, "PASS", "", user("draft-stray@example.com")
+    )
+    old_target = [("gradings", "0015_set_aside_name")]
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+
+    def stored_ids() -> set[int]:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM gradings_candidateoutcome")
+            return {row[0] for row in cursor.fetchall()}
+
+    try:
+        executor.migrate(old_target)
+        # What the old two-call flow left behind when a proposal was refused:
+        # an outcome record holding no proposal at all.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE gradings_candidateoutcome SET status = 'DRAFT',"
+                " proposed_outcome = NULL, proposed_by_id = NULL,"
+                " proposed_at = NULL, proposal_notes = '' WHERE id = %s",
+                [stray.pk],
+            )
+        assert stored_ids() == {kept.pk, stray.pk}
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+        assert stored_ids() == {kept.pk}
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+
 def test_all_new_tests_use_postgresql_backend() -> None:
     assert connection.vendor == "postgresql"
     assert apps.is_installed("gradings")
@@ -273,8 +314,10 @@ def test_all_new_tests_use_postgresql_backend() -> None:
 
 def test_outcome_cannot_be_attached_to_another_candidates_assessment() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(
+    outcome = propose_for_candidate(
         built,
+        "PASS",
+        "",
         user("outcome-reattach-creator@example.com"),
     )
     _other_built, other_generated = locked_completed_candidate()

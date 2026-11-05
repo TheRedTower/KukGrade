@@ -1842,12 +1842,11 @@ export interface components {
             proposal_notes?: string;
         };
         /**
-         * @description * `DRAFT` - Draft
-         *     * `PROPOSED` - Proposed
+         * @description * `PROPOSED` - Proposed
          *     * `FINALISED` - Finalised
          * @enum {string}
          */
-        CandidateOutcomeStatusEnum: "DRAFT" | "PROPOSED" | "FINALISED";
+        CandidateOutcomeStatusEnum: "PROPOSED" | "FINALISED";
         CandidatePromotionRequest: {
             notes?: string;
         };

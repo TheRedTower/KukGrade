@@ -71,10 +71,9 @@ from gradings.models import (
 )
 from gradings.outcome_services import (
     bulk_promote_candidates,
-    create_candidate_outcome,
     finalise_candidate_outcome,
     promote_candidate,
-    propose_candidate_outcome,
+    propose_for_candidate,
 )
 from gradings.serializers import GradingSessionSerializer
 from gradings.services import (
@@ -180,36 +179,39 @@ def test_concurrent_assessment_generation_produces_exactly_one_snapshot() -> Non
     )
 
 
-def test_concurrent_outcome_creation_produces_exactly_one_outcome() -> None:
+def test_two_first_proposals_at_once_open_one_record_and_the_second_revises_it() -> (
+    None
+):
     built, _generated = locked_completed_candidate()
     actor_one = user("concurrent-outcome-one@example.com")
     actor_two = user("concurrent-outcome-two@example.com")
 
     results = run_concurrently(
-        lambda: create_candidate_outcome(
+        lambda: propose_for_candidate(
             GradingCandidate.objects.get(pk=built.pk),
+            CandidateOutcome.Outcome.PASS,
+            "One.",
             actor_one,
         ),
-        lambda: create_candidate_outcome(
+        lambda: propose_for_candidate(
             GradingCandidate.objects.get(pk=built.pk),
+            CandidateOutcome.Outcome.FAIL,
+            "Two.",
             actor_two,
         ),
     )
 
     successes, failures = outcomes(results)
-    assert successes == 1
-    assert failures == 1
-    assert CandidateOutcome.objects.filter(candidate=built).count() == 1
+    assert successes == 2
+    assert failures == 0
+    [record] = CandidateOutcome.objects.filter(candidate=built)
+    assert record.status == CandidateOutcome.Status.PROPOSED
 
 
 def test_concurrent_finalisation_one_wins_and_one_is_refused() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(
+    proposed = propose_for_candidate(
         built,
-        user("concurrent-finalise-creator@example.com"),
-    )
-    proposed = propose_candidate_outcome(
-        outcome,
         CandidateOutcome.Outcome.PASS,
         "Ready for a final decision.",
         user("concurrent-finalise-proposer@example.com"),
@@ -599,9 +601,8 @@ def test_withdrawal_and_finalisation_cannot_interleave() -> None:
     moment it became a finalised decision.
     """
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user("race-withdraw-creator@example.com"))
-    proposed = propose_candidate_outcome(
-        outcome,
+    proposed = propose_for_candidate(
+        built,
         CandidateOutcome.Outcome.PASS,
         "Ready.",
         user("race-withdraw-proposer@example.com"),
@@ -645,9 +646,8 @@ def test_a_final_decision_and_a_cancellation_follow_arrival_order() -> None:
     decided anyone is never cancelled.
     """
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user("race-cancel-creator@example.com"))
-    proposed = propose_candidate_outcome(
-        outcome,
+    proposed = propose_for_candidate(
+        built,
         CandidateOutcome.Outcome.PASS,
         "Ready.",
         user("race-cancel-proposer@example.com"),

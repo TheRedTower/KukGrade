@@ -12,10 +12,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.outcome_services import (
-    create_candidate_outcome,
-    propose_candidate_outcome,
-)
+from gradings.outcome_services import propose_for_candidate
 from gradings.read_models import CandidateNextAction, candidate_next_action
 from gradings.services import transition_grading_session
 from gradings.testing import (
@@ -82,9 +79,8 @@ def test_a_completed_candidate_in_a_locked_session_is_offered_proposing() -> Non
 
 def test_a_proposal_is_reviewed_by_the_master_and_looked_at_by_others() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user("roster-open@example.com"))
-    propose_candidate_outcome(
-        outcome,
+    propose_for_candidate(
+        built,
         CandidateOutcome.Outcome.PASS,
         "Ready.",
         user("roster-proposer@example.com"),
@@ -157,9 +153,8 @@ def test_a_registration_with_nothing_yet_has_null_assessment_and_outcome() -> No
 
 def test_the_viewers_authority_shapes_the_next_action() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user("roster-open-2@example.com"))
-    propose_candidate_outcome(
-        outcome,
+    propose_for_candidate(
+        built,
         CandidateOutcome.Outcome.PASS,
         "Ready.",
         user("roster-proposer-2@example.com"),
@@ -216,11 +211,8 @@ def test_the_roster_says_when_a_final_decision_can_be_recorded(
 ) -> None:
     built, _generated = locked_completed_candidate()
     if proposed:
-        outcome = create_candidate_outcome(
-            built, user("roster-finalise-open@example.com")
-        )
-        propose_candidate_outcome(
-            outcome,
+        propose_for_candidate(
+            built,
             CandidateOutcome.Outcome.PASS,
             "Ready.",
             user("roster-finalise-proposer@example.com"),
@@ -252,10 +244,8 @@ def test_the_roster_query_count_holds_with_proposals_on_every_row(
         complete_assessment(assessment(candidate=each))
     transition_grading_session(session, GradingSession.Status.LOCKED)
     for each in built:
-        propose_candidate_outcome(
-            create_candidate_outcome(
-                each, user(f"roster-q-open-{each.pk}@example.com")
-            ),
+        propose_for_candidate(
+            each,
             CandidateOutcome.Outcome.PASS,
             "Ready.",
             user(f"roster-q-prop-{each.pk}@example.com"),

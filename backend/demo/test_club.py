@@ -120,7 +120,8 @@ def test_the_locked_grading_waits_for_the_masters_decision() -> None:
         candidate__session=session_named("Spring Grading"),
     )
     assert outcomes.filter(status=CandidateOutcome.Status.PROPOSED).count() == 5
-    assert outcomes.filter(status=CandidateOutcome.Status.DRAFT).count() == 2
+    # Two candidates have no recommendation yet, so they have no record at all.
+    assert outcomes.count() == 5
     assert not outcomes.filter(status=CandidateOutcome.Status.FINALISED).exists()
     proposed = set(
         outcomes.filter(status=CandidateOutcome.Status.PROPOSED).values_list(

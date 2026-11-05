@@ -86,7 +86,7 @@ export function confirmDetails(action: SessionAction, session: GradingSession, r
     case "LOCK":
       return {
         title: "Lock Grading Session",
-        message: "Locking ends grading. Every assessment must be completed first, and after locking no result can be changed.",
+        message: "Locking ends grading. Every assessment must be completed first, and after locking only the authorised Master can correct a mark, with a reason, until a candidate's decision is recorded.",
       };
     case "COMPLETE":
       return {

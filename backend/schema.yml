@@ -3185,7 +3185,12 @@ components:
           type: string
           format: date-time
           readOnly: true
+        after_lock:
+          type: boolean
+          readOnly: true
+          description: Written after the session was locked.
       required:
+      - after_lock
       - author_name
       - body
       - created_at
@@ -3224,7 +3229,12 @@ components:
         reason:
           type: string
           readOnly: true
+        after_lock:
+          type: boolean
+          readOnly: true
+          description: Made after the session was locked.
       required:
+      - after_lock
       - changed_at
       - changed_by_name
       - from_result
@@ -3621,6 +3631,13 @@ components:
           allOf:
           - $ref: '#/components/schemas/AssessmentSummaryCounts'
           readOnly: true
+        marks_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether the viewer may change this assessment''s marks, or
+            comment on its items, now: while the session is open, or once it is locked
+            and the viewer is the authorised Master and the candidate''s final decision
+            is not yet recorded.'
       required:
       - candidate
       - candidate_student_name
@@ -3628,6 +3645,7 @@ components:
       - generated_at
       - generated_by_email
       - id
+      - marks_open
       - overall
       - started_at
       - status_display

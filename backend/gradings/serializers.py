@@ -8,6 +8,7 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.assessment_services import (
+    assessment_marks_open,
     update_candidate_assessment,
     update_candidate_assessment_item,
 )
@@ -353,6 +354,14 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
     # The served overall counts, so a list of assessments needs no
     # per-assessment summary request.
     overall = serializers.SerializerMethodField()
+    marks_open = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may change this assessment's marks, or comment on "
+            "its items, now: while the session is open, or once it is locked and "
+            "the viewer is the authorised Master and the candidate's final "
+            "decision is not yet recorded."
+        ),
+    )
 
     class Meta:
         model = CandidateAssessment
@@ -368,6 +377,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
             "completed_at",
             "notes",
             "overall",
+            "marks_open",
         )
         read_only_fields = (
             "id",
@@ -383,6 +393,9 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
     @extend_schema_field(AssessmentSummaryCountsSerializer)
     def get_overall(self, obj: CandidateAssessment) -> OverallAssessmentSummary:
         return assessment_overall(obj)
+
+    def get_marks_open(self, obj: CandidateAssessment) -> bool:
+        return assessment_marks_open(obj, self.context["request"].user)
 
     def update(
         self,
@@ -402,7 +415,7 @@ class AssessmentItemCommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AssessmentItemComment
-        fields = ("id", "author_name", "body", "created_at")
+        fields = ("id", "author_name", "body", "created_at", "after_lock")
         read_only_fields = fields
 
 
@@ -425,6 +438,7 @@ class AssessmentItemResultChangeSerializer(serializers.ModelSerializer):
             "changed_by_name",
             "changed_at",
             "reason",
+            "after_lock",
         )
         read_only_fields = fields
 

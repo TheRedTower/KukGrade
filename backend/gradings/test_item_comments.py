@@ -142,6 +142,7 @@ def test_adding_a_comment_is_audited_without_its_words() -> None:
     assert event.entity_id == str(item.pk)
     assert event.metadata == {
         "comment": str(comment.pk),
+        "after_lock": False,
         "assessment": str(item.assessment_id),
     }
     assert "Private words" not in event.summary

@@ -77,6 +77,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     status_display: "In progress",
     generated_by_email: "casey@example.com",
     overall: assessmentSummaryFor([]).overall,
+    marks_open: true,
     generated_at: "2026-09-18T10:00:00Z",
     started_at: "2026-09-18T10:05:00Z",
     completed_at: null,
@@ -119,7 +120,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     result_display: "Not Met",
     assessor_email: "casey@example.com",
     assessed_at: "2026-09-18T10:15:00Z",
-    comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on turn", created_at: "2026-09-18T10:20:00Z" }],
+    comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on turn", created_at: "2026-09-18T10:20:00Z", after_lock: false }],
     changes: [],
   };
 
@@ -372,7 +373,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders every comment on the proof, not only on the failures", async () => {
     const metWithNote: CandidateAssessmentItem = {
       ...mockItem1,
-      comments: [{ id: 2, author_name: "Morgan Reed", body: "Bow was crisp and unhurried; best in the group.", created_at: "2026-09-18T10:20:00Z" }],
+      comments: [{ id: 2, author_name: "Morgan Reed", body: "Bow was crisp and unhurried; best in the group.", created_at: "2026-09-18T10:20:00Z", after_lock: false }],
       changes: [],
     };
     const assessedItem3: CandidateAssessmentItem = {
@@ -543,7 +544,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         }
         if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
         if (url.includes("/api/gradings/assessments/")) {
-          return jsonResponse(200, { count: 1, next: null, previous: null, results: [sealed] });
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [{ ...sealed, marks_open: sessionStatus === "OPEN" }] });
         }
         if (url.includes("/api/gradings/assessment-items/")) {
           return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
@@ -751,7 +752,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
               error: { code: "validation_error", message: "Items can only be commented on in an open session." },
             });
           }
-          const comment = { id: 900 + posts.length, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" };
+          const comment = { id: 900 + posts.length, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z", after_lock: false };
           const id = Number(url.match(/assessment-items\/(\d+)\//)?.[1]);
           const at = items.findIndex((item) => item.id === id);
           items[at] = { ...items[at], comments: [...items[at].comments, comment] };
@@ -820,11 +821,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       });
 
       it.each([
-        ["the session is locked", { session: { status: "LOCKED" as const, status_display: "Locked" } }],
-        ["the assessment has not been started", { assessment: { status: "NOT_STARTED" as const, status_display: "Not started" } }],
-        ["the candidate has withdrawn", { candidate: { status: "WITHDRAWN" as const } }],
+        ["the session is locked", { session: { status: "LOCKED" as const, status_display: "Locked" }, assessment: { status: "COMPLETED" as const, status_display: "Completed" } }],
+        ["the assessment has not been started", { assessment: { status: "NOT_STARTED" as const, status_display: "Not started", marks_open: false } }],
+        ["the candidate has withdrawn", { candidate: { status: "WITHDRAWN" as const }, assessment: { status: "COMPLETED" as const, status_display: "Completed" } }],
       ])("offers no comment box when %s", async (_why, options) => {
-        stateMock({ assessment: { status: "COMPLETED", status_display: "Completed" }, ...options });
+        stateMock({ ...options, assessment: { marks_open: false, ...options.assessment } });
         render(<App />);
         await screen.findByRole("heading", { name: "Alex Carter" });
 
@@ -867,7 +868,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         await user.type(box, " typed while saving");
 
         expect(box).toHaveValue("Sent text");
-        release?.(jsonResponse(201, { id: 901, author_name: "Lee Coach", body: "Sent text", created_at: "2026-09-18T11:00:00Z" }) as Response);
+        release?.(jsonResponse(201, { id: 901, author_name: "Lee Coach", body: "Sent text", created_at: "2026-09-18T11:00:00Z", after_lock: false }) as Response);
         await waitFor(() => expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull());
       });
     });
@@ -1383,8 +1384,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       const cleared: CandidateAssessmentItem = {
         ...mockItem3,
         changes: [
-          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "" },
-          { sequence: 2, from_result: "MET", to_result: "NOT_ASSESSED", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:05:00Z", reason: "Wrong item." },
+          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
+          { sequence: 2, from_result: "MET", to_result: "NOT_ASSESSED", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:05:00Z", reason: "Wrong item.", after_lock: false },
         ],
       };
       const server = scoringServer([mockItem1, mockItem2, cleared]);
@@ -1423,8 +1424,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       const changed: CandidateAssessmentItem = {
         ...mockItem2,
         changes: [
-          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "" },
-          { sequence: 2, from_result: "MET", to_result: "NOT_MET", changed_by_name: "Lee Coach", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on the replay." },
+          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
+          { sequence: 2, from_result: "MET", to_result: "NOT_MET", changed_by_name: "Lee Coach", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on the replay.", after_lock: false },
         ],
       };
       const server = scoringServer([mockItem1, changed, mockItem3]);
@@ -1529,6 +1530,80 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       await user.type(screen.getByTestId("caw-reason-input-1001"), "Spotted on review.{Enter}");
 
       await waitFor(() => expect(patches).toEqual([{ result: "NOT_MET", reason: "Spotted on review." }]));
+    });
+  });
+
+  describe("after the session is locked", () => {
+    function lockedMock(marksOpen: boolean) {
+      const patches: Record<string, unknown>[] = [];
+      const completed = {
+        ...mockAssessment,
+        status: "COMPLETED" as const,
+        status_display: "Completed",
+        marks_open: marksOpen,
+      };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input);
+          if (init?.method === "PATCH") {
+            patches.push(JSON.parse(String(init.body)));
+            return jsonResponse(200, { ...mockItem1, result: "NOT_MET" });
+          }
+          if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+          if (url.includes("/api/gradings/sessions/10/")) {
+            return jsonResponse(200, { ...mockSession, status: "LOCKED", status_display: "Locked" });
+          }
+          if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+          if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+          if (url.includes("/api/gradings/assessments/")) {
+            return jsonResponse(200, { count: 1, next: null, previous: null, results: [completed] });
+          }
+          if (url.includes("/api/gradings/assessment-items/")) {
+            return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+          }
+          return jsonResponse(404, { detail: "Not found" });
+        }),
+      );
+      return { patches };
+    }
+
+    it("lets the authorised Master correct a mark, saying why, and explains the rule", async () => {
+      const { patches } = lockedMock(true);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      expect(screen.getByTestId("caw-locked-correction-note")).toHaveTextContent("authorised Master");
+      await user.click(screen.getByTestId("btn-not-met-1001"));
+      await user.type(screen.getByTestId("caw-reason-input-1001"), "Seen again on the recording.{Enter}");
+
+      await waitFor(() =>
+        expect(patches).toEqual([{ result: "NOT_MET", reason: "Seen again on the recording." }]),
+      );
+    });
+
+    it("asks for a reason even for the first mark on an item left unmarked", async () => {
+      const { patches } = lockedMock(true);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-met-1003"));
+
+      expect(screen.getByTestId("caw-change-prompt-1003")).toBeVisible();
+      expect(patches).toEqual([]);
+    });
+
+    it("shows no marking controls to anyone else", async () => {
+      lockedMock(false);
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      expect(screen.queryByTestId("caw-locked-correction-note")).toBeNull();
+      expect(screen.getByTestId("btn-met-1001")).toBeDisabled();
+      expect(screen.getByTestId("btn-not-met-1001")).toBeDisabled();
+      expect(screen.queryByTestId("btn-comment-1001")).toBeNull();
     });
   });
 

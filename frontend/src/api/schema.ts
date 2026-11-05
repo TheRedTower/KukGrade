@@ -1621,6 +1621,8 @@ export interface components {
             readonly body: string;
             /** Format: date-time */
             readonly created_at: string;
+            /** @description Written after the session was locked. */
+            readonly after_lock: boolean;
         };
         AssessmentItemCommentRequestRequest: {
             body: string;
@@ -1634,6 +1636,8 @@ export interface components {
             /** Format: date-time */
             readonly changed_at: string;
             readonly reason: string;
+            /** @description Made after the session was locked. */
+            readonly after_lock: boolean;
         };
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
@@ -1797,6 +1801,8 @@ export interface components {
             readonly completed_at: string | null;
             notes?: string;
             readonly overall: components["schemas"]["AssessmentSummaryCounts"];
+            /** @description Whether the viewer may change this assessment's marks, or comment on its items, now: while the session is open, or once it is locked and the viewer is the authorised Master and the candidate's final decision is not yet recorded. */
+            readonly marks_open: boolean;
         };
         CandidateAssessmentItem: {
             readonly id: number;

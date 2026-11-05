@@ -82,8 +82,8 @@ describe("SealedAssessmentEvidence", () => {
       next: null,
       previous: null,
       results: [
-        item({ id: 1, result: "NOT_MET", result_display: "Not met", comments: [{ id: 1, author_name: "Casey Reed", body: "Chamber too low", created_at: "2026-09-18T10:20:00Z" }] }),
-        item({ id: 2, item_name: "Stance", comments: [{ id: 2, author_name: "Lee Tan", body: "Crisp footwork", created_at: "2026-09-18T10:20:00Z" }] }),
+        item({ id: 1, result: "NOT_MET", result_display: "Not met", comments: [{ id: 1, author_name: "Casey Reed", body: "Chamber too low", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
+        item({ id: 2, item_name: "Stance", comments: [{ id: 2, author_name: "Lee Tan", body: "Crisp footwork", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
       ],
     });
 
@@ -96,6 +96,34 @@ describe("SealedAssessmentEvidence", () => {
       "href",
       "/gradings/10/assessments/102/review",
     );
+  });
+
+  it("shows a correction made after the lock, with its reason and who made it", async () => {
+    mockGetSummary.mockResolvedValue(summary);
+    mockGetItems.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        item({
+          id: 5,
+          result: "NOT_MET",
+          result_display: "Not met",
+          changes: [
+            { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
+            { sequence: 2, from_result: "MET", to_result: "NOT_MET", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on review.", after_lock: true },
+          ],
+        }),
+      ],
+    });
+
+    renderEvidence();
+
+    const change = await screen.findByTestId("evd-change-5-2");
+    expect(change).toHaveTextContent("Dropped the guard on review.");
+    expect(change).toHaveTextContent("Master Park");
+    expect(change).toHaveTextContent("after the lock");
+    expect(screen.queryByTestId("evd-change-5-1")).toBeNull();
   });
 
   it("says so, and requests nothing, when the candidate has no assessment", () => {

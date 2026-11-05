@@ -695,7 +695,7 @@ def test_item_results_cannot_change_once_the_session_locks() -> None:
             assessor=user("locked-in-progress-assessor@example.com"),
         )
 
-    assert "open session" in str(exc_info.value)
+    assert "only the authorised Master" in str(exc_info.value)
 
 
 @pytest.mark.parametrize(

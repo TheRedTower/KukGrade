@@ -74,7 +74,7 @@ def test_each_is_created_and_audited_as_one_created_alone_would_be() -> None:
     single = events[str(alone.pk)]
     for student in created:
         event = events[str(student.pk)]
-        assert event.summary == f"Student {student} created."
+        assert event.summary == f"Student {student.wksa_id} created."
         assert (event.actor, event.actor_email, event.actor_name) == (
             single.actor,
             single.actor_email,

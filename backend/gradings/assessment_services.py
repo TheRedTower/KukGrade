@@ -10,7 +10,7 @@ from django.utils import timezone
 from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from audit.models import AuditAction
-from audit.recording import record
+from audit.recording import record, student_label
 from gradings.locking import (
     lock_in_session,
     lock_sessions_of,
@@ -113,7 +113,7 @@ def delete_candidate_assessment(
         AuditAction.ASSESSMENT_DELETED,
         locked,
         (
-            f"Assessment for {locked.candidate.student} in "
+            f"Assessment for {student_label(locked.candidate.student)} in "
             f"'{locked.candidate.session.title}' deleted while {locked.status}."
         ),
         actor=actor,
@@ -122,6 +122,7 @@ def delete_candidate_assessment(
             "had_outcome": outcome is not None,
             "had_promotion": promotion is not None,
             "reverted_student_rank": reverted_rank,
+            "student_id": locked.candidate.student_id,
         },
     )
     locked.delete()
@@ -243,11 +244,14 @@ def generate_candidate_assessment(
         AuditAction.ASSESSMENT_GENERATED,
         assessment,
         (
-            f"Assessment generated for {locked_candidate.student} with "
+            f"Assessment generated for {student_label(locked_candidate.student)} with "
             f"{len(requirements)} requirements."
         ),
         actor=generated_by,
-        metadata={"item_count": len(requirements)},
+        metadata={
+            "item_count": len(requirements),
+            "student_id": locked_candidate.student_id,
+        },
     )
     return assessment
 
@@ -379,10 +383,13 @@ def update_candidate_assessment(
         return locked_assessment
     locked_assessment.save()
     if recorded_action == AuditAction.ASSESSMENT_UPDATED:
-        summary = f"Assessment notes for {locked_assessment.candidate.student} updated."
+        summary = (
+            "Assessment notes for "
+            f"{student_label(locked_assessment.candidate.student)} updated."
+        )
     else:
         summary = (
-            f"Assessment for {locked_assessment.candidate.student} "
+            f"Assessment for {student_label(locked_assessment.candidate.student)} "
             f"{locked_assessment.get_status_display().lower()}."
         )
     # Like an item's notes, the overall observation is a written judgement:
@@ -392,14 +399,17 @@ def update_candidate_assessment(
         locked_assessment,
         summary,
         actor=actor,
-        metadata=(
-            {
-                "before": {"notes": previous_notes},
-                "after": {"notes": locked_assessment.notes},
-            }
-            if notes_changed
-            else {}
-        ),
+        metadata={
+            "student_id": locked_assessment.candidate.student_id,
+            **(
+                {
+                    "before": {"notes": previous_notes},
+                    "after": {"notes": locked_assessment.notes},
+                }
+                if notes_changed
+                else {}
+            ),
+        },
     )
     return locked_assessment
 

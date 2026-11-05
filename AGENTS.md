@@ -105,6 +105,10 @@ Ranks (as stored and shown; the black belt titles are abbreviated):
   administrators, the designated Master, and holders of
   `can_view_grading_audit_log` may read them, and user-management events are
   administrator-only (`accounts.permissions.can_view_audit_log`).
+- Audit events never hold a student's name or date of birth: refer to a student
+  by WKSA ID (`audit.recording.student_label`) and put `student_id` in the
+  metadata; record which personal fields changed, not their values. Older events
+  are cleaned with `manage.py redact_student_audit` (`docs/privacy.md`).
 - Do not commit secrets, credentials, production exports, or real student data.
 - Prefer explicit fixtures and anonymised test data.
 

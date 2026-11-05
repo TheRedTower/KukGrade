@@ -1360,6 +1360,7 @@ def test_editing_assessment_notes_is_audited_with_both_versions() -> None:
     assert event.metadata == {
         "before": {"notes": ""},
         "after": {"notes": "Strong stances"},
+        "student_id": generated.candidate.student_id,
     }
 
 

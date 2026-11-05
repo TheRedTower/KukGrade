@@ -74,6 +74,8 @@ class AuditAction(models.TextChoices):
     )
     LEGACY_GRADING_VOIDED = "LEGACY_GRADING_VOIDED", "Historical record voided"
 
+    AUDIT_REDACTED = "AUDIT_REDACTED", "Personal details erased from the audit log"
+
 
 class AuditEntity(models.TextChoices):
     """What an event is about: the model name `record()` stores."""
@@ -88,6 +90,7 @@ class AuditEntity(models.TextChoices):
     USER = "User", "User"
     IMPORT_BATCH = "ImportBatch", "Import"
     LEGACY_GRADING_RECORD = "LegacyGradingRecord", "Historical grading record"
+    AUDIT_LOG = "AuditLog", "Audit log"
 
 
 # Logistics - who runs the roster - is an administrator concern, the same

@@ -845,7 +845,9 @@ def test_concurrent_student_edits_both_survive() -> None:
     )
     # The second edit's "before" is the first edit's result, as it must be
     # if the two ran one after the other.
-    assert status_event.metadata["before"]["first_name"] == "After"
+    # Had the second edit written back a stale name, the name would show as
+    # changed here too.
+    assert status_event.metadata["changed_fields"] == ["status"]
 
 
 def test_admin_edit_does_not_revert_a_password_change() -> None:

@@ -15,7 +15,7 @@ from accounts.permissions import (
     PROMOTE_STUDENT_PERMISSION,
 )
 from audit.models import AuditAction
-from audit.recording import record
+from audit.recording import record, student_label
 from gradings.locking import (
     lock_in_session,
     lock_sessions_of,
@@ -146,8 +146,9 @@ def propose_for_candidate(
     record(
         AuditAction.OUTCOME_CREATED,
         outcome,
-        f"Outcome record opened for {locked_candidate.student}.",
+        f"Outcome record opened for {student_label(locked_candidate.student)}.",
         actor=actor,
+        metadata={"student_id": locked_candidate.student_id},
     )
     _record_proposal(outcome, None, actor)
     return outcome
@@ -189,6 +190,7 @@ def _record_proposal(
                 "proposal_notes": outcome.proposal_notes,
                 "proposed_by": str(actor.pk),
             },
+            "student_id": outcome.candidate.student_id,
         },
     )
 
@@ -341,7 +343,7 @@ def finalise_candidate_outcome(
         locked_outcome,
         (
             f"Final decision {final_outcome} recorded for "
-            f"{locked_outcome.candidate.student}"
+            f"{student_label(locked_outcome.candidate.student)}"
             + (
                 f", overriding a proposed {locked_outcome.proposed_outcome}."
                 if locked_outcome.proposed_outcome != final_outcome
@@ -354,6 +356,7 @@ def finalise_candidate_outcome(
             "final_outcome": final_outcome,
             "overrode_proposal": locked_outcome.proposed_outcome != final_outcome,
             "conditional_requirements": cleaned_conditions,
+            "student_id": locked_outcome.candidate.student_id,
         },
     )
     return locked_outcome
@@ -655,13 +658,17 @@ def promote_candidate(
     record(
         AuditAction.PROMOTION_RECORDED,
         promotion,
-        (f"{locked_student} promoted from {from_rank.name} to {to_rank.name}."),
+        (
+            f"{student_label(locked_student, first=True)} promoted from "
+            f"{from_rank.name} to {to_rank.name}."
+        ),
         actor=actor,
         metadata={
             "from_rank": from_rank.code,
             "to_rank": to_rank.code,
             "effective_date": str(candidate_effective_date),
             "outcome": str(locked_outcome.pk),
+            "student_id": locked_student.pk,
         },
     )
     return Promotion.objects.select_related(

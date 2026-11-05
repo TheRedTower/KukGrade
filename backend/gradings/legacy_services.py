@@ -21,7 +21,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from audit.models import AuditAction
-from audit.recording import record
+from audit.recording import record, student_label
 from gradings.locking import lock_student, lock_students
 from gradings.models import LegacyGradingRecord, SetAsideName
 
@@ -96,7 +96,7 @@ def _link(
     record(
         AuditAction.LEGACY_GRADING_LINKED,
         locked,
-        f"Historical grading record linked to {student}.",
+        f"Historical grading record linked to {student_label(student)}.",
         actor=actor,
         metadata={
             "legacy_record_id": locked.pk,

@@ -23,7 +23,7 @@ from accounts.permissions import (
     OVERRIDE_LOCKED_SESSION_PERMISSION,
 )
 from audit.models import AuditAction
-from audit.recording import record
+from audit.recording import record, student_label
 from gradings.age import resolve_age_band
 from gradings.assessment_services import (
     generate_candidate_assessment,
@@ -506,7 +506,8 @@ def withdraw_locked_candidate(
         AuditAction.CANDIDATE_WITHDRAWN,
         locked_candidate,
         (
-            f"{locked_candidate.student} withdrawn from a locked session "
+            f"{student_label(locked_candidate.student, first=True)} withdrawn "
+            "from a locked session "
             f"({locked_candidate.get_withdrawal_reason_display()})."
         ),
         actor=actor,
@@ -514,6 +515,7 @@ def withdraw_locked_candidate(
             "reason": reason,
             "note": locked_candidate.withdrawal_note,
             "discarded_proposal": discarded_proposal,
+            "student_id": locked_candidate.student_id,
         },
     )
     return locked_candidate
@@ -1089,11 +1091,12 @@ def register_candidate(
         AuditAction.CANDIDATE_REGISTERED,
         candidate,
         (
-            f"{locked_student} registered for '{locked_session.title}' testing "
+            f"{student_label(locked_student, first=True)} registered for "
+            f"'{locked_session.title}' testing "
             f"for {testing_for_rank.name}."
         ),
         actor=actor,
-        metadata={"age_band": candidate.age_band},
+        metadata={"age_band": candidate.age_band, "student_id": locked_student.pk},
     )
     return candidate
 
@@ -1281,12 +1284,17 @@ def apply_candidate_update(
         AuditAction.CANDIDATE_WITHDRAWN if withdrawn else AuditAction.CANDIDATE_UPDATED,
         updated,
         (
-            f"{updated.student} withdrawn ({updated.get_withdrawal_reason_display()})."
+            f"{student_label(updated.student, first=True)} withdrawn "
+            f"({updated.get_withdrawal_reason_display()})."
             if withdrawn
-            else f"Candidate record for {updated.student} updated."
+            else f"Candidate record for {student_label(updated.student)} updated."
         ),
         actor=actor,
-        metadata={"before": before, "after": after},
+        metadata={
+            "before": before,
+            "after": after,
+            "student_id": updated.student_id,
+        },
     )
     return updated
 
@@ -1303,9 +1311,10 @@ def delete_candidate(candidate: GradingCandidate, actor: User | None = None) -> 
     record(
         AuditAction.CANDIDATE_DELETED,
         locked,
-        f"{locked.student} removed from '{locked.session.title}'.",
+        f"{student_label(locked.student, first=True)} removed from "
+        f"'{locked.session.title}'.",
         actor=actor,
-        metadata={"status": locked.status},
+        metadata={"status": locked.status, "student_id": locked.student_id},
     )
     locked.delete()
 

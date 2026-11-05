@@ -1984,6 +1984,32 @@ export interface components {
             readonly can_be_removed: boolean;
         };
         /**
+         * @description A candidate as the session's roster shows them: with their assessment
+         *     and outcome, and what their row offers next, so a screen needs one request
+         *     and holds no lifecycle rules of its own.
+         */
+        GradingCandidateRoster: {
+            readonly id: number;
+            session: number;
+            readonly student: number;
+            readonly student_display_name: string;
+            readonly student_wksa_id: string;
+            readonly from_rank: number;
+            readonly from_rank_name: string;
+            readonly testing_for_rank: number;
+            readonly testing_for_rank_name: string;
+            readonly age_band_display: string;
+            readonly status: components["schemas"]["GradingCandidateStatusEnum"];
+            readonly withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
+            readonly withdrawal_reason_display: string;
+            readonly withdrawal_note: string;
+            readonly can_be_moved: boolean;
+            readonly can_be_removed: boolean;
+            readonly assessment: components["schemas"]["CandidateAssessment"] | null;
+            readonly outcome: components["schemas"]["CandidateOutcome"] | null;
+            readonly next_action: components["schemas"]["NextActionEnum"];
+        };
+        /**
          * @description * `REGISTERED` - Registered
          *     * `WITHDRAWN` - Withdrawn
          *     * `COMPLETED` - Completed
@@ -2404,6 +2430,19 @@ export interface components {
             email: string;
             password: string;
         };
+        /**
+         * @description * `PREPARE_ASSESSMENT` - Prepare assessment
+         *     * `START_ASSESSMENT` - Start assessment
+         *     * `CONTINUE_ASSESSMENT` - Continue assessment
+         *     * `VIEW_ASSESSMENT` - View the assessment record
+         *     * `PROPOSE_OUTCOME` - Propose an outcome
+         *     * `REVIEW_PROPOSAL` - Review the proposal
+         *     * `REVIEW_DECISION` - Review the decision
+         *     * `VIEW_DECISION` - View the final decision
+         *     * `PROMOTION_LEDGER` - Promotion ledger
+         * @enum {string}
+         */
+        NextActionEnum: "PREPARE_ASSESSMENT" | "START_ASSESSMENT" | "CONTINUE_ASSESSMENT" | "VIEW_ASSESSMENT" | "PROPOSE_OUTCOME" | "REVIEW_PROPOSAL" | "REVIEW_DECISION" | "VIEW_DECISION" | "PROMOTION_LEDGER";
         /** @enum {string} */
         NextStepEnum: "MATCH_COLUMNS" | "REVIEW" | "CLOSED";
         /** @enum {unknown} */
@@ -2498,7 +2537,7 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["EffectiveSyllabusRequirement"][];
         };
-        PaginatedGradingCandidateList: {
+        PaginatedGradingCandidateRosterList: {
             /** @example 123 */
             count: number;
             /**
@@ -2511,7 +2550,7 @@ export interface components {
              * @example http://api.example.org/accounts/?page=2
              */
             previous?: string | null;
-            results: components["schemas"]["GradingCandidate"][];
+            results: components["schemas"]["GradingCandidateRoster"][];
         };
         PaginatedGradingSessionList: {
             /** @example 123 */
@@ -4051,7 +4090,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedGradingCandidateList"];
+                    "application/json": components["schemas"]["PaginatedGradingCandidateRosterList"];
                 };
             };
         };
@@ -4073,7 +4112,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
+                    "application/json": components["schemas"]["GradingCandidateRoster"];
                 };
             };
         };

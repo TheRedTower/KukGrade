@@ -22,6 +22,8 @@ from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
+    GradingCandidate,
+    GradingSession,
     LegacyGradingRecord,
     Promotion,
 )
@@ -38,6 +40,50 @@ class GradingStage(models.TextChoices):
     ASSESSED = "ASSESSED", "Assessed"
     AWAITING_DECISION = "AWAITING_DECISION", "Awaiting final decision"
     AWAITING_PROMOTION = "AWAITING_PROMOTION", "Passed, awaiting promotion"
+
+
+class CandidateNextAction(models.TextChoices):
+    """What a candidate's row on the session page offers next. The server
+    names it from where their assessment and outcome stand and who is asking;
+    the page only decides how to word and link it."""
+
+    PREPARE_ASSESSMENT = "PREPARE_ASSESSMENT", "Prepare assessment"
+    START_ASSESSMENT = "START_ASSESSMENT", "Start assessment"
+    CONTINUE_ASSESSMENT = "CONTINUE_ASSESSMENT", "Continue assessment"
+    VIEW_ASSESSMENT = "VIEW_ASSESSMENT", "View the assessment record"
+    PROPOSE_OUTCOME = "PROPOSE_OUTCOME", "Propose an outcome"
+    REVIEW_PROPOSAL = "REVIEW_PROPOSAL", "Review the proposal"
+    REVIEW_DECISION = "REVIEW_DECISION", "Review the decision"
+    VIEW_DECISION = "VIEW_DECISION", "View the final decision"
+    PROMOTION_LEDGER = "PROMOTION_LEDGER", "Promotion ledger"
+
+
+def candidate_next_action(
+    candidate: GradingCandidate,
+    *,
+    can_make_final_decision: bool,
+) -> str:
+    assessment = getattr(candidate, "assessment", None)
+    if assessment is None:
+        return CandidateNextAction.PREPARE_ASSESSMENT
+    if assessment.status == CandidateAssessment.Status.IN_PROGRESS:
+        return CandidateNextAction.CONTINUE_ASSESSMENT
+    if assessment.status != CandidateAssessment.Status.COMPLETED:
+        return CandidateNextAction.START_ASSESSMENT
+    outcome = getattr(candidate, "outcome", None)
+    if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
+        if outcome.final_outcome == CandidateOutcome.Outcome.PASS:
+            return CandidateNextAction.PROMOTION_LEDGER
+        return CandidateNextAction.VIEW_DECISION
+    if outcome is not None and outcome.status == CandidateOutcome.Status.PROPOSED:
+        if can_make_final_decision:
+            return CandidateNextAction.REVIEW_DECISION
+        return CandidateNextAction.REVIEW_PROPOSAL
+    # An outcome can only be opened once the session is locked; until then the
+    # completed record can still be looked at.
+    if candidate.session.status == GradingSession.Status.LOCKED:
+        return CandidateNextAction.PROPOSE_OUTCOME
+    return CandidateNextAction.VIEW_ASSESSMENT
 
 
 def _grading_stage() -> Case:

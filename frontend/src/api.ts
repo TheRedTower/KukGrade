@@ -25,6 +25,9 @@ type PaginatedResponse<T> = Required<Omit<Schemas["PaginatedGradingSessionList"]
 export type GradingSession = components["schemas"]["GradingSession"];
 export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEnum"];
 export type GradingCandidate = Schemas["GradingCandidate"];
+/** A candidate as a session's roster serves them: with assessment, outcome and next action. */
+export type GradingCandidateRoster = Schemas["GradingCandidateRoster"];
+export type CandidateNextAction = GradingCandidateRoster["next_action"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
@@ -419,8 +422,8 @@ export async function deleteGradingSession(id: number | string): Promise<void> {
 
 async function getGradingCandidates(
   params?: ListQuery<"gradings_candidates_list">,
-): Promise<PaginatedResponse<GradingCandidate>> {
-  return apiRequest<PaginatedResponse<GradingCandidate>>(
+): Promise<PaginatedResponse<GradingCandidateRoster>> {
+  return apiRequest<PaginatedResponse<GradingCandidateRoster>>(
     withQuery("/api/gradings/candidates/", params),
   );
 }
@@ -431,7 +434,7 @@ export async function getGradingCandidate(id: number): Promise<GradingCandidate>
 
 export async function getAllGradingCandidates(
   params: Omit<ListQuery<"gradings_candidates_list">, "page" | "page_size"> = {},
-): Promise<PaginatedResponse<GradingCandidate>> {
+): Promise<PaginatedResponse<GradingCandidateRoster>> {
   return collectAllPages((page) =>
     getGradingCandidates({ ...params, page, page_size: 200 }),
   );

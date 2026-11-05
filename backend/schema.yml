@@ -1069,7 +1069,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedGradingCandidateList'
+                $ref: '#/components/schemas/PaginatedGradingCandidateRosterList'
           description: ''
   /api/gradings/candidates/{id}/:
     get:
@@ -1093,7 +1093,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GradingCandidate'
+                $ref: '#/components/schemas/GradingCandidateRoster'
           description: ''
     patch:
       operationId: gradings_candidates_partial_update
@@ -4070,6 +4070,97 @@ components:
       - withdrawal_note
       - withdrawal_reason
       - withdrawal_reason_display
+    GradingCandidateRoster:
+      type: object
+      description: |-
+        A candidate as the session's roster shows them: with their assessment
+        and outcome, and what their row offers next, so a screen needs one request
+        and holds no lifecycle rules of its own.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session:
+          type: integer
+        student:
+          type: integer
+          readOnly: true
+        student_display_name:
+          type: string
+          readOnly: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+        from_rank:
+          type: integer
+          readOnly: true
+        from_rank_name:
+          type: string
+          readOnly: true
+        testing_for_rank:
+          type: integer
+          readOnly: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+        age_band_display:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/GradingCandidateStatusEnum'
+          readOnly: true
+        withdrawal_reason:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/WithdrawalReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        withdrawal_reason_display:
+          type: string
+          readOnly: true
+        withdrawal_note:
+          type: string
+          readOnly: true
+        can_be_moved:
+          type: boolean
+          readOnly: true
+        can_be_removed:
+          type: boolean
+          readOnly: true
+        assessment:
+          allOf:
+          - $ref: '#/components/schemas/CandidateAssessment'
+          readOnly: true
+          nullable: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/CandidateOutcome'
+          readOnly: true
+          nullable: true
+        next_action:
+          allOf:
+          - $ref: '#/components/schemas/NextActionEnum'
+          readOnly: true
+      required:
+      - age_band_display
+      - assessment
+      - can_be_moved
+      - can_be_removed
+      - from_rank
+      - from_rank_name
+      - id
+      - next_action
+      - outcome
+      - session
+      - status
+      - student
+      - student_display_name
+      - student_wksa_id
+      - testing_for_rank
+      - testing_for_rank_name
+      - withdrawal_note
+      - withdrawal_reason
+      - withdrawal_reason_display
     GradingCandidateStatusEnum:
       enum:
       - REGISTERED
@@ -5098,6 +5189,28 @@ components:
       required:
       - email
       - password
+    NextActionEnum:
+      enum:
+      - PREPARE_ASSESSMENT
+      - START_ASSESSMENT
+      - CONTINUE_ASSESSMENT
+      - VIEW_ASSESSMENT
+      - PROPOSE_OUTCOME
+      - REVIEW_PROPOSAL
+      - REVIEW_DECISION
+      - VIEW_DECISION
+      - PROMOTION_LEDGER
+      type: string
+      description: |-
+        * `PREPARE_ASSESSMENT` - Prepare assessment
+        * `START_ASSESSMENT` - Start assessment
+        * `CONTINUE_ASSESSMENT` - Continue assessment
+        * `VIEW_ASSESSMENT` - View the assessment record
+        * `PROPOSE_OUTCOME` - Propose an outcome
+        * `REVIEW_PROPOSAL` - Review the proposal
+        * `REVIEW_DECISION` - Review the decision
+        * `VIEW_DECISION` - View the final decision
+        * `PROMOTION_LEDGER` - Promotion ledger
     NextStepEnum:
       enum:
       - MATCH_COLUMNS
@@ -5245,7 +5358,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EffectiveSyllabusRequirement'
-    PaginatedGradingCandidateList:
+    PaginatedGradingCandidateRosterList:
       type: object
       required:
       - count
@@ -5267,7 +5380,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/GradingCandidate'
+            $ref: '#/components/schemas/GradingCandidateRoster'
     PaginatedGradingSessionList:
       type: object
       required:

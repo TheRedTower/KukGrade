@@ -5,13 +5,11 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
-import { ApiError, type AuthUser, type GradingCandidate, type GradingSession } from "./api";
+import { ApiError, type AuthUser, type GradingCandidateRoster, type GradingSession } from "./api";
 
 let currentUser: AuthUser;
 const mockGetGradingSession = vi.fn();
 const mockGetAllGradingCandidates = vi.fn();
-const mockGetAllCandidateAssessments = vi.fn();
-const mockGetAllCandidateOutcomes = vi.fn();
 const mockDeleteGradingSession = vi.fn();
 const mockGetAllGradingSessions = vi.fn();
 const mockMoveGradingCandidate = vi.fn();
@@ -29,10 +27,6 @@ vi.mock("./api", async () => {
     getGradingSession: (...args: unknown[]) => mockGetGradingSession(...args),
     getAllGradingCandidates: (...args: unknown[]) =>
       mockGetAllGradingCandidates(...args),
-    getAllCandidateAssessments: (...args: unknown[]) =>
-      mockGetAllCandidateAssessments(...args),
-    getAllCandidateOutcomes: (...args: unknown[]) =>
-      mockGetAllCandidateOutcomes(...args),
     deleteGradingSession: (...args: unknown[]) =>
       mockDeleteGradingSession(...args),
     getAllGradingSessions: (...args: unknown[]) => mockGetAllGradingSessions(...args),
@@ -122,8 +116,6 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
   beforeEach(() => {
     mockGetGradingSession.mockReset().mockResolvedValue(lockedSession());
     mockGetAllGradingCandidates.mockReset().mockResolvedValue(emptyPage());
-    mockGetAllCandidateAssessments.mockReset().mockResolvedValue(emptyPage());
-    mockGetAllCandidateOutcomes.mockReset().mockResolvedValue(emptyPage());
     mockDeleteGradingSession.mockReset().mockResolvedValue(undefined);
   });
 
@@ -216,7 +208,7 @@ function openSession(overrides: Partial<GradingSession> = {}): GradingSession {
   return { ...lockedSession(), status: "OPEN", status_display: "Open", ...overrides };
 }
 
-function registeredCandidate(overrides: Partial<GradingCandidate> = {}): GradingCandidate {
+function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): GradingCandidateRoster {
   return {
     id: 31,
     session: 7,
@@ -234,6 +226,9 @@ function registeredCandidate(overrides: Partial<GradingCandidate> = {}): Grading
     can_be_moved: true,
     can_be_removed: true,
     withdrawal_note: "",
+    assessment: null,
+    outcome: null,
+    next_action: "PREPARE_ASSESSMENT",
     ...overrides,
   };
 }
@@ -245,8 +240,6 @@ describe("GradingSessionDetailScreen registration actions", () => {
     mockGetAllGradingCandidates
       .mockReset()
       .mockResolvedValue({ ...emptyPage(), count: 1, results: [registeredCandidate()] });
-    mockGetAllCandidateAssessments.mockReset().mockResolvedValue(emptyPage());
-    mockGetAllCandidateOutcomes.mockReset().mockResolvedValue(emptyPage());
     mockGetAllGradingSessions.mockReset().mockResolvedValue({
       ...emptyPage(),
       count: 3,
@@ -364,8 +357,6 @@ describe("GradingSessionDetailScreen opening a draft session", () => {
         registeredCandidate({ id: 32, student: 132, student_display_name: "Ben Hall" }),
       ],
     });
-    mockGetAllCandidateAssessments.mockReset().mockResolvedValue(emptyPage());
-    mockGetAllCandidateOutcomes.mockReset().mockResolvedValue(emptyPage());
     mockUpdateGradingSession
       .mockReset()
       .mockResolvedValue({ ...draftSession(), status: "OPEN", status_display: "Open" });

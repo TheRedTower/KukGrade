@@ -156,6 +156,25 @@ serializers and the committed frontend types match the schema.
 - **Keep syllabus and grading rules in the backend.** Components render what the API
   returns.
 
+## Query budget
+
+`backend/gradings/test_query_baseline.py` holds the hot paths to a ceiling, and the
+roster and list tests hold their counts flat as data grows. Measured 2026-11-05:
+
+| Request | Queries | Ceiling |
+| --- | --- | --- |
+| Mark an item (first mark, or a later change with a reason) | 76 | 80 |
+| Comment on an item | 26 | 30 |
+| Item list for an assessment (page of 9) | 4 | 6 |
+| Assessment summary | 2 | 4 |
+| Student list (any length of page) | 2 | 4 |
+| A session's roster (any number of candidates) | 12 or fewer | 12 |
+
+Marking an item is the heavy one: about fifty of its 76 statements are the database
+re-checking constraints that `Model.save()` already validated (`full_clean()` runs one
+query per CHECK and UNIQUE constraint). When a change lowers a path, lower its ceiling in
+the same change and update this table.
+
 ## Dependency updates
 
 Nobody edits dependency versions or base-image digests by hand.

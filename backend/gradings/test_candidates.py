@@ -38,7 +38,7 @@ from gradings.testing import (
 )
 from kukgrade.testing import results
 from students.models import Student
-from syllabus.models import AgeBand
+from syllabus.models import AgeBand, SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
 
@@ -193,8 +193,71 @@ def test_registration_is_refused_for_a_rank_with_no_recorded_syllabus() -> None:
     assert not GradingCandidate.objects.filter(student=jkn_student).exists()
 
 
+def test_registration_checks_the_syllabus_of_the_candidates_own_age_band() -> None:
+    # Yellow Stripe has charts for every band; remove the 9-12 one, as if a
+    # chart had been entered for the other bands only.
+    SyllabusRequirement.objects.filter(
+        rank=rank("YELLOW_STRIPE"),
+        age_band=AgeBand.AGE_9_TO_12,
+    ).delete()
+    nine_to_twelve = student(date_of_birth=date(2017, 3, 20))
+    thirteen_to_seventeen = student(date_of_birth=date(2013, 3, 20))
+
+    with pytest.raises(ValidationError) as exc_info:
+        candidate(student=nine_to_twelve)
+
+    assert exc_info.value.message_dict["testing_for_rank"] == [
+        "No syllabus is recorded for Yellow Stripe in the 9-12 age band yet, "
+        "so this student cannot be graded for it.",
+    ]
+    assert not GradingCandidate.objects.filter(student=nine_to_twelve).exists()
+    registered = candidate(student=thirteen_to_seventeen)
+    assert registered.age_band == AgeBand.AGE_13_TO_17
+
+
+def test_moving_a_registration_to_a_session_in_another_band_checks_that_band() -> None:
+    SyllabusRequirement.objects.filter(
+        rank=rank("YELLOW_STRIPE"),
+        age_band=AgeBand.AGE_13_TO_17,
+    ).delete()
+    # Ten on the first grading, thirteen on the second.
+    child = student(date_of_birth=date(2014, 1, 1))
+    first = grading_session(
+        grading_date=date(2024, 6, 1),
+        status=GradingSession.Status.OPEN,
+    )
+    second = grading_session(
+        title="Later grading",
+        grading_date=date(2027, 6, 1),
+        status=GradingSession.Status.OPEN,
+    )
+    registered = candidate(session=first, student=child)
+    assert registered.age_band == AgeBand.AGE_9_TO_12
+
+    with pytest.raises(ValidationError) as exc_info:
+        apply_candidate_update(
+            registered,
+            session=second,
+            actor=user("move-band@example.com"),
+        )
+
+    assert "13-17 age band" in str(exc_info.value)
+    registered.refresh_from_db()
+    assert registered.session_id == first.pk
+
+
+def test_ranks_open_for_a_band_follow_that_bands_syllabus() -> None:
+    SyllabusRequirement.objects.filter(
+        rank=rank("YELLOW_STRIPE"),
+        age_band=AgeBand.AGE_9_TO_12,
+    ).delete()
+
+    assert rank("WHITE").pk not in ranks_open_for_grading(AgeBand.AGE_9_TO_12)
+    assert rank("WHITE").pk in ranks_open_for_grading(AgeBand.AGE_13_TO_17)
+
+
 def test_ranks_open_for_grading_stop_below_the_first_rank_without_a_syllabus() -> None:
-    open_ranks = set(ranks_open_for_grading())
+    open_ranks = set(ranks_open_for_grading(AgeBand.AGE_9_TO_12))
 
     assert rank("WHITE").pk in open_ranks
     assert rank("DAHN_BO").pk in open_ranks

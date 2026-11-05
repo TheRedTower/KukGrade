@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, cast
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -56,11 +56,19 @@ def _eligible_for_session(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     # One grading at a time: a student still registered for another grading
     # that has not reached its result cannot be registered here.
     registered_elsewhere = unsettled_registrations().values("student")
+    # A grading is per age band, so a student is open when their band on the
+    # grading date has a syllabus for the rank they would test for.
+    open_for_their_band = Q()
+    for band in AgeBand.values:
+        open_for_their_band |= Q(
+            age_band_on_date=band,
+            current_rank__in=ranks_open_for_grading(band),
+        )
     return (
         queryset.exclude(status=Student.Status.LEFT)
         .exclude(pk__in=registered)
         .exclude(pk__in=registered_elsewhere)
-        .filter(current_rank__in=ranks_open_for_grading())
+        .filter(open_for_their_band)
     )
 
 
@@ -79,7 +87,8 @@ _ELIGIBLE_FOR_SESSION = QueryFilter(
     "Students who could still be registered for this grading session: "
     "not Left, not already one of its candidates, not registered for "
     "another grading that has not reached its result, and at a rank whose "
-    "next rank has a syllabus recorded.",
+    "next rank has a syllabus recorded for the student's age band on the "
+    "grading date.",
 )
 
 

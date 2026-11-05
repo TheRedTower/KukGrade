@@ -2008,6 +2008,8 @@ export interface components {
             readonly assessment: components["schemas"]["CandidateAssessment"] | null;
             readonly outcome: components["schemas"]["CandidateOutcome"] | null;
             readonly next_action: components["schemas"]["NextActionEnum"];
+            /** @description Whether a final decision can be recorded for this candidate now: their outcome is proposed in a locked session. Whether the viewer may make it is their own authority. */
+            readonly can_be_finalised: boolean;
         };
         /**
          * @description * `REGISTERED` - Registered

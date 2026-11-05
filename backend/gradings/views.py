@@ -273,6 +273,7 @@ class GradingCandidateViewSet(
             "from_rank",
             "testing_for_rank",
             "session",
+            "outcome__assessment",
             "outcome__proposed_by",
             "outcome__decided_by",
         )

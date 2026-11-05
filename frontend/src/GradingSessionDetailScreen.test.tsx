@@ -229,6 +229,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     assessment: null,
     outcome: null,
     next_action: "PREPARE_ASSESSMENT",
+    can_be_finalised: false,
     ...overrides,
   };
 }

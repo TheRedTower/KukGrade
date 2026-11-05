@@ -4141,9 +4141,16 @@ components:
           allOf:
           - $ref: '#/components/schemas/NextActionEnum'
           readOnly: true
+        can_be_finalised:
+          type: boolean
+          readOnly: true
+          description: 'Whether a final decision can be recorded for this candidate
+            now: their outcome is proposed in a locked session. Whether the viewer
+            may make it is their own authority.'
       required:
       - age_band_display
       - assessment
+      - can_be_finalised
       - can_be_moved
       - can_be_removed
       - from_rank

@@ -24,6 +24,7 @@ from gradings.models import (
 )
 from gradings.outcome_services import (
     finalise_candidate_outcome,
+    outcome_can_be_finalised,
     promote_candidate,
     stage_final_decision,
 )
@@ -510,6 +511,13 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
     assessment = CandidateAssessmentSerializer(read_only=True, allow_null=True)
     outcome = CandidateOutcomeSerializer(read_only=True, allow_null=True)
     next_action = serializers.SerializerMethodField()
+    can_be_finalised = serializers.SerializerMethodField(
+        help_text=(
+            "Whether a final decision can be recorded for this candidate now: "
+            "their outcome is proposed in a locked session. Whether the viewer "
+            "may make it is their own authority."
+        ),
+    )
 
     class Meta(GradingCandidateSerializer.Meta):
         fields = (
@@ -517,7 +525,12 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "assessment",
             "outcome",
             "next_action",
+            "can_be_finalised",
         )
+
+    def get_can_be_finalised(self, instance: GradingCandidate) -> bool:
+        outcome = getattr(instance, "outcome", None)
+        return outcome is not None and outcome_can_be_finalised(outcome)
 
     @extend_schema_field(serializers.ChoiceField(choices=CandidateNextAction.choices))
     def get_next_action(self, instance: GradingCandidate) -> str:

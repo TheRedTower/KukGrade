@@ -253,6 +253,31 @@ def validate_promotion_actor(actor: User) -> None:
         )
 
 
+def validate_outcome_can_be_finalised(outcome: CandidateOutcome) -> None:
+    """The rules about the outcome itself, whoever is deciding it."""
+    validate_outcome_assessment_state(outcome)
+    if outcome.status != CandidateOutcome.Status.PROPOSED:
+        raise ValidationError(
+            {"status": ["Only proposed candidate outcomes can be finalised."]},
+        )
+    if outcome.candidate.session.status != GradingSession.Status.LOCKED:
+        raise ValidationError(
+            {"session": ["Final decisions can only be made in locked sessions."]},
+        )
+    if outcome.proposed_outcome is None:
+        raise ValidationError(
+            {"proposed_outcome": ["Proposed outcome is required before finalisation."]},
+        )
+
+
+def outcome_can_be_finalised(outcome: CandidateOutcome) -> bool:
+    try:
+        validate_outcome_can_be_finalised(outcome)
+    except ValidationError:
+        return False
+    return True
+
+
 @transaction.atomic
 def finalise_candidate_outcome(
     outcome: CandidateOutcome,
@@ -273,19 +298,7 @@ def finalise_candidate_outcome(
         session_path="candidate__session_id",
         name="outcome",
     )
-    validate_outcome_assessment_state(locked_outcome)
-    if locked_outcome.status != CandidateOutcome.Status.PROPOSED:
-        raise ValidationError(
-            {"status": ["Only proposed candidate outcomes can be finalised."]},
-        )
-    if locked_outcome.candidate.session.status != GradingSession.Status.LOCKED:
-        raise ValidationError(
-            {"session": ["Final decisions can only be made in locked sessions."]},
-        )
-    if locked_outcome.proposed_outcome is None:
-        raise ValidationError(
-            {"proposed_outcome": ["Proposed outcome is required before finalisation."]},
-        )
+    validate_outcome_can_be_finalised(locked_outcome)
     _validate_outcome_choice(final_outcome, "final_outcome")
 
     cleaned_conditions = (conditional_requirements or "").strip()

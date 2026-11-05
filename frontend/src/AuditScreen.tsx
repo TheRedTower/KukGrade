@@ -147,7 +147,7 @@ export function AuditScreen(): React.ReactElement {
         }}
       >
         <label className="field filter-bar__full">
-          <span>Search record number or summary</span>
+          <span>Search student name, record number or summary</span>
           <div className="field__row">
             <input
               key={appliedSearch}

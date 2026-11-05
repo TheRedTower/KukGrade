@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins
 from rest_framework.decorators import action
@@ -18,8 +18,33 @@ from audit.serializers import (
     AuditLabelsSerializer,
     student_id_of,
 )
-from kukgrade.filtering import choice, exact, on_date, search
+from kukgrade.filtering import QueryFilter, choice, exact, on_date
 from students.models import Student
+
+_SEARCHED_FIELDS = ("summary", "entity_type", "entity_id", "actor_email", "actor_name")
+
+
+def _apply_search(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    """Each word must be found in an event's own text or in the current name of
+    the student it is about. Names are not in the events, so the students whose
+    name has the word are looked up and the events about them matched by id."""
+    condition = Q()
+    for word in value.split():
+        in_event = Q()
+        for lookup in _SEARCHED_FIELDS:
+            in_event |= Q(**{f"{lookup}__icontains": word})
+        ids = list(
+            Student.objects.filter(
+                Q(first_name__icontains=word) | Q(last_name__icontains=word),
+            ).values_list("pk", flat=True)
+        )
+        if ids:
+            in_event |= Q(
+                entity_type=AuditEntity.STUDENT,
+                entity_id__in=[str(pk) for pk in ids],
+            ) | Q(metadata__student_id__in=ids)
+        condition &= in_event
+    return queryset.filter(condition)
 
 
 class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
@@ -44,9 +69,13 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
         exact("entity_id", "entity_id"),
         on_date("occurred_from", "occurred_at__date__gte"),
         on_date("occurred_to", "occurred_at__date__lte"),
-        search(
+        QueryFilter(
             "search",
-            ("summary", "entity_type", "entity_id", "actor_email", "actor_name"),
+            _apply_search,
+            description=(
+                "Every word, in the summary, record, actor or the name of the "
+                "student the event is about (read now: events hold no names)."
+            ),
         ),
     )
 

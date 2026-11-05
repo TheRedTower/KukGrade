@@ -194,7 +194,8 @@ paths:
       - name: search
         required: false
         in: query
-        description: ''
+        description: 'Every word, in the summary, record, actor or the name of the
+          student the event is about (read now: events hold no names).'
         schema:
           type: string
       tags:

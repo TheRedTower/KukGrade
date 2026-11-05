@@ -117,7 +117,7 @@ describe("AuditScreen", () => {
     await user.selectOptions(screen.getByLabelText("Record type"), "CandidateOutcome");
     fireEvent.change(screen.getByLabelText("Date from"), { target: { value: "2026-09-01" } });
     fireEvent.change(screen.getByLabelText("Date to"), { target: { value: "2026-09-30" } });
-    await user.type(screen.getByLabelText("Search record number or summary"), "Carlos");
+    await user.type(screen.getByLabelText("Search student name, record number or summary"), "Carlos");
     await user.click(screen.getByRole("button", { name: "Search" }));
 
     await waitFor(() => {

@@ -3385,6 +3385,7 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Every word, in the summary, record, actor or the name of the student the event is about (read now: events hold no names). */
                 search?: string;
             };
             header?: never;

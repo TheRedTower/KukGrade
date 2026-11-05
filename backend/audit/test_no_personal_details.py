@@ -204,3 +204,47 @@ def test_resolving_names_costs_the_same_queries_however_many_events(
         response = client.get("/api/audit-events/")
 
     assert len(results(response)) == 6
+
+
+def test_searching_a_students_name_finds_their_events_without_names_in_them() -> None:
+    actor = user("no-pii-actor-5@example.com")
+    sought = create_student(
+        wksa_id="123-4-790",
+        first_name="Zephyrine",
+        last_name="Quillfeather",
+        date_of_birth=date(2014, 6, 7),
+        current_rank=rank("WHITE"),
+        actor=actor,
+    )
+    other = create_student(
+        wksa_id="123-4-791",
+        first_name="Zephyrine",
+        last_name="Fairweather",
+        date_of_birth=date(2014, 6, 7),
+        current_rank=rank("WHITE"),
+        actor=actor,
+    )
+    session = grading_session(status=GradingSession.Status.OPEN)
+    register_candidate(
+        session=session,
+        student=sought,
+        testing_for_rank=rank("YELLOW_STRIPE"),
+        actor=actor,
+    )
+    client = administrator_client()
+
+    def found(term: str) -> set[tuple[str, str]]:
+        rows = results(client.get("/api/audit-events/", {"search": term}))
+        return {(row["action"], row["entity_id"]) for row in rows}
+
+    both_words = found("zephyrine quillfeather")
+    first_name_only = found("Zephyrine")
+    update_student(sought, last_name="Thistlewood", actor=actor)
+
+    assert (AuditAction.STUDENT_CREATED, str(sought.pk)) in both_words
+    assert any(action == AuditAction.CANDIDATE_REGISTERED for action, _ in both_words)
+    assert (AuditAction.STUDENT_CREATED, str(other.pk)) not in both_words
+    assert (AuditAction.STUDENT_CREATED, str(other.pk)) in first_name_only
+    # The search follows a correction, since it reads the name as it is now.
+    assert found("Quillfeather") == set()
+    assert (AuditAction.STUDENT_CREATED, str(sought.pk)) in found("Thistlewood")

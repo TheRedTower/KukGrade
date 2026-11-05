@@ -13,6 +13,7 @@ from gradings.assessment_services import (
 )
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
+    AssessmentItemComment,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -395,12 +396,40 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
         )
 
 
+class AssessmentItemCommentSerializer(serializers.ModelSerializer):
+    author_name = serializers.CharField(source="author.get_full_name", read_only=True)
+
+    class Meta:
+        model = AssessmentItemComment
+        fields = ("id", "author_name", "body", "created_at")
+        read_only_fields = fields
+
+
+COMMENT_MAX_LENGTH = 2000
+
+
+class AssessmentItemCommentRequestSerializer(serializers.Serializer):
+    body = serializers.CharField(
+        max_length=COMMENT_MAX_LENGTH,
+        trim_whitespace=True,
+        error_messages={
+            "required": "Write a comment to add.",
+            "blank": "Write a comment to add.",
+            "max_length": (
+                f"A comment can be at most {COMMENT_MAX_LENGTH} characters. "
+                "Shorten it, or add the rest as a second comment."
+            ),
+        },
+    )
+
+
 class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
     category_display = serializers.CharField(
         source="get_category_display",
         read_only=True,
     )
     result_display = serializers.CharField(source="get_result_display", read_only=True)
+    comments = AssessmentItemCommentSerializer(many=True, read_only=True)
     assessor_email = serializers.EmailField(source="assessor.email", read_only=True)
     display_range = serializers.CharField(read_only=True)
     category_is_core = serializers.SerializerMethodField(
@@ -428,7 +457,7 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "result_display",
             "assessor_email",
             "assessed_at",
-            "assessor_notes",
+            "comments",
         )
         read_only_fields = (
             "id",
@@ -459,7 +488,6 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
         return update_candidate_assessment_item(
             instance,
             result=cast(str | None, validated_data.get("result")),
-            assessor_notes=cast(str | None, validated_data.get("assessor_notes")),
             assessor=request.user,
         )
 

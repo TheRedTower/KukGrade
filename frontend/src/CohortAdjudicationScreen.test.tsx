@@ -178,7 +178,7 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
     result_display: "Met",
     assessor_email: "reed@example.com",
     assessed_at: "2026-11-12T10:00:00Z",
-    assessor_notes: "",
+    comments: [],
     ...overrides,
   };
 }
@@ -261,8 +261,8 @@ describe("CohortAdjudicationScreen", () => {
     );
     mockGetItems.mockResolvedValue(
       page([
-        item(1, { result: "NOT_MET", result_display: "Not met", item_name: "Dwi Cha Gi", assessor_notes: "Guard dropped on the turn." }),
-        item(2, { item_name: "Ap Cha Gi", assessor_notes: "Excellent chamber." }),
+        item(1, { result: "NOT_MET", result_display: "Not met", item_name: "Dwi Cha Gi", comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on the turn.", created_at: "2026-09-18T10:20:00Z" }] }),
+        item(2, { item_name: "Ap Cha Gi", comments: [{ id: 2, author_name: "Casey Reed", body: "Excellent chamber.", created_at: "2026-09-18T10:20:00Z" }] }),
         item(3, { item_name: "Yup Cha Gi" }),
       ]),
     );

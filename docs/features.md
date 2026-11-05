@@ -27,8 +27,9 @@ flowchart LR
 3. **Assess.** Each candidate's assessment is generated (singly or for a whole
    cohort) as a copy of the **cumulative syllabus** for their age band, from White
    up to the rank they are testing for, and started deliberately. Assessors mark
-   each item **Met** or **Not met**, with an optional note; category results are
-   worked out from the items. Attendance is confirmed in bulk: tick the no-shows
+   each item **Met** or **Not met**. Anyone marking or reviewing can add comments
+   to an item, which keep their author and time and are never edited or removed;
+   category results are worked out from the items. Attendance is confirmed in bulk: tick the no-shows
    and confirm.
 4. **Propose an outcome.** Instructors propose **Pass**, **Fail** or
    **Conditional**. A conditional result must say what the candidate still has to do.

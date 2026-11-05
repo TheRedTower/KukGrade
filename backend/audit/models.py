@@ -39,6 +39,7 @@ class AuditAction(models.TextChoices):
     ASSESSMENT_REOPENED = "ASSESSMENT_REOPENED", "Assessment reopened"
     ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
     ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"
+    ITEM_COMMENT_ADDED = "ITEM_COMMENT_ADDED", "Assessment item comment added"
 
     OUTCOME_CREATED = "OUTCOME_CREATED", "Outcome record opened"
     OUTCOME_PROPOSED = "OUTCOME_PROPOSED", "Outcome proposed"

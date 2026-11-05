@@ -47,7 +47,7 @@ function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentI
     result_display: "Met",
     assessor_email: "reed@example.com",
     assessed_at: null,
-    assessor_notes: "",
+    comments: [],
     ...overrides,
   };
 }
@@ -81,8 +81,8 @@ describe("SealedAssessmentEvidence", () => {
       next: null,
       previous: null,
       results: [
-        item({ id: 1, result: "NOT_MET", result_display: "Not met", assessor_notes: "Chamber too low" }),
-        item({ id: 2, item_name: "Stance", assessor_notes: "Crisp footwork" }),
+        item({ id: 1, result: "NOT_MET", result_display: "Not met", comments: [{ id: 1, author_name: "Casey Reed", body: "Chamber too low", created_at: "2026-09-18T10:20:00Z" }] }),
+        item({ id: 2, item_name: "Stance", comments: [{ id: 2, author_name: "Lee Tan", body: "Crisp footwork", created_at: "2026-09-18T10:20:00Z" }] }),
       ],
     });
 

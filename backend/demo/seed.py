@@ -31,6 +31,7 @@ from audit.recording import record
 from data_imports.models import ImportBatch
 from demo.personas import DEMO_PASSWORD, PERSONA_EMAILS, PERSONAS
 from gradings.assessment_services import (
+    add_item_comment,
     bulk_start_candidate_assessments,
     update_candidate_assessment,
     update_candidate_assessment_item,
@@ -341,25 +342,17 @@ def judge(
 
     All but a few items are set in one write; the few that are not met (and a
     handful of met ones, so there are comments of both kinds) go through the
-    service, which writes their audit events and keeps their notes.
+    service, which writes their audit events; each also gets a comment.
     """
     items = list(assessment.items.filter(required=True).order_by("position", "pk"))
     items = items[: max(not_met + 4, round(len(items) * share))]
     for index, item in enumerate(items[:not_met]):
-        update_candidate_assessment_item(
-            item,
-            result=Result.NOT_MET,
-            assessor_notes=SHORTFALL_NOTES[index % len(SHORTFALL_NOTES)],
-            assessor=assessor,
-        )
+        update_candidate_assessment_item(item, result=Result.NOT_MET, assessor=assessor)
+        add_item_comment(item, SHORTFALL_NOTES[index % len(SHORTFALL_NOTES)], assessor)
     remaining = items[not_met:]
     for index, item in enumerate(remaining[:praised]):
-        update_candidate_assessment_item(
-            item,
-            result=Result.MET,
-            assessor_notes=POSITIVE_NOTES[index % len(POSITIVE_NOTES)],
-            assessor=assessor,
-        )
+        update_candidate_assessment_item(item, result=Result.MET, assessor=assessor)
+        add_item_comment(item, POSITIVE_NOTES[index % len(POSITIVE_NOTES)], assessor)
     CandidateAssessmentItem.objects.filter(
         pk__in=[item.pk for item in remaining[praised:]],
     ).update(result=Result.MET, assessor=assessor, assessed_at=timezone.now())

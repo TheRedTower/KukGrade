@@ -1311,7 +1311,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
             assessor_email: "coach@example.com",
             assessed_at: null,
             // A positive observation on a met item must reach the proposer too.
-            assessor_notes: i === 0 ? "Crisp, confident footwork" : "",
+            comments:
+              i === 0
+                ? [{ id: 1, author_name: "Coach Reed", body: "Crisp, confident footwork", created_at: "2026-09-15T10:00:00Z" }]
+                : [],
           })),
         });
       }

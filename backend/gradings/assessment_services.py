@@ -16,6 +16,7 @@ from gradings.locking import (
     require_pinned,
 )
 from gradings.models import (
+    AssessmentItemComment,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -515,7 +516,6 @@ def update_candidate_assessment_item(
     item: CandidateAssessmentItem,
     *,
     result: str | None = None,
-    assessor_notes: str | None = None,
     assessor: User,
 ) -> CandidateAssessmentItem:
     locked_item = lock_in_session(
@@ -528,10 +528,6 @@ def update_candidate_assessment_item(
     )
     validate_assessment_item_can_be_changed(locked_item)
     previous_result = locked_item.result
-    previous_notes = locked_item.assessor_notes
-
-    if assessor_notes is not None:
-        locked_item.assessor_notes = assessor_notes.strip()
 
     if result is not None and result != locked_item.result:
         if result not in CandidateAssessmentItem.Result.values:
@@ -544,31 +540,75 @@ def update_candidate_assessment_item(
             locked_item.assessor = assessor
             locked_item.assessed_at = timezone.now()
 
-    result_changed = result is not None and result != previous_result
-    notes_changed = locked_item.assessor_notes != previous_notes
-    # One event per call covering whatever changed, not one per field - a
-    # notes-only edit used to record nothing at all, which meant the
-    # written judgement about a candidate could be silently rewritten. A call
-    # that changes nothing (notes differing only by surrounding whitespace,
-    # which the model strips) writes and records nothing.
-    if result_changed or notes_changed:
+    # A call that changes nothing writes and records nothing.
+    if result is not None and result != previous_result:
         locked_item.save()
         record(
             AuditAction.ITEM_RESULT_RECORDED,
             locked_item,
-            (
-                f"{locked_item.item_name} recorded as {result}."
-                if result_changed
-                else f"{locked_item.item_name} assessor notes updated."
-            ),
+            f"{locked_item.item_name} recorded as {result}.",
             actor=assessor,
             metadata={
-                "before": {"result": previous_result, "assessor_notes": previous_notes},
-                "after": {
-                    "result": locked_item.result,
-                    "assessor_notes": locked_item.assessor_notes,
-                },
+                "before": {"result": previous_result},
+                "after": {"result": locked_item.result},
                 "assessment": str(locked_item.assessment_id),
             },
         )
     return locked_item
+
+
+def validate_item_can_be_commented(item: CandidateAssessmentItem) -> None:
+    """Comments are for deliberating, so they stay open after the assessment
+    is completed, for as long as the session is open."""
+    assessment = item.assessment
+    if assessment.status == CandidateAssessment.Status.NOT_STARTED:
+        raise ValidationError(
+            {
+                "assessment": [
+                    "Assessment must be started before an item can be commented on.",
+                ],
+            },
+        )
+    if assessment.candidate.session.status != GradingSession.Status.OPEN:
+        raise ValidationError(
+            {"session": ["Items can only be commented on in an open session."]},
+        )
+    if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
+        raise ValidationError(
+            {"candidate": ["Withdrawn candidates cannot be assessed."]},
+        )
+
+
+@transaction.atomic
+def add_item_comment(
+    item: CandidateAssessmentItem,
+    body: str,
+    author: User,
+) -> AssessmentItemComment:
+    locked_item = lock_in_session(
+        CandidateAssessmentItem.objects.select_related(
+            "assessment__candidate__session",
+        ),
+        item.pk,
+        session_path="assessment__candidate__session_id",
+        name="item",
+    )
+    validate_item_can_be_commented(locked_item)
+    comment = AssessmentItemComment.objects.create(
+        item=locked_item,
+        author=author,
+        body=body,
+    )
+    # The words stay in the comment, not the audit trail, which records that
+    # one was written, by whom and where.
+    record(
+        AuditAction.ITEM_COMMENT_ADDED,
+        locked_item,
+        f"Comment added on {locked_item.item_name}.",
+        actor=author,
+        metadata={
+            "comment": str(comment.pk),
+            "assessment": str(locked_item.assessment_id),
+        },
+    )
+    return comment

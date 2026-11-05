@@ -953,6 +953,9 @@ class CandidateAssessmentItem(models.Model):
         blank=True,
     )
     assessed_at = models.DateTimeField(null=True, blank=True)
+    # No longer written: comments (AssessmentItemComment) replaced it, and
+    # migration 0019 carried what it held across. Kept for one release so a
+    # comment can be checked against it, then dropped.
     assessor_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1098,6 +1101,84 @@ class CandidateAssessmentItem(models.Model):
     @property
     def display_range(self) -> str:
         return format_numbered_range(self.start_number, self.end_number)
+
+
+class AssessmentItemCommentQuerySet(models.QuerySet["AssessmentItemComment"]):
+    def delete(self) -> tuple[int, dict[str, int]]:
+        raise ValidationError(
+            {"comment": ["A comment cannot be deleted."]},
+        )
+
+    def update(self, **kwargs: Any) -> int:
+        # save() and delete() already refuse; QuerySet.update() bypasses both.
+        raise ValidationError(
+            {"comment": ["A comment cannot be changed. Add another instead."]},
+        )
+
+
+class AssessmentItemComment(models.Model):
+    """A comment on one assessed item, kept as written.
+
+    Anyone who marks or reviews a candidate may add one; each keeps its author
+    and time and is never edited or removed, so a correction is a new comment.
+    It goes with its item only when the item's assessment is deleted. Replaces
+    the single note an item used to carry, which each save overwrote.
+    """
+
+    if TYPE_CHECKING:
+        item_id: int
+        author_id: int
+
+    item = models.ForeignKey(
+        CandidateAssessmentItem,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    # PROTECT, like every other attribution here: a comment must always say
+    # who wrote it.
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="assessment_item_comments",
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = AssessmentItemCommentQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        indexes = [
+            models.Index(fields=["item", "created_at"], name="item_comment_item_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(body=""),
+                name="item_comment_body_not_blank",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Comment on {self.item}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if not self._state.adding:
+            raise ValidationError(
+                {"comment": ["A comment cannot be changed. Add another instead."]},
+            )
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        raise ValidationError(
+            {"comment": ["A comment cannot be deleted."]},
+        )
+
+    def clean(self) -> None:
+        super().clean()
+        self.body = (self.body or "").strip()
+        if not self.body:
+            raise ValidationError({"body": ["A comment cannot be empty."]})
 
 
 class PromotionQuerySet(models.QuerySet["Promotion"]):

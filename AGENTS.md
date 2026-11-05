@@ -36,10 +36,12 @@ image (`docs/installation.md`).
 - Grading outcomes are Pass, Fail, and Conditional.
 - Assessment data must support category-level results and item-level
   met/not-met results. Category-level results are computed from item results,
-  never stored. Per-item free text is the single `assessor_notes` field, which
-  records both shortfalls and positive observations; `CandidateAssessment.notes`
-  carries the overall observation for the assessment. There is no separate
-  praise or positive-observation field, and none is planned.
+  never stored. Per-item free text is an append-only log of comments
+  (`AssessmentItemComment`), each keeping its author and time and never edited
+  or deleted; it records both shortfalls and positive observations.
+  `CandidateAssessment.notes` carries the overall observation for the
+  assessment. There is no separate praise or positive-observation field, and
+  none is planned. The old single `assessor_notes` column is no longer written.
 - Historical grading records must remain reproducible.
 - The applicable syllabus depends on rank, age band, and syllabus version.
 - Every grading assesses the cumulative syllabus: everything examinable

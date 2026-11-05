@@ -9,11 +9,10 @@
  *
  * Two things that would be easy to get wrong:
  *
- * - **Every** recorded `assessor_notes` value renders, not only those on
- *   `NOT_MET` items. That field carries positive
- *   observations too, so a note on a met requirement would otherwise be
- *   invisible at the last moment it can be read, and absent from the permanent
- *   record afterwards.
+ * - **Every** comment renders, not only those on `NOT_MET` items. Comments
+ *   carry positive observations too, so one on a met requirement would
+ *   otherwise be invisible at the last moment it can be read, and absent from
+ *   the permanent record afterwards.
  * - The assessment note stays **editable** while unsealed. Completion is the
  *   only point at which `CandidateAssessment.notes` can be written - it is
  *   submitted with the `COMPLETED` transition and is immutable afterwards -
@@ -41,7 +40,7 @@ import {
   useAssessmentNotesDraft,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
-import { formatShortDate, formatTime } from "./dates";
+import { formatShortDate, formatShortDateTime, formatTime } from "./dates";
 import "./CandidateAssessment.css";
 import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
@@ -177,8 +176,8 @@ export function AssessmentCompletionScreen() {
   const coreGroups = categoryGroups.filter((group) => group.isCore);
   const ledgerGroups = categoryGroups.filter((group) => !group.isCore);
 
-  // Every recorded note, whichever way the requirement went.
-  const notedItems = items.filter((item) => item.assessor_notes);
+  // Every comment, whichever way the requirement went.
+  const notedItems = items.filter((item) => item.comments.length > 0);
 
   // Distinct assessors across the record, in the order they first appear.
   const assessors = Array.from(
@@ -276,13 +275,13 @@ export function AssessmentCompletionScreen() {
             <LedgerTable key={group.category} group={group} />
           ))}
 
-          <h2 className="acp-section">Assessor notes recorded against requirements</h2>
+          <h2 className="acp-section">Comments on individual requirements</h2>
           {notedItems.length === 0 ? (
-            <p className="acp-section-note">No notes were recorded against individual requirements.</p>
+            <p className="acp-section-note">No comments were recorded against individual requirements.</p>
           ) : (
             <>
               <p className="acp-section-note">
-                Every note recorded during scoring, whichever way the requirement went.
+                Every comment recorded during scoring, whichever way the requirement went.
               </p>
               {notedItems.map((item) => (
                 <div key={item.id} className="acp-note" data-testid={`acp-note-${item.id}`}>
@@ -293,15 +292,14 @@ export function AssessmentCompletionScreen() {
                     </span>
                     <ResultMark result={item.result} />
                   </div>
-                  <p className="acp-note-body">
-                    “{item.assessor_notes}”
-                    {item.assessor_email && (
+                  {item.comments.map((comment) => (
+                    <p key={comment.id} className="acp-note-body">
+                      “{comment.body}”
                       <span className="acp-note-by">
-                        {" "}— {item.assessor_email}
-                        {item.assessed_at && ` · ${formatTime(item.assessed_at)}`}
+                        {" "}— {comment.author_name} · {formatShortDateTime(comment.created_at)}
                       </span>
-                    )}
-                  </p>
+                    </p>
+                  ))}
                 </div>
               ))}
             </>

@@ -141,7 +141,6 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
             f"/api/gradings/assessment-items/{item['id']}/",
             {
                 "result": CandidateAssessmentItem.Result.MET,
-                "assessor_notes": "Clean technique, recorded end to end.",
             },
             format="json",
         )

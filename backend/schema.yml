@@ -116,6 +116,7 @@ paths:
           - IMPORT_BATCH_CANCELLED
           - IMPORT_BATCH_COMMITTED
           - IMPORT_BATCH_EXPIRED
+          - ITEM_COMMENT_ADDED
           - ITEM_RESULT_RECORDED
           - LEGACY_GRADING_LINKED
           - LEGACY_GRADING_RANK_RESOLVED
@@ -866,6 +867,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CandidateAssessmentItem'
+          description: ''
+  /api/gradings/assessment-items/{id}/comments/:
+    post:
+      operationId: gradings_assessment_items_comments_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment
+          item.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentItemCommentRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssessmentItemCommentRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssessmentItemCommentRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentItemComment'
           description: ''
   /api/gradings/assessments/:
     get:
@@ -3013,6 +3048,7 @@ components:
       - ASSESSMENT_REOPENED
       - ASSESSMENT_DELETED
       - ITEM_RESULT_RECORDED
+      - ITEM_COMMENT_ADDED
       - OUTCOME_CREATED
       - OUTCOME_PROPOSED
       - OUTCOME_FINALISED
@@ -3049,6 +3085,7 @@ components:
         * `ASSESSMENT_REOPENED` - Assessment reopened
         * `ASSESSMENT_DELETED` - Assessment deleted
         * `ITEM_RESULT_RECORDED` - Assessment item result recorded
+        * `ITEM_COMMENT_ADDED` - Assessment item comment added
         * `OUTCOME_CREATED` - Outcome record opened
         * `OUTCOME_PROPOSED` - Outcome proposed
         * `OUTCOME_FINALISED` - Outcome finalised
@@ -3155,6 +3192,36 @@ components:
       - required_met
       - required_not_assessed
       - total
+    AssessmentItemComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        author_name:
+          type: string
+          readOnly: true
+        body:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author_name
+      - body
+      - created_at
+      - id
+    AssessmentItemCommentRequestRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+      - body
     AssessmentSummaryCounts:
       type: object
       description: |-
@@ -3611,14 +3678,18 @@ components:
           format: date-time
           readOnly: true
           nullable: true
-        assessor_notes:
-          type: string
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentItemComment'
+          readOnly: true
       required:
       - assessed_at
       - assessor_email
       - category
       - category_display
       - category_is_core
+      - comments
       - display_range
       - id
       - item_name
@@ -5656,8 +5727,6 @@ components:
       properties:
         result:
           $ref: '#/components/schemas/ResultEnum'
-        assessor_notes:
-          type: string
     PatchedCandidateAssessmentRequest:
       type: object
       properties:

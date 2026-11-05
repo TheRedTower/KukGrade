@@ -1,7 +1,7 @@
 /**
  * The sealed assessment as evidence for an outcome: the served counts,
- * every shortfall, and every other recorded `assessor_notes` value
- * with its attribution - positive observations included, as on the
+ * every shortfall, and every other item that has comments,
+ * with each comment's author and time - positive observations included, as on the
  * Certificate Proof. Shared by the Master's Cohort Adjudication
  * Board and the instructor's proposal drawer, so both read the same
  * evidence the same way.
@@ -10,7 +10,7 @@ import { useId } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "./Button";
-import { formatTime } from "./dates";
+import { formatShortDateTime, formatTime } from "./dates";
 import { ErrorText } from "./ErrorText";
 import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
@@ -32,7 +32,7 @@ export function SealedAssessmentEvidence({
   const itemsQuery = useAssessmentItemsQuery(assessmentId);
 
   const notedItems = (itemsQuery.data?.results ?? []).filter(
-    (item) => item.result === "NOT_MET" || (item.assessor_notes ?? "").trim() !== "",
+    (item) => item.result === "NOT_MET" || item.comments.length > 0,
   );
   const shortfalls = notedItems.filter((item) => item.result === "NOT_MET");
   const otherNotes = notedItems.filter((item) => item.result !== "NOT_MET");
@@ -81,7 +81,14 @@ export function SealedAssessmentEvidence({
                       {item.category_display}
                       {!shortfall && ` · ${item.result_display}`}
                     </span>
-                    {item.assessor_notes && <q>{item.assessor_notes}</q>}
+                    {item.comments.map((comment) => (
+                      <span key={comment.id} className="evd-comment">
+                        <q>{comment.body}</q>
+                        <span className="evd-note-by">
+                          {comment.author_name}, {formatShortDateTime(comment.created_at)}
+                        </span>
+                      </span>
+                    ))}
                     <span className="evd-note-by">
                       {item.assessor_email}
                       {item.assessed_at ? `, ${formatTime(item.assessed_at)}` : ""}

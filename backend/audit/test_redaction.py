@@ -383,3 +383,55 @@ def test_the_command_takes_the_student_id() -> None:
         )
 
     assert out.getvalue().strip() == "would change 1 audit event(s)."
+
+
+def test_a_holder_known_only_by_a_new_format_event_is_seen() -> None:
+    """Bob arrived after the change: "Student ID created." and no snapshot."""
+    alice, _bob = reused_typo_id_events()
+    new_bob = old_event("Student A-00042 created.", {}, student_pk="3")
+    untouched = [(e.summary, e.metadata) for e in alice]
+
+    with pytest.raises(ValueError, match="more than one student record"):
+        erase(wksa_id="A-00042", first_name="Marigold", last_name="Thistlewood")
+
+    for event, was in zip(alice, untouched, strict=True):
+        event.refresh_from_db()
+        assert (event.summary, event.metadata) == was
+    new_bob.refresh_from_db()
+    assert new_bob.summary == "Student A-00042 created."
+
+
+def test_a_current_holder_with_no_events_of_their_own_is_seen() -> None:
+    """The ID is on a student today, whose events never named it."""
+    from gradings.testing import student
+
+    alice_snapshot = {**SNAPSHOT, "wksa_id": "A-00042"}
+    alice_event = old_event(
+        "Student Zephyrine Quillfeather (A-00042) updated.",
+        {"before": alice_snapshot, "after": {**alice_snapshot, "wksa_id": "A-00043"}},
+        student_pk="9990001",
+    )
+    student(wksa_id="A-00042", first_name="Marigold", last_name="Thistlewood")
+    before = alice_event.metadata
+
+    with pytest.raises(ValueError, match="more than one student record"):
+        erase(wksa_id="A-00042", first_name="Marigold", last_name="Thistlewood")
+
+    alice_event.refresh_from_db()
+    assert alice_event.metadata == before
+
+
+def test_a_previous_holder_is_seen() -> None:
+    from gradings.testing import student
+    from students.models import PreviousWksaId
+
+    holder = student(wksa_id="A-00099", first_name="Marigold", last_name="Thistlewood")
+    PreviousWksaId.objects.create(student=holder, wksa_id="123-4-001")
+    old_event(
+        "Student Zephyrine Quillfeather (123-4-001) updated.",
+        {"before": SNAPSHOT},
+        student_pk="9990002",
+    )
+
+    with pytest.raises(ValueError, match="more than one student record"):
+        erase()

@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from django.apps import apps
 from django.db import models, transaction
 
 from audit.models import AuditAction, AuditEntity, AuditEvent
@@ -67,14 +68,21 @@ def _snapshot_ids(value: Any) -> set[str]:
     return found
 
 
+def _mentions(summary: str, wksa_id: str) -> bool:
+    """Whether a summary names this ID, as "(ID)" did or "Student ID" does."""
+    return re.search(rf"(?<![\w-]){re.escape(wksa_id)}(?![\w-])", summary) is not None
+
+
 def _students_of(wksa_ids: set[str]) -> set[str]:
     """The ids of the student records that ever held one of these WKSA IDs.
 
-    Found through the student's own events, which name the student by id, so a
-    student whose ID changed (a black belt ID, a corrected typo) is followed
-    through every ID without touching whoever else once held the old number.
+    Found through the student's own events, which name the student by id (old
+    events by a snapshot or "(ID)", new ones by "Student ID"), and through the
+    students themselves, current and previous IDs, so someone who holds the ID
+    now is seen even if their events are few. A student whose ID changed (a
+    black belt ID, a corrected typo) is followed through every ID.
     """
-    return {
+    found = {
         event.entity_id
         for event in AuditEvent.objects.filter(
             entity_type=AuditEntity.STUDENT
@@ -82,8 +90,24 @@ def _students_of(wksa_ids: set[str]) -> set[str]:
             chunk_size=500,
         )
         if _snapshot_ids(event.metadata) & wksa_ids
-        or any(f"({wksa_id})" in event.summary for wksa_id in wksa_ids)
+        or any(_mentions(event.summary, wksa_id) for wksa_id in wksa_ids)
     }
+    # Looked up by name so the log keeps no import of the apps it records.
+    student_model = apps.get_model("students", "Student")
+    previous_model = apps.get_model("students", "PreviousWksaId")
+    found |= {
+        str(pk)
+        for pk in student_model.objects.filter(wksa_id__in=wksa_ids).values_list(
+            "pk", flat=True
+        )
+    }
+    found |= {
+        str(pk)
+        for pk in previous_model.objects.filter(wksa_id__in=wksa_ids).values_list(
+            "student_id", flat=True
+        )
+    }
+    return found
 
 
 def redact_student_details(

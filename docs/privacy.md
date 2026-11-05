@@ -49,7 +49,8 @@ into their details. They are permanent, and the app refuses every change to them
 - Replaces `<name> (<WKSA ID>)` in summaries with the WKSA ID, and any other occurrence of
   the full name with `[name erased]`.
 - Removes `first_name`, `last_name` and `date_of_birth` from every snapshot of that
-  student, found through the WKSA ID you give: every snapshot in the events of that
+  student, found through the WKSA ID you give (in the log, and among current and previous
+  student IDs): every snapshot in the events of that
   student's record, so a student whose ID changed (a black belt ID, a corrected typo) is
   followed through every ID. It does not match dates by value, so another student with the
   same birthday is untouched.

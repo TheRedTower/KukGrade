@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
 
+from kukgrade.modelchecks import clean_without_database_checks
 from syllabus.models import (
     AgeBand,
     SyllabusItem,
@@ -989,7 +990,12 @@ class CandidateAssessmentItem(models.Model):
         return f"{self.item_code}: {self.item_name}"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        self.full_clean()
+        if self._state.adding:
+            self.full_clean()
+        else:
+            # Every mark goes through update_candidate_assessment_item, which
+            # decides each value; the database's constraints stay the guard.
+            clean_without_database_checks(self)
         super().save(*args, **kwargs)
 
     def clean(self) -> None:
@@ -1086,7 +1092,9 @@ class AssessmentItemComment(models.Model):
             raise ValidationError(
                 {"comment": ["A comment cannot be changed. Add another instead."]},
             )
-        self.full_clean()
+        # Written by one service, which decides every value; the constraints
+        # and foreign keys stay the guard.
+        clean_without_database_checks(self)
         super().save(*args, **kwargs)
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
@@ -1191,7 +1199,9 @@ class AssessmentItemResultChange(models.Model):
             raise ValidationError(
                 {"change": ["A recorded mark change cannot be changed."]},
             )
-        self.full_clean()
+        # Written by one service, which decides every value; the constraints
+        # and foreign keys stay the guard.
+        clean_without_database_checks(self)
         super().save(*args, **kwargs)
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:

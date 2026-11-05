@@ -32,9 +32,8 @@ from gradings.models import (
     GradingSession,
 )
 from gradings.outcome_services import (
-    create_candidate_outcome,
     finalise_candidate_outcome,
-    propose_candidate_outcome,
+    propose_for_candidate,
 )
 from gradings.services import (
     apply_candidate_update,
@@ -195,9 +194,8 @@ def finalised_outcome(
     conditional_requirements: str = "",
 ) -> CandidateOutcome:
     suffix = f"{built.pk}-{CandidateOutcome.objects.count()}"
-    outcome = create_candidate_outcome(built, user(f"outcome-{suffix}@example.com"))
-    proposed_outcome = propose_candidate_outcome(
-        outcome,
+    proposed_outcome = propose_for_candidate(
+        built,
         proposed,
         "Ready for final decision.",
         user(f"proposer-{suffix}@example.com"),

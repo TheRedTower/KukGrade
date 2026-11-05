@@ -122,13 +122,6 @@ def test_revising_a_proposal_records_what_it_said_before() -> None:
 
     propose_candidate_outcome(
         outcome,
-        CandidateOutcome.Outcome.PASS,
-        "Looked strong.",
-        first,
-    )
-    outcome.refresh_from_db()
-    propose_candidate_outcome(
-        outcome,
         CandidateOutcome.Outcome.FAIL,
         "Disagree - forms were weak.",
         second,

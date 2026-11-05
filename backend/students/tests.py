@@ -642,9 +642,8 @@ def test_student_list_shows_each_students_current_grading_and_its_stage() -> Non
     # actually has, worked out from its assessment and outcome (audit F-29).
     from gradings.models import CandidateOutcome, GradingCandidate, GradingSession
     from gradings.outcome_services import (
-        create_candidate_outcome,
         promote_candidate,
-        propose_candidate_outcome,
+        propose_for_candidate,
     )
     from gradings.services import transition_grading_session
     from gradings.testing import (
@@ -681,8 +680,8 @@ def test_student_list_shows_each_students_current_grading_and_its_stage() -> Non
 
     proposed, _ = locked_completed_candidate()
     named(proposed, "DECIDING")
-    propose_candidate_outcome(
-        create_candidate_outcome(proposed, user("stage-creator@example.com")),
+    propose_for_candidate(
+        proposed,
         CandidateOutcome.Outcome.PASS,
         "Ready.",
         user("stage-proposer@example.com"),

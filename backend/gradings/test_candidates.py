@@ -1352,17 +1352,13 @@ def test_a_student_is_registered_for_one_grading_at_a_time() -> None:
 
 
 def test_a_locked_grading_awaiting_its_decision_still_holds_the_student() -> None:
-    from gradings.outcome_services import (
-        create_candidate_outcome,
-        propose_candidate_outcome,
-    )
+    from gradings.outcome_services import propose_for_candidate
 
     graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
     assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
 
-    outcome = create_candidate_outcome(graded, user("drafter@example.com"))
-    propose_candidate_outcome(
-        outcome, "PASS", "Ready for decision.", user("proposer@example.com")
+    propose_for_candidate(
+        graded, "PASS", "Ready for decision.", user("proposer@example.com")
     )
 
     assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]

@@ -16,7 +16,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.outcome_services import create_candidate_outcome
+from gradings.outcome_services import propose_for_candidate
 from gradings.services import (
     create_grading_session,
     register_candidate,
@@ -27,6 +27,7 @@ from students.models import Student
 
 
 def locked_completed_candidate_with_outcome() -> tuple[CandidateOutcome, User, User]:
+    """A locked, completed candidate whose outcome `first` has proposed Pass."""
     creator = User.objects.create_user(email="audit-creator@example.com")
     first = User.objects.create_user(email="audit-first@example.com")
     second = User.objects.create_user(email="audit-second@example.com")
@@ -68,7 +69,8 @@ def locked_completed_candidate_with_outcome() -> tuple[CandidateOutcome, User, U
     session.refresh_from_db()
     transition_grading_session(session, GradingSession.Status.LOCKED, actor=creator)
     candidate.refresh_from_db()
-    outcome = create_candidate_outcome(candidate, creator)
+    # Proposed by `first`; `second` is for a test that revises it.
+    outcome = propose_for_candidate(candidate, "PASS", "Looked strong.", first)
     return outcome, first, second
 
 

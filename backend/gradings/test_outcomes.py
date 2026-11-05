@@ -17,9 +17,9 @@ from gradings.models import (
     GradingSession,
 )
 from gradings.outcome_services import (
-    create_candidate_outcome,
     finalise_candidate_outcome,
     propose_candidate_outcome,
+    propose_for_candidate,
 )
 from gradings.read_models import candidate_assessment_summary
 from gradings.services import (
@@ -42,33 +42,84 @@ from syllabus.models import SyllabusItem, SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
 
+PASS = CandidateOutcome.Outcome.PASS
+FAIL = CandidateOutcome.Outcome.FAIL
 
-def test_valid_draft_candidate_outcome_can_be_created() -> None:
+
+def test_the_first_proposal_opens_the_outcome_record() -> None:
     built, generated = locked_completed_candidate()
+    proposer = user("outcome-creator@example.com")
 
-    outcome = create_candidate_outcome(built, user("outcome-creator@example.com"))
+    outcome = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Clean grading.",
+        proposer,
+    )
 
     assert outcome.candidate == built
     assert outcome.assessment == generated
-    assert outcome.status == CandidateOutcome.Status.DRAFT
-    assert outcome.proposed_outcome is None
+    assert outcome.status == CandidateOutcome.Status.PROPOSED
+    assert outcome.proposed_outcome == CandidateOutcome.Outcome.PASS
+    assert outcome.proposed_by == proposer
     assert outcome.final_outcome is None
+
+
+def test_an_outcome_record_never_exists_without_a_proposal() -> None:
+    built, generated = locked_completed_candidate()
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateOutcome.objects.bulk_create(
+            [
+                CandidateOutcome(
+                    candidate=built,
+                    assessment=generated,
+                    status="DRAFT",
+                ),
+            ],
+        )
+
+    assert not CandidateOutcome.objects.filter(candidate=built).exists()
 
 
 def test_candidate_outcome_database_constraints_are_enforced() -> None:
     built, generated = locked_completed_candidate()
     creator = user("outcome-db-creator@example.com")
-    outcome = create_candidate_outcome(built, creator)
+    outcome = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "",
+        creator,
+    )
 
+    # A second record for the same candidate.
     with pytest.raises(IntegrityError), transaction.atomic():
         CandidateOutcome.objects.bulk_create(
-            [CandidateOutcome(candidate=built, assessment=generated)],
+            [
+                CandidateOutcome(
+                    candidate=built,
+                    assessment=generated,
+                    status=CandidateOutcome.Status.PROPOSED,
+                    proposed_outcome=CandidateOutcome.Outcome.PASS,
+                    proposed_by=creator,
+                    proposed_at=timezone.now(),
+                ),
+            ],
         )
 
     other_built, other_generated = locked_completed_candidate()
     with pytest.raises(IntegrityError), transaction.atomic():
         CandidateOutcome.objects.bulk_create(
-            [CandidateOutcome(candidate=other_built, assessment=generated)],
+            [
+                CandidateOutcome(
+                    candidate=other_built,
+                    assessment=generated,
+                    status=CandidateOutcome.Status.PROPOSED,
+                    proposed_outcome=CandidateOutcome.Outcome.PASS,
+                    proposed_by=creator,
+                    proposed_at=timezone.now(),
+                ),
+            ],
         )
     assert other_generated.pk is not None
 
@@ -187,30 +238,36 @@ def test_candidate_assessment_mismatch_rejected_by_model_validation() -> None:
 def test_outcome_creation_rules_and_duplicate_protection() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     with pytest.raises(ValidationError):
-        create_candidate_outcome(built, user("outcome-no-assessment@example.com"))
+        propose_for_candidate(
+            built, PASS, "", user("outcome-no-assessment@example.com")
+        )
 
     generated = assessment(candidate=built)
     start_assessment(generated)
     with pytest.raises(ValidationError):
-        create_candidate_outcome(built, user("outcome-incomplete@example.com"))
+        propose_for_candidate(built, PASS, "", user("outcome-incomplete@example.com"))
 
     complete_assessment(generated)
     with pytest.raises(ValidationError):
-        create_candidate_outcome(built, user("outcome-open@example.com"))
+        propose_for_candidate(built, PASS, "", user("outcome-open@example.com"))
 
     transition_grading_session(built.session, GradingSession.Status.LOCKED)
-    outcome = create_candidate_outcome(built, user("outcome-valid@example.com"))
+    outcome = propose_for_candidate(built, PASS, "", user("outcome-valid@example.com"))
     assert outcome.pk is not None
-    with pytest.raises(ValidationError):
-        create_candidate_outcome(built, user("outcome-duplicate@example.com"))
+    # A second proposal revises the record; it never opens another.
+    again = propose_for_candidate(built, FAIL, "", user("outcome-second@example.com"))
+    assert again.pk == outcome.pk
+    assert CandidateOutcome.objects.filter(candidate=built).count() == 1
 
     completed_built, _completed_assessment = locked_completed_candidate()
     GradingSession.objects.filter(pk=completed_built.session_id).update(
         status=GradingSession.Status.COMPLETED,
     )
     with pytest.raises(ValidationError):
-        create_candidate_outcome(
+        propose_for_candidate(
             completed_built,
+            PASS,
+            "",
             user("outcome-completed-session@example.com"),
         )
 
@@ -219,19 +276,20 @@ def test_outcome_creation_rules_and_duplicate_protection() -> None:
         status=GradingSession.Status.CANCELLED,
     )
     with pytest.raises(ValidationError):
-        create_candidate_outcome(
+        propose_for_candidate(
             cancelled_built,
+            PASS,
+            "",
             user("outcome-cancelled-session@example.com"),
         )
 
 
 def test_proposal_workflow_allows_revision_and_blocks_finalised_reproposal() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user("proposal-creator@example.com"))
     proposer = user("proposal-actor@example.com")
 
-    proposed = propose_candidate_outcome(
-        outcome,
+    proposed = propose_for_candidate(
+        built,
         CandidateOutcome.Outcome.PASS,
         "Initial proposal",
         proposer,
@@ -277,18 +335,8 @@ def test_proposal_workflow_allows_revision_and_blocks_finalised_reproposal() -> 
 
 def test_finalisation_rules_permissions_and_conditional_policy() -> None:
     built, _generated = locked_completed_candidate()
-    draft = create_candidate_outcome(built, user("finalise-draft-creator@example.com"))
-    with pytest.raises(ValidationError):
-        finalise_candidate_outcome(
-            draft,
-            CandidateOutcome.Outcome.PASS,
-            "",
-            "",
-            master("finalise-draft-master@example.com"),
-        )
-
-    proposed = propose_candidate_outcome(
-        draft,
+    proposed = propose_for_candidate(
+        built,
         CandidateOutcome.Outcome.PASS,
         "",
         user("finalise-proposer@example.com"),
@@ -354,12 +402,8 @@ def test_finalisation_rules_permissions_and_conditional_policy() -> None:
 
 def test_superuser_can_finalise_through_django_permission_conventions() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(
+    proposed = propose_for_candidate(
         built,
-        user("finalise-superuser-creator@example.com"),
-    )
-    proposed = propose_candidate_outcome(
-        outcome,
         CandidateOutcome.Outcome.PASS,
         "",
         user("finalise-superuser-proposer@example.com"),
@@ -382,12 +426,8 @@ def test_superuser_can_finalise_through_django_permission_conventions() -> None:
 
 def test_finalisation_only_allowed_while_session_locked() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(
+    proposed = propose_for_candidate(
         built,
-        user("finalise-session-creator@example.com"),
-    )
-    proposed = propose_candidate_outcome(
-        outcome,
         CandidateOutcome.Outcome.PASS,
         "",
         user("finalise-session-proposer@example.com"),
@@ -454,16 +494,26 @@ def test_a_bulk_delete_cannot_erase_a_finalised_decision(final: str) -> None:
 
 def test_a_bulk_delete_still_removes_undecided_outcomes() -> None:
     built, _generated = locked_completed_candidate()
-    draft = create_candidate_outcome(built, user("bulk-draft@example.com"))
+    undecided = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "",
+        user("bulk-proposer@example.com"),
+    )
 
-    deleted, _ = CandidateOutcome.objects.filter(pk=draft.pk).delete()
+    deleted, _ = CandidateOutcome.objects.filter(pk=undecided.pk).delete()
 
     assert deleted == 1
 
 
 def test_direct_outcome_status_spoofing_rejected() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user("status-spoof-creator@example.com"))
+    outcome = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "",
+        user("status-spoof-creator@example.com"),
+    )
     outcome.status = CandidateOutcome.Status.FINALISED
     outcome.proposed_outcome = CandidateOutcome.Outcome.PASS
     outcome.proposed_by = user("status-spoof-proposer@example.com")
@@ -565,16 +615,13 @@ def test_session_completion_requires_finalised_outcomes_for_active_candidates() 
     complete_assessment(first_assessment)
     complete_assessment(second_assessment)
     transition_grading_session(session, GradingSession.Status.LOCKED)
-    first_outcome = create_candidate_outcome(
-        first,
-        user("session-outcome-first@example.com"),
-    )
 
+    # No outcome yet: nothing is decided, so the session cannot complete.
     with pytest.raises(ValidationError):
         transition_grading_session(session, GradingSession.Status.COMPLETED)
 
-    proposed_first = propose_candidate_outcome(
-        first_outcome,
+    proposed_first = propose_for_candidate(
+        first,
         CandidateOutcome.Outcome.PASS,
         "",
         user("session-outcome-first-proposer@example.com"),

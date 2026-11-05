@@ -19,10 +19,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.outcome_services import (
-    create_candidate_outcome,
-    propose_candidate_outcome,
-)
+from gradings.outcome_services import propose_for_candidate
 from gradings.services import (
     apply_candidate_update,
     transition_grading_session,
@@ -658,8 +655,8 @@ def test_awaiting_decision_excludes_finalised_outcomes() -> None:
     candidate(session=session, status=GradingCandidate.Status.WITHDRAWN)
     transition_grading_session(session, GradingSession.Status.LOCKED)
     finalised_outcome(decided)
-    propose_candidate_outcome(
-        create_candidate_outcome(proposed, user("progress-outcome@example.com")),
+    propose_for_candidate(
+        proposed,
         CandidateOutcome.Outcome.PASS,
         "Ready.",
         user("progress-proposer@example.com"),

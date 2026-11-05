@@ -3746,12 +3746,10 @@ components:
       - proposed_outcome
     CandidateOutcomeStatusEnum:
       enum:
-      - DRAFT
       - PROPOSED
       - FINALISED
       type: string
       description: |-
-        * `DRAFT` - Draft
         * `PROPOSED` - Proposed
         * `FINALISED` - Finalised
     CandidatePromotionRequest:

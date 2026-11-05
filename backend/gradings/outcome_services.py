@@ -97,10 +97,18 @@ def validate_candidate_outcome_creation(candidate: GradingCandidate) -> None:
 
 
 @transaction.atomic
-def create_candidate_outcome(
+def propose_for_candidate(
     candidate: GradingCandidate,
-    actor: User | None = None,
+    proposed_outcome: str,
+    proposal_notes: str,
+    actor: User,
 ) -> CandidateOutcome:
+    """Propose an outcome for a candidate in one step.
+
+    The candidate's outcome record is born with the first proposal and revised
+    by later ones, decided under the session lock so two proposals arriving
+    together cannot both try to open it. A record never exists without one.
+    """
     locked_candidate = lock_in_session(
         GradingCandidate.objects.select_related(
             "session", "student", "testing_for_rank"
@@ -109,12 +117,25 @@ def create_candidate_outcome(
         session_path="session_id",
         name="candidate",
     )
+    existing = CandidateOutcome.objects.filter(candidate=locked_candidate).first()
+    if existing is not None:
+        return propose_candidate_outcome(
+            existing,
+            proposed_outcome,
+            proposal_notes,
+            actor,
+        )
     validate_candidate_outcome_creation(locked_candidate)
-    assessment = locked_candidate.assessment
+    _validate_outcome_choice(proposed_outcome, "proposed_outcome")
     try:
         outcome = CandidateOutcome.objects.create(
             candidate=locked_candidate,
-            assessment=assessment,
+            assessment=locked_candidate.assessment,
+            status=CandidateOutcome.Status.PROPOSED,
+            proposed_outcome=proposed_outcome,
+            proposal_notes=proposal_notes,
+            proposed_by=actor,
+            proposed_at=timezone.now(),
         )
     except IntegrityError as exc:
         if not unique_violation_on(exc, CandidateOutcome):
@@ -128,37 +149,48 @@ def create_candidate_outcome(
         f"Outcome record opened for {locked_candidate.student}.",
         actor=actor,
     )
+    _record_proposal(outcome, None, actor)
     return outcome
-
-
-@transaction.atomic
-def propose_for_candidate(
-    candidate: GradingCandidate,
-    proposed_outcome: str,
-    proposal_notes: str,
-    actor: User,
-) -> CandidateOutcome:
-    """Propose an outcome for a candidate in one step.
-
-    The candidate's outcome record is opened by the first proposal and revised
-    by later ones, decided under the session lock so two proposals arriving
-    together cannot both try to open it.
-    """
-    locked_candidate = lock_in_session(
-        GradingCandidate.objects.select_related("session"),
-        candidate.pk,
-        session_path="session_id",
-        name="candidate",
-    )
-    outcome = CandidateOutcome.objects.filter(candidate=locked_candidate).first()
-    if outcome is None:
-        outcome = create_candidate_outcome(locked_candidate, actor)
-    return propose_candidate_outcome(outcome, proposed_outcome, proposal_notes, actor)
 
 
 def _validate_outcome_choice(value: str, field_name: str) -> None:
     if value not in CandidateOutcome.Outcome.values:
         raise ValidationError({field_name: ["That is not a valid outcome."]})
+
+
+def _record_proposal(
+    outcome: CandidateOutcome,
+    previous: dict[str, str | None] | None,
+    actor: User,
+) -> None:
+    # `before` is what makes a disagreement visible: without it the Master
+    # sees only the latest proposal and no sign it ever said anything else.
+    before = previous or {
+        "proposed_outcome": None,
+        "proposal_notes": "",
+        "proposed_by": None,
+    }
+    record(
+        AuditAction.OUTCOME_PROPOSED,
+        outcome,
+        (
+            f"Outcome proposed as {outcome.proposed_outcome}"
+            + (
+                f", revising an earlier {before['proposed_outcome']}."
+                if before["proposed_outcome"]
+                else "."
+            )
+        ),
+        actor=actor,
+        metadata={
+            "before": before,
+            "after": {
+                "proposed_outcome": outcome.proposed_outcome,
+                "proposal_notes": outcome.proposal_notes,
+                "proposed_by": str(actor.pk),
+            },
+        },
+    )
 
 
 @transaction.atomic
@@ -184,11 +216,6 @@ def propose_candidate_outcome(
         raise ValidationError(
             {"status": ["A final decision cannot be proposed again."]},
         )
-    if locked_outcome.status not in {
-        CandidateOutcome.Status.DRAFT,
-        CandidateOutcome.Status.PROPOSED,
-    }:
-        raise ValidationError({"status": ["Outcome cannot be proposed."]})
     _validate_outcome_choice(proposed_outcome, "proposed_outcome")
 
     previous_proposal = {
@@ -213,29 +240,7 @@ def propose_candidate_outcome(
     locked_outcome.status = CandidateOutcome.Status.PROPOSED
     locked_outcome._allow_status_transition = True
     locked_outcome.save()
-    # `before` is what makes a disagreement visible: without it the Master
-    # sees only the latest proposal and no sign it ever said anything else.
-    record(
-        AuditAction.OUTCOME_PROPOSED,
-        locked_outcome,
-        (
-            f"Outcome proposed as {proposed_outcome}"
-            + (
-                f", revising an earlier {previous_proposal['proposed_outcome']}."
-                if previous_proposal["proposed_outcome"]
-                else "."
-            )
-        ),
-        actor=actor,
-        metadata={
-            "before": previous_proposal,
-            "after": {
-                "proposed_outcome": proposed_outcome,
-                "proposal_notes": proposal_notes,
-                "proposed_by": str(actor.pk),
-            },
-        },
-    )
+    _record_proposal(locked_outcome, previous_proposal, actor)
     return locked_outcome
 
 

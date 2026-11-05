@@ -10,9 +10,8 @@ from accounts.models import User
 from audit.models import AuditEvent
 from gradings.models import CandidateOutcome, GradingSession, StagedDecision
 from gradings.outcome_services import (
-    create_candidate_outcome,
     finalise_candidate_outcome,
-    propose_candidate_outcome,
+    propose_for_candidate,
     stage_final_decision,
 )
 from gradings.services import transition_grading_session
@@ -28,9 +27,8 @@ pytestmark = pytest.mark.django_db
 
 def proposed_outcome(tag: str) -> CandidateOutcome:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user(f"{tag}-creator@example.com"))
-    return propose_candidate_outcome(
-        outcome,
+    return propose_for_candidate(
+        built,
         CandidateOutcome.Outcome.PASS,
         "",
         user(f"{tag}-proposer@example.com"),

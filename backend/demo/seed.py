@@ -47,10 +47,9 @@ from gradings.models import (
     Promotion,
 )
 from gradings.outcome_services import (
-    create_candidate_outcome,
     finalise_candidate_outcome,
     promote_candidate,
-    propose_candidate_outcome,
+    propose_for_candidate,
 )
 from gradings.services import (
     apply_candidate_update,
@@ -407,11 +406,10 @@ def decide(
     club: Club,
 ) -> None:
     for candidate, decision in zip(candidates, decisions, strict=True):
-        outcome = create_candidate_outcome(candidate, club.instructor)
         if decision.recommended is None:
             continue
-        outcome = propose_candidate_outcome(
-            outcome,
+        outcome = propose_for_candidate(
+            candidate,
             decision.recommended,
             "Recommendation after reviewing the full assessment.",
             club.instructor,

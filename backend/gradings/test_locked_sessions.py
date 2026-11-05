@@ -17,10 +17,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.outcome_services import (
-    create_candidate_outcome,
-    propose_candidate_outcome,
-)
+from gradings.outcome_services import propose_for_candidate
 from gradings.services import transition_grading_session, withdraw_locked_candidate
 from gradings.testing import (
     auth_client,
@@ -117,9 +114,8 @@ def test_locked_withdrawal_is_refused_once_the_outcome_is_finalised() -> None:
 def test_locked_withdrawal_clears_an_undecided_outcome() -> None:
     built, _generated = locked_completed_candidate()
     proposer = user("proposer-before-withdrawal@example.com")
-    outcome = create_candidate_outcome(built, user("draft-outcome@example.com"))
-    propose_candidate_outcome(
-        outcome,
+    outcome = propose_for_candidate(
+        built,
         proposed_outcome=CandidateOutcome.Outcome.PASS,
         proposal_notes="Strong performance, recommend a pass.",
         actor=proposer,
@@ -393,9 +389,8 @@ def test_a_session_with_a_final_decision_cannot_be_cancelled(final: str) -> None
 
 def test_a_session_with_only_proposals_can_still_be_cancelled() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = create_candidate_outcome(built, user("proposal-only@example.com"))
-    propose_candidate_outcome(
-        outcome,
+    propose_for_candidate(
+        built,
         CandidateOutcome.Outcome.PASS,
         "Ready.",
         user("proposal-only-proposer@example.com"),

@@ -578,7 +578,6 @@ class CandidateOutcome(models.Model):
         CONDITIONAL = "CONDITIONAL", "Conditional"
 
     class Status(models.TextChoices):
-        DRAFT = "DRAFT", "Draft"
         PROPOSED = "PROPOSED", "Proposed"
         FINALISED = "FINALISED", "Finalised"
 
@@ -622,11 +621,7 @@ class CandidateOutcome(models.Model):
     )
     decided_at = models.DateTimeField(null=True, blank=True)
     decision_notes = models.TextField(blank=True)
-    status = models.CharField(
-        max_length=32,
-        choices=Status.choices,
-        default=Status.DRAFT,
-    )
+    status = models.CharField(max_length=32, choices=Status.choices)
     conditional_requirements = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -660,7 +655,7 @@ class CandidateOutcome(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=Q(status__in=["DRAFT", "PROPOSED", "FINALISED"]),
+                condition=Q(status__in=["PROPOSED", "FINALISED"]),
                 name="candidate_outcome_status_valid",
             ),
             models.CheckConstraint(
@@ -676,16 +671,6 @@ class CandidateOutcome(models.Model):
             models.CheckConstraint(
                 condition=(
                     Q(
-                        status="DRAFT",
-                        proposed_outcome__isnull=True,
-                        proposed_by__isnull=True,
-                        proposed_at__isnull=True,
-                        final_outcome__isnull=True,
-                        decided_by__isnull=True,
-                        decided_at__isnull=True,
-                        conditional_requirements="",
-                    )
-                    | Q(
                         status="PROPOSED",
                         proposed_outcome__isnull=False,
                         proposed_by__isnull=False,
@@ -801,19 +786,6 @@ class CandidateOutcome(models.Model):
                             "A final decision cannot be changed.",
                         ]
 
-        if self.status == self.Status.DRAFT:
-            if self.proposed_outcome is not None:
-                errors["proposed_outcome"] = [
-                    "Draft outcomes cannot have a proposed outcome.",
-                ]
-            if self.proposed_by_id is not None or self.proposed_at is not None:
-                errors["proposed_by"] = [
-                    "Draft outcomes cannot have proposal attribution.",
-                ]
-            if self.final_outcome is not None:
-                errors["final_outcome"] = [
-                    "Draft outcomes cannot have a final outcome.",
-                ]
         if self.status == self.Status.PROPOSED:
             if self.proposed_outcome is None:
                 errors["proposed_outcome"] = ["Proposed outcome is required."]

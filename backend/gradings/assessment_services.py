@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
+from django.db.models import Max
 from django.utils import timezone
 
 from accounts.models import User
@@ -17,6 +18,7 @@ from gradings.locking import (
 )
 from gradings.models import (
     AssessmentItemComment,
+    AssessmentItemResultChange,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -402,61 +404,6 @@ def update_candidate_assessment(
 
 
 @transaction.atomic
-def reopen_candidate_assessment(
-    assessment: CandidateAssessment,
-    actor: User,
-) -> CandidateAssessment:
-    """Return a completed assessment to in-progress for correction.
-
-    Only while the session is still open: locking is the point after which
-    the record is final. The candidate goes back to registered until the
-    assessment is completed again. Item results and their attribution are
-    kept exactly as recorded.
-    """
-    locked_assessment = lock_in_session(
-        CandidateAssessment.objects.select_related(
-            "candidate__session",
-            "candidate__student",
-        ),
-        assessment.pk,
-        session_path="candidate__session_id",
-        name="assessment",
-    )
-    if locked_assessment.status != CandidateAssessment.Status.COMPLETED:
-        raise ValidationError(
-            {"status": ["Only a completed assessment can be reopened."]},
-        )
-    if locked_assessment.candidate.session.status != GradingSession.Status.OPEN:
-        raise ValidationError(
-            {
-                "session": [
-                    "An assessment can only be reopened while its session is open.",
-                ],
-            },
-        )
-
-    completed_at = locked_assessment.completed_at
-    locked_assessment.status = CandidateAssessment.Status.IN_PROGRESS
-    locked_assessment.completed_at = None
-    locked_assessment.save()
-    GradingCandidate.objects.filter(pk=locked_assessment.candidate_id).update(
-        status=GradingCandidate.Status.REGISTERED,
-        updated_at=timezone.now(),
-    )
-    record(
-        AuditAction.ASSESSMENT_REOPENED,
-        locked_assessment,
-        (
-            f"Assessment for {locked_assessment.candidate.student} "
-            "reopened for correction."
-        ),
-        actor=actor,
-        metadata={"completed_at": completed_at.isoformat() if completed_at else None},
-    )
-    return locked_assessment
-
-
-@transaction.atomic
 def bulk_start_candidate_assessments(
     *,
     assessments: Sequence[CandidateAssessment],
@@ -488,11 +435,9 @@ def bulk_start_candidate_assessments(
 
 
 def validate_assessment_item_can_be_changed(item: CandidateAssessmentItem) -> None:
+    """Marks can change while the session is open, whether or not the assessment
+    has been completed: a completed one is corrected with a reason, not reopened."""
     assessment = item.assessment
-    if assessment.status == CandidateAssessment.Status.COMPLETED:
-        raise ValidationError(
-            {"assessment": ["A completed assessment cannot be changed."]}
-        )
     if assessment.status == CandidateAssessment.Status.NOT_STARTED:
         raise ValidationError(
             {
@@ -516,8 +461,17 @@ def update_candidate_assessment_item(
     item: CandidateAssessmentItem,
     *,
     result: str | None = None,
+    reason: str = "",
     assessor: User,
 ) -> CandidateAssessmentItem:
+    """Mark an item, or change or clear its mark, and keep how it changed.
+
+    The first mark needs no reason. Every later change does: switching it,
+    clearing it, marking it again after it was cleared, and including a person
+    changing their own mark. It is judged against the item as it stands now,
+    so a screen that still shows an item as unmarked cannot quietly overwrite
+    what someone else has marked since.
+    """
     locked_item = lock_in_session(
         CandidateAssessmentItem.objects.select_related(
             "assessment__candidate__session",
@@ -528,32 +482,67 @@ def update_candidate_assessment_item(
     )
     validate_assessment_item_can_be_changed(locked_item)
     previous_result = locked_item.result
-
-    if result is not None and result != locked_item.result:
-        if result not in CandidateAssessmentItem.Result.values:
-            raise ValidationError({"result": ["That is not a valid result."]})
-        locked_item.result = result
-        if result == CandidateAssessmentItem.Result.NOT_ASSESSED:
-            locked_item.assessor = None
-            locked_item.assessed_at = None
-        else:
-            locked_item.assessor = assessor
-            locked_item.assessed_at = timezone.now()
-
     # A call that changes nothing writes and records nothing.
-    if result is not None and result != previous_result:
-        locked_item.save()
-        record(
-            AuditAction.ITEM_RESULT_RECORDED,
-            locked_item,
-            f"{locked_item.item_name} recorded as {result}.",
-            actor=assessor,
-            metadata={
-                "before": {"result": previous_result},
-                "after": {"result": locked_item.result},
-                "assessment": str(locked_item.assessment_id),
+    if result is None or result == previous_result:
+        return locked_item
+    if result not in CandidateAssessmentItem.Result.values:
+        raise ValidationError({"result": ["That is not a valid result."]})
+    reason = (reason or "").strip()
+    already_marked = previous_result != CandidateAssessmentItem.Result.NOT_ASSESSED
+    # Not the item's first change: it is marked, or has been and was cleared.
+    is_later_change = already_marked or locked_item.changes.exists()
+    if is_later_change and not reason:
+        raise ValidationError({"reason": ["Say why the mark is changing."]})
+    if (
+        result == CandidateAssessmentItem.Result.NOT_ASSESSED
+        and locked_item.required
+        and locked_item.assessment.status == CandidateAssessment.Status.COMPLETED
+    ):
+        raise ValidationError(
+            {
+                "result": [
+                    "A completed assessment must keep every required item marked.",
+                ],
             },
         )
+
+    locked_item.result = result
+    if result == CandidateAssessmentItem.Result.NOT_ASSESSED:
+        locked_item.assessor = None
+        locked_item.assessed_at = None
+    else:
+        locked_item.assessor = assessor
+        locked_item.assessed_at = timezone.now()
+    locked_item.save()
+    last = AssessmentItemResultChange.objects.filter(item=locked_item).aggregate(
+        last=Max("sequence"),
+    )["last"]
+    change = AssessmentItemResultChange.objects.create(
+        item=locked_item,
+        sequence=(last or 0) + 1,
+        from_result=previous_result,
+        to_result=result,
+        changed_by=assessor,
+        reason=reason,
+    )
+    # The reason stays in the change log, not the audit trail, which records
+    # that the mark changed, by whom and from what to what.
+    record(
+        AuditAction.ITEM_RESULT_RECORDED,
+        locked_item,
+        (
+            f"{locked_item.item_name} changed from {previous_result} to {result}."
+            if is_later_change
+            else f"{locked_item.item_name} recorded as {result}."
+        ),
+        actor=assessor,
+        metadata={
+            "before": {"result": previous_result},
+            "after": {"result": locked_item.result},
+            "change": str(change.pk),
+            "assessment": str(locked_item.assessment_id),
+        },
+    )
     return locked_item
 
 

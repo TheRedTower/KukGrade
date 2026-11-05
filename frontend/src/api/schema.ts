@@ -521,23 +521,6 @@ export interface paths {
         patch: operations["gradings_assessments_partial_update"];
         trace?: never;
     };
-    "/api/gradings/assessments/{id}/reopen/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Return a completed assessment to in-progress while the session is open. */
-        post: operations["gradings_assessments_reopen_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/gradings/assessments/{id}/summary/": {
         parameters: {
             query?: never;
@@ -1642,6 +1625,16 @@ export interface components {
         AssessmentItemCommentRequestRequest: {
             body: string;
         };
+        AssessmentItemResultChange: {
+            /** @description Its place in the item's history, from 1. */
+            readonly sequence: number;
+            readonly from_result: components["schemas"]["ResultEnum"];
+            readonly to_result: components["schemas"]["ResultEnum"];
+            readonly changed_by_name: string;
+            /** Format: date-time */
+            readonly changed_at: string;
+            readonly reason: string;
+        };
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
          *
@@ -1826,6 +1819,7 @@ export interface components {
             /** Format: date-time */
             readonly assessed_at: string | null;
             readonly comments: components["schemas"]["AssessmentItemComment"][];
+            readonly changes: components["schemas"]["AssessmentItemResultChange"][];
         };
         /**
          * @description * `NOT_STARTED` - Not started
@@ -2745,6 +2739,8 @@ export interface components {
         };
         PatchedCandidateAssessmentItemRequest: {
             result?: components["schemas"]["ResultEnum"];
+            /** @description Why the mark is changing. Not needed for the first mark on an item; needed for every later change, including clearing it. */
+            reason?: string;
         };
         PatchedCandidateAssessmentRequest: {
             status?: components["schemas"]["CandidateAssessmentStatusEnum"];
@@ -4045,28 +4041,6 @@ export interface operations {
                 "multipart/form-data": components["schemas"]["PatchedCandidateAssessmentRequest"];
             };
         };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateAssessment"];
-                };
-            };
-        };
-    };
-    gradings_assessments_reopen_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate assessment. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
         responses: {
             200: {
                 headers: {

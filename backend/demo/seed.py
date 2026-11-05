@@ -38,6 +38,7 @@ from gradings.assessment_services import (
 )
 from gradings.legacy_services import link_legacy_record_to_student
 from gradings.models import (
+    AssessmentItemResultChange,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -353,9 +354,26 @@ def judge(
     for index, item in enumerate(remaining[:praised]):
         update_candidate_assessment_item(item, result=Result.MET, assessor=assessor)
         add_item_comment(item, POSITIVE_NOTES[index % len(POSITIVE_NOTES)], assessor)
-    CandidateAssessmentItem.objects.filter(
-        pk__in=[item.pk for item in remaining[praised:]],
-    ).update(result=Result.MET, assessor=assessor, assessed_at=timezone.now())
+    # Marked in one write, so each item also gets the first entry in its change
+    # log, as a mark made through the service would.
+    bulk = [item.pk for item in remaining[praised:]]
+    CandidateAssessmentItem.objects.filter(pk__in=bulk).update(
+        result=Result.MET,
+        assessor=assessor,
+        assessed_at=timezone.now(),
+    )
+    AssessmentItemResultChange.objects.bulk_create(
+        [
+            AssessmentItemResultChange(
+                item_id=pk,
+                sequence=1,
+                from_result=Result.NOT_ASSESSED,
+                to_result=Result.MET,
+                changed_by=assessor,
+            )
+            for pk in bulk
+        ],
+    )
 
 
 def complete(assessment: CandidateAssessment, assessor: User, note: str) -> None:

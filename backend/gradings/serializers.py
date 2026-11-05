@@ -14,6 +14,7 @@ from gradings.assessment_services import (
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
     AssessmentItemComment,
+    AssessmentItemResultChange,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -406,6 +407,26 @@ class AssessmentItemCommentSerializer(serializers.ModelSerializer):
 
 
 COMMENT_MAX_LENGTH = 2000
+REASON_MAX_LENGTH = 2000
+
+
+class AssessmentItemResultChangeSerializer(serializers.ModelSerializer):
+    changed_by_name = serializers.CharField(
+        source="changed_by.get_full_name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = AssessmentItemResultChange
+        fields = (
+            "sequence",
+            "from_result",
+            "to_result",
+            "changed_by_name",
+            "changed_at",
+            "reason",
+        )
+        read_only_fields = fields
 
 
 class AssessmentItemCommentRequestSerializer(serializers.Serializer):
@@ -430,6 +451,20 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
     )
     result_display = serializers.CharField(source="get_result_display", read_only=True)
     comments = AssessmentItemCommentSerializer(many=True, read_only=True)
+    changes = AssessmentItemResultChangeSerializer(many=True, read_only=True)
+    reason = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=REASON_MAX_LENGTH,
+        help_text=(
+            "Why the mark is changing. Not needed for the first mark on an item; "
+            "needed for every later change, including clearing it."
+        ),
+        error_messages={
+            "max_length": (f"A reason can be at most {REASON_MAX_LENGTH} characters."),
+        },
+    )
     assessor_email = serializers.EmailField(source="assessor.email", read_only=True)
     display_range = serializers.CharField(read_only=True)
     category_is_core = serializers.SerializerMethodField(
@@ -458,6 +493,8 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "assessor_email",
             "assessed_at",
             "comments",
+            "changes",
+            "reason",
         )
         read_only_fields = (
             "id",
@@ -488,6 +525,7 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
         return update_candidate_assessment_item(
             instance,
             result=cast(str | None, validated_data.get("result")),
+            reason=str(validated_data.get("reason", "")),
             assessor=request.user,
         )
 

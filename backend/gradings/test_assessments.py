@@ -19,7 +19,6 @@ from audit.models import AuditAction, AuditEvent
 from gradings.assessment_services import (
     delete_candidate_assessment,
     generate_candidate_assessment,
-    reopen_candidate_assessment,
     update_candidate_assessment,
     update_candidate_assessment_item,
 )
@@ -608,6 +607,7 @@ def test_assessment_item_result_updates_set_and_clear_assessor_metadata() -> Non
     reset = update_candidate_assessment_item(
         updated,
         result=CandidateAssessmentItem.Result.NOT_ASSESSED,
+        reason="Entered against the wrong item.",
         assessor=assessor,
     )
 
@@ -659,66 +659,6 @@ def test_not_started_assessment_item_update_rejected_in_locked_session() -> None
     item.refresh_from_db()
     assert generated.status == CandidateAssessment.Status.NOT_STARTED
     assert item.result == CandidateAssessmentItem.Result.NOT_ASSESSED
-
-
-def test_a_completed_assessment_can_be_reopened_while_the_session_is_open() -> None:
-    session = grading_session(status=GradingSession.Status.OPEN)
-    built = candidate(session=session)
-    generated = assessment(candidate=built)
-    start_assessment(generated)
-    complete_assessment(generated)
-    item = generated.items.first()
-    assert item is not None
-    recorded = (item.result, item.assessor_id, item.assessed_at)
-
-    response = auth_client("reopen-instructor@example.com").post(
-        f"/api/gradings/assessments/{generated.pk}/reopen/",
-    )
-
-    assert response.status_code == 200
-    assert response.json()["status"] == CandidateAssessment.Status.IN_PROGRESS
-    generated.refresh_from_db()
-    built.refresh_from_db()
-    item.refresh_from_db()
-    assert generated.completed_at is None
-    assert built.status == GradingCandidate.Status.REGISTERED
-    assert (item.result, item.assessor_id, item.assessed_at) == recorded
-    assert AuditEvent.objects.filter(
-        action=AuditAction.ASSESSMENT_REOPENED,
-        entity_id=str(generated.pk),
-    ).exists()
-
-
-def test_reopening_is_refused_once_the_session_locks_or_before_completion() -> None:
-    locked_built, locked_generated = locked_completed_candidate()
-    open_session = grading_session(status=GradingSession.Status.OPEN)
-    in_progress = assessment(candidate=candidate(session=open_session))
-    start_assessment(in_progress)
-    actor = user("reopen-refused@example.com")
-
-    with pytest.raises(ValidationError) as locked_exc:
-        reopen_candidate_assessment(locked_generated, actor)
-    with pytest.raises(ValidationError) as in_progress_exc:
-        reopen_candidate_assessment(in_progress, actor)
-
-    assert "session is open" in str(locked_exc.value)
-    assert "Only a completed assessment" in str(in_progress_exc.value)
-    locked_generated.refresh_from_db()
-    assert locked_generated.status == CandidateAssessment.Status.COMPLETED
-
-
-def test_reopen_requires_the_change_assessment_permission() -> None:
-    generated = assessment(
-        candidate=candidate(session=grading_session(status=GradingSession.Status.OPEN)),
-    )
-    bare = user("no-perms@example.com")
-    bare.groups.clear()
-    client = APIClient()
-    client.force_authenticate(user=User.objects.get(pk=bare.pk))
-
-    response = client.post(f"/api/gradings/assessments/{generated.pk}/reopen/")
-
-    assert response.status_code == 403
 
 
 def test_the_model_refuses_a_candidate_created_in_any_status_but_registered() -> None:

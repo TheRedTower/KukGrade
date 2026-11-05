@@ -45,8 +45,11 @@ flowchart LR
    student's rank and writes a permanent rank-history record. A whole cohort can be
    promoted at once.
 7. **Lock and complete.** A session can only be locked when every assessment is
-   complete. Mistakes can be corrected (a completed assessment can be reopened) until
-   the session locks; after that, a candidate can be withdrawn with a recorded
+   complete. Until the session locks, a mark can be changed, including on a completed
+   assessment, but every change after the first mark needs a written reason (even
+   changing your own, even clearing it), and the change, who made it, when and why
+   are kept and shown on the item; a completed assessment keeps every required item
+   marked. After the lock, a candidate can be withdrawn with a recorded
    reason by someone with the authority. A session that has recorded a final decision can no longer be cancelled.
 
 Every step is recorded in the [audit log](#audit-log).

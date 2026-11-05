@@ -282,6 +282,7 @@ def delete_platform_user(target: User, actor: User) -> User:
     from data_imports.models import ImportBatch
     from gradings.models import (
         AssessmentItemComment,
+        AssessmentItemResultChange,
         CandidateAssessment,
         CandidateAssessmentItem,
         CandidateOutcome,
@@ -312,6 +313,10 @@ def delete_platform_user(target: User, actor: User) -> User:
         "assessment_items_assessed": CandidateAssessmentItem.objects.filter(
             assessor=target,
         ).update(assessor=placeholder),
+        "assessment_item_marks_changed": models.QuerySet.update(
+            AssessmentItemResultChange.objects.filter(changed_by=target),
+            changed_by=placeholder,
+        ),
         "assessment_item_comments_written": models.QuerySet.update(
             AssessmentItemComment.objects.filter(author=target),
             author=placeholder,

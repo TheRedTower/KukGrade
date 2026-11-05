@@ -100,6 +100,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     assessor_email: "casey@example.com",
     assessed_at: "2026-09-18T10:10:00Z",
     comments: [],
+    changes: [],
   };
 
   const mockItem2: CandidateAssessmentItem = {
@@ -119,6 +120,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     assessor_email: "casey@example.com",
     assessed_at: "2026-09-18T10:15:00Z",
     comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on turn", created_at: "2026-09-18T10:20:00Z" }],
+    changes: [],
   };
 
   const mockItem3: CandidateAssessmentItem = {
@@ -138,6 +140,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     assessor_email: "",
     assessed_at: null,
     comments: [],
+    changes: [],
   };
 
   beforeEach(() => {
@@ -370,6 +373,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const metWithNote: CandidateAssessmentItem = {
       ...mockItem1,
       comments: [{ id: 2, author_name: "Morgan Reed", body: "Bow was crisp and unhurried; best in the group.", created_at: "2026-09-18T10:20:00Z" }],
+      changes: [],
     };
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
@@ -518,7 +522,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.queryByTestId("acp-proofread-checkbox")).toBeNull();
   });
 
-  it("reopens a sealed record for correction only while the session is open", async () => {
+  it("offers a way back to correct a mark on a sealed record only while the session is open", async () => {
     const sealed: CandidateAssessment = {
       ...mockAssessment,
       status: "COMPLETED",
@@ -528,12 +532,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
 
     function sealedRecordFetch(sessionStatus: GradingSession["status"]) {
-      return vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      return vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
-        if (url.includes("/reopen/") && init?.method === "POST") {
-          return jsonResponse(200, { ...sealed, status: "IN_PROGRESS", completed_at: null });
-        }
         if (url.includes("/api/gradings/sessions/10/")) {
           return jsonResponse(200, { ...mockSession, status: sessionStatus });
         }
@@ -551,31 +552,21 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       });
     }
 
-    const lockedFetch = sealedRecordFetch("LOCKED");
-    vi.stubGlobal("fetch", lockedFetch);
+    vi.stubGlobal("fetch", sealedRecordFetch("LOCKED"));
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
     const lockedView = render(<App />);
     await screen.findByRole("heading", { name: "Assessment record" });
-    expect(screen.queryByTestId("acp-reopen-btn")).toBeNull();
+    expect(screen.queryByTestId("acp-correct-link")).toBeNull();
+    expect(screen.queryByText(/reopen/i)).toBeNull();
     lockedView.unmount();
 
-    const openFetch = sealedRecordFetch("OPEN");
-    vi.stubGlobal("fetch", openFetch);
+    vi.stubGlobal("fetch", sealedRecordFetch("OPEN"));
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
     render(<App />);
-    const user = userEvent.setup();
-    await user.click(await screen.findByTestId("acp-reopen-btn"));
+    const link = await screen.findByTestId("acp-correct-link");
 
-    await waitFor(() => {
-      expect(
-        openFetch.mock.calls.some(
-          ([url, init]) =>
-            String(url).includes("/api/gradings/assessments/501/reopen/") &&
-            (init as RequestInit | undefined)?.method === "POST",
-        ),
-      ).toBe(true);
-    });
-    await waitFor(() => expect(window.location.pathname).toBe("/gradings/10/assessments/101"));
+    expect(link).toHaveAttribute("href", "/gradings/10/assessments/101");
+    expect(screen.queryByText(/reopen/i)).toBeNull();
   });
 
   // A scored requirement in any category belongs on the permanent record.
@@ -735,7 +726,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(completeBtn).toBeEnabled();
 
     await user.click(screen.getByTestId("btn-clear-1001"));
-    await user.click(screen.getByTestId("btn-clear-confirm-1001"));
+    await user.type(screen.getByTestId("caw-reason-input-1001"), "Wrong item.{Enter}");
 
     await waitFor(() => expect(completeBtn).toBeDisabled());
     expect(completeBtn).toHaveTextContent("Saving...");
@@ -822,8 +813,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         render(<App />);
         await screen.findByRole("heading", { name: "Alex Carter" });
 
-        // Marks are fixed, comments are not.
-        expect(screen.getByTestId("btn-met-1003")).toBeDisabled();
         await user.click(screen.getByTestId("btn-comment-1003"));
         await user.type(screen.getByTestId("caw-comment-input-1003"), "Seen again on review.{Enter}");
 
@@ -1249,17 +1238,27 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   // refetch shows what was really stored.
   function scoringServer(initial: CandidateAssessmentItem[]) {
     const items = new Map(initial.map((item) => [item.id, { ...item }]));
-    const pending: { itemId: number; result: string; save: () => void; refuse: () => void }[] = [];
+    const pending: {
+      itemId: number;
+      result: string;
+      reason: string | undefined;
+      save: () => void;
+      refuse: () => void;
+    }[] = [];
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const write = url.match(/\/api\/gradings\/assessment-items\/(\d+)\/$/);
       if (write && init?.method === "PATCH") {
         const itemId = Number(write[1]);
-        const body = JSON.parse(String(init.body)) as { result: CandidateAssessmentItemResult };
+        const body = JSON.parse(String(init.body)) as {
+          result: CandidateAssessmentItemResult;
+          reason?: string;
+        };
         return new Promise<Response>((respond) => {
           pending.push({
             itemId,
             result: body.result,
+            reason: body.reason,
             save: () => {
               const saved = { ...items.get(itemId)!, result: body.result };
               items.set(itemId, saved);
@@ -1288,25 +1287,35 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     return { fetchMock, pending };
   }
 
+  // An item with no mark yet, so the first mark needs no reason.
+  const unmarked = (item: CandidateAssessmentItem): CandidateAssessmentItem => ({
+    ...item,
+    result: "NOT_ASSESSED",
+    result_display: "Not Assessed",
+    assessor_email: "",
+    assessed_at: null,
+  });
+
   it("rolls back only the item whose save failed", async () => {
-    const server = scoringServer([mockItem1, mockItem2, mockItem3]);
+    const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3]);
     vi.stubGlobal("fetch", server.fetchMock);
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Alex Carter" });
 
-    await user.click(screen.getByTestId("btn-met-1002"));
+    await user.click(screen.getByTestId("btn-met-1001"));
     await user.click(screen.getByTestId("btn-met-1003"));
     await waitFor(() => expect(server.pending).toHaveLength(2));
     server.pending[0].refuse();
 
-    await waitFor(() => expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("aria-pressed", "true"));
+    await waitFor(() => expect(screen.getByTestId("btn-met-1001")).toHaveAttribute("aria-pressed", "false"));
+    expect(screen.getByTestId("btn-not-met-1001")).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
 
     server.pending[1].save();
     await waitFor(() => expect(server.fetchMock.mock.calls.filter(([url]) => String(url).includes("/summary/")).length).toBeGreaterThan(1));
     expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("btn-met-1001")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("sends a second change to the same item only after the first lands", async () => {
@@ -1317,18 +1326,210 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await screen.findByRole("heading", { name: "Alex Carter" });
 
     await user.click(screen.getByTestId("btn-met-1003"));
+    // The mark is already there as far as the screen goes, so changing it
+    // asks why; the change waits for the first write to land.
     await user.click(screen.getByTestId("btn-not-met-1003"));
+    await user.type(screen.getByTestId("caw-reason-input-1003"), "Changed my mind.{Enter}");
     await waitFor(() => expect(server.pending).toHaveLength(1));
-    expect(screen.getByTestId("btn-not-met-1003")).toHaveAttribute("aria-pressed", "true");
+    expect(server.pending[0].reason).toBeUndefined();
+    // The reason stays on screen, held, until the server has the change.
+    expect(screen.getByTestId("caw-reason-input-1003")).toHaveAttribute("readonly");
 
     server.pending[0].save();
     await waitFor(() => expect(server.pending).toHaveLength(2));
     expect(server.pending[1].result).toBe("NOT_MET");
+    expect(server.pending[1].reason).toBe("Changed my mind.");
     server.pending[1].save();
 
     await waitFor(() =>
       expect(screen.getByTestId("btn-not-met-1003")).toHaveAttribute("aria-pressed", "true"),
     );
+  });
+
+  describe("changing a mark", () => {
+    it("asks why before switching a mark, writes nothing until it is given, and sends it with the change", async () => {
+      const server = scoringServer([mockItem1, mockItem2, mockItem3]);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      // 1001 is Met. Choosing Not met asks first.
+      await user.click(screen.getByTestId("btn-not-met-1001"));
+      const prompt = screen.getByTestId("caw-change-prompt-1001");
+      expect(prompt).toHaveTextContent("Changing Met to Not met");
+      expect(screen.getByTestId("btn-reason-save-1001")).toBeDisabled();
+      expect(server.pending).toHaveLength(0);
+
+      // Backing out writes nothing and leaves the mark alone.
+      await user.click(screen.getByTestId("btn-reason-cancel-1001"));
+      expect(screen.getByTestId("btn-met-1001")).toHaveAttribute("aria-pressed", "true");
+      expect(server.pending).toHaveLength(0);
+
+      await user.click(screen.getByTestId("btn-not-met-1001"));
+      await user.type(screen.getByTestId("caw-reason-input-1001"), "Saw it again on review.");
+      await user.click(screen.getByTestId("btn-reason-save-1001"));
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      expect(server.pending[0]).toMatchObject({ itemId: 1001, result: "NOT_MET", reason: "Saw it again on review." });
+      server.pending[0].save();
+
+      await waitFor(() => expect(screen.queryByTestId("caw-change-prompt-1001")).toBeNull());
+      expect(screen.getByTestId("btn-not-met-1001")).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("asks why when an item is marked again after it was cleared", async () => {
+      // 1003 was marked and then cleared: its next mark is a later change, so
+      // the screen asks rather than sending a mark the server would refuse.
+      const cleared: CandidateAssessmentItem = {
+        ...mockItem3,
+        changes: [
+          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "" },
+          { sequence: 2, from_result: "MET", to_result: "NOT_ASSESSED", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:05:00Z", reason: "Wrong item." },
+        ],
+      };
+      const server = scoringServer([mockItem1, mockItem2, cleared]);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-met-1003"));
+
+      expect(screen.getByTestId("caw-change-prompt-1003")).toHaveTextContent("again, after it was cleared");
+      expect(server.pending).toHaveLength(0);
+      await user.type(screen.getByTestId("caw-reason-input-1003"), "The right item, now seen.{Enter}");
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      expect(server.pending[0]).toMatchObject({ itemId: 1003, result: "MET", reason: "The right item, now seen." });
+    });
+
+    it("keeps the reason, and says why, when the change is refused", async () => {
+      const server = scoringServer([mockItem1, mockItem2, mockItem3]);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-not-met-1001"));
+      await user.type(screen.getByTestId("caw-reason-input-1001"), "A careful reason.{Enter}");
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      server.pending[0].refuse();
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Refused.");
+      expect(screen.getByTestId("caw-reason-input-1001")).toHaveValue("A careful reason.");
+      expect(screen.getByTestId("caw-reason-input-1001")).not.toHaveAttribute("readonly");
+    });
+
+    it("shows every change after the first, with who, when and why", async () => {
+      const changed: CandidateAssessmentItem = {
+        ...mockItem2,
+        changes: [
+          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "" },
+          { sequence: 2, from_result: "MET", to_result: "NOT_MET", changed_by_name: "Lee Coach", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on the replay." },
+        ],
+      };
+      const server = scoringServer([mockItem1, changed, mockItem3]);
+      vi.stubGlobal("fetch", server.fetchMock);
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      const row = screen.getByTestId("caw-item-1002");
+      expect(within(row).getByTestId("caw-change-1002-2")).toHaveTextContent(
+        "Changed from Met to Not met — Lee Coach",
+      );
+      expect(within(row).getByTestId("caw-change-1002-2")).toHaveTextContent("Dropped the guard on the replay.");
+      // The first mark is the attribution already shown, not a "change".
+      expect(within(row).queryByTestId("caw-change-1002-1")).toBeNull();
+    });
+
+    it("says so, and brings back the real mark, when another person marked the item first", async () => {
+      const user = userEvent.setup();
+      let fetchedItems = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input);
+          if (init?.method === "PATCH") {
+            return jsonResponse(400, { error: { code: "validation_error", message: "Say why the mark is changing." } });
+          }
+          if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+          if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+          if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+          if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+          if (url.includes("/api/gradings/assessments/")) {
+            return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+          }
+          if (url.includes("/api/gradings/assessment-items/")) {
+            fetchedItems += 1;
+            // This screen loaded 1003 as unmarked; someone else has marked it since.
+            const items = fetchedItems === 1 ? [mockItem1, mockItem2, mockItem3] : [mockItem1, mockItem2, { ...mockItem3, result: "NOT_MET" as const, assessor_email: "lee@example.com" }];
+            return jsonResponse(200, { count: 3, next: null, previous: null, results: items });
+          }
+          return jsonResponse(404, { detail: "Not found" });
+        }),
+      );
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-met-1003"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Say why the mark is changing.");
+      await waitFor(() => expect(screen.getByTestId("btn-not-met-1003")).toHaveAttribute("aria-pressed", "true"));
+      expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("finishing one item's change does not close the prompt open on another", async () => {
+      const server = scoringServer([mockItem1, mockItem2, mockItem3]);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-not-met-1001"));
+      await user.type(screen.getByTestId("caw-reason-input-1001"), "First.{Enter}");
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      // Move on to another item while the first is still being saved.
+      await user.click(screen.getByTestId("btn-met-1002"));
+      expect(screen.getByTestId("caw-change-prompt-1002")).toBeVisible();
+
+      server.pending[0].save();
+      await new Promise((settle) => setTimeout(settle, 100));
+
+      expect(screen.getByTestId("caw-change-prompt-1002")).toBeVisible();
+    });
+
+    it("lets a completed assessment's mark be corrected with a reason", async () => {
+      const completed = { ...mockAssessment, status: "COMPLETED" as const, status_display: "Completed" };
+      const patches: Record<string, unknown>[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input);
+          if (init?.method === "PATCH") {
+            patches.push(JSON.parse(String(init.body)));
+            return jsonResponse(200, { ...mockItem1, result: "NOT_MET" });
+          }
+          if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+          if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+          if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+          if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+          if (url.includes("/api/gradings/assessments/")) {
+            return jsonResponse(200, { count: 1, next: null, previous: null, results: [completed] });
+          }
+          if (url.includes("/api/gradings/assessment-items/")) {
+            return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+          }
+          return jsonResponse(404, { detail: "Not found" });
+        }),
+      );
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-not-met-1001"));
+      await user.type(screen.getByTestId("caw-reason-input-1001"), "Spotted on review.{Enter}");
+
+      await waitFor(() => expect(patches).toEqual([{ result: "NOT_MET", reason: "Spotted on review." }]));
+    });
   });
 
   it("holds completion until every item save has landed", async () => {
@@ -1341,7 +1542,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await waitFor(() => expect(complete).toBeEnabled());
 
     await user.click(screen.getByTestId("btn-not-met-1001"));
+    await user.type(screen.getByTestId("caw-reason-input-1001"), "First look was wrong.{Enter}");
     await user.click(screen.getByTestId("btn-met-1002"));
+    await user.type(screen.getByTestId("caw-reason-input-1002"), "Second look was wrong.{Enter}");
     await waitFor(() => expect(server.pending).toHaveLength(2));
     server.pending[1].save();
     // Long enough for that save, and any refetch it triggers, to settle.
@@ -1413,16 +1616,17 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   // The `candidate_item_assessor_matches_result` constraint nulls
   // `assessor` and `assessed_at` when a result returns to NOT_ASSESSED, and
-  // that attribution cannot be restored. Clearing therefore confirms inline
-  // and names what it erases, instead of sitting as a third verdict button.
-  it("confirms a clear inline and names the attribution it erases", async () => {
+  // that attribution cannot be restored. Clearing therefore asks for a reason
+  // inline and names what it erases, instead of sitting as a third verdict
+  // button; the change and the reason are kept.
+  it("asks why before clearing, names the attribution it erases, and sends the reason", async () => {
     const user = userEvent.setup();
-    let patchCount = 0;
+    const patches: Record<string, unknown>[] = [];
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (init?.method === "PATCH") {
-        patchCount += 1;
+        patches.push(JSON.parse(String(init.body)));
         return jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" });
       }
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -1457,28 +1661,32 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     await user.click(screen.getByTestId("btn-clear-1001"));
 
-    const confirm = screen.getByTestId("caw-clear-confirm-1001");
-    expect(confirm).toHaveTextContent("casey@example.com");
-    expect(confirm).toHaveTextContent("removes the record of who assessed it");
-    expect(confirm).toHaveTextContent("that cannot be restored");
-    expect(patchCount).toBe(0);
+    const prompt = screen.getByTestId("caw-change-prompt-1001");
+    expect(prompt).toHaveTextContent("casey@example.com");
+    expect(prompt).toHaveTextContent("removes the record of who assessed it");
+    expect(prompt).toHaveTextContent("The change and your reason are kept");
+    expect(screen.getByTestId("btn-reason-save-1001")).toBeDisabled();
+    expect(patches).toEqual([]);
 
     // Backing out writes nothing.
-    await user.click(within(confirm).getByRole("button", { name: "Keep" }));
-    expect(screen.queryByTestId("caw-clear-confirm-1001")).toBeNull();
-    expect(patchCount).toBe(0);
+    await user.click(screen.getByTestId("btn-reason-cancel-1001"));
+    expect(screen.queryByTestId("caw-change-prompt-1001")).toBeNull();
+    expect(patches).toEqual([]);
 
     await user.click(screen.getByTestId("btn-clear-1001"));
-    await user.click(screen.getByTestId("btn-clear-confirm-1001"));
-    await waitFor(() => expect(patchCount).toBe(1));
+    await user.type(screen.getByTestId("caw-reason-input-1001"), "Entered against the wrong item.");
+    await user.click(screen.getByTestId("btn-reason-save-1001"));
+    await waitFor(() =>
+      expect(patches).toEqual([{ result: "NOT_ASSESSED", reason: "Entered against the wrong item." }]),
+    );
   });
 
   // The previous screen showed assessor and time only on not-met rows, so
   // "who marked this, and when" was invisible across most of the record.
-  // Opening the confirmation unmounts the `Clear` button that was focused. If
-  // focus is not moved deliberately it falls back to the document, dropping a
-  // keyboard user out of a destructive prompt they just opened.
-  it("moves focus into the clear confirmation and back out on cancel", async () => {
+  // Opening the prompt unmounts the `Clear` button that was focused. If focus
+  // is not moved deliberately it falls back to the document, dropping a
+  // keyboard user out of a prompt they just opened.
+  it("moves focus into the reason box and back out on cancel", async () => {
     const user = userEvent.setup();
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -1509,10 +1717,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     await user.click(screen.getByTestId("btn-clear-1001"));
 
-    // Focus lands on the safe action, not on the document.
-    const confirm = screen.getByTestId("caw-clear-confirm-1001");
-    const keep = within(confirm).getByRole("button", { name: "Keep" });
-    await waitFor(() => expect(keep).toHaveFocus());
+    // Focus lands in the reason box, not on the document.
+    await waitFor(() => expect(screen.getByTestId("caw-reason-input-1001")).toHaveFocus());
 
     // Escape backs out, and focus returns to the control that opened it.
     await user.keyboard("{Escape}");
@@ -1552,10 +1758,10 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByTestId("caw-item-1003")).not.toHaveTextContent("casey@example.com");
   });
 
-  // A COMPLETED assessment's marks are fixed: it must offer no way to score or
-  // to clear, which is the affordance that would erase attribution. Commenting
-  // stays open for deliberation while the session is open.
-  it("offers no scoring or clear affordance once the assessment is completed, but still lets people comment", async () => {
+  // A COMPLETED assessment is corrected in place while the session is open (no
+  // reopening), but never emptied: a required item cannot be cleared, which is
+  // the affordance that would erase attribution. Comments stay open too.
+  it("lets a completed assessment's marks be corrected but not cleared, and still lets people comment", async () => {
     const completed = { ...mockAssessment, status: "COMPLETED" as const, status_display: "Completed" };
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -1584,8 +1790,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     await screen.findByRole("heading", { name: "Alex Carter" });
 
-    expect(screen.getByTestId("btn-met-1003")).toBeDisabled();
-    expect(screen.getByTestId("btn-not-met-1003")).toBeDisabled();
+    expect(screen.getByTestId("btn-met-1001")).toBeEnabled();
+    expect(screen.getByTestId("btn-not-met-1001")).toBeEnabled();
+    // Item 1001 is required, so a completed assessment cannot empty it.
     expect(screen.queryByTestId("btn-clear-1001")).toBeNull();
     expect(screen.getByTestId("btn-comment-1001")).toBeVisible();
     expect(screen.getByTestId("caw-view-review-btn")).toBeVisible();

@@ -36,14 +36,14 @@ def active_rank_lookup() -> dict[str, Rank]:
 # "DNB", a slip for DBN, is still left for the importer. Keys are
 # upper-cased, with any trailing "BELT" taken off.
 _RANK_TEXT_ALIASES = {
-    "DBN": "DAHN_BO",
+    "DAHN BO": "DAHN_BO",
     "DAHN BO NIM": "DAHN_BO",
 }
 
 
 def suggest_rank(text: str, ranks: dict[str, Rank]) -> tuple[Rank | None, bool]:
     """The active rank a source text most likely means, and whether the source
-    itself doubted it. "White Belt" suggests White; "DBN" Dahn Bo."""
+    itself doubted it. "White Belt" suggests White; "Dahn Bo Nim" suggests DBN."""
     cleaned = " ".join(text.split())
     doubtful = cleaned.endswith("?")
     key = cleaned.rstrip("?").strip().upper()

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, time, timedelta
 from functools import partial
@@ -307,7 +307,7 @@ def _store_roster_rows(batch: ImportBatch, dataset: TabularData) -> None:
 
 
 def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
-    issues = _legacy_issue_finder({})
+    issues = _legacy_issue_finder({}, _committed_legacy_keys(parsed.rows))
     ImportRow.objects.bulk_create(
         [
             ImportRow(
@@ -1524,8 +1524,60 @@ def _stored_legacy_rows(
     return [(row, CanonicalLegacyRow(**row.raw)) for row in stored]
 
 
+type LegacyKey = tuple[str, str, str, int, int]
+
+
+def _legacy_key(
+    sheet: str, locator: str, name: str, year: int, month: int
+) -> LegacyKey:
+    return (sheet.strip(), locator.strip(), name.strip().casefold(), year, month)
+
+
+def _committed_legacy_keys(rows: Iterable[CanonicalLegacyRow]) -> set[LegacyKey]:
+    """Which of these rows an earlier import already holds.
+
+    A workbook saved again has different bytes (so the same-file warning misses
+    it) but the same sheets, positions, names and months; importing it would
+    add every record a second time. A voided record does not count: it was
+    set aside, so the row may be wanted again. Returns the keys that match.
+    """
+    wanted = {
+        _legacy_key(
+            row.source_sheet,
+            row.source_locator,
+            row.source_name,
+            row.cycle_year,
+            row.cycle_month,
+        )
+        for row in rows
+    }
+    if not wanted:
+        return set()
+    held = LegacyGradingRecord.objects.filter(
+        is_void=False,
+        source_batch__status=ImportBatch.Status.COMMITTED,
+        cycle_year__in={key[3] for key in wanted},
+        cycle_month__in={key[4] for key in wanted},
+        source_sheet__in={key[0] for key in wanted},
+    ).values_list(
+        "source_sheet",
+        "source_locator",
+        "source_name",
+        "cycle_year",
+        "cycle_month",
+    )
+    return {_legacy_key(*record) for record in held} & wanted
+
+
+DUPLICATE_OF_EARLIER_IMPORT = (
+    "An earlier import already holds a record with this sheet, position, name "
+    "and month. Importing it again would add it twice; leave it out if so."
+)
+
+
 def _legacy_issue_finder(
     normalised_mappings: dict[str, str],
+    already_held: set[LegacyKey] | None = None,
 ) -> Callable[[CanonicalLegacyRow], list[str]]:
     """Why a historical record is worth a look before importing. None of it
     stops the import: every record is kept exactly as the workbook has it."""
@@ -1551,6 +1603,17 @@ def _legacy_issue_finder(
             found.append(
                 "A note on the sheet, kept with that grading, not as anyone's result.",
             )
+        if already_held and (
+            _legacy_key(
+                row.source_sheet,
+                row.source_locator,
+                row.source_name,
+                row.cycle_year,
+                row.cycle_month,
+            )
+            in already_held
+        ):
+            found.append(DUPLICATE_OF_EARLIER_IMPORT)
         return found
 
     return issues
@@ -1559,10 +1622,14 @@ def _legacy_issue_finder(
 def _find_legacy_issues(locked: ImportBatch) -> None:
     """Store each historical row's reasons to look at it, after the rank
     choices change."""
-    issues = _legacy_issue_finder(locked.configuration_json.get("rank_mappings", {}))
     stored_rows = list(locked.rows.all())
-    for stored in stored_rows:
-        stored.issues = issues(CanonicalLegacyRow(**stored.raw))
+    canonical = [CanonicalLegacyRow(**stored.raw) for stored in stored_rows]
+    issues = _legacy_issue_finder(
+        locked.configuration_json.get("rank_mappings", {}),
+        _committed_legacy_keys(canonical),
+    )
+    for stored, row in zip(stored_rows, canonical, strict=True):
+        stored.issues = issues(row)
     ImportRow.objects.bulk_update(stored_rows, ["issues"], batch_size=500)
 
 
@@ -1702,6 +1769,22 @@ def preview_legacy_grading_import(
     def kind_count(kind: str) -> int:
         return sum(1 for row in rows if row.record_kind == kind)
 
+    held_again = locked.rows.filter(excluded=False).exclude(issues=[])
+    repeats = sum(
+        1 for stored in held_again if DUPLICATE_OF_EARLIER_IMPORT in stored.issues
+    )
+    duplicate_warning = (
+        [
+            f"{repeats} record{'s' if repeats != 1 else ''} in this workbook "
+            f"{'match' if repeats != 1 else 'matches'} one an earlier import "
+            "already holds (same sheet, position, name and month). Importing "
+            "them again would add them twice; they are marked, and you can "
+            "leave them out."
+        ]
+        if repeats
+        else []
+    )
+
     return LegacyImportPreview(
         total=len(rows),
         grading_result=kind_count(LegacyRecordKind.GRADING_RESULT),
@@ -1720,7 +1803,7 @@ def preview_legacy_grading_import(
             and row.source_outcome_text.strip()
             and row.outcome is None
         ),
-        warnings=list(locked.configuration_json.get("warnings", [])),
+        warnings=[*locked.configuration_json.get("warnings", []), *duplicate_warning],
         rank_suggestions=suggestions,
         excluded=locked.rows.filter(excluded=True).count(),
         worth_a_look=locked.rows.filter(excluded=False).exclude(issues=[]).count(),

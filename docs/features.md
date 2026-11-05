@@ -101,8 +101,9 @@ SBN and PKJN (Dahn Bo Nim to Pyung Kwahn Jung Nim). Every screen draws ranks as 
 Administrators can bring in an existing student list and, if the school has one,
 a spreadsheet of past gradings, with a guided review before anything is saved.
 An upload that is abandoned is cleared once it is 24 hours old: each new upload clears
-the stale ones, and so does every start of the container. See
-[importing-data.md](importing-data.md).
+the stale ones, and so does every start of the container. A past-gradings workbook saved again
+and uploaded twice is warned about, and its repeated records marked, before anything is
+imported. See [importing-data.md](importing-data.md).
 
 ## Audit log
 

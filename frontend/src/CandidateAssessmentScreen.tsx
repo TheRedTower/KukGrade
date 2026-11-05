@@ -54,7 +54,6 @@ export function CandidateAssessmentScreen() {
     onSuccess: (generated) => {
       setActionError(null);
       queryClient.setQueryData(keys.candidateAssessments.byCandidate(numCandidateId), generated);
-      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(numSessionId) });
       queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     },
     onError: (err) => {
@@ -70,7 +69,6 @@ export function CandidateAssessmentScreen() {
     onSuccess: (updated) => {
       setActionError(null);
       queryClient.setQueryData(keys.candidateAssessments.byCandidate(numCandidateId), updated);
-      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(numSessionId) });
       queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     },
     onError: (err) => {

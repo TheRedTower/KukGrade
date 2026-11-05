@@ -88,7 +88,7 @@ export function AssessmentCompletionScreen() {
     onSuccess: () => {
       setActionError(null);
       clearNotesDraft();
-      refresh.afterAssessmentChange(queryClient, numSessionId, numCandidateId);
+      refresh.afterAssessmentChange(queryClient, numCandidateId);
       navigate(`/gradings/${numSessionId}`);
     },
     onError: (err) => {
@@ -104,7 +104,7 @@ export function AssessmentCompletionScreen() {
     },
     onSuccess: () => {
       setActionError(null);
-      refresh.afterAssessmentChange(queryClient, numSessionId, numCandidateId);
+      refresh.afterAssessmentChange(queryClient, numCandidateId);
       navigate(scoringPath);
     },
     onError: (err) => {

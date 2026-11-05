@@ -55,7 +55,7 @@ into their details. They are permanent, and the app refuses every change to them
   followed through every ID. It does not match dates by value, so another student with the
   same birthday is untouched.
 - Refuses, changing nothing, when the WKSA ID was held by more than one student record (a
-  corrected typo ID can later be given to someone else). It lists the internal student ids;
+  this can only happen to a mistyped ID that was corrected: an ID a student really held, replaced or deleted is never given out again, but a mistyped one was never theirs and is not kept). It lists the internal student ids;
   run it again with the right one as `--student-id`, using `--dry-run` for each to see which
   events it would touch.
 - Refuses a blank name or ID rather than rewriting the log.

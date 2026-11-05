@@ -1377,6 +1377,31 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       expect(screen.getByTestId("btn-not-met-1001")).toHaveAttribute("aria-pressed", "true");
     });
 
+    it("asks why when an item is marked again after it was cleared", async () => {
+      // 1003 was marked and then cleared: its next mark is a later change, so
+      // the screen asks rather than sending a mark the server would refuse.
+      const cleared: CandidateAssessmentItem = {
+        ...mockItem3,
+        changes: [
+          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "" },
+          { sequence: 2, from_result: "MET", to_result: "NOT_ASSESSED", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:05:00Z", reason: "Wrong item." },
+        ],
+      };
+      const server = scoringServer([mockItem1, mockItem2, cleared]);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-met-1003"));
+
+      expect(screen.getByTestId("caw-change-prompt-1003")).toHaveTextContent("again, after it was cleared");
+      expect(server.pending).toHaveLength(0);
+      await user.type(screen.getByTestId("caw-reason-input-1003"), "The right item, now seen.{Enter}");
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      expect(server.pending[0]).toMatchObject({ itemId: 1003, result: "MET", reason: "The right item, now seen." });
+    });
+
     it("keeps the reason, and says why, when the change is refused", async () => {
       const server = scoringServer([mockItem1, mockItem2, mockItem3]);
       vi.stubGlobal("fetch", server.fetchMock);

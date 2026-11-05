@@ -466,10 +466,11 @@ def update_candidate_assessment_item(
 ) -> CandidateAssessmentItem:
     """Mark an item, or change or clear its mark, and keep how it changed.
 
-    The first mark needs no reason. Every later change does, including
-    clearing it and including a person changing their own mark; it is judged
-    against the item as it stands now, so a screen that still shows an item as
-    unmarked cannot quietly overwrite what someone else has marked since.
+    The first mark needs no reason. Every later change does: switching it,
+    clearing it, marking it again after it was cleared, and including a person
+    changing their own mark. It is judged against the item as it stands now,
+    so a screen that still shows an item as unmarked cannot quietly overwrite
+    what someone else has marked since.
     """
     locked_item = lock_in_session(
         CandidateAssessmentItem.objects.select_related(
@@ -488,7 +489,9 @@ def update_candidate_assessment_item(
         raise ValidationError({"result": ["That is not a valid result."]})
     reason = (reason or "").strip()
     already_marked = previous_result != CandidateAssessmentItem.Result.NOT_ASSESSED
-    if already_marked and not reason:
+    # Not the item's first change: it is marked, or has been and was cleared.
+    is_later_change = already_marked or locked_item.changes.exists()
+    if is_later_change and not reason:
         raise ValidationError({"reason": ["Say why the mark is changing."]})
     if (
         result == CandidateAssessmentItem.Result.NOT_ASSESSED
@@ -529,7 +532,7 @@ def update_candidate_assessment_item(
         locked_item,
         (
             f"{locked_item.item_name} changed from {previous_result} to {result}."
-            if already_marked
+            if is_later_change
             else f"{locked_item.item_name} recorded as {result}."
         ),
         actor=assessor,

@@ -168,6 +168,33 @@ def test_sequence_numbers_keep_counting() -> None:
     assert [c.sequence for c in item.changes.all()] == [1, 2, 3]
 
 
+def test_marking_an_item_again_after_it_was_cleared_needs_a_reason_too() -> None:
+    # The item is unmarked again, but this is not its first change: the log
+    # already holds the mark and the clear, so the next entry needs its reason.
+    item = open_item()
+    who = user("re-marker@example.com")
+    mark(item, MET, who)
+    mark(item, NOT_ASSESSED, who, "Wrong item.")
+
+    with pytest.raises(ValidationError) as exc_info:
+        mark(item, NOT_MET, who)
+
+    assert exc_info.value.message_dict["reason"] == ["Say why the mark is changing."]
+    item.refresh_from_db()
+    assert item.result == NOT_ASSESSED
+    assert item.changes.count() == 2
+
+    again = mark(item, NOT_MET, who, "The right item, now seen.")
+
+    assert again.result == NOT_MET
+    assert [c.sequence for c in again.changes.all()] == [1, 2, 3]
+    last_event = AuditEvent.objects.filter(
+        action=AuditAction.ITEM_RESULT_RECORDED,
+        entity_id=str(item.pk),
+    ).latest("occurred_at")
+    assert "changed from" in last_event.summary
+
+
 def test_repeating_the_same_mark_changes_and_records_nothing() -> None:
     item = open_item()
     who = user("repeat-mark@example.com")

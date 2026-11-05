@@ -163,9 +163,12 @@ export function AssessmentItemRow({
   // A completed assessment keeps every required item marked: it can be changed,
   // not emptied.
   const canClear = canEdit && isScored && !(assessmentCompleted && item.required);
+  // The first mark on an item is made at once. Anything after it, including
+  // marking an item again after it was cleared, asks why.
+  const hasHistory = item.changes.length > 0;
   const choose = (result: CandidateAssessmentItemResult) => {
     if (result === item.result) return;
-    if (isScored) onAskChange(result);
+    if (isScored || hasHistory) onAskChange(result);
     else onMark(result);
   };
   const laterChanges = item.changes.filter((change) => change.sequence > 1);
@@ -252,9 +255,14 @@ export function AssessmentItemRow({
                   ) : null}
                   . The change and your reason are kept. Why is the mark being cleared?
                 </>
-              ) : (
+              ) : isScored ? (
                 <>
                   Changing {RESULT_WORDS[item.result ?? "NOT_ASSESSED"]} to {RESULT_WORDS[pendingResult]}. Why is the mark
+                  changing? The change and your reason are kept.
+                </>
+              ) : (
+                <>
+                  Marking this item {RESULT_WORDS[pendingResult]} again, after it was cleared. Why is the mark
                   changing? The change and your reason are kept.
                 </>
               )}

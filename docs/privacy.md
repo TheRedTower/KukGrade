@@ -49,10 +49,14 @@ into their details. They are permanent, and the app refuses every change to them
 - Replaces `<name> (<WKSA ID>)` in summaries with the WKSA ID, and any other occurrence of
   the full name with `[name erased]`.
 - Removes `first_name`, `last_name` and `date_of_birth` from every snapshot of that
-  student: those under the WKSA ID you give, and those in the events of any student record
-  that ever held it, so a student whose ID changed (a black belt ID, a corrected typo) is
-  followed through every ID, and whoever else once held an old number is left alone. It does
-  not match dates by value, so another student with the same birthday is untouched.
+  student, found through the WKSA ID you give: every snapshot in the events of that
+  student's record, so a student whose ID changed (a black belt ID, a corrected typo) is
+  followed through every ID. It does not match dates by value, so another student with the
+  same birthday is untouched.
+- Refuses, changing nothing, when the WKSA ID was held by more than one student record (a
+  corrected typo ID can later be given to someone else). It lists the internal student ids;
+  run it again with the right one as `--student-id`, using `--dry-run` for each to see which
+  events it would touch.
 - Refuses a blank name or ID rather than rewriting the log.
 - Leaves every event, its action, actor and time exactly as they were, and is safe to run
   twice (the second run changes nothing).

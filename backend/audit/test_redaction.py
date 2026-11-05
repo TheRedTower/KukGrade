@@ -285,3 +285,101 @@ def test_an_id_the_student_never_held_is_not_followed() -> None:
 
     elsewhere.refresh_from_db()
     assert elsewhere.metadata == before
+
+
+def reused_typo_id_events() -> tuple[list[AuditEvent], list[AuditEvent]]:
+    """Alice's mistyped ID is corrected, then given to Bob."""
+    alice_snapshot = {**SNAPSHOT, "wksa_id": "A-00042"}
+    alice = [
+        old_event(
+            "Student Zephyrine Quillfeather (A-00042) updated.",
+            {
+                "before": alice_snapshot,
+                "after": {**alice_snapshot, "wksa_id": "A-00043"},
+            },
+            student_pk="1",
+        ),
+        old_event(
+            "Student Zephyrine Quillfeather (A-00043) updated.",
+            {
+                "before": {**alice_snapshot, "wksa_id": "A-00043"},
+                "after": {**alice_snapshot, "wksa_id": "A-00043", "status": "LEFT"},
+            },
+            student_pk="1",
+        ),
+    ]
+    bob_snapshot = {
+        **SNAPSHOT,
+        "wksa_id": "A-00042",
+        "first_name": "Marigold",
+        "last_name": "Thistlewood",
+    }
+    bob = [
+        old_event(
+            "Student Marigold Thistlewood (A-00042) updated.",
+            {"before": bob_snapshot, "after": {**bob_snapshot, "status": "LEFT"}},
+            student_pk="2",
+        ),
+    ]
+    return alice, bob
+
+
+def test_an_id_held_by_two_student_records_is_refused_and_nothing_changes() -> None:
+    alice, bob = reused_typo_id_events()
+    untouched = [(e.summary, e.metadata) for e in alice + bob]
+
+    with pytest.raises(ValueError, match="more than one student record.*1, 2"):
+        erase(wksa_id="A-00042", first_name="Marigold", last_name="Thistlewood")
+
+    for event, was in zip(alice + bob, untouched, strict=True):
+        event.refresh_from_db()
+        assert (event.summary, event.metadata) == was
+
+
+def test_the_student_id_picks_one_record_and_leaves_the_other_whole() -> None:
+    alice, bob = reused_typo_id_events()
+
+    changed = erase(
+        wksa_id="A-00042",
+        first_name="Marigold",
+        last_name="Thistlewood",
+        student_id="2",
+    )
+
+    for event in alice:
+        event.refresh_from_db()
+        assert event.metadata["before"]["first_name"] == "Zephyrine"
+        assert event.metadata["before"]["date_of_birth"] == "2014-06-07"
+        assert "Quillfeather" in event.summary
+    bob[0].refresh_from_db()
+    assert changed == 1
+    assert "Thistlewood" not in bob[0].summary
+    assert not set(bob[0].metadata["before"]) & {
+        "first_name",
+        "last_name",
+        "date_of_birth",
+    }
+
+
+def test_the_command_takes_the_student_id() -> None:
+    reused_typo_id_events()
+    out = StringIO()
+
+    call_command(
+        "redact_student_audit",
+        "--wksa-id=A-00042",
+        "--first-name=Marigold",
+        "--last-name=Thistlewood",
+        "--student-id=2",
+        "--dry-run",
+        stdout=out,
+    )
+    with pytest.raises(CommandError, match="more than one student record"):
+        call_command(
+            "redact_student_audit",
+            "--wksa-id=A-00042",
+            "--first-name=Marigold",
+            "--last-name=Thistlewood",
+        )
+
+    assert out.getvalue().strip() == "would change 1 audit event(s)."

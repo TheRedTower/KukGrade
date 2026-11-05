@@ -26,6 +26,13 @@ class Command(BaseCommand):
         parser.add_argument("--first-name", required=True)
         parser.add_argument("--last-name", required=True)
         parser.add_argument(
+            "--student-id",
+            help=(
+                "The student's internal id, only when the command says the "
+                "WKSA ID was held by more than one student record."
+            ),
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Say how many events would change, and change nothing.",
@@ -37,6 +44,7 @@ class Command(BaseCommand):
                 wksa_id=options["wksa_id"],
                 first_name=options["first_name"],
                 last_name=options["last_name"],
+                student_id=options["student_id"],
                 dry_run=options["dry_run"],
             )
         except ValueError as exc:

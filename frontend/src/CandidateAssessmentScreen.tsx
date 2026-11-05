@@ -7,7 +7,7 @@ import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useAuth } from "./auth";
-import { CandidateAssessmentItem, CandidateAssessmentItemResult, deleteCandidateAssessment, generateCandidateAssessment, updateCandidateAssessment, updateCandidateAssessmentItem, errorMessage } from "./api";
+import { addAssessmentItemComment, CandidateAssessmentItem, CandidateAssessmentItemResult, deleteCandidateAssessment, generateCandidateAssessment, updateCandidateAssessment, updateCandidateAssessmentItem, errorMessage } from "./api";
 import { RankBelt } from "./Belt";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
 import { formatDayMonth, formatTime } from "./dates";
@@ -31,10 +31,10 @@ export function CandidateAssessmentScreen() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  // At most one row may be confirming a clear or editing a note at a time -
+  // At most one row may be confirming a clear or writing a comment at a time -
   // both are held here rather than in the row so opening one closes the other.
   const [confirmingClearId, setConfirmingClearId] = useState<number | null>(null);
-  const [openNoteId, setOpenNoteId] = useState<number | null>(null);
+  const [openCommentId, setOpenCommentId] = useState<number | null>(null);
 
   const {
     session,
@@ -101,20 +101,21 @@ export function CandidateAssessmentScreen() {
   const isLatestWrite = (itemId: number, seq: number) =>
     itemWriteSeq.current.get(itemId) === seq;
 
+  // A comment is added, never changed, so it needs none of the write ordering
+  // above: it is shown as soon as the server has it.
+  const addCommentMutation = useMutation({
+    mutationFn: ({ itemId, body }: { itemId: number; body: string }) => addAssessmentItemComment(itemId, body),
+    onSuccess: (comment, { itemId }) => {
+      patchItem(itemId, (item) => ({ ...item, comments: [...item.comments, comment] }));
+      queryClient.invalidateQueries({ queryKey: itemsKey });
+    },
+    onError: (err) => setActionError(errorMessage(err, "Could not add this comment.")),
+  });
+
   const updateItemMutation = useMutation({
     mutationKey: itemWriteKey,
-    mutationFn: ({
-      itemId,
-      result,
-      notes,
-    }: {
-      itemId: number;
-      result?: CandidateAssessmentItemResult;
-      notes?: string;
-    }) => {
-      const payload: { result?: CandidateAssessmentItemResult; assessor_notes?: string } = {};
-      if (result !== undefined) payload.result = result;
-      if (notes !== undefined) payload.assessor_notes = notes;
+    mutationFn: ({ itemId, result }: { itemId: number; result: CandidateAssessmentItemResult }) => {
+      const payload = { result };
       const previous = itemWriteChains.current.get(itemId) ?? Promise.resolve();
       const write = previous
         .catch(() => undefined)
@@ -122,7 +123,7 @@ export function CandidateAssessmentScreen() {
       itemWriteChains.current.set(itemId, write);
       return write;
     },
-    onMutate: async ({ itemId, result, notes }) => {
+    onMutate: async ({ itemId, result }) => {
       await queryClient.cancelQueries({ queryKey: itemsKey });
       const seq = (itemWriteSeq.current.get(itemId) ?? 0) + 1;
       itemWriteSeq.current.set(itemId, seq);
@@ -131,8 +132,7 @@ export function CandidateAssessmentScreen() {
         ?.results.find((item) => item.id === itemId);
       patchItem(itemId, (item) => ({
         ...item,
-        result: result !== undefined ? result : item.result,
-        assessor_notes: notes !== undefined ? notes : item.assessor_notes,
+        result,
       }));
       return { itemId, seq, before };
     },
@@ -354,21 +354,21 @@ export function CandidateAssessmentScreen() {
                   item={item}
                   isEditable={isEditable}
                   isConfirmingClear={confirmingClearId === item.id}
-                  isNoteOpen={openNoteId === item.id}
+                  isCommentOpen={openCommentId === item.id}
                   onAskClear={() => {
-                    setOpenNoteId(null);
+                    setOpenCommentId(null);
                     setConfirmingClearId(item.id);
                   }}
                   onCancelClear={() => setConfirmingClearId(null)}
-                  onToggleNote={() => {
+                  onToggleComment={() => {
                     setConfirmingClearId(null);
-                    setOpenNoteId((current) => (current === item.id ? null : item.id));
+                    setOpenCommentId((current) => (current === item.id ? null : item.id));
                   }}
                   onUpdateResult={(result) => {
                     setConfirmingClearId(null);
                     updateItemMutation.mutate({ itemId: item.id, result });
                   }}
-                  onUpdateNotes={(notes) => updateItemMutation.mutate({ itemId: item.id, notes })}
+                  onAddComment={(body) => addCommentMutation.mutate({ itemId: item.id, body })}
                 />
               ))}
             </div>

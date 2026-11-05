@@ -473,6 +473,22 @@ export interface paths {
         patch: operations["gradings_assessment_items_partial_update"];
         trace?: never;
     };
+    "/api/gradings/assessment-items/{id}/comments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["gradings_assessment_items_comments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/assessments/": {
         parameters: {
             query?: never;
@@ -1558,6 +1574,7 @@ export interface components {
          *     * `ASSESSMENT_REOPENED` - Assessment reopened
          *     * `ASSESSMENT_DELETED` - Assessment deleted
          *     * `ITEM_RESULT_RECORDED` - Assessment item result recorded
+         *     * `ITEM_COMMENT_ADDED` - Assessment item comment added
          *     * `OUTCOME_CREATED` - Outcome record opened
          *     * `OUTCOME_PROPOSED` - Outcome proposed
          *     * `OUTCOME_FINALISED` - Outcome finalised
@@ -1579,7 +1596,7 @@ export interface components {
          *     * `LEGACY_GRADING_VOIDED` - Historical record voided
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
         /** @description One age band, from its code: label, description and programme. */
         AgeBand: {
             readonly code: components["schemas"]["AgeBandEnum"];
@@ -1614,6 +1631,16 @@ export interface components {
             readonly required_not_assessed: number;
             readonly all_required_assessed: boolean;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
+        };
+        AssessmentItemComment: {
+            readonly id: number;
+            readonly author_name: string;
+            readonly body: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        AssessmentItemCommentRequestRequest: {
+            body: string;
         };
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
@@ -1798,7 +1825,7 @@ export interface components {
             readonly assessor_email: string;
             /** Format: date-time */
             readonly assessed_at: string | null;
-            assessor_notes?: string;
+            readonly comments: components["schemas"]["AssessmentItemComment"][];
         };
         /**
          * @description * `NOT_STARTED` - Not started
@@ -2718,7 +2745,6 @@ export interface components {
         };
         PatchedCandidateAssessmentItemRequest: {
             result?: components["schemas"]["ResultEnum"];
-            assessor_notes?: string;
         };
         PatchedCandidateAssessmentRequest: {
             status?: components["schemas"]["CandidateAssessmentStatusEnum"];
@@ -3359,7 +3385,7 @@ export interface operations {
     audit_events_list: {
         parameters: {
             query?: {
-                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
+                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
                 entity_id?: string;
                 entity_type?: "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
@@ -3921,6 +3947,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CandidateAssessmentItem"];
+                };
+            };
+        };
+    };
+    gradings_assessment_items_comments_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this candidate assessment item. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentItemCommentRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AssessmentItemCommentRequestRequest"];
+                "multipart/form-data": components["schemas"]["AssessmentItemCommentRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentItemComment"];
                 };
             };
         };

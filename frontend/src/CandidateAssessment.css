@@ -332,6 +332,17 @@
   width: 100%;
 }
 
+.caw-row-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.caw-row-note-by {
+  color: var(--color-text-muted);
+}
+
 .caw-row-note-input {
   width: 100%;
   border: 1px solid var(--color-gold-strong);

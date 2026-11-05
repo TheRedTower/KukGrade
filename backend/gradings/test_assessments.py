@@ -596,14 +596,12 @@ def test_assessment_item_result_updates_set_and_clear_assessor_metadata() -> Non
     updated = update_candidate_assessment_item(
         item,
         result=CandidateAssessmentItem.Result.MET,
-        assessor_notes="Strong basics",
         assessor=assessor,
     )
 
     assert updated.result == CandidateAssessmentItem.Result.MET
     assert updated.assessor == assessor
     assert updated.assessed_at is not None
-    assert updated.assessor_notes == "Strong basics"
     updated.assessment.refresh_from_db()
     assert updated.assessment.status == CandidateAssessment.Status.IN_PROGRESS
 
@@ -628,7 +626,6 @@ def test_assessment_item_update_rejected_until_assessment_is_started() -> None:
         update_candidate_assessment_item(
             item,
             result=CandidateAssessmentItem.Result.MET,
-            assessor_notes="Should not save",
             assessor=user("not-started-assessor@example.com"),
         )
 
@@ -637,7 +634,6 @@ def test_assessment_item_update_rejected_until_assessment_is_started() -> None:
     assert item.result == CandidateAssessmentItem.Result.NOT_ASSESSED
     assert item.assessor is None
     assert item.assessed_at is None
-    assert item.assessor_notes == ""
     assert generated.status == CandidateAssessment.Status.NOT_STARTED
 
 
@@ -1303,7 +1299,6 @@ def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
         f"/api/gradings/assessment-items/{item.id}/",
         {
             "result": CandidateAssessmentItem.Result.NOT_MET,
-            "assessor_notes": "Needs work",
             "item_name": "Client changed name",
             "assessor": spoofed_assessor.id,
             "assessed_at": "2030-01-01T00:00:00Z",
@@ -1322,7 +1317,6 @@ def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
     assert item.result == CandidateAssessmentItem.Result.NOT_MET
     assert item.assessor == real_assessor
     assert item.assessed_at is not None
-    assert item.assessor_notes == "Needs work"
     assert item.id in [payload["id"] for payload in results(list_response)]
     assert post_response.status_code == 405
     assert delete_response.status_code == 405
@@ -1406,67 +1400,6 @@ def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
     ]
     assert techniques[:3] == ["Sohn Ppae Ki", "Ki Bohn Soo", "Sohn Mohk Soo"]
     assert techniques[-2:] == ["Mohk Joh Leu Ki", "Bahng Too Ki"]
-
-
-def test_notes_only_item_change_is_recorded() -> None:
-    # Previously only a result change recorded anything, so the written
-    # judgement about a candidate - the part a dispute would turn on -
-    # could be silently rewritten with no trace.
-    session = grading_session(status=GradingSession.Status.OPEN)
-    built = candidate(session=session)
-    generated = assessment(candidate=built)
-    start_assessment(generated)
-    item = generated.items.first()
-    assert item is not None
-    assessor = user("notes-only-assessor@example.com")
-    before = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
-
-    updated = update_candidate_assessment_item(
-        item,
-        assessor_notes="Clean technique on the first attempt.",
-        assessor=assessor,
-    )
-
-    after = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
-    assert after == before + 1
-    event = AuditEvent.objects.filter(
-        action=AuditAction.ITEM_RESULT_RECORDED,
-        entity_id=str(updated.pk),
-    ).latest("occurred_at")
-    assert event.metadata["before"]["assessor_notes"] == ""
-    assert (
-        event.metadata["after"]["assessor_notes"]
-        == "Clean technique on the first attempt."
-    )
-    assert event.actor == assessor
-
-
-def test_repeating_the_same_item_notes_records_nothing() -> None:
-    session = grading_session(status=GradingSession.Status.OPEN)
-    built = candidate(session=session)
-    generated = assessment(candidate=built)
-    start_assessment(generated)
-    item = generated.items.first()
-    assert item is not None
-    update_candidate_assessment_item(
-        item,
-        assessor_notes="Already recorded.",
-        assessor=user("repeat-notes-assessor@example.com"),
-    )
-    before = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
-    stamp = CandidateAssessmentItem.objects.get(pk=item.pk).updated_at
-
-    # The model strips notes, so surrounding whitespace is not a change.
-    for repeat in ("Already recorded.", " Already recorded.  "):
-        update_candidate_assessment_item(
-            item,
-            assessor_notes=repeat,
-            assessor=user(f"repeat-notes-assessor-{len(repeat)}@example.com"),
-        )
-
-    after = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
-    assert after == before
-    assert CandidateAssessmentItem.objects.get(pk=item.pk).updated_at == stamp
 
 
 def test_editing_assessment_notes_is_audited_with_both_versions() -> None:

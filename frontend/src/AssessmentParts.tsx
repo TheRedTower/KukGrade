@@ -3,7 +3,7 @@ import { Alert } from "./Alert";
 import { CandidateAssessmentItem, CandidateAssessmentItemResult } from "./api";
 import { CategoryGroup } from "./candidateAssessmentData";
 import { Dialog } from "./Dialog";
-import { formatTime } from "./dates";
+import { formatShortDateTime, formatTime } from "./dates";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { Button } from "./Button";
 import { Meter } from "./Meter";
@@ -94,24 +94,24 @@ export function AssessmentItemRow({
   item,
   isEditable,
   isConfirmingClear,
-  isNoteOpen,
+  isCommentOpen,
   onAskClear,
   onCancelClear,
-  onToggleNote,
+  onToggleComment,
   onUpdateResult,
-  onUpdateNotes,
+  onAddComment,
 }: {
   item: CandidateAssessmentItem;
   isEditable: boolean;
   isConfirmingClear: boolean;
-  isNoteOpen: boolean;
+  isCommentOpen: boolean;
   onAskClear: () => void;
   onCancelClear: () => void;
-  onToggleNote: () => void;
+  onToggleComment: () => void;
   onUpdateResult: (result: CandidateAssessmentItemResult) => void;
-  onUpdateNotes: (notes: string) => void;
+  onAddComment: (body: string) => void;
 }) {
-  const [notesValue, setNotesValue] = useState(item.assessor_notes || "");
+  const [draft, setDraft] = useState("");
   const keepButtonRef = useRef<HTMLButtonElement>(null);
   const clearButtonRef = useRef<HTMLButtonElement>(null);
   const metButtonRef = useRef<HTMLButtonElement>(null);
@@ -140,11 +140,20 @@ export function AssessmentItemRow({
     }
   }, [isConfirmingClear]);
 
-  const commitNotes = () => {
-    if (notesValue !== (item.assessor_notes || "")) {
-      onUpdateNotes(notesValue);
-    }
-    onToggleNote();
+  // A comment is kept as written, so it is added on purpose, never by leaving the box.
+  // On a computer that means Enter (Shift+Enter starts a new line). On a phone
+  // or tablet the Enter key is how a line break is typed, and a stray tap on it
+  // must not save a half-typed comment, so there only the button saves.
+  const submitComment = () => {
+    const body = draft.trim();
+    if (!body) return;
+    onAddComment(body);
+    setDraft("");
+    onToggleComment();
+  };
+  const closeComment = () => {
+    setDraft("");
+    onToggleComment();
   };
 
   const isScored = item.result === "MET" || item.result === "NOT_MET";
@@ -179,7 +188,7 @@ export function AssessmentItemRow({
           it only on not-met rows, so "who marked this, and when" was invisible
           across most of the record.
         */}
-        {(attribution || item.assessor_notes) && (
+        {(attribution || item.comments.length > 0) && (
           <div className="caw-row-meta">
             {attribution && (
               <span>
@@ -187,9 +196,14 @@ export function AssessmentItemRow({
                 {attribution}
               </span>
             )}
-            {item.assessor_notes && !isNoteOpen && (
-              <span className="caw-row-note">“{item.assessor_notes}”</span>
-            )}
+            {item.comments.map((comment) => (
+              <span key={comment.id} className="caw-row-note">
+                “{comment.body}”
+                <span className="caw-row-note-by">
+                  {" "}— {comment.author_name}, {formatShortDateTime(comment.created_at)}
+                </span>
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -261,8 +275,8 @@ export function AssessmentItemRow({
 
         {isEditable && !isConfirmingClear && (
           <div className="caw-row-tools">
-            <button type="button" className="caw-row-tool" onClick={onToggleNote} data-testid={`btn-note-${item.id}`}>
-              {item.assessor_notes ? "Edit note" : "Add note"}
+            <button type="button" className="caw-row-tool" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
+              Add comment
             </button>
             {/* Clearing is only offered once there is a result to clear. */}
             {isScored && (
@@ -279,25 +293,40 @@ export function AssessmentItemRow({
           </div>
         )}
 
-        {isNoteOpen && isEditable && (
+        {isCommentOpen && isEditable && (
           <div className="caw-row-note-edit">
             <textarea
-              aria-label={`Assessor note for ${item.item_name}`}
+              aria-label={`Comment on ${item.item_name}`}
               rows={2}
               className="caw-row-note-input"
-              placeholder="Assessor note — what was observed"
-              value={notesValue}
-              onChange={(e) => setNotesValue(e.target.value)}
-              onBlur={commitNotes}
+              placeholder="Add a comment — what was observed"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              enterKeyHint="enter"
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
-                  setNotesValue(item.assessor_notes || "");
-                  onToggleNote();
+                  closeComment();
+                } else if (
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing &&
+                  !window.matchMedia("(pointer: coarse)").matches
+                ) {
+                  e.preventDefault();
+                  submitComment();
                 }
               }}
-              data-testid={`caw-note-input-${item.id}`}
+              data-testid={`caw-comment-input-${item.id}`}
               autoFocus
             />
+            <div className="caw-row-note-actions">
+              <Button variant="secondary" onClick={closeComment}>
+                Cancel
+              </Button>
+              <Button onClick={submitComment} disabled={!draft.trim()} data-testid={`btn-comment-save-${item.id}`}>
+                Save comment
+              </Button>
+            </div>
           </div>
         )}
       </div>

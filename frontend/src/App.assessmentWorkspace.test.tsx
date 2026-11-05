@@ -99,7 +99,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     result_display: "Met",
     assessor_email: "casey@example.com",
     assessed_at: "2026-09-18T10:10:00Z",
-    assessor_notes: "",
+    comments: [],
   };
 
   const mockItem2: CandidateAssessmentItem = {
@@ -118,7 +118,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     result_display: "Not Met",
     assessor_email: "casey@example.com",
     assessed_at: "2026-09-18T10:15:00Z",
-    assessor_notes: "Guard dropped on turn",
+    comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on turn", created_at: "2026-09-18T10:20:00Z" }],
   };
 
   const mockItem3: CandidateAssessmentItem = {
@@ -137,7 +137,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     result_display: "Not Assessed",
     assessor_email: "",
     assessed_at: null,
-    assessor_notes: "",
+    comments: [],
   };
 
   beforeEach(() => {
@@ -361,15 +361,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   // The rollup and the item rows are separate requests. If the rollup fails on
   // its own the screen must say so, not render every count as zero.
-  // `assessor_notes` carries positive observations as well as
-  // shortfalls since the 2026-09-23 decision, so a note on a MET requirement
-  // must appear on the proof. The review this replaced rendered only the notes
+  // Comments carry positive observations as well as shortfalls (the
+  // 2026-09-23 decision), so a comment on a MET requirement must appear on
+  // the proof. The review this replaced rendered only the notes
   // attached to NOT_MET items, which made a praise note invisible at the last
   // moment it could be read and absent from the permanent record.
-  it("renders every recorded item note on the proof, not only the failures", async () => {
+  it("renders every comment on the proof, not only on the failures", async () => {
     const metWithNote: CandidateAssessmentItem = {
       ...mockItem1,
-      assessor_notes: "Bow was crisp and unhurried; best in the group.",
+      comments: [{ id: 2, author_name: "Morgan Reed", body: "Bow was crisp and unhurried; best in the group.", created_at: "2026-09-18T10:20:00Z" }],
     };
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
@@ -403,16 +403,18 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     await screen.findByRole("heading", { name: "Assessment record" });
 
-    // The note on the MET requirement is on the record, with its result.
+    // The comment on the MET requirement is on the record, with its result and
+    // the person who wrote it.
     const metNote = screen.getByTestId("acp-note-1001");
     expect(metNote).toHaveTextContent("Bow was crisp and unhurried");
     expect(metNote).toHaveTextContent("Met");
-    expect(metNote).toHaveTextContent("casey@example.com");
+    expect(metNote).toHaveTextContent("Morgan Reed");
 
-    // As is the note on the NOT_MET one.
+    // As is the comment on the NOT_MET one.
     expect(screen.getByTestId("acp-note-1002")).toHaveTextContent("Guard dropped on turn");
+    expect(screen.getByTestId("acp-note-1002")).toHaveTextContent("Casey Reed");
 
-    // The requirement with no note recorded contributes none.
+    // The requirement with no comment contributes none.
     expect(screen.queryByTestId("acp-note-1003")).toBeNull();
   });
 
@@ -740,6 +742,169 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     resolvePatch?.(jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" }) as Response);
   });
+  describe("comments on an item", () => {
+    function commentMock(refuse = false) {
+      const items: CandidateAssessmentItem[] = [mockItem1, mockItem2, mockItem3];
+      const posts: string[] = [];
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+        if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+        if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(items));
+        if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
+          const body = JSON.parse(String(init.body)).body as string;
+          posts.push(body);
+          if (refuse) {
+            return jsonResponse(400, {
+              error: { code: "validation_error", message: "Items can only be commented on in an open session." },
+            });
+          }
+          const comment = { id: 900 + posts.length, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" };
+          const id = Number(url.match(/assessment-items\/(\d+)\//)?.[1]);
+          const at = items.findIndex((item) => item.id === id);
+          items[at] = { ...items[at], comments: [...items[at].comments, comment] };
+          return jsonResponse(201, comment);
+        }
+        if (url.includes("/api/gradings/assessments/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+        }
+        if (url.includes("/api/gradings/assessment-items/")) {
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: items });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      return { posts };
+    }
+
+    it("adds a comment on purpose and shows it with who wrote it", async () => {
+      const { posts } = commentMock();
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "Pivot was late but clean.");
+      await user.click(screen.getByTestId("btn-comment-save-1003"));
+
+      expect(await screen.findByText(/Pivot was late but clean\./)).toBeVisible();
+      expect(within(screen.getByTestId("caw-item-1003")).getByText(/Lee Coach/)).toBeVisible();
+      expect(posts).toEqual(["Pivot was late but clean."]);
+      expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull();
+    });
+
+    it("adds nothing when the box is left or dismissed without saving", async () => {
+      const { posts } = commentMock();
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "Half a thought");
+      // Leaving the box saves nothing and keeps what was typed.
+      await user.click(screen.getByRole("heading", { name: "Alex Carter" }));
+      expect(posts).toEqual([]);
+      expect(screen.getByTestId("caw-comment-input-1003")).toHaveValue("Half a thought");
+
+      // Escape inside the box drops the draft without saving it.
+      await user.click(screen.getByTestId("caw-comment-input-1003"));
+      await user.keyboard("{Escape}");
+      expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull();
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      expect(screen.getByTestId("caw-comment-input-1003")).toHaveValue("");
+      expect(posts).toEqual([]);
+    });
+
+    it("saves the comment when Enter is pressed, and Shift+Enter starts a new line", async () => {
+      const { posts } = commentMock();
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "Line one{Shift>}{Enter}{/Shift}Line two");
+      expect(posts).toEqual([]);
+      expect(screen.getByTestId("caw-comment-input-1003")).toHaveValue("Line one\nLine two");
+
+      await user.keyboard("{Enter}");
+
+      await waitFor(() => expect(posts).toEqual(["Line one\nLine two"]));
+      expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull();
+    });
+
+    it("does nothing on Enter when the comment is empty", async () => {
+      const { posts } = commentMock();
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "{Enter}{Enter}");
+
+      expect(posts).toEqual([]);
+      expect(screen.getByTestId("caw-comment-input-1003")).toBeVisible();
+    });
+
+    it("on a phone, Enter adds a new line and only the button saves", async () => {
+      const original = window.matchMedia;
+      window.matchMedia = ((query: string) => ({
+        matches: query === "(pointer: coarse)",
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      })) as typeof window.matchMedia;
+      try {
+        const { posts } = commentMock();
+        const user = userEvent.setup();
+        render(<App />);
+        await screen.findByRole("heading", { name: "Alex Carter" });
+
+        await user.click(screen.getByTestId("btn-comment-1003"));
+        await user.type(screen.getByTestId("caw-comment-input-1003"), "First{Enter}Second");
+
+        expect(posts).toEqual([]);
+        expect(screen.getByTestId("caw-comment-input-1003")).toHaveValue("First\nSecond");
+
+        await user.click(screen.getByTestId("btn-comment-save-1003"));
+
+        await waitFor(() => expect(posts).toEqual(["First\nSecond"]));
+      } finally {
+        window.matchMedia = original;
+      }
+    });
+
+    it("will not save an empty comment", async () => {
+      commentMock();
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      expect(screen.getByTestId("btn-comment-save-1003")).toBeDisabled();
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "   ");
+
+      expect(screen.getByTestId("btn-comment-save-1003")).toBeDisabled();
+    });
+
+    it("says why when a comment is refused", async () => {
+      commentMock(true);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-comment-1003"));
+      await user.type(screen.getByTestId("caw-comment-input-1003"), "Too late.");
+      await user.click(screen.getByTestId("btn-comment-save-1003"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Items can only be commented on in an open session.");
+    });
+  });
+
   // The rollup is served, not recounted here. The summary below
   // deliberately disagrees with the items so a client-side recount would give
   // a visibly different answer.
@@ -1187,7 +1352,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByTestId("btn-met-1003")).toBeDisabled();
     expect(screen.getByTestId("btn-not-met-1003")).toBeDisabled();
     expect(screen.queryByTestId("btn-clear-1001")).toBeNull();
-    expect(screen.queryByTestId("btn-note-1001")).toBeNull();
+    expect(screen.queryByTestId("btn-comment-1001")).toBeNull();
     expect(screen.getByTestId("caw-view-review-btn")).toBeVisible();
   });
   it("renders every category in one continuous run, not behind a rail", async () => {

@@ -21,6 +21,7 @@ from accounts.permissions import (
     HasRequiredPermissions,
 )
 from gradings.assessment_services import (
+    add_item_comment,
     bulk_generate_candidate_assessments,
     bulk_start_candidate_assessments,
     delete_candidate_assessment,
@@ -44,6 +45,7 @@ from gradings.legacy_services import (
     unlink_legacy_record_from_student,
 )
 from gradings.models import (
+    AssessmentItemComment,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -61,6 +63,8 @@ from gradings.outcome_services import (
 )
 from gradings.read_models import candidate_assessment_summary, with_overall_counts
 from gradings.serializers import (
+    AssessmentItemCommentRequestSerializer,
+    AssessmentItemCommentSerializer,
     BulkAssessmentGenerationResultSerializer,
     BulkAssessmentGenerationSerializer,
     BulkAssessmentStartResultSerializer,
@@ -575,18 +579,50 @@ class CandidateAssessmentItemViewSet(
 ):
     serializer_class = CandidateAssessmentItemSerializer
     permission_classes = [HasRequiredPermissions]
-    http_method_names = ["get", "patch", "head", "options"]
+    http_method_names = ["get", "patch", "post", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateassessmentitem",),
         "partial_update": ("gradings.change_candidateassessmentitem",),
+        "comments": ("gradings.change_candidateassessmentitem",),
     }
 
     query_filters = (by_id("assessment", "assessment_id"),)
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
-        return CandidateAssessmentItem.objects.select_related(
-            "assessor",
-        ).order_by("assessment_id", "position")
+        return (
+            CandidateAssessmentItem.objects.select_related("assessor")
+            .prefetch_related(
+                Prefetch(
+                    "comments",
+                    queryset=AssessmentItemComment.objects.select_related("author"),
+                ),
+            )
+            .order_by("assessment_id", "position")
+        )
+
+    @extend_schema(
+        request=AssessmentItemCommentRequestSerializer,
+        responses={201: AssessmentItemCommentSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def comments(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        item = self.get_object()
+        serializer = AssessmentItemCommentRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comment = add_item_comment(
+            item,
+            str(serializer.validated_data["body"]),
+            cast(User, request.user),
+        )
+        return Response(
+            AssessmentItemCommentSerializer(comment).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class CandidateOutcomeViewSet(

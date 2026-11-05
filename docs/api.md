@@ -30,7 +30,7 @@ its password is refused with `password_change_required` until it does.
 | `/api/ranks/`, `/api/syllabus/` | Reference data, including the cumulative requirements for a rank and age band |
 | `/api/gradings/sessions/` | Grading sessions and their lifecycle |
 | `/api/gradings/candidates/` | Registrations, including bulk register and bulk status. The list and one registration also carry the candidate's assessment (with its overall counts), their outcome, `next_action` (the step their row offers, named by the server for whoever is asking) and `can_be_finalised` (whether a final decision can be recorded for them now), so a screen needs one request and holds no lifecycle rule |
-| `/api/gradings/assessments/`, `/api/gradings/assessment-items/` | Assessments and item results |
+| `/api/gradings/assessments/`, `/api/gradings/assessment-items/` | Assessments and item results; each item carries its `comments`, and `assessment-items/<id>/comments/` adds one (a comment is never edited or deleted) |
 | `/api/gradings/outcomes/`, `/api/gradings/promotions/` | Proposals, final decisions and promotions; `candidates/<id>/propose-outcome/` opens the outcome record and proposes in one call, and a later call revises it; `outcomes/<id>/staged-decision/` and `outcomes/staged-decisions/` keep a Master's own unrecorded decisions |
 | `/api/gradings/legacy-records/` | Imported historical records and their reconciliation |
 | `/api/data-imports/` | Import batches, mapping, review and commit |

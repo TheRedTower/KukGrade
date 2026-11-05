@@ -29,6 +29,7 @@ export type GradingCandidate = Schemas["GradingCandidate"];
 export type GradingCandidateRoster = Schemas["GradingCandidateRoster"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
+export type AssessmentItemComment = Schemas["AssessmentItemComment"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type StagedDecision = Schemas["StagedDecision"];
@@ -585,6 +586,17 @@ export async function updateCandidateAssessmentItem(
   return apiRequest<CandidateAssessmentItem>(`/api/gradings/assessment-items/${id}/`, {
     method: "PATCH",
     body: JSON.stringify(data),
+  });
+}
+
+/** Add a comment to an item. A comment is kept as written; a correction is another. */
+export async function addAssessmentItemComment(
+  itemId: number,
+  body: string,
+): Promise<AssessmentItemComment> {
+  return apiRequest<AssessmentItemComment>(`/api/gradings/assessment-items/${itemId}/comments/`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
   });
 }
 

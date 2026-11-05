@@ -106,7 +106,7 @@ def test_the_open_grading_has_assessments_to_tick_and_a_withdrawal() -> None:
     # Part way: items still waiting for a visitor on every one, comments on three.
     for assessment in started:
         assert assessment.items.filter(result="NOT_ASSESSED", required=True).exists()
-    assert sum(a.items.exclude(assessor_notes="").exists() for a in started) == 3
+    assert sum(a.items.filter(comments__isnull=False).exists() for a in started) == 3
     withdrawn = GradingCandidate.objects.filter(
         session=session,
         status=GradingCandidate.Status.WITHDRAWN,
@@ -216,11 +216,17 @@ def test_grading_work_stays_open_to_the_instructor() -> None:
 
     response = client.patch(
         f"/api/gradings/assessment-items/{item.pk}/",
-        {"result": "MET", "assessor_notes": "Looked sharp."},
+        {"result": "MET"},
+        format="json",
+    )
+    commented = client.post(
+        f"/api/gradings/assessment-items/{item.pk}/comments/",
+        {"body": "Looked sharp."},
         format="json",
     )
 
     assert response.status_code == 200, response.content
+    assert commented.status_code == 201, commented.content
 
 
 @pytest.mark.django_db

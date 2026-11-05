@@ -9,7 +9,7 @@
  * nothing here is all-or-nothing, and failures stay staged for a retry.
  *
  * One deliberate deviation from the board: the detail pane lists **every**
- * recorded `assessor_notes` value, not only shortfalls (see
+ * comment on an item, not only shortfalls (see
  * `SealedAssessmentEvidence`, which the proposal drawer shares).
  *
  * Counts are served (each assessment's `overall`), never

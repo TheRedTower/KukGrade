@@ -163,17 +163,22 @@ roster and list tests hold their counts flat as data grows. Measured 2026-11-05:
 
 | Request | Queries | Ceiling |
 | --- | --- | --- |
-| Mark an item (first mark, or a later change with a reason) | 76 | 80 |
-| Comment on an item | 26 | 30 |
+| Mark an item (first mark, or a later change with a reason) | 17 (76 before) | 20 |
+| Comment on an item | 11 (26 before) | 14 |
 | Item list for an assessment (page of 9) | 4 | 6 |
 | Assessment summary | 2 | 4 |
 | Student list (any length of page) | 2 | 4 |
 | A session's roster (any number of candidates) | 12 or fewer | 12 |
 
-Marking an item is the heavy one: about fifty of its 76 statements are the database
-re-checking constraints that `Model.save()` already validated (`full_clean()` runs one
-query per CHECK and UNIQUE constraint). When a change lowers a path, lower its ceiling in
-the same change and update this table.
+Marking an item cost 76 until P3-2: about fifty of those statements were the database
+re-checking constraints that `Model.save()` had just validated (`full_clean()` runs a
+statement per foreign key and a few per CHECK and UNIQUE constraint, and the write is then
+checked again by the database anyway). The hot writes (an item's update, its comment and
+change rows, and audit events) now use `kukgrade.modelchecks.clean_without_database_checks`:
+Python still judges field types, choices and the model's own `clean()`, and the foreign keys
+and constraints stay the authority (`test_hot_writes_still_refused.py`). Use it only where a
+service already decides every value. When a change lowers a path, lower its ceiling in the
+same change and update this table.
 
 ## Dependency updates
 

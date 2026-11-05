@@ -15,6 +15,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from kukgrade.modelchecks import clean_without_database_checks
+
 if TYPE_CHECKING:
     from accounts.models import User
 
@@ -187,7 +189,8 @@ class AuditEvent(models.Model):
         # so `pk is not None` is always true and would make this a no-op.
         if not self._state.adding:
             raise ValidationError({"audit": [IMMUTABLE_MESSAGE]})
-        self.full_clean()
+        # record() decides every value; the constraints stay the guard.
+        clean_without_database_checks(self)
         super().save(*args, **kwargs)
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:

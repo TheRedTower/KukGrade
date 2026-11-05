@@ -1,15 +1,15 @@
 """How many queries the hot paths cost, as ceilings, with the baseline recorded.
 
-Measured 2026-11-05 on dev after the audit's section 8 work (audit P3-1). A
-ceiling is the measured count plus a little room, so an unrelated change does not
-break these but a path that quietly gets heavier does. When a change lowers a
-path, lower its ceiling in the same change and update docs/development.md.
+Measured 2026-11-05 on dev (audit P3-1, P3-2). A ceiling is the measured count
+plus a little room, so an unrelated change does not break these but a path that
+quietly gets heavier does. When a change lowers a path, lower its ceiling in the
+same change and update docs/development.md.
 
-The item write is the heavy one: every tap on Met or Not met costs 76 statements,
-about fifty of them the database re-checking constraints the save already
-validated in Python (`Model.save()` runs `full_clean()`, which checks each CHECK
-and UNIQUE constraint with its own query). That is audit hypothesis H-01, now
-measured; P3-2 acts on it.
+The item write was the heavy one: 76 statements per tap, about fifty of them the
+database re-checking constraints that `Model.save()` had just validated in Python
+(audit hypothesis H-01). The hot writes now skip those re-checks
+(kukgrade/modelchecks.py) and cost 17; the constraints themselves are unchanged
+and still refuse bad data (test_hot_writes_still_refused.py).
 """
 
 from __future__ import annotations
@@ -43,15 +43,16 @@ def started_assessment() -> tuple[CandidateAssessment, list[int]]:
 def test_marking_an_item_stays_within_its_baseline(
     django_assert_max_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    # Baseline 76 for a first mark and for a later change with a reason.
+    # Baseline 17 for a first mark and for a later change with a reason
+    # (76 before P3-2).
     _generated, items = started_assessment()
     client = auth_client("baseline-marker@example.com")
     url = f"/api/gradings/assessment-items/{items[0]}/"
     client.patch(f"/api/gradings/assessment-items/{items[1]}/", {"result": "MET"})
 
-    with django_assert_max_num_queries(80):
+    with django_assert_max_num_queries(20):
         first = client.patch(url, {"result": "MET"}, format="json")
-    with django_assert_max_num_queries(80):
+    with django_assert_max_num_queries(20):
         later = client.patch(
             url,
             {"result": "NOT_MET", "reason": "Seen again on review."},
@@ -64,13 +65,13 @@ def test_marking_an_item_stays_within_its_baseline(
 def test_commenting_stays_within_its_baseline(
     django_assert_max_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    # Baseline 26.
+    # Baseline 11 (26 before P3-2).
     _generated, items = started_assessment()
     client = auth_client("baseline-commenter@example.com")
     url = f"/api/gradings/assessment-items/{items[0]}/comments/"
     client.post(url, {"body": "Warm."}, format="json")
 
-    with django_assert_max_num_queries(30):
+    with django_assert_max_num_queries(14):
         response = client.post(url, {"body": "Crisp footwork."}, format="json")
 
     assert response.status_code == 201

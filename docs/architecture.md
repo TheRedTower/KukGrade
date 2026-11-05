@@ -110,8 +110,11 @@ Two behaviours worth knowing:
 A multi-stage build compiles the frontend, installs locked Python dependencies and
 copies a finished, minimal filesystem into a fresh image. It contains the app,
 PostgreSQL 17 and nothing else needed to run or repair it: no tests, documentation,
-build tools or package-manager caches. It runs as an unprivileged user (UID 10001), and
-base images are pinned by digest and kept current by Dependabot.
+build tools or package-manager caches. Its first process starts as root only to hand the
+data folder to the app's user, then runs the database and the app as an unprivileged user
+(UID 10001); started as that user already, as the external-database recipe does, it never
+has root and that recipe can be read-only with all capabilities dropped. Base images are
+pinned by digest and kept current by Dependabot.
 
 On start, `kukgrade.serve` starts the image's own PostgreSQL (unless `POSTGRES_HOST`
 points elsewhere), applies migrations, then starts one Gunicorn worker. The Django admin

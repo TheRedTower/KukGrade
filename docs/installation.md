@@ -126,7 +126,7 @@ Everything is under `deploy/data/`, mounted into the container at
 | --- | --- | --- |
 | `postgres/` | The database | Everything. Restore from a backup. |
 | `secret_key` | The key sessions are signed with (made on first start) | Everyone is signed out. |
-| `import_uploads/` | Spreadsheets waiting to be imported (cleared after 24 hours) | An unfinished import restarts. |
+| `import_uploads/` | Spreadsheets waiting to be imported (cleared by the daily clean-up under [Maintenance](#maintenance), once older than 24 hours) | An unfinished import restarts. |
 | `tls/` | The self-signed certificate | The app makes a new one. |
 | `caddy/` | Caddy's certificates (Caddy file only) | Caddy asks for new ones. |
 

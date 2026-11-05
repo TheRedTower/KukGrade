@@ -3,7 +3,7 @@ import type { components, operations } from "./api/schema";
 // Generated from backend/schema.yml (`npm run generate:types`) rather than
 // hand-maintained, so these cannot silently drift from the serializers. Regenerate after any serializer change.
 // Every request and response body is declared in the schema; the only
-// hand-written API shapes are the error envelope and the page envelope.
+// hand-written API shape is the error envelope.
 type Schemas = components["schemas"];
 /** A list endpoint's query parameters, as its schema declares them. */
 type ListQuery<Op extends keyof operations> = NonNullable<operations[Op]["parameters"]["query"]>;
@@ -13,10 +13,12 @@ export type ManagedUser = components["schemas"]["UserManagement"];
 /** A managed user with the temporary password just issued for them, shown once. */
 export type IssuedTemporaryPassword = components["schemas"]["IssuedTemporaryPassword"];
 
-type PaginatedResponse<T> = {
-  count: number;
-  next: string | null;
-  previous: string | null;
+/**
+ * One page of any list. Its envelope (count, next, previous) is taken from the
+ * schema's own paginated type, every list sharing it; only `results` is typed
+ * per list, since the schema emits one named type for each.
+ */
+type PaginatedResponse<T> = Required<Omit<Schemas["PaginatedGradingSessionList"], "results">> & {
   results: T[];
 };
 

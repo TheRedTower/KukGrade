@@ -92,6 +92,16 @@ updates:
       - dependency-name: node
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
+  # The tunnel and proxy images in the Compose recipes are pinned to a version
+  # so a recipe does not change under a self-hoster; this keeps them current.
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

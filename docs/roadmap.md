@@ -38,8 +38,20 @@ Want something here, or something that is missing? Open an
       email and always will; this is an enhancement. The design is settled: email is
       notification only, never authoritative account state, and a failed send never blocks an
       account or password action. Planned after 1.0.
-- [ ] **Corrections after a session locks.** Today a completed assessment can be reopened only
-      until the session locks; a post-lock correction workflow does not exist.
+- [ ] **Marking and correction workflow** (agreed 2026-11-04). Every Met or Not met change after
+      the first needs a written reason, and nothing is overwritten silently; each item gets an
+      append-only comment log; a completed assessment is corrected directly while the session
+      is open, with no reopen step; after the lock only the Master can change a mark or add a
+      comment, with a reason, until that candidate's final decision is recorded; every change
+      shows on the final decisions screen. This replaces the single editable note on an item.
+- [ ] **Instructor groups**: assign each candidate to an instructor's group so each marks
+      their own at the mat. Wanted after the marking workflow.
+- [ ] **Archive finished sessions** instead of deleting them: a session with final decisions
+      is hidden from lists and nothing is erased; permanent delete stays for sessions without
+      final decisions.
+- [ ] **Audit events without personal details**: new events record the student's ID and which
+      fields changed, not names or dates of birth, plus a written and tested procedure to
+      redact older events on request.
 - [ ] **Reports and exports**, from an agreed reporting specification (for example a session
       summary or a student's grading history as a document).
 

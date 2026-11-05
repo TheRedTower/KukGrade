@@ -12,7 +12,7 @@ services:
       - ./data:/var/lib/kukgrade
 
   newt:
-    image: fosrl/newt:latest
+    image: fosrl/newt:1.20.0
     restart: unless-stopped
     environment:
       PANGOLIN_ENDPOINT: ${PANGOLIN_ENDPOINT:?Set PANGOLIN_ENDPOINT in .env}

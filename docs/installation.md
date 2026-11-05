@@ -126,7 +126,7 @@ Everything is under `deploy/data/`, mounted into the container at
 | --- | --- | --- |
 | `postgres/` | The database | Everything. Restore from a backup. |
 | `secret_key` | The key sessions are signed with (made on first start) | Everyone is signed out. |
-| `import_uploads/` | Spreadsheets waiting to be imported (cleared by the daily clean-up under [Maintenance](#maintenance), once older than 24 hours) | An unfinished import restarts. |
+| `import_uploads/` | Spreadsheets waiting to be imported (an abandoned one is cleared once it is 24 hours old: every upload clears the stale ones, and so does each start of the container; see [Maintenance](#maintenance)) | An unfinished import restarts. |
 | `tls/` | The self-signed certificate | The app makes a new one. |
 | `caddy/` | Caddy's certificates (Caddy file only) | Caddy asks for new ones. |
 
@@ -210,14 +210,16 @@ existing Traefik and PostgreSQL Docker networks; its variables are listed in the
 
 ## Maintenance
 
-Abandoned import uploads contain personal data. Delete them with:
+Abandoned import uploads contain personal data, so they are not left to a scheduler: each
+upload clears the ones older than 24 hours, and the container sweeps them (and stored files
+nothing names) every time it starts. A server that is never restarted and has no uploads can
+still hold one, so for a firm limit, run this daily from a scheduler:
 
 ```sh
 docker compose exec -T kukgrade python manage.py expire_stale_import_batches --hours 24
 ```
 
-Run it daily from a scheduler. It also removes stored rows from imports finished
-over 30 days ago.
+It also removes stored rows from imports finished over 30 days ago.
 
 The container runs one application worker on purpose. The sign-in throttle is
 held in that process's memory, so running several workers or replicas needs a

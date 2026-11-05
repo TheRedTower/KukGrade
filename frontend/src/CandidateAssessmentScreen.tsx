@@ -188,7 +188,14 @@ export function CandidateAssessmentScreen() {
       const counts = writesOverlapped.current ? undefined : saved?.assessment_summary;
       writesOverlapped.current = false;
       if (counts) {
-        queryClient.setQueryData(keys.candidateAssessmentSummary(assessment?.id), counts);
+        // A read of the counts still in flight (from an earlier overlap or a
+        // failed save) would land after these and put older counts over them,
+        // with nothing left to correct it: it is cancelled first. Not awaited,
+        // so the write does not stay pending while it is.
+        const summaryKey = keys.candidateAssessmentSummary(assessment?.id);
+        void queryClient
+          .cancelQueries({ queryKey: summaryKey })
+          .then(() => queryClient.setQueryData(summaryKey, counts));
       } else {
         queryClient.invalidateQueries({ queryKey: keys.candidateAssessmentSummary(assessment?.id) });
       }

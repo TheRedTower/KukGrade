@@ -1662,6 +1662,49 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       await waitFor(() => expect(listReads()).toBeGreaterThan(listBefore));
     });
 
+    it("is not overwritten by an older read of the counts that was still on its way", async () => {
+      const server = scoringServer([unmarked(mockItem1), unmarked(mockItem2), unmarked(mockItem3)], true);
+      // From the first overlap on, a read of the counts is answered late, with
+      // the counts as they were when it was asked.
+      let holding = false;
+      let release: (() => void) | undefined;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+          const answer = server.fetchMock(input, init) as Promise<Response>;
+          if (holding && String(input).includes("/summary/") && !release) {
+            return new Promise<Response>((resolve) => {
+              release = () => void answer.then(resolve);
+            });
+          }
+          return answer;
+        }),
+      );
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      holding = true;
+      await user.click(screen.getByTestId("btn-met-1001"));
+      await user.click(screen.getByTestId("btn-met-1003"));
+      await waitFor(() => expect(server.pending).toHaveLength(2));
+      server.pending[0].save();
+      server.pending[1].save();
+      // The overlap sends a read of the counts, which is now held back.
+      await waitFor(() => expect(release).toBeDefined());
+
+      // A lone mark is saved meanwhile, and its counts are the newest.
+      await user.click(screen.getByTestId("btn-met-1002"));
+      await waitFor(() => expect(server.pending).toHaveLength(3));
+      server.pending[2].save();
+      await waitFor(() => expect(screen.getByText("3 met")).toBeVisible());
+
+      // The old read arrives at last, and must not put its two over the three.
+      release?.();
+      await new Promise((settle) => setTimeout(settle, 100));
+      expect(screen.getByText("3 met")).toBeVisible();
+    });
+
     it("reads them again when the save failed", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
       vi.stubGlobal("fetch", server.fetchMock);

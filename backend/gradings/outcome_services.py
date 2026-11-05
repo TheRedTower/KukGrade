@@ -240,7 +240,6 @@ def propose_candidate_outcome(
     locked_outcome.decision_notes = ""
     locked_outcome.conditional_requirements = ""
     locked_outcome.status = CandidateOutcome.Status.PROPOSED
-    locked_outcome._allow_status_transition = True
     locked_outcome.save()
     _record_proposal(locked_outcome, previous_proposal, actor)
     return locked_outcome
@@ -336,7 +335,6 @@ def finalise_candidate_outcome(
     locked_outcome.decided_by = actor
     locked_outcome.decided_at = timezone.now()
     locked_outcome.status = CandidateOutcome.Status.FINALISED
-    locked_outcome._allow_status_transition = True
     locked_outcome.save()
     record(
         AuditAction.OUTCOME_FINALISED,

@@ -505,26 +505,42 @@ def test_a_bulk_delete_still_removes_undecided_outcomes() -> None:
     assert deleted == 1
 
 
-def test_direct_outcome_status_spoofing_rejected() -> None:
+def test_a_final_decision_cannot_be_changed_by_a_direct_save() -> None:
+    # How an outcome becomes final is the service's; that a final decision
+    # never changes is the model's, whoever reaches it.
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    outcome.final_outcome = CandidateOutcome.Outcome.FAIL
+
+    with pytest.raises(ValidationError) as exc_info:
+        outcome.save()
+
+    assert "A final decision cannot be changed." in str(exc_info.value)
+    outcome.refresh_from_db()
+    assert outcome.final_outcome == CandidateOutcome.Outcome.PASS
+
+
+def test_finalising_is_the_services_alone_and_needs_authority() -> None:
     built, _generated = locked_completed_candidate()
     outcome = propose_for_candidate(
         built,
         CandidateOutcome.Outcome.PASS,
         "",
-        user("status-spoof-creator@example.com"),
+        user("finalise-guard-proposer@example.com"),
     )
-    outcome.status = CandidateOutcome.Status.FINALISED
-    outcome.proposed_outcome = CandidateOutcome.Outcome.PASS
-    outcome.proposed_by = user("status-spoof-proposer@example.com")
-    outcome.proposed_at = timezone.now()
-    outcome.final_outcome = CandidateOutcome.Outcome.PASS
-    outcome.decided_by = master("status-spoof-master@example.com")
-    outcome.decided_at = timezone.now()
 
-    with pytest.raises(ValidationError) as exc_info:
-        outcome.save()
+    with pytest.raises(ValidationError):
+        finalise_candidate_outcome(
+            outcome,
+            CandidateOutcome.Outcome.PASS,
+            "Not allowed.",
+            "",
+            user("finalise-guard-ordinary@example.com"),
+        )
 
-    assert "workflow services" in str(exc_info.value)
+    outcome.refresh_from_db()
+    assert outcome.status == CandidateOutcome.Status.PROPOSED
+    assert outcome.final_outcome is None
 
 
 def test_candidate_assessment_summary_uses_snapshot_categories_and_counts() -> None:

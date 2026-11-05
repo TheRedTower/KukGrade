@@ -45,7 +45,6 @@ from gradings.testing import (
     student,
     user,
 )
-from kukgrade.testing import results
 from ranks.models import Rank
 from students.models import Student
 
@@ -501,9 +500,8 @@ def test_promotion_api_workflow_filters_and_rank_history() -> None:
     arbitrary_post = client.post("/api/gradings/promotions/", {}, format="json")
 
     promotion_id = promote_response.json()["id"]
-    list_response = client.get(
-        f"/api/gradings/promotions/?session={built.session_id}",
-    )
+    # A session's promotions are read through its roster, never as a list of their own.
+    listing = client.get("/api/gradings/promotions/")
     rank_history_response = client.get(
         f"/api/students/{built.student_id}/rank-history/",
     )
@@ -525,8 +523,8 @@ def test_promotion_api_workflow_filters_and_rank_history() -> None:
     built.student.refresh_from_db()
     assert built.student.current_rank.code == "YELLOW_STRIPE"
     assert duplicate.status_code == 400
-    assert arbitrary_post.status_code == 405
-    assert [item["id"] for item in results(list_response)] == [promotion_id]
+    assert arbitrary_post.status_code == 404
+    assert listing.status_code == 404
     assert rank_history_response.status_code == 200
     assert [item["id"] for item in rank_history_response.json()["promotions"]] == [
         promotion_id,

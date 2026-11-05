@@ -37,7 +37,6 @@ from gradings.testing import (
     start_assessment,
     user,
 )
-from kukgrade.testing import results
 from syllabus.models import SyllabusItem, SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
@@ -648,7 +647,7 @@ def test_session_completion_requires_finalised_outcomes_for_active_candidates() 
     assert not hasattr(withdrawn, "outcome")
 
 
-def test_candidate_outcome_api_workflow_and_filters() -> None:
+def test_candidate_outcome_api_workflow() -> None:
     built, _generated = locked_completed_candidate()
     actor = user("outcome-api-actor@example.com")
     master_user = master("outcome-api-master@example.com")
@@ -702,13 +701,8 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
         },
         format="json",
     )
-    list_response = client.get(
-        f"/api/gradings/outcomes/?session={built.session_id}",
-    )
-    by_candidate = client.get(f"/api/gradings/outcomes/?candidate={built.id}")
-    by_other_candidate = client.get(
-        f"/api/gradings/outcomes/?candidate={built.id + 1000}"
-    )
+    # The outcome is read through the session's roster, never as a list of its own.
+    listing = client.get("/api/gradings/outcomes/")
     delete_response = client.delete(f"/api/gradings/outcomes/{outcome_id}/")
     finalised_patch = client.patch(
         f"/api/gradings/outcomes/{outcome_id}/",
@@ -718,7 +712,7 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
 
     # No detail route: an outcome is written only through propose/finalise.
     assert unauthenticated.status_code == 403
-    assert arbitrary_post.status_code == 405
+    assert arbitrary_post.status_code == 404
     assert direct_patch.status_code == 404
     assert propose_response.status_code == 200
     assert propose_response.json()["candidate"] == built.id
@@ -730,9 +724,7 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
     assert finalise_response.status_code == 200
     assert finalise_response.json()["decided_by_name"] == master_user.get_full_name()
     assert finalise_response.json()["final_outcome"] == CandidateOutcome.Outcome.PASS
-    assert [item["id"] for item in results(list_response)] == [outcome_id]
-    assert [item["id"] for item in results(by_candidate)] == [outcome_id]
-    assert results(by_other_candidate) == []
+    assert listing.status_code == 404
     assert delete_response.status_code == 404
     assert finalised_patch.status_code == 404
 

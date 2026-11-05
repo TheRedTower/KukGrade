@@ -257,9 +257,6 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/outcomes/")) {
-        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
-      }
       return jsonResponse(404, {});
     });
   }

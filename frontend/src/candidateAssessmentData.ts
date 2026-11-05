@@ -247,8 +247,6 @@ export function forgetDeletedAssessment(
     keys.candidateAssessments.all(),
     keys.gradingCandidates.all(),
     keys.gradingSessions.all(),
-    keys.candidateOutcomes.all(),
-    keys.promotions.all(),
     keys.students.all(),
   ]) {
     void queryClient.invalidateQueries({ queryKey });

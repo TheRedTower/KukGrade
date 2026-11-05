@@ -1807,45 +1807,6 @@ paths:
       responses:
         '204':
           description: No response body
-  /api/gradings/outcomes/:
-    get:
-      operationId: gradings_outcomes_list
-      parameters:
-      - name: candidate
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: integer
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      - name: session
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: integer
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedCandidateOutcomeList'
-          description: ''
   /api/gradings/outcomes/{id}/finalise/:
     patch:
       operationId: gradings_outcomes_finalise_partial_update
@@ -2031,39 +1992,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StagedDecision'
-          description: ''
-  /api/gradings/promotions/:
-    get:
-      operationId: gradings_promotions_list
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      - name: session
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: integer
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedPromotionList'
           description: ''
   /api/gradings/sessions/:
     get:
@@ -4239,6 +4167,13 @@ components:
           - $ref: '#/components/schemas/CandidateOutcome'
           readOnly: true
           nullable: true
+        promotion:
+          allOf:
+          - $ref: '#/components/schemas/Promotion'
+          nullable: true
+          readOnly: true
+          description: The promotion recorded for this candidate, when they have one
+            and the viewer may see promotions; otherwise null.
         next_action:
           allOf:
           - $ref: '#/components/schemas/NextActionEnum'
@@ -4260,6 +4195,7 @@ components:
       - id
       - next_action
       - outcome
+      - promotion
       - session
       - status
       - student
@@ -5421,29 +5357,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CandidateAssessment'
-    PaginatedCandidateOutcomeList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/CandidateOutcome'
     PaginatedEffectiveSyllabusRequirementList:
       type: object
       required:
@@ -5605,29 +5518,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LegacyPerson'
-    PaginatedPromotionList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Promotion'
     PaginatedRankList:
       type: object
       required:

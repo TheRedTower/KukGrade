@@ -6,13 +6,14 @@ import pytest
 from pytest_django.fixtures import DjangoAssertNumQueries
 from rest_framework.test import APIClient
 
+from accounts.testing import grant_permission
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
 )
-from gradings.outcome_services import propose_for_candidate
+from gradings.outcome_services import promote_candidate, propose_for_candidate
 from gradings.read_models import CandidateNextAction, candidate_next_action
 from gradings.services import transition_grading_session
 from gradings.testing import (
@@ -24,6 +25,7 @@ from gradings.testing import (
     grading_session,
     locked_completed_candidate,
     master,
+    promoter,
     start_assessment,
     user,
 )
@@ -258,3 +260,63 @@ def test_the_roster_query_count_holds_with_proposals_on_every_row(
         response = client.get(url)
 
     assert len(results(response)) == 5
+
+
+def test_the_roster_carries_the_promotion_only_to_those_who_may_see_promotions() -> (
+    None
+):
+    built, _generated = locked_completed_candidate()
+    promoted_by = promoter("roster-promoter@example.com")
+    promote_candidate(finalised_outcome(built), promoted_by)
+    url = f"/api/gradings/candidates/?session={built.session_id}"
+    seen_by_promoter = APIClient()
+    seen_by_promoter.force_authenticate(user=promoted_by)
+    seen_by_instructor = APIClient()
+    # Can see candidates, but not promotions.
+    limited = user("roster-no-promotions@example.com")
+    limited.groups.clear()
+    seen_by_instructor.force_authenticate(
+        user=grant_permission(limited, "gradings.view_gradingcandidate"),
+    )
+
+    [with_access] = results(seen_by_promoter.get(url))
+    [without_access] = results(seen_by_instructor.get(url))
+
+    assert with_access["promotion"]["grading_candidate"] == built.pk
+    assert with_access["promotion"]["to_rank_name"]
+    assert without_access["promotion"] is None
+
+
+def test_a_candidate_not_yet_promoted_has_a_null_promotion() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built)
+    client = APIClient()
+    client.force_authenticate(user=promoter("roster-promoter-2@example.com"))
+
+    [row] = results(client.get(f"/api/gradings/candidates/?session={built.session_id}"))
+
+    assert row["promotion"] is None
+
+
+def test_the_roster_with_promotions_costs_the_same_queries_however_many_candidates(
+    django_assert_max_num_queries: DjangoAssertNumQueries,
+) -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    outcomes = []
+    for _ in range(4):
+        built = candidate(session=session)
+        complete_assessment(assessment(candidate=built))
+        outcomes.append(built)
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    actor = promoter("roster-promoter-3@example.com")
+    for built in outcomes:
+        promote_candidate(finalised_outcome(built), actor)
+    client = APIClient()
+    client.force_authenticate(user=actor)
+    url = f"/api/gradings/candidates/?session={session.pk}"
+    client.get(url)
+
+    with django_assert_max_num_queries(14):
+        response = client.get(url)
+
+    assert all(row["promotion"] for row in results(response))

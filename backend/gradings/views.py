@@ -52,7 +52,6 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
-    Promotion,
 )
 from gradings.outcome_services import (
     bulk_promote_candidates,
@@ -280,6 +279,8 @@ class GradingCandidateViewSet(
             "outcome__assessment",
             "outcome__proposed_by",
             "outcome__decided_by",
+            "promotion__student",
+            "promotion__to_rank",
         )
         if self.action in {"list", "retrieve"}:
             candidates = candidates.prefetch_related(
@@ -614,15 +615,11 @@ class CandidateAssessmentItemViewSet(
         )
 
 
-class CandidateOutcomeViewSet(
-    mixins.ListModelMixin,
-    GenericViewSet,
-):
+class CandidateOutcomeViewSet(GenericViewSet):
     serializer_class = CandidateOutcomeSerializer
     permission_classes = [HasRequiredPermissions]
     http_method_names = ["get", "patch", "post", "put", "delete", "head", "options"]
     permission_map = {
-        "list": ("gradings.view_candidateoutcome",),
         "staged_decision": ("gradings.view_candidateoutcome",),
         "staged_decisions": ("gradings.view_candidateoutcome",),
         # The sensitive half of these two is enforced by the dedicated
@@ -633,19 +630,10 @@ class CandidateOutcomeViewSet(
         "promotion_eligibility": ("gradings.view_candidateoutcome",),
     }
 
-    query_filters = (
-        by_id("session", "candidate__session_id"),
-        by_id("candidate", "candidate_id"),
-    )
-
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
         return CandidateOutcome.objects.select_related(
             "proposed_by",
             "decided_by",
-        ).order_by(
-            "candidate__session__grading_date",
-            "candidate__student__last_name",
-            "candidate__student__first_name",
         )
 
     @extend_schema(
@@ -807,22 +795,6 @@ class CandidateOutcomeViewSet(
             context={"request": request},
         )
         return Response(result.data)
-
-
-class PromotionViewSet(mixins.ListModelMixin, GenericViewSet):
-    serializer_class = PromotionSerializer
-    permission_classes = [HasRequiredPermissions]
-    permission_map = {
-        "list": ("gradings.view_promotion",),
-    }
-
-    query_filters = (by_id("session", "grading_candidate__session_id"),)
-
-    def get_queryset(self) -> QuerySet[Promotion]:
-        return Promotion.objects.select_related(
-            "student",
-            "to_rank",
-        ).order_by("-effective_date", "-promoted_at", "-pk")
 
 
 def _needs_rank(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:

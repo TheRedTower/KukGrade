@@ -228,6 +228,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     withdrawal_note: "",
     assessment: null,
     outcome: null,
+    promotion: null,
     next_action: "PREPARE_ASSESSMENT",
     can_be_finalised: false,
     ...overrides,

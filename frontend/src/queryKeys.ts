@@ -31,15 +31,7 @@ export const keys = {
   },
   candidateAssessmentSummary: (assessmentId: Id) => ["candidateAssessmentSummary", assessmentId] as const,
   candidateAssessmentItems: (assessmentId: Id) => ["candidateAssessmentItems", assessmentId] as const,
-  candidateOutcomes: {
-    all: () => ["candidateOutcomes"] as const,
-    session: (sessionId: Id) => ["candidateOutcomes", sessionId] as const,
-  },
   stagedDecisions: (sessionId: Id) => ["stagedDecisions", sessionId] as const,
-  promotions: {
-    all: () => ["promotions"] as const,
-    session: (sessionId: Id) => ["promotions", sessionId] as const,
-  },
   promotionEligibility: (sessionId: Id) => ["promotionEligibility", sessionId] as const,
   withdrawalReasons: () => ["withdrawalReasons"] as const,
   students: {
@@ -66,11 +58,9 @@ export const refresh = {
   /** A candidate registered, withdrawn, moved, assessed or decided in a session. */
   sessionWork(queryClient: QueryClient, sessionId: Id) {
     void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.session(sessionId) });
-    void queryClient.invalidateQueries({ queryKey: keys.candidateOutcomes.session(sessionId) });
   },
   /** A student promoted: their rank, the session's ledger, and the audit log. */
   afterPromotion(queryClient: QueryClient, sessionId: Id) {
-    void queryClient.invalidateQueries({ queryKey: keys.promotions.session(sessionId) });
     void queryClient.invalidateQueries({ queryKey: keys.promotionEligibility(sessionId) });
     void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.session(sessionId) });
     void queryClient.invalidateQueries({ queryKey: keys.students.all() });

@@ -62,10 +62,13 @@ transaction. Views and serializers call the services, so a change is validated a
 audited the same way every time. The Django admin does not write grading or student
 data at all: it shows it, and recovers accounts.
 
-**Models refuse the worst mistakes themselves.** Session status transitions, deletion
-rules, and the immutability of finalised outcomes, promotions, audit events and
-imported source text are enforced in the models and their querysets, so they hold from
-a shell or a bulk query, not only through the API.
+**Models refuse the worst mistakes themselves.** Deletion rules, and the immutability of
+finalised outcomes, promotions, audit events and imported source text, are enforced in the
+models and their querysets, so they hold from a shell or a bulk query, not only through
+the API. Workflow rules are different: what a grading session may become (it starts in
+draft and moves only through `transition_grading_session`) and when its date may change are
+enforced by the services, under the session's lock, in one place. The database still
+refuses an invalid status.
 
 **Permissions fail closed.** Every API viewset declares a `permission_map` per action;
 an action that is not declared is denied. Django permissions are the authority; the

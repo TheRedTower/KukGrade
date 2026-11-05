@@ -511,7 +511,6 @@ def withdraw_locked_candidate(
     locked_candidate.withdrawal_note = (note or "").strip()
     locked_candidate.withdrawn_by = actor
     locked_candidate.withdrawn_at = timezone.now()
-    locked_candidate._allow_locked_withdrawal = True
     locked_candidate.save()
     record(
         AuditAction.CANDIDATE_WITHDRAWN,
@@ -581,19 +580,28 @@ def unsettled_registrations() -> QuerySet[GradingCandidate]:
 
 
 def validate_not_already_in_session(candidate: GradingCandidate) -> None:
-    """A student has one registration per session, whatever its status.
+    """A student has one registration per session, whatever its status."""
+    _validate_not_in_session(
+        candidate.session_id,
+        candidate.student_id,
+        exclude_pk=candidate.pk,
+    )
 
-    The unique constraint holds this too, but its own message ("Grading
+
+def _validate_not_in_session(
+    session_id: int,
+    student_id: int,
+    *,
+    exclude_pk: int,
+) -> None:
+    """The unique constraint holds this too, but its own message ("Grading
     candidate with this Session and Student already exists.") names
     neither the student nor what to do; this gives the one message every
     path - and the cohort builder - recognises.
     """
     if (
-        GradingCandidate.objects.filter(
-            session_id=candidate.session_id,
-            student_id=candidate.student_id,
-        )
-        .exclude(pk=candidate.pk)
+        GradingCandidate.objects.filter(session_id=session_id, student_id=student_id)
+        .exclude(pk=exclude_pk)
         .exists()
     ):
         raise ValidationError(
@@ -695,8 +703,6 @@ def validate_session_can_be_deleted(
 
 
 def validate_candidate_can_be_changed(candidate: GradingCandidate) -> None:
-    if candidate._allow_locked_withdrawal:
-        return
     if candidate.session.status not in {
         GradingSession.Status.DRAFT,
         GradingSession.Status.OPEN,
@@ -718,8 +724,6 @@ def validate_candidate_assessment_changes(
     testing_for_rank_changed: bool = False,
     status: str | None = None,
 ) -> None:
-    if candidate._allow_locked_withdrawal:
-        return
     assessment = getattr(candidate, "assessment", None)
     if assessment is None:
         if status == GradingCandidate.Status.COMPLETED:
@@ -826,13 +830,16 @@ def build_candidate(
     validate_session_accepts_candidates(session)
     validate_student_can_be_graded(student)
     validate_testing_for_rank(student, testing_for_rank, session.grading_date)
-    return GradingCandidate(
+    built = GradingCandidate(
         session=session,
         student=student,
         testing_for_rank=testing_for_rank,
         age_band=resolve_age_band(student.date_of_birth, session.grading_date),
         notes=notes,
     )
+    validate_not_already_in_session(built)
+    validate_no_unsettled_registration(built)
+    return built
 
 
 WITHDRAWAL_REASON_REQUIRED_MESSAGE = "A reason is required to withdraw a candidate."
@@ -866,6 +873,11 @@ def update_candidate(
     )
     if session_changed:
         validate_session_accepts_candidates(new_session)
+        _validate_not_in_session(
+            new_session.pk,
+            candidate.student_id,
+            exclude_pk=candidate.pk,
+        )
 
     withdrawing = (
         status == GradingCandidate.Status.WITHDRAWN
@@ -876,9 +888,10 @@ def update_candidate(
         and status != GradingCandidate.Status.WITHDRAWN
         and candidate.status == GradingCandidate.Status.WITHDRAWN
     )
-    # Same rule as GradingCandidate.clean(): the rank is checked when it is
-    # chosen, so a registration whose student was promoted elsewhere can
-    # still be withdrawn.
+    if reinstating:
+        validate_no_unsettled_registration(candidate)
+    # The rank is checked when it is chosen, so a registration whose student
+    # was promoted elsewhere can still be withdrawn.
     if session_changed or rank_changed or reinstating:
         validate_testing_for_rank(
             candidate.student,

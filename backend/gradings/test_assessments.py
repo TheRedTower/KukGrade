@@ -33,7 +33,7 @@ from gradings.models import (
 from gradings.outcome_services import promote_candidate
 from gradings.read_models import candidate_assessment_summary
 from gradings.services import (
-    build_candidate,
+    register_candidate,
     transition_grading_session,
     validate_candidate_can_be_deleted,
     validate_session_transition,
@@ -661,19 +661,16 @@ def test_not_started_assessment_item_update_rejected_in_locked_session() -> None
     assert item.result == CandidateAssessmentItem.Result.NOT_ASSESSED
 
 
-def test_the_model_refuses_a_candidate_created_in_any_status_but_registered() -> None:
-    # Admin and the shell reach the model directly, not the serializer.
-    built = build_candidate(
+def test_a_candidate_is_always_registered_first() -> None:
+    # Withdrawal and completion each have their own path, which records why
+    # and by whom; registering has none, so a candidate always starts here.
+    registered = register_candidate(
         session=grading_session(),
         student=student(wksa_id="123-4-500"),
         testing_for_rank=rank("YELLOW_STRIPE"),
     )
-    built.status = GradingCandidate.Status.COMPLETED
 
-    with pytest.raises(ValidationError) as exc_info:
-        built.save()
-
-    assert "status" in exc_info.value.message_dict
+    assert registered.status == GradingCandidate.Status.REGISTERED
 
 
 def test_item_results_cannot_change_once_the_session_locks() -> None:

@@ -159,10 +159,6 @@ CANDIDATE_STUDENT_FIXED_MESSAGE = (
     "register the right student instead."
 )
 OTHER_WITHDRAWAL_NOTE_MESSAGE = "Say what the other reason is."
-CANDIDATE_REGISTERED_ON_CREATION_MESSAGE = (
-    "A candidate is registered first, then withdrawn afterwards with a "
-    "reason if they do not grade."
-)
 
 
 class GradingCandidate(models.Model):
@@ -175,9 +171,6 @@ class GradingCandidate(models.Model):
         assessment: CandidateAssessment
         outcome: CandidateOutcome
         promotion: Promotion
-
-    # Set only by withdraw_locked_candidate(), which checks authority first.
-    _allow_locked_withdrawal: bool = False
 
     class Status(models.TextChoices):
         REGISTERED = "REGISTERED", "Registered"
@@ -358,83 +351,18 @@ class GradingCandidate(models.Model):
                 self.student.date_of_birth,
                 self.session.grading_date,
             )
-        if self.session_id and self.student_id and self.testing_for_rank_id:
-            from gradings.services import (
-                validate_candidate_assessment_changes,
-                validate_candidate_can_be_changed,
-                validate_no_unsettled_registration,
-                validate_not_already_in_session,
-                validate_session_accepts_candidates,
-                validate_testing_for_rank,
+        # Who may be registered, when, and what may change afterwards is
+        # workflow: build_candidate, update_candidate and the withdrawal
+        # services enforce it under the session's lock. What stays here is
+        # what a registration is: it is always the same student's.
+        if not self._state.adding and self.student_id:
+            previous_student = (
+                GradingCandidate.objects.filter(pk=self.pk)
+                .values_list("student_id", flat=True)
+                .first()
             )
-
-            # The testing rank is checked against the student's current rank
-            # when it is chosen, not on every later save: once the student is
-            # promoted elsewhere, this registration must still be withdrawable
-            # and completable (it can no longer be promoted - see
-            # validate_promotion_eligibility). Moving it, changing its rank or
-            # reinstating it chooses again, so those are checked.
-            rank_is_chosen = True
-            registers_again = True
-            if self._state.adding:
-                # Withdrawal and completion each have their own path, which
-                # records why and by whom.
-                if self.status != GradingCandidate.Status.REGISTERED:
-                    raise ValidationError(
-                        {"status": [CANDIDATE_REGISTERED_ON_CREATION_MESSAGE]},
-                    )
-                validate_session_accepts_candidates(self.session)
-                validate_not_already_in_session(self)
-            else:
-                validate_candidate_can_be_changed(self)
-                previous = (
-                    GradingCandidate.objects.filter(pk=self.pk)
-                    .values(
-                        "session_id",
-                        "student_id",
-                        "testing_for_rank_id",
-                        "status",
-                    )
-                    .first()
-                )
-                if previous and previous["student_id"] != self.student_id:
-                    raise ValidationError(
-                        {"student": [CANDIDATE_STUDENT_FIXED_MESSAGE]},
-                    )
-                validate_candidate_assessment_changes(
-                    self,
-                    session_changed=bool(
-                        previous and previous["session_id"] != self.session_id
-                    ),
-                    testing_for_rank_changed=bool(
-                        previous
-                        and previous["testing_for_rank_id"] != self.testing_for_rank_id
-                    ),
-                    status=(
-                        self.status
-                        if previous and previous["status"] != self.status
-                        else None
-                    ),
-                )
-                registers_again = previous is not None and (
-                    previous["status"] == GradingCandidate.Status.WITHDRAWN
-                    and self.status != GradingCandidate.Status.WITHDRAWN
-                )
-                rank_is_chosen = previous is None or (
-                    previous["session_id"] != self.session_id
-                    or previous["testing_for_rank_id"] != self.testing_for_rank_id
-                    or registers_again
-                )
-                if previous and previous["session_id"] != self.session_id:
-                    validate_not_already_in_session(self)
-            if registers_again:
-                validate_no_unsettled_registration(self)
-            if rank_is_chosen:
-                validate_testing_for_rank(
-                    self.student,
-                    self.testing_for_rank,
-                    self.session.grading_date,
-                )
+            if previous_student is not None and previous_student != self.student_id:
+                raise ValidationError({"student": [CANDIDATE_STUDENT_FIXED_MESSAGE]})
 
 
 class CandidateAssessment(models.Model):

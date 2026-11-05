@@ -303,13 +303,13 @@ def test_candidate_update_rejected_for_locked_or_terminal_session(
 ) -> None:
     built = candidate()
     GradingSession.objects.filter(pk=built.session_id).update(status=session_status)
-    built.session.refresh_from_db()
-    built.notes = "Changed after close"
 
     with pytest.raises(ValidationError) as exc_info:
-        built.save()
+        apply_candidate_update(built, notes="Changed after close")
 
     assert "session" in exc_info.value.message_dict
+    built.refresh_from_db()
+    assert built.notes == ""
 
 
 def test_candidate_api_requires_authentication() -> None:

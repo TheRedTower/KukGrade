@@ -393,6 +393,13 @@ def main() -> int:
             commands.append(["manage.py", "seed_demo"])
         for command in commands:
             run([sys.executable, *command], env=env)
+        # Abandoned uploads hold personal data and must not wait for a
+        # scheduler. A failed sweep is reported, never a reason not to start.
+        run(
+            [sys.executable, "manage.py", "expire_stale_import_batches"],
+            env=env,
+            check=False,
+        )
         app = spawn(
             [
                 "gunicorn",

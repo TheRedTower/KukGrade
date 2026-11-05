@@ -705,11 +705,15 @@ def test_rolling_back_an_enclosing_transaction_keeps_the_file(
     assert stored(batch.source_file.name)
 
 
+def age(batch: ImportBatch, hours: int = 25) -> None:
+    ImportBatch.objects.filter(pk=batch.pk).update(
+        uploaded_at=timezone.now() - timedelta(hours=hours),
+    )
+
+
 def stale_batch(admin: User) -> ImportBatch:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
-    ImportBatch.objects.filter(pk=batch.pk).update(
-        uploaded_at=timezone.now() - timedelta(hours=25),
-    )
+    age(batch)
     return batch
 
 
@@ -717,8 +721,9 @@ def test_expiring_a_stale_batch_deletes_its_file_and_audits_it_as_expired(
     django_capture_on_commit_callbacks: Any,
 ) -> None:
     admin = admin_user()
-    stale = stale_batch(admin)
+    # The fresh one first: any later upload would itself clear the stale one.
     fresh = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    stale = stale_batch(admin)
     name = stale.source_file.name
 
     with django_capture_on_commit_callbacks(execute=True):
@@ -782,7 +787,11 @@ def test_an_expiry_whose_audit_fails_leaves_the_batch_open(
 
 def test_expiry_carries_on_past_a_failing_batch_and_a_rerun_finishes() -> None:
     admin = admin_user()
-    first, second = stale_batch(admin), stale_batch(admin)
+    # Both uploaded before either is aged, since an upload clears stale ones.
+    first = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    second = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    age(first)
+    age(second)
     real = expire_import_batch
 
     def fail_first(batch_id: int, **kwargs: Any) -> bool:
@@ -790,9 +799,8 @@ def test_expiry_carries_on_past_a_failing_batch_and_a_rerun_finishes() -> None:
             raise DatabaseError("lock timeout")
         return real(batch_id, **kwargs)
 
-    command = "data_imports.management.commands.expire_stale_import_batches"
     with (
-        patch(f"{command}.expire_import_batch", side_effect=fail_first),
+        patch("data_imports.services.expire_import_batch", side_effect=fail_first),
         pytest.raises(CommandError, match="1 batch"),
     ):
         call_command(
@@ -807,6 +815,52 @@ def test_expiry_carries_on_past_a_failing_batch_and_a_rerun_finishes() -> None:
     call_command("expire_stale_import_batches", stdout=StringIO())
     first.refresh_from_db()
     assert first.status == ImportBatch.Status.EXPIRED
+
+
+def test_an_upload_clears_the_stale_batches_without_a_scheduler(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    admin = admin_user()
+    stale = stale_batch(admin)
+    name = stale.source_file.name
+
+    with django_capture_on_commit_callbacks(execute=True):
+        fresh = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    stale.refresh_from_db()
+    assert stale.status == ImportBatch.Status.EXPIRED
+    assert not stale.source_file
+    assert not stored(name)
+    assert fresh.status == ImportBatch.Status.UPLOADED
+    assert [
+        event.action for event in AuditEvent.objects.filter(entity_id=str(stale.pk))
+    ] == [AuditAction.IMPORT_BATCH_EXPIRED]
+
+
+def test_an_upload_leaves_a_batch_that_is_not_yet_a_day_old() -> None:
+    admin = admin_user()
+    recent = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    age(recent, hours=23)
+
+    upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    recent.refresh_from_db()
+    assert recent.status == ImportBatch.Status.UPLOADED
+
+
+def test_an_upload_still_succeeds_when_clearing_the_stale_ones_fails() -> None:
+    admin = admin_user()
+    stale = stale_batch(admin)
+
+    with patch(
+        "data_imports.services.expire_stale_import_batches",
+        side_effect=DatabaseError("lock timeout"),
+    ):
+        fresh = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    stale.refresh_from_db()
+    assert fresh.status == ImportBatch.Status.UPLOADED
+    assert stale.status == ImportBatch.Status.UPLOADED
 
 
 def test_orphan_sweep_removes_only_old_files_no_batch_names() -> None:

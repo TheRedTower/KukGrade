@@ -98,8 +98,62 @@ class CreateImportBatchResult:
     suggested_mapping: dict[str, str]
 
 
-@transaction.atomic
+STALE_BATCH_AGE = timedelta(hours=24)
+
+
+def expire_stale_import_batches(
+    max_age: timedelta = STALE_BATCH_AGE,
+) -> tuple[int, list[int]]:
+    """Expire every batch left uploaded for longer than `max_age`.
+
+    Returns how many expired and which could not. Only a selection: each batch
+    is rechecked under its lock, in its own transaction, so one failure neither
+    rolls back nor stops the others.
+    """
+    candidates = ImportBatch.objects.filter(
+        status=ImportBatch.Status.UPLOADED,
+        uploaded_at__lt=timezone.now() - max_age,
+    ).values_list("pk", flat=True)
+    expired = 0
+    failed: list[int] = []
+    for batch_id in candidates.order_by("pk"):
+        try:
+            if expire_import_batch(batch_id, max_age=max_age):
+                expired += 1
+        except Exception:
+            logger.exception("Import batch #%s could not be expired.", batch_id)
+            failed.append(batch_id)
+    return expired, failed
+
+
 def create_import_batch(
+    *,
+    kind: str,
+    upload: UploadedFile,
+    uploaded_by: User,
+    sheet: str | None = None,
+) -> CreateImportBatchResult:
+    """Store a new upload, after clearing the abandoned ones.
+
+    Abandoned uploads hold personal data, so they do not wait for a scheduler:
+    every upload expires the stale ones first (one cheap query when there are
+    none), and the container does the full sweep each time it starts. A failure
+    clearing them never stops the upload.
+    """
+    try:
+        expire_stale_import_batches()
+    except Exception:
+        logger.exception("Stale import batches could not be cleared.")
+    return _create_import_batch(
+        kind=kind,
+        upload=upload,
+        uploaded_by=uploaded_by,
+        sheet=sheet,
+    )
+
+
+@transaction.atomic
+def _create_import_batch(
     *,
     kind: str,
     upload: UploadedFile,

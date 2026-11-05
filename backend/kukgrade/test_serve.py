@@ -213,3 +213,31 @@ def test_a_finished_process_nobody_owns_is_collected_and_the_known_ones_are_not(
     finally:
         known.kill()
         known.wait()
+
+
+def test_start_up_sweeps_abandoned_uploads_after_migrating_and_never_stops_for_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    ran: list[tuple[list[str], bool]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> None:
+        ran.append((command[1:], bool(kwargs.get("check", True))))
+
+    monkeypatch.delenv("KUKGRADE_DEMO_MODE", raising=False)
+    monkeypatch.setattr(serve, "embedded", lambda: False)
+    monkeypatch.setattr(serve, "prepare_folders", lambda *_, **__: None)
+    monkeypatch.setattr(serve, "child_env", lambda _: {})
+    monkeypatch.setattr(serve, "run", fake_run)
+    monkeypatch.setattr(serve, "spawn", lambda *_, **__: FakeProcess())
+    monkeypatch.setattr(serve, "supervise", lambda *_, **__: 0)
+    monkeypatch.setattr(signal, "signal", lambda *_: None)
+
+    assert serve.main() == 0
+
+    assert [command for command, _ in ran] == [
+        ["manage.py", "migrate", "--noinput"],
+        ["manage.py", "issue_setup_code"],
+        ["manage.py", "expire_stale_import_batches"],
+    ]
+    # Migrating must succeed to start; the sweep must not decide whether to.
+    assert [check for _, check in ran] == [True, True, False]

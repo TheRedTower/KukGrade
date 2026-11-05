@@ -1,8 +1,10 @@
 """Expire abandoned import batches, remove source files nothing names, and
 delete the stored rows of imports finished long enough ago.
 
-No background worker exists in this codebase - run manually or from an
-external cron, e.g. `uv run python manage.py expire_stale_import_batches --hours 24`.
+No background worker exists in this codebase. The container runs this each time
+it starts and every upload clears the stale batches itself, so a scheduler is
+optional; run it by hand or from cron for a stricter limit, e.g.
+`uv run python manage.py expire_stale_import_batches --hours 24`.
 """
 
 from __future__ import annotations
@@ -12,11 +14,9 @@ from datetime import timedelta
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone
 
-from data_imports.models import ImportBatch
 from data_imports.services import (
-    expire_import_batch,
+    expire_stale_import_batches,
     prune_finished_import_rows,
     remove_orphaned_uploads,
 )
@@ -42,22 +42,9 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         max_age = timedelta(hours=options["hours"])
-        # Only a selection: each batch is rechecked under its lock, in its
-        # own transaction, so one failure neither rolls back nor stops the
-        # others.
-        candidates = ImportBatch.objects.filter(
-            status=ImportBatch.Status.UPLOADED,
-            uploaded_at__lt=timezone.now() - max_age,
-        ).values_list("pk", flat=True)
-        expired = 0
-        failed: list[int] = []
-        for batch_id in candidates.order_by("pk"):
-            try:
-                if expire_import_batch(batch_id, max_age=max_age):
-                    expired += 1
-            except Exception as exc:
-                failed.append(batch_id)
-                self.stderr.write(f"Import batch #{batch_id} not expired: {exc!r}")
+        expired, failed = expire_stale_import_batches(max_age)
+        for batch_id in failed:
+            self.stderr.write(f"Import batch #{batch_id} not expired.")
         removed = remove_orphaned_uploads(max_age=max_age)
         pruned = prune_finished_import_rows()
         self.stdout.write(

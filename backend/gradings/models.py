@@ -34,14 +34,6 @@ class GradingSession(models.Model):
         created_by_id: int
         candidates: models.Manager[GradingCandidate]
 
-    # Set only by GradingSessionAdminForm.clean(), after it has already
-    # validated the transition itself. Without this, ModelForm._post_clean()
-    # calls full_clean() with the new status already on the instance, which
-    # this same guard then rejects before save_model() - the service call
-    # that actually performs the transition - is ever reached, so the admin
-    # status dropdown could not be used at all, for any transition.
-    _allow_status_transition: bool = False
-
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         OPEN = "OPEN", "Open"
@@ -149,7 +141,7 @@ class GradingSession(models.Model):
                 .values_list("status", flat=True)
                 .first()
             )
-            if previous_status != self.status and not self._allow_status_transition:
+            if previous_status != self.status:
                 raise ValidationError(
                     {
                         "status": [

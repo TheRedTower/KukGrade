@@ -240,11 +240,9 @@ def _check_registrations_still_in_session(
         )
 
 
-def check_rank_change(student_id: int) -> None:
+def _check_rank_change(student_id: int) -> None:
     """Refuse a rank change while the student has a grading still to reach its
     result: the rank they test for depends on the rank they hold.
-
-    Read-only, so a form can show the refusal before `update_student` runs.
     """
     if _unsettled_sessions(student_id):
         raise ValidationError(
@@ -291,14 +289,6 @@ def _registrations_to_reband(student: Student) -> list[tuple[Any, str]]:
             )
         moves.append((registration, band))
     return moves
-
-
-def check_date_of_birth_correction(student: Student, date_of_birth: date) -> None:
-    """Refuse a date of birth that would strand a prepared assessment form.
-
-    Read-only, so a form can show the refusal before `update_student` runs.
-    """
-    _registrations_to_reband(Student(pk=student.pk, date_of_birth=date_of_birth))
 
 
 def _reband_registrations(student: Student) -> list[dict[str, object]]:
@@ -349,7 +339,7 @@ def update_student(
         )
     if current_rank is not None and current_rank.pk != locked.current_rank_id:
         _check_registrations_still_in_session(locked.pk, registered_in, "current_rank")
-        check_rank_change(locked.pk)
+        _check_rank_change(locked.pk)
 
     # A student ID becoming the black belt ID, or a mistyped ID corrected;
     # Student.clean() refuses anything else (students/wksa_ids.py).

@@ -3,27 +3,16 @@
 from __future__ import annotations
 
 from datetime import date
-from types import SimpleNamespace
-from typing import Any, cast
 
 import pytest
-from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.forms import ModelForm
-from django.http import HttpRequest
-from django.test import RequestFactory
 from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
 
 from accounts.permissions import DELETE_ANY_SESSION_PERMISSION
 from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
-from gradings.admin import (
-    CandidateAssessmentAdmin,
-    GradingSessionAdmin,
-    GradingSessionAdminForm,
-)
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
@@ -37,10 +26,10 @@ from gradings.outcome_services import (
 from gradings.services import (
     apply_candidate_update,
     transition_grading_session,
+    update_grading_session,
     validate_session_transition,
 )
 from gradings.testing import (
-    admin_request,
     assessment,
     auth_client,
     candidate,
@@ -609,190 +598,6 @@ def test_withdrawn_candidates_do_not_block_session_locking() -> None:
     assert withdrawn_snapshot.status == CandidateAssessment.Status.NOT_STARTED
 
 
-def test_admin_session_form_reports_transition_prerequisite_errors() -> None:
-    session = grading_session(status=GradingSession.Status.OPEN)
-    candidate(session=session)
-    form = GradingSessionAdminForm(
-        data={
-            "title": session.title,
-            "grading_date": session.grading_date,
-            "status": GradingSession.Status.LOCKED,
-            "location": session.location,
-            "notes": session.notes,
-            "created_by": session.created_by_id,
-        },
-        instance=session,
-    )
-
-    assert form.is_valid() is False
-    assert "status" in form.errors
-
-
-def test_admin_session_form_reports_not_started_assessment_lock_error() -> None:
-    session = grading_session(status=GradingSession.Status.OPEN)
-    assessment(candidate=candidate(session=session))
-    form = GradingSessionAdminForm(
-        data={
-            "title": session.title,
-            "grading_date": session.grading_date,
-            "status": GradingSession.Status.LOCKED,
-            "location": session.location,
-            "notes": session.notes,
-            "created_by": session.created_by_id,
-        },
-        instance=session,
-    )
-
-    assert form.is_valid() is False
-    assert "status" in form.errors
-    assert "must be completed" in str(form.errors["status"])
-
-
-def test_admin_session_form_rejects_non_draft_initial_status() -> None:
-    form = GradingSessionAdminForm(
-        data={
-            "title": "Locked on create",
-            "grading_date": date(2027, 3, 20),
-            "status": GradingSession.Status.LOCKED,
-            "location": "",
-            "notes": "",
-            "created_by": user("admin-non-draft-create@example.com").id,
-        },
-    )
-
-    assert form.is_valid() is False
-    assert "status" in form.errors
-
-
-def test_admin_created_session_is_persisted_and_audited() -> None:
-    # Previously this went straight through ModelAdmin's default save,
-    # bypassing create_grading_session() and its audit call entirely.
-    creator = user("admin-session-creator@example.com")
-    obj = GradingSession(
-        title="Admin-created session",
-        grading_date=date(2027, 11, 1),
-        created_by=creator,
-    )
-    model_admin = GradingSessionAdmin(GradingSession, admin.site)
-    request = admin_request("admin-session-operator@example.com")
-
-    model_admin.save_model(
-        request, obj, cast("ModelForm[Any]", SimpleNamespace(changed_data=[])), False
-    )
-
-    assert obj.pk is not None
-    persisted = GradingSession.objects.get(pk=obj.pk)
-    assert persisted.title == "Admin-created session"
-    assert persisted.status == GradingSession.Status.DRAFT
-    event = AuditEvent.objects.filter(
-        action=AuditAction.SESSION_CREATED,
-        entity_id=str(obj.pk),
-    ).latest("occurred_at")
-    assert event.actor == creator
-
-
-def test_admin_session_save_uses_transition_service_for_status_changes() -> None:
-    session = grading_session(status=GradingSession.Status.OPEN)
-    candidate(session=session)
-    model_admin = GradingSessionAdmin(GradingSession, admin.site)
-    session.status = GradingSession.Status.LOCKED
-    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status"]))
-
-    with pytest.raises(ValidationError):
-        model_admin.save_model(
-            admin_request("session-admin-lock@example.com"),
-            session,
-            form,
-            True,
-        )
-
-    session.refresh_from_db()
-    assert session.status == GradingSession.Status.OPEN
-
-
-def test_admin_session_save_handles_valid_status_and_field_change_atomically() -> None:
-    session = grading_session(status=GradingSession.Status.OPEN)
-    complete_assessment(assessment(candidate=candidate(session=session)))
-    model_admin = GradingSessionAdmin(GradingSession, admin.site)
-    session.status = GradingSession.Status.LOCKED
-    session.location = "Main hall"
-    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status", "location"]))
-
-    model_admin.save_model(
-        admin_request("session-admin-valid-mixed@example.com"),
-        session,
-        form,
-        True,
-    )
-
-    session.refresh_from_db()
-    assert session.status == GradingSession.Status.LOCKED
-    assert session.location == "Main hall"
-
-
-def test_admin_session_save_rolls_back_field_change_when_transition_fails() -> None:
-    session = grading_session(status=GradingSession.Status.OPEN, location="Old hall")
-    candidate(session=session)
-    model_admin = GradingSessionAdmin(GradingSession, admin.site)
-    session.status = GradingSession.Status.LOCKED
-    session.location = "Should roll back"
-    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status", "location"]))
-
-    with pytest.raises(ValidationError):
-        model_admin.save_model(
-            admin_request("session-admin-invalid-mixed@example.com"),
-            session,
-            form,
-            True,
-        )
-
-    session.refresh_from_db()
-    assert session.status == GradingSession.Status.OPEN
-    assert session.location == "Old hall"
-
-
-def test_admin_session_save_rolls_back_field_change_when_assessment_not_started() -> (
-    None
-):
-    session = grading_session(status=GradingSession.Status.OPEN, location="Old hall")
-    assessment(candidate=candidate(session=session))
-    model_admin = GradingSessionAdmin(GradingSession, admin.site)
-    session.status = GradingSession.Status.LOCKED
-    session.location = "Should roll back"
-    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status", "location"]))
-
-    with pytest.raises(ValidationError) as exc_info:
-        model_admin.save_model(
-            admin_request("session-admin-not-started-mixed@example.com"),
-            session,
-            form,
-            True,
-        )
-
-    assert "must be completed" in str(exc_info.value)
-    session.refresh_from_db()
-    assert session.status == GradingSession.Status.OPEN
-    assert session.location == "Old hall"
-
-
-def test_admin_assessment_status_change_is_attributed_to_the_admin_user() -> None:
-    session = grading_session(status=GradingSession.Status.OPEN)
-    generated = assessment(candidate=candidate(session=session))
-    model_admin = CandidateAssessmentAdmin(CandidateAssessment, admin.site)
-    generated.status = CandidateAssessment.Status.IN_PROGRESS
-    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status"]))
-    admin_user = user("assessment-admin-actor@example.com")
-    request = cast(HttpRequest, RequestFactory().post("/admin/"))
-    request.user = admin_user
-
-    model_admin.save_model(request, generated, form, True)
-
-    event = AuditEvent.objects.filter(
-        action=AuditAction.ASSESSMENT_STARTED,
-    ).latest("occurred_at")
-    assert event.actor == admin_user
-
-
 def test_editing_a_sessions_details_is_audited_and_a_resend_is_not() -> None:
     session = grading_session(title="Spring grading", location="Hall A")
     client = auth_client("session-detail-editor@example.com")
@@ -812,25 +617,6 @@ def test_editing_a_sessions_details_is_audited_and_a_resend_is_not() -> None:
     }
     assert event.actor is not None
     assert event.actor.email == "session-detail-editor@example.com"
-
-
-def test_an_admin_session_edit_records_the_same_event() -> None:
-    session = grading_session(notes="Bring belts")
-    session.notes = "Bring belts and water"
-    admin_user = user("session-admin-editor@example.com")
-    request = cast(HttpRequest, RequestFactory().post("/admin/"))
-    request.user = admin_user
-
-    GradingSessionAdmin(GradingSession, admin.site).save_model(
-        request,
-        session,
-        cast("ModelForm[Any]", SimpleNamespace(changed_data=["notes"])),
-        True,
-    )
-
-    event = AuditEvent.objects.get(action=AuditAction.SESSION_UPDATED)
-    assert event.actor == admin_user
-    assert event.metadata["after"] == {"notes": "Bring belts and water"}
 
 
 def served_progress(session: GradingSession) -> dict[str, int]:
@@ -986,3 +772,54 @@ def test_listing_sessions_decides_deletability_without_a_query_per_session() -> 
         "Fourth": False,
     }
     assert many_count == one_count
+
+
+def test_a_status_and_field_edit_apply_together() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    complete_assessment(assessment(candidate=candidate(session=session)))
+
+    update_grading_session(
+        session,
+        changes={"location": "Main hall"},
+        target_status=GradingSession.Status.LOCKED,
+        actor=user("session-mixed-valid@example.com"),
+    )
+
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+    assert session.location == "Main hall"
+
+
+def test_a_refused_transition_rolls_back_the_field_edit_with_it() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN, location="Old hall")
+    candidate(session=session)
+
+    with pytest.raises(ValidationError):
+        update_grading_session(
+            session,
+            changes={"location": "Should roll back"},
+            target_status=GradingSession.Status.LOCKED,
+            actor=user("session-mixed-invalid@example.com"),
+        )
+
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.OPEN
+    assert session.location == "Old hall"
+
+
+def test_a_lock_refused_for_an_unfinished_assessment_rolls_back_the_edit() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN, location="Old hall")
+    assessment(candidate=candidate(session=session))
+
+    with pytest.raises(ValidationError) as exc_info:
+        update_grading_session(
+            session,
+            changes={"location": "Should roll back"},
+            target_status=GradingSession.Status.LOCKED,
+            actor=user("session-mixed-unstarted@example.com"),
+        )
+
+    assert "must be completed" in str(exc_info.value)
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.OPEN
+    assert session.location == "Old hall"

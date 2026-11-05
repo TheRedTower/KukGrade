@@ -3,24 +3,15 @@
 from __future__ import annotations
 
 from datetime import date
-from types import SimpleNamespace
-from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
-from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
-from django.forms import ModelForm
-from django.http import HttpRequest
-from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from audit.models import AuditAction, AuditEvent
-from gradings.admin import (
-    GradingCandidateAdmin,
-)
 from gradings.age import resolve_age_band
 from gradings.models import (
     CandidateAssessment,
@@ -35,7 +26,6 @@ from gradings.services import (
     register_candidate,
 )
 from gradings.testing import (
-    admin_request,
     assessment,
     auth_client,
     candidate,
@@ -302,62 +292,6 @@ def test_real_candidate_update_records_exactly_one_event_with_full_metadata() ->
     assert metadata["after"]["notes"] == "Changed note"
     assert metadata["before"]["session"] == built.session_id
     assert metadata["after"]["session"] == built.session_id
-
-
-def test_admin_created_candidate_is_persisted_and_audited() -> None:
-    # Previously this called build_candidate() (unsaved) and relied on the
-    # plain ModelAdmin save to persist it, so register_candidate()'s audit
-    # call never ran.
-    session = grading_session()
-    learner = student()
-    obj = GradingCandidate(
-        session=session,
-        student=learner,
-        testing_for_rank=rank("YELLOW_STRIPE"),
-        status=GradingCandidate.Status.REGISTERED,
-        notes="",
-    )
-    model_admin = GradingCandidateAdmin(GradingCandidate, admin.site)
-    admin_user = user("admin-candidate-creator@example.com")
-    request = cast(HttpRequest, RequestFactory().post("/admin/"))
-    request.user = admin_user
-
-    model_admin.save_model(
-        request,
-        obj,
-        cast("ModelForm[Any]", SimpleNamespace(changed_data=[])),
-        False,
-    )
-
-    assert obj.pk is not None
-    assert GradingCandidate.objects.filter(pk=obj.pk).exists()
-    event = AuditEvent.objects.filter(
-        action=AuditAction.CANDIDATE_REGISTERED,
-        entity_id=str(obj.pk),
-    ).latest("occurred_at")
-    assert event.actor == admin_user
-
-
-def test_admin_candidate_update_is_audited() -> None:
-    built = candidate(notes="Before")
-    model_admin = GradingCandidateAdmin(GradingCandidate, admin.site)
-    built.notes = "After"
-    form = cast(
-        "ModelForm[Any]", SimpleNamespace(changed_data=["notes"], cleaned_data={})
-    )
-    admin_user = user("admin-candidate-updater@example.com")
-    request = cast(HttpRequest, RequestFactory().post("/admin/"))
-    request.user = admin_user
-
-    model_admin.save_model(request, built, form, True)
-
-    built.refresh_from_db()
-    assert built.notes == "After"
-    event = AuditEvent.objects.filter(
-        action=AuditAction.CANDIDATE_UPDATED,
-        entity_id=str(built.pk),
-    ).latest("occurred_at")
-    assert event.actor == admin_user
 
 
 def test_authenticated_candidate_crud_and_age_band_spoofing_rejected() -> None:
@@ -1217,22 +1151,6 @@ def test_a_no_op_candidate_update_writes_nothing() -> None:
         action=AuditAction.CANDIDATE_UPDATED,
         entity_id=str(built.pk),
     ).exists()
-
-
-def test_admin_candidate_delete_goes_through_the_service() -> None:
-    session = grading_session(status=GradingSession.Status.DRAFT)
-    built = candidate(session=session)
-    request = admin_request("candidate-admin-deleter@example.com")
-    model_admin = GradingCandidateAdmin(GradingCandidate, admin.site)
-
-    model_admin.delete_model(request, built)
-
-    assert not GradingCandidate.objects.filter(pk=built.pk).exists()
-    deleted = AuditEvent.objects.get(
-        action=AuditAction.CANDIDATE_DELETED,
-        entity_id=str(built.pk),
-    )
-    assert deleted.actor == request.user
 
 
 def _registered_twice_then_promoted_in_first() -> tuple[GradingCandidate, Student]:

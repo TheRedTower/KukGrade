@@ -2,26 +2,15 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from typing import Any, cast
-
 import pytest
-from django.contrib import admin
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.forms import ModelForm
-from django.http import HttpRequest
-from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
-from gradings.admin import (
-    GradingSessionAdmin,
-    GradingSessionAdminForm,
-)
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
@@ -193,55 +182,6 @@ def test_cancelling_a_locked_session_requires_authority_and_a_reason() -> None:
 
     session.refresh_from_db()
     assert session.status == GradingSession.Status.LOCKED
-
-
-def test_admin_session_form_accepts_a_cancellation_reason() -> None:
-    # The regression this actually guards against: driving save_model with a
-    # stub form (as the test below does) never exercises Meta.fields at all,
-    # so it would pass even with the field missing from the real form. Only
-    # binding real POST-shaped data through GradingSessionAdminForm proves
-    # the field is there to submit in the first place.
-    session, _built = locked_session_with_undecided_candidate()
-
-    form = GradingSessionAdminForm(
-        data={
-            "title": session.title,
-            "grading_date": session.grading_date,
-            "status": GradingSession.Status.CANCELLED,
-            "location": session.location,
-            "notes": session.notes,
-            "cancellation_reason": "Venue lost power; grading abandoned.",
-            "created_by": session.created_by_id,
-        },
-        instance=session,
-    )
-
-    assert form.is_valid(), form.errors
-    saved = form.save(commit=False)
-    assert saved.cancellation_reason == "Venue lost power; grading abandoned."
-
-
-def test_admin_can_cancel_a_locked_session_with_a_reason() -> None:
-    # Complements the form-binding test above: once the reason reaches the
-    # object, save_model must actually thread it through to
-    # transition_grading_session rather than dropping it.
-    session, _built = locked_session_with_undecided_candidate()
-    model_admin = GradingSessionAdmin(GradingSession, admin.site)
-    master_user = override_master("admin-cancel-master@example.com")
-    session.status = GradingSession.Status.CANCELLED
-    session.cancellation_reason = "Venue lost power; grading abandoned."
-    form = cast(
-        "ModelForm[Any]",
-        SimpleNamespace(changed_data=["status", "cancellation_reason"]),
-    )
-    request = cast(HttpRequest, RequestFactory().post("/admin/"))
-    request.user = master_user
-
-    model_admin.save_model(request, session, form, True)
-
-    session.refresh_from_db()
-    assert session.status == GradingSession.Status.CANCELLED
-    assert session.cancellation_reason == "Venue lost power; grading abandoned."
 
 
 def test_cancelling_a_locked_session_records_the_reason() -> None:

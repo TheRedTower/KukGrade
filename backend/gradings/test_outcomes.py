@@ -2,22 +2,14 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-from typing import Any, cast
-
 import pytest
-from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
-from django.forms import ModelForm
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from gradings.admin import (
-    CandidateOutcomeAdmin,
-)
 from gradings.models import (
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -35,7 +27,6 @@ from gradings.services import (
     validate_candidate_can_be_deleted,
 )
 from gradings.testing import (
-    admin_request,
     assessment,
     candidate,
     complete_assessment,
@@ -697,21 +688,6 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
     assert results(by_other_candidate) == []
     assert delete_response.status_code == 404
     assert finalised_patch.status_code == 404
-
-
-def test_candidate_outcome_admin_is_read_only_and_has_no_bulk_finalisation() -> None:
-    built, _generated = locked_completed_candidate()
-    outcome = finalised_outcome(built)
-    model_admin = CandidateOutcomeAdmin(CandidateOutcome, admin.site)
-    request = admin_request("outcome-admin@example.com")
-    outcome.decision_notes = "Unsafe admin edit"
-    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["decision_notes"]))
-
-    assert model_admin.has_add_permission(request) is False
-    assert model_admin.has_delete_permission(request, outcome) is False
-    assert model_admin.actions == ()
-    with pytest.raises(ValidationError):
-        model_admin.save_model(request, outcome, form, True)
 
 
 def test_proposing_for_a_candidate_opens_the_record_once_and_then_revises_it() -> None:

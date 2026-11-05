@@ -13,9 +13,9 @@ personal details.
   read when the page loads. It is blank once the student has been deleted. Correcting a
   student's name therefore corrects every screen at once.
 - Written judgements are kept as written because accountability needs them: a mark
-  change's reason, an assessment's overall notes (both versions), a comment's existence.
-  These can mention a child, so they are covered by the student's own records, not the
-  log's rules; see "What this does not do".
+  change's reason, and both versions of an assessment's overall notes whenever they
+  change. These can mention a child, and **they stay in the log even after the student is
+  deleted**; see "What this does not do".
 
 Staff accounts appear in user-management events by email address; those events are
 visible to administrators only.
@@ -69,7 +69,11 @@ into their details. They are permanent, and the app refuses every change to them
   act (the student's page), and it removes the student's results.
 - It does not reach **backups** taken before the erasure. Those must be expired or
   replaced under your own retention rules.
-- It does not erase free text that someone typed about a child in a comment, a reason or
-  a note; that text is part of the record and is removed with the record.
+- It does not erase other free text that someone typed about a child. Deleting the student
+  removes their comments, reasons and notes from the records, but **the audit log keeps its
+  own copy** of every version of an assessment's overall notes and of a withdrawal note, and
+  the command only replaces the name you give it, so a birth date or other identifying
+  detail written into those notes stays. Treat a deletion as not complete until those
+  events have been checked (the audit screen shows each event's recorded details).
 - It cannot find a name that was typed into free text in some other spelling.
 - How long audit events are kept is not decided yet; see the [roadmap](roadmap.md).

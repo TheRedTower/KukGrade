@@ -48,7 +48,6 @@ export function useCohortRegistration({ sessionId, session, cohort, setCohort, g
       // The cache must reflect the newly registered candidates.
       queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.session(sessionId) });
       queryClient.invalidateQueries({ queryKey: keys.students.eligible() });
-      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(sessionId) });
       queryClient.invalidateQueries({ queryKey: keys.gradingSessions.detail(sessionId) });
 
       const errorKeys = Object.keys(response.errors);

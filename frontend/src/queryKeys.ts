@@ -26,7 +26,6 @@ export const keys = {
   },
   candidateAssessments: {
     all: () => ["candidateAssessments"] as const,
-    session: (sessionId: Id) => ["candidateAssessments", sessionId] as const,
     byCandidate: (candidateId: Id) => ["candidateAssessments", "byCandidate", candidateId] as const,
     attention: (sessionId: Id) => ["candidateAssessments", "attention", sessionId] as const,
   },
@@ -67,7 +66,6 @@ export const refresh = {
   /** A candidate registered, withdrawn, moved, assessed or decided in a session. */
   sessionWork(queryClient: QueryClient, sessionId: Id) {
     void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.session(sessionId) });
-    void queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(sessionId) });
     void queryClient.invalidateQueries({ queryKey: keys.candidateOutcomes.session(sessionId) });
   },
   /** A student promoted: their rank, the session's ledger, and the audit log. */
@@ -79,9 +77,8 @@ export const refresh = {
     void queryClient.invalidateQueries({ queryKey: keys.auditEvents.all() });
   },
   /** An assessment started, changed, completed or reopened. */
-  afterAssessmentChange(queryClient: QueryClient, sessionId: Id, candidateId: Id) {
+  afterAssessmentChange(queryClient: QueryClient, candidateId: Id) {
     void queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.byCandidate(candidateId) });
-    void queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(sessionId) });
     void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     void queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
   },

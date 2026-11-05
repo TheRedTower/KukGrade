@@ -15,6 +15,7 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from accounts.models import User
 from accounts.permissions import (
+    DELETE_ANY_SESSION_PERMISSION,
     CanMakeFinalGradingDecision,
     CanOverrideLockedSession,
     CanPromoteStudent,
@@ -102,10 +103,12 @@ from gradings.serializers import (
 from gradings.services import (
     ALREADY_IN_SESSION,
     REGISTERED_ELSEWHERE,
+    archive_grading_session,
     bulk_register_candidates,
     bulk_update_candidate_status,
     delete_candidate,
     delete_grading_session,
+    restore_grading_session,
     with_session_progress,
 )
 from kukgrade.filtering import (
@@ -171,6 +174,16 @@ class WithdrawalReasonViewSet(GenericViewSet):
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
 
+def _apply_archived(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    if value == "only":
+        return queryset.filter(archived_at__isnull=False)
+    if value == "exclude":
+        return queryset.filter(archived_at__isnull=True)
+    if value == "include":
+        return queryset
+    return queryset.none()
+
+
 class GradingSessionViewSet(ModelViewSet):
     # No PUT: partial_update covers every real edit.
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
@@ -183,6 +196,9 @@ class GradingSessionViewSet(ModelViewSet):
         "partial_update": ("gradings.change_gradingsession",),
         "destroy": ("gradings.delete_gradingsession",),
         "years": ("gradings.view_gradingsession",),
+        # Whether the actor may is each service's own rule, with its own message.
+        "archive": (DELETE_ANY_SESSION_PERMISSION,),
+        "restore": (DELETE_ANY_SESSION_PERMISSION,),
     }
 
     query_filters = (
@@ -190,6 +206,13 @@ class GradingSessionViewSet(ModelViewSet):
         on_date("grading_date_from", "grading_date__gte"),
         on_date("grading_date_to", "grading_date__lte"),
         search("search", ("title", "location")),
+        QueryFilter(
+            "archived",
+            _apply_archived,
+            {"type": "string", "enum": ["exclude", "include", "only"]},
+            "Archived sessions are left out unless asked for: `include` lists them "
+            "with the rest, `only` lists just those.",
+        ),
         ordered_by(
             "ordering",
             {
@@ -202,6 +225,10 @@ class GradingSessionViewSet(ModelViewSet):
 
     def get_queryset(self) -> QuerySet[GradingSession]:
         sessions = GradingSession.objects.order_by("-grading_date", "created_at")
+        # A list leaves archived sessions out unless asked; one session is
+        # always reachable, so a link to an archived grading still opens it.
+        if self.action == "list" and "archived" not in self.request.query_params:
+            sessions = sessions.filter(archived_at__isnull=True)
         # Only a read serialises the instance it loaded: a write loads the row
         # to act on it, and its response is annotated afresh by the serializer.
         if self.action in ("list", "retrieve"):
@@ -212,6 +239,26 @@ class GradingSessionViewSet(ModelViewSet):
         instance = self.get_object()
         delete_grading_session(instance, actor=cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=None, responses=GradingSessionSerializer)
+    @action(detail=True, methods=["post"])
+    def archive(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Hide a finished session from the lists. Nothing is erased."""
+        archive_grading_session(self.get_object(), cast(User, request.user))
+        return Response(self._read(request, cast(str, kwargs["pk"])))
+
+    @extend_schema(request=None, responses=GradingSessionSerializer)
+    @action(detail=True, methods=["post"])
+    def restore(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Bring an archived session back into the lists."""
+        restore_grading_session(self.get_object(), cast(User, request.user))
+        return Response(self._read(request, cast(str, kwargs["pk"])))
+
+    def _read(self, request: Request, pk: int | str) -> Any:
+        instance = with_session_progress(
+            GradingSession.objects.filter(pk=pk),
+        ).get()
+        return GradingSessionSerializer(instance, context={"request": request}).data
 
     @extend_schema(
         request=None,

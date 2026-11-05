@@ -15,6 +15,8 @@ const mockGetAllGradingSessions = vi.fn();
 const mockMoveGradingCandidate = vi.fn();
 const mockDeleteGradingCandidate = vi.fn();
 const mockUpdateGradingSession = vi.fn();
+const mockArchiveGradingSession = vi.fn();
+const mockRestoreGradingSession = vi.fn();
 
 vi.mock("./auth", () => ({
   useAuth: () => ({ user: currentUser, status: "authenticated" }),
@@ -33,6 +35,8 @@ vi.mock("./api", async () => {
     moveGradingCandidate: (...args: unknown[]) => mockMoveGradingCandidate(...args),
     deleteGradingCandidate: (...args: unknown[]) => mockDeleteGradingCandidate(...args),
     updateGradingSession: (...args: unknown[]) => mockUpdateGradingSession(...args),
+    archiveGradingSession: (...args: unknown[]) => mockArchiveGradingSession(...args),
+    restoreGradingSession: (...args: unknown[]) => mockRestoreGradingSession(...args),
   };
 });
 
@@ -83,7 +87,7 @@ function lockedSession(): GradingSession {
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
-    can_be_deleted: false,
+    can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
     location: "Riverside",
     notes: "",
   };
@@ -191,7 +195,7 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
     const dialog = await screen.findByRole("dialog", {
       name: "Delete Grading Session",
     });
-    expect(dialog).toHaveTextContent("finalised outcome and promotion");
+    expect(dialog).toHaveTextContent("every assessment recorded in it");
 
     await user.click(screen.getByRole("button", { name: "Delete session" }));
 
@@ -201,6 +205,87 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
     await waitFor(() =>
       expect(screen.getByText("Gradings list")).toBeInTheDocument(),
     );
+  });
+});
+
+describe("GradingSessionDetailScreen archiving", () => {
+  const completed = (): GradingSession => ({
+    ...lockedSession(),
+    status: "COMPLETED",
+    status_display: "Completed",
+  });
+
+  beforeEach(() => {
+    currentUser = adminUser;
+    mockGetAllGradingCandidates.mockReset().mockResolvedValue(emptyPage());
+    mockArchiveGradingSession.mockReset();
+    mockRestoreGradingSession.mockReset();
+  });
+
+  it("archives a finished session after confirming, and says it is kept", async () => {
+    mockGetGradingSession.mockReset().mockResolvedValue({ ...completed(), can_be_archived: true });
+    const archived = { ...completed(), archived_at: "2027-04-01T10:00:00Z", can_be_restored: true };
+    mockArchiveGradingSession.mockImplementation(async () => {
+      mockGetGradingSession.mockResolvedValue(archived);
+      return archived;
+    });
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Archive session" }));
+    const dialog = await screen.findByRole("dialog", { name: "Archive Grading Session" });
+    expect(dialog).toHaveTextContent("Nothing is erased");
+    await user.click(within(dialog).getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(mockArchiveGradingSession).toHaveBeenCalledWith(7));
+    expect(await screen.findByTestId("gsd-archived-note")).toBeVisible();
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    expect(screen.queryByRole("menuitem", { name: "Archive session" })).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Restore from archive" })).toBeVisible();
+  });
+
+  it("restores an archived session", async () => {
+    mockGetGradingSession.mockReset().mockResolvedValue({
+      ...completed(),
+      archived_at: "2027-04-01T10:00:00Z",
+      can_be_restored: true,
+    });
+    mockRestoreGradingSession.mockResolvedValue(completed());
+    const user = userEvent.setup();
+    renderScreen();
+
+    await screen.findByTestId("gsd-archived-note");
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Restore from archive" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(mockRestoreGradingSession).toHaveBeenCalledWith(7));
+  });
+
+  it("shows the reason when the server refuses", async () => {
+    mockGetGradingSession.mockReset().mockResolvedValue({ ...completed(), can_be_archived: true });
+    mockArchiveGradingSession.mockRejectedValue(
+      new ApiError("Only an administrator can archive a grading session.", 400),
+    );
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Archive session" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText(/Only an administrator can archive/)).toBeVisible();
+  });
+
+  it("offers nothing to a viewer the server does not allow", async () => {
+    currentUser = instructorUser;
+    mockGetGradingSession.mockReset().mockResolvedValue(completed());
+    renderScreen();
+
+    await screen.findByRole("heading", { name: "March 2027 Riverside Grading" });
+    expect(screen.queryByTestId("gsd-actions-btn")).toBeNull();
+    expect(screen.queryByTestId("gsd-archived-note")).toBeNull();
   });
 });
 

@@ -69,7 +69,6 @@ from gradings.models import (
     Promotion,
 )
 from gradings.outcome_services import (
-    bulk_promote_candidates,
     finalise_candidate_outcome,
     promote_candidate,
     propose_for_candidate,
@@ -77,7 +76,6 @@ from gradings.outcome_services import (
 from gradings.serializers import GradingSessionSerializer
 from gradings.services import (
     apply_candidate_update,
-    delete_grading_session,
     register_candidate,
     transition_grading_session,
     withdraw_locked_candidate,
@@ -795,31 +793,6 @@ def test_assessment_cleanup_refuses_after_a_later_promotion() -> None:
     assert events(AuditAction.ASSESSMENT_DELETED, earlier_assessment) == 0
 
 
-def test_session_cleanup_refuses_after_a_later_promotion() -> None:
-    """The same guarantee for deleting the whole earlier session."""
-    graded = student()
-    earlier, (later_outcome,) = promoted_then_passed_again(graded)
-    promoting_actor = promoter("race-session-cleanup-promoter@example.com")
-    cleaner = user(
-        "race-session-cleanup-admin@example.com", role=User.Role.ADMINISTRATOR
-    )
-    stale_outcome = CandidateOutcome.objects.get(pk=later_outcome.pk)
-    stale_earlier = GradingSession.objects.get(pk=earlier.pk)
-
-    promoting, cleaning = interleave(
-        lambda: promote_candidate(stale_outcome, promoting_actor),
-        lambda: delete_grading_session(stale_earlier, actor=cleaner),
-        pause_first_at="gradings.outcome_services.record",
-    )
-
-    assert isinstance(promoting, Promotion)
-    refused(cleaning, "no longer the student's most recent promotion")
-    graded.refresh_from_db()
-    assert graded.current_rank_id == promoting.to_rank_id
-    assert GradingSession.objects.filter(pk=earlier.pk).exists()
-    assert events(AuditAction.SESSION_DELETED, earlier) == 0
-
-
 def test_student_deletion_and_promotion_serialise() -> None:
     """Promoting a student being deleted is refused, not a crash.
 
@@ -845,43 +818,6 @@ def test_student_deletion_and_promotion_serialise() -> None:
     refused(promoting, "no longer exists")
     assert not Student.objects.filter(pk=built.student_id).exists()
     assert not Promotion.objects.filter(student_id=built.student_id).exists()
-
-
-def test_bulk_promotion_and_session_cleanup_do_not_deadlock() -> None:
-    """Two operations over the same students, in opposite orders.
-
-    Bulk promotion used to lock each student as it reached its row - here
-    the higher id first - while session cleanup rolled ranks back in its
-    own order, so each ended up holding the student the other needed. Both
-    now lock every student up front, lowest id first.
-    """
-    lower = student(last_name="Adams")
-    higher = student(last_name="Brown")
-    earlier, later_outcomes = promoted_then_passed_again(lower, higher)
-    promoting_actor = promoter("race-bulk-promoter@example.com")
-    cleaner = user("race-bulk-cleanup-admin@example.com", role=User.Role.ADMINISTRATOR)
-    higher_first = [
-        CandidateOutcome.objects.get(pk=outcome.pk)
-        for outcome in reversed(later_outcomes)
-    ]
-    stale_earlier = GradingSession.objects.get(pk=earlier.pk)
-
-    promoting, cleaning = interleave(
-        lambda: bulk_promote_candidates(outcomes=higher_first, actor=promoting_actor),
-        lambda: delete_grading_session(stale_earlier, actor=cleaner),
-        pause_first_at="gradings.outcome_services.record",
-    )
-
-    assert not isinstance(promoting, BaseException), promoting
-    assert isinstance(promoting, tuple)
-    promoted, errors = promoting
-    assert errors == {}
-    assert len(promoted) == 2
-    refused(cleaning, "no longer the student's most recent promotion")
-    assert GradingSession.objects.filter(pk=earlier.pk).exists()
-    for graded in (lower, higher):
-        graded.refresh_from_db()
-        assert graded.current_rank == rank("YELLOW")
 
 
 def test_concurrent_student_edits_both_survive() -> None:

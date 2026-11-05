@@ -414,6 +414,16 @@ export async function updateGradingSession(
   });
 }
 
+/** Hide a finished session from the lists; nothing is erased. */
+export async function archiveGradingSession(id: number | string): Promise<GradingSession> {
+  return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/archive/`, { method: "POST" });
+}
+
+/** Bring an archived session back into the lists. */
+export async function restoreGradingSession(id: number | string): Promise<GradingSession> {
+  return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/restore/`, { method: "POST" });
+}
+
 export async function deleteGradingSession(id: number | string): Promise<void> {
   await apiRequest<void>(`/api/gradings/sessions/${id}/`, {
     method: "DELETE",

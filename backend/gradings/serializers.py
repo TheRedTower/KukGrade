@@ -43,6 +43,8 @@ from gradings.services import (
     candidate_can_be_deleted,
     candidate_can_change_session,
     create_grading_session,
+    session_can_be_archived,
+    session_can_be_restored,
     session_deletion_blocker,
     update_grading_session,
     validate_session_grading_date_change,
@@ -66,6 +68,12 @@ class GradingSessionSerializer(serializers.ModelSerializer):
     completed_assessment_count = serializers.IntegerField(read_only=True)
     awaiting_decision_count = serializers.IntegerField(read_only=True)
     can_be_deleted = serializers.SerializerMethodField()
+    can_be_archived = serializers.SerializerMethodField(
+        help_text="Whether the viewer may archive this session now.",
+    )
+    can_be_restored = serializers.SerializerMethodField(
+        help_text="Whether the viewer may restore this archived session.",
+    )
 
     class Meta:
         model = GradingSession
@@ -82,10 +90,14 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             "completed_assessment_count",
             "awaiting_decision_count",
             "can_be_deleted",
+            "archived_at",
+            "can_be_archived",
+            "can_be_restored",
         )
         read_only_fields = (
             "id",
             "status_display",
+            "archived_at",
         )
 
         # Sent when cancelling a locked session; no screen reads it back. It
@@ -100,9 +112,16 @@ class GradingSessionSerializer(serializers.ModelSerializer):
                 obj,
                 actor,
                 has_recorded_work=obj.has_recorded_work,  # type: ignore[attr-defined]
+                has_final_decisions=obj.has_final_decisions,  # type: ignore[attr-defined]
             )
             is None
         )
+
+    def get_can_be_archived(self, obj: GradingSession) -> bool:
+        return session_can_be_archived(obj, self.context["request"].user)
+
+    def get_can_be_restored(self, obj: GradingSession) -> bool:
+        return session_can_be_restored(obj, self.context["request"].user)
 
     def to_representation(self, instance: GradingSession) -> dict[str, Any]:
         # A session just created or edited was not loaded through the

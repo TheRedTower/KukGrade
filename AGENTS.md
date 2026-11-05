@@ -48,7 +48,9 @@ image (`docs/installation.md`).
   always with a reason, until that candidate's final decision is recorded; those
   entries carry `after_lock`. The server names the capability (`marks_open`);
   the frontend never re-derives it.
-- Historical grading records must remain reproducible.
+- Historical grading records must remain reproducible. A session holding a
+  final decision is never deleted, by anyone; a finished session is archived
+  (hidden from lists, nothing erased) instead.
 - The applicable syllabus depends on rank, age band, and syllabus version.
 - Every grading assesses the cumulative syllabus: everything examinable
   through the testing rank for the candidate's age band, not only that rank's

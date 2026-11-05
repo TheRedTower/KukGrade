@@ -27,7 +27,6 @@ from audit.recording import record
 from gradings.age import resolve_age_band
 from gradings.assessment_services import (
     generate_candidate_assessment,
-    validate_assessment_deletion_promotion,
 )
 from gradings.locking import (
     STUDENT_GONE_MESSAGE,
@@ -43,7 +42,6 @@ from gradings.models import (
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
-    Promotion,
     StagedDecision,
 )
 from gradings.service_support import each_independently, unique_violation_on
@@ -327,6 +325,16 @@ def _session_started_work(
     )
 
 
+def _session_final_decisions(
+    session_pk: Any,
+) -> QuerySet[CandidateOutcome]:
+    """The session's recorded final decisions."""
+    return CandidateOutcome.objects.filter(
+        candidate__session=session_pk,
+        status=CandidateOutcome.Status.FINALISED,
+    )
+
+
 def with_session_progress(
     sessions: QuerySet[GradingSession],
 ) -> QuerySet[GradingSession]:
@@ -355,6 +363,7 @@ def with_session_progress(
 
     return sessions.annotate(
         has_recorded_work=Exists(_session_started_work(OuterRef("pk"))),
+        has_final_decisions=Exists(_session_final_decisions(OuterRef("pk"))),
         candidate_count=count(active),
         completed_assessment_count=count(completed),
         awaiting_decision_count=count(
@@ -618,20 +627,25 @@ def session_deletion_blocker(
     actor: User | None,
     *,
     has_recorded_work: bool,
+    has_final_decisions: bool,
 ) -> dict[str, list[str]] | None:
     """Why this actor cannot delete the session, or None when they can.
 
     Pure over its arguments so the list can decide for every session from one
     annotated query while the delete itself checks the same rule.
     """
-    # An administrator may delete a session in any status, including
-    # LOCKED/COMPLETED ones holding finalised outcomes and promotions -
-    # delete_grading_session's own cascade (promotion revert, pre-flight
-    # validated all-or-nothing) plus the SESSION_DELETED audit event are the
-    # trail. Consistent with the single-candidate hard-delete path
-    # (delete_candidate_assessment), which already ignores session status
-    # entirely. Extends the 2026-09-20 cancelled-with-recorded-work decision
-    # to every status, not just CANCELLED.
+    # A recorded final decision (and so any promotion built on it) is never
+    # erased, by anyone: the record stays reproducible. A finished session is
+    # archived instead, which hides it and keeps every row.
+    if has_final_decisions:
+        return {
+            "session": [
+                "This session holds final decisions, which are never erased. "
+                "Archive it instead.",
+            ],
+        }
+    # Without final decisions an administrator may delete a session in any
+    # status; delete_grading_session's audit event is the trail.
     if actor is not None and actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
         return None
     if session.status not in {
@@ -661,6 +675,7 @@ def validate_session_can_be_deleted(
         session,
         actor,
         has_recorded_work=_session_started_work(session.pk).exists(),
+        has_final_decisions=_session_final_decisions(session.pk).exists(),
     )
     if blocker is not None:
         raise ValidationError(blocker)
@@ -922,55 +937,16 @@ def create_grading_session(
 
 @transaction.atomic
 def delete_grading_session(session: GradingSession, actor: User | None = None) -> None:
-    # An administrator deleting a LOCKED/COMPLETED session may be erasing
-    # finalised outcomes and promotions - those refuse ordinary delete(), so
-    # they are stripped here first, the same sanctioned bypass
-    # delete_candidate_assessment uses (models.QuerySet.delete, the real
-    # unbound base implementation). Every candidate's promotion is
-    # pre-flight validated with validate_assessment_deletion_promotion
-    # *before* anything is mutated, so a promotion a later, different
-    # session has already superseded refuses the whole deletion rather than
-    # leaving the session half-erased.
+    # A session holding a final decision is refused by
+    # validate_session_can_be_deleted, so there is no promotion to roll back
+    # here. What remains is at most a proposal, which refuses ordinary
+    # delete(), so it is stripped first, the sanctioned bypass
+    # delete_candidate_assessment uses (the unbound base QuerySet.delete).
     locked = lock_session(session.pk)
     validate_session_can_be_deleted(locked, actor=actor)
-    reverted_student_ranks: list[dict[str, object]] = []
-    if actor is not None and actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
-        promotions = list(
-            Promotion.objects.filter(grading_candidate__session=locked)
-            .select_related("from_rank", "to_rank")
-            .order_by(
-                "grading_candidate__student__last_name",
-                "grading_candidate__student__first_name",
-                "pk",
-            ),
-        )
-        # Checked against each student as they are now, under the student's
-        # lock, not as a join read them: a promotion from another session can
-        # move a student on at any moment, and rolling back to this one's
-        # from_rank would then overwrite it.
-        students = lock_students(promotion.student_id for promotion in promotions)
-        for promotion in promotions:
-            validate_assessment_deletion_promotion(
-                promotion,
-                students[promotion.student_id],
-            )
-        for promotion in promotions:
-            student = students[promotion.student_id]
-            reverted_student_ranks.append(
-                {
-                    "student_id": student.pk,
-                    "student_wksa_id": student.wksa_id,
-                    "from": promotion.to_rank.code,
-                    "to": promotion.from_rank.code,
-                },
-            )
-            Student.objects.filter(pk=student.pk).update(
-                current_rank=promotion.from_rank,
-            )
-            models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
-        models.QuerySet.delete(
-            CandidateOutcome.objects.filter(candidate__session=locked),
-        )
+    models.QuerySet.delete(
+        CandidateOutcome.objects.filter(candidate__session=locked),
+    )
 
     # Recorded before the row goes, so the event still carries its identity.
     #
@@ -1000,10 +976,92 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
                 {"id": candidate_id, "student_wksa_id": wksa_id}
                 for candidate_id, wksa_id in cascaded
             ],
-            "reverted_student_ranks": reverted_student_ranks,
         },
     )
     locked.delete(actor=actor)
+
+
+def validate_session_can_be_archived(
+    session: GradingSession,
+    actor: User | None,
+) -> None:
+    """Only an administrator puts a finished session away, once."""
+    if actor is None or not actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
+        raise ValidationError(
+            {"session": ["Only an administrator can archive a grading session."]},
+        )
+    if session.status not in {
+        GradingSession.Status.COMPLETED,
+        GradingSession.Status.CANCELLED,
+    }:
+        raise ValidationError(
+            {
+                "status": [
+                    "Only a completed or cancelled grading session can be archived."
+                ]
+            },
+        )
+    if session.archived_at is not None:
+        raise ValidationError({"session": ["This session is already archived."]})
+
+
+def session_can_be_archived(session: GradingSession, actor: User | None) -> bool:
+    try:
+        validate_session_can_be_archived(session, actor)
+    except ValidationError:
+        return False
+    return True
+
+
+def session_can_be_restored(session: GradingSession, actor: User | None) -> bool:
+    return (
+        session.archived_at is not None
+        and actor is not None
+        and actor.has_perm(DELETE_ANY_SESSION_PERMISSION)
+    )
+
+
+@transaction.atomic
+def archive_grading_session(session: GradingSession, actor: User) -> GradingSession:
+    """Hide a finished session from the lists. Nothing is erased."""
+    locked = lock_session(session.pk)
+    validate_session_can_be_archived(locked, actor)
+    locked.archived_at = timezone.now()
+    GradingSession.objects.filter(pk=locked.pk).update(archived_at=locked.archived_at)
+    record(
+        AuditAction.SESSION_ARCHIVED,
+        locked,
+        f"Grading session '{locked.title}' archived.",
+        actor=actor,
+        metadata={"status": locked.status},
+    )
+    return locked
+
+
+@transaction.atomic
+def restore_grading_session(session: GradingSession, actor: User) -> GradingSession:
+    """Bring an archived session back into the lists."""
+    locked = lock_session(session.pk)
+    if not session_can_be_restored(locked, actor):
+        raise ValidationError(
+            {
+                "session": [
+                    "Only an administrator can restore an archived grading session."
+                    if locked.archived_at is not None
+                    else "This session is not archived.",
+                ],
+            },
+        )
+    locked.archived_at = None
+    GradingSession.objects.filter(pk=locked.pk).update(archived_at=None)
+    record(
+        AuditAction.SESSION_RESTORED,
+        locked,
+        f"Grading session '{locked.title}' restored from the archive.",
+        actor=actor,
+        metadata={"status": locked.status},
+    )
+    return locked
 
 
 @transaction.atomic

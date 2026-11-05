@@ -2,7 +2,7 @@ import type { GradingCandidateRoster, GradingSession } from "./api";
 import type { AttendanceCandidate } from "./GradingAttendanceDialogs";
 import type { EnrichedCandidate } from "./SessionParts";
 
-export type SessionAction = "LOCK" | "COMPLETE" | "CANCEL" | "DELETE" | "OPEN";
+export type SessionAction = "LOCK" | "COMPLETE" | "CANCEL" | "DELETE" | "OPEN" | "ARCHIVE" | "RESTORE";
 
 export function toAttendanceCandidate(item: EnrichedCandidate): AttendanceCandidate {
   return {
@@ -72,15 +72,25 @@ export function nextActionFor(item: EnrichedCandidate, session: GradingSession) 
 /** The title and the question of the dialog that confirms a lifecycle action. */
 export function confirmDetails(action: SessionAction, session: GradingSession, registeredCount: number) {
   switch (action) {
-    case "DELETE": {
-      const erasesFinalisedData = session.status === "LOCKED" || session.status === "COMPLETED";
+    case "DELETE":
       return {
         title: "Delete Grading Session",
-        message: erasesFinalisedData
-          ? "Are you sure you want to permanently delete this grading session? This erases every finalised outcome and promotion recorded in it, reverting any promoted student's rank. This action cannot be undone."
-          : "Are you sure you want to permanently delete this grading session? This action cannot be undone.",
+        message:
+          session.status === "DRAFT"
+            ? "Are you sure you want to permanently delete this grading session? This action cannot be undone."
+            : "Are you sure you want to permanently delete this grading session? This erases its registrations and every assessment recorded in it. This action cannot be undone.",
       };
-    }
+    case "ARCHIVE":
+      return {
+        title: "Archive Grading Session",
+        message:
+          "Archiving hides this session from the list of gradings. Nothing is erased: its results, decisions and promotions stay, and you can restore it at any time.",
+      };
+    case "RESTORE":
+      return {
+        title: "Restore Grading Session",
+        message: "Restoring puts this session back in the list of gradings.",
+      };
     case "CANCEL":
       return { title: "Cancel Grading Session", message: "Are you sure you want to cancel this grading session?" };
     case "LOCK":

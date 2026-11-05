@@ -4,7 +4,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   GradingSession,
+  archiveGradingSession,
   deleteGradingSession,
+  restoreGradingSession,
   errorMessage,
   getAllGradingCandidates,
   getGradingSession,
@@ -75,7 +77,9 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         session.status === "OPEN" ||
         session.status === "LOCKED" ||
         currentUser?.can_read_audit_log ||
-        session.can_be_deleted),
+        session.can_be_deleted ||
+        session.can_be_archived ||
+        session.can_be_restored),
   );
   // Finishing a session can take the menu's button away with focus still on it.
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -110,6 +114,22 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     onError: (err: unknown) => setActionError(errorMessage(err, "Failed to update session.")),
   });
 
+  // Archiving or restoring changes what the lists show, never the session.
+  const archiveMutation = useMutation({
+    mutationFn: (action: "ARCHIVE" | "RESTORE") =>
+      action === "ARCHIVE" ? archiveGradingSession(sessionId) : restoreGradingSession(sessionId),
+    onSuccess: (updated: GradingSession) => {
+      queryClient.setQueryData(keys.gradingSessions.detail(sessionId), updated);
+      void queryClient.invalidateQueries({
+        queryKey: keys.gradingSessions.all(),
+        predicate: (query) => query.queryKey[1] !== "detail",
+      });
+      setConfirm(null);
+      setActionError(null);
+    },
+    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to update the archive.")),
+  });
+
   const deleteSessionMutation = useMutation({
     mutationFn: () => deleteGradingSession(sessionId),
     onSuccess: () => {
@@ -118,7 +138,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     },
     onError: (err: unknown) => setActionError(errorMessage(err, "Failed to delete session.")),
   });
-  const confirmPending = updateSessionMutation.isPending || deleteSessionMutation.isPending;
+  const confirmPending =
+    updateSessionMutation.isPending || deleteSessionMutation.isPending || archiveMutation.isPending;
 
   const work = useCandidateWork(sessionId, { setError: setActionError, setMessage: setActionMessage });
 
@@ -199,6 +220,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const handleConfirm = () => {
     if (!confirm) return;
     if (confirm.action === "DELETE") deleteSessionMutation.mutate();
+    else if (confirm.action === "ARCHIVE" || confirm.action === "RESTORE") archiveMutation.mutate(confirm.action);
     else if (confirm.action === "CANCEL") updateSessionMutation.mutate({ status: "CANCELLED", cancellation_reason: cancellationReason });
     else if (confirm.action === "OPEN") updateSessionMutation.mutate({ status: "OPEN" });
     else if (confirm.action === "LOCK") updateSessionMutation.mutate({ status: "LOCKED" });
@@ -247,6 +269,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       {actionMessage && (
         <Alert tone="success" onDismiss={() => setActionMessage(null)}>
           {actionMessage}
+        </Alert>
+      )}
+
+      {session.archived_at && (
+        <Alert tone="info" data-testid="gsd-archived-note">
+          This session is archived, so it is left out of the list of gradings. Its results, decisions and
+          promotions are kept.
         </Alert>
       )}
 

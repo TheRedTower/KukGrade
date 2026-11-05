@@ -108,6 +108,7 @@ export function GradingSessionsScreen() {
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<GradingSessionStatus | "ALL">("ALL");
   const [yearFilter, setYearFilter] = useState<string>("ALL");
+  const [archivedOnly, setArchivedOnly] = useState(false);
   const [page, setPage] = useState(1);
 
   const [deleteConfirmSession, setDeleteConfirmSession] = useState<GradingSession | null>(null);
@@ -151,7 +152,7 @@ export function GradingSessionsScreen() {
   const serverSearch = useDebouncedValue(searchText.trim()) || undefined;
 
   const sessionsQuery = useQuery({
-    queryKey: keys.gradingSessions.page(page, serverStatus, selectedYear, serverSearch),
+    queryKey: keys.gradingSessions.page(page, serverStatus, selectedYear, serverSearch, archivedOnly),
     placeholderData: keepPreviousData,
     queryFn: () =>
       getGradingSessions({
@@ -161,6 +162,7 @@ export function GradingSessionsScreen() {
         search: serverSearch,
         grading_date_from: gradingDateFrom,
         grading_date_to: gradingDateTo,
+        archived: archivedOnly ? "only" : undefined,
       }),
   });
 
@@ -173,14 +175,15 @@ export function GradingSessionsScreen() {
 
   function handleStatusFilter(value: GradingSessionStatus | "ALL") { setStatusFilter(value); setPage(1); }
   function handleYearFilter(value: string) { setYearFilter(value); setPage(1); }
+  function handleArchived(value: boolean) { setArchivedOnly(value); setPage(1); }
   function handleSearch(value: string) { setSearchText(value); setPage(1); }
-  function resetFilters() { setSearchText(""); setStatusFilter("ALL"); setYearFilter("ALL"); setPage(1); }
+  function resetFilters() { setSearchText(""); setStatusFilter("ALL"); setYearFilter("ALL"); setArchivedOnly(false); setPage(1); }
 
-  const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL";
+  const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL" || archivedOnly;
   const isLoading = currentSessionQuery.isLoading || sessionsQuery.isLoading;
   const showingFrom = sessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
-  const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";
+  const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL" && !archivedOnly;
 
   return (
     <section aria-labelledby="gradings-heading" className="page gs-page">
@@ -224,6 +227,13 @@ export function GradingSessionsScreen() {
             {availableYears.map((y) => <option key={y} value={String(y)}>{y}</option>)}
           </select>
         </div>
+        <div className="field">
+          <label htmlFor="gs-archive-filter">Show</label>
+          <select className="gs-filter-select" id="gs-archive-filter" onChange={(e) => handleArchived(e.target.value === "ARCHIVED")} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
+            <option value="CURRENT">Current gradings</option>
+            <option value="ARCHIVED">Archived gradings</option>
+          </select>
+        </div>
       </div>
 
       {/* ── Current Session Spotlight */}
@@ -246,7 +256,7 @@ export function GradingSessionsScreen() {
       {!isLoading && (
         <>
           <div className="gs-table-section">
-            <h2 className="gs-table-heading">All grading sessions</h2>
+            <h2 className="gs-table-heading">{archivedOnly ? "Archived grading sessions" : "All grading sessions"}</h2>
             {sessions.length > 0 ? (
               <ResponsiveTable
                 label="Grading sessions"

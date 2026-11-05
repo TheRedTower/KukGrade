@@ -54,6 +54,13 @@ class GradingSession(models.Model):
     # routine; abandoning a grading people have already been assessed in is
     # exceptional and has to say why.
     cancellation_reason = models.TextField(blank=True)
+    archived_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "When a finished session was put away: hidden from lists, nothing erased."
+        ),
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -99,6 +106,11 @@ class GradingSession(models.Model):
                     ],
                 ),
                 name="grading_session_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(archived_at__isnull=True)
+                | Q(status__in=["COMPLETED", "CANCELLED"]),
+                name="grading_session_archived_only_when_finished",
             ),
         ]
 

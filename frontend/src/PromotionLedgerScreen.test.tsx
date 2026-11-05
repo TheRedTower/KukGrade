@@ -89,7 +89,7 @@ const mockSession: GradingSession = {
   candidate_count: 0,
   completed_assessment_count: 0,
   awaiting_decision_count: 0,
-  can_be_deleted: false,
+  can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
   grading_date: "2026-10-15",
   location: "Main Dojang",
   notes: "Annual autumn examination",

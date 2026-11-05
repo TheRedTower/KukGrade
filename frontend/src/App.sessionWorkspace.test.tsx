@@ -53,7 +53,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
-    can_be_deleted: false,
+    can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
     location: "Riverside Dojang",
     notes: "Please arrive 15 minutes before the start time.",
   } satisfies GradingSession;
@@ -1070,7 +1070,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = setupStandardMock({
       status: "CANCELLED",
       status_display: "Cancelled",
-      can_be_deleted: true,
+      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -1089,7 +1089,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           ...testSession,
           status: "CANCELLED",
           status_display: "Cancelled",
-          can_be_deleted: true,
+          can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
         });
       }
       if (url.includes("/api/gradings/candidates/")) {
@@ -1135,7 +1135,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = setupStandardMock({
       status: "CANCELLED",
       status_display: "Cancelled",
-      can_be_deleted: true,
+      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();

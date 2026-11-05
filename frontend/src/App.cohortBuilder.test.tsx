@@ -47,7 +47,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
-    can_be_deleted: false,
+    can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
     notes: "",
   };
 

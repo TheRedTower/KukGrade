@@ -54,7 +54,7 @@ flowchart LR
    recorded; each such change is flagged "after the lock" and shown with the decision
    (on the final decisions screen and the assessment record). Once the decision is
    recorded the candidate's record is fixed. After the lock, a candidate can be withdrawn with a recorded
-   reason by someone with the authority. A session that has recorded a final decision can no longer be cancelled.
+   reason by someone with the authority. A session that has recorded a final decision can no longer be cancelled or deleted. A completed or cancelled session can be archived by an administrator: hidden from the list of gradings (shown under "Archived gradings"), nothing erased, and restorable.
 
 Every step is recorded in the [audit log](#audit-log).
 
@@ -149,7 +149,8 @@ protection.
 | Read the audit log | with `can_view_grading_audit_log` | ✓ | ✓ |
 | Manage users, roles and authority | | ✓ | |
 | Import student rosters and past gradings; reconcile imported history | | ✓ | |
-| Permanently delete a user, student, assessment or session | | ✓ | |
+| Permanently delete a user, student, assessment or session without final decisions | | ✓ | |
+| Archive or restore a completed or cancelled session | | ✓ | |
 
 Notes:
 

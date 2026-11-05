@@ -29,7 +29,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 5,
       completed_assessment_count: 3,
       awaiting_decision_count: 1,
-      can_be_deleted: false,
+      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -42,7 +42,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false,
+      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -55,7 +55,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false,
+      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -112,7 +112,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
         title: "Draft Yet Kept",
         status: "DRAFT",
         status_display: "Draft",
-        can_be_deleted: false,
+        can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       },
     ] satisfies GradingSession[];
     vi.stubGlobal("fetch", makeFetch(sessions));
@@ -123,6 +123,23 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     expect(screen.getByRole("button", { name: "Delete session Locked But Deletable" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Delete session Completed And Kept/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Delete session Draft Yet Kept/ })).not.toBeInTheDocument();
+  });
+
+  it("asks for archived sessions only when the viewer chooses to see them", async () => {
+    const fetchMock = makeFetch(testSessions);
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("table", { name: "Grading sessions" });
+    const requested = () => fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requested().some((url) => url.includes("archived="))).toBe(false);
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Show" }), "ARCHIVED");
+
+    await waitFor(() => expect(requested().some((url) => url.includes("archived=only"))).toBe(true));
+    expect(await screen.findByRole("heading", { name: "Archived grading sessions" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Current grading session" })).toBeNull();
   });
 
   it("takes the years and the current session from their own small requests, not the whole history", async () => {
@@ -276,7 +293,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false,
+      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -320,7 +337,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: true,
+      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -371,7 +388,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: true,
+      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -417,7 +434,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: true,
+      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -629,7 +646,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false,
+      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Central Dojang",
       notes: "High rank candidates expected",
     } satisfies GradingSession;

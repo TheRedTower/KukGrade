@@ -126,8 +126,10 @@ paths:
           - OUTCOME_FINALISED
           - OUTCOME_PROPOSED
           - PROMOTION_RECORDED
+          - SESSION_ARCHIVED
           - SESSION_CREATED
           - SESSION_DELETED
+          - SESSION_RESTORED
           - SESSION_TRANSITIONED
           - SESSION_UPDATED
           - STUDENT_CREATED
@@ -1997,6 +1999,17 @@ paths:
     get:
       operationId: gradings_sessions_list
       parameters:
+      - name: archived
+        required: false
+        in: query
+        description: 'Archived sessions are left out unless asked for: `include` lists
+          them with the rest, `only` lists just those.'
+        schema:
+          type: string
+          enum:
+          - exclude
+          - include
+          - only
       - name: grading_date_from
         required: false
         in: query
@@ -2149,6 +2162,50 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/gradings/sessions/{id}/archive/:
+    post:
+      operationId: gradings_sessions_archive_create
+      description: Hide a finished session from the lists. Nothing is erased.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingSession'
+          description: ''
+  /api/gradings/sessions/{id}/restore/:
+    post:
+      operationId: gradings_sessions_restore_create
+      description: Bring an archived session back into the lists.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingSession'
+          description: ''
   /api/gradings/sessions/years/:
     get:
       operationId: gradings_sessions_years_retrieve
@@ -2942,6 +2999,8 @@ components:
       - SESSION_UPDATED
       - SESSION_TRANSITIONED
       - SESSION_DELETED
+      - SESSION_ARCHIVED
+      - SESSION_RESTORED
       - CANDIDATE_REGISTERED
       - CANDIDATE_UPDATED
       - CANDIDATE_WITHDRAWN
@@ -2979,6 +3038,8 @@ components:
         * `SESSION_UPDATED` - Grading session updated
         * `SESSION_TRANSITIONED` - Grading session status changed
         * `SESSION_DELETED` - Grading session deleted
+        * `SESSION_ARCHIVED` - Grading session archived
+        * `SESSION_RESTORED` - Grading session restored from the archive
         * `CANDIDATE_REGISTERED` - Candidate registered
         * `CANDIDATE_UPDATED` - Candidate updated
         * `CANDIDATE_WITHDRAWN` - Candidate withdrawn
@@ -4336,9 +4397,27 @@ components:
           description: Whether the requesting user may delete it, by the delete's
             own rule.
           readOnly: true
+        archived_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: 'When a finished session was put away: hidden from lists, nothing
+            erased.'
+        can_be_archived:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may archive this session now.
+        can_be_restored:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may restore this archived session.
       required:
+      - archived_at
       - awaiting_decision_count
+      - can_be_archived
       - can_be_deleted
+      - can_be_restored
       - candidate_count
       - completed_assessment_count
       - grading_date

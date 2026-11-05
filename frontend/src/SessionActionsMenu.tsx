@@ -67,7 +67,9 @@ export function SessionActionsMenu({ session, user, menu, onAction }: SessionAct
               View audit events
             </Link>
           )}
-          {/* The server decides, for this user, by the delete's own rule. */}
+          {/* The server decides, for this user, what may be done now. */}
+          {session.can_be_archived && <MenuItem onClick={() => onAction("ARCHIVE")}>Archive session</MenuItem>}
+          {session.can_be_restored && <MenuItem onClick={() => onAction("RESTORE")}>Restore from archive</MenuItem>}
           {session.can_be_deleted && <MenuItem danger onClick={() => onAction("DELETE")}>Delete session</MenuItem>}
         </div>
       )}

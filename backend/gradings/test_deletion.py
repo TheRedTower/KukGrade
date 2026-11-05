@@ -16,7 +16,7 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
-from gradings.outcome_services import promote_candidate
+from gradings.outcome_services import promote_candidate, propose_for_candidate
 from gradings.services import delete_grading_session, transition_grading_session
 from gradings.testing import (
     assessment,
@@ -250,49 +250,39 @@ def test_non_administrator_cannot_delete_a_locked_or_completed_session() -> None
         assert GradingSession.objects.filter(pk=session.pk).exists()
 
 
-def test_locked_session_with_finalised_outcomes_and_promotions_deletable_by_administrator() -> (  # noqa: E501
-    None
-):
+def test_a_session_holding_a_final_decision_is_never_deleted() -> None:
     built, generated = locked_completed_candidate()
-    session = built.session
     outcome = finalised_outcome(built)
-    actor = promoter("session-cascade-delete@example.com")
-    promotion = promote_candidate(outcome, actor)
-    student_row = built.student
-    student_row.refresh_from_db()
-    assert student_row.current_rank == promotion.to_rank
-
-    admin = user(
-        "session-cascade-delete-admin@example.com",
-        role=User.Role.ADMINISTRATOR,
-    )
+    promotion = promote_candidate(outcome, promoter("session-keep@example.com"))
+    admin = user("session-keep-admin@example.com", role=User.Role.ADMINISTRATOR)
     events_before = AuditEvent.objects.count()
-    session_pk = session.pk
 
-    delete_grading_session(session, actor=admin)
+    with pytest.raises(ValidationError, match="never erased"):
+        delete_grading_session(built.session, actor=admin)
 
-    student_row.refresh_from_db()
-    assert student_row.current_rank == promotion.from_rank
-    assert not GradingSession.objects.filter(pk=session_pk).exists()
-    assert not GradingCandidate.objects.filter(pk=built.pk).exists()
-    assert not CandidateAssessment.objects.filter(pk=generated.pk).exists()
-    assert not CandidateOutcome.objects.filter(pk=outcome.pk).exists()
-    assert not Promotion.objects.filter(pk=promotion.pk).exists()
+    built.student.refresh_from_db()
+    assert built.student.current_rank == promotion.to_rank
+    assert GradingSession.objects.filter(pk=built.session_id).exists()
+    assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
+    assert CandidateOutcome.objects.filter(pk=outcome.pk).exists()
+    assert Promotion.objects.filter(pk=promotion.pk).exists()
+    assert AuditEvent.objects.count() == events_before
 
-    cascade_event = AuditEvent.objects.filter(
-        entity_type="GradingSession",
-        entity_id=str(session_pk),
-        action=AuditAction.SESSION_DELETED,
-    ).get()
-    assert cascade_event.metadata["reverted_student_ranks"] == [
-        {
-            "student_id": student_row.pk,
-            "student_wksa_id": student_row.wksa_id,
-            "from": promotion.to_rank.code,
-            "to": promotion.from_rank.code,
-        },
-    ]
-    assert AuditEvent.objects.count() == events_before + 1
+
+def test_a_proposal_with_no_final_decision_does_not_stop_an_administrator() -> None:
+    built, _generated = locked_completed_candidate()
+    proposed = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("session-proposer@example.com"),
+    )
+    admin = user("session-proposal-admin@example.com", role=User.Role.ADMINISTRATOR)
+
+    delete_grading_session(built.session, actor=admin)
+
+    assert not GradingSession.objects.filter(pk=built.session_id).exists()
+    assert not CandidateOutcome.objects.filter(pk=proposed.pk).exists()
 
 
 def test_any_status_session_delete_follows_the_permission_not_the_role() -> None:
@@ -354,7 +344,7 @@ def test_session_delete_with_a_superseded_promotion_is_refused_and_deletes_nothi
     assert Promotion.objects.filter(pk=promotion.pk).exists()
 
 
-def test_api_admin_can_delete_locked_session_with_finalised_outcomes() -> None:
+def test_api_admin_cannot_delete_a_session_holding_final_decisions() -> None:
     built, _generated = locked_completed_candidate()
     session = built.session
     outcome = finalised_outcome(built)
@@ -369,9 +359,11 @@ def test_api_admin_can_delete_locked_session_with_finalised_outcomes() -> None:
     )
     response = client.delete(f"/api/gradings/sessions/{session.id}/")
 
-    assert response.status_code == 204
-    assert not GradingSession.objects.filter(pk=session.pk).exists()
-    assert AuditEvent.objects.filter(
+    assert response.status_code == 400
+    assert "Archive it instead" in str(response.json())
+    assert GradingSession.objects.filter(pk=session.pk).exists()
+    assert CandidateOutcome.objects.filter(pk=outcome.pk).exists()
+    assert not AuditEvent.objects.filter(
         action=AuditAction.SESSION_DELETED,
         entity_id=str(session.id),
     ).exists()

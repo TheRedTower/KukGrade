@@ -26,6 +26,8 @@ class AuditAction(models.TextChoices):
     SESSION_UPDATED = "SESSION_UPDATED", "Grading session updated"
     SESSION_TRANSITIONED = "SESSION_TRANSITIONED", "Grading session status changed"
     SESSION_DELETED = "SESSION_DELETED", "Grading session deleted"
+    SESSION_ARCHIVED = "SESSION_ARCHIVED", "Grading session archived"
+    SESSION_RESTORED = "SESSION_RESTORED", "Grading session restored from the archive"
 
     CANDIDATE_REGISTERED = "CANDIDATE_REGISTERED", "Candidate registered"
     CANDIDATE_UPDATED = "CANDIDATE_UPDATED", "Candidate updated"

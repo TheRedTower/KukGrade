@@ -40,9 +40,6 @@ Want something here, or something that is missing? Open an
       account or password action. Planned after 1.0.
 - [ ] **Instructor groups**: assign each candidate to an instructor's group so each marks
       their own at the mat. Wanted after the marking workflow.
-- [ ] **Archive finished sessions** instead of deleting them: a session with final decisions
-      is hidden from lists and nothing is erased; permanent delete stays for sessions without
-      final decisions.
 - [ ] **Audit events without personal details**: new events record the student's ID and which
       fields changed, not names or dates of birth, plus a written and tested procedure to
       redact older events on request.

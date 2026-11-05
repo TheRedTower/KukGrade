@@ -42,6 +42,12 @@ image (`docs/installation.md`).
   `CandidateAssessment.notes` carries the overall observation for the
   assessment. There is no separate praise or positive-observation field, and
   none is planned. The old single `assessor_notes` column is no longer written.
+- Every change to a mark after the first needs a written reason and is kept in
+  an append-only log (`AssessmentItemResultChange`); there is no reopen. After
+  the session locks only the authorised Master may correct a mark or comment,
+  always with a reason, until that candidate's final decision is recorded; those
+  entries carry `after_lock`. The server names the capability (`marks_open`);
+  the frontend never re-derives it.
 - Historical grading records must remain reproducible.
 - The applicable syllabus depends on rank, age band, and syllabus version.
 - Every grading assesses the cumulative syllabus: everything examinable

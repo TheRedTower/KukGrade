@@ -1143,6 +1143,10 @@ class AssessmentItemComment(models.Model):
     )
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    after_lock = models.BooleanField(
+        default=False,
+        help_text="Written after the session was locked.",
+    )
 
     objects = AssessmentItemCommentQuerySet.as_manager()
 
@@ -1235,6 +1239,10 @@ class AssessmentItemResultChange(models.Model):
     )
     changed_at = models.DateTimeField(auto_now_add=True)
     reason = models.TextField(blank=True)
+    after_lock = models.BooleanField(
+        default=False,
+        help_text="Made after the session was locked.",
+    )
 
     objects = AssessmentItemResultChangeQuerySet.as_manager()
 

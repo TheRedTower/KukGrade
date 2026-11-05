@@ -176,8 +176,10 @@ export function AssessmentCompletionScreen() {
         <span aria-hidden="true" className="acp-topbar-divider" />
         <span className="acp-topbar-note">
           {isSealed
-            ? session.status === "OPEN"
-              ? "This record is sealed; a mark can still be corrected until the session locks"
+            ? assessment?.marks_open
+              ? session.status === "OPEN"
+                ? "This record is sealed; a mark can still be corrected until the session locks"
+                : "This record is sealed; as the Master you can still correct it until the decision is recorded"
               : "This record is sealed and cannot be changed"
             : "Proof the record before it is sealed"}
         </span>
@@ -408,10 +410,12 @@ export function AssessmentCompletionScreen() {
                 <p>
                   {session.status === "OPEN"
                     ? "This record is sealed. While the session is open a mark can still be corrected, with a reason that is kept; once the session locks it is permanent."
-                    : "This record is sealed and permanent. Results, notes, assessors and times cannot be changed."}
+                    : assessment?.marks_open
+                      ? "This record is sealed. As the authorised Master you can still correct a mark, with a reason that is kept, until this candidate's final decision is recorded; after that it is permanent."
+                      : "This record is sealed and permanent. Results, notes, assessors and times cannot be changed."}
                 </p>
               </div>
-              {session.status === "OPEN" && (
+              {assessment?.marks_open && (
                 <Link
                   to={scoringPath}
                   className={`${buttonClass({ variant: "secondary" })} acp-correct`}

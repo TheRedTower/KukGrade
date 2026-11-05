@@ -288,6 +288,8 @@ class GradingCandidateViewSet(
                     queryset=with_overall_counts(
                         CandidateAssessment.objects.select_related(
                             "candidate__student",
+                            "candidate__session",
+                            "candidate__outcome",
                             "generated_by",
                         ),
                     ),
@@ -491,6 +493,8 @@ class CandidateAssessmentViewSet(
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
         assessments = CandidateAssessment.objects.select_related(
             "candidate__student",
+            "candidate__session",
+            "candidate__outcome",
             "generated_by",
         )
         # A list needs only each assessment's counts; an object action may

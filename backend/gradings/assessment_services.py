@@ -8,6 +8,7 @@ from django.db.models import Max
 from django.utils import timezone
 
 from accounts.models import User
+from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from audit.models import AuditAction
 from audit.recording import record
 from gradings.locking import (
@@ -434,26 +435,89 @@ def bulk_start_candidate_assessments(
     return each_independently(assessments, start)
 
 
-def validate_assessment_item_can_be_changed(item: CandidateAssessmentItem) -> None:
-    """Marks can change while the session is open, whether or not the assessment
-    has been completed: a completed one is corrected with a reason, not reopened."""
-    assessment = item.assessment
+def _validate_assessment_open_for_item_work(
+    assessment: CandidateAssessment,
+    actor: User,
+    *,
+    started_message: str,
+    closed_message: str,
+) -> None:
+    """Whether `actor` may change a mark or comment on this assessment's items.
+
+    While the session is open, anyone who marks may, whether or not the
+    assessment has been completed (a completed one is corrected with a reason,
+    not reopened). Once it is locked, only the authorised Master may, and only
+    until that candidate's final decision is recorded: after that the record
+    is fixed. The session lock is held by every caller, so the outcome read
+    here cannot change under it.
+    """
     if assessment.status == CandidateAssessment.Status.NOT_STARTED:
-        raise ValidationError(
-            {
-                "assessment": [
-                    "Assessment must be started before item results can be changed.",
-                ],
-            },
-        )
-    if assessment.candidate.session.status != GradingSession.Status.OPEN:
-        raise ValidationError(
-            {"session": ["Assessment results can only be entered in an open session."]},
-        )
+        raise ValidationError({"assessment": [started_message]})
+    session = assessment.candidate.session
+    if session.status == GradingSession.Status.LOCKED:
+        if not actor.has_perm(FINAL_GRADING_DECISION_PERMISSION):
+            raise ValidationError(
+                {
+                    "session": [
+                        "Once a session is locked, only the authorised Master "
+                        "can correct a result or comment on one.",
+                    ],
+                },
+            )
+        outcome = getattr(assessment.candidate, "outcome", None)
+        if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
+            raise ValidationError(
+                {
+                    "candidate": [
+                        "This candidate's final decision has been recorded, "
+                        "so their record is fixed.",
+                    ],
+                },
+            )
+    elif session.status != GradingSession.Status.OPEN:
+        raise ValidationError({"session": [closed_message]})
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
             {"candidate": ["Withdrawn candidates cannot be assessed."]},
         )
+
+
+MARK_STARTED_MESSAGE = "Assessment must be started before item results can be changed."
+MARK_CLOSED_MESSAGE = "Assessment results can only be entered in an open session."
+COMMENT_STARTED_MESSAGE = (
+    "Assessment must be started before an item can be commented on."
+)
+COMMENT_CLOSED_MESSAGE = "Items can only be commented on in an open session."
+
+
+def validate_assessment_item_can_be_changed(
+    item: CandidateAssessmentItem,
+    actor: User,
+) -> None:
+    _validate_assessment_open_for_item_work(
+        item.assessment,
+        actor,
+        started_message=MARK_STARTED_MESSAGE,
+        closed_message=MARK_CLOSED_MESSAGE,
+    )
+
+
+def assessment_marks_open(assessment: CandidateAssessment, actor: User) -> bool:
+    """Whether `actor` may change marks, or comment, on this assessment now.
+
+    The screens ask this rather than working it out, so the rule lives only
+    here. It is the same check the writes make.
+    """
+    try:
+        _validate_assessment_open_for_item_work(
+            assessment,
+            actor,
+            started_message=MARK_STARTED_MESSAGE,
+            closed_message=MARK_CLOSED_MESSAGE,
+        )
+    except ValidationError:
+        return False
+    return True
 
 
 @transaction.atomic
@@ -480,7 +544,7 @@ def update_candidate_assessment_item(
         session_path="assessment__candidate__session_id",
         name="item",
     )
-    validate_assessment_item_can_be_changed(locked_item)
+    validate_assessment_item_can_be_changed(locked_item, assessor)
     previous_result = locked_item.result
     # A call that changes nothing writes and records nothing.
     if result is None or result == previous_result:
@@ -491,7 +555,11 @@ def update_candidate_assessment_item(
     already_marked = previous_result != CandidateAssessmentItem.Result.NOT_ASSESSED
     # Not the item's first change: it is marked, or has been and was cleared.
     is_later_change = already_marked or locked_item.changes.exists()
-    if is_later_change and not reason:
+    # After the lock every correction says why, the first mark included.
+    after_lock = locked_item.assessment.candidate.session.status == (
+        GradingSession.Status.LOCKED
+    )
+    if (is_later_change or after_lock) and not reason:
         raise ValidationError({"reason": ["Say why the mark is changing."]})
     if (
         result == CandidateAssessmentItem.Result.NOT_ASSESSED
@@ -524,6 +592,7 @@ def update_candidate_assessment_item(
         to_result=result,
         changed_by=assessor,
         reason=reason,
+        after_lock=after_lock,
     )
     # The reason stays in the change log, not the audit trail, which records
     # that the mark changed, by whom and from what to what.
@@ -540,32 +609,22 @@ def update_candidate_assessment_item(
             "before": {"result": previous_result},
             "after": {"result": locked_item.result},
             "change": str(change.pk),
+            "after_lock": after_lock,
             "assessment": str(locked_item.assessment_id),
         },
     )
     return locked_item
 
 
-def validate_item_can_be_commented(item: CandidateAssessmentItem) -> None:
-    """Comments are for deliberating, so they stay open after the assessment
-    is completed, for as long as the session is open."""
-    assessment = item.assessment
-    if assessment.status == CandidateAssessment.Status.NOT_STARTED:
-        raise ValidationError(
-            {
-                "assessment": [
-                    "Assessment must be started before an item can be commented on.",
-                ],
-            },
-        )
-    if assessment.candidate.session.status != GradingSession.Status.OPEN:
-        raise ValidationError(
-            {"session": ["Items can only be commented on in an open session."]},
-        )
-    if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
-        raise ValidationError(
-            {"candidate": ["Withdrawn candidates cannot be assessed."]},
-        )
+def validate_item_can_be_commented(item: CandidateAssessmentItem, author: User) -> None:
+    """Comments are for deliberating, so they stay open after the assessment is
+    completed, for as long as marks can change: the same rule."""
+    _validate_assessment_open_for_item_work(
+        item.assessment,
+        author,
+        started_message=COMMENT_STARTED_MESSAGE,
+        closed_message=COMMENT_CLOSED_MESSAGE,
+    )
 
 
 @transaction.atomic
@@ -582,11 +641,15 @@ def add_item_comment(
         session_path="assessment__candidate__session_id",
         name="item",
     )
-    validate_item_can_be_commented(locked_item)
+    validate_item_can_be_commented(locked_item, author)
+    after_lock = locked_item.assessment.candidate.session.status == (
+        GradingSession.Status.LOCKED
+    )
     comment = AssessmentItemComment.objects.create(
         item=locked_item,
         author=author,
         body=body,
+        after_lock=after_lock,
     )
     # The words stay in the comment, not the audit trail, which records that
     # one was written, by whom and where.
@@ -597,6 +660,7 @@ def add_item_comment(
         actor=author,
         metadata={
             "comment": str(comment.pk),
+            "after_lock": after_lock,
             "assessment": str(locked_item.assessment_id),
         },
     )

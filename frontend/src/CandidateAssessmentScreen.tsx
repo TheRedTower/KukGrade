@@ -238,14 +238,13 @@ export function CandidateAssessmentScreen() {
   // STATUSES); a candidate registered after opening is prepared here too.
   const canPrepare = session.status === "DRAFT" || session.status === "OPEN";
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
-  // Marks and comments can change while the session is open, whether or not the
-  // assessment has been completed (a completed one is corrected with a reason,
-  // not reopened): the server's own rule.
-  const canEdit =
-    !!assessment &&
-    !isAssessmentNotStarted &&
-    session?.status === "OPEN" &&
-    candidate?.status !== "WITHDRAWN";
+  // Whether this viewer may change marks and comment now is the server's call
+  // (the session is open, or it is locked and they are the authorised Master
+  // and this candidate's final decision is not yet recorded): it is served,
+  // not worked out here.
+  const canEdit = !!assessment?.marks_open;
+  // After the lock every correction says why, the first mark included.
+  const afterLock = session.status === "LOCKED";
 
   const metWidth = stats.totalItems > 0 ? (stats.metCount / stats.totalItems) * 100 : 0;
   const notMetWidth = stats.totalItems > 0 ? (stats.notMetCount / stats.totalItems) * 100 : 0;
@@ -335,6 +334,15 @@ export function CandidateAssessmentScreen() {
         </div>
       )}
 
+      {/* After the lock only the authorised Master corrects a record, until their decision is made. */}
+      {afterLock && canEdit && (
+        <Alert tone="warning" role="status" data-testid="caw-locked-correction-note">
+          This session is locked. As the authorised Master you can still correct a mark or add a
+          comment, with a reason, until this candidate&rsquo;s final decision is recorded. Each
+          correction is kept and shown with the decision.
+        </Alert>
+      )}
+
       {/* A generated snapshot is started separately once the session is open. */}
       {isAssessmentNotStarted && (
         <div className="action-row caw-not-started-banner" data-testid="caw-not-started-banner">
@@ -373,6 +381,7 @@ export function CandidateAssessmentScreen() {
                   key={item.id}
                   item={item}
                   canEdit={canEdit}
+                  reasonAlways={afterLock}
                   assessmentCompleted={isAssessmentCompleted}
                   pendingResult={changing?.itemId === item.id ? changing.result : null}
                   isCommentOpen={openCommentId === item.id}

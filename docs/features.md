@@ -49,7 +49,11 @@ flowchart LR
    assessment, but every change after the first mark needs a written reason (even
    changing your own, even clearing it), and the change, who made it, when and why
    are kept and shown on the item; a completed assessment keeps every required item
-   marked. After the lock, a candidate can be withdrawn with a recorded
+   marked. After the lock only the authorised Master can correct a mark or add a
+   comment, always with a written reason, until that candidate's final decision is
+   recorded; each such change is flagged "after the lock" and shown with the decision
+   (on the final decisions screen and the assessment record). Once the decision is
+   recorded the candidate's record is fixed. After the lock, a candidate can be withdrawn with a recorded
    reason by someone with the authority. A session that has recorded a final decision can no longer be cancelled.
 
 Every step is recorded in the [audit log](#audit-log).

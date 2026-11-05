@@ -7,6 +7,7 @@ import { formatShortDateTime, formatTime } from "./dates";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { Button } from "./Button";
 import { ItemDraftBox } from "./ItemDraftBox";
+import { isReasonedChange, RESULT_WORDS } from "./resultWords";
 import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
 
@@ -83,12 +84,6 @@ export function DeleteAssessmentDialog({
   );
 }
 
-const RESULT_WORDS: Record<CandidateAssessmentItemResult, string> = {
-  MET: "Met",
-  NOT_MET: "Not met",
-  NOT_ASSESSED: "not assessed",
-};
-
 /**
  * One requirement, as a divider-led row.
  *
@@ -103,6 +98,7 @@ const RESULT_WORDS: Record<CandidateAssessmentItemResult, string> = {
 export function AssessmentItemRow({
   item,
   canEdit,
+  reasonAlways,
   assessmentCompleted,
   pendingResult,
   isCommentOpen,
@@ -117,6 +113,8 @@ export function AssessmentItemRow({
   item: CandidateAssessmentItem;
   /** Marks and comments may change: the assessment is started, the session is open. */
   canEdit: boolean;
+  /** After the lock every correction asks why, the first mark included. */
+  reasonAlways: boolean;
   assessmentCompleted: boolean;
   /** The mark this row is asking a reason for, when it is. */
   pendingResult: CandidateAssessmentItemResult | null;
@@ -164,14 +162,15 @@ export function AssessmentItemRow({
   // not emptied.
   const canClear = canEdit && isScored && !(assessmentCompleted && item.required);
   // The first mark on an item is made at once. Anything after it, including
-  // marking an item again after it was cleared, asks why.
+  // marking an item again after it was cleared, asks why; and once the session
+  // is locked every correction does.
   const hasHistory = item.changes.length > 0;
   const choose = (result: CandidateAssessmentItemResult) => {
     if (result === item.result) return;
-    if (isScored || hasHistory) onAskChange(result);
+    if (isScored || hasHistory || reasonAlways) onAskChange(result);
     else onMark(result);
   };
-  const laterChanges = item.changes.filter((change) => change.sequence > 1);
+  const laterChanges = item.changes.filter(isReasonedChange);
   const clearing = pendingResult === "NOT_ASSESSED";
 
   return (
@@ -214,6 +213,7 @@ export function AssessmentItemRow({
                 Changed from {RESULT_WORDS[change.from_result]} to {RESULT_WORDS[change.to_result]}
                 <span className="caw-row-note-by">
                   {" "}— {change.changed_by_name}, {formatShortDateTime(change.changed_at)}
+                  {change.after_lock ? ", after the lock" : ""}
                 </span>
                 : “{change.reason}”
               </span>
@@ -223,6 +223,7 @@ export function AssessmentItemRow({
                 “{comment.body}”
                 <span className="caw-row-note-by">
                   {" "}— {comment.author_name}, {formatShortDateTime(comment.created_at)}
+                  {comment.after_lock ? ", after the lock" : ""}
                 </span>
               </span>
             ))}
@@ -260,10 +261,15 @@ export function AssessmentItemRow({
                   Changing {RESULT_WORDS[item.result ?? "NOT_ASSESSED"]} to {RESULT_WORDS[pendingResult]}. Why is the mark
                   changing? The change and your reason are kept.
                 </>
-              ) : (
+              ) : hasHistory ? (
                 <>
                   Marking this item {RESULT_WORDS[pendingResult]} again, after it was cleared. Why is the mark
                   changing? The change and your reason are kept.
+                </>
+              ) : (
+                <>
+                  Marking this item {RESULT_WORDS[pendingResult]}, after the session was locked. Why is the mark
+                  being made? The change and your reason are kept.
                 </>
               )}
             </p>

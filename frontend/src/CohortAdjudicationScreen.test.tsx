@@ -120,6 +120,7 @@ function assessment(
     status_display: "Completed",
     generated_by_email: "master@example.com",
     overall,
+    marks_open: true,
     generated_at: "2026-11-12T09:00:00Z",
     started_at: "2026-11-12T09:05:00Z",
     completed_at: "2026-11-12T11:00:00Z",
@@ -262,8 +263,8 @@ describe("CohortAdjudicationScreen", () => {
     );
     mockGetItems.mockResolvedValue(
       page([
-        item(1, { result: "NOT_MET", result_display: "Not met", item_name: "Dwi Cha Gi", comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on the turn.", created_at: "2026-09-18T10:20:00Z" }] }),
-        item(2, { item_name: "Ap Cha Gi", comments: [{ id: 2, author_name: "Casey Reed", body: "Excellent chamber.", created_at: "2026-09-18T10:20:00Z" }] }),
+        item(1, { result: "NOT_MET", result_display: "Not met", item_name: "Dwi Cha Gi", comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on the turn.", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
+        item(2, { item_name: "Ap Cha Gi", comments: [{ id: 2, author_name: "Casey Reed", body: "Excellent chamber.", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
         item(3, { item_name: "Yup Cha Gi" }),
       ]),
     );

@@ -491,7 +491,7 @@ def test_a_mark_change_after_the_session_locks_is_refused() -> None:
     )
 
     assert isinstance(locking, GradingSession)
-    refused(changing, "open session")
+    refused(changing, "only the authorised Master")
     item.refresh_from_db()
     assert item.result == CandidateAssessmentItem.Result.MET
 

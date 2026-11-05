@@ -179,6 +179,7 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
     assessor_email: "reed@example.com",
     assessed_at: "2026-11-12T10:00:00Z",
     comments: [],
+    changes: [],
     ...overrides,
   };
 }

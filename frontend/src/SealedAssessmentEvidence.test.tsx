@@ -48,6 +48,7 @@ function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentI
     assessor_email: "reed@example.com",
     assessed_at: null,
     comments: [],
+    changes: [],
     ...overrides,
   };
 }

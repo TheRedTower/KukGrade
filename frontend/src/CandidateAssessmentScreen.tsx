@@ -31,9 +31,10 @@ export function CandidateAssessmentScreen() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  // At most one row may be confirming a clear or writing a comment at a time -
-  // both are held here rather than in the row so opening one closes the other.
-  const [confirmingClearId, setConfirmingClearId] = useState<number | null>(null);
+  // At most one row may be asking for the reason a mark is changing, or taking
+  // a comment, at a time - both are held here rather than in the row so
+  // opening one closes the other.
+  const [changing, setChanging] = useState<{ itemId: number; result: CandidateAssessmentItemResult } | null>(null);
   const [openCommentId, setOpenCommentId] = useState<number | null>(null);
 
   const {
@@ -119,8 +120,16 @@ export function CandidateAssessmentScreen() {
 
   const updateItemMutation = useMutation({
     mutationKey: itemWriteKey,
-    mutationFn: ({ itemId, result }: { itemId: number; result: CandidateAssessmentItemResult }) => {
-      const payload = { result };
+    mutationFn: ({
+      itemId,
+      result,
+      reason,
+    }: {
+      itemId: number;
+      result: CandidateAssessmentItemResult;
+      reason?: string;
+    }) => {
+      const payload = reason ? { result, reason } : { result };
       const previous = itemWriteChains.current.get(itemId) ?? Promise.resolve();
       const write = previous
         .catch(() => undefined)
@@ -229,11 +238,10 @@ export function CandidateAssessmentScreen() {
   // STATUSES); a candidate registered after opening is prepared here too.
   const canPrepare = session.status === "DRAFT" || session.status === "OPEN";
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
-  const isAssessmentInProgress = assessment?.status === "IN_PROGRESS";
-  const isEditable = !!isAssessmentInProgress && !isAssessmentCompleted;
-  // Comments are for deliberating, so they stay open after the assessment is
-  // completed, for as long as the session is open: the server's own rule.
-  const canComment =
+  // Marks and comments can change while the session is open, whether or not the
+  // assessment has been completed (a completed one is corrected with a reason,
+  // not reopened): the server's own rule.
+  const canEdit =
     !!assessment &&
     !isAssessmentNotStarted &&
     session?.status === "OPEN" &&
@@ -364,23 +372,33 @@ export function CandidateAssessmentScreen() {
                 <AssessmentItemRow
                   key={item.id}
                   item={item}
-                  isEditable={isEditable}
-                  canComment={canComment}
-                  isConfirmingClear={confirmingClearId === item.id}
+                  canEdit={canEdit}
+                  assessmentCompleted={isAssessmentCompleted}
+                  pendingResult={changing?.itemId === item.id ? changing.result : null}
                   isCommentOpen={openCommentId === item.id}
-                  onAskClear={() => {
-                    setOpenCommentId(null);
-                    setConfirmingClearId(item.id);
-                  }}
-                  onCancelClear={() => setConfirmingClearId(null)}
-                  onToggleComment={() => {
-                    setConfirmingClearId(null);
-                    setOpenCommentId((current) => (current === item.id ? null : item.id));
-                  }}
-                  onUpdateResult={(result) => {
-                    setConfirmingClearId(null);
+                  onMark={(result) => {
+                    setChanging(null);
                     updateItemMutation.mutate({ itemId: item.id, result });
                   }}
+                  onAskChange={(result) => {
+                    setOpenCommentId(null);
+                    setChanging({ itemId: item.id, result });
+                  }}
+                  onCancelChange={() =>
+                    // Only this row's own prompt: a save finishing after you moved
+                    // on to another item must not close that item's.
+                    setChanging((current) => (current?.itemId === item.id ? null : current))
+                  }
+                  onChangeResult={(result, reason) =>
+                    updateItemMutation.mutateAsync({ itemId: item.id, result, reason })
+                  }
+                  onToggleComment={() => {
+                    setChanging(null);
+                    setOpenCommentId((current) => (current === item.id ? null : item.id));
+                  }}
+                  onCloseComment={() =>
+                    setOpenCommentId((current) => (current === item.id ? null : current))
+                  }
                   onAddComment={(body) => addCommentMutation.mutateAsync({ itemId: item.id, body })}
                 />
               ))}

@@ -57,7 +57,6 @@ from audit.models import AuditAction, AuditEvent
 from gradings.assessment_services import (
     delete_candidate_assessment,
     generate_candidate_assessment,
-    reopen_candidate_assessment,
     update_candidate_assessment,
     update_candidate_assessment_item,
 )
@@ -399,6 +398,7 @@ def test_item_edit_and_completion_cannot_interleave() -> None:
         lambda: update_candidate_assessment_item(
             stale_item,
             result=CandidateAssessmentItem.Result.NOT_ASSESSED,
+            reason="Marked the wrong candidate.",
             assessor=assessor,
         ),
         lambda: update_candidate_assessment(
@@ -419,22 +419,30 @@ def test_item_edit_and_completion_cannot_interleave() -> None:
     assert events(AuditAction.ASSESSMENT_COMPLETED, generated) == 0
 
 
-def test_reopen_and_session_lock_cannot_interleave() -> None:
-    """Locking must see an assessment being reopened.
+def test_a_mark_change_and_a_session_lock_follow_arrival_order() -> None:
+    """A mark change must not slip in beside the session locking.
 
-    Without a shared lock, the session locked on the strength of a completed
-    assessment that an uncommitted reopen was returning to in-progress.
+    Both hold the session, so the change either lands before the lock or is
+    refused after it; a corrected mark is never half-recorded in a locked
+    session.
     """
     session = grading_session(status=GradingSession.Status.OPEN)
     generated = assessment(candidate=candidate(session=session))
     complete_assessment(generated)
-    reopener = user("race-reopen@example.com")
-    locker = user("race-reopen-locker@example.com")
-    stale_assessment = CandidateAssessment.objects.get(pk=generated.pk)
+    item = generated.items.filter(required=True).first()
+    assert item is not None
+    changer = user("race-mark-change@example.com")
+    locker = user("race-mark-locker@example.com")
+    stale_item = CandidateAssessmentItem.objects.get(pk=item.pk)
     stale_session = GradingSession.objects.get(pk=session.pk)
 
-    reopening, locking = interleave(
-        lambda: reopen_candidate_assessment(stale_assessment, reopener),
+    changing, locking = interleave(
+        lambda: update_candidate_assessment_item(
+            stale_item,
+            result=CandidateAssessmentItem.Result.NOT_MET,
+            reason="Second look at the video.",
+            assessor=changer,
+        ),
         lambda: transition_grading_session(
             stale_session,
             GradingSession.Status.LOCKED,
@@ -443,13 +451,49 @@ def test_reopen_and_session_lock_cannot_interleave() -> None:
         pause_first_at="gradings.assessment_services.record",
     )
 
-    assert isinstance(reopening, CandidateAssessment)
-    refused(locking, "must be completed before the session can be locked")
+    # The change arrived first and is recorded; the lock followed it.
+    assert isinstance(changing, CandidateAssessmentItem)
+    assert isinstance(locking, GradingSession)
+    item.refresh_from_db()
+    assert item.result == CandidateAssessmentItem.Result.NOT_MET
+    [change] = item.changes.all()
+    assert (change.from_result, change.to_result, change.reason) == (
+        CandidateAssessmentItem.Result.MET,
+        CandidateAssessmentItem.Result.NOT_MET,
+        "Second look at the video.",
+    )
     session.refresh_from_db()
-    assert session.status == GradingSession.Status.OPEN
-    generated.refresh_from_db()
-    assert generated.status == CandidateAssessment.Status.IN_PROGRESS
-    assert events(AuditAction.SESSION_TRANSITIONED, session) == 0
+    assert session.status == GradingSession.Status.LOCKED
+
+
+def test_a_mark_change_after_the_session_locks_is_refused() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    complete_assessment(generated)
+    item = generated.items.filter(required=True).first()
+    assert item is not None
+    stale_item = CandidateAssessmentItem.objects.get(pk=item.pk)
+    stale_session = GradingSession.objects.get(pk=session.pk)
+
+    locking, changing = interleave(
+        lambda: transition_grading_session(
+            stale_session,
+            GradingSession.Status.LOCKED,
+            actor=user("race-lock-first@example.com"),
+        ),
+        lambda: update_candidate_assessment_item(
+            stale_item,
+            result=CandidateAssessmentItem.Result.NOT_MET,
+            reason="Too late.",
+            assessor=user("race-change-second@example.com"),
+        ),
+        pause_first_at="gradings.services.record",
+    )
+
+    assert isinstance(locking, GradingSession)
+    refused(changing, "open session")
+    item.refresh_from_db()
+    assert item.result == CandidateAssessmentItem.Result.MET
 
 
 def test_registration_and_session_lock_cannot_interleave() -> None:

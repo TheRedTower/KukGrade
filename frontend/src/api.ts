@@ -572,13 +572,6 @@ export async function getAllCandidateAssessmentItems(
   );
 }
 
-/** Returns a completed assessment to in-progress while its session is open. */
-export async function reopenCandidateAssessment(id: number): Promise<CandidateAssessment> {
-  return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/reopen/`, {
-    method: "POST",
-  });
-}
-
 export async function updateCandidateAssessmentItem(
   id: number,
   data: Schemas["PatchedCandidateAssessmentItemRequest"],

@@ -372,6 +372,7 @@ SPECTACULAR_SETTINGS = {
         "CandidateAssessmentStatusEnum": "gradings.models.CandidateAssessment.Status",
         "CandidateOutcomeStatusEnum": "gradings.models.CandidateOutcome.Status",
         "CandidateOutcomeOutcomeEnum": "gradings.models.CandidateOutcome.Outcome",
+        "ResultEnum": "gradings.models.CandidateAssessmentItem.Result",
         "BeltColourEnum": "ranks.models.BeltColour",
         "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
         "AgeBandEnum": "syllabus.models.AgeBand",

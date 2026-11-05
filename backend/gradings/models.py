@@ -1181,6 +1181,109 @@ class AssessmentItemComment(models.Model):
             raise ValidationError({"body": ["A comment cannot be empty."]})
 
 
+class AssessmentItemResultChangeQuerySet(
+    models.QuerySet["AssessmentItemResultChange"],
+):
+    def delete(self) -> tuple[int, dict[str, int]]:
+        raise ValidationError(
+            {"change": ["A recorded mark change cannot be deleted."]},
+        )
+
+    def update(self, **kwargs: Any) -> int:
+        # save() and delete() already refuse; QuerySet.update() bypasses both.
+        raise ValidationError(
+            {"change": ["A recorded mark change cannot be changed."]},
+        )
+
+
+class AssessmentItemResultChange(models.Model):
+    """One change to an item's mark: who, from what to what, when, and why.
+
+    The first mark on an item needs no reason; every later change, including
+    clearing the mark and including a person changing their own, needs one
+    (the database holds this too). The item keeps only its current mark, and
+    this keeps how it got there. Never edited or deleted, so a printed record
+    can show why a mark is what it is. Goes with its item only when the
+    item's assessment is deleted.
+    """
+
+    if TYPE_CHECKING:
+        item_id: int
+        changed_by_id: int
+
+    item = models.ForeignKey(
+        CandidateAssessmentItem,
+        on_delete=models.CASCADE,
+        related_name="changes",
+    )
+    sequence = models.PositiveIntegerField(
+        help_text="Its place in the item's history, from 1.",
+    )
+    from_result = models.CharField(
+        max_length=32,
+        choices=CandidateAssessmentItem.Result.choices,
+    )
+    to_result = models.CharField(
+        max_length=32,
+        choices=CandidateAssessmentItem.Result.choices,
+    )
+    # PROTECT, like every other attribution here.
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="assessment_item_result_changes",
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField(blank=True)
+
+    objects = AssessmentItemResultChangeQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["item_id", "sequence"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["item", "sequence"],
+                name="item_result_change_sequence_unique",
+            ),
+            models.CheckConstraint(
+                condition=Q(sequence__gte=1),
+                name="item_result_change_sequence_positive",
+            ),
+            models.CheckConstraint(
+                condition=~Q(from_result=F("to_result")),
+                name="item_result_change_moves",
+            ),
+            models.CheckConstraint(
+                condition=Q(sequence=1) | ~Q(reason=""),
+                name="item_result_change_reason_after_first",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.item}: {self.from_result} to {self.to_result}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if not self._state.adding:
+            raise ValidationError(
+                {"change": ["A recorded mark change cannot be changed."]},
+            )
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        raise ValidationError(
+            {"change": ["A recorded mark change cannot be deleted."]},
+        )
+
+    def clean(self) -> None:
+        super().clean()
+        self.reason = (self.reason or "").strip()
+        if self.sequence and self.sequence > 1 and not self.reason:
+            raise ValidationError(
+                {"reason": ["Say why the mark is changing."]},
+            )
+
+
 class PromotionQuerySet(models.QuerySet["Promotion"]):
     def delete(self) -> tuple[int, dict[str, int]]:
         raise ValidationError(

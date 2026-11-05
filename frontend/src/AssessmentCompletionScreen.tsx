@@ -28,7 +28,6 @@ import { BackLink } from "./BackLink";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  reopenCandidateAssessment,
   updateCandidateAssessment,
   errorMessage,
 } from "./api";
@@ -92,22 +91,6 @@ export function AssessmentCompletionScreen() {
     },
     onError: (err) => {
       setActionError(errorMessage(err, "Failed to complete assessment."));
-    },
-  });
-
-  // A sealed record stays correctable until the session locks.
-  const reopenAssessmentMutation = useMutation({
-    mutationFn: () => {
-      if (!assessment) throw new Error("Assessment not found");
-      return reopenCandidateAssessment(assessment.id);
-    },
-    onSuccess: () => {
-      setActionError(null);
-      refresh.afterAssessmentChange(queryClient, numCandidateId);
-      navigate(scoringPath);
-    },
-    onError: (err) => {
-      setActionError(errorMessage(err, "Failed to reopen assessment."));
     },
   });
 
@@ -194,7 +177,7 @@ export function AssessmentCompletionScreen() {
         <span className="acp-topbar-note">
           {isSealed
             ? session.status === "OPEN"
-              ? "This record is sealed; it can be reopened until the session locks"
+              ? "This record is sealed; a mark can still be corrected until the session locks"
               : "This record is sealed and cannot be changed"
             : "Proof the record before it is sealed"}
         </span>
@@ -424,19 +407,18 @@ export function AssessmentCompletionScreen() {
                 <SealIcon />
                 <p>
                   {session.status === "OPEN"
-                    ? "This record is sealed. While the session is open it can be reopened to correct a result; once the session locks it is permanent."
+                    ? "This record is sealed. While the session is open a mark can still be corrected, with a reason that is kept; once the session locks it is permanent."
                     : "This record is sealed and permanent. Results, notes, assessors and times cannot be changed."}
                 </p>
               </div>
               {session.status === "OPEN" && (
-                <Button
-                  className="acp-reopen"
-                  onClick={() => reopenAssessmentMutation.mutate()}
-                  disabled={reopenAssessmentMutation.isPending}
-                  data-testid="acp-reopen-btn"
+                <Link
+                  to={scoringPath}
+                  className={`${buttonClass({ variant: "secondary" })} acp-correct`}
+                  data-testid="acp-correct-link"
                 >
-                  {reopenAssessmentMutation.isPending ? "Reopening…" : "Reopen for correction"}
-                </Button>
+                  Correct a mark
+                </Link>
               )}
             </div>
           ) : (
@@ -445,8 +427,9 @@ export function AssessmentCompletionScreen() {
                 <div className="acp-notice-row">
                   <SealIcon />
                   <p>
-                    Sealing completes this record. It can be reopened to correct it while the
-                    session is open, and becomes permanent when the session locks.
+                    Sealing completes this record. While the session is open a mark can still
+                    be corrected, with a reason that is kept; it becomes permanent when the
+                    session locks.
                   </p>
                 </div>
                 <label className="acp-proofread">

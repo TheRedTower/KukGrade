@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Alert } from "./Alert";
 import { CandidateAssessmentItem, CandidateAssessmentItemResult } from "./api";
 import { CategoryGroup } from "./candidateAssessmentData";
@@ -6,6 +6,7 @@ import { Dialog } from "./Dialog";
 import { formatShortDateTime, formatTime } from "./dates";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { Button } from "./Button";
+import { ItemDraftBox } from "./ItemDraftBox";
 import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
 
@@ -82,96 +83,93 @@ export function DeleteAssessmentDialog({
   );
 }
 
+const RESULT_WORDS: Record<CandidateAssessmentItemResult, string> = {
+  MET: "Met",
+  NOT_MET: "Not met",
+  NOT_ASSESSED: "not assessed",
+};
+
 /**
  * One requirement, as a divider-led row.
  *
- * Two verdict targets. `Clear` sits with the row tools rather than in the
- * verdict group, and confirms inline naming the assessor and time it erases:
- * the `candidate_item_assessor_matches_result` constraint nulls both when a
- * result returns to `NOT_ASSESSED`, and that attribution cannot be restored.
+ * Two verdict targets. The first mark on an item is made at once. Changing a
+ * mark afterwards, or clearing it with `Clear` (which sits with the row tools
+ * rather than in the verdict group), asks for the reason first, and the reason
+ * and the change are kept: every change is on the record, whoever made it. A
+ * clear also erases who assessed the item and when (the
+ * `candidate_item_assessor_matches_result` constraint nulls both when a result
+ * returns to `NOT_ASSESSED`), so the prompt says so.
  */
 export function AssessmentItemRow({
   item,
-  isEditable,
-  canComment,
-  isConfirmingClear,
+  canEdit,
+  assessmentCompleted,
+  pendingResult,
   isCommentOpen,
-  onAskClear,
-  onCancelClear,
+  onMark,
+  onAskChange,
+  onCancelChange,
+  onChangeResult,
   onToggleComment,
-  onUpdateResult,
+  onCloseComment,
   onAddComment,
 }: {
   item: CandidateAssessmentItem;
-  isEditable: boolean;
-  canComment: boolean;
-  isConfirmingClear: boolean;
+  /** Marks and comments may change: the assessment is started, the session is open. */
+  canEdit: boolean;
+  assessmentCompleted: boolean;
+  /** The mark this row is asking a reason for, when it is. */
+  pendingResult: CandidateAssessmentItemResult | null;
   isCommentOpen: boolean;
-  onAskClear: () => void;
-  onCancelClear: () => void;
+  /** The first mark on an unmarked item: no reason needed. */
+  onMark: (result: CandidateAssessmentItemResult) => void;
+  onAskChange: (result: CandidateAssessmentItemResult) => void;
+  onCancelChange: () => void;
+  onChangeResult: (result: CandidateAssessmentItemResult, reason: string) => Promise<unknown>;
   onToggleComment: () => void;
-  onUpdateResult: (result: CandidateAssessmentItemResult) => void;
+  /** Closes this row's comment box only, whatever else has been opened since. */
+  onCloseComment: () => void;
   onAddComment: (body: string) => Promise<unknown>;
 }) {
-  const [draft, setDraft] = useState("");
-  const [saving, setSaving] = useState(false);
-  const keepButtonRef = useRef<HTMLButtonElement>(null);
   const clearButtonRef = useRef<HTMLButtonElement>(null);
   const metButtonRef = useRef<HTMLButtonElement>(null);
-  const wasConfirmingRef = useRef(false);
+  const wasAskingRef = useRef(false);
 
   /*
-    Opening the confirmation unmounts the `Clear` button that was focused, so
-    without this a keyboard user is dropped back to the document instead of
-    into the destructive prompt. Focus lands on the safe action.
+    Asking for a reason replaces the verdict buttons, which unmounts whatever
+    button was focused; closing it brings them back. Focus is put back on a
+    button that is there so a keyboard user is not dropped onto the document.
 
     This is deliberately not `useDialogFocus`: that hook is for modals, and it
-    hides body overflow and traps Tab. This confirmation is inline in a
-    scrolling list and must not do either.
+    hides body overflow and traps Tab. This prompt is inline in a scrolling
+    list and must not do either.
   */
+  const isAsking = pendingResult !== null;
   useEffect(() => {
-    if (isConfirmingClear) {
-      keepButtonRef.current?.focus();
-      wasConfirmingRef.current = true;
+    if (isAsking) {
+      wasAskingRef.current = true;
       return;
     }
-    if (wasConfirmingRef.current) {
-      wasConfirmingRef.current = false;
-      // After a cancel the `Clear` button is back. After a confirmed clear the
-      // row has no result, so it is gone and the verdicts take focus instead.
+    if (wasAskingRef.current) {
+      wasAskingRef.current = false;
       (clearButtonRef.current ?? metButtonRef.current)?.focus();
     }
-  }, [isConfirmingClear]);
-
-  // A comment is kept as written, so it is added on purpose, never by leaving the box.
-  // On a computer that means Enter (Shift+Enter starts a new line). On a phone
-  // or tablet the Enter key is how a line break is typed, and a stray tap on it
-  // must not save a half-typed comment, so there only the button saves.
-  // The draft stays, and the box stays open, until the server has the comment:
-  // a refused or failed save (too long, no connection) must not cost the text.
-  const submitComment = async () => {
-    const body = draft.trim();
-    if (!body || saving) return;
-    setSaving(true);
-    try {
-      await onAddComment(body);
-      setDraft("");
-      onToggleComment();
-    } catch {
-      // The screen says why it failed; the draft is left to correct or retry.
-    } finally {
-      setSaving(false);
-    }
-  };
-  const closeComment = () => {
-    setDraft("");
-    onToggleComment();
-  };
+  }, [isAsking]);
 
   const isScored = item.result === "MET" || item.result === "NOT_MET";
   const attribution = item.assessor_email
     ? `${item.assessor_email}${item.assessed_at ? ` · ${formatTime(item.assessed_at)}` : ""}`
     : "";
+  // A completed assessment keeps every required item marked: it can be changed,
+  // not emptied.
+  const canClear = canEdit && isScored && !(assessmentCompleted && item.required);
+  const choose = (result: CandidateAssessmentItemResult) => {
+    if (result === item.result) return;
+    if (isScored) onAskChange(result);
+    else onMark(result);
+  };
+  const laterChanges = item.changes.filter((change) => change.sequence > 1);
+  const clearing = pendingResult === "NOT_ASSESSED";
 
   return (
     <div
@@ -200,7 +198,7 @@ export function AssessmentItemRow({
           it only on not-met rows, so "who marked this, and when" was invisible
           across most of the record.
         */}
-        {(attribution || item.comments.length > 0) && (
+        {(attribution || item.comments.length > 0 || laterChanges.length > 0) && (
           <div className="caw-row-meta">
             {attribution && (
               <span>
@@ -208,6 +206,15 @@ export function AssessmentItemRow({
                 {attribution}
               </span>
             )}
+            {laterChanges.map((change) => (
+              <span key={change.sequence} className="caw-row-change" data-testid={`caw-change-${item.id}-${change.sequence}`}>
+                Changed from {RESULT_WORDS[change.from_result]} to {RESULT_WORDS[change.to_result]}
+                <span className="caw-row-note-by">
+                  {" "}— {change.changed_by_name}, {formatShortDateTime(change.changed_at)}
+                </span>
+                : “{change.reason}”
+              </span>
+            ))}
             {item.comments.map((comment) => (
               <span key={comment.id} className="caw-row-note">
                 “{comment.body}”
@@ -221,49 +228,55 @@ export function AssessmentItemRow({
       </div>
 
       <div className="caw-row-actions">
-        {isConfirmingClear ? (
+        {isAsking ? (
           <div
             role="alertdialog"
-            aria-label={`Confirm clearing the result for ${item.item_name}`}
-            aria-describedby={`caw-clear-confirm-text-${item.id}`}
-            className="caw-clear-confirm"
-            data-testid={`caw-clear-confirm-${item.id}`}
+            aria-label={`Reason for changing the result for ${item.item_name}`}
+            className="caw-change-prompt"
+            data-testid={`caw-change-prompt-${item.id}`}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.stopPropagation();
-                onCancelClear();
+                onCancelChange();
               }
             }}
           >
-            <p id={`caw-clear-confirm-text-${item.id}`}>
-              Clearing also removes the record of who assessed it
-              {attribution ? (
+            <p>
+              {clearing ? (
                 <>
-                  {" "}(<strong>{attribution}</strong>)
+                  Clearing removes the record of who assessed it
+                  {attribution ? (
+                    <>
+                      {" "}(<strong>{attribution}</strong>)
+                    </>
+                  ) : null}
+                  . The change and your reason are kept. Why is the mark being cleared?
                 </>
-              ) : null}
-              , and that cannot be restored.
+              ) : (
+                <>
+                  Changing {RESULT_WORDS[item.result ?? "NOT_ASSESSED"]} to {RESULT_WORDS[pendingResult]}. Why is the mark
+                  changing? The change and your reason are kept.
+                </>
+              )}
             </p>
-            <div className="caw-clear-confirm-actions">
-              <Button variant="secondary" onClick={onCancelClear} ref={keepButtonRef}>
-                Keep
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => onUpdateResult("NOT_ASSESSED")}
-                data-testid={`btn-clear-confirm-${item.id}`}
-              >
-                Clear result
-              </Button>
-            </div>
+            <ItemDraftBox
+              ariaLabel={`Why is the mark changing for ${item.item_name}`}
+              placeholder="The reason for the change"
+              saveLabel={clearing ? "Clear result" : "Save change"}
+              inputTestId={`caw-reason-input-${item.id}`}
+              saveTestId={`btn-reason-save-${item.id}`}
+              cancelTestId={`btn-reason-cancel-${item.id}`}
+              onSubmit={(reason) => onChangeResult(pendingResult, reason)}
+              onClose={onCancelChange}
+            />
           </div>
         ) : (
           <div role="group" aria-label={`Result for ${item.item_name}`} className="caw-verdicts">
             <button
               type="button"
               className={`caw-verdict caw-verdict-met ${item.result === "MET" ? "caw-verdict-active" : ""}`}
-              disabled={!isEditable}
-              onClick={() => onUpdateResult("MET")}
+              disabled={!canEdit}
+              onClick={() => choose("MET")}
               aria-pressed={item.result === "MET"}
               data-testid={`btn-met-${item.id}`}
               ref={metButtonRef}
@@ -274,8 +287,8 @@ export function AssessmentItemRow({
             <button
               type="button"
               className={`caw-verdict caw-verdict-not-met ${item.result === "NOT_MET" ? "caw-verdict-active" : ""}`}
-              disabled={!isEditable}
-              onClick={() => onUpdateResult("NOT_MET")}
+              disabled={!canEdit}
+              onClick={() => choose("NOT_MET")}
               aria-pressed={item.result === "NOT_MET"}
               data-testid={`btn-not-met-${item.id}`}
             >
@@ -285,19 +298,17 @@ export function AssessmentItemRow({
           </div>
         )}
 
-        {(canComment || isEditable) && !isConfirmingClear && (
+        {canEdit && !isAsking && (
           <div className="caw-row-tools">
-            {canComment && (
-              <button type="button" className="caw-row-tool" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
-                Add comment
-              </button>
-            )}
+            <button type="button" className="caw-row-tool" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
+              Add comment
+            </button>
             {/* Clearing is only offered once there is a result to clear. */}
-            {isEditable && isScored && (
+            {canClear && (
               <button
                 type="button"
                 className="caw-row-tool"
-                onClick={onAskClear}
+                onClick={() => onAskChange("NOT_ASSESSED")}
                 data-testid={`btn-clear-${item.id}`}
                 ref={clearButtonRef}
               >
@@ -307,43 +318,16 @@ export function AssessmentItemRow({
           </div>
         )}
 
-        {isCommentOpen && canComment && (
-          <div className="caw-row-note-edit">
-            <textarea
-              aria-label={`Comment on ${item.item_name}`}
-              rows={2}
-              className="caw-row-note-input"
-              placeholder="Add a comment — what was observed"
-              value={draft}
-              // Held while it saves, so nothing typed meanwhile is lost when the box clears.
-              readOnly={saving}
-              onChange={(e) => setDraft(e.target.value)}
-              enterKeyHint="enter"
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  closeComment();
-                } else if (
-                  e.key === "Enter" &&
-                  !e.shiftKey &&
-                  !e.nativeEvent.isComposing &&
-                  !window.matchMedia("(pointer: coarse)").matches
-                ) {
-                  e.preventDefault();
-                  void submitComment();
-                }
-              }}
-              data-testid={`caw-comment-input-${item.id}`}
-              autoFocus
-            />
-            <div className="caw-row-note-actions">
-              <Button variant="secondary" onClick={closeComment}>
-                Cancel
-              </Button>
-              <Button onClick={() => void submitComment()} disabled={!draft.trim() || saving} data-testid={`btn-comment-save-${item.id}`}>
-                Save comment
-              </Button>
-            </div>
-          </div>
+        {isCommentOpen && canEdit && !isAsking && (
+          <ItemDraftBox
+            ariaLabel={`Comment on ${item.item_name}`}
+            placeholder="Add a comment — what was observed"
+            saveLabel="Save comment"
+            inputTestId={`caw-comment-input-${item.id}`}
+            saveTestId={`btn-comment-save-${item.id}`}
+            onSubmit={onAddComment}
+            onClose={onCloseComment}
+          />
         )}
       </div>
     </div>

@@ -995,29 +995,6 @@ paths:
       responses:
         '204':
           description: No response body
-  /api/gradings/assessments/{id}/reopen/:
-    post:
-      operationId: gradings_assessments_reopen_create
-      description: Return a completed assessment to in-progress while the session
-        is open.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this candidate assessment.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateAssessment'
-          description: ''
   /api/gradings/assessments/{id}/summary/:
     get:
       operationId: gradings_assessments_summary_retrieve
@@ -3222,6 +3199,38 @@ components:
           maxLength: 2000
       required:
       - body
+    AssessmentItemResultChange:
+      type: object
+      properties:
+        sequence:
+          type: integer
+          readOnly: true
+          description: Its place in the item's history, from 1.
+        from_result:
+          allOf:
+          - $ref: '#/components/schemas/ResultEnum'
+          readOnly: true
+        to_result:
+          allOf:
+          - $ref: '#/components/schemas/ResultEnum'
+          readOnly: true
+        changed_by_name:
+          type: string
+          readOnly: true
+        changed_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+      required:
+      - changed_at
+      - changed_by_name
+      - from_result
+      - reason
+      - sequence
+      - to_result
     AssessmentSummaryCounts:
       type: object
       description: |-
@@ -3683,12 +3692,18 @@ components:
           items:
             $ref: '#/components/schemas/AssessmentItemComment'
           readOnly: true
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentItemResultChange'
+          readOnly: true
       required:
       - assessed_at
       - assessor_email
       - category
       - category_display
       - category_is_core
+      - changes
       - comments
       - display_range
       - id
@@ -5727,6 +5742,12 @@ components:
       properties:
         result:
           $ref: '#/components/schemas/ResultEnum'
+        reason:
+          type: string
+          writeOnly: true
+          description: Why the mark is changing. Not needed for the first mark on
+            an item; needed for every later change, including clearing it.
+          maxLength: 2000
     PatchedCandidateAssessmentRequest:
       type: object
       properties:

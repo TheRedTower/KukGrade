@@ -38,12 +38,12 @@ Want something here, or something that is missing? Open an
       email and always will; this is an enhancement. The design is settled: email is
       notification only, never authoritative account state, and a failed send never blocks an
       account or password action. Planned after 1.0.
-- [ ] **Marking and correction workflow** (agreed 2026-11-04). Every Met or Not met change after
-      the first needs a written reason, and nothing is overwritten silently; each item gets an
-      append-only comment log; a completed assessment is corrected directly while the session
-      is open, with no reopen step; after the lock only the Master can change a mark or add a
-      comment, with a reason, until that candidate's final decision is recorded; every change
-      shows on the final decisions screen. This replaces the single editable note on an item.
+- [ ] **Marking and correction workflow** (agreed 2026-11-04). Done: the append-only comment
+      log, a written reason for every Met or Not met change after the first (nothing is
+      overwritten silently), and correcting a completed assessment directly while the session
+      is open, with no reopen step. Left: after the lock only the Master can change a mark or add
+      a comment, with a reason, until that candidate's final decision is recorded, and every
+      change shows on the final decisions screen.
 - [ ] **Instructor groups**: assign each candidate to an instructor's group so each marks
       their own at the mat. Wanted after the marking workflow.
 - [ ] **Archive finished sessions** instead of deleting them: a session with final decisions

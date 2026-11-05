@@ -76,7 +76,7 @@ export const refresh = {
     void queryClient.invalidateQueries({ queryKey: keys.students.all() });
     void queryClient.invalidateQueries({ queryKey: keys.auditEvents.all() });
   },
-  /** An assessment started, changed, completed or reopened. */
+  /** An assessment started, changed or completed. */
   afterAssessmentChange(queryClient: QueryClient, candidateId: Id) {
     void queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.byCandidate(candidateId) });
     void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });

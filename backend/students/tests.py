@@ -775,3 +775,27 @@ def test_eligible_for_session_leaves_out_left_and_already_registered_students() 
     eligible = set(roster_names(client, f"eligible_for_session={session.pk}"))
     assert eligible & mine == {"123-4-532", "123-4-533", "123-4-537"}
     assert roster_names(client, "eligible_for_session=abc") == []
+
+
+def test_eligible_for_session_follows_each_students_own_band_syllabus() -> None:
+    from gradings.testing import grading_session
+    from syllabus.models import AgeBand, SyllabusRequirement
+
+    session = grading_session(status="OPEN")
+    # Yellow Stripe has a chart for 13-17 but, as if not yet entered, none for
+    # 9-12: a child in the younger band has nothing to be graded on.
+    SyllabusRequirement.objects.filter(
+        rank=Rank.objects.get(code="YELLOW_STRIPE"),
+        age_band=AgeBand.AGE_9_TO_12,
+    ).delete()
+    Student.objects.create(
+        **student_kwargs(wksa_id="123-4-541", date_of_birth=date(2017, 3, 20)),
+    )
+    Student.objects.create(
+        **student_kwargs(wksa_id="123-4-542", date_of_birth=date(2013, 3, 20)),
+    )
+    client = auth_client("roster-band-eligible@example.com")
+
+    eligible = set(roster_names(client, f"eligible_for_session={session.pk}"))
+
+    assert eligible & {"123-4-541", "123-4-542"} == {"123-4-542"}

@@ -49,6 +49,7 @@ from gradings.models import (
 from gradings.service_support import each_independently, unique_violation_on
 from ranks.models import Rank
 from students.models import Student
+from syllabus.models import AgeBand
 from syllabus.services import has_recorded_syllabus, rank_has_syllabus
 
 ALLOWED_SESSION_TRANSITIONS: dict[str, set[str]] = {
@@ -76,13 +77,17 @@ def get_next_active_rank(current_rank: Rank) -> Rank | None:
     return Rank.objects.next_active_after(current_rank.order).first()
 
 
-def ranks_open_for_grading() -> list[int]:
-    """The ranks whose students can be registered for a grading: those whose
-    next rank has a syllabus recorded. While the charts above Jo Kyo Nim are
-    not in the app, a Jo Kyo Nim student has nothing to be graded on."""
+def ranks_open_for_grading(age_band: str) -> list[int]:
+    """The ranks whose students of `age_band` can be registered for a grading:
+    those whose next rank has a syllabus recorded for that band. While the
+    charts above Jo Kyo Nim are not in the app, a Jo Kyo Nim student has
+    nothing to be graded on."""
     ranks = list(Rank.objects.filter(active=True).order_by("order"))
     with_syllabus = set(
-        Rank.objects.filter(rank_has_syllabus()).values_list("pk", flat=True),
+        Rank.objects.filter(rank_has_syllabus(age_band)).values_list(
+            "pk",
+            flat=True,
+        ),
     )
     return [
         current.pk
@@ -103,7 +108,11 @@ def validate_student_can_be_graded(student: Student) -> None:
         )
 
 
-def validate_testing_for_rank(student: Student, testing_for_rank: Rank) -> None:
+def validate_testing_for_rank(
+    student: Student,
+    testing_for_rank: Rank,
+    grading_date: date,
+) -> None:
     next_rank = get_next_active_rank(student.current_rank)
     if next_rank is None:
         raise ValidationError(
@@ -118,7 +127,18 @@ def validate_testing_for_rank(student: Student, testing_for_rank: Rank) -> None:
                 ],
             },
         )
-    if not has_recorded_syllabus(testing_for_rank):
+    age_band = resolve_age_band(student.date_of_birth, grading_date)
+    if not has_recorded_syllabus(testing_for_rank, age_band):
+        if has_recorded_syllabus(testing_for_rank):
+            raise ValidationError(
+                {
+                    "testing_for_rank": [
+                        f"No syllabus is recorded for {testing_for_rank.name} "
+                        f"in the {AgeBand(age_band).label} age band yet, so "
+                        "this student cannot be graded for it.",
+                    ],
+                },
+            )
         raise ValidationError(
             {
                 "testing_for_rank": [
@@ -777,7 +797,7 @@ def build_candidate(
 ) -> GradingCandidate:
     validate_session_accepts_candidates(session)
     validate_student_can_be_graded(student)
-    validate_testing_for_rank(student, testing_for_rank)
+    validate_testing_for_rank(student, testing_for_rank, session.grading_date)
     return GradingCandidate(
         session=session,
         student=student,
@@ -832,7 +852,11 @@ def update_candidate(
     # chosen, so a registration whose student was promoted elsewhere can
     # still be withdrawn.
     if session_changed or rank_changed or reinstating:
-        validate_testing_for_rank(candidate.student, new_testing_for_rank)
+        validate_testing_for_rank(
+            candidate.student,
+            new_testing_for_rank,
+            new_session.grading_date,
+        )
     if withdrawing:
         if withdrawal_reason not in GradingCandidate.WithdrawalReason.values:
             raise ValidationError(

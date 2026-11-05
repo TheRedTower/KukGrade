@@ -71,7 +71,9 @@ Association 2014 charts), never
 hard-coded in the interface. The screen lists only the ranks that have a syllabus recorded: Yellow
 Stripe to Jo Kyo Nim today. White has none of its own, and the ranks above Jo Kyo Nim are
 not recorded yet; those ranks stay in the data but are out of the syllabus screen and the
-grading flow (nobody can be registered to be graded for them) until their charts are added. Which requirements
+grading flow (nobody can be registered to be graded for them) until their charts are added. The
+same holds per age band: a student whose band has no chart for the rank they would test for
+cannot be registered, and is not offered, until that band's chart is added. Which requirements
 apply depends on **rank** and **age band** (8 and under, 9–12, 13–17, 18+). Each
 grading covers the *cumulative* syllabus: everything examinable up to the rank
 being tested, not only that rank's new material.

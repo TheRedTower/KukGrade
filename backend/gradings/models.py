@@ -437,7 +437,11 @@ class GradingCandidate(models.Model):
             if registers_again:
                 validate_no_unsettled_registration(self)
             if rank_is_chosen:
-                validate_testing_for_rank(self.student, self.testing_for_rank)
+                validate_testing_for_rank(
+                    self.student,
+                    self.testing_for_rank,
+                    self.session.grading_date,
+                )
 
 
 class CandidateAssessment(models.Model):

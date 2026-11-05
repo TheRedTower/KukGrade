@@ -20,19 +20,24 @@ from ranks.models import Rank
 from syllabus.models import CATEGORY_ORDER, SyllabusRequirement
 
 
-def rank_has_syllabus() -> Exists:
+def rank_has_syllabus(age_band: str | None = None) -> Exists:
     """Whether a rank has requirements of its own recorded, for annotating
-    ranks (`Rank.objects.annotate(has_syllabus=rank_has_syllabus())`).
+    ranks (`Rank.objects.annotate(has_syllabus=rank_has_syllabus())`), in any
+    age band or, when one is given, in that band.
 
     The one statement of the rule that keeps a rank out of the syllabus screen
     and out of the grading flow while its charts are not in the app. It is data
     driven: the rank joins both as soon as a requirement is recorded for it.
+    A grading is per age band, so registration asks it for the candidate's.
     """
-    return Exists(_recorded().filter(rank=OuterRef("pk")))
+    recorded = _recorded().filter(rank=OuterRef("pk"))
+    if age_band is not None:
+        recorded = recorded.filter(age_band=age_band)
+    return Exists(recorded)
 
 
-def has_recorded_syllabus(rank: Rank) -> bool:
-    return _recorded().filter(rank=rank).exists()
+def has_recorded_syllabus(rank: Rank, age_band: str | None = None) -> bool:
+    return Rank.objects.filter(pk=rank.pk).filter(rank_has_syllabus(age_band)).exists()
 
 
 def _recorded() -> QuerySet[SyllabusRequirement]:

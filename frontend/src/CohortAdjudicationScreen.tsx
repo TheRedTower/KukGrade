@@ -25,7 +25,7 @@ import { PageHeader } from "./PageHeader";
 import { Alert } from "./Alert";
 import { LoadingState } from "./LoadingState";
 import { Button } from "./Button";
-import { getAllCandidateAssessments, getAllCandidateOutcomes, getAllGradingCandidates, getGradingSession } from "./api";
+import { getAllGradingCandidates, getGradingSession } from "./api";
 import { buildRows } from "./adjudicationBoard";
 import { useAuth } from "./auth";
 import { formatSessionDate } from "./dates";
@@ -61,23 +61,9 @@ export function CohortAdjudicationScreen() {
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled,
   });
-  const assessmentsQuery = useQuery({
-    queryKey: keys.candidateAssessments.session(sessionId),
-    queryFn: () => getAllCandidateAssessments({ session: sessionId }),
-    enabled,
-  });
-  const outcomesQuery = useQuery({
-    queryKey: keys.candidateOutcomes.session(sessionId),
-    queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
-    enabled,
-  });
 
   const session = sessionQuery.data;
-  const rows = buildRows(
-    candidatesQuery.data?.results ?? [],
-    assessmentsQuery.data?.results ?? [],
-    outcomesQuery.data?.results ?? [],
-  );
+  const rows = buildRows(candidatesQuery.data?.results ?? []);
   const canDecide = Boolean(user?.can_make_final_grading_decision) && session?.status === "LOCKED";
 
   const decisions = useStagedDecisions({ sessionId, enabled, canDecide, onFocus: setFocusId });
@@ -102,12 +88,7 @@ export function CohortAdjudicationScreen() {
     });
   };
 
-  if (
-    sessionQuery.isLoading ||
-    candidatesQuery.isLoading ||
-    assessmentsQuery.isLoading ||
-    outcomesQuery.isLoading
-  ) {
+  if (sessionQuery.isLoading || candidatesQuery.isLoading) {
     return (
       <section aria-label="Final decisions" className="page cab-page">
         <LoadingState>Loading final decisions…</LoadingState>
@@ -115,9 +96,9 @@ export function CohortAdjudicationScreen() {
     );
   }
 
-  // Any of the four requests failing would otherwise render as a real, empty
-  // cohort (no rows, or "No assessment" on every row).
-  const failedQueries = [sessionQuery, candidatesQuery, assessmentsQuery, outcomesQuery].filter(
+  // Either request failing would otherwise render as a real, empty cohort (no
+  // rows, or "No assessment" on every row).
+  const failedQueries = [sessionQuery, candidatesQuery].filter(
     (query) => query.isError,
   );
   if (!session || failedQueries.length > 0) {

@@ -220,7 +220,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         else if (outcome?.status === "PROPOSED") nextAction = canDecide ? "REVIEW_DECISION" : "REVIEW_PROPOSAL";
         else nextAction = sessionStatus === "LOCKED" ? "PROPOSE_OUTCOME" : "VIEW_ASSESSMENT";
       }
-      return { ...candidate, assessment, outcome, next_action: nextAction };
+      const canBeFinalised = outcome?.status === "PROPOSED" && sessionStatus === "LOCKED";
+      return { ...candidate, assessment, outcome, next_action: nextAction, can_be_finalised: canBeFinalised };
     });
   }
 

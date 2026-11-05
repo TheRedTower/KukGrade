@@ -207,3 +207,64 @@ def test_a_write_returns_the_registration_without_the_roster_extras() -> None:
     assert response.status_code == 200
     assert "assessment" not in response.json()
     assert "next_action" not in response.json()
+
+
+@pytest.mark.parametrize(("proposed", "expected"), [(False, False), (True, True)])
+def test_the_roster_says_when_a_final_decision_can_be_recorded(
+    proposed: bool,
+    expected: bool,
+) -> None:
+    built, _generated = locked_completed_candidate()
+    if proposed:
+        outcome = create_candidate_outcome(
+            built, user("roster-finalise-open@example.com")
+        )
+        propose_candidate_outcome(
+            outcome,
+            CandidateOutcome.Outcome.PASS,
+            "Ready.",
+            user("roster-finalise-proposer@example.com"),
+        )
+    client = auth_client("roster-finalise-viewer@example.com")
+
+    [row] = results(client.get(f"/api/gradings/candidates/?session={built.session_id}"))
+
+    # The viewer's own authority is separate: this instructor cannot decide.
+    assert row["can_be_finalised"] is expected
+
+
+def test_a_recorded_decision_can_no_longer_be_finalised() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built)
+    client = auth_client("roster-finalised-viewer@example.com")
+
+    [row] = results(client.get(f"/api/gradings/candidates/?session={built.session_id}"))
+
+    assert row["can_be_finalised"] is False
+
+
+def test_the_roster_query_count_holds_with_proposals_on_every_row(
+    django_assert_max_num_queries: DjangoAssertNumQueries,
+) -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = [candidate(session=session) for _ in range(5)]
+    for each in built:
+        complete_assessment(assessment(candidate=each))
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    for each in built:
+        propose_candidate_outcome(
+            create_candidate_outcome(
+                each, user(f"roster-q-open-{each.pk}@example.com")
+            ),
+            CandidateOutcome.Outcome.PASS,
+            "Ready.",
+            user(f"roster-q-prop-{each.pk}@example.com"),
+        )
+    client = auth_client("roster-queries-2@example.com")
+    url = f"/api/gradings/candidates/?session={session.pk}"
+    client.get(url)
+
+    with django_assert_max_num_queries(12):
+        response = client.get(url)
+
+    assert len(results(response)) == 5

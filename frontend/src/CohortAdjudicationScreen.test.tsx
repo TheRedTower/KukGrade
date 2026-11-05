@@ -10,6 +10,7 @@ import type {
   CandidateAssessmentSummary,
   CandidateOutcome,
   GradingCandidate,
+  GradingCandidateRoster,
   GradingSession,
 } from "./api";
 import { ApiError } from "./api";
@@ -44,8 +45,6 @@ vi.mock("./auth", () => ({
 
 const mockGetGradingSession = vi.fn();
 const mockGetCandidates = vi.fn();
-const mockGetAssessments = vi.fn();
-const mockGetOutcomes = vi.fn();
 const mockGetSummary = vi.fn();
 const mockGetItems = vi.fn();
 const mockFinalise = vi.fn();
@@ -59,8 +58,6 @@ vi.mock("./api", async () => {
     ...actual,
     getGradingSession: (...args: unknown[]) => mockGetGradingSession(...args),
     getAllGradingCandidates: (...args: unknown[]) => mockGetCandidates(...args),
-    getAllCandidateAssessments: (...args: unknown[]) => mockGetAssessments(...args),
-    getAllCandidateOutcomes: (...args: unknown[]) => mockGetOutcomes(...args),
     getAssessmentSummary: (...args: unknown[]) => mockGetSummary(...args),
     getAllCandidateAssessmentItems: (...args: unknown[]) => mockGetItems(...args),
     finaliseCandidateOutcome: (...args: unknown[]) => mockFinalise(...args),
@@ -210,6 +207,24 @@ const outcomes = [
   }),
 ] satisfies CandidateOutcome[];
 
+// The roster the server serves: each candidate with their assessment and
+// outcome. A proposed outcome in a locked session is open for a final decision.
+const assessments = [
+  assessment(1001, 1, summary(18, 18, 0).overall),
+  assessment(1002, 2, summary(24, 22, 2).overall),
+  assessment(1003, 3, summary(18, 18, 0).overall),
+];
+const roster = cohort.map((row): GradingCandidateRoster => {
+  const found = outcomes.find((o) => o.candidate === row.id) ?? null;
+  return {
+    ...row,
+    assessment: assessments.find((a) => a.candidate === row.id) ?? null,
+    outcome: found,
+    next_action: "REVIEW_DECISION",
+    can_be_finalised: found?.status === "PROPOSED",
+  };
+});
+
 function renderBoard(
   path = "/gradings/10/decisions",
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
@@ -239,15 +254,7 @@ describe("CohortAdjudicationScreen", () => {
     vi.clearAllMocks();
     mockCurrentUser = masterUser;
     mockGetGradingSession.mockResolvedValue(lockedSession);
-    mockGetCandidates.mockResolvedValue(page(cohort));
-    mockGetAssessments.mockResolvedValue(
-      page([
-        assessment(1001, 1, summary(18, 18, 0).overall),
-        assessment(1002, 2, summary(24, 22, 2).overall),
-        assessment(1003, 3, summary(18, 18, 0).overall),
-      ]),
-    );
-    mockGetOutcomes.mockResolvedValue(page(outcomes));
+    mockGetCandidates.mockResolvedValue(page(roster));
     // Only the row in focus fetches its full summary, for the evidence pane.
     mockGetSummary.mockImplementation(async (assessmentId: number) =>
       assessmentId === 1002 ? summary(24, 22, 2) : summary(18, 18, 0),
@@ -324,6 +331,36 @@ describe("CohortAdjudicationScreen", () => {
     expect(await screen.findByText("1 decision recorded.")).toBeVisible();
     await passTypingPause();
     expect(mockDiscard).not.toHaveBeenCalled();
+  });
+
+  it("shows a recorded decision as final by reading the roster again", async () => {
+    const user = userEvent.setup();
+    let recorded = false;
+    mockGetCandidates.mockImplementation(async () =>
+      page(
+        roster.map((row) =>
+          recorded && row.id === 1
+            ? {
+                ...row,
+                outcome: { ...row.outcome!, status: "FINALISED" as const, final_outcome: "PASS" as const },
+                can_be_finalised: false,
+              }
+            : row,
+        ),
+      ),
+    );
+    mockFinalise.mockImplementation(async (outcomeId: number) => {
+      recorded = true;
+      return { ...outcomes.find((o) => o.id === outcomeId)!, status: "FINALISED" };
+    });
+    renderBoard();
+
+    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(screen.getByTestId("cab-record-staged"));
+
+    expect(await screen.findByText("1 decision recorded.")).toBeVisible();
+    await waitFor(() => expect(within(screen.getByTestId("cab-row-1")).queryByRole("button", { name: "Pass" })).toBeNull());
+    expect(mockGetCandidates.mock.calls.length).toBeGreaterThan(1);
   });
 
   it("reads the staged decisions afresh each time the board opens", async () => {
@@ -506,9 +543,7 @@ describe("CohortAdjudicationScreen", () => {
   });
 
   it.each([
-    ["candidates", () => mockGetCandidates],
-    ["assessments", () => mockGetAssessments],
-    ["outcomes", () => mockGetOutcomes],
+    ["roster", () => mockGetCandidates],
     ["session", () => mockGetGradingSession],
   ])("shows a failure, not an empty cohort, when the %s request fails, and retries it", async (_name, mock) => {
     const user = userEvent.setup();

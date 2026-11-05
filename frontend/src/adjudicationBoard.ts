@@ -2,7 +2,7 @@ import type {
   CandidateAssessment,
   CandidateOutcome,
   CandidateOutcomeOutcome,
-  GradingCandidate,
+  GradingCandidateRoster,
   StagedDecision as ApiStagedDecision,
 } from "./api";
 
@@ -15,7 +15,7 @@ export type StagedDecision = {
 
 /** A candidate with their assessment and outcome, and whether the Master may decide now. */
 export type BoardRow = {
-  candidate: GradingCandidate;
+  candidate: GradingCandidateRoster;
   assessment?: CandidateAssessment;
   outcome?: CandidateOutcome;
   decidable: boolean;
@@ -44,18 +44,14 @@ export function missingRequirements(decision: StagedDecision): boolean {
   return decision.outcome === "CONDITIONAL" && !decision.conditionalRequirements.trim();
 }
 
-/** The board's rows: every candidate still in the session, open for decision once proposed. */
-export function buildRows(
-  candidates: GradingCandidate[],
-  assessments: CandidateAssessment[],
-  outcomes: CandidateOutcome[],
-): BoardRow[] {
-  const assessmentByCandidate = new Map(assessments.map((a) => [a.candidate, a]));
-  const outcomeByCandidate = new Map(outcomes.map((o) => [o.candidate, o]));
+/** The board's rows: every candidate still in the session, open for decision once the server says so. */
+export function buildRows(candidates: GradingCandidateRoster[]): BoardRow[] {
   return candidates
     .filter((candidate) => candidate.status !== "WITHDRAWN")
-    .map((candidate) => {
-      const outcome = outcomeByCandidate.get(candidate.id);
-      return { candidate, assessment: assessmentByCandidate.get(candidate.id), outcome, decidable: outcome?.status === "PROPOSED" };
-    });
+    .map((candidate) => ({
+      candidate,
+      assessment: candidate.assessment ?? undefined,
+      outcome: candidate.outcome ?? undefined,
+      decidable: candidate.can_be_finalised,
+    }));
 }

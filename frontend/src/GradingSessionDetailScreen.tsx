@@ -6,8 +6,6 @@ import {
   GradingSession,
   deleteGradingSession,
   errorMessage,
-  getAllCandidateAssessments,
-  getAllCandidateOutcomes,
   getAllGradingCandidates,
   getGradingSession,
   updateGradingSession,
@@ -67,16 +65,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled: valid,
   });
-  const assessmentsQuery = useQuery({
-    queryKey: keys.candidateAssessments.session(sessionId),
-    queryFn: () => getAllCandidateAssessments({ session: sessionId }),
-    enabled: valid,
-  });
-  const outcomesQuery = useQuery({
-    queryKey: keys.candidateOutcomes.session(sessionId),
-    queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
-    enabled: valid,
-  });
 
   const session = sessionQuery.data;
 
@@ -131,8 +119,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const work = useCandidateWork(sessionId, { setError: setActionError, setMessage: setActionMessage });
 
   const enrichedCandidates = useMemo(
-    () => enrichCandidates(candidatesQuery.data?.results ?? [], assessmentsQuery.data?.results ?? [], outcomesQuery.data?.results ?? []),
-    [candidatesQuery.data, assessmentsQuery.data, outcomesQuery.data],
+    () => enrichCandidates(candidatesQuery.data?.results ?? []),
+    [candidatesQuery.data],
   );
   const filteredCandidates = useMemo(
     () => filterCandidates(enrichedCandidates, search, statusFilter),
@@ -289,7 +277,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         unpreparedIds={unpreparedIds}
         preparedIds={preparedIds}
         canOverrideLocked={Boolean(currentUser?.can_override_locked_session)}
-        nextActionFor={(item) => nextActionFor(item, session, Boolean(currentUser?.can_make_final_grading_decision))}
+        nextActionFor={(item) => nextActionFor(item, session)}
         onConfirmAttendance={() => {
           setActionError(null);
           work.attendance.setOpen(true);

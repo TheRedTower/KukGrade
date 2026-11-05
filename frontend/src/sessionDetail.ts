@@ -1,4 +1,4 @@
-import type { CandidateAssessment, CandidateOutcome, GradingCandidate, GradingSession } from "./api";
+import type { GradingCandidateRoster, GradingSession } from "./api";
 import type { AttendanceCandidate } from "./GradingAttendanceDialogs";
 import type { EnrichedCandidate } from "./SessionParts";
 
@@ -12,18 +12,12 @@ export function toAttendanceCandidate(item: EnrichedCandidate): AttendanceCandid
   };
 }
 
-/** Each candidate with their assessment and outcome. */
-export function enrichCandidates(
-  candidates: GradingCandidate[],
-  assessments: CandidateAssessment[],
-  outcomes: CandidateOutcome[],
-): EnrichedCandidate[] {
-  const assessmentMap = new Map(assessments.map((a) => [a.candidate, a]));
-  const outcomeMap = new Map(outcomes.map((o) => [o.candidate, o]));
-  return candidates.map((candidate) => ({
-    candidate,
-    assessment: assessmentMap.get(candidate.id),
-    outcome: outcomeMap.get(candidate.id),
+/** Each roster row as the candidate with their assessment and outcome. */
+export function enrichCandidates(rows: GradingCandidateRoster[]): EnrichedCandidate[] {
+  return rows.map((row) => ({
+    candidate: row,
+    assessment: row.assessment ?? undefined,
+    outcome: row.outcome ?? undefined,
   }));
 }
 
@@ -44,46 +38,35 @@ export function filterCandidates(items: EnrichedCandidate[], search: string, sta
   });
 }
 
-/** What a candidate's row offers next, from where their assessment and outcome stand. */
-export function nextActionFor(item: EnrichedCandidate, session: GradingSession, canMakeFinalDecision: boolean) {
+/**
+ * How a candidate's row words and links the next step. Which step it is comes
+ * from the server (`next_action`), which knows where their assessment and
+ * outcome stand and who is asking; this only decides the words and where it goes.
+ */
+export function nextActionFor(item: EnrichedCandidate, session: GradingSession) {
   const candidateId = item.candidate.id;
-  const assessmentStatus = item.assessment?.status;
-  const outcomeStatus = item.outcome?.status;
+  const assessmentUrl = `/gradings/${session.id}/assessments/${candidateId}`;
   const decisionsUrl = `/gradings/${session.id}/decisions?candidate=${candidateId}`;
-  let label = assessmentStatus ? "Start assessment →" : "Prepare assessment →";
-  let url = `/gradings/${session.id}/assessments/${candidateId}`;
-  let opensProposalDrawer = false;
-
-  if (assessmentStatus === "IN_PROGRESS") {
-    label = "Continue assessment →";
-  } else if (assessmentStatus === "COMPLETED") {
-    if (outcomeStatus === "FINALISED") {
-      if (item.outcome?.final_outcome === "PASS") {
-        label = "Promotion ledger →";
-        url = `/gradings/${session.id}/promotions`;
-      } else {
-        label = "View record →";
-        url = decisionsUrl;
-      }
-    } else if (outcomeStatus === "PROPOSED") {
-      if (canMakeFinalDecision) {
-        label = "Review decision →";
-        url = decisionsUrl;
-      } else {
-        label = "Review proposal →";
-        opensProposalDrawer = true;
-      }
-    } else if (session.status === "LOCKED") {
-      label = "Propose outcome →";
-      opensProposalDrawer = true;
-    } else {
-      // An outcome can only be created once the session is locked; until then
-      // the record can still be reopened from its review page.
-      label = "View record →";
-      url = `/gradings/${session.id}/assessments/${candidateId}/review`;
-    }
+  switch (item.candidate.next_action) {
+    case "PREPARE_ASSESSMENT":
+      return { label: "Prepare assessment →", url: assessmentUrl, opensProposalDrawer: false };
+    case "START_ASSESSMENT":
+      return { label: "Start assessment →", url: assessmentUrl, opensProposalDrawer: false };
+    case "CONTINUE_ASSESSMENT":
+      return { label: "Continue assessment →", url: assessmentUrl, opensProposalDrawer: false };
+    case "VIEW_ASSESSMENT":
+      return { label: "View record →", url: `${assessmentUrl}/review`, opensProposalDrawer: false };
+    case "PROPOSE_OUTCOME":
+      return { label: "Propose outcome →", url: assessmentUrl, opensProposalDrawer: true };
+    case "REVIEW_PROPOSAL":
+      return { label: "Review proposal →", url: assessmentUrl, opensProposalDrawer: true };
+    case "REVIEW_DECISION":
+      return { label: "Review decision →", url: decisionsUrl, opensProposalDrawer: false };
+    case "VIEW_DECISION":
+      return { label: "View record →", url: decisionsUrl, opensProposalDrawer: false };
+    case "PROMOTION_LEDGER":
+      return { label: "Promotion ledger →", url: `/gradings/${session.id}/promotions`, opensProposalDrawer: false };
   }
-  return { label, url, opensProposalDrawer };
 }
 
 /** The title and the question of the dialog that confirms a lifecycle action. */

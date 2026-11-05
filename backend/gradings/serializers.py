@@ -6,6 +6,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import User
+from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.assessment_services import (
     update_candidate_assessment,
     update_candidate_assessment_item,
@@ -26,7 +27,12 @@ from gradings.outcome_services import (
     promote_candidate,
     stage_final_decision,
 )
-from gradings.read_models import OverallAssessmentSummary, assessment_overall
+from gradings.read_models import (
+    CandidateNextAction,
+    OverallAssessmentSummary,
+    assessment_overall,
+    candidate_next_action,
+)
 from gradings.services import (
     WITHDRAWAL_REASON_REQUIRED_MESSAGE,
     apply_candidate_update,
@@ -179,7 +185,7 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GradingCandidate
-        fields = (
+        fields: tuple[str, ...] = (
             "id",
             "session",
             "student",
@@ -494,6 +500,32 @@ class CandidateOutcomeSerializer(serializers.ModelSerializer):
             "conditional_requirements",
         )
         read_only_fields = fields
+
+
+class GradingCandidateRosterSerializer(GradingCandidateSerializer):
+    """A candidate as the session's roster shows them: with their assessment
+    and outcome, and what their row offers next, so a screen needs one request
+    and holds no lifecycle rules of its own."""
+
+    assessment = CandidateAssessmentSerializer(read_only=True, allow_null=True)
+    outcome = CandidateOutcomeSerializer(read_only=True, allow_null=True)
+    next_action = serializers.SerializerMethodField()
+
+    class Meta(GradingCandidateSerializer.Meta):
+        fields = (
+            *GradingCandidateSerializer.Meta.fields,
+            "assessment",
+            "outcome",
+            "next_action",
+        )
+
+    @extend_schema_field(serializers.ChoiceField(choices=CandidateNextAction.choices))
+    def get_next_action(self, instance: GradingCandidate) -> str:
+        user = self.context["request"].user
+        return candidate_next_action(
+            instance,
+            can_make_final_decision=user.has_perm(FINAL_GRADING_DECISION_PERMISSION),
+        )
 
 
 class CandidateOutcomeProposalSerializer(serializers.Serializer):

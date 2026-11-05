@@ -9,6 +9,7 @@ import type {
   CandidateAssessmentItem,
   CandidateOutcome,
   GradingCandidate,
+  GradingCandidateRoster,
   GradingSession,
   StudentListItem,
 } from "./api";
@@ -197,6 +198,32 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     status: "COMPLETED" as const,
   })) satisfies GradingCandidate[];
 
+  // The roster rows the server serves: each candidate with their assessment,
+  // outcome and next action. The next action is the server's answer (its own
+  // tests cover the rule); this fixture only has to say what that answer is
+  // for the few situations these tests stage.
+  function rosterRows(
+    candidates: GradingCandidate[],
+    assessments: CandidateAssessment[],
+    outcomes: CandidateOutcome[],
+    sessionStatus: GradingSession["status"],
+    canDecide: boolean,
+  ): GradingCandidateRoster[] {
+    return candidates.map((candidate) => {
+      const assessment = assessments.find((item) => item.candidate === candidate.id) ?? null;
+      const outcome = outcomes.find((item) => item.candidate === candidate.id) ?? null;
+      let nextAction: GradingCandidateRoster["next_action"] = "PREPARE_ASSESSMENT";
+      if (assessment?.status === "IN_PROGRESS") nextAction = "CONTINUE_ASSESSMENT";
+      else if (assessment?.status === "NOT_STARTED") nextAction = "START_ASSESSMENT";
+      else if (assessment?.status === "COMPLETED") {
+        if (outcome?.status === "FINALISED") nextAction = outcome.final_outcome === "PASS" ? "PROMOTION_LEDGER" : "VIEW_DECISION";
+        else if (outcome?.status === "PROPOSED") nextAction = canDecide ? "REVIEW_DECISION" : "REVIEW_PROPOSAL";
+        else nextAction = sessionStatus === "LOCKED" ? "PROPOSE_OUTCOME" : "VIEW_ASSESSMENT";
+      }
+      return { ...candidate, assessment, outcome, next_action: nextAction };
+    });
+  }
+
   const testStudentsList = [
     {
       id: 1,
@@ -337,7 +364,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, { ...testSession, ...sessionOverrides });
       }
       if (url.includes("/api/gradings/candidates/")) {
-        return jsonResponse(200, { count: candidates.length, next: null, previous: null, results: candidates });
+        const rows = rosterRows(
+          candidates,
+          assessments,
+          outcomes,
+          locked ? "LOCKED" : "OPEN",
+          authenticatedUser.can_make_final_grading_decision,
+        );
+        return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: assessments.length, next: null, previous: null, results: assessments });
@@ -1036,7 +1070,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         });
       }
       if (url.includes("/api/gradings/candidates/")) {
-        return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+        const rows = rosterRows(testCandidates, notStartedAssessments, [], "CANCELLED", false);
+        return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: notStartedAssessments.length, next: null, previous: null, results: notStartedAssessments });
@@ -1164,7 +1199,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "OPEN", false) });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
@@ -1195,12 +1230,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, lockedSession);
       }
       if (url.includes("/api/gradings/candidates/")) {
-        return jsonResponse(200, {
-          count: testCandidates.length,
-          next: null,
-          previous: null,
-          results: testCandidates,
-        });
+        const rows = rosterRows(testCandidates, testAssessments, [], "LOCKED", false);
+        return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, {
@@ -1339,7 +1370,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
       if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -1388,7 +1419,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           error: { code: "validation_error", message: "The assessment is not completed." },
         });
       }
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
       if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -1425,7 +1456,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         }
         return jsonResponse(200, { ...testOutcomes[0], id: 401, proposed_outcome: "PASS" });
       }
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
       if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -1454,7 +1485,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
       if (url.includes("/summary/")) return jsonResponse(500, {});

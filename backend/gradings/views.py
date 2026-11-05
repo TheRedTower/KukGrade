@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, cast
 
-from django.db.models import Q, QuerySet
+from django.db.models import Prefetch, Q, QuerySet
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from accounts.models import User
@@ -78,6 +79,7 @@ from gradings.serializers import (
     CandidateOutcomeProposalSerializer,
     CandidateOutcomeSerializer,
     CandidatePromotionSerializer,
+    GradingCandidateRosterSerializer,
     GradingCandidateSerializer,
     GradingSessionSerializer,
     GradingYearsSerializer,
@@ -258,15 +260,37 @@ class GradingCandidateViewSet(
 
     query_filters = (by_id("session", "session_id"),)
 
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        # The list and one registration carry the assessment, the outcome and
+        # the next action; what a write returns is the registration alone.
+        if self.action in {"list", "retrieve"}:
+            return GradingCandidateRosterSerializer
+        return super().get_serializer_class()
+
     def get_queryset(self) -> QuerySet[GradingCandidate]:
-        return GradingCandidate.objects.select_related(
+        candidates = GradingCandidate.objects.select_related(
             "student",
             "from_rank",
             "testing_for_rank",
             "session",
-            "assessment",
-            "outcome",
-        ).order_by(
+            "outcome__proposed_by",
+            "outcome__decided_by",
+        )
+        if self.action in {"list", "retrieve"}:
+            candidates = candidates.prefetch_related(
+                Prefetch(
+                    "assessment",
+                    queryset=with_overall_counts(
+                        CandidateAssessment.objects.select_related(
+                            "candidate__student",
+                            "generated_by",
+                        ),
+                    ),
+                ),
+            )
+        else:
+            candidates = candidates.select_related("assessment")
+        return candidates.order_by(
             "session__grading_date",
             "student__last_name",
             "student__first_name",

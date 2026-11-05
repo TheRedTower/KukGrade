@@ -7,6 +7,7 @@ from io import StringIO
 import pytest
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from audit.models import AuditAction, AuditEntity, AuditEvent
 from audit.redaction import NAME_ERASED, redact_student_details
@@ -23,12 +24,16 @@ SNAPSHOT = {
 }
 
 
-def old_event(summary: str, metadata: dict[str, object] | None = None) -> AuditEvent:
+def old_event(
+    summary: str,
+    metadata: dict[str, object] | None = None,
+    student_pk: str = "1",
+) -> AuditEvent:
     """An event as it was written before: the person's name inside it."""
     return AuditEvent.objects.create(
         action=AuditAction.STUDENT_UPDATED,
         entity_type=AuditEntity.STUDENT,
-        entity_id="1",
+        entity_id=student_pk,
         summary=summary,
         metadata=metadata or {},
     )
@@ -199,3 +204,84 @@ def test_the_command_reports_and_checks_its_arguments() -> None:
         "would change 1 audit event(s).",
         "changed 1 audit event(s).",
     ]
+
+
+def test_a_blank_name_is_refused_and_nothing_is_rewritten() -> None:
+    event = old_event("Student Zephyrine Quillfeather (123-4-001) created.")
+
+    for first, last in [("", ""), ("  ", " "), ("", "   ")]:
+        with pytest.raises(ValueError, match="needed"):
+            erase(first_name=first, last_name=last)
+    with pytest.raises(ValueError, match="needed"):
+        erase(wksa_id=" ")
+
+    event.refresh_from_db()
+    assert event.summary == "Student Zephyrine Quillfeather (123-4-001) created."
+    assert not AuditEvent.objects.filter(action=AuditAction.AUDIT_REDACTED).exists()
+
+
+def test_the_command_refuses_a_blank_name() -> None:
+    with pytest.raises(CommandError, match="needed"):
+        call_command(
+            "redact_student_audit",
+            "--wksa-id=123-4-001",
+            "--first-name= ",
+            "--last-name= ",
+        )
+
+
+def test_a_changed_student_id_is_followed_to_the_older_snapshots() -> None:
+    """A student ID replaced by a black belt ID: the older events still go."""
+    older = old_event(
+        "Student Zephyrine Quillfeather (123-4-001) updated.",
+        {"before": SNAPSHOT, "after": {**SNAPSHOT, "status": "INACTIVE"}},
+    )
+    changed_id = old_event(
+        "Student Zephyrine Quillfeather (A-00042) updated.",
+        {
+            "before": SNAPSHOT,
+            "after": {**SNAPSHOT, "wksa_id": "A-00042", "current_rank": "DBN"},
+        },
+    )
+    later = old_event(
+        "Student Zephyrine Quillfeather (A-00042) updated.",
+        {
+            "before": {**SNAPSHOT, "wksa_id": "A-00042", "current_rank": "DBN"},
+            "after": {
+                **SNAPSHOT,
+                "wksa_id": "A-00042",
+                "current_rank": "DBN",
+                "status": "LEFT",
+            },
+        },
+    )
+    # Only the new ID is given, as an operator would after the change.
+    erase(wksa_id="A-00042")
+
+    for event in (older, changed_id, later):
+        event.refresh_from_db()
+        for snapshot in event.metadata.values():
+            assert not set(snapshot) & {"first_name", "last_name", "date_of_birth"}
+        assert "Quillfeather" not in event.summary
+    assert older.summary == "Student 123-4-001 updated."
+    assert later.summary == "Student A-00042 updated."
+
+
+def test_an_id_the_student_never_held_is_not_followed() -> None:
+    """A typo ID may be another student's real number; theirs stay untouched."""
+    elsewhere = old_event(
+        "Student Marigold Thistlewood (123-4-001) created.",
+        {
+            "before": {
+                **SNAPSHOT,
+                "first_name": "Marigold",
+                "last_name": "Thistlewood",
+            }
+        },
+    )
+    before = elsewhere.metadata
+
+    erase(wksa_id="A-00042")
+
+    elsewhere.refresh_from_db()
+    assert elsewhere.metadata == before

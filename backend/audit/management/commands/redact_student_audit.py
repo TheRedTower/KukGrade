@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from audit.redaction import redact_student_details
 
@@ -32,11 +32,14 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        changed = redact_student_details(
-            wksa_id=options["wksa_id"],
-            first_name=options["first_name"],
-            last_name=options["last_name"],
-            dry_run=options["dry_run"],
-        )
+        try:
+            changed = redact_student_details(
+                wksa_id=options["wksa_id"],
+                first_name=options["first_name"],
+                last_name=options["last_name"],
+                dry_run=options["dry_run"],
+            )
+        except ValueError as exc:
+            raise CommandError(str(exc)) from exc
         verb = "would change" if options["dry_run"] else "changed"
         self.stdout.write(f"{verb} {changed} audit event(s).")

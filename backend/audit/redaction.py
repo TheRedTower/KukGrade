@@ -13,6 +13,7 @@ redact_student_audit`, see docs/privacy.md), never through the API.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from django.db import models, transaction
@@ -23,28 +24,68 @@ NAME_ERASED = "[name erased]"
 PERSONAL_KEYS = ("first_name", "last_name", "date_of_birth")
 
 
-def _redact_text(text: str, *, wksa_id: str, full_name: str) -> str:
-    # The old form was "<name> (<WKSA ID>)"; keep the ID, which is the reference.
-    text = text.replace(f"Student {full_name} ({wksa_id})", f"Student {wksa_id}")
-    text = text.replace(f"{full_name} ({wksa_id})", f"student {wksa_id}")
+def _redact_text(text: str, *, full_name: str) -> str:
+    # The old form was "<name> (<WKSA ID>)": keep the ID, which is the reference.
+    text = re.sub(
+        rf"Student {re.escape(full_name)} \(([^)]+)\)",
+        r"Student \1",
+        text,
+    )
+    text = re.sub(rf"{re.escape(full_name)} \(([^)]+)\)", r"student \1", text)
     return text.replace(full_name, NAME_ERASED)
 
 
-def _redact_value(value: Any, *, wksa_id: str, full_name: str) -> Any:
+def _redact_value(value: Any, *, wksa_ids: set[str], tied: bool, full_name: str) -> Any:
     if isinstance(value, str):
-        return _redact_text(value, wksa_id=wksa_id, full_name=full_name)
+        return _redact_text(value, full_name=full_name)
     if isinstance(value, list):
-        return [_redact_value(v, wksa_id=wksa_id, full_name=full_name) for v in value]
+        return [
+            _redact_value(v, wksa_ids=wksa_ids, tied=tied, full_name=full_name)
+            for v in value
+        ]
     if isinstance(value, dict):
         # A snapshot of this student: the personal fields go, whatever they were
-        # (a name edited later is in an earlier snapshot under the same ID).
-        own = value.get("wksa_id") == wksa_id
+        # (a name edited later is in an earlier snapshot of the same student).
+        own = tied or value.get("wksa_id") in wksa_ids
         return {
-            key: _redact_value(item, wksa_id=wksa_id, full_name=full_name)
+            key: _redact_value(item, wksa_ids=wksa_ids, tied=tied, full_name=full_name)
             for key, item in value.items()
             if not (own and key in PERSONAL_KEYS)
         }
     return value
+
+
+def _snapshot_ids(value: Any) -> set[str]:
+    """Every WKSA ID in a snapshot of a student inside this event's details."""
+    found: set[str] = set()
+    if isinstance(value, dict):
+        if isinstance(value.get("wksa_id"), str):
+            found.add(value["wksa_id"])
+        for item in value.values():
+            found |= _snapshot_ids(item)
+    elif isinstance(value, list):
+        for item in value:
+            found |= _snapshot_ids(item)
+    return found
+
+
+def _students_of(wksa_ids: set[str]) -> set[str]:
+    """The ids of the student records that ever held one of these WKSA IDs.
+
+    Found through the student's own events, which name the student by id, so a
+    student whose ID changed (a black belt ID, a corrected typo) is followed
+    through every ID without touching whoever else once held the old number.
+    """
+    return {
+        event.entity_id
+        for event in AuditEvent.objects.filter(
+            entity_type=AuditEntity.STUDENT
+        ).iterator(
+            chunk_size=500,
+        )
+        if _snapshot_ids(event.metadata) & wksa_ids
+        or any(f"({wksa_id})" in event.summary for wksa_id in wksa_ids)
+    }
 
 
 def redact_student_details(
@@ -56,20 +97,29 @@ def redact_student_details(
 ) -> int:
     """Remove this student's name and date of birth from every older event.
 
-    The date of birth is removed from every snapshot of the student, found by
-    their WKSA ID, so it is never matched by value (another student may share
-    the date). The name is removed wherever the full name appears. The student
-    need not still exist: the name is given, not looked up. Run it once for
-    each name the student has had. Returns how many events changed (or would,
-    for a dry run); a second run changes none.
+    The personal fields are removed from every snapshot of the student: those
+    under the given WKSA ID, and those in the events of any student record that
+    ever held it (so a changed ID is followed). A date is never matched by
+    value, since another student may share it. The name is removed wherever the
+    full name appears. The student need not still exist: the name is given, not
+    looked up. Run it once for each name the student has had. Returns how many
+    events changed (or would, for a dry run); a second run changes none.
     """
     full_name = f"{first_name} {last_name}".strip()
+    if not wksa_id.strip() or not full_name:
+        # An empty name matches everywhere and would rewrite the whole log.
+        raise ValueError("A WKSA ID and a name are both needed.")
+    ids = {wksa_id}
     changed = 0
     with transaction.atomic():
+        students = _students_of(ids)
         for event in AuditEvent.objects.all().iterator(chunk_size=500):
-            summary = _redact_text(event.summary, wksa_id=wksa_id, full_name=full_name)
+            tied = (
+                event.entity_type == AuditEntity.STUDENT and event.entity_id in students
+            )
+            summary = _redact_text(event.summary, full_name=full_name)
             metadata = _redact_value(
-                event.metadata, wksa_id=wksa_id, full_name=full_name
+                event.metadata, wksa_ids=ids, tied=tied, full_name=full_name
             )
             if summary == event.summary and metadata == event.metadata:
                 continue

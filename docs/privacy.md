@@ -29,7 +29,7 @@ into their details. They are permanent, and the app refuses every change to them
 
 ### Procedure
 
-1. Find the student's WKSA ID and every name they have had (a corrected name is in an
+1. Find the student's WKSA ID (the current one is enough) and every name they have had (a corrected name is in an
    older event). If they were deleted, take these from the request, not the database.
 2. **Take a backup.** The command rewrites rows that are otherwise immutable.
 3. Check what would change, for each name the student has had:
@@ -48,9 +48,12 @@ into their details. They are permanent, and the app refuses every change to them
 
 - Replaces `<name> (<WKSA ID>)` in summaries with the WKSA ID, and any other occurrence of
   the full name with `[name erased]`.
-- Removes `first_name`, `last_name` and `date_of_birth` from every snapshot belonging to
-  that WKSA ID. It does not match dates by value, so another student with the same
-  birthday is untouched.
+- Removes `first_name`, `last_name` and `date_of_birth` from every snapshot of that
+  student: those under the WKSA ID you give, and those in the events of any student record
+  that ever held it, so a student whose ID changed (a black belt ID, a corrected typo) is
+  followed through every ID, and whoever else once held an old number is left alone. It does
+  not match dates by value, so another student with the same birthday is untouched.
+- Refuses a blank name or ID rather than rewriting the log.
 - Leaves every event, its action, actor and time exactly as they were, and is safe to run
   twice (the second run changes nothing).
 

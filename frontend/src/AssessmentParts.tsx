@@ -93,6 +93,7 @@ export function DeleteAssessmentDialog({
 export function AssessmentItemRow({
   item,
   isEditable,
+  canComment,
   isConfirmingClear,
   isCommentOpen,
   onAskClear,
@@ -103,6 +104,7 @@ export function AssessmentItemRow({
 }: {
   item: CandidateAssessmentItem;
   isEditable: boolean;
+  canComment: boolean;
   isConfirmingClear: boolean;
   isCommentOpen: boolean;
   onAskClear: () => void;
@@ -283,13 +285,15 @@ export function AssessmentItemRow({
           </div>
         )}
 
-        {isEditable && !isConfirmingClear && (
+        {(canComment || isEditable) && !isConfirmingClear && (
           <div className="caw-row-tools">
-            <button type="button" className="caw-row-tool" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
-              Add comment
-            </button>
+            {canComment && (
+              <button type="button" className="caw-row-tool" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
+                Add comment
+              </button>
+            )}
             {/* Clearing is only offered once there is a result to clear. */}
-            {isScored && (
+            {isEditable && isScored && (
               <button
                 type="button"
                 className="caw-row-tool"
@@ -303,7 +307,7 @@ export function AssessmentItemRow({
           </div>
         )}
 
-        {isCommentOpen && isEditable && (
+        {isCommentOpen && canComment && (
           <div className="caw-row-note-edit">
             <textarea
               aria-label={`Comment on ${item.item_name}`}
@@ -311,6 +315,8 @@ export function AssessmentItemRow({
               className="caw-row-note-input"
               placeholder="Add a comment — what was observed"
               value={draft}
+              // Held while it saves, so nothing typed meanwhile is lost when the box clears.
+              readOnly={saving}
               onChange={(e) => setDraft(e.target.value)}
               enterKeyHint="enter"
               onKeyDown={(e) => {

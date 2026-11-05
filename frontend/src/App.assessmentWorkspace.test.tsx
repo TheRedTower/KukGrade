@@ -778,6 +778,111 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       return { posts };
     }
 
+    describe("who may comment", () => {
+      function stateMock(options: {
+        assessment?: Partial<CandidateAssessment>;
+        session?: Partial<GradingSession>;
+        candidate?: Partial<typeof mockCandidate>;
+      }) {
+        const posts: string[] = [];
+        vi.stubGlobal(
+          "fetch",
+          vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input);
+            if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
+              const body = JSON.parse(String(init.body)).body as string;
+              posts.push(body);
+              return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
+            }
+            if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+            if (url.includes("/api/gradings/sessions/10/")) {
+              return jsonResponse(200, { ...mockSession, ...options.session });
+            }
+            if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
+              return jsonResponse(200, { ...mockCandidate, ...options.candidate });
+            }
+            if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+            if (url.includes("/api/gradings/assessments/")) {
+              return jsonResponse(200, {
+                count: 1, next: null, previous: null, results: [{ ...mockAssessment, ...options.assessment }],
+              });
+            }
+            if (url.includes("/api/gradings/assessment-items/")) {
+              return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+            }
+            return jsonResponse(404, { detail: "Not found" });
+          }),
+        );
+        return { posts };
+      }
+
+      it("lets a reviewer comment on a completed assessment while the session is open", async () => {
+        const { posts } = stateMock({ assessment: { status: "COMPLETED", status_display: "Completed" } });
+        const user = userEvent.setup();
+        render(<App />);
+        await screen.findByRole("heading", { name: "Alex Carter" });
+
+        // Marks are fixed, comments are not.
+        expect(screen.getByTestId("btn-met-1003")).toBeDisabled();
+        await user.click(screen.getByTestId("btn-comment-1003"));
+        await user.type(screen.getByTestId("caw-comment-input-1003"), "Seen again on review.{Enter}");
+
+        await waitFor(() => expect(posts).toEqual(["Seen again on review."]));
+      });
+
+      it.each([
+        ["the session is locked", { session: { status: "LOCKED" as const, status_display: "Locked" } }],
+        ["the assessment has not been started", { assessment: { status: "NOT_STARTED" as const, status_display: "Not started" } }],
+        ["the candidate has withdrawn", { candidate: { status: "WITHDRAWN" as const } }],
+      ])("offers no comment box when %s", async (_why, options) => {
+        stateMock({ assessment: { status: "COMPLETED", status_display: "Completed" }, ...options });
+        render(<App />);
+        await screen.findByRole("heading", { name: "Alex Carter" });
+
+        expect(screen.queryByTestId("btn-comment-1001")).toBeNull();
+      });
+
+      it("holds the text still while a comment is saving, so nothing typed meanwhile is lost", async () => {
+        let release: ((response: Response) => void) | undefined;
+        vi.stubGlobal(
+          "fetch",
+          vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input);
+            if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
+              return new Promise<Response>((resolve) => {
+                release = resolve;
+              });
+            }
+            if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+            if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+            if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+            if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+            if (url.includes("/api/gradings/assessments/")) {
+              return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+            }
+            if (url.includes("/api/gradings/assessment-items/")) {
+              return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+            }
+            return jsonResponse(404, { detail: "Not found" });
+          }),
+        );
+        const user = userEvent.setup();
+        render(<App />);
+        await screen.findByRole("heading", { name: "Alex Carter" });
+
+        await user.click(screen.getByTestId("btn-comment-1003"));
+        const box = screen.getByTestId("caw-comment-input-1003");
+        await user.type(box, "Sent text");
+        await user.click(screen.getByTestId("btn-comment-save-1003"));
+        await waitFor(() => expect(box).toHaveAttribute("readonly"));
+        await user.type(box, " typed while saving");
+
+        expect(box).toHaveValue("Sent text");
+        release?.(jsonResponse(201, { id: 901, author_name: "Lee Coach", body: "Sent text", created_at: "2026-09-18T11:00:00Z" }) as Response);
+        await waitFor(() => expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull());
+      });
+    });
+
     it("adds a comment on purpose and shows it with who wrote it", async () => {
       const { posts } = commentMock();
       const user = userEvent.setup();
@@ -1375,9 +1480,10 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByTestId("caw-item-1003")).not.toHaveTextContent("casey@example.com");
   });
 
-  // A COMPLETED assessment is immutable: it must offer no way to score or to
-  // clear, which is the affordance that would erase attribution.
-  it("offers no scoring or clear affordance once the assessment is completed", async () => {
+  // A COMPLETED assessment's marks are fixed: it must offer no way to score or
+  // to clear, which is the affordance that would erase attribution. Commenting
+  // stays open for deliberation while the session is open.
+  it("offers no scoring or clear affordance once the assessment is completed, but still lets people comment", async () => {
     const completed = { ...mockAssessment, status: "COMPLETED" as const, status_display: "Completed" };
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -1409,7 +1515,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByTestId("btn-met-1003")).toBeDisabled();
     expect(screen.getByTestId("btn-not-met-1003")).toBeDisabled();
     expect(screen.queryByTestId("btn-clear-1001")).toBeNull();
-    expect(screen.queryByTestId("btn-comment-1001")).toBeNull();
+    expect(screen.getByTestId("btn-comment-1001")).toBeVisible();
     expect(screen.getByTestId("caw-view-review-btn")).toBeVisible();
   });
   it("renders every category in one continuous run, not behind a rail", async () => {

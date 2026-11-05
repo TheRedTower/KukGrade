@@ -226,6 +226,13 @@ export function CandidateAssessmentScreen() {
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
   const isAssessmentInProgress = assessment?.status === "IN_PROGRESS";
   const isEditable = !!isAssessmentInProgress && !isAssessmentCompleted;
+  // Comments are for deliberating, so they stay open after the assessment is
+  // completed, for as long as the session is open: the server's own rule.
+  const canComment =
+    !!assessment &&
+    !isAssessmentNotStarted &&
+    session?.status === "OPEN" &&
+    candidate?.status !== "WITHDRAWN";
 
   const metWidth = stats.totalItems > 0 ? (stats.metCount / stats.totalItems) * 100 : 0;
   const notMetWidth = stats.totalItems > 0 ? (stats.notMetCount / stats.totalItems) * 100 : 0;
@@ -353,6 +360,7 @@ export function CandidateAssessmentScreen() {
                   key={item.id}
                   item={item}
                   isEditable={isEditable}
+                  canComment={canComment}
                   isConfirmingClear={confirmingClearId === item.id}
                   isCommentOpen={openCommentId === item.id}
                   onAskClear={() => {

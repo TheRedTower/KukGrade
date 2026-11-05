@@ -970,22 +970,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/outcomes/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["gradings_outcomes_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/gradings/outcomes/{id}/finalise/": {
         parameters: {
             query?: never;
@@ -1077,22 +1061,6 @@ export interface paths {
         };
         /** @description The viewer's own decisions staged in a session and not yet recorded. */
         get: operations["gradings_outcomes_staged_decisions_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/promotions/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["gradings_promotions_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2537,21 +2505,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["CandidateAssessment"][];
         };
-        PaginatedCandidateOutcomeList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["CandidateOutcome"][];
-        };
         PaginatedEffectiveSyllabusRequirementList: {
             /** @example 123 */
             count: number;
@@ -2656,21 +2609,6 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["LegacyPerson"][];
-        };
-        PaginatedPromotionList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["Promotion"][];
         };
         PaginatedRankList: {
             /** @example 123 */
@@ -4679,32 +4617,6 @@ export interface operations {
             };
         };
     };
-    gradings_outcomes_list: {
-        parameters: {
-            query?: {
-                candidate?: number;
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-                session?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedCandidateOutcomeList"];
-                };
-            };
-        };
-    };
     gradings_outcomes_finalise_partial_update: {
         parameters: {
             query?: never;
@@ -4873,31 +4785,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StagedDecision"][];
-                };
-            };
-        };
-    };
-    gradings_promotions_list: {
-        parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-                session?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedPromotionList"];
                 };
             };
         };

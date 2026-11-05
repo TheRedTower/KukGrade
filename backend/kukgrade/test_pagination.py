@@ -27,8 +27,6 @@ LIST_ENDPOINTS = [
     "/api/gradings/candidates/",
     "/api/gradings/assessments/",
     "/api/gradings/assessment-items/",
-    "/api/gradings/outcomes/",
-    "/api/gradings/promotions/",
     "/api/gradings/withdrawal-reasons/",
 ]
 

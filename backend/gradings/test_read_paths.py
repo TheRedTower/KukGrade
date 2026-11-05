@@ -87,18 +87,6 @@ def test_rank_history_costs_the_same_however_long_it_is() -> None:
     assert_constant_as_history_grows("rank-history")
 
 
-def test_promotion_and_outcome_lists_cost_the_same_however_long_they_are() -> None:
-    client = reader()
-    promote_through(student(), PROMOTION_CHAIN[0])
-    endpoints = ("/api/gradings/promotions/", "/api/gradings/outcomes/")
-    one = [queries_for(client, url) for url in endpoints]
-
-    for _ in range(3):
-        promote_through(student(), PROMOTION_CHAIN[0])
-
-    assert [queries_for(client, url) for url in endpoints] == one
-
-
 def progress_queries(captured: CaptureQueriesContext) -> int:
     return sum("awaiting_decision_count" in query["sql"] for query in captured)
 

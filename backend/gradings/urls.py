@@ -9,7 +9,6 @@ from gradings.views import (
     GradingCandidateViewSet,
     GradingSessionViewSet,
     LegacyGradingRecordViewSet,
-    PromotionViewSet,
     WithdrawalReasonViewSet,
 )
 
@@ -39,11 +38,6 @@ router.register(
     "gradings/outcomes",
     CandidateOutcomeViewSet,
     basename="candidate-outcome",
-)
-router.register(
-    "gradings/promotions",
-    PromotionViewSet,
-    basename="promotion",
 )
 router.register(
     "gradings/legacy-records",

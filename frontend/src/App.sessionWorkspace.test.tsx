@@ -738,6 +738,44 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
+  it("does not show one search's answer while the next search is still on its way", async () => {
+    const standard = setupStandardMock();
+    const pending: Record<string, (response: Response) => void> = {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        const asked = new URL(String(url), "http://localhost").searchParams.get("search");
+        if (String(url).includes("/api/gradings/candidates/") && asked) {
+          return new Promise<Response>((resolve) => {
+            pending[asked] = resolve;
+          });
+        }
+        return standard(url, init);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.type(screen.getByTestId("gsd-candidate-search"), "alex");
+    await waitFor(() => expect(pending.alex).toBeDefined());
+    const roster = (await (await standard("/api/gradings/candidates/?session=10", undefined)).json()) as {
+      results: { id: number; student_display_name: string }[];
+    };
+    const alex = roster.results.filter((row) => row.student_display_name.includes("Alex"));
+    pending.alex(jsonResponse(200, { count: alex.length, next: null, previous: null, results: alex }));
+    const table = await screen.findByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Alex Carter")).toBeVisible();
+
+    // A new term: Alex's answer must not stand in for Brooke's while it is awaited.
+    await user.clear(screen.getByTestId("gsd-candidate-search"));
+    await user.type(screen.getByTestId("gsd-candidate-search"), "brooke");
+    await waitFor(() => expect(pending.brooke).toBeDefined());
+
+    expect(await screen.findByText("Searching…")).toBeVisible();
+    expect(screen.queryByText("Alex Carter")).not.toBeInTheDocument();
+  });
+
   it("shows the whole roster again when the search is cleared", async () => {
     vi.stubGlobal("fetch", setupStandardMock());
     const user = userEvent.setup();

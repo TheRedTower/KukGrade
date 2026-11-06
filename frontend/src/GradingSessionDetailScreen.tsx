@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { keys } from "./queryKeys";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   GradingSession,
   archiveGradingSession,
@@ -154,8 +154,9 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const searchQuery = useQuery({
     queryKey: [...keys.gradingCandidates.session(sessionId), "search", searchTerm],
     queryFn: () => getAllGradingCandidates({ session: sessionId, search: searchTerm }),
+    // No carrying of an earlier term's answer over to the next: until the
+    // server has answered this one, the screen says it is searching.
     enabled: valid && searchTerm !== "",
-    placeholderData: keepPreviousData,
   });
   // A search under way that has not answered, or failed, shows no rows and says
   // so, never the whole roster as though it were the result.

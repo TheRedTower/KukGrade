@@ -66,6 +66,7 @@ need setting to opt out.
 | `DJANGO_SECURE_HSTS_PRELOAD` | off | Opt in to HSTS preload only if you understand it is hard to undo. |
 | `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE` | on | Send the cookies over HTTPS only. |
 | `DJANGO_SESSION_COOKIE_SAMESITE`, `DJANGO_CSRF_COOKIE_SAMESITE` | `Lax` | SameSite policy. |
+| `KUKGRADE_CSP` | `enforce` | The Content-Security-Policy header on the app's pages: the browser runs only the app's own scripts and styles and talks only to the app. `report-only` has the browser report what it would block in its console and block nothing; `off` leaves the header out. Use them only if a proxy or a browser extension injects something into the page. |
 
 ## Set by the image
 

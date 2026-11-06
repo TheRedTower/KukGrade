@@ -4,7 +4,8 @@ from collections.abc import Sequence
 from typing import Any, cast
 
 from django.contrib.auth import login, logout, update_session_auth_hash
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Value
+from django.db.models.functions import Concat
 from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -38,7 +39,8 @@ from accounts.services import (
     reset_password,
 )
 from accounts.setup import complete_setup, setup_needed
-from kukgrade.filtering import boolean, choice, search
+from kukgrade.filtering import boolean, choice
+from kukgrade.search import ExactOnly, label_of, search
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -209,7 +211,17 @@ class UserViewSet(
     query_filters = (
         choice("role", "role", User.Role.values),
         boolean("is_active", "is_active"),
-        search("search", ("email", "first_name", "last_name")),
+        search(
+            "search",
+            (
+                "email",
+                "first_name",
+                "last_name",
+                Concat("first_name", Value(" "), "last_name"),
+                ExactOnly(label_of("role", User.Role.choices)),
+            ),
+            "A user's name, email address or role.",
+        ),
     )
 
     def get_queryset(self) -> QuerySet[User]:

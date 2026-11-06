@@ -2,7 +2,18 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.db.models import Q, QuerySet
+from django.db.models import (
+    Case,
+    IntegerField,
+    OuterRef,
+    QuerySet,
+    Subquery,
+    TextField,
+    Value,
+    When,
+)
+from django.db.models.fields.json import KeyTextTransform
+from django.db.models.functions import Cast, Concat
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins
 from rest_framework.decorators import action
@@ -19,32 +30,47 @@ from audit.serializers import (
     student_id_of,
 )
 from kukgrade.filtering import QueryFilter, choice, exact, on_date
+from kukgrade.search import ExactOnly, apply_search, label_of
 from students.models import Student
 
-_SEARCHED_FIELDS = ("summary", "entity_type", "entity_id", "actor_email", "actor_name")
+
+def _student_name_of_event() -> Subquery:
+    """The current name of the student an event is about, for the search to read.
+
+    Events hold no names, so the search looks the student up by the id the event
+    carries: its own, for a student's event, or the one in its details.
+    """
+    return Subquery(
+        Student.objects.filter(pk=OuterRef("_subject_student"))
+        .annotate(name=Concat("first_name", Value(" "), "last_name"))
+        .values("name")[:1],
+        output_field=TextField(),
+    )
 
 
 def _apply_search(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
-    """Each word must be found in an event's own text or in the current name of
-    the student it is about. Names are not in the events, so the students whose
-    name has the word are looked up and the events about them matched by id."""
-    condition = Q()
-    for word in value.split():
-        in_event = Q()
-        for lookup in _SEARCHED_FIELDS:
-            in_event |= Q(**{f"{lookup}__icontains": word})
-        ids = list(
-            Student.objects.filter(
-                Q(first_name__icontains=word) | Q(last_name__icontains=word),
-            ).values_list("pk", flat=True)
-        )
-        if ids:
-            in_event |= Q(
-                entity_type=AuditEntity.STUDENT,
-                entity_id__in=[str(pk) for pk in ids],
-            ) | Q(metadata__student_id__in=ids)
-        condition &= in_event
-    return queryset.filter(condition)
+    subject = Case(
+        When(
+            entity_type=AuditEntity.STUDENT,
+            entity_id__regex=r"^[0-9]+$",
+            then=Cast("entity_id", IntegerField()),
+        ),
+        default=Cast(KeyTextTransform("student_id", "metadata"), IntegerField()),
+        output_field=IntegerField(),
+    )
+    return apply_search(
+        queryset.annotate(_subject_student=subject),
+        value,
+        (
+            ExactOnly("summary"),
+            ExactOnly("entity_id"),
+            "actor_email",
+            "actor_name",
+            ExactOnly(label_of("action", AuditAction.choices)),
+            ExactOnly(label_of("entity_type", AuditEntity.choices)),
+            _student_name_of_event(),
+        ),
+    )
 
 
 class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
@@ -73,8 +99,9 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
             "search",
             _apply_search,
             description=(
-                "Every word, in the summary, record, actor or the name of the "
-                "student the event is about (read now: events hold no names)."
+                "Every word, in the summary, record number, actor, the kind of event "
+                "or record, or the current name of the student the event is about "
+                "(read now: events hold no names)."
             ),
         ),
     )

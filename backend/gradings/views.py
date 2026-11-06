@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, cast
 
-from django.db.models import Prefetch, Q, QuerySet
+from django.db.models import Prefetch, Q, QuerySet, Value
+from django.db.models.functions import Concat
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -120,7 +121,14 @@ from kukgrade.filtering import (
     exact,
     on_date,
     ordered_by,
+)
+from kukgrade.search import (
+    ExactOnly,
+    apply_search,
+    date_words,
+    label_of,
     search,
+    squashed,
 )
 
 _PEOPLE_PARAMETERS = frozenset(
@@ -206,7 +214,19 @@ class GradingSessionViewSet(ModelViewSet):
         choices_in("status", "status", GradingSession.Status.values),
         on_date("grading_date_from", "grading_date__gte"),
         on_date("grading_date_to", "grading_date__lte"),
-        search("search", ("title", "location")),
+        search(
+            "search",
+            (
+                "title",
+                "location",
+                ExactOnly("notes"),
+                # What the list shows, so what is on the screen can be typed:
+                # "locked", "october", "2026", "25 oct".
+                ExactOnly(label_of("status", GradingSession.Status.choices)),
+                ExactOnly(date_words("grading_date")),
+            ),
+            "The title, location, notes, status and date of a session.",
+        ),
         QueryFilter(
             "archived",
             _apply_archived,
@@ -309,7 +329,23 @@ class GradingCandidateViewSet(
         "withdraw": ("gradings.change_gradingcandidate",),
     }
 
-    query_filters = (by_id("session", "session_id"),)
+    query_filters = (
+        by_id("session", "session_id"),
+        search(
+            "search",
+            (
+                "student__first_name",
+                "student__last_name",
+                Concat("student__first_name", Value(" "), "student__last_name"),
+                "student__wksa_id",
+                squashed("student__wksa_id"),
+                ExactOnly("from_rank__name"),
+                ExactOnly("testing_for_rank__name"),
+                ExactOnly(label_of("status", GradingCandidate.Status.choices)),
+            ),
+            "A candidate's name, WKSA ID, ranks or status.",
+        ),
+    )
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
         # The list and one registration carry the assessment, the outcome and
@@ -936,7 +972,7 @@ class LegacyGradingRecordViewSet(
             _records_for_group,
             description="The stable name-group key served by the people list.",
         ),
-        search("search", ("source_name",), "Part of the name as written."),
+        search("search", ("source_name",), "The name as written."),
     )
 
     def get_queryset(self) -> QuerySet[LegacyGradingRecord]:
@@ -1071,15 +1107,20 @@ class LegacyGradingRecordViewSet(
                 for group in groups
                 if (group.key in aside) == (set_aside == "only")
             ]
-        words = params.get("search", "").lower().split()
-        if words:
+        term = params.get("search", "")
+        if term.strip():
+            # The same search every list uses, on the names as written; a
+            # person is kept whole, so one record matching keeps the group.
+            matching = set(
+                apply_search(records, term, ("source_name",)).values_list(
+                    "pk",
+                    flat=True,
+                ),
+            )
             groups = [
                 group
                 for group in groups
-                if all(
-                    word in group.key or word in group.source_name.lower()
-                    for word in words
-                )
+                if any(record.pk in matching for record in group.records)
             ]
         if suggestion:
             suggest_for_groups(groups)

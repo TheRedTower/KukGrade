@@ -194,8 +194,9 @@ paths:
       - name: search
         required: false
         in: query
-        description: 'Every word, in the summary, record, actor or the name of the
-          student the event is about (read now: events hold no names).'
+        description: 'Every word, in the summary, record number, actor, the kind of
+          event or record, or the current name of the student the event is about (read
+          now: events hold no names).'
         schema:
           type: string
       tags:
@@ -1072,6 +1073,12 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: search
+        required: false
+        in: query
+        description: A candidate's name, WKSA ID, ranks or status.
+        schema:
+          type: string
       - name: session
         required: false
         in: query
@@ -1405,7 +1412,7 @@ paths:
       - name: search
         required: false
         in: query
-        description: Part of the name as written.
+        description: The name as written.
         schema:
           type: string
       - name: source_name
@@ -2052,7 +2059,7 @@ paths:
       - name: search
         required: false
         in: query
-        description: ''
+        description: The title, location, notes, status and date of a session.
         schema:
           type: string
       - name: status
@@ -2424,7 +2431,8 @@ paths:
       - name: search
         required: false
         in: query
-        description: Matches a name, the current WKSA ID or a previous one.
+        description: A student's name, ID (current or previous, with or without hyphens),
+          rank or status.
         schema:
           type: string
       - name: source_import
@@ -2706,7 +2714,7 @@ paths:
       - name: search
         required: false
         in: query
-        description: ''
+        description: A user's name, email address or role.
         schema:
           type: string
       tags:

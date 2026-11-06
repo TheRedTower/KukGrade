@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { keys } from "./queryKeys";
+import { useDebouncedValue } from "./useDebouncedValue";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   GradingSession,
   archiveGradingSession,
@@ -147,9 +148,25 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     () => enrichCandidates(candidatesQuery.data?.results ?? []),
     [candidatesQuery.data],
   );
+  // Searched by the server, like every list: the roster is read whole (its
+  // counts and actions need every row), and the search says which of them fit.
+  const searchTerm = useDebouncedValue(search.trim());
+  const searchQuery = useQuery({
+    queryKey: [...keys.gradingCandidates.session(sessionId), "search", searchTerm],
+    queryFn: () => getAllGradingCandidates({ session: sessionId, search: searchTerm }),
+    enabled: valid && searchTerm !== "",
+    placeholderData: keepPreviousData,
+  });
+  const matching = useMemo(
+    () =>
+      searchTerm === "" || !searchQuery.data
+        ? null
+        : new Set(searchQuery.data.results.map((row) => row.id)),
+    [searchTerm, searchQuery.data],
+  );
   const filteredCandidates = useMemo(
-    () => filterCandidates(enrichedCandidates, search, statusFilter),
-    [enrichedCandidates, search, statusFilter],
+    () => filterCandidates(enrichedCandidates, matching, statusFilter),
+    [enrichedCandidates, matching, statusFilter],
   );
 
   // The server's count (completed, outcome not finalised - see

@@ -75,10 +75,10 @@ export function SessionCandidatesSection({
             <input
               type="search"
               className="gsd-search-input"
-              placeholder="Search candidate..."
+              placeholder="Search name, ID, rank or status…"
               value={search}
               onChange={(e) => onSearch(e.target.value)}
-              aria-label="Search candidates by name or WKSA ID"
+              aria-label="Search candidates by name, WKSA ID, rank or status"
               data-testid="gsd-candidate-search"
             />
           </div>

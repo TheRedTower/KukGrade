@@ -158,6 +158,16 @@ serializers and the committed frontend types match the schema.
 - **Keep syllabus and grading rules in the backend.** Components render what the API
   returns.
 
+## Search
+
+One function, `kukgrade/search.py`, is every list's search box; a list declares the text it offers
+(`search("search", (…fields…))` in its viewset: a column, or an expression for text a screen shows
+such as `label_of` a status or `date_words` a date). It matches every word, ignores accents and
+case, finds part of a word, forgives a slip in a word of letters (PostgreSQL `pg_trgm`) and ranks
+the results. Do not write a list's search by hand (`icontains`, or filtering in Python or in the
+browser): it will not behave like the others. Wrap prose (notes, summaries) in `ExactOnly` so only
+names and titles are matched by likeness. `kukgrade/test_search.py` holds the behaviours.
+
 ## Query budget
 
 `backend/gradings/test_query_baseline.py` holds the hot paths to a ceiling, and the

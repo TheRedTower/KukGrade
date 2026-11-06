@@ -204,7 +204,7 @@ data across with a dump from the old image and a restore into the new one.
 
 Set `POSTGRES_HOST` (and `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`,
 `POSTGRES_PASSWORD`) in `.env`. The container then starts no database of its own.
-The role must own its database so migrations can run. [`deploy/compose.external-db.yml`](../deploy/compose.external-db.yml)
+The role must own its database so migrations can run. It also turns on two PostgreSQL extensions the search boxes use, `unaccent` and `pg_trgm`: both ship with PostgreSQL (the `contrib` package on some Linux distributions; the official Docker image and the managed services include them) and are "trusted", so the owner of the database may enable them without being a superuser. [`deploy/compose.external-db.yml`](../deploy/compose.external-db.yml)
 is a hardened example (read-only filesystem, all capabilities dropped) that joins
 existing Traefik and PostgreSQL Docker networks; its variables are listed in the file.
 

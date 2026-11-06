@@ -10,7 +10,7 @@ from django.utils import timezone
 from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from audit.models import AuditAction
-from audit.recording import record, student_label
+from audit.recording import grading_context, record, student_label
 from gradings.locking import (
     lock_in_session,
     lock_sessions_of,
@@ -122,7 +122,7 @@ def delete_candidate_assessment(
             "had_outcome": outcome is not None,
             "had_promotion": promotion is not None,
             "reverted_student_rank": reverted_rank,
-            "student_id": locked.candidate.student_id,
+            **grading_context(locked.candidate),
         },
     )
     locked.delete()
@@ -250,7 +250,7 @@ def generate_candidate_assessment(
         actor=generated_by,
         metadata={
             "item_count": len(requirements),
-            "student_id": locked_candidate.student_id,
+            **grading_context(locked_candidate),
         },
     )
     return assessment
@@ -400,7 +400,7 @@ def update_candidate_assessment(
         summary,
         actor=actor,
         metadata={
-            "student_id": locked_assessment.candidate.student_id,
+            **grading_context(locked_assessment.candidate),
             **(
                 {
                     "before": {"notes": previous_notes},
@@ -549,6 +549,7 @@ def update_candidate_assessment_item(
     locked_item = lock_in_session(
         CandidateAssessmentItem.objects.select_related(
             "assessment__candidate__session",
+            "assessment__candidate__student",
         ),
         item.pk,
         session_path="assessment__candidate__session_id",
@@ -610,9 +611,11 @@ def update_candidate_assessment_item(
         AuditAction.ITEM_RESULT_RECORDED,
         locked_item,
         (
-            f"{locked_item.item_name} changed from {previous_result} to {result}."
+            f"{locked_item.item_name} changed from {previous_result} to {result} "
+            f"for {student_label(locked_item.assessment.candidate.student)}."
             if is_later_change
-            else f"{locked_item.item_name} recorded as {result}."
+            else f"{locked_item.item_name} recorded as {result} "
+            f"for {student_label(locked_item.assessment.candidate.student)}."
         ),
         actor=assessor,
         metadata={
@@ -621,6 +624,7 @@ def update_candidate_assessment_item(
             "change": str(change.pk),
             "after_lock": after_lock,
             "assessment": str(locked_item.assessment_id),
+            **grading_context(locked_item.assessment.candidate),
         },
     )
     return locked_item
@@ -646,6 +650,7 @@ def add_item_comment(
     locked_item = lock_in_session(
         CandidateAssessmentItem.objects.select_related(
             "assessment__candidate__session",
+            "assessment__candidate__student",
         ),
         item.pk,
         session_path="assessment__candidate__session_id",
@@ -666,12 +671,14 @@ def add_item_comment(
     record(
         AuditAction.ITEM_COMMENT_ADDED,
         locked_item,
-        f"Comment added on {locked_item.item_name}.",
+        f"Comment added on {locked_item.item_name} "
+        f"for {student_label(locked_item.assessment.candidate.student)}.",
         actor=author,
         metadata={
             "comment": str(comment.pk),
             "after_lock": after_lock,
             "assessment": str(locked_item.assessment_id),
+            **grading_context(locked_item.assessment.candidate),
         },
     )
     return comment

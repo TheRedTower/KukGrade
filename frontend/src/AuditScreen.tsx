@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import {
   type AuditAction,
@@ -10,6 +10,7 @@ import {
   type AuditEvent,
   getAuditEvents,
   getAuditLabels,
+  getAuditSubject,
   errorMessage,
 } from "./api";
 import { EmptyState } from "./EmptyState";
@@ -75,6 +76,14 @@ export function AuditScreen(): React.ReactElement {
   const appliedSearch = searchParams.get("search") ?? "";
   // Set by links from a record ("View audit events"); no control edits it.
   const entityId = searchParams.get("entity_id") ?? "";
+  // A record's history: its own events and everything that belongs to it
+  // ("session:3", "student:5", "candidate:9", "user:<id>"), from a link on that record.
+  const subject = searchParams.get("subject") ?? "";
+  const subjectQuery = useQuery({
+    queryKey: ["auditSubject", subject],
+    queryFn: () => getAuditSubject(subject),
+    enabled: subject !== "",
+  });
 
 
   const updateFilters = (updates: Record<string, string>, preservePage = false) => {
@@ -94,6 +103,7 @@ export function AuditScreen(): React.ReactElement {
       action,
       entityType,
       entityId,
+      subject,
       occurredFrom,
       occurredTo,
       appliedSearch,
@@ -105,6 +115,7 @@ export function AuditScreen(): React.ReactElement {
         action: action || undefined,
         entity_type: entityType || undefined,
         entity_id: entityId || undefined,
+        subject: subject || undefined,
         occurred_from: occurredFrom || undefined,
         occurred_to: occurredTo || undefined,
         search: appliedSearch || undefined,
@@ -115,7 +126,7 @@ export function AuditScreen(): React.ReactElement {
   const totalCount = query.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasFilters = Boolean(
-    action || entityType || entityId || occurredFrom || occurredTo || appliedSearch,
+    action || entityType || entityId || subject || occurredFrom || occurredTo || appliedSearch,
   );
 
   // The trigger is restored explicitly: a clicked button is not focused in
@@ -137,6 +148,27 @@ export function AuditScreen(): React.ReactElement {
           </Badge>
         }
       />
+
+      {subject !== "" && (
+        <Alert tone="info" data-testid="audit-subject">
+          {subjectQuery.isLoading ? (
+            "Finding the record…"
+          ) : subjectQuery.data?.name ? (
+            <>
+              <strong>History of {subjectQuery.data.name}</strong>: the record itself and everything
+              that belongs to it.{" "}
+              <Link to={subjectQuery.data.path}>
+                Open the record <span aria-hidden="true">→</span>
+              </Link>
+            </>
+          ) : (
+            <>
+              <strong>History of a record that no longer exists</strong>: what was recorded about it
+              is kept.
+            </>
+          )}
+        </Alert>
+      )}
 
       <form
         className="filter-bar"

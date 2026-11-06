@@ -23,7 +23,7 @@ from accounts.permissions import (
     OVERRIDE_LOCKED_SESSION_PERMISSION,
 )
 from audit.models import AuditAction
-from audit.recording import record, student_label
+from audit.recording import grading_context, record, student_label
 from gradings.age import resolve_age_band
 from gradings.assessment_services import (
     generate_candidate_assessment,
@@ -525,7 +525,7 @@ def withdraw_locked_candidate(
             "reason": reason,
             "note": locked_candidate.withdrawal_note,
             "discarded_proposal": discarded_proposal,
-            "student_id": locked_candidate.student_id,
+            **grading_context(locked_candidate),
         },
     )
     return locked_candidate
@@ -1121,7 +1121,7 @@ def register_candidate(
             f"for {testing_for_rank.name}."
         ),
         actor=actor,
-        metadata={"age_band": candidate.age_band, "student_id": locked_student.pk},
+        metadata={"age_band": candidate.age_band, **grading_context(candidate)},
     )
     return candidate
 
@@ -1318,7 +1318,7 @@ def apply_candidate_update(
         metadata={
             "before": before,
             "after": after,
-            "student_id": updated.student_id,
+            **grading_context(updated),
         },
     )
     return updated
@@ -1339,7 +1339,7 @@ def delete_candidate(candidate: GradingCandidate, actor: User | None = None) -> 
         f"{student_label(locked.student, first=True)} removed from "
         f"'{locked.session.title}'.",
         actor=actor,
-        metadata={"status": locked.status, "student_id": locked.student_id},
+        metadata={"status": locked.status, **grading_context(locked)},
     )
     locked.delete()
 

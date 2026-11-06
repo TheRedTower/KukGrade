@@ -138,6 +138,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/audit-events/subject/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description What a history is of: the record's current name and where to open it. */
+        get: operations["audit_events_subject_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/change-password/": {
         parameters: {
             query?: never;
@@ -1713,6 +1730,16 @@ export interface components {
         AuditLabels: {
             actions: components["schemas"]["AuditChoice"][];
             entities: components["schemas"]["AuditChoice"][];
+        };
+        /** @description GET /api/audit-events/subject/: what a history is of, named as it is now. */
+        AuditSubject: {
+            /** @description session, student, candidate or user. */
+            kind: string;
+            id: string;
+            /** @description The record's current name; blank once it no longer exists. */
+            name: string;
+            /** @description Where to open the record in the app; blank when it is gone. */
+            path: string;
         };
         /**
          * @description * `WHITE` - White
@@ -3418,6 +3445,8 @@ export interface operations {
                 page_size?: number;
                 /** @description Every word, in the summary, record number, actor, the kind of event or record, or the current name of the student the event is about (read now: events hold no names). */
                 search?: string;
+                /** @description The history of one record and everything that belongs to it: `session:ID`, `student:ID`, `candidate:ID` or `user:ID`. */
+                subject?: string;
             };
             header?: never;
             path?: never;
@@ -3450,6 +3479,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditLabels"];
+                };
+            };
+        };
+    };
+    audit_events_subject_retrieve: {
+        parameters: {
+            query: {
+                subject: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditSubject"];
                 };
             };
         };

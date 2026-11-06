@@ -23,6 +23,7 @@
  * is NOT_ASSESSED / MET / NOT_MET and carries no partial credit.
  */
 import { useState } from "react";
+import { useAuth } from "./auth";
 import { refresh } from "./queryKeys";
 import { BackLink } from "./BackLink";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -51,6 +52,7 @@ export function AssessmentCompletionScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const clubName = useSiteSettingsQuery().data?.club_name;
+  const { user: currentUser } = useAuth();
 
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
@@ -174,6 +176,15 @@ export function AssessmentCompletionScreen() {
       <header className="acp-topbar">
         <BackLink to={scoringPath}>Back to scoring</BackLink>
         <span aria-hidden="true" className="acp-topbar-divider" />
+        {currentUser?.can_read_audit_log && (
+          <Link
+            to={`/audit?subject=candidate:${candidateId}`}
+            className={buttonClass({ variant: "ghost", small: true })}
+            data-testid="acp-history-link"
+          >
+            History
+          </Link>
+        )}
         <span className="acp-topbar-note">
           {isSealed
             ? assessment?.marks_open

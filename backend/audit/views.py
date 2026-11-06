@@ -13,7 +13,7 @@ from django.db.models import (
 )
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -26,8 +26,10 @@ from audit.models import AuditAction, AuditEntity, AuditEvent, hidden_actions
 from audit.serializers import (
     AuditEventSerializer,
     AuditLabelsSerializer,
+    AuditSubjectSerializer,
     student_id_of,
 )
+from audit.subjects import describe, events_of
 from kukgrade.filtering import QueryFilter, choice, exact, on_date
 from kukgrade.search import ExactOnly, apply_search, full_name_of, label_of
 from students.models import Student
@@ -86,6 +88,7 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
     permission_map = {
         "list": (),
         "labels": (),
+        "subject": (),
     }
 
     query_filters = (
@@ -94,6 +97,14 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
         exact("entity_id", "entity_id"),
         on_date("occurred_from", "occurred_at__date__gte"),
         on_date("occurred_to", "occurred_at__date__lte"),
+        QueryFilter(
+            "subject",
+            events_of,
+            description=(
+                "The history of one record and everything that belongs to it: "
+                "`session:ID`, `student:ID`, `candidate:ID` or `user:ID`."
+            ),
+        ),
         QueryFilter(
             "search",
             _apply_search,
@@ -133,6 +144,19 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
             AuditEvent.objects.visible_to(cast(User, self.request.user)).order_by(
                 "-occurred_at", "-pk"
             )
+        )
+
+    @extend_schema(
+        parameters=[OpenApiParameter("subject", str, required=True)],
+        responses=AuditSubjectSerializer,
+    )
+    @action(detail=False, pagination_class=None, filter_backends=[])
+    def subject(self, request: Request) -> Response:
+        """What a history is of: the record's current name and where to open it."""
+        return Response(
+            AuditSubjectSerializer(
+                describe(request.query_params.get("subject", "")),
+            ).data,
         )
 
     @extend_schema(responses=AuditLabelsSerializer)

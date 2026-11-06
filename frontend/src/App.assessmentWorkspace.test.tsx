@@ -570,6 +570,55 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.queryByText(/reopen/i)).toBeNull();
   });
 
+  describe("the history link on an assessment record", () => {
+    function recordFetch(viewer: Record<string, unknown>) {
+      const sealed: CandidateAssessment = {
+        ...mockAssessment,
+        status: "COMPLETED",
+        status_display: "Completed",
+        completed_at: "2026-09-18T11:30:00Z",
+        marks_open: false,
+      };
+      const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
+      return vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, viewer);
+        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, { ...mockSession, status: "LOCKED" });
+        if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+        if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+        if (url.includes("/api/gradings/assessments/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [sealed] });
+        }
+        if (url.includes("/api/gradings/assessment-items/")) {
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      });
+    }
+
+    it("opens that registration's history for someone who may read the audit log", async () => {
+      vi.stubGlobal("fetch", recordFetch({ ...authUser, can_read_audit_log: true }));
+      window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+      render(<App />);
+
+      expect(await screen.findByTestId("acp-history-link")).toHaveAttribute(
+        "href",
+        "/audit?subject=candidate:101",
+      );
+    });
+
+    it("is not offered to someone who may not", async () => {
+      vi.stubGlobal("fetch", recordFetch({ ...authUser, can_read_audit_log: false }));
+      window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+      render(<App />);
+
+      await screen.findByRole("heading", { name: "Assessment record" });
+      expect(screen.queryByTestId("acp-history-link")).toBeNull();
+    });
+  });
+
   // A scored requirement in any category belongs on the permanent record.
   // Rendering only Techniques and Forms would silently drop a Weapons or Other
   // requirement that was actually assessed during the grading.

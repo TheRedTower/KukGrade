@@ -57,6 +57,21 @@ class AuditEventSerializer(serializers.ModelSerializer):
         return names.get(student_id, "") if student_id is not None else ""
 
 
+class AuditSubjectSerializer(serializers.Serializer):
+    """GET /api/audit-events/subject/: what a history is of, named as it is now."""
+
+    kind = serializers.CharField(help_text="session, student, candidate or user.")
+    id = serializers.CharField()
+    name = serializers.CharField(
+        allow_blank=True,
+        help_text="The record's current name; blank once it no longer exists.",
+    )
+    path = serializers.CharField(
+        allow_blank=True,
+        help_text="Where to open the record in the app; blank when it is gone.",
+    )
+
+
 class AuditChoiceSerializer(serializers.Serializer):
     value = serializers.CharField()
     # As in kukgrade/views.py: DRF lifts declared fields off the class.

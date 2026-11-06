@@ -199,6 +199,13 @@ paths:
           now: events hold no names).'
         schema:
           type: string
+      - name: subject
+        required: false
+        in: query
+        description: 'The history of one record and everything that belongs to it:
+          `session:ID`, `student:ID`, `candidate:ID` or `user:ID`.'
+        schema:
+          type: string
       tags:
       - audit-events
       security:
@@ -226,6 +233,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditLabels'
+          description: ''
+  /api/audit-events/subject/:
+    get:
+      operationId: audit_events_subject_retrieve
+      description: 'What a history is of: the record''s current name and where to
+        open it.'
+      parameters:
+      - in: query
+        name: subject
+        schema:
+          type: string
+        required: true
+      tags:
+      - audit-events
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditSubject'
           description: ''
   /api/auth/change-password/:
     post:
@@ -3407,6 +3436,27 @@ components:
       required:
       - actions
       - entities
+    AuditSubject:
+      type: object
+      description: 'GET /api/audit-events/subject/: what a history is of, named as
+        it is now.'
+      properties:
+        kind:
+          type: string
+          description: session, student, candidate or user.
+        id:
+          type: string
+        name:
+          type: string
+          description: The record's current name; blank once it no longer exists.
+        path:
+          type: string
+          description: Where to open the record in the app; blank when it is gone.
+      required:
+      - id
+      - kind
+      - name
+      - path
     BeltColourEnum:
       enum:
       - WHITE

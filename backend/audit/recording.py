@@ -26,6 +26,18 @@ def student_label(student: models.Model, *, first: bool = False) -> str:
     return f"{'Student' if first else 'student'} {wksa_id}"
 
 
+def grading_context(candidate: models.Model) -> dict[str, int]:
+    """Where a grading event happened, by id: whose, which registration, which
+    session. It is what lets a record's history gather everything that belongs to
+    it (a session's events include its candidates' marks and decisions) without
+    a name in the log."""
+    return {
+        "student_id": getattr(candidate, "student_id"),  # noqa: B009
+        "candidate_id": candidate.pk,
+        "session_id": getattr(candidate, "session_id"),  # noqa: B009
+    }
+
+
 def record(
     action: str,
     entity: models.Model,

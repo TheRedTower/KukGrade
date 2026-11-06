@@ -15,7 +15,7 @@ from accounts.permissions import (
     PROMOTE_STUDENT_PERMISSION,
 )
 from audit.models import AuditAction
-from audit.recording import record, student_label
+from audit.recording import grading_context, record, student_label
 from gradings.locking import (
     lock_in_session,
     lock_sessions_of,
@@ -148,7 +148,7 @@ def propose_for_candidate(
         outcome,
         f"Outcome record opened for {student_label(locked_candidate.student)}.",
         actor=actor,
-        metadata={"student_id": locked_candidate.student_id},
+        metadata=grading_context(locked_candidate),
     )
     _record_proposal(outcome, None, actor)
     return outcome
@@ -190,7 +190,7 @@ def _record_proposal(
                 "proposal_notes": outcome.proposal_notes,
                 "proposed_by": str(actor.pk),
             },
-            "student_id": outcome.candidate.student_id,
+            **grading_context(outcome.candidate),
         },
     )
 
@@ -354,7 +354,7 @@ def finalise_candidate_outcome(
             "final_outcome": final_outcome,
             "overrode_proposal": locked_outcome.proposed_outcome != final_outcome,
             "conditional_requirements": cleaned_conditions,
-            "student_id": locked_outcome.candidate.student_id,
+            **grading_context(locked_outcome.candidate),
         },
     )
     return locked_outcome
@@ -666,7 +666,7 @@ def promote_candidate(
             "to_rank": to_rank.code,
             "effective_date": str(candidate_effective_date),
             "outcome": str(locked_outcome.pk),
-            "student_id": locked_student.pk,
+            **grading_context(locked_candidate),
         },
     )
     return Promotion.objects.select_related(

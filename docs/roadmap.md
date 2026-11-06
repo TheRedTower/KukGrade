@@ -44,8 +44,8 @@ Want something here, or something that is missing? Open an
 - [ ] **Drop the unused `assessor_notes` column.** Item notes became the comment log in
       release candidate 8 and nothing writes the old column; it goes in a migration of its own,
       one release after the one that carried the comments.
-- [ ] **Two small hardening steps**: a Content-Security-Policy header (Django has none built
-      in, so a small middleware or the proxy) and a Python dependency audit in CI.
+- [ ] **A Python dependency audit in CI**, to flag a known-vulnerable backend dependency on
+      every change (the frontend's is already covered by Dependabot alerts).
 - [ ] **Reports and exports**, from an agreed reporting specification (for example a session
       summary or a student's grading history as a document).
 

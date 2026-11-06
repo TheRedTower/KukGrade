@@ -88,6 +88,13 @@ export function CandidateAssessmentScreen() {
   const pendingItemWrites = useIsMutating({ mutationKey: itemWriteKey });
   const itemWriteChains = useRef(new Map<number, Promise<unknown>>());
   const itemWriteSeq = useRef(new Map<number, number>());
+  // Whether two writes were ever in flight together since the rollup was last
+  // read. A write's answer carries the counts as its own save left them, which
+  // is the whole truth only when nothing else was being saved; with overlap the
+  // last answer to arrive may not be the last save to land, so the rollup is
+  // read again instead.
+  const writesOverlapped = useRef(false);
+  const writesInFlight = useRef(0);
 
   const patchItem = (
     itemId: number,
@@ -138,6 +145,8 @@ export function CandidateAssessmentScreen() {
       return write;
     },
     onMutate: async ({ itemId, result }) => {
+      if (writesInFlight.current > 0) writesOverlapped.current = true;
+      writesInFlight.current += 1;
       await queryClient.cancelQueries({ queryKey: itemsKey });
       const seq = (itemWriteSeq.current.get(itemId) ?? 0) + 1;
       itemWriteSeq.current.set(itemId, seq);
@@ -152,7 +161,10 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: (saved, _vars, context) => {
       if (context && isLatestWrite(context.itemId, context.seq)) {
-        patchItem(context.itemId, () => saved);
+        // The item as the list serves it, without the counts that came with it.
+        const { assessment_summary: counts, ...item } = saved;
+        void counts;
+        patchItem(context.itemId, () => item);
       }
     },
     onError: (err, _vars, context) => {
@@ -162,13 +174,31 @@ export function CandidateAssessmentScreen() {
       }
       setActionError(errorMessage(err, "Could not save this result."));
     },
-    onSettled: () => {
-      // This write still counts as pending here, so 1 means it is the last.
-      if (queryClient.isMutating({ mutationKey: itemWriteKey }) > 1) return;
+    onSettled: (saved) => {
+      // Counted here rather than asked of the cache: two answers that land in the
+      // same moment both still count as pending there, and neither would then
+      // see itself as the last.
+      writesInFlight.current -= 1;
+      if (writesInFlight.current > 0) return;
       queryClient.invalidateQueries({ queryKey: itemsKey });
-      // The rollup is served, so a scored item has to refetch it or the mat
-      // bar and category headers go stale.
-      queryClient.invalidateQueries({ queryKey: keys.candidateAssessmentSummary(assessment?.id) });
+      // The rollup is served, so a scored item has to refresh it or the mat
+      // bar and category headers go stale. A lone write brought the counts back
+      // with it, so they are used as they are; after overlapping writes, or
+      // a failed one, they are read again.
+      const counts = writesOverlapped.current ? undefined : saved?.assessment_summary;
+      writesOverlapped.current = false;
+      if (counts) {
+        // A read of the counts still in flight (from an earlier overlap or a
+        // failed save) would land after these and put older counts over them,
+        // with nothing left to correct it: it is cancelled first. Not awaited,
+        // so the write does not stay pending while it is.
+        const summaryKey = keys.candidateAssessmentSummary(assessment?.id);
+        void queryClient
+          .cancelQueries({ queryKey: summaryKey })
+          .then(() => queryClient.setQueryData(summaryKey, counts));
+      } else {
+        queryClient.invalidateQueries({ queryKey: keys.candidateAssessmentSummary(assessment?.id) });
+      }
       queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.byCandidate(numCandidateId) });
     },
   });

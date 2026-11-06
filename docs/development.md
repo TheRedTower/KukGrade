@@ -163,10 +163,10 @@ roster and list tests hold their counts flat as data grows. Measured 2026-11-05:
 
 | Request | Queries | Ceiling |
 | --- | --- | --- |
-| Mark an item (first mark, or a later change with a reason) | 17 (76 before) | 20 |
+| Mark an item (first mark, or a later change with a reason), with the assessment's counts in the answer | 18 (76 before) | 20 |
 | Comment on an item | 11 (26 before) | 14 |
 | Item list for an assessment (page of 9) | 4 | 6 |
-| Assessment summary | 2 | 4 |
+| Assessment summary (a lone mark no longer asks for it) | 2 | 4 |
 | Student list (any length of page) | 2 | 4 |
 | A session's roster (any number of candidates) | 12 or fewer | 12 |
 

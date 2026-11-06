@@ -843,6 +843,7 @@ paths:
   /api/gradings/assessment-items/{id}/:
     patch:
       operationId: gradings_assessment_items_partial_update
+      description: Mark an item, and get the assessment's counts back with it.
       parameters:
       - in: path
         name: id
@@ -871,7 +872,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateAssessmentItem'
+                $ref: '#/components/schemas/CandidateAssessmentItemSaved'
           description: ''
   /api/gradings/assessment-items/{id}/comments/:
     post:
@@ -3719,6 +3720,100 @@ components:
           readOnly: true
       required:
       - assessed_at
+      - assessor_email
+      - category
+      - category_display
+      - category_is_core
+      - changes
+      - comments
+      - display_range
+      - id
+      - item_name
+      - korean_name
+      - notation
+      - position
+      - required
+      - requirement_notes
+      - result_display
+    CandidateAssessmentItemSaved:
+      type: object
+      description: |-
+        What a mark returns: the item, and the assessment's rollup as the save
+        left it, so a screen need not ask for the counts again. Only the write
+        carries it; the list of items is unchanged.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        item_name:
+          type: string
+          readOnly: true
+        korean_name:
+          type: string
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
+          readOnly: true
+        category_display:
+          type: string
+          readOnly: true
+        category_is_core:
+          type: boolean
+          readOnly: true
+          description: Whether the category is one of the six core grading areas every
+            rank shares, rather than rank-specific content.
+        position:
+          type: integer
+          readOnly: true
+        required:
+          type: boolean
+          readOnly: true
+        display_range:
+          type: string
+          readOnly: true
+        requirement_notes:
+          type: string
+          readOnly: true
+        notation:
+          type: string
+          readOnly: true
+          description: The syllabus's display wording for this item's chart notation
+            - 'Part 1 of 2', 'Parts 1-3' - as it stood when the assessment was generated;
+            empty when there is none.
+        result:
+          $ref: '#/components/schemas/ResultEnum'
+        result_display:
+          type: string
+          readOnly: true
+        assessor_email:
+          type: string
+          format: email
+          readOnly: true
+        assessed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentItemComment'
+          readOnly: true
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentItemResultChange'
+          readOnly: true
+        assessment_summary:
+          allOf:
+          - $ref: '#/components/schemas/CandidateAssessmentSummary'
+          readOnly: true
+          description: The assessment's overall and per-category counts after this
+            save, the same as GET assessments/<id>/summary/.
+      required:
+      - assessed_at
+      - assessment_summary
       - assessor_email
       - category
       - category_display

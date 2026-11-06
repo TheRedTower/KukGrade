@@ -1237,7 +1237,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   // Several item saves can be in flight at once. Each PATCH is held
   // until the test releases it, and the "server" keeps the saved state, so a
   // refetch shows what was really stored.
-  function scoringServer(initial: CandidateAssessmentItem[]) {
+  // `withCounts`: a save answers with the assessment's counts as it left them,
+  // as the real server now does; off, it answers with the item alone.
+  function scoringServer(initial: CandidateAssessmentItem[], withCounts = false) {
     const items = new Map(initial.map((item) => [item.id, { ...item }]));
     const pending: {
       itemId: number;
@@ -1263,7 +1265,12 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             save: () => {
               const saved = { ...items.get(itemId)!, result: body.result };
               items.set(itemId, saved);
-              respond(jsonResponse(200, saved));
+              respond(
+                jsonResponse(
+                  200,
+                  withCounts ? { ...saved, assessment_summary: assessmentSummaryFor([...items.values()]) } : saved,
+                ),
+              );
             },
             refuse: () =>
               respond(jsonResponse(400, { error: { code: "validation_error", message: "Refused." } })),
@@ -1604,6 +1611,143 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       expect(screen.getByTestId("btn-met-1001")).toBeDisabled();
       expect(screen.getByTestId("btn-not-met-1001")).toBeDisabled();
       expect(screen.queryByTestId("btn-comment-1001")).toBeNull();
+    });
+  });
+
+  describe("the counts a save brings back", () => {
+    const summaryReads = (server: ReturnType<typeof scoringServer>) =>
+      server.fetchMock.mock.calls.filter(([url]) => String(url).includes("/summary/")).length;
+
+    it("uses them for a lone mark instead of asking for the counts again", async () => {
+      const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+      const readsBefore = summaryReads(server);
+
+      await user.click(screen.getByTestId("btn-met-1001"));
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      server.pending[0].save();
+
+      // The list is read again as before; the counts are not, and are right.
+      await waitFor(() =>
+        expect(
+          server.fetchMock.mock.calls.filter(([url]) => String(url).includes("/assessment-items/?")).length,
+        ).toBeGreaterThan(1),
+      );
+      await waitFor(() => expect(screen.getByTestId("btn-met-1001")).toHaveAttribute("aria-pressed", "true"));
+      expect(summaryReads(server)).toBe(readsBefore);
+    });
+
+    it("reads them again when two marks overlapped, since the last answer may predate the other save", async () => {
+      const server = scoringServer([unmarked(mockItem1), mockItem2, unmarked(mockItem3)], true);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+      const readsBefore = summaryReads(server);
+      const listReads = () =>
+        server.fetchMock.mock.calls.filter(([url]) => String(url).includes("/assessment-items/?")).length;
+      const listBefore = listReads();
+
+      await user.click(screen.getByTestId("btn-met-1001"));
+      await user.click(screen.getByTestId("btn-met-1003"));
+      await waitFor(() => expect(server.pending).toHaveLength(2));
+      // Both answers land in the same moment: the last one still has to notice it is last.
+      server.pending[0].save();
+      server.pending[1].save();
+
+      await waitFor(() => expect(summaryReads(server)).toBeGreaterThan(readsBefore));
+      await waitFor(() => expect(listReads()).toBeGreaterThan(listBefore));
+    });
+
+    it("is not overwritten by an older read of the counts that was still on its way", async () => {
+      const server = scoringServer([unmarked(mockItem1), unmarked(mockItem2), unmarked(mockItem3)], true);
+      // From the first overlap on, a read of the counts is answered late, with
+      // the counts as they were when it was asked.
+      let holding = false;
+      let release: (() => void) | undefined;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+          const answer = server.fetchMock(input, init) as Promise<Response>;
+          if (holding && String(input).includes("/summary/") && !release) {
+            return new Promise<Response>((resolve) => {
+              release = () => void answer.then(resolve);
+            });
+          }
+          return answer;
+        }),
+      );
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      holding = true;
+      await user.click(screen.getByTestId("btn-met-1001"));
+      await user.click(screen.getByTestId("btn-met-1003"));
+      await waitFor(() => expect(server.pending).toHaveLength(2));
+      server.pending[0].save();
+      server.pending[1].save();
+      // The overlap sends a read of the counts, which is now held back.
+      await waitFor(() => expect(release).toBeDefined());
+
+      // A lone mark is saved meanwhile, and its counts are the newest.
+      await user.click(screen.getByTestId("btn-met-1002"));
+      await waitFor(() => expect(server.pending).toHaveLength(3));
+      server.pending[2].save();
+      await waitFor(() => expect(screen.getByText("3 met")).toBeVisible());
+
+      // The old read arrives at last, and must not put its two over the three.
+      release?.();
+      await new Promise((settle) => setTimeout(settle, 100));
+      expect(screen.getByText("3 met")).toBeVisible();
+    });
+
+    it("reads them again when the save failed", async () => {
+      const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+      const readsBefore = summaryReads(server);
+
+      await user.click(screen.getByTestId("btn-met-1001"));
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      server.pending[0].refuse();
+
+      await waitFor(() => expect(summaryReads(server)).toBeGreaterThan(readsBefore));
+    });
+
+    it("reads them again from a server that answers with the item alone", async () => {
+      const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3]);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+      const readsBefore = summaryReads(server);
+
+      await user.click(screen.getByTestId("btn-met-1001"));
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      server.pending[0].save();
+
+      await waitFor(() => expect(summaryReads(server)).toBeGreaterThan(readsBefore));
+    });
+
+    it("keeps the item in the list free of the counts that came with it", async () => {
+      const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
+      vi.stubGlobal("fetch", server.fetchMock);
+      const user = userEvent.setup();
+      const { container } = render(<App />);
+      await screen.findByRole("heading", { name: "Alex Carter" });
+
+      await user.click(screen.getByTestId("btn-met-1001"));
+      await waitFor(() => expect(server.pending).toHaveLength(1));
+      server.pending[0].save();
+
+      await waitFor(() => expect(screen.getByTestId("btn-met-1001")).toHaveAttribute("aria-pressed", "true"));
+      expect(container.textContent).not.toContain("assessment_summary");
     });
   });
 

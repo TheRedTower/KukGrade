@@ -79,7 +79,7 @@ Every step is recorded in the [audit log](#audit-log).
   to its assessment.
 - Correcting a date of birth moves the student's open registrations to the right age band, unless an assessment form is already prepared in a different band: then it is refused until the form is removed.
 - A student's rank cannot be edited while they are registered for a grading that has not reached its result: withdraw them first.
-- Search by name or ID (every word must match, in any order, so "Alex Kim" finds Alex Kim); filter by rank and status.
+- Search by name, ID (current or previous, with or without its hyphens), rank or status; filter by rank and status. See [Search](#search).
 
 ## The syllabus
 
@@ -111,6 +111,20 @@ An upload that is abandoned is cleared once it is 24 hours old: each new upload 
 the stale ones, and so does every start of the container. A past-gradings workbook saved again
 and uploaded twice is warned about, and its repeated records marked, before anything is
 imported. See [importing-data.md](importing-data.md).
+
+## Search
+
+Every search box (gradings, students, users, a grading's candidates, the audit log, imports and
+historical records) uses the same search, done by the database:
+
+- **Every word must be found**, in any order ("kim alex" finds Alex Kim).
+- **Accents and capitals do not matter** ("jose" finds José).
+- **Part of a word counts**, as you type ("spr" finds Spring).
+- **A slip of the keyboard is forgiven** for words made of letters ("sprng", "hartly"). A word with a
+  digit in it, such as an ID or a year, is matched exactly: 123-4-150 is never "like" 123-4-151.
+- **What the screen shows can be typed**: a grading is found by its date or status ("october",
+  "2026", "25/10/2026", "locked"), a student by rank or status, a candidate by their ranks.
+- **The best match comes first**, unless you have chosen an order.
 
 ## Audit log
 

@@ -54,7 +54,8 @@ from data_imports.services import (
     with_row_counts,
 )
 from gradings.models import LegacyRecordKind
-from kukgrade.filtering import QueryFilter, choice, choices_in, search
+from kukgrade.filtering import QueryFilter, choice, choices_in
+from kukgrade.search import search
 
 
 # The review table's filters. Not a `list` action, so they are checked here
@@ -89,7 +90,7 @@ def _rows_worth_a_look(rows: QuerySet[ImportRow], value: str) -> QuerySet[Import
 
 _ROW_FILTERS = (
     choice("outcome", "outcome", ImportRow.Outcome.values),
-    search("search", ("search_text",), "Matches any of the row's values."),
+    search("search", ("search_text",), "Any of the row's values."),
     QueryFilter("rank_text", _rows_with_rank_text),
     QueryFilter("corrected", _rows_corrected),
     QueryFilter("worth_a_look", _rows_worth_a_look),

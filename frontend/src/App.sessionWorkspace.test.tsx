@@ -667,8 +667,20 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.queryByText(/awaiting final decision/)).not.toBeInTheDocument();
   });
 
-  it("filters candidate roster in real-time by search query", async () => {
-    const fetchMock = setupStandardMock();
+  it("finds a candidate by asking the server, which matches the words", async () => {
+    const standard = setupStandardMock();
+    const searches: string[] = [];
+    // The server's part: it is asked for the candidates matching the words.
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const asked = new URL(String(url), "http://localhost").searchParams.get("search");
+      if (String(url).includes("/api/gradings/candidates/") && asked) {
+        searches.push(asked);
+        const roster = (await (await standard(url, init)).json()) as { results: { id: number; student_display_name: string }[] };
+        const matching = roster.results.filter((row) => row.student_display_name.includes("Alex"));
+        return jsonResponse(200, { count: matching.length, next: null, previous: null, results: matching });
+      }
+      return standard(url, init);
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -676,13 +688,106 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     await screen.findByRole("heading", { name: "Autumn Grading" });
 
-    const searchInput = screen.getByTestId("gsd-candidate-search");
-    await user.type(searchInput, "Alex");
+    await user.type(screen.getByTestId("gsd-candidate-search"), "carter alex");
 
-    const table = screen.getByTestId("gsd-candidates-table");
+    // The whole phrase goes to the server once the typing pauses, and the table
+    // is read afresh, since it is replaced by a note while the server answers.
+    await waitFor(() => expect(searches.at(-1)).toBe("carter alex"));
+    await waitFor(() => expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument());
+    const table = await screen.findByTestId("gsd-candidates-table");
     expect(within(table).getByText("Alex Carter")).toBeVisible();
-    expect(within(table).queryByText("Brooke Ellis")).not.toBeInTheDocument();
     expect(within(table).queryByText("Casey Nguyen")).not.toBeInTheDocument();
+    // The whole phrase went to the server, once the typing paused.
+    expect(searches.at(-1)).toBe("carter alex");
+  });
+
+  it("never shows the whole roster as the result of a search that is pending or failed", async () => {
+    const standard = setupStandardMock();
+    let answer: ((response: Response) => void) | undefined;
+    let failing = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        const asked = new URL(String(url), "http://localhost").searchParams.get("search");
+        if (String(url).includes("/api/gradings/candidates/") && asked) {
+          if (failing) return Promise.resolve(jsonResponse(500, { error: { code: "server_error", message: "Down." } }));
+          return new Promise<Response>((resolve) => {
+            answer = resolve;
+          });
+        }
+        return standard(url, init);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    const table = screen.getByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Brooke Ellis")).toBeVisible();
+
+    // While the answer is on its way: a note, and not the roster as though it were the result.
+    await user.type(screen.getByTestId("gsd-candidate-search"), "alex");
+    expect(await screen.findByText("Searching…")).toBeVisible();
+    expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument();
+    expect(answer).toBeDefined();
+
+    // And when it fails: the failure, with a way to try again.
+    failing = true;
+    await user.type(screen.getByTestId("gsd-candidate-search"), "x");
+    expect(await screen.findByTestId("gsd-search-failed")).toBeVisible();
+    expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+  });
+
+  it("does not show one search's answer while the next search is still on its way", async () => {
+    const standard = setupStandardMock();
+    const pending: Record<string, (response: Response) => void> = {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        const asked = new URL(String(url), "http://localhost").searchParams.get("search");
+        if (String(url).includes("/api/gradings/candidates/") && asked) {
+          return new Promise<Response>((resolve) => {
+            pending[asked] = resolve;
+          });
+        }
+        return standard(url, init);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.type(screen.getByTestId("gsd-candidate-search"), "alex");
+    await waitFor(() => expect(pending.alex).toBeDefined());
+    const roster = (await (await standard("/api/gradings/candidates/?session=10", undefined)).json()) as {
+      results: { id: number; student_display_name: string }[];
+    };
+    const alex = roster.results.filter((row) => row.student_display_name.includes("Alex"));
+    pending.alex(jsonResponse(200, { count: alex.length, next: null, previous: null, results: alex }));
+    const table = await screen.findByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Alex Carter")).toBeVisible();
+
+    // A new term: Alex's answer must not stand in for Brooke's while it is awaited.
+    await user.clear(screen.getByTestId("gsd-candidate-search"));
+    await user.type(screen.getByTestId("gsd-candidate-search"), "brooke");
+    await waitFor(() => expect(pending.brooke).toBeDefined());
+
+    expect(await screen.findByText("Searching…")).toBeVisible();
+    expect(screen.queryByText("Alex Carter")).not.toBeInTheDocument();
+  });
+
+  it("shows the whole roster again when the search is cleared", async () => {
+    vi.stubGlobal("fetch", setupStandardMock());
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.type(screen.getByTestId("gsd-candidate-search"), "zzz");
+    await user.clear(screen.getByTestId("gsd-candidate-search"));
+
+    const table = await screen.findByTestId("gsd-candidates-table");
+    await waitFor(() => expect(within(table).getByText("Brooke Ellis")).toBeVisible());
+    expect(within(table).getByText("Alex Carter")).toBeVisible();
   });
 
   it("allows instructors to view and edit session notes with authentic PATCH call", async () => {

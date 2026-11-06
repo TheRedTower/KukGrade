@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, cast
 
-from django.db.models import Q, QuerySet
+from django.contrib.postgres.aggregates import StringAgg
+from django.db.models import OuterRef, Q, QuerySet, Subquery, TextField
 from django.utils import timezone
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -26,9 +27,9 @@ from kukgrade.filtering import (
     by_id,
     choices_in,
     exact,
-    search,
 )
-from students.models import Student
+from kukgrade.search import ExactOnly, full_name_of, label_of, search, squashed
+from students.models import PreviousWksaId, Student
 from students.serializers import (
     StudentGradingHistorySerializer,
     StudentListSerializer,
@@ -92,6 +93,17 @@ _ELIGIBLE_FOR_SESSION = QueryFilter(
 )
 
 
+def _previous_ids() -> Subquery:
+    """Every ID the student held before, as one piece of text."""
+    return Subquery(
+        PreviousWksaId.objects.filter(student=OuterRef("pk"))
+        .values("student")
+        .annotate(ids=StringAgg("wksa_id", " "))
+        .values("ids"),
+        output_field=TextField(),
+    )
+
+
 class StudentViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -146,8 +158,20 @@ class StudentViewSet(
         ),
         search(
             "search",
-            ("first_name", "last_name", "wksa_id", "previous_wksa_ids__wksa_id"),
-            "Matches a name, the current WKSA ID or a previous one.",
+            (
+                "first_name",
+                "last_name",
+                full_name_of(),
+                "wksa_id",
+                # The ID without its hyphens, and any ID the student held before.
+                squashed("wksa_id"),
+                _previous_ids(),
+                squashed(_previous_ids()),
+                ExactOnly("current_rank__name"),
+                ExactOnly(label_of("status", Student.Status.choices)),
+            ),
+            "A student's name, ID (current or previous, with or without hyphens), "
+            "rank or status.",
         ),
     )
 

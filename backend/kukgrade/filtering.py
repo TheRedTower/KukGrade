@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.request import Request
@@ -159,28 +159,6 @@ def boolean(
         return queryset.filter(**{lookup: (value == "true") != invert})
 
     return QueryFilter(name, apply, {"type": "boolean"}, description)
-
-
-def search(name: str, fields: Sequence[str], description: str = "") -> QueryFilter:
-    """Case-insensitive match of every word in the term, each in any of `fields`.
-
-    "john smith" finds a first name of John and a last name of Smith, which
-    one substring of the whole term never could. Words may come in any order.
-    """
-
-    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
-        words = value.split()
-        if not words:
-            return queryset
-        condition = Q()
-        for word in words:
-            any_field = Q()
-            for lookup in fields:
-                any_field |= Q(**{f"{lookup}__icontains": word})
-            condition &= any_field
-        return queryset.filter(condition)
-
-    return QueryFilter(name, apply, description=description)
 
 
 # Pagination's own parameters (kukgrade/pagination.py) and DRF's format

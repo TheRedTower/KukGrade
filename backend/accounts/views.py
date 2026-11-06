@@ -38,7 +38,8 @@ from accounts.services import (
     reset_password,
 )
 from accounts.setup import complete_setup, setup_needed
-from kukgrade.filtering import boolean, choice, search
+from kukgrade.filtering import boolean, choice
+from kukgrade.search import ExactOnly, full_name_of, label_of, search
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -209,7 +210,17 @@ class UserViewSet(
     query_filters = (
         choice("role", "role", User.Role.values),
         boolean("is_active", "is_active"),
-        search("search", ("email", "first_name", "last_name")),
+        search(
+            "search",
+            (
+                "email",
+                "first_name",
+                "last_name",
+                full_name_of(),
+                ExactOnly(label_of("role", User.Role.choices)),
+            ),
+            "A user's name, email address or role.",
+        ),
     )
 
     def get_queryset(self) -> QuerySet[User]:

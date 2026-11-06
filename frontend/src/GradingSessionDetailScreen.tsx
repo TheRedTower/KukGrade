@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { keys } from "./queryKeys";
+import { useDebouncedValue } from "./useDebouncedValue";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -147,9 +148,30 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     () => enrichCandidates(candidatesQuery.data?.results ?? []),
     [candidatesQuery.data],
   );
+  // Searched by the server, like every list: the roster is read whole (its
+  // counts and actions need every row), and the search says which of them fit.
+  const searchTerm = useDebouncedValue(search.trim());
+  const searchQuery = useQuery({
+    queryKey: [...keys.gradingCandidates.session(sessionId), "search", searchTerm],
+    queryFn: () => getAllGradingCandidates({ session: sessionId, search: searchTerm }),
+    // No carrying of an earlier term's answer over to the next: until the
+    // server has answered this one, the screen says it is searching.
+    enabled: valid && searchTerm !== "",
+  });
+  // A search under way that has not answered, or failed, shows no rows and says
+  // so, never the whole roster as though it were the result.
+  const searchStatus: "idle" | "searching" | "failed" =
+    searchTerm === "" ? "idle" : searchQuery.data ? "idle" : searchQuery.isError ? "failed" : "searching";
+  const matching = useMemo(
+    () =>
+      searchTerm === ""
+        ? null
+        : new Set((searchQuery.data?.results ?? []).map((row) => row.id)),
+    [searchTerm, searchQuery.data],
+  );
   const filteredCandidates = useMemo(
-    () => filterCandidates(enrichedCandidates, search, statusFilter),
-    [enrichedCandidates, search, statusFilter],
+    () => filterCandidates(enrichedCandidates, matching, statusFilter),
+    [enrichedCandidates, matching, statusFilter],
   );
 
   // The server's count (completed, outcome not finalised - see
@@ -303,6 +325,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         shown={filteredCandidates}
         search={search}
         onSearch={setSearch}
+        searchStatus={searchStatus}
+        onRetrySearch={() => void searchQuery.refetch()}
         statusFilter={statusFilter}
         onStatusFilter={setStatusFilter}
         work={work}

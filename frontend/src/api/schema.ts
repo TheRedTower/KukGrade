@@ -3416,7 +3416,7 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                /** @description Every word, in the summary, record, actor or the name of the student the event is about (read now: events hold no names). */
+                /** @description Every word, in the summary, record number, actor, the kind of event or record, or the current name of the student the event is about (read now: events hold no names). */
                 search?: string;
             };
             header?: never;
@@ -4133,6 +4133,8 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description A candidate's name, WKSA ID, ranks or status. */
+                search?: string;
                 session?: number;
             };
             header?: never;
@@ -4391,7 +4393,7 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                /** @description Part of the name as written. */
+                /** @description The name as written. */
                 search?: string;
                 /** @description The name exactly as written. */
                 source_name?: string;
@@ -4883,6 +4885,7 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description The title, location, notes, status and date of a session. */
                 search?: string;
                 /** @description Comma-separated; one of CANCELLED, COMPLETED, DRAFT, LOCKED, OPEN. */
                 status?: string;
@@ -5205,7 +5208,7 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                /** @description Matches a name, the current WKSA ID or a previous one. */
+                /** @description A student's name, ID (current or previous, with or without hyphens), rank or status. */
                 search?: string;
                 /** @description Only the students one import added. */
                 source_import?: number;
@@ -5427,6 +5430,7 @@ export interface operations {
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 role?: "administrator" | "instructor";
+                /** @description A user's name, email address or role. */
                 search?: string;
             };
             header?: never;

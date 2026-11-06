@@ -208,7 +208,7 @@ export function GradingSessionsScreen() {
             className="gs-search-input"
             id="gs-search-input"
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search grading sessions…"
+            placeholder="Search title, place, date or status…"
             type="search"
             value={searchText}
           />

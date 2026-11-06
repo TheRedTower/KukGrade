@@ -1735,13 +1735,6 @@ def test_self_name_edit_is_audited_against_the_user() -> None:
 NEW_SECRET = "An0ther-Str0ng-Passphrase!"
 
 
-def admin_site_client(email: str) -> tuple[Client, User]:
-    operator = User.objects.create_superuser(email=email)
-    client = Client()
-    client.force_login(operator)
-    return client, operator
-
-
 @pytest.mark.parametrize("path", ["reset", "own"])
 def test_a_password_change_whose_audit_fails_changes_nothing(path: str) -> None:
     client, operator = admin_client("password-audit-fails@example.com")

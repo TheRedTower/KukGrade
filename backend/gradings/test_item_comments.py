@@ -484,6 +484,7 @@ def _columns() -> set[str]:
 def test_dropping_the_note_column_keeps_a_note_that_was_never_carried() -> None:
     carried, stranded, untouched = _started_items(3)
     marked_it = user("marked-before-the-drop@example.com")
+    wrote_it = user("wrote-it-after-the-marker@example.com")
     final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
 
     try:
@@ -503,6 +504,21 @@ def test_dropping_the_note_column_keeps_a_note_that_was_never_carried() -> None:
             author_id=marked_it.pk,
             body="Already a comment.",
         )
+        # An older version saved the note later, by someone who did not mark
+        # the item; the audit trail, not the marker, says who and when.
+        event = record(
+            AuditAction.ITEM_RESULT_RECORDED,
+            stranded,
+            "Notes updated.",
+            actor=wrote_it,
+            metadata={
+                "before": {"result": "MET", "assessor_notes": ""},
+                "after": {
+                    "result": "MET",
+                    "assessor_notes": "Written by an older version.",
+                },
+            },
+        )
 
         MigrationExecutor(connection).migrate(final_targets)
 
@@ -515,7 +531,34 @@ def test_dropping_the_note_column_keeps_a_note_that_was_never_carried() -> None:
             stranded.pk: ["Written by an older version."],
         }
         assert untouched.pk not in bodies
+        recovered = Comment.objects.get(item_id=stranded.pk)
+        assert recovered.author_id == wrote_it.pk
+        assert recovered.created_at == event.occurred_at
         assert "assessor_notes" not in _columns()
+    finally:
+        MigrationExecutor(connection).migrate(final_targets)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_a_note_with_no_audit_trail_is_credited_to_whoever_marked_the_item() -> None:
+    (marked,) = _started_items(1)
+    marker = user("only-the-marker@example.com")
+    final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
+
+    try:
+        MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
+        _write_note(marked, "No trail.")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE gradings_candidateassessmentitem SET assessor_id = %s,"
+                " result = 'MET', assessed_at = now() WHERE id = %s",
+                [marker.pk, marked.pk],
+            )
+
+        MigrationExecutor(connection).migrate(final_targets)
+
+        Comment = apps.get_model("gradings", "AssessmentItemComment")
+        assert Comment.objects.get(item_id=marked.pk).author_id == marker.pk
     finally:
         MigrationExecutor(connection).migrate(final_targets)
 

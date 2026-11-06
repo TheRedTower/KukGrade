@@ -22,6 +22,7 @@ from gradings.assessment_services import (
 from gradings.models import (
     AssessmentItemComment,
     CandidateAssessment,
+    CandidateAssessmentItem,
     GradingCandidate,
     GradingSession,
 )
@@ -441,3 +442,115 @@ def test_old_notes_become_comments_credited_to_the_best_known_author() -> None:
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(final_targets)
+
+
+# --- dropping the old note column --------------------------------------------
+
+BEFORE_THE_DROP = [("gradings", "0023_archive_sessions")]
+
+
+def _started_items(count: int) -> list[CandidateAssessmentItem]:
+    generated = start_assessment(
+        assessment(
+            candidate=candidate(
+                session=grading_session(status=GradingSession.Status.OPEN)
+            ),
+        ),
+    )
+    return list(generated.items.all()[:count])
+
+
+def _write_note(item: CandidateAssessmentItem, note: str) -> None:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE gradings_candidateassessmentitem SET assessor_notes = %s"
+            " WHERE id = %s",
+            [note, item.pk],
+        )
+
+
+def _columns() -> set[str]:
+    with connection.cursor() as cursor:
+        return {
+            column.name
+            for column in connection.introspection.get_table_description(
+                cursor,
+                "gradings_candidateassessmentitem",
+            )
+        }
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_dropping_the_note_column_keeps_a_note_that_was_never_carried() -> None:
+    carried, stranded, untouched = _started_items(3)
+    marked_it = user("marked-before-the-drop@example.com")
+    final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
+
+    try:
+        MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
+        assert "assessor_notes" in _columns()
+        _write_note(carried, "Already a comment.")
+        _write_note(stranded, "Written by an older version.")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE gradings_candidateassessmentitem SET assessor_id = %s,"
+                " result = 'MET', assessed_at = now() WHERE id = %s",
+                [marked_it.pk, stranded.pk],
+            )
+        Comment = apps.get_model("gradings", "AssessmentItemComment")
+        Comment.objects.create(
+            item_id=carried.pk,
+            author_id=marked_it.pk,
+            body="Already a comment.",
+        )
+
+        MigrationExecutor(connection).migrate(final_targets)
+
+        Comment = apps.get_model("gradings", "AssessmentItemComment")
+        bodies: dict[int, list[str]] = {}
+        for comment in Comment.objects.all():
+            bodies.setdefault(comment.item_id, []).append(comment.body)
+        assert bodies == {
+            carried.pk: ["Already a comment."],
+            stranded.pk: ["Written by an older version."],
+        }
+        assert untouched.pk not in bodies
+        assert "assessor_notes" not in _columns()
+    finally:
+        MigrationExecutor(connection).migrate(final_targets)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_a_note_with_nobody_to_credit_stops_the_drop_and_nothing_is_lost() -> None:
+    (orphan,) = _started_items(1)
+    final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
+
+    try:
+        MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
+        _write_note(orphan, "Nobody wrote this down.")
+        User = apps.get_model("accounts", "User")
+        User.objects.filter(email=DELETED_USER_PLACEHOLDER_EMAIL).delete()
+
+        with pytest.raises(RuntimeError, match="nobody to credit"):
+            MigrationExecutor(connection).migrate(final_targets)
+
+        assert "assessor_notes" in _columns()
+    finally:
+        # Restore the placeholder the migration needs, then finish.
+        User = apps.get_model("accounts", "User")
+        User.objects.get_or_create(
+            email=DELETED_USER_PLACEHOLDER_EMAIL,
+            defaults={"is_active": False},
+        )
+        MigrationExecutor(connection).migrate(final_targets)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_going_back_over_the_drop_restores_an_empty_column() -> None:
+    final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
+    try:
+        MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
+        assert "assessor_notes" in _columns()
+    finally:
+        MigrationExecutor(connection).migrate(final_targets)
+    assert "assessor_notes" not in _columns()

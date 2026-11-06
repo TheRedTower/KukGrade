@@ -157,6 +157,13 @@ def test_a_users_history_is_what_was_done_to_them_and_what_they_did() -> None:
 
 
 def test_a_malformed_or_unknown_history_is_an_empty_page_not_an_error() -> None:
+    # An event with no human actor must not be mistaken for a missing user's.
+    AuditEvent.objects.create(
+        action=AuditAction.IMPORT_BATCH_EXPIRED,
+        entity_type=AuditEntity.IMPORT_BATCH,
+        entity_id="1",
+        summary="Import #1 expired.",
+    )
     admin = administrator()
     for subject in (
         "",

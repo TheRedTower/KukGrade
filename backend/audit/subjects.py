@@ -86,8 +86,13 @@ def events_of(queryset: QuerySet[AuditEvent], value: str) -> QuerySet[AuditEvent
         return queryset.none()
     kind, ident = parsed
     if kind == USER:
+        account = _uuid(ident)
+        if account is None:
+            # Not an account at all: nothing, never "events with no actor".
+            return queryset.none()
         return queryset.filter(
-            Q(entity_type=AuditEntity.USER, entity_id=ident) | Q(actor_id=_uuid(ident)),
+            Q(entity_type=AuditEntity.USER, entity_id=str(account))
+            | Q(actor_id=account),
         )
     if not ident.isdecimal():
         return queryset.none()

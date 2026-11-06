@@ -9,11 +9,10 @@ from django.db.models import (
     QuerySet,
     Subquery,
     TextField,
-    Value,
     When,
 )
 from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Cast, Concat
+from django.db.models.functions import Cast
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins
 from rest_framework.decorators import action
@@ -30,7 +29,7 @@ from audit.serializers import (
     student_id_of,
 )
 from kukgrade.filtering import QueryFilter, choice, exact, on_date
-from kukgrade.search import ExactOnly, apply_search, label_of
+from kukgrade.search import ExactOnly, apply_search, full_name_of, label_of
 from students.models import Student
 
 
@@ -42,7 +41,7 @@ def _student_name_of_event() -> Subquery:
     """
     return Subquery(
         Student.objects.filter(pk=OuterRef("_subject_student"))
-        .annotate(name=Concat("first_name", Value(" "), "last_name"))
+        .annotate(name=full_name_of())
         .values("name")[:1],
         output_field=TextField(),
     )

@@ -4,8 +4,7 @@ from datetime import date
 from typing import Any, cast
 
 from django.contrib.postgres.aggregates import StringAgg
-from django.db.models import OuterRef, Q, QuerySet, Subquery, TextField, Value
-from django.db.models.functions import Concat
+from django.db.models import OuterRef, Q, QuerySet, Subquery, TextField
 from django.utils import timezone
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -29,7 +28,7 @@ from kukgrade.filtering import (
     choices_in,
     exact,
 )
-from kukgrade.search import ExactOnly, label_of, search, squashed
+from kukgrade.search import ExactOnly, full_name_of, label_of, search, squashed
 from students.models import PreviousWksaId, Student
 from students.serializers import (
     StudentGradingHistorySerializer,
@@ -94,6 +93,17 @@ _ELIGIBLE_FOR_SESSION = QueryFilter(
 )
 
 
+def _previous_ids() -> Subquery:
+    """Every ID the student held before, as one piece of text."""
+    return Subquery(
+        PreviousWksaId.objects.filter(student=OuterRef("pk"))
+        .values("student")
+        .annotate(ids=StringAgg("wksa_id", " "))
+        .values("ids"),
+        output_field=TextField(),
+    )
+
+
 class StudentViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -151,17 +161,12 @@ class StudentViewSet(
             (
                 "first_name",
                 "last_name",
-                Concat("first_name", Value(" "), "last_name"),
+                full_name_of(),
                 "wksa_id",
                 # The ID without its hyphens, and any ID the student held before.
                 squashed("wksa_id"),
-                Subquery(
-                    PreviousWksaId.objects.filter(student=OuterRef("pk"))
-                    .values("student")
-                    .annotate(ids=StringAgg("wksa_id", " "))
-                    .values("ids"),
-                    output_field=TextField(),
-                ),
+                _previous_ids(),
+                squashed(_previous_ids()),
                 ExactOnly("current_rank__name"),
                 ExactOnly(label_of("status", Student.Status.choices)),
             ),

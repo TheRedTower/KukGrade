@@ -157,11 +157,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     enabled: valid && searchTerm !== "",
     placeholderData: keepPreviousData,
   });
+  // A search under way that has not answered, or failed, shows no rows and says
+  // so, never the whole roster as though it were the result.
+  const searchStatus: "idle" | "searching" | "failed" =
+    searchTerm === "" ? "idle" : searchQuery.data ? "idle" : searchQuery.isError ? "failed" : "searching";
   const matching = useMemo(
     () =>
-      searchTerm === "" || !searchQuery.data
+      searchTerm === ""
         ? null
-        : new Set(searchQuery.data.results.map((row) => row.id)),
+        : new Set((searchQuery.data?.results ?? []).map((row) => row.id)),
     [searchTerm, searchQuery.data],
   );
   const filteredCandidates = useMemo(
@@ -320,6 +324,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         shown={filteredCandidates}
         search={search}
         onSearch={setSearch}
+        searchStatus={searchStatus}
+        onRetrySearch={() => void searchQuery.refetch()}
         statusFilter={statusFilter}
         onStatusFilter={setStatusFilter}
         work={work}

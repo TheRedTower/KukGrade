@@ -96,6 +96,12 @@ def label_of(field: str, choices: Sequence[tuple[str, str]]) -> Combinable:
     )
 
 
+def full_name_of(first: str = "first_name", last: str = "last_name") -> Combinable:
+    """A person's name as one piece of text, the database's form of a model's
+    `full_name`, so "alex kim" and "kim alex" are both read against the whole."""
+    return Concat(first, Value(" "), last, output_field=CharField())
+
+
 def date_words(field: str) -> Combinable:
     """A date as the ways it is read: "25 October 2026", "2026-10-25", "25/10/2026".
 

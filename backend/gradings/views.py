@@ -3,8 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, cast
 
-from django.db.models import Prefetch, Q, QuerySet, Value
-from django.db.models.functions import Concat
+from django.db.models import Prefetch, Q, QuerySet
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -126,6 +125,7 @@ from kukgrade.search import (
     ExactOnly,
     apply_search,
     date_words,
+    full_name_of,
     label_of,
     search,
     squashed,
@@ -336,7 +336,7 @@ class GradingCandidateViewSet(
             (
                 "student__first_name",
                 "student__last_name",
-                Concat("student__first_name", Value(" "), "student__last_name"),
+                full_name_of("student__first_name", "student__last_name"),
                 "student__wksa_id",
                 squashed("student__wksa_id"),
                 ExactOnly("from_rank__name"),

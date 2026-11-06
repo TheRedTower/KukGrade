@@ -690,12 +690,52 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     await user.type(screen.getByTestId("gsd-candidate-search"), "carter alex");
 
-    const table = screen.getByTestId("gsd-candidates-table");
-    await waitFor(() => expect(within(table).queryByText("Brooke Ellis")).not.toBeInTheDocument());
+    // The whole phrase goes to the server once the typing pauses, and the table
+    // is read afresh, since it is replaced by a note while the server answers.
+    await waitFor(() => expect(searches.at(-1)).toBe("carter alex"));
+    await waitFor(() => expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument());
+    const table = await screen.findByTestId("gsd-candidates-table");
     expect(within(table).getByText("Alex Carter")).toBeVisible();
     expect(within(table).queryByText("Casey Nguyen")).not.toBeInTheDocument();
     // The whole phrase went to the server, once the typing paused.
     expect(searches.at(-1)).toBe("carter alex");
+  });
+
+  it("never shows the whole roster as the result of a search that is pending or failed", async () => {
+    const standard = setupStandardMock();
+    let answer: ((response: Response) => void) | undefined;
+    let failing = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        const asked = new URL(String(url), "http://localhost").searchParams.get("search");
+        if (String(url).includes("/api/gradings/candidates/") && asked) {
+          if (failing) return Promise.resolve(jsonResponse(500, { error: { code: "server_error", message: "Down." } }));
+          return new Promise<Response>((resolve) => {
+            answer = resolve;
+          });
+        }
+        return standard(url, init);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    const table = screen.getByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Brooke Ellis")).toBeVisible();
+
+    // While the answer is on its way: a note, and not the roster as though it were the result.
+    await user.type(screen.getByTestId("gsd-candidate-search"), "alex");
+    expect(await screen.findByText("Searching…")).toBeVisible();
+    expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument();
+    expect(answer).toBeDefined();
+
+    // And when it fails: the failure, with a way to try again.
+    failing = true;
+    await user.type(screen.getByTestId("gsd-candidate-search"), "x");
+    expect(await screen.findByTestId("gsd-search-failed")).toBeVisible();
+    expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
   it("shows the whole roster again when the search is cleared", async () => {
@@ -703,11 +743,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Autumn Grading" });
-    const table = screen.getByTestId("gsd-candidates-table");
 
     await user.type(screen.getByTestId("gsd-candidate-search"), "zzz");
     await user.clear(screen.getByTestId("gsd-candidate-search"));
 
+    const table = await screen.findByTestId("gsd-candidates-table");
     await waitFor(() => expect(within(table).getByText("Brooke Ellis")).toBeVisible());
     expect(within(table).getByText("Alex Carter")).toBeVisible();
   });

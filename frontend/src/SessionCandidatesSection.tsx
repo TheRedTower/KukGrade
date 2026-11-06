@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 import type { GradingSession } from "./api";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
+import { Alert } from "./Alert";
 import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { type EnrichedCandidate, SessionCandidateTable } from "./SessionParts";
 import type { useCandidateWork } from "./useCandidateWork";
 
@@ -14,6 +16,9 @@ interface SessionCandidatesSectionProps {
   shown: EnrichedCandidate[];
   search: string;
   onSearch: (search: string) => void;
+  /** Whether the server has answered the search: it may be on its way, or have failed. */
+  searchStatus: "idle" | "searching" | "failed";
+  onRetrySearch: () => void;
   statusFilter: string;
   onStatusFilter: (status: string) => void;
   work: ReturnType<typeof useCandidateWork>;
@@ -33,6 +38,8 @@ export function SessionCandidatesSection({
   shown,
   search,
   onSearch,
+  searchStatus,
+  onRetrySearch,
   statusFilter,
   onStatusFilter,
   work,
@@ -118,6 +125,19 @@ export function SessionCandidatesSection({
         >
           Add students to begin curriculum assessment and outcome tracking.
         </EmptyState>
+      ) : searchStatus === "searching" ? (
+        <LoadingState>Searching…</LoadingState>
+      ) : searchStatus === "failed" ? (
+        <Alert
+          data-testid="gsd-search-failed"
+          action={
+            <Button variant="secondary" onClick={onRetrySearch}>
+              Try again
+            </Button>
+          }
+        >
+          The search could not be completed, so no candidates are shown for it.
+        </Alert>
       ) : shown.length === 0 ? (
         <EmptyState
           framed

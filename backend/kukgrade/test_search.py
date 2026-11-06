@@ -260,3 +260,16 @@ def test_the_candidates_of_a_grading_are_found_by_name_through_the_roster() -> N
     assert found(built.student.wksa_id) == [built.pk]
     assert found("zzzz") == []
     assert other_session.pk not in found("fiona")
+
+
+def test_a_previous_id_is_found_with_or_without_its_hyphens() -> None:
+    from students.models import PreviousWksaId
+
+    moved_up = student(first_name="Dana", last_name="Whitfield", wksa_id="A-20819")
+    PreviousWksaId.objects.create(student=moved_up, wksa_id="123-4-150")
+    student(first_name="Someone", last_name="Else", wksa_id="123-4-151")
+    client = auth_client("search-previous-id@example.com")
+
+    assert names(client, "123-4-150") == ["Dana Whitfield"]
+    assert names(client, "1234150") == ["Dana Whitfield"]
+    assert names(client, "A20819") == ["Dana Whitfield"]

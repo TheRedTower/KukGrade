@@ -103,6 +103,8 @@ if PROXY_HOPS < 0:
 # a generated self-signed one, kukgrade/tls.py); "http" serves plain HTTP,
 # only for a network you trust. With proxies in front it has no effect.
 TRANSPORT = env_choice("KUKGRADE_TRANSPORT", "https", ("https", "http"))
+# The Content-Security-Policy header: enforced, only reported, or left out.
+CSP_MODE = env_choice("KUKGRADE_CSP", "enforce", ("enforce", "report-only", "off"))
 # The certificate and key to serve TLS with; both or neither. Neither means a
 # self-signed pair, generated under KUKGRADE_TLS_DIR and kept there.
 TLS_CERT_FILE = os.environ.get("KUKGRADE_TLS_CERT", "").strip()
@@ -173,6 +175,8 @@ MIDDLEWARE = [
     "demo.middleware.DemoModeMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Tells the browser to run only the app's own scripts (kukgrade/csp.py).
+    "kukgrade.csp.ContentSecurityPolicyMiddleware",
 ]
 # Development uses Django's staticfiles handler; only the collected image
 # needs WhiteNoise, immediately after SecurityMiddleware.

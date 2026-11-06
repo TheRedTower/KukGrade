@@ -45,6 +45,10 @@ anything you find, but it is the intended model:
 - **Fails closed.** The app refuses to start without a secret key (the image
   makes one on first start), and HTTPS redirect, secure cookies and HSTS are on
   by default.
+- **The browser is told what to run.** Every page carries a Content-Security-Policy:
+  only the app's own scripts and styles run, nothing loads from elsewhere, and the
+  app cannot be framed. A script injected into a page could not run or send anything
+  out. (`KUKGRADE_CSP` can turn it down to report-only if a proxy interferes.)
 - **No default accounts.** There is no default password. The first
   administrator is created with a one-time setup code written to the server's
   log, and Django's `createsuperuser` is switched off.

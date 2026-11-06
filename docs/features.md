@@ -134,6 +134,11 @@ request ([Privacy](privacy.md)).
   first sign-in.
 - Passwords are 16–64 characters with upper case, lower case, a number and a special
   character, and are checked against common-password lists.
+- Every page carries a Content-Security-Policy: the browser runs only the app's own scripts
+  and styles, loads nothing from elsewhere and will not let the app be framed, so a script
+  injected into a page could neither run nor send anything out. `KUKGRADE_CSP` can turn it
+  down to report-only, or off, if a proxy or extension interferes
+  ([configuration](configuration.md)).
 - Light, dark or system theme, keyboard-accessible dialogs, and layouts that adapt to phone and tablet widths (awaiting a check on real devices: `docs/roadmap.md`).
 - **About** (Settings): the version, build and what to quote when asking for help; the licence
   (AGPL-3.0-only, with a short plain-words guide and the full text); the Kuk Sool Won pledge and

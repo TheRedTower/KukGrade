@@ -106,7 +106,10 @@ def events_of(queryset: QuerySet[AuditEvent], value: str) -> QuerySet[AuditEvent
         )
     if kind == CANDIDATE:
         return queryset.filter(
-            _belonging_to_candidates(candidates.filter(pk=number))
+            # Its own events, even once the registration is gone (a removed
+            # candidate's registration and removal are still in the log).
+            Q(entity_type=AuditEntity.GRADING_CANDIDATE, entity_id=ident)
+            | _belonging_to_candidates(candidates.filter(pk=number))
             | Q(metadata__candidate_id=number),
         )
     return queryset.filter(

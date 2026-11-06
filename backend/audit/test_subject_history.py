@@ -9,7 +9,11 @@ from accounts.models import User
 from audit.models import AuditAction, AuditEntity, AuditEvent
 from gradings.models import GradingCandidate, GradingSession
 from gradings.outcome_services import promote_candidate
-from gradings.services import register_candidate, transition_grading_session
+from gradings.services import (
+    delete_candidate,
+    register_candidate,
+    transition_grading_session,
+)
 from gradings.testing import (
     assessment,
     candidate,
@@ -139,6 +143,33 @@ def test_events_written_before_the_ids_were_carried_are_still_found() -> None:
         AuditEntity.PROMOTION,
     } <= kinds(events)
     assert first.pk  # the registration the events were about
+
+
+def test_a_removed_candidates_own_events_are_still_its_history() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    registered = register_candidate(
+        session=session,
+        student=student(),
+        testing_for_rank=rank("YELLOW_STRIPE"),
+        actor=user("history-removed-registrar@example.com"),
+    )
+    removed_id = registered.pk
+    delete_candidate(registered, actor=user("history-remover-2@example.com"))
+    # An event written before the ids were carried: only its entity id says whose.
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE audit_auditevent SET metadata = metadata - 'candidate_id'"
+            " - 'session_id'",
+        )
+
+    events = history(administrator(), f"candidate:{removed_id}")
+
+    assert {event.action for event in events} == {
+        AuditAction.CANDIDATE_REGISTERED,
+        AuditAction.CANDIDATE_DELETED,
+    }
 
 
 def test_a_users_history_is_what_was_done_to_them_and_what_they_did() -> None:

@@ -10,7 +10,7 @@ The sign-in page offers three shared accounts, each one click away:
 | Account | What it shows |
 | --- | --- |
 | **Instructor** | Building a grading, ticking and commenting on an assessment, recommending a verdict. Cannot make the final decision. |
-| **Master** | The final decision on each candidate, promoting students, reopening a locked grading, the audit log. |
+| **Master** | The final decision on each candidate, promoting students, correcting a mark after a grading is locked, the audit log. |
 | **Administrator** | Students, staff accounts, the syllabus and the audit log. Cannot grade, and cannot grant themselves the Master's authority. |
 
 None is a superuser, so the real permission boundaries are on show. The club is

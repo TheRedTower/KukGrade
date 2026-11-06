@@ -39,7 +39,13 @@ Want something here, or something that is missing? Open an
       notification only, never authoritative account state, and a failed send never blocks an
       account or password action. Planned after 1.0.
 - [ ] **Instructor groups**: assign each candidate to an instructor's group so each marks
-      their own at the mat. Wanted after the marking workflow.
+      their own at the mat. The marking workflow it was waiting for is done; the design (who
+      assigns, what a group sees) still needs deciding with the owner.
+- [ ] **Drop the unused `assessor_notes` column.** Item notes became the comment log in
+      release candidate 8 and nothing writes the old column; it goes in a migration of its own,
+      one release after the one that carried the comments.
+- [ ] **Two small hardening steps**: a Content-Security-Policy header (Django has none built
+      in, so a small middleware or the proxy) and a Python dependency audit in CI.
 - [ ] **Reports and exports**, from an agreed reporting specification (for example a session
       summary or a student's grading history as a document).
 

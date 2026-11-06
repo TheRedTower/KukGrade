@@ -127,9 +127,9 @@ def delete_candidate_assessment(
     )
     locked.delete()
     # A candidate is COMPLETED only through its assessment, so without one it
-    # is registered again, as reopening leaves it. In a draft or open session
-    # a new assessment can then be prepared; once the session is locked one
-    # cannot, and the candidate is resolved by an authorised withdrawal.
+    # is registered again, as it was before the assessment. In a draft or open
+    # session a new assessment can then be prepared; once the session is locked
+    # one cannot, and the candidate is resolved by an authorised withdrawal.
     GradingCandidate.objects.filter(
         pk=locked.candidate_id,
         status=GradingCandidate.Status.COMPLETED,

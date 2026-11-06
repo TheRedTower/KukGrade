@@ -45,16 +45,23 @@ flowchart LR
    student's rank and writes a permanent rank-history record. A whole cohort can be
    promoted at once.
 7. **Lock and complete.** A session can only be locked when every assessment is
-   complete. Until the session locks, a mark can be changed, including on a completed
-   assessment, but every change after the first mark needs a written reason (even
-   changing your own, even clearing it), and the change, who made it, when and why
-   are kept and shown on the item; a completed assessment keeps every required item
-   marked. After the lock only the authorised Master can correct a mark or add a
-   comment, always with a written reason, until that candidate's final decision is
-   recorded; each such change is flagged "after the lock" and shown with the decision
-   (on the final decisions screen and the assessment record). Once the decision is
-   recorded the candidate's record is fixed. After the lock, a candidate can be withdrawn with a recorded
-   reason by someone with the authority. A session that has recorded a final decision can no longer be cancelled or deleted. A completed or cancelled session can be archived by an administrator: hidden from the list of gradings (shown under "Archived gradings"), nothing erased, and restorable.
+   complete.
+   - *Until the lock*, a mark can be changed, including on a completed assessment, but
+     every change after the first mark needs a written reason (even changing your own, even
+     clearing it). The change, who made it, when and why are kept and shown on the item, and
+     a completed assessment keeps every required item marked.
+   - *After the lock*, only the authorised Master can correct a mark or add a comment,
+     always with a written reason, until that candidate's final decision is recorded. Each
+     such change is flagged "after the lock" and shown with the decision (on the final
+     decisions screen and the assessment record). Once the decision is recorded, the
+     candidate's record is fixed.
+   - *Withdrawing:* after the lock, a candidate can be withdrawn with a recorded reason by
+     someone with the authority.
+   - *Cancelling and deleting:* a session that has recorded a final decision can no longer be
+     cancelled or deleted.
+   - *Archiving:* a completed or cancelled session can be archived by an administrator. It is
+     hidden from the list of gradings (shown under "Archived gradings"), nothing is erased,
+     and it can be restored.
 
 Every step is recorded in the [audit log](#audit-log).
 

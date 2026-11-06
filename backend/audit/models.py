@@ -40,6 +40,8 @@ class AuditAction(models.TextChoices):
     ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
     ASSESSMENT_UPDATED = "ASSESSMENT_UPDATED", "Assessment notes updated"
     ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
+    # No longer written (a completed assessment is corrected, not reopened), but
+    # events already in the log carry it, so it stays a valid choice.
     ASSESSMENT_REOPENED = "ASSESSMENT_REOPENED", "Assessment reopened"
     ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
     ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"

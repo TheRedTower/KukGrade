@@ -50,8 +50,9 @@ PERSONAS = (
         role=User.Role.INSTRUCTOR,
         label="Master",
         description=(
-            "Makes the final decision on each candidate, promotes students and "
-            "can reopen a locked grading."
+            "Makes the final decision on each candidate, promotes students, "
+            "and can correct a mark or withdraw a candidate after a grading "
+            "is locked."
         ),
         authority={
             "can_make_final_grading_decision": True,

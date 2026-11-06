@@ -65,6 +65,15 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # Every locked package, with its hashes, against the public advisory
+      # database, as the frontend's `npm audit` does. A tool run, not a project
+      # dependency, pinned so a new release cannot change what passes. It needs
+      # the advisory service: if that is down, run the job again.
+      - name: Audit Python dependencies
+        run: |
+          uv export --frozen --no-emit-project -o "$RUNNER_TEMP/requirements.txt" > /dev/null
+          uvx pip-audit@2.10.1 -r "$RUNNER_TEMP/requirements.txt" --disable-pip --progress-spinner off
+
       - name: Ruff lint
         run: uv run ruff check .
 

@@ -48,6 +48,8 @@ request.
 ```sh
 cd backend
 uv sync --frozen
+uv export --frozen --no-emit-project -o /tmp/requirements.txt
+uvx pip-audit@2.10.1 -r /tmp/requirements.txt --disable-pip   # known vulnerabilities, like npm audit below
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy .

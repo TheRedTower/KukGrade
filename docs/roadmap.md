@@ -43,6 +43,25 @@ Want something here, or something that is missing? Open an
       if the current marking procedure (any instructor may mark any item, every change after
       the first with a reason, comments from everyone) proves not to be enough on grading day.
       The design (who assigns, what a group sees) would be decided with the owner then.
+- [ ] **Search refinements** (deferred, to be done alongside instructor groups, if at all). The
+      search every list uses ([features.md](features.md#search)) already matches every word in any
+      order, ignores accents and capitals, finds part of a word, forgives a slip in a longer word of
+      letters and ranks the best match first. Not yet done:
+      - *Search as you type in every box.* Gradings, students, historical records and the import
+        screens update as you type; the Audit and Users boxes still wait for Search, and the
+        candidate box inside a grading, the cohort builder and the import review are unchecked.
+      - *Sound-alike matching* for names ("Smyth" for Smith, "Catherine" for Katherine) with
+        PostgreSQL's built-in `fuzzystrmatch` (double metaphone); to be tried on real data first
+        so it does not add noise.
+      - *Short words and some spellings*: words under four letters get no typo tolerance, and
+        "Ayesha" for Aisha is not found.
+      - *Nicknames* ("Bob" for Robert): a small, administrator-editable list, which is a policy
+        choice to make with the owner.
+      - *Highlighting* which part of a result matched, and a *"did you mean…?"* when nothing is
+        found.
+      A separate search engine (Meilisearch, Typesense) or a BM25 extension (ParadeDB `pg_search`,
+      Timescale `pg_textsearch`) was considered and set aside: each adds a second service or an
+      extension to install on a school's own PostgreSQL, for little gain on short names and titles.
 - [ ] **Reports and exports**, from an agreed reporting specification (for example a session
       summary or a student's grading history as a document).
 

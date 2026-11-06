@@ -139,6 +139,17 @@ name the student by WKSA ID and say which fields changed, and the screens add
 the student's current name while they exist. Older events can be cleaned on
 request ([Privacy](privacy.md)).
 
+**A record's history.** A grading, a student, a registration's assessment record and a user account
+each have a **History** link (for those who may read the audit log) that opens the log narrowed to
+that record and everything that belongs to it, named at the top with a link back: a grading's
+history includes its registrations, assessments, marks, decisions and promotions; a student's is
+their own record and every grading event about them; an assessment record's is that one
+registration; a user's is what was done to the account and what they did. Marks and comments say
+whose they are (by WKSA ID), so a grading's history reads as a story. Events written before this
+carry fewer ids, so a record is followed through what still exists (a deleted candidate's older
+events may not be gathered into its grading's history).
+
+
 ## Users and settings
 
 - Administrators create staff accounts, set roles and status, grant authority, and

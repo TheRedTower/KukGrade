@@ -1358,6 +1358,8 @@ def test_editing_assessment_notes_is_audited_with_both_versions() -> None:
         "before": {"notes": ""},
         "after": {"notes": "Strong stances"},
         "student_id": generated.candidate.student_id,
+        "candidate_id": generated.candidate_id,
+        "session_id": generated.candidate.session_id,
     }
 
 

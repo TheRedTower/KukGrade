@@ -25,6 +25,7 @@ import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import { Dialog } from "./Dialog";
 import { Badge } from "./Badge";
+import { buttonClass } from "./buttonClass";
 import { badgeClass } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
@@ -208,15 +209,26 @@ export function StudentDetailScreen() {
           </>
         }
         actions={
-          <Button
-            variant="secondary"
-            onClick={() => {
-              editForm.reset();
-              setIsEditModalOpen(true);
-            }}
-          >
-            Edit student
-          </Button>
+          <>
+            {currentUser?.can_read_audit_log && (
+              <Link
+                to={`/audit?subject=student:${student.id}`}
+                className={buttonClass({ variant: "ghost" })}
+                data-testid="student-history-link"
+              >
+                History
+              </Link>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => {
+                editForm.reset();
+                setIsEditModalOpen(true);
+              }}
+            >
+              Edit student
+            </Button>
+          </>
         }
       />
 

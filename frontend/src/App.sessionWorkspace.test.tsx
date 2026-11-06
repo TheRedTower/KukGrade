@@ -1266,9 +1266,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     // An open session an administrator may delete: offered, whatever the status.
     expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
-    expect(screen.getByRole("menuitem", { name: "View audit events" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "View history" })).toHaveAttribute(
       "href",
-      "/audit?entity_type=GradingSession&entity_id=10",
+      "/audit?subject=session:10",
     );
   });
 
@@ -1283,7 +1283,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await screen.findByRole("heading", { name: "Autumn Grading" });
     await user.click(screen.getByTestId("gsd-actions-btn"));
 
-    expect(screen.queryByRole("menuitem", { name: "View audit events" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "View history" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
   });
 

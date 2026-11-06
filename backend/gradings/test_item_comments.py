@@ -141,12 +141,19 @@ def test_adding_a_comment_is_audited_without_its_words() -> None:
     event = AuditEvent.objects.get(action=AuditAction.ITEM_COMMENT_ADDED)
     assert event.actor == author
     assert event.entity_id == str(item.pk)
+    candidate_row = item.assessment.candidate
     assert event.metadata == {
         "comment": str(comment.pk),
         "after_lock": False,
         "assessment": str(item.assessment_id),
+        # Where it happened, by id, so a history of the session or the student
+        # gathers it.
+        "student_id": candidate_row.student_id,
+        "candidate_id": candidate_row.pk,
+        "session_id": candidate_row.session_id,
     }
     assert "Private words" not in event.summary
+    assert f"for student {candidate_row.student.wksa_id}" in event.summary
 
 
 def test_a_comment_cannot_be_changed_or_removed() -> None:

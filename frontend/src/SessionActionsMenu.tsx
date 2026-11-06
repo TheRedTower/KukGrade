@@ -59,12 +59,12 @@ export function SessionActionsMenu({ session, user, menu, onAction }: SessionAct
           )}
           {user?.can_read_audit_log && (
             <Link
-              to={`/audit?entity_type=GradingSession&entity_id=${session.id}`}
+              to={`/audit?subject=session:${session.id}`}
               role="menuitem"
               className="gsd-dropdown-item"
               onClick={() => setOpen(false)}
             >
-              View audit events
+              View history
             </Link>
           )}
           {/* The server decides, for this user, what may be done now. */}

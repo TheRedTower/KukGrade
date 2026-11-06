@@ -34,7 +34,7 @@ its password is refused with `password_change_required` until it does.
 | `/api/gradings/outcomes/<id>/…` | Final decisions and promotions. There is no list of outcomes or promotions: a session's roster (`candidates/?session=`) carries each candidate's outcome and promotion. `candidates/<id>/propose-outcome/` opens the outcome record and proposes in one call, and a later call revises it; `outcomes/<id>/staged-decision/` and `outcomes/staged-decisions/` keep a Master's own unrecorded decisions |
 | `/api/gradings/legacy-records/` | Imported historical records and their reconciliation |
 | `/api/data-imports/` | Import batches, mapping, review and commit |
-| `/api/audit-events/` | The audit log |
+| `/api/audit-events/` | The audit log. `?subject=session:ID`, `student:ID`, `candidate:ID` or `user:ID` narrows it to one record and everything that belongs to it; `subject/?subject=…` names that record as it is now and says where to open it. `?search=` is the shared search (it also finds a student's events by their current name) |
 | `/api/health/`, `/api/site/` | Liveness and public site settings |
 | `/api/about/` | Build information, licence, contact addresses and (for administrators) the school's settings; also `documents/<slug>/` (licence, code of conduct, security policy), `pledge/`, `credits/` and `credits/notices/` (the full licence notices, as text) |
 

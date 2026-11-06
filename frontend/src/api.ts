@@ -676,6 +676,11 @@ export async function getAuditLabels(): Promise<Schemas["AuditLabels"]> {
   return apiRequest<Schemas["AuditLabels"]>("/api/audit-events/labels/");
 }
 
+/** What a record's history is of: its current name and where to open it. */
+export async function getAuditSubject(subject: string): Promise<Schemas["AuditSubject"]> {
+  return apiRequest<Schemas["AuditSubject"]>(withQuery("/api/audit-events/subject/", { subject }));
+}
+
 export async function getAuditEvents(params?: ListQuery<"audit_events_list">): Promise<PaginatedResponse<AuditEvent>> {
   return apiRequest<PaginatedResponse<AuditEvent>>(
     withQuery("/api/audit-events/", params),

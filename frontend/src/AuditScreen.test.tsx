@@ -8,12 +8,14 @@ import { AuditScreen } from "./AuditScreen";
 import type { AuditEvent } from "./api";
 
 const mockGetAuditEvents = vi.fn();
+const mockGetAuditSubject = vi.fn();
 
 vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
     getAuditEvents: (...args: unknown[]) => mockGetAuditEvents(...args),
+    getAuditSubject: (...args: unknown[]) => mockGetAuditSubject(...args),
     // The server's names for the filters; the screen keeps no list of its own.
     getAuditLabels: async () => ({
       actions: [
@@ -79,6 +81,42 @@ describe("AuditScreen", () => {
     renderScreen();
 
     expect(await screen.findByText("Student 123-4-001 created. (Alex Kim)")).toBeVisible();
+  });
+
+  it("says whose history it is, by name, and asks the server for exactly that history", async () => {
+    mockGetAuditSubject.mockResolvedValue({
+      kind: "session",
+      id: "3",
+      name: "Spring Grading (25 October 2026)",
+      path: "/gradings/3",
+    });
+    renderScreen("/audit?subject=session:3");
+
+    const banner = await screen.findByTestId("audit-subject");
+    expect(await within(banner).findByText(/History of Spring Grading \(25 October 2026\)/)).toBeVisible();
+    expect(within(banner).getByRole("link", { name: /Open the record/ })).toHaveAttribute("href", "/gradings/3");
+    expect(mockGetAuditSubject).toHaveBeenCalledWith("session:3");
+    await waitFor(() =>
+      expect(mockGetAuditEvents).toHaveBeenCalledWith(expect.objectContaining({ subject: "session:3" })),
+    );
+  });
+
+  it("says so when the record the history is of no longer exists", async () => {
+    mockGetAuditSubject.mockResolvedValue({ kind: "student", id: "9", name: "", path: "" });
+    renderScreen("/audit?subject=student:9");
+
+    expect(await screen.findByText(/History of a record that no longer exists/)).toBeVisible();
+  });
+
+  it("shows no history banner on the whole log, and clearing the filters leaves a history", async () => {
+    mockGetAuditSubject.mockResolvedValue({ kind: "user", id: "u", name: "Riley Khan", path: "/users/u" });
+    const user = userEvent.setup();
+    renderScreen("/audit?subject=user:u");
+    await screen.findByTestId("audit-subject");
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    await waitFor(() => expect(screen.queryByTestId("audit-subject")).toBeNull());
   });
 
   it("shows the immutable event ledger and inspectable event detail", async () => {

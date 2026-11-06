@@ -115,10 +115,10 @@ describe("UserDetailScreen", () => {
     renderScreen();
     expect(await screen.findByRole("heading", { name: "Riley Khan" })).toBeInTheDocument();
     expect(screen.getByText("14 February 2025")).toBeInTheDocument();
-    expect(screen.getByText("User authority changed")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /View audit history/ })).toHaveAttribute(
+    expect(screen.getByText("User authority changed.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View full history/ })).toHaveAttribute(
       "href",
-      "/audit?search=target-user",
+      "/audit?subject=user:target-user",
     );
   });
 

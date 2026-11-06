@@ -735,6 +735,40 @@ describe("Student detail screen (/students/:id)", () => {
     expect(screen.getByText("No grading history recorded")).toBeVisible();
   });
 
+  describe("the history link", () => {
+    function studentMock(viewer: Record<string, unknown>) {
+      return vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, viewer);
+        if (url.includes("/grading-history/")) {
+          return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        }
+        if (url.includes("/rank-history/")) {
+          return jsonResponse(200, { student: 10, current_rank: 2, current_rank_code: "YS", current_rank_name: "Yellow Stripe", promotions: [], student_display_name: "Alex Carter (UK-5001)", student_wksa_id: "UK-5001" });
+        }
+        if (url.includes("/api/students/10/")) return jsonResponse(200, testStudent);
+        return jsonResponse(404, {});
+      });
+    }
+
+    it("opens that student's own history for someone who may read the audit log", async () => {
+      vi.stubGlobal("fetch", studentMock({ ...authUser, can_read_audit_log: true }));
+
+      render(<App />);
+
+      const link = await screen.findByTestId("student-history-link");
+      expect(link).toHaveAttribute("href", "/audit?subject=student:10");
+    });
+
+    it("is not offered to someone who may not", async () => {
+      vi.stubGlobal("fetch", studentMock({ ...authUser, can_read_audit_log: false }));
+
+      render(<App />);
+
+      await screen.findByRole("heading", { name: "Alex Carter" });
+      expect(screen.queryByTestId("student-history-link")).toBeNull();
+    });
+  });
+
   it("does not offer a next rank whose syllabus is not recorded", async () => {
     const ranks = testRanks.map((rank) => (rank.id === 3 ? { ...rank, has_syllabus: false } : rank));
     vi.stubGlobal(

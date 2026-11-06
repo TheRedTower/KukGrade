@@ -470,13 +470,13 @@ export function UserDetailScreen(): React.ReactElement {
             ) : activityQuery.data?.results.length ? (
               <ul className="user-activity-list">
                 {activityQuery.data.results.map((event) => (
-                  <li key={event.id}><strong>{event.action_display}</strong><span>{formatDateTime(event.occurred_at)}</span></li>
+                  <li key={event.id}><strong>{event.summary}</strong><span>{formatDateTime(event.occurred_at)}</span></li>
                 ))}
               </ul>
             ) : (
               <p>No administrative activity recorded.</p>
             )}
-            <Link className="users-audit-link" to={`/audit?search=${encodeURIComponent(id)}`}>View audit history <span aria-hidden="true">→</span></Link>
+            <Link className="users-audit-link" to={`/audit?subject=user:${encodeURIComponent(id)}`}>View full history <span aria-hidden="true">→</span></Link>
           </section>
         </aside>
       </div>

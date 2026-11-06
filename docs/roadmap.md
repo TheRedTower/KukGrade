@@ -38,12 +38,11 @@ Want something here, or something that is missing? Open an
       email and always will; this is an enhancement. The design is settled: email is
       notification only, never authoritative account state, and a failed send never blocks an
       account or password action. Planned after 1.0.
-- [ ] **Instructor groups**: assign each candidate to an instructor's group so each marks
-      their own at the mat. The marking workflow it was waiting for is done; the design (who
-      assigns, what a group sees) still needs deciding with the owner.
-- [ ] **Drop the unused `assessor_notes` column.** Item notes became the comment log in
-      release candidate 8 and nothing writes the old column; it goes in a migration of its own,
-      one release after the one that carried the comments.
+- [ ] **Instructor groups** (a fallback, not the next step): assign each candidate to an
+      instructor's group so each marks their own at the mat. It is introduced later, and only
+      if the current marking procedure (any instructor may mark any item, every change after
+      the first with a reason, comments from everyone) proves not to be enough on grading day.
+      The design (who assigns, what a group sees) would be decided with the owner then.
 - [ ] **Reports and exports**, from an agreed reporting specification (for example a session
       summary or a student's grading history as a document).
 

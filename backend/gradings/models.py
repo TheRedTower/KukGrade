@@ -870,10 +870,6 @@ class CandidateAssessmentItem(models.Model):
         blank=True,
     )
     assessed_at = models.DateTimeField(null=True, blank=True)
-    # No longer written: comments (AssessmentItemComment) replaced it, and
-    # migration 0019 carried what it held across. Kept for one release so a
-    # comment can be checked against it, then dropped.
-    assessor_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1005,7 +1001,6 @@ class CandidateAssessmentItem(models.Model):
         self.korean_name = (self.korean_name or "").strip()
         self.requirement_notes = (self.requirement_notes or "").strip()
         self.notation = (self.notation or "").strip()
-        self.assessor_notes = (self.assessor_notes or "").strip()
 
         errors = numbered_range_errors(self.start_number, self.end_number)
         if not self.item_code:

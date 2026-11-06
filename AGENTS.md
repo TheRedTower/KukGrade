@@ -41,7 +41,7 @@ image (`docs/installation.md`).
   or deleted; it records both shortfalls and positive observations.
   `CandidateAssessment.notes` carries the overall observation for the
   assessment. There is no separate praise or positive-observation field, and
-  none is planned. The old single `assessor_notes` column is no longer written.
+  none is planned. The old single `assessor_notes` column is gone (migration 0024).
 - Every change to a mark after the first needs a written reason and is kept in
   an append-only log (`AssessmentItemResultChange`); there is no reopen. After
   the session locks only the authorised Master may correct a mark or comment,

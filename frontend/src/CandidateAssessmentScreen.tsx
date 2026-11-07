@@ -225,7 +225,7 @@ export function CandidateAssessmentScreen() {
 
   if (isLoading) {
     return (
-      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-loading">
+      <section aria-label="Candidate assessment" className="page" data-testid="caw-loading">
         <LoadingState>Loading the assessment…</LoadingState>
       </section>
     );
@@ -233,7 +233,7 @@ export function CandidateAssessmentScreen() {
 
   if (hasLoadError) {
     return (
-      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-load-error">
+      <section aria-label="Candidate assessment" className="page" data-testid="caw-load-error">
         <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>}>
@@ -245,7 +245,7 @@ export function CandidateAssessmentScreen() {
 
   if (!session || !candidate) {
     return (
-      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-not-found">
+      <section aria-label="Candidate assessment" className="page" data-testid="caw-not-found">
         <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>}>

@@ -2,12 +2,6 @@
    Candidate assessment: shared chrome for mat-side scoring and completion review
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.caw-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
 .caw-candidate-name {
   margin: 0;
   font-size: var(--font-size-3xl);

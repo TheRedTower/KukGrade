@@ -31,7 +31,7 @@ interface PageHeaderProps {
  */
 export function PageHeader({ title, titleId, subtitle, eyebrow, tag, back, crumbs, actions, titleRef, children }: PageHeaderProps) {
   return (
-    <header className={`page-header${back || crumbs ? "" : " page-header--bare"}`}>
+    <header className="page-header">
       {back ? <BackLink to={back.to}>{back.label}</BackLink> : null}
       {crumbs ? <Breadcrumbs items={crumbs} /> : null}
       <div className="page-header__row">

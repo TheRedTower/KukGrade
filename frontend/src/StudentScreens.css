@@ -1,8 +1,5 @@
 /* Filter Bar */
 
-.students-filter-bar {
-  margin-bottom: var(--space-5);
-}
 
 .students-results {
   display: grid;
@@ -86,12 +83,6 @@
 
 /* Form Section Cards */
 
-.add-student-form-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
 /* Grid Layouts */
 
 .form-row-grid-2,
@@ -99,10 +90,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   gap: var(--space-5);
-}
-
-.form-row-grid-2 {
-  margin-bottom: var(--space-4);
 }
 
 /* Field Groups */

@@ -186,7 +186,7 @@ export function GradingSessionsScreen() {
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL" && !archivedOnly;
 
   return (
-    <section aria-labelledby="gradings-heading" className="page gs-page">
+    <section aria-labelledby="gradings-heading" className="page">
 
       <PageHeader
         title="Gradings"

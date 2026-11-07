@@ -178,7 +178,7 @@ export function UsersScreen(): React.ReactElement {
   };
 
   return (
-    <section className="page stack" aria-labelledby="users-heading">
+    <section className="page" aria-labelledby="users-heading">
       <PageHeader
         title="Users"
         titleId="users-heading"

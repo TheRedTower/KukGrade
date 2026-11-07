@@ -192,7 +192,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   if (!valid) {
     return (
-      <section aria-labelledby="gsd-invalid-id-heading" className="page gsd-page" data-testid="gsd-page">
+      <section aria-labelledby="gsd-invalid-id-heading" className="page" data-testid="gsd-page">
         <EmptyState
           titleAs="h2"
           titleId="gsd-invalid-id-heading"
@@ -207,7 +207,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   if (sessionQuery.isLoading) {
     return (
-      <section aria-label="Grading session" className="page gsd-page" data-testid="gsd-page">
+      <section aria-label="Grading session" className="page" data-testid="gsd-page">
         <LoadingState>Loading grading session…</LoadingState>
       </section>
     );
@@ -215,7 +215,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   if (sessionQuery.isError || !session) {
     return (
-      <section aria-labelledby="gsd-error-heading" className="page gsd-page" data-testid="gsd-page">
+      <section aria-labelledby="gsd-error-heading" className="page" data-testid="gsd-page">
         <EmptyState
           titleAs="h2"
           titleId="gsd-error-heading"
@@ -252,7 +252,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const decided = session.status === "LOCKED" || session.status === "COMPLETED";
 
   return (
-    <section aria-labelledby="gsd-title" className="page gsd-page" data-testid="gsd-page">
+    <section aria-labelledby="gsd-title" className="page" data-testid="gsd-page">
       <PageHeader
         crumbs={[{ label: "Gradings", to: "/gradings" }, { label: session.title }]}
         title={session.title}

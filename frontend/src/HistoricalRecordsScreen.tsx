@@ -78,7 +78,7 @@ export function HistoricalRecordsScreen() {
   }
 
   return (
-    <section aria-labelledby="ix-history-title" className="page ix-page">
+    <section aria-labelledby="ix-history-title" className="page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
         title="Historical records"

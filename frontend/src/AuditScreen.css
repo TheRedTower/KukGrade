@@ -15,7 +15,6 @@
 .audit-ledger {
   display: grid;
   gap: var(--space-4);
-  margin-top: var(--space-4);
 }
 
 .audit-date,
@@ -38,7 +37,6 @@
 }
 
 .audit-integrity-note {
-  margin: var(--space-3) 0 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   text-align: right;

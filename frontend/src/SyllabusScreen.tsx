@@ -185,7 +185,7 @@ export function SyllabusScreen() {
       <PageHeader title="Syllabus" titleId="syllabus-heading" subtitle="Teaching and grading requirements" />
 
       {/* Top Filter Controls */}
-      <div className="filter-bar syl-filter-bar" aria-label="Syllabus filters">
+      <div className="filter-bar" aria-label="Syllabus filters">
         <div className="field">
           <label htmlFor="syl-curriculum-select">Curriculum</label>
           <select
@@ -234,7 +234,7 @@ export function SyllabusScreen() {
       </div>
 
       {/* The ranks: a page at a time, so every one is shown whole. */}
-      <ScrollRail label="Ranks" watch={selectedRankCode} className="syl-belt-rail">
+      <ScrollRail label="Ranks" watch={selectedRankCode}>
         {ranks.map((rank) => {
           const isSelected = rank.code === selectedRankCode;
           return (

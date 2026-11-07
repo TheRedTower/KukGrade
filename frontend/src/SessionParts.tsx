@@ -72,7 +72,7 @@ export function SessionNotes({
   }
 
   return (
-    <section className="gsd-notes-section" aria-labelledby="notes-heading">
+    <section aria-labelledby="notes-heading">
       <div className="gsd-notes-card">
         <div className="action-row gsd-notes-header">
           <div>

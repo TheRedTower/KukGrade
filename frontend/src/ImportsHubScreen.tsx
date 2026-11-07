@@ -336,7 +336,7 @@ export function ImportsHubScreen() {
   const open = unfinished.data?.results ?? [];
 
   return (
-    <section aria-labelledby="ix-title" className="page ix-page">
+    <section aria-labelledby="ix-title" className="page">
       <PageHeader
         title="Imports"
         titleId="ix-title"

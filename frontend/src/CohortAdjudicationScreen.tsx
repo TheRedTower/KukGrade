@@ -90,7 +90,7 @@ export function CohortAdjudicationScreen() {
 
   if (sessionQuery.isLoading || candidatesQuery.isLoading) {
     return (
-      <section aria-label="Final decisions" className="page cab-page">
+      <section aria-label="Final decisions" className="page">
         <LoadingState>Loading final decisions…</LoadingState>
       </section>
     );
@@ -103,7 +103,7 @@ export function CohortAdjudicationScreen() {
   );
   if (!session || failedQueries.length > 0) {
     return (
-      <section aria-label="Final decisions" className="page cab-page">
+      <section aria-label="Final decisions" className="page">
         <Alert
           action={
             failedQueries.length > 0 ? (
@@ -120,7 +120,7 @@ export function CohortAdjudicationScreen() {
   }
 
   return (
-    <section aria-labelledby="cab-title" className="page cab-page">
+    <section aria-labelledby="cab-title" className="page">
       <PageHeader
         back={{ to: `/gradings/${session.id}`, label: "Back to session" }}
         title={`Final decisions · ${session.title}`}

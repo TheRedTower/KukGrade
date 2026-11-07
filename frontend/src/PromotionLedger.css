@@ -2,12 +2,6 @@
    Student Promotion Ledger
    ───────────────────────────────────────────────────────────────────────────── */
 
-.pl-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
 /* Banners */
 
 .pl-alert {
@@ -21,7 +15,6 @@
   background: var(--color-warning-surface);
   border: 1.5px solid var(--color-warning);
   border-radius: var(--radius);
-  margin-bottom: var(--space-5);
 }
 
 .pl-summary-info {

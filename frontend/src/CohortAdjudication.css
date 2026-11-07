@@ -1,19 +1,7 @@
 /* Cohort Adjudication Board. Theme tokens only. */
 
-.cab-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-/* The page's own gap already spaces its header. */
-.cab-page > .page-header {
-  margin-bottom: 0;
-}
-
 .cab-footnote,
 .cab-note-by {
-  margin: 0.15rem 0 0;
   font-size: var(--font-size-md);
   color: var(--color-text-muted);
 }

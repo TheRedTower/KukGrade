@@ -2,12 +2,6 @@
    Grading Sessions List Screen (/gradings)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.gs-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
 /* ── Filters ─────────────────────────────────────────────────────────────── */
 
 .gs-filter-search-wrap {
@@ -152,12 +146,6 @@
    Create Grading Session Screen (/gradings/new)
    ========================================================================== */
 
-.cgs-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
 /* ── Alert Banner ────────────────────────────────────────────────────────── */
 
 /* ── Grid Layout ─────────────────────────────────────────────────────────── */
@@ -230,17 +218,6 @@
 /* ==========================================================================
    Grading Session Detail / Roster Screen (.gsd-*)
    ========================================================================== */
-
-.gsd-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-/* The page's own gap already spaces its header. */
-.gsd-page > .page-header {
-  margin-bottom: 0;
-}
 
 .gsd-dropdown-wrap {
   position: relative;
@@ -496,9 +473,6 @@
 
 /* ── Session Notes Section ───────────────────────────────────────────────── */
 
-.gsd-notes-section {
-  margin-top: var(--space-2);
-}
 
 .gsd-notes-card {
   background: var(--color-surface);

@@ -208,7 +208,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
   const isLoading = isLoadingSession || (!ledgerLoaded && !ledgerFailed);
 
   return (
-    <section aria-labelledby="pl-title" className="page pl-page" data-testid="promotion-ledger-screen">
+    <section aria-labelledby="pl-title" className="page" data-testid="promotion-ledger-screen">
       <PageHeader
         crumbs={[
           { label: "Gradings", to: "/gradings" },

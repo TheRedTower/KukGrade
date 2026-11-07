@@ -87,7 +87,7 @@ export function BuildGradingCohortScreen() {
 
   if (!valid) {
     return (
-      <section aria-labelledby="bgc-invalid-id-heading" className="page bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-invalid-id-heading" className="page" data-testid="bgc-page">
         <EmptyState
           titleAs="h2"
           titleId="bgc-invalid-id-heading"
@@ -102,7 +102,7 @@ export function BuildGradingCohortScreen() {
 
   if (sessionQuery.isLoading) {
     return (
-      <section aria-label="Build grading cohort" className="page bgc-page" data-testid="bgc-page">
+      <section aria-label="Build grading cohort" className="page" data-testid="bgc-page">
         <LoadingState>Loading the grading session…</LoadingState>
       </section>
     );
@@ -110,7 +110,7 @@ export function BuildGradingCohortScreen() {
 
   if (sessionQuery.isError || !session) {
     return (
-      <section aria-labelledby="bgc-error-heading" className="page bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-error-heading" className="page" data-testid="bgc-page">
         <EmptyState
           titleAs="h2"
           titleId="bgc-error-heading"
@@ -139,7 +139,7 @@ export function BuildGradingCohortScreen() {
   }
 
   return (
-    <section aria-labelledby="bgc-title" className="page bgc-page" data-testid="bgc-page">
+    <section aria-labelledby="bgc-title" className="page" data-testid="bgc-page">
       <Breadcrumbs
         items={[
           { label: "Gradings", to: "/gradings" },

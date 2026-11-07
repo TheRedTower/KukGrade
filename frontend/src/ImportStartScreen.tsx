@@ -304,7 +304,7 @@ export function ImportStartScreen() {
   const nextName = kind === "STUDENT_ROSTER" ? "Continue to match columns" : "Continue to match ranks";
 
   return (
-    <section aria-labelledby="ix-start-title" className="page ix-page">
+    <section aria-labelledby="ix-start-title" className="page">
       <PageHeader back={{ to: "/imports", label: "Imports" }} title={importKindTitle(kind)} titleId="ix-start-title" />
 
       <ImportStepBar current={0} kind={kind} />

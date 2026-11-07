@@ -1,16 +1,5 @@
 /* The Imports area. Tokens only, from theme.css. */
 
-.ix-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-/* The page's own gap already spaces its header. */
-.ix-page > .page-header {
-  margin-bottom: 0;
-}
-
 /* Headings inside a page, largest first. */
 .ix-title {
   margin: 0 0 var(--space-1);

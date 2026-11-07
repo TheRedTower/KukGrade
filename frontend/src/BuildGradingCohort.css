@@ -2,12 +2,6 @@
    BUILD GRADING COHORT
    ══════════════════════════════════════════════════════════════════════════════ */
 
-.bgc-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
 .bgc-header {
   display: flex;
   flex-direction: column;

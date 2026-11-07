@@ -109,7 +109,7 @@ export function StudentsScreen() {
       />
 
       {/* Filter and Search Bar */}
-      <div className="filter-bar students-filter-bar" role="search" aria-label="Student filters">
+      <div className="filter-bar" role="search" aria-label="Student filters">
         <div className="filter-bar__full search-input-wrapper">
           <SearchIcon size={18} />
           <input

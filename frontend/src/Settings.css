@@ -1,16 +1,5 @@
 /* Settings. Tokens only, from theme.css. */
 
-.st-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-/* The page's own gap already spaces its header. */
-.st-page > .page-header {
-  margin-bottom: 0;
-}
-
 .st-tabs {
   display: flex;
   flex-wrap: wrap;

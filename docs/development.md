@@ -113,7 +113,7 @@ serializers and the committed frontend types match the schema.
   (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
-  on a narrow page), `Dialog` for every modal (a sheet on a phone), `.stack` on the box that holds a page's sections (the space between them is `--section-gap`, not a margin on each), `.filter-bar` and
+  on a narrow page), `Dialog` for every modal (a sheet on a phone), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form), `.filter-bar` and
   `.field` (`.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help) for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
   Cancel and Save) for a row of buttons or a header, `.stats` for key figures, `.split` for a main

@@ -56,7 +56,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
   const unresolvedRanks = (summary.unresolved_current_rank ?? 0) + (summary.unresolved_testing_for_rank ?? 0);
 
   return (
-    <section aria-labelledby="ix-results-title" className="page ix-page">
+    <section aria-labelledby="ix-results-title" className="page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
         title={batch.original_filename}

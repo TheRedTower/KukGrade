@@ -48,17 +48,15 @@ export function CohortFindSection({
 
             {/* Filter toolbar */}
             <div className="filter-bar">
-              <div className="filter-bar__full bgc-search-field">
-                <span className="bgc-search-icon" aria-hidden="true">🔍</span>
+              <label className="field field--search filter-bar__full">
+                <span className="visually-hidden">Search name or WKSA ID</span>
                 <input
                   type="search"
-                  className="bgc-search-input"
                   placeholder="Search name or WKSA ID"
                   value={search}
                   onChange={(e) => onSearch(e.target.value)}
-                  aria-label="Search name or WKSA ID"
                 />
-              </div>
+              </label>
 
               <div className="field">
                 <label htmlFor="bgc-rank-filter">Current rank</label>

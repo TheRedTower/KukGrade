@@ -264,13 +264,6 @@
   margin-top: auto;
 }
 
-.ix-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3);
-}
-
 .ix-field-narrow {
   max-width: 22rem;
 }

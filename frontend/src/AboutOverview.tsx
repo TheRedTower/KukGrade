@@ -40,8 +40,8 @@ export function AboutOverview() {
         </Alert>
       ) : null}
 
-      <section aria-labelledby="st-version-details" className="card">
-        <div className="ab-head">
+      <section aria-labelledby="st-version-details" className="card stack">
+        <div className="action-row">
           <div>
             <h2 id="st-version-details">Version details</h2>
             <p className="st-row-description">Quote these if you ask for help.</p>

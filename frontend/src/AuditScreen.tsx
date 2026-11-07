@@ -178,7 +178,7 @@ export function AuditScreen(): React.ReactElement {
           updateFilters({ search: searchInputRef.current?.value.trim() ?? "" });
         }}
       >
-        <label className="field filter-bar__full">
+        <label className="field field--search filter-bar__full">
           <span>Search student name, record number or summary</span>
           <div className="field__row">
             <input

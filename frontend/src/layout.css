@@ -195,20 +195,35 @@
 
 /* ── Filters ───────────────────────────────────────────────────────────── */
 
-/* As many columns as fit, each at least 12rem, so it needs no breakpoint. */
+/* Fields side by side, wrapping when there is no room, so it needs no breakpoint. */
 .filter-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-4);
-  align-items: end;
+  align-items: flex-end;
   padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
 }
 
+/* The fields share the row, each at least 12rem; one that is full width (the
+   search, say) takes a row of its own. */
+.filter-bar > * {
+  flex: 1 1 12rem;
+}
+
 .filter-bar__full {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
+}
+
+/* How many results the filters leave, quietly, in the bar. */
+.filter-bar > .filter-bar__count {
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
 }
 
 .field {
@@ -337,6 +352,29 @@ select:not([multiple]):not([size]) {
 
 .field__row {
   display: flex;
+}
+
+/* A search box: a .field whose magnifier is drawn at the box's start, in the
+   theme's muted colour, so a screen adds no icon of its own. Its label may be
+   visually hidden; the box is always the field's last child. */
+.field--search {
+  position: relative;
+}
+
+.field--search input {
+  padding-inline-start: calc(var(--space-3) + 1.5rem);
+}
+
+.field--search::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  bottom: calc((var(--target-min) - 1rem) / 2);
+  width: 1rem;
+  height: 1rem;
+  background: var(--color-text-muted);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E") center / contain no-repeat;
+  pointer-events: none;
 }
 
 /* A search box and its button, joined. */
@@ -582,17 +620,21 @@ select:not([multiple]):not([size]) {
 
 /* ── Key figures ───────────────────────────────────────────────────────── */
 
+/* A few figures side by side, sharing the width equally; a label wraps under
+   its own figure, and a figure moves to the next line only when the longest
+   word of its label no longer fits. */
 .stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-4);
   text-align: center;
 }
 
 .stat {
   display: grid;
+  flex: 1 1 0;
   gap: var(--space-1);
-  min-width: 0;
+  min-width: min-content;
 }
 
 .stat__value {

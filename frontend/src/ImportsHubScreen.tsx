@@ -224,27 +224,25 @@ function PastImports() {
 
   return (
     <section aria-labelledby="ix-past" className="ix-section">
-      <div className="ix-section-head ix-align-end">
-        <h2 id="ix-past">Past imports</h2>
-        <div className="ix-filters">
-          <label className="field field--sentence">
-            <span>What</span>
-            <select value={kind} onChange={(event) => setFilter("kind", event.target.value)}>
-              <option value="">Everything</option>
-              <option value="STUDENT_ROSTER">Students</option>
-              <option value="LEGACY_GRADINGS">Past gradings</option>
-            </select>
-          </label>
-          <label className="field field--sentence">
-            <span>State</span>
-            <select value={state} onChange={(event) => setFilter("state", event.target.value)}>
-              <option value="">Any</option>
-              <option value="COMMITTED">Imported</option>
-              <option value="CANCELLED">Cancelled</option>
-              <option value="EXPIRED">Expired</option>
-            </select>
-          </label>
-        </div>
+      <h2 id="ix-past" className="section-title">Past imports</h2>
+      <div className="filter-bar" role="search" aria-label="Import filters">
+        <label className="field">
+          <span>What</span>
+          <select value={kind} onChange={(event) => setFilter("kind", event.target.value)}>
+            <option value="">Everything</option>
+            <option value="STUDENT_ROSTER">Students</option>
+            <option value="LEGACY_GRADINGS">Past gradings</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>State</span>
+          <select value={state} onChange={(event) => setFilter("state", event.target.value)}>
+            <option value="">Any</option>
+            <option value="COMMITTED">Imported</option>
+            <option value="CANCELLED">Cancelled</option>
+            <option value="EXPIRED">Expired</option>
+          </select>
+        </label>
       </div>
       <div className="card card--flush">
         {past.isPending ? (

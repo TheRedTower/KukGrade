@@ -139,7 +139,7 @@ export function ListHead({ title, lead, search }: { title: string; lead: string;
         <p className="ix-muted ix-small">{lead}</p>
       </div>
       {search ? (
-        <label className="field field--sentence">
+        <label className="field">
           <span>Search</span>
           <input placeholder={search.hint} type="search" value={search.value} onChange={(event) => search.onChange(event.target.value)} />
         </label>

@@ -4,9 +4,9 @@ import { Alert } from "./Alert";
 import { CopyIcon } from "./Icons";
 import { Button } from "./Button";
 
-export function DetailsList({ details, columns }: { details: [string, string][]; columns?: 1 }) {
+export function DetailsList({ details }: { details: [string, string][] }) {
   return (
-    <dl className="facts" style={columns === 1 ? { gridTemplateColumns: "1fr" } : undefined}>
+    <dl className="facts-list">
       {details.map(([name, value]) => (
         <div key={name}>
           <dt>{name}</dt>

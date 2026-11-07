@@ -168,12 +168,6 @@
 /* Holds the user page's forms so a view-only account disables them all. */
 .user-detail-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 
-.users-count {
-  align-self: center;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-}
-
 .users-email,
 .users-authority-summary {
   display: block;

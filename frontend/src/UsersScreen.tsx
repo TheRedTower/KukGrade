@@ -200,7 +200,7 @@ export function UsersScreen(): React.ReactElement {
           updateFilters({ search: searchRef.current?.value.trim() ?? "" });
         }}
       >
-        <label className="field filter-bar__full">
+        <label className="field field--search filter-bar__full">
           <span className="visually-hidden">Search users</span>
           <div className="field__row">
             <input
@@ -230,7 +230,7 @@ export function UsersScreen(): React.ReactElement {
             <option value="inactive">Inactive</option>
           </select>
         </label>
-        <strong className="users-count">{count} user{count === 1 ? "" : "s"}</strong>
+        <p className="filter-bar__count">{count} user{count === 1 ? "" : "s"}</p>
       </form>
 
       <div className="users-info-note">

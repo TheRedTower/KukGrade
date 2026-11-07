@@ -101,11 +101,13 @@ export function AboutSupport() {
             </section>
           ) : null}
 
-        <section aria-labelledby="ab-your-details" className="card">
-          <h2 id="ab-your-details">Your details</h2>
-          <p className="st-row-description">Quote these with your question.</p>
-          <DetailsList columns={1} details={details} />
-          <div className="ab-actions">
+        <section aria-labelledby="ab-your-details" className="card stack">
+          <div>
+            <h2 id="ab-your-details">Your details</h2>
+            <p className="st-row-description">Quote these with your question.</p>
+          </div>
+          <DetailsList details={details} />
+          <div className="action-row">
             <CopyDetailsButton details={details} />
           </div>
         </section>

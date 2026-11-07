@@ -17,7 +17,6 @@ import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
-import { SearchIcon } from "./Icons";
 import { Dialog } from "./Dialog";
 import { SESSION_STATUS_LABELS } from "./sessionStatus";
 import { SessionStatusBadge } from "./StatusBadge";
@@ -201,35 +200,33 @@ export function GradingSessionsScreen() {
 
       {/* ── Filters */}
       <div className="filter-bar" role="search">
-        <div className="filter-bar__full gs-filter-search-wrap">
-          <SearchIcon size={16} className="gs-search-icon" />
+        <label className="field field--search filter-bar__full">
+          <span className="visually-hidden">Search grading sessions</span>
           <input
-            aria-label="Search grading sessions"
-            className="gs-search-input"
             id="gs-search-input"
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search title, place, date or status…"
             type="search"
             value={searchText}
           />
-        </div>
+        </label>
         <div className="field">
           <label htmlFor="gs-status-filter">Status</label>
-          <select className="gs-filter-select" id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
+          <select id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
             <option value="ALL">All statuses</option>
             {STATUS_ORDER.map((s) => <option key={s} value={s}>{SESSION_STATUS_LABELS[s]}</option>)}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-year-filter">Year</label>
-          <select className="gs-filter-select" id="gs-year-filter" onChange={(e) => handleYearFilter(e.target.value)} value={yearFilter}>
+          <select id="gs-year-filter" onChange={(e) => handleYearFilter(e.target.value)} value={yearFilter}>
             <option value="ALL">All years</option>
             {availableYears.map((y) => <option key={y} value={String(y)}>{y}</option>)}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-archive-filter">Show</label>
-          <select className="gs-filter-select" id="gs-archive-filter" onChange={(e) => handleArchived(e.target.value === "ARCHIVED")} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
+          <select id="gs-archive-filter" onChange={(e) => handleArchived(e.target.value === "ARCHIVED")} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
             <option value="CURRENT">Current gradings</option>
             <option value="ARCHIVED">Archived gradings</option>
           </select>

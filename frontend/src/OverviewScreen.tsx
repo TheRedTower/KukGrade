@@ -291,35 +291,33 @@ export function OverviewScreen() {
       {/* Top 3-Column Grid */}
       <div className="overview-grid">
         {/* Card 1: Now */}
-        <div className="ledger-card">
-          <div className="card-top-label">
-            <span>Now</span>
-          </div>
+        <section className="card">
+          <h2 className="section-title section-title--ruled">Now</h2>
 
           {openSession ? (
-            <div className="card-content-now">
-              <div className="session-title-row">
-                <h2 className="session-title">{openSession.title}</h2>
-                <SessionStatusBadge status={openSession.status} label={openSession.status_display} />
-              </div>
-              {openSession.location && <p className="session-location">{openSession.location}</p>}
-
-              <div className="metrics-row">
-                <div className="metric-box">
-                  <span className="metric-number">{candidatesCount}</span>
-                  <span className="metric-label">Candidates</span>
+            <div className="stack">
+              <div>
+                <div className="action-row">
+                  <h3 className="session-title">{openSession.title}</h3>
+                  <SessionStatusBadge status={openSession.status} label={openSession.status_display} />
                 </div>
-                <div className="metric-divider" aria-hidden="true" />
-                <div className="metric-box">
-                  <span className="metric-number">
+                {openSession.location && <p className="session-location">{openSession.location}</p>}
+              </div>
+
+              <div className="stats">
+                <div className="stat">
+                  <span className="stat__value">{candidatesCount}</span>
+                  <span className="stat__label">Candidates</span>
+                </div>
+                <div className="stat">
+                  <span className="stat__value">
                     {completedAssessmentsCount} / {candidatesCount}
                   </span>
-                  <span className="metric-label">Assessments complete</span>
+                  <span className="stat__label">Assessments complete</span>
                 </div>
-                <div className="metric-divider" aria-hidden="true" />
-                <div className="metric-box">
-                  <span className="metric-number">{awaitingDecisionCount}</span>
-                  <span className="metric-label">Awaiting final decision</span>
+                <div className="stat">
+                  <span className="stat__value">{awaitingDecisionCount}</span>
+                  <span className="stat__label">Awaiting final decision</span>
                 </div>
               </div>
 
@@ -340,13 +338,11 @@ export function OverviewScreen() {
               No grading session in progress on the mat.
             </EmptyState>
           )}
-        </div>
+        </section>
 
         {/* Card 2: Needs attention */}
-        <div className="ledger-card">
-          <div className="card-top-label">
-            <span>Needs attention</span>
-          </div>
+        <section className="card">
+          <h2 className="section-title section-title--ruled">Needs attention</h2>
 
           {attentionItems.length > 0 ? (
             <div className="attention-list" role="list">
@@ -376,13 +372,11 @@ export function OverviewScreen() {
               No candidate assessments currently requiring review.
             </EmptyState>
           )}
-        </div>
+        </section>
 
         {/* Card 3: Upcoming */}
-        <div className="ledger-card">
-          <div className="card-top-label">
-            <span>Upcoming</span>
-          </div>
+        <section className="card">
+          <h2 className="section-title section-title--ruled">Upcoming</h2>
 
           {upcomingSession ? (
             <Link className="upcoming-session-row" to={`/gradings/${upcomingSession.id}`}>
@@ -417,15 +411,15 @@ export function OverviewScreen() {
               No future grading sessions are currently scheduled.
             </EmptyState>
           )}
-        </div>
+        </section>
       </div>
 
       {/* Bottom Section: Recent Activity - the audit log's latest entries,
           so only for someone who may read it; nobody else is told there is
           nothing. */}
       {canViewAudit && (
-      <div className="recent-activity-section">
-        <div className="activity-section-header">
+      <section className="stack">
+        <div className="action-row">
           <h2 className="section-title">Recent activity</h2>
           <Link className={buttonClass({ variant: "link" })} to="/audit">
             View all activity <span aria-hidden="true">&rarr;</span>
@@ -470,7 +464,7 @@ export function OverviewScreen() {
             <EmptyState title="No recent activity recorded." />
           )
         )}
-      </div>
+      </section>
       )}
     </section>
   );

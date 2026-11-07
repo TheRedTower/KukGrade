@@ -60,10 +60,10 @@ export function AboutCredits() {
       ) : null}
 
       {credits && !credits.available ? (
-        <p className="ab-note">
+        <Alert tone="info" role="note">
           This copy of KukGrade was not packaged for release, so it has no credits list. Releases
           have one.
-        </p>
+        </Alert>
       ) : null}
 
       {credits?.available ? (
@@ -89,7 +89,7 @@ export function AboutCredits() {
           ) : null}
 
           <section aria-labelledby="ab-all" className="card">
-            <div className="ab-head">
+            <div className="action-row">
               <div>
                 <h2 id="ab-all">Everything else</h2>
                 <p className="st-row-description">

@@ -17,28 +17,9 @@ import { Pagination } from "./Pagination";
 import { StudentStatusBadge } from "./StatusBadge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
-import { SearchIcon, UserPlusIcon } from "./Icons";
+import { UserPlusIcon } from "./Icons";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
-
-function ClearIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <line x1="18" x2="6" y1="6" y2="18" />
-      <line x1="6" x2="18" y1="6" y2="18" />
-    </svg>
-  );
-}
 
 const PAGE_SIZE = 15;
 
@@ -110,32 +91,18 @@ export function StudentsScreen() {
 
       {/* Filter and Search Bar */}
       <div className="filter-bar" role="search" aria-label="Student filters">
-        <div className="filter-bar__full search-input-wrapper">
-          <SearchIcon size={18} />
+        <label className="field field--search filter-bar__full">
+          <span className="visually-hidden">Search students by name or WKSA ID</span>
           <input
-            type="text"
-            className="student-search-input"
+            type="search"
             placeholder="Search name or WKSA ID"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            aria-label="Search students by name or WKSA ID"
           />
-          {search && (
-            <Button
-              variant="link"
-              onClick={() => {
-                setSearch("");
-                setPage(1);
-              }}
-              aria-label="Clear search text"
-            >
-              <ClearIcon />
-            </Button>
-          )}
-        </div>
+        </label>
 
         <div className="field">
           <label htmlFor="status-filter-select">Status</label>
@@ -176,7 +143,7 @@ export function StudentsScreen() {
         <div className="action-row filter-bar__full">
           {sourceImport ? (
             <>
-              <span className="results-count-text">Only the students one import added</span>
+              <span className="filter-bar__count">Only the students one import added</span>
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -190,7 +157,7 @@ export function StudentsScreen() {
               </Button>
             </>
           ) : null}
-          <span className="results-count-text">
+          <span className="filter-bar__count">
             {studentsQuery.isLoading ? "Loading..." : `${totalCount} ${totalCount === 1 ? "student" : "students"}`}
           </span>
         </div>

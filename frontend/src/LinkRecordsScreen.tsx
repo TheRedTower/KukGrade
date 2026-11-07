@@ -186,8 +186,8 @@ export function LinkRecordsScreen() {
         </div>
       </PageHeader>
 
-      <div className="ix-filters">
-        <label className="field field--sentence ix-field-wide">
+      <div className="filter-bar" role="search" aria-label="Name filters">
+        <label className="field">
           <span>Find a name</span>
           <input
             placeholder="Name as written"
@@ -200,7 +200,7 @@ export function LinkRecordsScreen() {
             }}
           />
         </label>
-        <label className="field field--sentence">
+        <label className="field">
           <span>Import</span>
           <select
             value={batch}

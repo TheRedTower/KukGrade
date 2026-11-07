@@ -4,12 +4,13 @@ import { Link } from "react-router-dom";
 import type { BulkCandidateRegistrationResponse, GradingSession, Rank, StudentListItem } from "./api";
 import { Alert } from "./Alert";
 import { Badge } from "./Badge";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { PageHeader } from "./PageHeader";
+import { SessionFacts } from "./SessionParts";
 import { Button } from "./Button";
+import { CheckIcon, WarningIcon } from "./Icons";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
-import { formatSessionDate } from "./dates";
-import { SessionStatusBadge, StudentStatusBadge } from "./StatusBadge";
+import { StudentStatusBadge } from "./StatusBadge";
 
 /** A student the registration refused, with why, as the resolver lists them. */
 export interface FlaggedCandidateItem {
@@ -51,42 +52,30 @@ export function CohortResolver({
 
   return (
     <section aria-labelledby="bgc-resolver-title" className="page" data-testid="bgc-page">
-      <Breadcrumbs
-        items={[
+      <PageHeader
+        crumbs={[
           { label: "Gradings", to: "/gradings" },
           { label: session.title, to: `/gradings/${session.id}` },
           { label: "Resolve flagged candidates" },
         ]}
-      />
-
-      {/* Header */}
-      <header className="bgc-header">
-        <h1 className="bgc-title" id="bgc-resolver-title">Resolve flagged candidates</h1>
-        <div className="bgc-resolver-summary-bar">
-          <span className="bgc-summary-pill bgc-summary-success">
-            <span className="bgc-summary-icon" aria-hidden="true">✓</span>
-            {createdCount} registered
-          </span>
-          <span className="bgc-summary-pill bgc-summary-flagged">
-            <span className="bgc-summary-icon" aria-hidden="true">!</span>
-            {flaggedCount} flagged
-          </span>
-          <span className="bgc-resolver-subtext">Successful registrations are already saved.</span>
-        </div>
-      </header>
-
-      {/* Session card strip */}
-      <div className="bgc-session-card">
-        <div className="bgc-session-card-left">
-          <span className="bgc-session-title">{session.title}</span>
-          <SessionStatusBadge status={session.status} label={session.status_display} />
-        </div>
-        <div className="bgc-session-card-meta">
-          <span>{formatSessionDate(session.grading_date)}</span>
-          <span className="bgc-meta-sep" aria-hidden="true">·</span>
-          <span>{session.location || "No location specified"}</span>
-        </div>
-      </div>
+        title="Resolve flagged candidates"
+        titleId="bgc-resolver-title"
+        subtitle="Successful registrations are already saved."
+        tag={
+          <>
+            <Badge tone="success" icon={<CheckIcon size={14} />}>
+              {createdCount} registered
+            </Badge>
+            <Badge tone="warning" icon={<WarningIcon size={14} />}>
+              {flaggedCount} flagged
+            </Badge>
+          </>
+        }
+      >
+        <p className="page-header__subtitle">
+          <SessionFacts session={session} />
+        </p>
+      </PageHeader>
 
       {submitError && (
         <Alert onDismiss={onDismissError}>{submitError}</Alert>

@@ -18,7 +18,7 @@ import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
+import { formatRecentTime, formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
 import { OUTCOME_LABELS } from "./OutcomeControls";
@@ -26,6 +26,8 @@ import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { PageHeader } from "./PageHeader";
 import { SessionStatusBadge } from "./StatusBadge";
+import { Badge } from "./Badge";
+import type { BadgeTone } from "./badgeClass";
 
 function CalendarIcon() {
   return (
@@ -110,16 +112,8 @@ function AlertIcon() {
   );
 }
 
-function formatRelativeTime(isoString: string): string {
-  const daysAgo = calendarDaysAgo(isoString);
-  if (daysAgo === null) return isoString;
-  const time = formatTime(isoString);
-  if (daysAgo === 0) return `Today ${time}`;
-  if (daysAgo === 1) return `Yesterday ${time}`;
-  return `${formatApiDate(isoString, { day: "numeric", month: "short" })} ${time}`;
-}
-
-type ActivityStatus = "approved" | "warning" | "in-progress" | "neutral";
+/** A badge tone: done, needs a look, under way, or neither. */
+type ActivityStatus = Extract<BadgeTone, "success" | "warning" | "info" | "neutral">;
 
 type FormattedActivityItem = {
   id: number;
@@ -148,15 +142,15 @@ function metadataString(event: AuditEvent, ...path: string[]): string | undefine
 function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: string } {
   switch (event.action) {
     case "PROMOTION_RECORDED":
-      return { type: "approved" };
+      return { type: "success" };
     case "OUTCOME_FINALISED": {
       const outcome = metadataString(event, "final_outcome");
-      return { type: outcome === "PASS" ? "approved" : "warning", outcome };
+      return { type: outcome === "PASS" ? "success" : "warning", outcome };
     }
     case "OUTCOME_PROPOSED":
-      return { type: "in-progress", outcome: metadataString(event, "after", "proposed_outcome") };
+      return { type: "info", outcome: metadataString(event, "after", "proposed_outcome") };
     case "ASSESSMENT_STARTED":
-      return { type: "in-progress" };
+      return { type: "info" };
     case "CANDIDATE_WITHDRAWN":
       return { type: "warning" };
     default:
@@ -169,7 +163,7 @@ function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
   const outcomeLabel = outcome ? OUTCOME_LABELS[outcome as CandidateOutcomeOutcome] : undefined;
   return {
     id: event.id,
-    timeDisplay: formatRelativeTime(event.occurred_at),
+    timeDisplay: formatRecentTime(event.occurred_at),
     actorName: event.actor_name || event.actor_email || "System",
     summary: eventSummary(event),
     statusType: type,
@@ -451,16 +445,20 @@ export function OverviewScreen() {
                 key: "status",
                 header: "Status",
                 render: (activity) => (
-                  <span className={`status-pill-badge status-pill-${activity.statusType}`}>
-                    {activity.statusType === "approved" ? (
-                      <CheckIcon size={14} className="overview-icon" />
-                    ) : activity.statusType === "warning" ? (
-                      <AlertIcon />
-                    ) : activity.statusType === "in-progress" ? (
-                      <ClockIcon />
-                    ) : null}
-                    <span>{activity.statusLabel}</span>
-                  </span>
+                  <Badge
+                    tone={activity.statusType}
+                    icon={
+                      activity.statusType === "success" ? (
+                        <CheckIcon size={14} />
+                      ) : activity.statusType === "warning" ? (
+                        <AlertIcon />
+                      ) : activity.statusType === "info" ? (
+                        <ClockIcon />
+                      ) : null
+                    }
+                  >
+                    {activity.statusLabel}
+                  </Badge>
                 ),
               },
             ]}

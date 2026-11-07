@@ -2,64 +2,6 @@
    BUILD GRADING COHORT
    ══════════════════════════════════════════════════════════════════════════════ */
 
-.bgc-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.bgc-title {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-title);
-  color: var(--color-text);
-  letter-spacing: var(--tracking-tight);
-  margin: 0;
-}
-
-.bgc-subtitle {
-  font-size: var(--font-size-base);
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
-.bgc-session-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-}
-
-.bgc-session-card-left {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.bgc-session-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.bgc-session-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
-}
-
-.bgc-meta-sep {
-  color: var(--color-border);
-}
-
 .bgc-left-column {
   display: flex;
   flex-direction: column;
@@ -372,46 +314,6 @@
 }
 
 /* ── EXCEPTION RESOLVER ───────────────────────────────────────── */
-
-.bgc-resolver-summary-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-top: var(--space-1);
-}
-
-.bgc-summary-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-}
-
-.bgc-summary-success {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-  border: 1px solid var(--color-success);
-}
-
-.bgc-summary-flagged {
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
-  border: 1px solid var(--color-warning);
-}
-
-.bgc-summary-icon {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-title);
-}
-
-.bgc-resolver-subtext {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
-}
 
 .bgc-resolver-section {
   background: var(--color-surface);

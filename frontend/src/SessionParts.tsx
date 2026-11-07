@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
-import type { CandidateAssessment, CandidateOutcome, GradingCandidateRoster, GradingSessionStatus } from "./api";
+import type { CandidateAssessment, CandidateOutcome, GradingCandidateRoster, GradingSession, GradingSessionStatus } from "./api";
 import { Badge } from "./Badge";
 import { RankBelt } from "./Belt";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { formatSessionDate } from "./dates";
 import { SESSION_STATUS_LABELS } from "./sessionStatus";
 import { AssessmentBadge, OutcomeBadge } from "./StatusBadge";
 
@@ -22,6 +23,16 @@ interface NextAction {
   label: string;
   url: string;
   opensProposalDrawer: boolean;
+}
+
+/** When and where a session is held, as one line reads it under a page's title. */
+export function SessionFacts({ session }: { session: Pick<GradingSession, "grading_date" | "location"> }) {
+  return (
+    <>
+      <span>{formatSessionDate(session.grading_date)}</span> <span aria-hidden="true">·</span>{" "}
+      <span>{session.location || "No location specified"}</span>
+    </>
+  );
 }
 
 const STAGES = ["DRAFT", "OPEN", "LOCKED", "COMPLETED"] as const;

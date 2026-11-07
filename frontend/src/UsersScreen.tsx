@@ -283,9 +283,7 @@ export function UsersScreen(): React.ReactElement {
                   key: "status",
                   header: "Status",
                   render: (user) => (
-                    <span className={`users-status ${user.is_active ? "is-active" : "is-inactive"}`}>
-                      {user.is_active ? "Active" : "Inactive"}
-                    </span>
+                    <Badge dot tone={user.is_active ? "success" : "neutral"}>{user.is_active ? "Active" : "Inactive"}</Badge>
                   ),
                 },
                 { key: "login", header: "Last active", render: (user) => formatShortDateTime(user.last_login, "Never") },

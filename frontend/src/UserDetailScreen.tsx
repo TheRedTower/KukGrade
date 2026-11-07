@@ -26,6 +26,7 @@ import { Dialog } from "./Dialog";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
 import { Button } from "./Button";
+import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
 
 function AccountForm({
@@ -400,9 +401,7 @@ export function UserDetailScreen(): React.ReactElement {
         subtitle={
           <>
             {managedUser.email} <span aria-hidden="true">·</span>{" "}
-            <span className={`users-status ${managedUser.is_active ? "is-active" : "is-inactive"}`}>
-              {managedUser.is_active ? "Active" : "Inactive"}
-            </span>
+            <Badge dot tone={managedUser.is_active ? "success" : "neutral"}>{managedUser.is_active ? "Active" : "Inactive"}</Badge>
           </>
         }
         actions={

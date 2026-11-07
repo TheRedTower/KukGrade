@@ -165,8 +165,8 @@ serializers and the committed frontend types match the schema.
   breaks between words, and inside a word only when the word cannot fit on a line of its own.
   A screen does not set `overflow-wrap`, and nothing uses `anywhere`, which lets a table
   squeeze a column to one letter wide and split ordinary words.
-  A date never splits: the formatters in `dates.ts` join its parts with no-break spaces (it may
-  break only after a comma), so a screen shows a date only through them.
+  A date never splits: the formatters in `dates.ts` (`formatRecentTime` for "Today 14:30") join its
+  parts with no-break spaces (it may break only after a comma), so a screen shows a date only through them.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

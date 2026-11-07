@@ -24,10 +24,9 @@ import { SessionActionsMenu } from "./SessionActionsMenu";
 import { SessionCandidatesSection } from "./SessionCandidatesSection";
 import { SessionConfirmDialog, type SessionConfirm } from "./SessionConfirmDialog";
 import { SessionStatusBadge } from "./StatusBadge";
-import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 import { buttonClass } from "./buttonClass";
-import { SessionLifecycle, SessionNotes } from "./SessionParts";
+import { SessionFacts, SessionLifecycle, SessionNotes } from "./SessionParts";
 import {
   type SessionAction,
   confirmDetails,
@@ -259,12 +258,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         titleId="gsd-title"
         titleRef={headingRef}
         tag={<SessionStatusBadge status={session.status} label={session.status_display} />}
-        subtitle={
-          <>
-            <span>{formatSessionDate(session.grading_date)}</span> <span aria-hidden="true">·</span>{" "}
-            <span>{session.location || "No location specified"}</span>
-          </>
-        }
+        subtitle={<SessionFacts session={session} />}
         actions={
           <>
             {decided && (

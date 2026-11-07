@@ -164,6 +164,14 @@ export function formatTime(value: string | null | undefined, fallback = ""): str
   return formatApiDate(value, { hour: "2-digit", minute: "2-digit" }, fallback);
 }
 
+/** "Today 14:30", "Yesterday 14:30" or "5 Oct 14:30": when something recent happened. */
+export function formatRecentTime(value: string): string {
+  const daysAgo = calendarDaysAgo(value);
+  if (daysAgo === null) return value;
+  const day = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : formatApiDate(value, { day: "numeric", month: "short" });
+  return unbroken(`${day} ${formatTime(value)}`);
+}
+
 /** "05 Oct" - when the year is already carried by the surrounding context. */
 export function formatDayMonth(value: string | null | undefined, fallback = ""): string {
   return formatApiDate(value, { day: "2-digit", month: "short" }, fallback);

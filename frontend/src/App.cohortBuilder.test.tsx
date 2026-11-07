@@ -269,7 +269,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Header and Session info
     expect(await screen.findByRole("heading", { name: "Build grading cohort" })).toBeVisible();
     expect(screen.getByText("Add whole groups, then review any exceptions.")).toBeVisible();
-    expect(screen.getByText("Autumn Grading", { selector: ".bgc-session-title" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Autumn Grading" })).toBeVisible();
 
     // Section 1: Find eligible students
     expect(screen.getByRole("heading", { name: "1. Find eligible students" })).toBeVisible();

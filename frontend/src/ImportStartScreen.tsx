@@ -1,4 +1,5 @@
 import { type ChangeEvent, type DragEvent, useRef, useState } from "react";
+import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -126,9 +127,9 @@ function GuideList({ kind }: { kind: DataImportKind }) {
               <p className="ix-semibold">{field.name}</p>
               {field.hint ? <p className="ix-muted ix-small">{field.hint}</p> : null}
             </span>
-            <span className={`ix-tag${field.needed ? "" : " ix-muted"}`}>
+            <Badge tone={field.needed ? "info" : "neutral"}>
               {field.needed ? "Needed" : kind === "STUDENT_ROSTER" ? "Optional" : "If present"}
-            </span>
+            </Badge>
           </li>
         ))}
       </ul>

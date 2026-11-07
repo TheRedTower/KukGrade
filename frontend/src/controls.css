@@ -135,8 +135,12 @@
   text-decoration: none;
 }
 
-.badge__dot {
+.badge__dot,
+.badge > svg {
   flex: 0 0 auto;
+}
+
+.badge__dot {
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;

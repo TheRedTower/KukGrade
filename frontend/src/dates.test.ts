@@ -44,6 +44,8 @@ describe("the club's time zone", () => {
   it("shows a timestamp as the club's clock reads", () => {
     setClubTimeZone("Pacific/Auckland");
     expect(formatDateTime("2026-10-15T11:30:00Z")).toMatch(/^16\u00a0October\u00a02026.*00:30$/);
+    // A narrow box wraps the time whole, before "at", never inside "00:30".
+    expect(formatDateTime("2026-10-15T11:30:00Z")).toMatch(/2026 at\u00a000:30$/);
     setClubTimeZone("America/Los_Angeles");
     expect(formatDateTime("2026-10-15T11:30:00Z")).toMatch(/^15\u00a0October\u00a02026.*04:30$/);
   });

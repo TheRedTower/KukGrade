@@ -84,7 +84,7 @@ function SyllabusLedgerTable({
                   {row.item_name}
                   {isNew && <Badge tone="info">NEW</Badge>}
                 </div>
-                {row.item_korean_name && <div className="meta">{row.item_korean_name}</div>}
+                {row.item_korean_name && <div className="meta" lang="ko">{row.item_korean_name}</div>}
                 {noteText && <div className="syl-item-notes meta">{noteText}</div>}
               </div>
             );
@@ -298,7 +298,7 @@ export function SyllabusScreen() {
                     <div key={area.item_code} className="syl-core-card">
                       <div className="item-title">{area.item_name}</div>
                       {area.item_korean_name && (
-                        <div className="subtext">{area.item_korean_name}</div>
+                        <div className="subtext" lang="ko">{area.item_korean_name}</div>
                       )}
                       <div className="syl-core-english meta">{area.category_display}</div>
                     </div>

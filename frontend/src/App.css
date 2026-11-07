@@ -45,6 +45,12 @@ body {
   overflow-wrap: break-word;
 }
 
+/* Korean breaks between any two syllables by default; a technique's name is
+   one word, so it wraps whole. Every Korean name carries lang="ko". */
+:lang(ko) {
+  word-break: keep-all;
+}
+
 /* Every link in running text, in one place. A link with a class is a component
    (a button, a badge, a navigation item) and styles itself; a plain link takes
    this, so none is left with the browser's own colours. Underlined, so it is

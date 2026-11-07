@@ -28,6 +28,7 @@ import { formatDateTime, formatLongDate } from "./dates";
 import { Button } from "./Button";
 import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
+import { EmailAddress } from "./EmailAddress";
 
 function AccountForm({
   user,
@@ -400,7 +401,7 @@ export function UserDetailScreen(): React.ReactElement {
         titleId="user-detail-heading"
         subtitle={
           <>
-            {managedUser.email} <span aria-hidden="true">·</span>{" "}
+            <EmailAddress address={managedUser.email} /> <span aria-hidden="true">·</span>{" "}
             <Badge dot tone={managedUser.is_active ? "success" : "neutral"}>{managedUser.is_active ? "Active" : "Inactive"}</Badge>
           </>
         }

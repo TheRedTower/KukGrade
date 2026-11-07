@@ -81,7 +81,7 @@ export function LedgerTable({ group }: { group: CategoryGroup }) {
             <tr key={item.id} data-testid={`acp-ledger-row-${item.id}`}>
               <td>
                 <strong>{item.item_name}</strong>
-                {item.korean_name && <span className="acp-ledger-korean"> {item.korean_name}</span>}
+                {item.korean_name && <span className="acp-ledger-korean" lang="ko"> {item.korean_name}</span>}
                 {!item.required && <RequirementBadge required={false} />}
               </td>
               {hasAnyRange && (

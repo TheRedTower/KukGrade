@@ -19,6 +19,7 @@ import { buttonClass } from "./buttonClass";
 import { assessmentTone } from "./badgeClass";
 import { AssessmentItemRow, CategoryHeader, DeleteAssessmentDialog } from "./AssessmentParts";
 import "./CandidateAssessment.css";
+import { EmailAddress } from "./EmailAddress";
 
 export function CandidateAssessmentScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -321,7 +322,7 @@ export function CandidateAssessmentScreen() {
         {/* Provenance: who prepared the snapshot, and when it was frozen. */}
         {assessment?.generated_by_email && (
           <span className="meta">
-            Form prepared by {assessment.generated_by_email}
+            Form prepared by <EmailAddress address={assessment.generated_by_email} />
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
         )}

@@ -31,6 +31,12 @@ project, and works like `widthDebt.json`.
 Besides overflow, `overflow.ts` flags a date input wider than its box and two cards stacked with no gap, and
 the `grading-*-actions` screens open the Session actions menu so a menu running off the screen is caught.
 
+What fits can still look broken, so `findLayoutFaults` in `overflow.ts` also flags, on every screen at every width:
+a word split between two letters (a break at a hyphen, slash or dash is allowed, and so is a run wider than most
+of the screen, such as a long web address), a table column whose rows do not start at one edge, and a link or
+button left in the browser's own colours. `layoutFaults.spec.ts` plants one of each, so a check that stops
+finding anything fails there.
+
 What it cannot reproduce: Safari's address bar, the on-screen keyboard, safe areas, real touch scrolling, or
 iOS's own date control (Linux and Mac WebKit draw dates differently). Real-device checks stay in the release
 checklist. CI's fonts differ from a Mac's, so a result can differ there.

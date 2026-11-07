@@ -182,7 +182,7 @@ export function AssessmentItemRow({
         <div className="caw-row-title-line">
           <span className="caw-row-seq meta">#{item.position}</span>
           <span className="item-title">{item.item_name}</span>
-          {item.korean_name && <span className="meta">{item.korean_name}</span>}
+          {item.korean_name && <span className="meta" lang="ko">{item.korean_name}</span>}
           <RequirementBadge required={item.required} />
           {(item.display_range || item.notation) && (
             <span className="caw-row-range meta">{item.display_range || item.notation}</span>

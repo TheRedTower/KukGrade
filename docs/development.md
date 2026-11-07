@@ -68,7 +68,7 @@ cd frontend
 npm ci
 npm run generate:types
 git diff --exit-code -- src/api/schema.ts
-npm run lint
+npm run lint        # ESLint, then Stylelint (stylelint.config.mjs) for the CSS
 npm run typecheck
 npm run test
 npm run build
@@ -135,6 +135,7 @@ serializers and the committed frontend types match the schema.
   `--radius` and `-pill`; elevation `--shadow-xs` to `-lg` and `--shadow-up`; and the focus and
   validation marks `--ring-*` and `--edge-accent`; space `--space-1` to `-7` (0.25rem to 3rem; a hairline offset of 0.2rem or less and a clearance over 3.25rem are not steps); letter-spacing `--tracking-label`, `-display` and `-tight`; line height `--line-height-tight`, `-snug` and `-body`; and one change time, `--duration` (a `transition` names what changes, never `all`). A value that sits between two steps takes the
   nearer one; if a design really needs a new step, add it to the scale for everyone.
+  Stylelint (`stylelint.config.mjs`, part of `npm run lint`) rejects invalid CSS and what is already at zero everywhere: a named colour, an id selector, `!important` (the reduced-motion rule in `theme.css` is the one exception) and a word-splitting `overflow-wrap: anywhere` or `word-break: break-all`. An email address goes through `EmailAddress`, which lets it wrap after the `@` or before a dot; a Korean name carries `lang="ko"`, which keeps it whole.
   `tokenRules.test.ts` counts what each stylesheet still holds outside them (raw colours,
   dark-mode patches, `!important`, type, space, letter-spacing, line-height, transition, radius and shadow literals, z-index) and fails if
   the count goes up; `tokenBaseline.json` only ever shrinks. It also fails on a `var()`

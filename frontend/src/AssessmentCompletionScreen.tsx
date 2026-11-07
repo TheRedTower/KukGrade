@@ -46,6 +46,7 @@ import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { CoreAreaMark, LedgerTable, ResultMark, SealIcon } from "./AssessmentRecordParts";
+import { EmailAddress, EmailList } from "./EmailAddress";
 
 export function AssessmentCompletionScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -329,7 +330,7 @@ export function AssessmentCompletionScreen() {
             <div>
               <div className="eyebrow--muted">Recorded by</div>
               <div className="acp-seal-value item-title">
-                {assessors.length > 0 ? assessors.join(", ") : "Not yet attributed"}
+                {assessors.length > 0 ? <EmailList addresses={assessors} /> : "Not yet attributed"}
               </div>
               {assessment.started_at && (
                 <div className="acp-seal-detail meta">
@@ -371,7 +372,7 @@ export function AssessmentCompletionScreen() {
               </div>
               <div>
                 <dt>Prepared by</dt>
-                <dd>{assessment.generated_by_email || "—"}</dd>
+                <dd>{assessment.generated_by_email ? <EmailAddress address={assessment.generated_by_email} /> : "—"}</dd>
               </div>
               <div>
                 <dt>Age group</dt>
@@ -379,7 +380,7 @@ export function AssessmentCompletionScreen() {
               </div>
               <div>
                 <dt>Assessors</dt>
-                <dd>{assessors.length > 0 ? assessors.join(", ") : "—"}</dd>
+                <dd>{assessors.length > 0 ? <EmailList addresses={assessors} /> : "—"}</dd>
               </div>
             </dl>
           </div>

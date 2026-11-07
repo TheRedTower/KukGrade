@@ -7,6 +7,7 @@ import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { SettingsRow } from "./SettingsRow";
 import { Button } from "./Button";
+import { EmailAddress } from "./EmailAddress";
 
 const CAPABILITIES = [
   { key: "can_make_final_grading_decision", label: "Final grading decisions" },
@@ -143,7 +144,7 @@ export function SettingsAccount() {
     <section aria-label="Account" className="card card--flush">
       <NameRow />
       <SettingsRow description="An administrator changes it on the Users page." title="Email">
-        <span>{user.email}</span>
+        <span><EmailAddress address={user.email} /></span>
       </SettingsRow>
       <PasswordRow />
       <SettingsRow

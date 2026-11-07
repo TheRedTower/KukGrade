@@ -18,6 +18,7 @@ import { ErrorText } from "./ErrorText";
 import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
 import "./SealedAssessmentEvidence.css";
+import { EmailAddress } from "./EmailAddress";
 
 export function SealedAssessmentEvidence({
   assessmentId,
@@ -109,7 +110,7 @@ export function SealedAssessmentEvidence({
                       </span>
                     ))}
                     <span className="evd-note-by subtext">
-                      {item.assessor_email}
+                      {item.assessor_email && <EmailAddress address={item.assessor_email} />}
                       {item.assessed_at ? `, ${formatTime(item.assessed_at)}` : ""}
                     </span>
                   </li>

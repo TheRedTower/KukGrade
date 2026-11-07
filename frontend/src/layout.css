@@ -7,7 +7,6 @@
      the breakpoints. .workspace applies it; a page never adds its own. It is
      rounded to a whole pixel so a box's 1px border on the page edge stays
      crisp and a heading can be judged against it. */
-  --page-gutter: clamp(1rem, 3vw, 2.5rem);
   --page-gutter: round(clamp(1rem, 3vw, 2.5rem), 1px);
 
   --page-max: 76rem;
@@ -359,7 +358,6 @@ select:not([multiple]):not([size]) {
 @media (forced-colors: active) {
   select:not([multiple]):not([size]) {
     appearance: auto;
-    -webkit-appearance: auto;
     background-image: none;
   }
 }
@@ -429,11 +427,14 @@ select:not([multiple]):not([size]) {
 .field__row > input {
   flex: 1 1 auto;
   width: auto;
+  min-width: 0;
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
 
-/* The button joined to a search box. */
+/* The button joined to a search box. The box gives way on a narrow screen;
+   the button keeps its word whole. */
 .field__row > button {
+  flex-shrink: 0;
   border: 1px solid var(--btn-primary-border);
   border-left: 0;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;

@@ -270,6 +270,7 @@ body {
    and transition to a single frame rather than trying to keep only the
    "important" ones - a loading spinner is still visible, just static
    instead of spinning, which is enough to convey "in progress". */
+/* stylelint-disable declaration-no-important -- it must win over every rule. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -280,3 +281,4 @@ body {
     scroll-behavior: auto !important;
   }
 }
+/* stylelint-enable declaration-no-important */

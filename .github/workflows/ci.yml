@@ -140,7 +140,7 @@ jobs:
       - name: Generated types are current
         run: git diff --exit-code -- src/api/schema.ts
 
-      - name: Lint
+      - name: Lint (ESLint, then Stylelint for the CSS)
         run: npm run lint
 
       - name: Type check

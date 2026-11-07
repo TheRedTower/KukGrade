@@ -24,6 +24,7 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import "./UserManagement.css";
 import { formatShortDateTime } from "./dates";
 import { Button } from "./Button";
+import { EmailAddress } from "./EmailAddress";
 
 const PAGE_SIZE = 10;
 
@@ -269,7 +270,7 @@ export function UsersScreen(): React.ReactElement {
                   render: (user) => (
                     <>
                       <strong>{user.full_name}</strong>
-                      <span className="users-email meta">{user.email}</span>
+                      <span className="users-email meta"><EmailAddress address={user.email} /></span>
                     </>
                   ),
                 },

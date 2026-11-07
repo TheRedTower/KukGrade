@@ -76,13 +76,14 @@ function parseApiDate(value: string | null | undefined): Date | null {
 /**
  * A date reads as one unit: its parts are held together with no-break spaces,
  * so "Nov 2021" never splits across two lines. It may still break after a
- * comma, between the weekday, the date and the time.
+ * comma or before "at", between the weekday, the date and the time, so a
+ * narrow box wraps the time whole instead of splitting it.
  */
 function unbroken(text: string): string {
   return text
-    .split(", ")
-    .map((part) => part.replaceAll(" ", "\u00a0"))
-    .join(", ");
+    .split(/(, | at )/)
+    .map((part, index) => (index % 2 === 0 ? part.replaceAll(" ", "\u00a0") : part === " at " ? " at\u00a0" : part))
+    .join("");
 }
 
 /**

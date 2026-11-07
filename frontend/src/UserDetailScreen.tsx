@@ -26,6 +26,7 @@ import { Dialog } from "./Dialog";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
 import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 
 function AccountForm({
   user,
@@ -476,7 +477,7 @@ export function UserDetailScreen(): React.ReactElement {
             ) : (
               <p>No administrative activity recorded.</p>
             )}
-            <Link className="users-audit-link" to={`/audit?subject=user:${encodeURIComponent(id)}`}>View full history <span aria-hidden="true">→</span></Link>
+            <Link className={buttonClass({ variant: "link" })} to={`/audit?subject=user:${encodeURIComponent(id)}`}>View full history <span aria-hidden="true">→</span></Link>
           </section>
         </aside>
       </div>

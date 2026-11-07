@@ -77,9 +77,6 @@
   font-size: var(--font-size-md);
 }
 
-.ab-note a {
-  color: var(--color-info);
-}
 
 /* Overview. */
 .st-hero {
@@ -228,10 +225,6 @@
   margin-top: var(--space-4);
 }
 
-.ab-credit-link {
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-}
 
 .ab-doc-columns {
   display: grid;
@@ -278,7 +271,6 @@
    down, and long words and links wrap rather than push it sideways. */
 .ab-prose {
   padding: var(--space-5);
-  overflow-wrap: anywhere;
 }
 
 .ab-prose h3 {
@@ -317,9 +309,6 @@
   padding-left: var(--space-5);
 }
 
-.ab-prose a {
-  color: var(--color-accent-text);
-}
 
 .ab-prose code {
   padding: 0.05rem var(--space-1);

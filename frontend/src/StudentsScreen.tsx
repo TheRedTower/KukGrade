@@ -271,7 +271,7 @@ export function StudentsScreen() {
                   render: (student) =>
                     student.current_grading ? (
                       <div className="cell-current-grading">
-                        <Link className="current-grading-link" to={`/gradings/${student.current_grading.session}`}>
+                        <Link to={`/gradings/${student.current_grading.session}`}>
                           {student.current_grading.session_title}
                         </Link>
                         <span className="current-grading-stage">{student.current_grading.stage_display}</span>

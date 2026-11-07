@@ -192,7 +192,6 @@
 
 .ix-strong {
   font-weight: var(--font-weight-strong);
-  overflow-wrap: anywhere;
 }
 
 .ix-kind {
@@ -449,7 +448,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  overflow-wrap: anywhere;
 }
 
 .ix-step-dot {
@@ -489,6 +487,20 @@
   border-color: var(--color-gold);
   background: var(--color-gold);
   color: var(--color-on-gold);
+}
+
+/* A phone has no room for five labels in a row beside their numbers: each
+   label sits under its number, in the small size, and wraps between words. */
+@media (max-width: 40rem) {
+  .ix-step {
+    font-size: var(--font-size-xs);
+  }
+
+  .ix-step-label {
+    flex-direction: column;
+    gap: var(--space-1);
+    text-align: center;
+  }
 }
 
 /* Choose file. */
@@ -942,7 +954,6 @@
 
 .ix-name-student {
   min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .ix-name-actions {

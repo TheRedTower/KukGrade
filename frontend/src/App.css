@@ -38,6 +38,31 @@
 
 body {
   margin: 0;
+  /* One rule for every box, inherited: text wraps between words, and a word is
+     broken only when it cannot fit on a line of its own (an address, a long
+     file name). `anywhere` is not used: it lets a table squeeze a column to
+     one letter wide, which splits ordinary words like "Active". */
+  overflow-wrap: break-word;
+}
+
+/* Every link in running text, in one place. A link with a class is a component
+   (a button, a badge, a navigation item) and styles itself; a plain link takes
+   this, so none is left with the browser's own colours. Underlined, so it is
+   not told apart by colour alone; visited links look the same. */
+a:not([class]) {
+  color: var(--color-accent-text);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:not([class]):hover {
+  text-decoration-thickness: 2px;
+}
+
+a:not([class]):focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 button,
@@ -88,15 +113,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
   min-width: var(--target-min);
 }
 
-/* Links that act as controls - breadcrumbs, names in a table - are inline
-   text, which no height reaches; they become boxes of the same size. */
-.users-audit-link,
-.current-grading-link,
-.bgc-student-name-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--target-min);
-}
 
 .auth-page {
   min-height: 100vh;

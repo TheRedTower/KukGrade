@@ -153,6 +153,15 @@ serializers and the committed frontend types match the schema.
   `RequirementBadge`): the one way to show it, so it cannot look different on two screens.
   Their look is in `controls.css`, and the status colours (`--color-status-*`) are tokens in
   `theme.css`, with a dark value each.
+- **A link in running text is a plain `<Link>` or `<a>`, with no class.** `App.css` gives every
+  unclassed link one look (the accent, underlined, the same once visited), and `layout.css`
+  gives a name in a `ResponsiveTable` the cell's own colour with an accent underline and a
+  full-size target. A link with a class is a component (a button, badge or navigation item)
+  and styles itself. A screen never colours or underlines its own links.
+- **Text wraps by one inherited rule**, `overflow-wrap: break-word` on `body` in `App.css`: it
+  breaks between words, and inside a word only when the word cannot fit on a line of its own.
+  A screen does not set `overflow-wrap`, and nothing uses `anywhere`, which lets a table
+  squeeze a column to one letter wide and split ordinary words.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

@@ -573,7 +573,6 @@
 
 .acp-sheet-head > * {
   min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .acp-stamp {
@@ -682,7 +681,6 @@
 
 .acp-core-cell {
   min-width: 0;
-  overflow-wrap: anywhere;
   background: var(--color-surface);
   padding: var(--space-2) var(--space-3);
   display: flex;
@@ -862,7 +860,6 @@
 .acp-seal-line > div {
   flex: 1 1 12rem;
   min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .acp-seal-value {

@@ -400,7 +400,6 @@ select:not([multiple]):not([size]) {
 .rtable td {
   padding: var(--space-4) var(--space-4);
   border-top: 1px solid var(--color-border);
-  overflow-wrap: anywhere;
   vertical-align: top;
 }
 
@@ -428,10 +427,16 @@ select:not([multiple]):not([size]) {
   min-width: 0;
 }
 
-/* A button label wraps between words, never inside one. */
-.rtable button,
-.rtable a {
-  overflow-wrap: normal;
+/* A name in a table that opens its record: the cell's own text, underlined in
+   the accent so it still reads as a link. Its target is full height, made with
+   padding that a negative margin takes back, so the text stays on the line of
+   the cells beside it. */
+.rtable a:not([class]) {
+  display: inline-block;
+  padding-block: calc((var(--target-min) - 1lh) / 2);
+  margin-block: calc((1lh - var(--target-min)) / 2);
+  color: inherit;
+  text-decoration-color: var(--color-accent);
 }
 
 .rtable [data-align="end"] {
@@ -590,7 +595,6 @@ select:not([multiple]):not([size]) {
 
 .facts dd {
   margin: var(--space-1) 0 0;
-  overflow-wrap: anywhere;
 }
 
 /* Label and value as rows, divided by a line. By default the value is at the
@@ -623,7 +627,6 @@ select:not([multiple]):not([size]) {
 .facts-list dd {
   margin: 0;
   font-weight: var(--font-weight-semibold);
-  overflow-wrap: anywhere;
   text-align: end;
 }
 
@@ -667,7 +670,6 @@ select:not([multiple]):not([size]) {
   background: var(--color-surface-sunken);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-body);
-  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -736,7 +738,6 @@ select:not([multiple]):not([size]) {
 .dialog__heading {
   margin: 0;
   font-size: var(--font-size-2xl);
-  overflow-wrap: anywhere;
 }
 
 /* On a phone the dialog is a sheet from the bottom edge: it never starts
@@ -874,7 +875,6 @@ select:not([multiple]):not([size]) {
   margin: 0;
   font-weight: var(--font-weight-title);
   letter-spacing: var(--tracking-tight);
-  overflow-wrap: anywhere;
 }
 
 .page-header__subtitle {

@@ -11,6 +11,7 @@ import { useId } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 import { formatShortDateTime, formatTime } from "./dates";
 import { isReasonedChange, RESULT_WORDS } from "./resultWords";
 import { ErrorText } from "./ErrorText";
@@ -118,12 +119,14 @@ export function SealedAssessmentEvidence({
           ),
       )}
       {assessmentId !== undefined && (
-        <Link
-          to={`/gradings/${sessionId}/assessments/${candidateId}/review`}
-          className="evd-link"
-        >
-          Open the full assessment record
-        </Link>
+        <div className="action-row">
+          <Link
+            to={`/gradings/${sessionId}/assessments/${candidateId}/review`}
+            className={buttonClass({ variant: "link" })}
+          >
+            Open the full assessment record
+          </Link>
+        </div>
       )}
     </section>
   );

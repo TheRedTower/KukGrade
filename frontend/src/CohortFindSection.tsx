@@ -155,7 +155,6 @@ export function CohortFindSection({
                         <>
                           <Link
                             to={`/students/${student.id}`}
-                            className="bgc-student-name-link"
                             target="_blank"
                             rel="noreferrer"
                           >

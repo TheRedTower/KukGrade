@@ -121,7 +121,6 @@
 .nav-club-name {
   margin-top: 0.15rem;
   font-weight: var(--font-weight-strong);
-  overflow-wrap: anywhere;
 }
 
 .nav-links {
@@ -199,7 +198,6 @@
 .nav-person-name {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-strong);
-  overflow-wrap: break-word;
 }
 
 .nav-person-role {

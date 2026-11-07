@@ -24,12 +24,6 @@
   display: block;
 }
 
-/* A date and a time are short and never overflow: keep each in one piece, so
-   the column is as wide as they are and never splits "Today" or "20:55". */
-.audit-date,
-.audit-time {
-  overflow-wrap: normal;
-}
 
 .audit-time,
 .audit-entity-id {
@@ -57,5 +51,4 @@
 
 .audit-detail-section p {
   margin: 0;
-  overflow-wrap: anywhere;
 }

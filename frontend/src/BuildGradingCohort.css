@@ -186,16 +186,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.bgc-student-name-link {
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
-}
 
-.bgc-student-name-link:hover {
-  color: var(--color-accent-text);
-  text-decoration: underline;
-}
 
 /* ── RIGHT COLUMN: Cohort Ledger Tray ───────────────────────────────────── */
 

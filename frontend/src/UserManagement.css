@@ -1,6 +1,5 @@
 
 
-.users-audit-link:focus-visible,
 .users-form-grid input:focus,
 .users-form-grid select:focus,
 .user-authority-options input:focus-visible {
@@ -93,7 +92,6 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xl);
   letter-spacing: var(--tracking-label);
-  overflow-wrap: anywhere;
   user-select: all;
 }
 .users-issued-password-warning {
@@ -110,13 +108,6 @@
   padding-top: var(--space-4);
 }
 
-.users-audit-link {
-  color: var(--color-accent-text);
-  font-weight: var(--font-weight-strong);
-  text-decoration: none;
-}
-
-.users-audit-link:hover { color: var(--color-accent-text); text-decoration: underline; }
 
 .user-detail-section,
 .user-detail-aside > section {
@@ -207,11 +198,9 @@
   color: var(--color-text-muted);
 }
 
-/* An address has no word breaks, so it may break anywhere rather than run on. */
 .users-email {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-normal);
-  overflow-wrap: anywhere;
 }
 
 .users-ledger {

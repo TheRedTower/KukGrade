@@ -19,7 +19,7 @@ function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) 
           render: (credit) => (
             <>
               {credit.homepage ? (
-                <a className="ab-credit-link" href={credit.homepage} rel="noopener noreferrer" target="_blank">
+                <a href={credit.homepage} rel="noopener noreferrer" target="_blank">
                   {credit.name}
                   <span className="visually-hidden"> (opens in a new tab)</span>
                 </a>

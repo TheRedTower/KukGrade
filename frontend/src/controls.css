@@ -207,6 +207,49 @@
   color: var(--color-status-cancelled);
 }
 
+/* The one round mark: a single symbol (✓, ✕, !, –) in a circle, with a tone.
+   It is sized from its text, so it suits the line it sits on; `--small` and
+   `--large` set that text. Decorative: the words beside it say the same. */
+.mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.75em;
+  height: 1.75em;
+  border-radius: 50%;
+  font-weight: var(--font-weight-title);
+  line-height: 1;
+}
+
+.mark--small {
+  font-size: var(--font-size-xs);
+}
+
+.mark--large {
+  font-size: var(--font-size-xl);
+}
+
+.mark--success {
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.mark--warning {
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.mark--danger {
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.mark--neutral {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
 /* The one alert (Alert.tsx): a boxed message with a tone. Its colours come from theme.css,
    so an error looks the same on every screen and in both themes. */
 

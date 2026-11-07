@@ -682,32 +682,6 @@
   gap: var(--space-2);
 }
 
-.acp-core-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.15rem;
-  height: 1.15rem;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.acp-core-mark-met {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-}
-
-.acp-core-mark-not-met {
-  background: var(--color-danger-surface);
-  color: var(--color-danger);
-}
-
-.acp-core-mark-partial {
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-strong);
-}
-
 .acp-core-text {
   min-width: 0;
 }

@@ -202,31 +202,28 @@ export function NavigationRail({
                     <span className="nav-person-role">{user.role_display}</span>
                   </span>
                 </Link>
-                <NavLink aria-label="Settings" className="nav-icon-button" title="Settings" to="/settings">
-                  <SettingsIcon />
-                </NavLink>
-                <button
-                  aria-label="Sign out"
-                  className="nav-icon-button"
-                  disabled={isLoggingOut}
-                  onClick={onLogout}
-                  title="Sign out"
-                  type="button"
-                >
-                  <SignOutIcon />
-                </button>
+                <span className="nav-person-actions">
+                  <NavLink aria-label="Settings" className="nav-icon-button" title="Settings" to="/settings">
+                    <SettingsIcon />
+                  </NavLink>
+                  <button
+                    aria-label="Sign out"
+                    className="nav-icon-button"
+                    disabled={isLoggingOut}
+                    onClick={onLogout}
+                    title="Sign out"
+                    type="button"
+                  >
+                    <SignOutIcon />
+                  </button>
+                </span>
               </div>
               <p className="nav-about-line">
                 <Link to="/settings/about">KukGrade{version ? ` ${version}` : ""}</Link>
-                <span aria-hidden="true">·</span>
-                <Link to="/settings/about">About</Link>
                 {about ? (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <a href={about.repository_url} rel="noopener noreferrer" target="_blank">
-                      GitHub<span className="visually-hidden"> (opens in a new tab)</span>
-                    </a>
-                  </>
+                  <a href={about.repository_url} rel="noopener noreferrer" target="_blank">
+                    GitHub<span className="visually-hidden"> (opens in a new tab)</span>
+                  </a>
                 ) : null}
               </p>
             </>

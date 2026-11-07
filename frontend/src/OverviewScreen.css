@@ -73,20 +73,6 @@
   outline-offset: var(--focus-offset);
 }
 
-.attention-badge {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--font-weight-title);
-  font-size: var(--font-size-md);
-  flex-shrink: 0;
-}
-
 .attention-item-info {
   display: flex;
   flex-direction: column;

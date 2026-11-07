@@ -37,20 +37,20 @@ export function ResultMark({ result }: { result: CandidateAssessmentItem["result
 export function CoreAreaMark({ group }: { group: CategoryGroup }) {
   if (group.notMetCount > 0) {
     return (
-      <span className="acp-core-mark acp-core-mark-not-met" aria-hidden="true">
+      <span className="mark mark--small mark--danger" aria-hidden="true">
         <CrossIcon size={13} />
       </span>
     );
   }
   if (group.notAssessedCount > 0) {
     return (
-      <span className="acp-core-mark acp-core-mark-partial" aria-hidden="true">
+      <span className="mark mark--small mark--neutral" aria-hidden="true">
         –
       </span>
     );
   }
   return (
-    <span className="acp-core-mark acp-core-mark-met" aria-hidden="true">
+    <span className="mark mark--small mark--success" aria-hidden="true">
       <CheckIcon size={13} />
     </span>
   );

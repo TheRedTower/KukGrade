@@ -349,7 +349,7 @@ export function OverviewScreen() {
               {attentionItems.map((item) => (
                 <div key={item.id} role="listitem">
                   <Link className="attention-item-row" to={item.path}>
-                    <span aria-hidden="true" className="attention-badge">
+                    <span aria-hidden="true" className="mark mark--warning">
                       !
                     </span>
                     <div className="attention-item-info">

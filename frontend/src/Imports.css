@@ -351,36 +351,9 @@
   background: var(--color-success-surface);
 }
 
-.ix-mark {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-title);
-}
-
-.ix-mark-ok {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-}
-
-.ix-mark-large {
-  width: 2.5rem;
-  height: 2.5rem;
-  font-size: var(--font-size-xl);
-}
-
-.ix-mark-on-surface {
+/* On the tinted banner the mark keeps a plain fill, or it would vanish into it. */
+.mark.ix-mark-on-surface {
   background: var(--color-surface);
-}
-
-.ix-mark-warn {
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
 }
 
 .ix-checklist {

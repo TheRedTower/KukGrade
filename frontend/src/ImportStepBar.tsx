@@ -12,7 +12,7 @@ export function ImportStepBar({ kind, current }: { kind: DataImportKind; current
             <li
               key={name}
               aria-current={index === current ? "step" : undefined}
-              className={`ix-step ix-step-${state}`}
+              className={`ix-step meta ix-step-${state}`}
             >
               <span aria-hidden="true" className="ix-step-bar" />
               <span className="ix-step-label">

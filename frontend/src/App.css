@@ -66,7 +66,9 @@ a:not([class]):focus-visible {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -194,7 +196,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
   border-top: 1px solid var(--color-text-on-ink-muted);
   padding-top: var(--space-5);
   color: var(--color-text-on-ink-muted);
-  font-size: var(--font-size-md);
 }
 
 .auth-brand-footer p {
@@ -302,9 +303,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
 
 .password-requirements {
   margin-top: -0.4rem;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-muted);
 }
 
 .password-requirements ul {
@@ -346,8 +344,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
 
 .login-help {
   margin-top: var(--space-4);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
 }
 
 .login-help strong {
@@ -358,8 +354,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
   margin-top: var(--space-5);
   border-top: 1px solid var(--color-border);
   padding-top: var(--space-4);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 /* The first-time setup page (SetupPage.tsx), on the sign-in layout. */
@@ -374,16 +368,8 @@ button:not(.theme-toggle-option, .visually-hidden) {
   padding: var(--space-4) var(--space-4);
 }
 
-.setup-theme-label {
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
-}
-
 .setup-theme-help {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
 }
 
 .setup-name-row {
@@ -402,15 +388,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
   }
 }
 
-.eyebrow {
-  margin: 0 0 var(--space-2);
-  color: var(--color-accent-text);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
 h1,
 h2,
 p {
@@ -421,12 +398,40 @@ h1 {
   margin-bottom: var(--space-4);
   color: var(--color-text);
   font-size: var(--font-size-3xl);
-  line-height: var(--line-height-tight);
+  font-weight: var(--font-weight-title);
+  letter-spacing: var(--tracking-tight);
 }
 
 h2 {
   margin-bottom: var(--space-3);
   font-size: var(--font-size-xl);
+}
+
+/* Every heading below a section's title: a card's or a row's own heading. */
+h3 {
+  font-size: var(--font-size-lg);
+}
+
+h4 {
+  font-size: var(--font-size-base);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+  /* Every letter carries a little space before it, about 0.05em in this
+     font, which at heading sizes shows: a heading above a box looked set in
+     from the box's border. Pulling the first line back puts the letters
+     themselves on the edge. */
+  text-indent: -0.05em;
+}
+
+/* text-indent is inherited; a badge or button inside a heading keeps its own. */
+:is(h1, h2, h3, h4) * {
+  text-indent: 0;
 }
 
 .login-form {
@@ -515,15 +520,11 @@ h2 {
 }
 
 .must-change-password-card h1 {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-title);
   color: var(--color-text);
   margin: 0 0 var(--space-2) 0;
 }
 
 .must-change-password-subtitle {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
   line-height: var(--line-height-body);
   margin: 0 0 var(--space-4) 0;
 }
@@ -537,12 +538,6 @@ h2 {
   border-radius: var(--radius-pill);
   padding: var(--space-1) var(--space-3);
   margin-bottom: var(--space-5);
-  font-size: var(--font-size-sm);
-}
-
-.account-pill-name {
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
 }
 
 .account-pill-role {
@@ -570,10 +565,8 @@ h2 {
 
 .chevron-icon {
   transition: transform var(--duration) ease;
-  font-size: var(--font-size-xl);
   color: var(--color-text-muted);
   flex-shrink: 0;
-  font-weight: var(--font-weight-semibold);
 }
 
 .status-dot {
@@ -588,8 +581,6 @@ h2 {
 /* ── Error Banner ────────────────────────────────────────────────────────── */
 
 .gsd-modal-message {
-  font-size: var(--font-size-base);
-  color: var(--color-text-muted);
   line-height: var(--line-height-body);
   margin: 0;
 }

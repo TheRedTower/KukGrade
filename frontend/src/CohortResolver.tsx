@@ -92,7 +92,7 @@ export function CohortResolver({
               These candidates could not be registered. Resolve the issues below, then retry only the flagged candidates.
             </p>
           </div>
-          <span className="bgc-resolver-counter">
+          <span className="meta">
             Showing {flaggedCount} of {flaggedCount} flagged candidates
           </span>
         </div>
@@ -108,14 +108,14 @@ export function CohortResolver({
               primary: true,
               render: (item) => (
                 <>
-                  <span className="bgc-student-name">
+                  <span className="item-title">
                     {item.student?.first_name} {item.student?.last_name}
                   </span>
-                  <span className="bgc-student-id">{item.student?.wksa_id}</span>
+                  <span className="bgc-student-id meta">{item.student?.wksa_id}</span>
                 </>
               ),
             },
-            { key: "issue", header: "Issue", render: (item) => <span className="bgc-issue-text">{item.error}</span> },
+            { key: "issue", header: "Issue", render: (item) => <span className="error-text">{item.error}</span> },
             {
               key: "status",
               header: "Status",
@@ -162,7 +162,7 @@ export function CohortResolver({
         <section className="bgc-successful-section">
           <button
             type="button"
-            className="bgc-accordion-toggle"
+            className="bgc-accordion-toggle item-title"
             onClick={() => setShowSuccessfulList((prev) => !prev)}
             aria-expanded={showSuccessfulList}
           >
@@ -170,7 +170,7 @@ export function CohortResolver({
               {showSuccessfulList ? "▾" : "▸"}
             </span>
             <span>View {createdCount} successful registration{createdCount === 1 ? "" : "s"}</span>
-            <span className="bgc-accordion-count">
+            <span className="bgc-accordion-count meta">
               {createdCount} registered · {flaggedCount} flagged
             </span>
           </button>
@@ -180,9 +180,9 @@ export function CohortResolver({
               <ul className="bgc-created-list">
                 {registrationResult.created.map((entry) => (
                   <li key={entry.candidate.id} className="bgc-created-item">
-                    <span className="bgc-created-name">{entry.candidate.student_display_name}</span>
-                    <span className="bgc-created-wksa">({entry.candidate.student_wksa_id})</span>
-                    <span className="bgc-created-rank">➔ {entry.candidate.testing_for_rank_name}</span>
+                    <span className="item-title">{entry.candidate.student_display_name}</span>
+                    <span className="meta">({entry.candidate.student_wksa_id})</span>
+                    <span className="bgc-created-rank item-title">➔ {entry.candidate.testing_for_rank_name}</span>
                     {entry.assessment && (
                       <Badge tone="info">Form created (Not started)</Badge>
                     )}
@@ -213,7 +213,7 @@ export function CohortResolver({
           >
             {isSubmitting ? "Retrying..." : `Save changes and retry ${retryableCount}`}
           </Button>
-          <span className="bgc-retry-helper-text">Only resolved candidates will be retried.</span>
+          <span className="meta">Only resolved candidates will be retried.</span>
         </div>
       </footer>
     </section>

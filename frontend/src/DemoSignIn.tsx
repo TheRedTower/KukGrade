@@ -49,7 +49,7 @@ export function DemoSignIn({
           </li>
         ))}
       </ul>
-      <p className="demo-password">
+      <p>
         Or sign in below with an email above and the password <code>{demo.password}</code>.
       </p>
     </section>

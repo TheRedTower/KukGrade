@@ -22,15 +22,15 @@ export function AboutOverview() {
           <h2 id="st-about-hero">
             Kuk<span className="st-accent">Grade</span>
           </h2>
-          <p className="st-eyebrow">People · Progress · Purpose</p>
-          <p className="st-row-description">
+          <p className="st-eyebrow eyebrow--muted">People · Progress · Purpose</p>
+          <p className="st-row-description subtext">
             Grading management for Kuk Sool Won schools: students, syllabus, gradings and
             promotions. Free and open source, and run by your own school.
           </p>
         </div>
         <p className="st-version-tile">
-          <span>Version</span>
-          <strong>{data?.release ?? "…"}</strong>
+          <span className="eyebrow--muted">Version</span>
+          <strong className="stat__value">{data?.release ?? "…"}</strong>
         </p>
       </section>
 
@@ -44,7 +44,7 @@ export function AboutOverview() {
         <div className="action-row">
           <div>
             <h2 id="st-version-details">Version details</h2>
-            <p className="st-row-description">Quote these if you ask for help.</p>
+            <p className="st-row-description subtext">Quote these if you ask for help.</p>
           </div>
           <CopyDetailsButton details={details} />
         </div>
@@ -55,10 +55,10 @@ export function AboutOverview() {
         <section aria-labelledby="st-school" className="card card--flush">
           <div className="st-row">
             <div className="st-row-label">
-              <h2 id="st-school" className="st-row-title">
+              <h2 id="st-school" className="st-row-title item-title">
                 Your school
               </h2>
-              <p className="st-row-description">Set by whoever runs KukGrade, so it is only shown here.</p>
+              <p className="st-row-description subtext">Set by whoever runs KukGrade, so it is only shown here.</p>
             </div>
             <Badge tone="info">Administrators only</Badge>
           </div>
@@ -108,7 +108,7 @@ export function AboutOverview() {
 
       <section aria-labelledby="st-updates" className="card">
         <h2 id="st-updates">Updates</h2>
-        <p className="st-row-description">
+        <p className="st-row-description subtext">
           KukGrade does not look for updates by itself. Your administrator installs new versions,
           and this page shows the version in use.
         </p>

@@ -106,7 +106,7 @@ function AccountForm({
           </select>
         </label>
       </div>
-      <p className="users-form-note">
+      <p className="users-form-note meta">
         The role decides what someone can do in KukGrade. Master authority is granted separately.
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
@@ -199,7 +199,7 @@ function AuthorityForm({
         ))}
       </div>
       <div className="action-row user-authority-footer">
-        <p>
+        <p className="meta">
           {isSelf
             ? "You cannot change your own authority."
             : targetIsAdministrator
@@ -408,9 +408,9 @@ export function UserDetailScreen(): React.ReactElement {
           // A reset sets someone else's password and asks for no current one;
           // the server refuses it on your own account.
           isSelf ? (
-            <p className="users-self-password-hint">Change your own password in Settings.</p>
+            <p className="users-self-password-hint subtext">Change your own password in Settings.</p>
           ) : viewOnly ? (
-            <p className="users-self-password-hint">Only a superuser can change this account.</p>
+            <p className="users-self-password-hint subtext">Only a superuser can change this account.</p>
           ) : (
             <Button ref={passwordButtonRef} variant="secondary" onClick={() => setPasswordOpen(true)}>Reset password</Button>
           )
@@ -470,7 +470,7 @@ export function UserDetailScreen(): React.ReactElement {
             ) : activityQuery.data?.results.length ? (
               <ul className="user-activity-list">
                 {activityQuery.data.results.map((event) => (
-                  <li key={event.id}><strong>{event.summary}</strong><span>{formatDateTime(event.occurred_at)}</span></li>
+                  <li key={event.id}><strong>{event.summary}</strong><span className="meta">{formatDateTime(event.occurred_at)}</span></li>
                 ))}
               </ul>
             ) : (

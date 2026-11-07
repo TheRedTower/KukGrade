@@ -210,7 +210,7 @@ export function StudentsScreen() {
                   header: "Student",
                   primary: true,
                   render: (student) => (
-                    <span className="student-full-name">
+                    <span className="item-title">
                       {student.first_name} {student.last_name}
                     </span>
                   ),
@@ -218,7 +218,7 @@ export function StudentsScreen() {
                 {
                   key: "wksa",
                   header: "WKSA ID",
-                  render: (student) => <span className="wksa-id-pill">{student.wksa_id}</span>,
+                  render: (student) => <span className="wksa-id-pill meta">{student.wksa_id}</span>,
                 },
                 {
                   key: "rank",
@@ -237,7 +237,7 @@ export function StudentsScreen() {
                   header: "Current grading",
                   render: (student) =>
                     student.current_grading ? (
-                      <div className="cell-current-grading">
+                      <div>
                         <Link to={`/gradings/${student.current_grading.session}`}>
                           {student.current_grading.session_title}
                         </Link>

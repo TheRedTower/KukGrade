@@ -232,11 +232,11 @@ export function PromotionLedgerScreen(): React.ReactElement {
       {/* Top Cohort Promotion Summary Card */}
       <section className="action-row pl-summary-card" aria-label="Cohort Promotion Summary">
         <div className="pl-summary-info">
-          <span className="pl-summary-count">
+          <span className="pl-summary-count item-title">
             {eligibleCohort.length} {eligibleCohort.length === 1 ? "Candidate" : "Candidates"} Finalised with Pass · Eligible for Promotion
           </span>
           {eligibleCohort.length === 0 && rows.some((r) => r.isPromoted) && (
-            <span className="pl-summary-note">
+            <span className="meta">
               All qualified candidates in this cohort have already been promoted.
             </span>
           )}
@@ -301,10 +301,10 @@ export function PromotionLedgerScreen(): React.ReactElement {
                     {row.candidate.student_display_name.charAt(0)}
                   </span>
                   <div className="pl-candidate-meta">
-                    <span className="pl-candidate-name">{row.candidate.student_display_name}</span>
+                    <span className="item-title">{row.candidate.student_display_name}</span>
                     {/* The rank held at registration, snapshotted on the candidate -
                         never the student's live rank, which moves on once promoted. */}
-                    <span className="pl-candidate-belt-sub">({row.candidate.from_rank_name})</span>
+                    <span className="meta">({row.candidate.from_rank_name})</span>
                   </div>
                 </div>
               ),
@@ -344,7 +344,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                       Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name} ✓
                     </Badge>
                     {row.promotion?.effective_date && (
-                      <span className="pl-promoted-date">
+                      <span className="meta">
                         Effective {formatShortDate(row.promotion.effective_date)}
                       </span>
                     )}
@@ -352,7 +352,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 ) : row.isEligible ? (
                   <Badge tone="warning">Eligible for {row.candidate.testing_for_rank_name}</Badge>
                 ) : (
-                  <span className="pl-ineligible-note">{row.eligibility?.reason || "Eligibility unavailable"}</span>
+                  <span className="meta">{row.eligibility?.reason || "Eligibility unavailable"}</span>
                 ),
             },
             {
@@ -361,7 +361,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               actions: true,
               render: (row) =>
                 row.isPromoted ? (
-                  <span className="pl-action-complete" aria-label="Promotion completed">
+                  <span className="pl-action-complete item-title" aria-label="Promotion completed">
                     Promoted ✓
                   </span>
                 ) : row.isEligible ? (
@@ -394,11 +394,11 @@ export function PromotionLedgerScreen(): React.ReactElement {
           canClose={!bulkPromoteMutation.isPending}
         >
           {feedbackBanner}
-          <p className="pl-batch-count">{eligibleCohort.length} Candidates Selected</p>
+          <p className="pl-batch-count meta">{eligibleCohort.length} Candidates Selected</p>
           <ol className="pl-batch-chips">
             {eligibleCohort.map((r, i) => (
               <li key={r.candidate.id} className="pl-batch-chip">
-                <span className="pl-chip-num">{i + 1}.</span>
+                <span className="pl-chip-num item-title">{i + 1}.</span>
                 <span className="pl-chip-name">{r.candidate.student_display_name}</span>
                 <span className="pl-chip-rank">({r.candidate.from_rank_name})</span>
                 <span className="pl-chip-arrow" aria-hidden="true">→</span>
@@ -439,7 +439,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         >
           {feedbackBanner}
           <div className="pl-modal-candidate-info">
-            <span className="pl-modal-name">
+            <span className="pl-modal-name section-title">
               {singlePromoteCandidate.candidate.student_display_name}
             </span>
             <p className="pl-modal-ranks">
@@ -447,7 +447,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               <span className="pl-modal-arrow" aria-hidden="true">→</span>
               <span>Conferring: <strong className="pl-highlight-rank">{singlePromoteCandidate.candidate.testing_for_rank_name}</strong></span>
             </p>
-            <p className="pl-modal-date-notice">
+            <p className="pl-modal-date-notice meta">
               Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (the grading day).
             </p>
           </div>

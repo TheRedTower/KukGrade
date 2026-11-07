@@ -18,7 +18,7 @@ interface CohortRecordBarProps {
 export function CohortRecordBar({ stagedIds, failedIds, incomplete, keepFailures, lastResult, resultRef, recording, onRecord }: CohortRecordBarProps) {
   return (
         <footer className="cab-bar">
-          <p className="cab-bar-text">
+          <p className="cab-bar-text meta">
             Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest are kept.
             What you stage is saved for you until it is recorded, even if you are signed out.
           </p>
@@ -34,7 +34,7 @@ export function CohortRecordBar({ stagedIds, failedIds, incomplete, keepFailures
             </ErrorText>
           )}
           {lastResult && (
-            <p className="cab-bar-result" role="status" ref={resultRef} tabIndex={-1}>
+            <p className="cab-bar-result item-title" role="status" ref={resultRef} tabIndex={-1}>
               {lastResult}
             </p>
           )}

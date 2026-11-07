@@ -510,7 +510,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await screen.findByRole("heading", { name: "Assessment record" });
 
     expect(screen.getByTestId("acp-stamp")).toHaveTextContent("Sealed");
-    expect(screen.getByText(/^Kuk Sool Won Testville/, { selector: ".acp-org" })).toBeVisible();
+    expect(screen.getByText(/^Kuk Sool Won Testville/, { selector: ".eyebrow--muted" })).toBeVisible();
     expect(screen.getByTestId("acp-seal-applied")).toBeVisible();
     expect(screen.getByTestId("acp-sealed-panel")).toBeVisible();
 

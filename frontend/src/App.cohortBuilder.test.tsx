@@ -469,8 +469,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Modal opens
     expect(screen.getByRole("heading", { name: "Review cohort candidates (2)" })).toBeVisible();
     expect(screen.getByTestId("bgc-modal-done-btn")).toHaveFocus();
-    expect(screen.getByText("Alice Smith", { selector: ".bgc-modal-student-name" })).toBeVisible();
-    expect(screen.getByText("Bob Jones", { selector: ".bgc-modal-student-name" })).toBeVisible();
+    expect(screen.getByText("Alice Smith", { selector: ".item-title" })).toBeVisible();
+    expect(screen.getByText("Bob Jones", { selector: ".item-title" })).toBeVisible();
 
     // Remove Bob Jones (student 102)
     await user.click(screen.getByTestId("bgc-remove-student-102"));

@@ -58,12 +58,12 @@ export function NoShowDialog({
             />
             <span>
               <strong>{candidate.name}</strong>
-              {candidate.wksaId && <small>WKSA: {candidate.wksaId}</small>}
+              {candidate.wksaId && <small className="subtext">WKSA: {candidate.wksaId}</small>}
             </span>
           </label>
         ))}
       </fieldset>
-      <div className="attendance-dialog-summary" aria-live="polite">
+      <div className="attendance-dialog-summary subtext" aria-live="polite">
         {selected.length === 0
           ? "No no-shows selected"
           : `${selected.length} no-show${selected.length === 1 ? "" : "s"} selected`}

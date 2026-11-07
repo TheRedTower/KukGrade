@@ -57,7 +57,7 @@ export function ImportScreen() {
   }
   if (batch.isPending) {
     return (
-      <p className="ix-muted" role="status">
+      <p className="subtext" role="status">
         Loading the import…
       </p>
     );

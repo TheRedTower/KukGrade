@@ -292,7 +292,7 @@ export function CandidateAssessmentScreen() {
       <header className="caw-identity">
         <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>
         {candidate.student_wksa_id && (
-          <span className="caw-candidate-wksa">{candidate.student_wksa_id}</span>
+          <span className="caw-candidate-wksa meta">{candidate.student_wksa_id}</span>
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
         <Badge tone="neutral">
@@ -320,7 +320,7 @@ export function CandidateAssessmentScreen() {
 
         {/* Provenance: who prepared the snapshot, and when it was frozen. */}
         {assessment?.generated_by_email && (
-          <span className="caw-provenance">
+          <span className="meta">
             Form prepared by {assessment.generated_by_email}
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
@@ -345,7 +345,7 @@ export function CandidateAssessmentScreen() {
         <div className="action-row caw-not-started-banner" data-testid="caw-missing-assessment-banner">
           <div className="caw-not-started-content">
             <h2>Prepare assessment form</h2>
-            <p>
+            <p className="subtext">
               Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as it is today, so later changes to the syllabus never alter it.
             </p>
           </div>
@@ -378,7 +378,7 @@ export function CandidateAssessmentScreen() {
         <div className="action-row caw-not-started-banner" data-testid="caw-not-started-banner">
           <div className="caw-not-started-content">
             <h2>Assessment ready to begin</h2>
-            <p>
+            <p className="subtext">
               Candidates must have their assessment started before individual syllabus items
               can be scored.
             </p>
@@ -446,7 +446,7 @@ export function CandidateAssessmentScreen() {
         )}
 
         {categoryGroups.length > 0 && (
-          <p className="caw-run-end">
+          <p className="caw-run-end meta">
             End of assessment form · {categoryGroups.length}{" "}
             {categoryGroups.length === 1 ? "category" : "categories"}
             {assessment?.generated_at && ` · prepared ${formatDayMonth(assessment.generated_at)}`} from{" "}
@@ -458,8 +458,8 @@ export function CandidateAssessmentScreen() {
       {/* Persistent mat bar: the live count and the only completion action. */}
       <div className="caw-mat-bar" data-testid="caw-mat-bar">
         <div className="caw-mat-count" role="status" aria-live="polite">
-          <span className="caw-mat-figure">{`${stats.requiredAssessed} / ${stats.requiredItems}`}</span>
-          <span className="caw-mat-figure-label">required assessed</span>
+          <span className="caw-mat-figure item-title">{`${stats.requiredAssessed} / ${stats.requiredItems}`}</span>
+          <span className="meta">required assessed</span>
         </div>
 
         <Meter

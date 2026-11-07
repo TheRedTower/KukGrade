@@ -7,11 +7,7 @@
   flex-direction: column;
   align-items: flex-start;
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-display);
   line-height: var(--line-height-body);
-  text-transform: uppercase;
   user-select: none;
 }
 
@@ -29,16 +25,11 @@
 
 .session-title {
   margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-title);
-  letter-spacing: var(--tracking-tight);
   color: var(--color-text);
 }
 
 .session-location {
   margin: var(--space-1) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
 }
 
 .attention-list {
@@ -78,17 +69,6 @@
   flex-direction: column;
   flex: 1;
   min-width: 0;
-}
-
-.attention-student-name {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.attention-status-desc {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 .upcoming-session-row {
@@ -136,27 +116,8 @@
   min-width: 0;
 }
 
-.upcoming-session-title {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
 .upcoming-session-date {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
   margin-top: 0.15rem;
-}
-
-.upcoming-session-location {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
-.cell-time {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
 }
 
 .overview-icon {

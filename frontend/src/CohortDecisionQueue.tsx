@@ -37,7 +37,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                     <>
                       <button
                         type="button"
-                        className="cab-row-name"
+                        className="cab-row-name item-title"
                         onClick={(event) => {
                           onFocus(row.candidate.id, event.currentTarget);
                         }}
@@ -45,7 +45,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                       >
                         {row.candidate.student_display_name}
                       </button>
-                      <span className="cab-row-sub">
+                      <span className="cab-row-sub meta">
                         {row.candidate.student_wksa_id} · {row.candidate.from_rank_name} →{" "}
                         {row.candidate.testing_for_rank_name}
                       </span>
@@ -59,15 +59,15 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                     const overall = row.assessment?.overall;
                     return overall ? (
                       <>
-                        <span className="cab-counts">
+                        <span className="cab-counts item-title">
                           {overall.required_met} / {overall.required} met
                         </span>
-                        <span className={overall.not_met > 0 ? "cab-flags cab-flags-shortfall" : "cab-flags"}>
+                        <span className={overall.not_met > 0 ? "cab-flags meta cab-flags-shortfall item-title" : "cab-flags meta"}>
                           {overall.not_met > 0 ? `${overall.not_met} not met` : "no shortfalls"}
                         </span>
                       </>
                     ) : (
-                      <span className="cab-flags">No assessment</span>
+                      <span className="cab-flags meta">No assessment</span>
                     );
                   },
                 },
@@ -78,7 +78,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                     row.outcome?.proposed_outcome ? (
                       <Badge tone={outcomeTone(row.outcome.proposed_outcome)}>{row.outcome.proposed_outcome_display}</Badge>
                     ) : (
-                      <span className="cab-flags">Awaiting proposal</span>
+                      <span className="cab-flags meta">Awaiting proposal</span>
                     ),
                 },
                 {
@@ -91,7 +91,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                     return (
                       <>
                         {outcome?.status === "FINALISED" ? (
-                          <span className="cab-recorded">
+                          <span className="cab-recorded meta">
                             <CheckIcon size={14} /> Recorded · {outcome.final_outcome_display}
                           </span>
                         ) : row.decidable && canDecide && outcome ? (
@@ -115,7 +115,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                             ))}
                           </div>
                         ) : (
-                          <span className="cab-flags">Not open for decision</span>
+                          <span className="cab-flags meta">Not open for decision</span>
                         )}
                         {failure && decision && (
                           <ErrorText field>{failure}</ErrorText>

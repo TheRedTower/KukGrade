@@ -78,7 +78,7 @@ function UnfinishedImports({
     <section aria-labelledby="ix-unfinished" className="ix-section">
       <div className="ix-section-head">
         <h2 id="ix-unfinished">Pick up where you left off</h2>
-        <span className="ix-muted ix-small">
+        <span className="subtext">
           An unfinished import is cleared a day after it was uploaded.
         </span>
       </div>
@@ -88,14 +88,14 @@ function UnfinishedImports({
           return (
             <div className="ix-row" key={batch.id}>
               <div className="ix-row-main">
-                <p className="ix-kind">{importKindLabel(batch.kind)}</p>
-                <p className="ix-strong">{batch.original_filename}</p>
-                <p className="ix-muted ix-small">
+                <p className="ix-kind eyebrow--muted">{importKindLabel(batch.kind)}</p>
+                <p className="item-title">{batch.original_filename}</p>
+                <p className="subtext">
                   Uploaded {formatShortDateTime(batch.uploaded_at)} by {batch.uploaded_by_name}
                 </p>
               </div>
               <div className="ix-row-main">
-                <p className="ix-small ix-semibold">
+                <p className="item-title">
                   Step {step + 1} of 5 · {importStepNames(batch.kind)[step]}
                 </p>
                 <div aria-hidden="true" className="ix-progress">
@@ -103,7 +103,7 @@ function UnfinishedImports({
                     <span className={index <= step ? "ix-filled" : undefined} key={index} />
                   ))}
                 </div>
-                <p className="ix-muted ix-small">{unfinishedCounts(batch)}</p>
+                <p className="subtext">{unfinishedCounts(batch)}</p>
               </div>
               <div className="ix-actions">
                 <Link
@@ -139,7 +139,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
         <div className="card card--flush ix-panel">
           <div className="ix-panel-body">
             <h3>Students</h3>
-            <p className="ix-muted">
+            <p className="subtext">
               A list of students, one per row: name, date of birth, WKSA ID and rank.
             </p>
             <div className="ix-actions ix-push-down">
@@ -155,7 +155,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
         <div className="card card--flush ix-panel">
           <div className="ix-panel-body">
             <h3>Past gradings</h3>
-            <p className="ix-muted">
+            <p className="subtext">
               An old grading record workbook: who tested, for which rank, the outcome and the
               comments.
             </p>
@@ -168,7 +168,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
           </div>
           {awaitingLink ? (
             <div className="ix-panel-foot">
-              <p className="ix-small">
+              <p>
                 <strong className="ix-warning-text">
                   {counted(awaitingLink, "imported record", "imported records")}
                 </strong>{" "}
@@ -246,7 +246,7 @@ function PastImports() {
       </div>
       <div className="card card--flush">
         {past.isPending ? (
-          <p className="ix-muted ix-card-pad" role="status">
+          <p className="subtext ix-card-pad" role="status">
             Loading past imports…
           </p>
         ) : past.isError ? (
@@ -254,7 +254,7 @@ function PastImports() {
             {errorMessage(past.error, "Past imports could not be loaded. Try again in a moment.")}
           </ErrorText>
         ) : batches.length === 0 ? (
-          <p className="ix-muted ix-card-pad">
+          <p className="subtext ix-card-pad">
             {kind || state ? "No imports match these filters." : "No imports have finished yet."}
           </p>
         ) : (
@@ -278,7 +278,7 @@ function PastImports() {
                   key: "when",
                   header: "When",
                   render: (batch) => (
-                    <span className="ix-muted">
+                    <span className="subtext">
                       {formatShortDateTime(batch.committed_at ?? batch.cancelled_at ?? batch.uploaded_at)} ·{" "}
                       {batch.committed_by_name || batch.uploaded_by_name}
                     </span>
@@ -371,7 +371,7 @@ export function ImportsHubScreen() {
           }}
           onConfirm={() => cancel.mutate(cancelling)}
         >
-          <p className="ix-muted">
+          <p className="subtext">
             The file and everything you did with it are removed, and nothing is imported. You can
             start again with the file at any time.
           </p>

@@ -67,10 +67,10 @@ export function LedgerTable({ group }: { group: CategoryGroup }) {
 
   return (
     <>
-      <h2 className="acp-section">{group.categoryDisplay}</h2>
+      <h2 className="acp-section eyebrow--muted">{group.categoryDisplay}</h2>
       <table className="acp-ledger" data-testid={`acp-ledger-${group.category}`}>
         <thead>
-          <tr>
+          <tr className="eyebrow--muted">
             <th scope="col">Requirement</th>
             {hasAnyRange && <th scope="col" className="acp-ledger-range-col">Numbers</th>}
             <th scope="col" className="acp-ledger-result-col">Result</th>
@@ -85,7 +85,7 @@ export function LedgerTable({ group }: { group: CategoryGroup }) {
                 {!item.required && <RequirementBadge required={false} />}
               </td>
               {hasAnyRange && (
-                <td className="acp-ledger-range">{item.display_range || item.notation}</td>
+                <td className="acp-ledger-range meta">{item.display_range || item.notation}</td>
               )}
               <td>
                 <ResultMark result={item.result} />

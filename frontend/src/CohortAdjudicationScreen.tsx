@@ -127,7 +127,7 @@ export function CohortAdjudicationScreen() {
         titleId="cab-title"
         subtitle={`${session.status_display} · ${formatSessionDate(session.grading_date)}${session.location ? ` · ${session.location}` : ""}`}
         actions={
-          <p className="cab-progress" role="status">
+          <p className="cab-progress subtext" role="status">
             <strong>{finalisedCount}</strong> / {rows.length} finalised
           </p>
         }
@@ -157,7 +157,7 @@ export function CohortAdjudicationScreen() {
         </p>
       )}
       {withdrawnCount > 0 && (
-        <p className="cab-footnote">
+        <p className="subtext">
           {withdrawnCount} withdrawn {withdrawnCount === 1 ? "candidate is" : "candidates are"} not shown.
         </p>
       )}

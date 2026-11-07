@@ -116,7 +116,7 @@ function CreateUserDialog({
                 </select>
               </label>
             </div>
-            <p className="users-form-note">
+            <p className="users-form-note meta">
               A temporary password is created for them. They'll choose their own when they first
               sign in.
             </p>
@@ -233,7 +233,7 @@ export function UsersScreen(): React.ReactElement {
         <p className="filter-bar__count">{count} user{count === 1 ? "" : "s"}</p>
       </form>
 
-      <div className="users-info-note">
+      <div className="users-info-note meta">
         <span aria-hidden="true">i</span>
         Master authority is granted separately from a user's role.
       </div>
@@ -269,7 +269,7 @@ export function UsersScreen(): React.ReactElement {
                   render: (user) => (
                     <>
                       <strong>{user.full_name}</strong>
-                      <span className="users-email">{user.email}</span>
+                      <span className="users-email meta">{user.email}</span>
                     </>
                   ),
                 },

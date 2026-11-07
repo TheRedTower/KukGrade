@@ -68,8 +68,8 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
       <div className="gs-current-body">
         <div className="gs-current-info">
           <h2 className="gs-current-title">{session.title}</h2>
-          <p className="gs-current-date">{formatSessionDate(session.grading_date)}</p>
-          {session.location && <p className="gs-current-location">{session.location}</p>}
+          <p className="gs-current-date subtext">{formatSessionDate(session.grading_date)}</p>
+          {session.location && <p className="gs-current-location subtext">{session.location}</p>}
           <div className="gs-current-status-row">
             <SessionStatusBadge status={session.status} label={session.status_display} />
           </div>
@@ -253,7 +253,7 @@ export function GradingSessionsScreen() {
       {!isLoading && (
         <>
           <div className="gs-table-section">
-            <h2 className="gs-table-heading">{archivedOnly ? "Archived grading sessions" : "All grading sessions"}</h2>
+            <h2 className="gs-table-heading section-title">{archivedOnly ? "Archived grading sessions" : "All grading sessions"}</h2>
             {sessions.length > 0 ? (
               <ResponsiveTable
                 label="Grading sessions"
@@ -349,7 +349,7 @@ export function GradingSessionsScreen() {
           onClose={closeDeleteConfirm}
           canClose={!deleteSessionMutation.isPending}
         >
-          <p className="gsd-modal-message">
+          <p className="gsd-modal-message subtext">
             Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
           </p>
           {deleteError && (

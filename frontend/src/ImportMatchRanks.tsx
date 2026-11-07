@@ -82,7 +82,7 @@ export function ImportMatchRanks({
             <h2 className="ix-title" id="ix-ranks-h" tabIndex={-1}>
               Match the ranks
             </h2>
-            <p className="ix-muted">
+            <p className="subtext">
               Pick a spelling to see the records that use it, then say which KukGrade rank it
               means. The workbook’s own words are kept as the record of what was written; what you
               add is what they mean.
@@ -104,7 +104,7 @@ export function ImportMatchRanks({
         </div>
 
         {preview.isPending ? (
-          <p className="ix-muted" role="status">
+          <p className="subtext" role="status">
             Reading the ranks…
           </p>
         ) : preview.isError ? (
@@ -112,7 +112,7 @@ export function ImportMatchRanks({
             {errorMessage(preview.error, "The ranks could not be read. Try again in a moment.")}
           </ErrorText>
         ) : spellings.length === 0 ? (
-          <p className="ix-muted">The workbook writes no ranks, so there is nothing to match.</p>
+          <p className="subtext">The workbook writes no ranks, so there is nothing to match.</p>
         ) : current ? (
           <div className="ix-two-col ix-two-col-queue">
             <div className="card card--flush">
@@ -164,7 +164,7 @@ export function ImportMatchRanks({
                     { key: "outcome", header: "Outcome", render: (row) => row.values.outcome || "—" },
                   ]}
                 />
-                <p className="ix-muted ix-small ix-flush">
+                <p className="subtext ix-flush">
                   A rank left for later is still imported as written, and can be matched when you
                   link records to students.
                 </p>
@@ -184,8 +184,8 @@ export function ImportMatchRanks({
                         onClick={() => setPicked(spelling.source_text)}
                       >
                         <span className="ix-queue-text">
-                          <span className="ix-queue-name">“{spelling.source_text}”</span>
-                          <span className="ix-muted ix-small">
+                          <span className="ix-queue-name item-title">“{spelling.source_text}”</span>
+                          <span className="subtext">
                             {spelling.rows} {spelling.rows === 1 ? "record" : "records"}
                           </span>
                         </span>

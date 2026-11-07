@@ -259,7 +259,7 @@ export function CreateGradingSessionScreen() {
                 rows={4}
                 value={notes}
               />
-              <div className="cgs-char-counter">
+              <div className="cgs-char-counter meta">
                 <span className={notes.length >= 480 ? "cgs-char-near-limit" : ""}>
                   {notes.length}/500
                 </span>
@@ -294,8 +294,8 @@ export function CreateGradingSessionScreen() {
         {/* Right Column: Session Preview */}
         <div className="split__aside">
           <div className="cgs-preview-card">
-            <h2 className="cgs-preview-title" id="cgs-preview-heading">Session preview</h2>
-            <p className="cgs-preview-subtitle">
+            <h2 className="cgs-preview-title section-title" id="cgs-preview-heading">Session preview</h2>
+            <p className="cgs-preview-subtitle subtext">
               This is how the session will appear in the gradings list after creation.
             </p>
 

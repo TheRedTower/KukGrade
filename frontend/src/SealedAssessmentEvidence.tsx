@@ -49,7 +49,7 @@ export function SealedAssessmentEvidence({
     <section className={`evd ${className}`} aria-labelledby={titleId}>
       <h3 id={titleId}>Sealed assessment</h3>
       {assessmentId === undefined ? (
-        <p className="evd-muted">No assessment recorded.</p>
+        <p className="evd-muted subtext">No assessment recorded.</p>
       ) : failed ? (
         <ErrorText>
           The sealed assessment could not be loaded.{" "}
@@ -64,13 +64,13 @@ export function SealedAssessmentEvidence({
           </Button>
         </ErrorText>
       ) : overall ? (
-        <p className="evd-counts">
+        <p className="evd-counts item-title">
           {overall.required_met} / {overall.required} required met
           {" · "}
           {overall.not_met > 0 ? `${overall.not_met} not met` : "none not met"}
         </p>
       ) : (
-        <p className="evd-muted" role="status">
+        <p className="evd-muted subtext" role="status">
           Loading the assessment…
         </p>
       )}
@@ -82,7 +82,7 @@ export function SealedAssessmentEvidence({
                 const shortfall = item.result === "NOT_MET";
                 return (
                   <li key={item.id} className={shortfall ? "evd-note evd-note-shortfall" : "evd-note"}>
-                    <span className="evd-note-title">
+                    <span className="evd-note-title item-title">
                       {shortfall && <WarningIcon size={14} />} {item.item_name} ·{" "}
                       {item.category_display}
                       {!shortfall && ` · ${item.result_display}`}
@@ -92,7 +92,7 @@ export function SealedAssessmentEvidence({
                       .map((change) => (
                         <span key={change.sequence} className="evd-comment" data-testid={`evd-change-${item.id}-${change.sequence}`}>
                           <q>{change.reason}</q>
-                          <span className="evd-note-by">
+                          <span className="evd-note-by subtext">
                             Changed from {RESULT_WORDS[change.from_result]} to {RESULT_WORDS[change.to_result]} by{" "}
                             {change.changed_by_name}, {formatShortDateTime(change.changed_at)}
                             {change.after_lock ? ", after the lock" : ""}
@@ -102,13 +102,13 @@ export function SealedAssessmentEvidence({
                     {item.comments.map((comment) => (
                       <span key={comment.id} className="evd-comment">
                         <q>{comment.body}</q>
-                        <span className="evd-note-by">
+                        <span className="evd-note-by subtext">
                           {comment.author_name}, {formatShortDateTime(comment.created_at)}
                           {comment.after_lock ? ", after the lock" : ""}
                         </span>
                       </span>
                     ))}
-                    <span className="evd-note-by">
+                    <span className="evd-note-by subtext">
                       {item.assessor_email}
                       {item.assessed_at ? `, ${formatTime(item.assessed_at)}` : ""}
                     </span>

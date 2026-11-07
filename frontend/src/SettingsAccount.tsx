@@ -74,7 +74,7 @@ function NameRow() {
           </Alert>
         ) : null}
         {saved ? (
-          <p className="st-saved st-full" role="status">
+          <p className="st-saved item-title st-full" role="status">
             Your name is saved.
           </p>
         ) : null}
@@ -116,7 +116,7 @@ function PasswordRow() {
       {open ? null : (
         <>
           {changed ? (
-            <span className="st-saved" role="status">
+            <span className="st-saved item-title" role="status">
               Your password has been changed.
             </span>
           ) : null}
@@ -160,7 +160,7 @@ export function SettingsAccount() {
                 );
               })}
             </ul>
-            <p className="st-row-description">Capabilities are independent of your role.</p>
+            <p className="st-row-description subtext">Capabilities are independent of your role.</p>
           </>
         }
         description={`${user.role_display}. What you can do beyond your role is set by an administrator.`}

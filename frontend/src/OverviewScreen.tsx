@@ -275,7 +275,7 @@ export function OverviewScreen() {
         titleId="overview-heading"
         subtitle={currentDateDisplay}
         actions={
-          <div aria-hidden="true" className="overview-motto">
+          <div aria-hidden="true" className="overview-motto eyebrow--muted">
             <span>TRADITION BUILDS PEOPLE</span>
             <span>PEOPLE BUILD TOMORROW</span>
           </div>
@@ -301,7 +301,7 @@ export function OverviewScreen() {
                   <h3 className="session-title">{openSession.title}</h3>
                   <SessionStatusBadge status={openSession.status} label={openSession.status_display} />
                 </div>
-                {openSession.location && <p className="session-location">{openSession.location}</p>}
+                {openSession.location && <p className="session-location subtext">{openSession.location}</p>}
               </div>
 
               <div className="stats">
@@ -353,10 +353,10 @@ export function OverviewScreen() {
                       !
                     </span>
                     <div className="attention-item-info">
-                      <strong className="attention-student-name">
+                      <strong className="item-title">
                         {item.candidate_student_name}
                       </strong>
-                      <span className="attention-status-desc">
+                      <span className="meta">
                         {item.statusDescription}
                       </span>
                     </div>
@@ -384,14 +384,14 @@ export function OverviewScreen() {
                 <CalendarIcon />
               </div>
               <div className="upcoming-session-info">
-                <strong className="upcoming-session-title">
+                <strong className="item-title">
                   {upcomingSession.title}
                 </strong>
-                <span className="upcoming-session-date">
+                <span className="upcoming-session-date meta">
                   {formatSessionDate(upcomingSession.grading_date)}
                 </span>
                 {upcomingSession.location && (
-                  <span className="upcoming-session-location">{upcomingSession.location}</span>
+                  <span className="meta">{upcomingSession.location}</span>
                 )}
               </div>
               <span aria-hidden="true" className="chevron-icon">
@@ -432,7 +432,7 @@ export function OverviewScreen() {
             rows={recentActivities}
             rowKey={(activity) => activity.id}
             columns={[
-              { key: "time", header: "Time", render: (activity) => <span className="cell-time">{activity.timeDisplay}</span> },
+              { key: "time", header: "Time", render: (activity) => <span className="meta">{activity.timeDisplay}</span> },
               { key: "actor", header: "By", render: (activity) => <strong>{activity.actorName}</strong> },
               { key: "event", header: "Event", primary: true, render: (activity) => activity.summary },
               {

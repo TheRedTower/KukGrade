@@ -36,8 +36,6 @@
   margin: var(--space-2) 0 0;
   padding: var(--space-3) var(--space-3) var(--space-2);
   border-top: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .ab-main {
@@ -49,7 +47,6 @@
 
 .ab-main > header h2 {
   margin: 0;
-  font-size: var(--font-size-3xl);
 }
 
 .ab-main > header p {
@@ -95,11 +92,6 @@
 
 .st-eyebrow {
   margin: 0.1rem 0 var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
 }
 
 .st-version-tile {
@@ -107,18 +99,6 @@
   flex-direction: column;
   align-items: center;
   margin: 0;
-}
-
-.st-version-tile span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
-.st-version-tile strong {
-  font-size: var(--font-size-2xl);
 }
 
 .st-links a {
@@ -152,7 +132,6 @@
 
 .st-mono {
   font-family: var(--font-mono);
-  font-size: var(--font-size-md);
 }
 
 /* Documents. */
@@ -164,13 +143,11 @@
 
 .ab-three h3 {
   margin: 0 0 var(--space-2);
-  font-size: var(--font-size-lg);
 }
 
 .ab-three ul {
   margin: 0;
   padding-left: var(--space-4);
-  font-size: var(--font-size-md);
 }
 
 /* A line under a card's buttons. */
@@ -199,11 +176,6 @@
   flex: 0 0 100%;
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
 }
 
 .ab-contents button {
@@ -229,7 +201,6 @@
 
 .ab-prose h3 {
   margin: var(--space-5) 0 var(--space-2);
-  font-size: var(--font-size-xl);
   scroll-margin-top: 1rem;
 }
 
@@ -244,7 +215,6 @@
 
 .ab-prose h4 {
   margin: var(--space-4) 0 var(--space-1);
-  font-size: var(--font-size-lg);
   scroll-margin-top: 1rem;
 }
 

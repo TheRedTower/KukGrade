@@ -6,21 +6,8 @@
   gap: var(--space-4);
 }
 
-.student-full-name {
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
 .wksa-id-pill {
   font-family: var(--font-mono);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-  letter-spacing: var(--tracking-label);
-}
-
-.cell-current-grading {
-  font-size: var(--font-size-md);
 }
 
 
@@ -63,8 +50,6 @@
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 .privacy-icon {
@@ -105,7 +90,6 @@
 /* Cards */
 
 .cell-rank-highlight {
-  font-weight: var(--font-weight-strong);
   color: var(--color-accent-text);
 }
 
@@ -118,14 +102,10 @@
 
 .grading-history-comments-cell {
   white-space: pre-wrap;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
 }
 
 .grading-history-detail {
   display: block;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 /* Rank Timeline Track */
@@ -179,23 +159,6 @@
   background: var(--color-surface-sunken);
 }
 
-.timeline-date {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-}
-
-.timeline-rank-name {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.timeline-subtext {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
-}
-
 /* Grading Readiness Card */
 
 .readiness-body {
@@ -212,22 +175,11 @@
   gap: var(--space-3);
 }
 
-.readiness-label {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-}
-
 .readiness-value {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
   text-align: right;
 }
 
 .readiness-guidance {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
   line-height: var(--line-height-snug);
   margin: 0;
   padding-top: var(--space-3);
@@ -248,15 +200,7 @@
   align-items: center;
 }
 
-.record-status-label {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-}
-
 .record-status-policy-note {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
   line-height: var(--line-height-snug);
   display: flex;
   flex-direction: column;
@@ -270,8 +214,6 @@
 /* The change-status dialog */
 
 .modal-lead-text {
-  font-size: var(--font-size-base);
-  color: var(--color-text);
   margin: 0 0 var(--space-4);
 }
 
@@ -316,8 +258,6 @@
 }
 
 .status-radio-desc {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
   margin: 0;
   line-height: var(--line-height-snug);
 }

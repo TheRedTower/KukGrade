@@ -52,12 +52,12 @@ function Seal({
             ? `Everything is sorted · ready to add ${counted(count, "student", "students")}`
             : `Ready to import ${counted(count, "historical record", "historical records")}`}
         </h2>
-        <p className="ix-muted ix-small">{sentence.charAt(0).toUpperCase() + sentence.slice(1)}.</p>
+        <p className="subtext">{sentence.charAt(0).toUpperCase() + sentence.slice(1)}.</p>
       </div>
       <Button variant="primary" disabled={count === 0 || pending || blocked} onClick={() => setOpen(true)}>
         {pending ? (roster ? "Adding…" : "Importing…") : count === 0 ? "Nothing to import" : action}
       </Button>
-      {blocked ? <p className="ix-warning-text ix-small">Finish saving or retry row changes before adding students.</p> : null}
+      {blocked ? <p className="ix-warning-text ">Finish saving or retry row changes before adding students.</p> : null}
       {open ? (
         <ImportDialog
           confirmLabel={action}
@@ -72,7 +72,7 @@ function Seal({
             onImport();
           }}
         >
-          <p className="ix-muted">
+          <p className="subtext">
             {roster
               ? "They are saved together, so either all are added or none are. You can edit or remove any of them afterwards."
               : "They are saved together, exactly as the workbook has them. Next you link them to students."}

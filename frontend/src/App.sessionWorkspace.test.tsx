@@ -398,9 +398,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.getByText("Open", { selector: ".badge--open" })).toBeVisible();
 
     // Stepper track
-    expect(screen.getByText("Draft", { selector: ".gsd-step-label" })).toBeVisible();
-    expect(screen.getByText("Locked", { selector: ".gsd-step-label" })).toBeVisible();
-    expect(screen.getByText("Completed", { selector: ".gsd-step-label" })).toBeVisible();
+    expect(screen.getByText("Draft", { selector: ".item-title" })).toBeVisible();
+    expect(screen.getByText("Locked", { selector: ".item-title" })).toBeVisible();
+    expect(screen.getByText("Completed", { selector: ".item-title" })).toBeVisible();
 
     // Action buttons in header
     expect(screen.getByTestId("gsd-actions-btn")).toBeVisible();

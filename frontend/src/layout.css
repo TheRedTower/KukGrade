@@ -4,8 +4,11 @@
 
 :root {
   /* The side gutter of every page. Fluid, so it suits every device between
-     the breakpoints. .workspace applies it; a page never adds its own. */
+     the breakpoints. .workspace applies it; a page never adds its own. It is
+     rounded to a whole pixel so a box's 1px border on the page edge stays
+     crisp and a heading can be judged against it. */
   --page-gutter: clamp(1rem, 3vw, 2.5rem);
+  --page-gutter: round(clamp(1rem, 3vw, 2.5rem), 1px);
 
   --page-max: 76rem;
   --page-end-space: 3rem;
@@ -138,6 +141,51 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
+}
+
+/* Type roles. A line of text is a heading element (App.css), one of these, or
+   a shared piece's own part; a screen does not set its own size, weight or
+   colour for text.
+   - .eyebrow: the small capitals above a title or naming a group;
+     .eyebrow--muted (on its own) when it only labels.
+   - .item-title: the name a row, tile or card is about.
+   - .subtext: a sentence under a heading or beside a control.
+   - .meta: a detail on a line, such as a time, a count or who did it. */
+.eyebrow,
+.eyebrow--muted,
+.page-header__eyebrow,
+.dialog__eyebrow {
+  margin: 0;
+  color: var(--color-accent-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.eyebrow--muted,
+.dialog__eyebrow {
+  color: var(--color-text-muted);
+}
+
+.item-title {
+  color: var(--color-text);
+  font-weight: var(--font-weight-strong);
+}
+
+.subtext {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.dialog__eyebrow {
+  margin-bottom: var(--space-1);
 }
 
 /* The title of a section or a card. `--ruled` draws a line under it, for the
@@ -804,14 +852,6 @@ select:not([multiple]):not([size]) {
   min-width: 0;
 }
 
-.dialog__eyebrow {
-  margin: 0 0 var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
 
 .dialog__heading {
   margin: 0;
@@ -925,14 +965,6 @@ select:not([multiple]):not([size]) {
   min-width: 0;
 }
 
-.page-header__eyebrow {
-  margin: 0;
-  color: var(--color-accent-text);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
 
 .page-header__title-row {
   display: flex;
@@ -943,8 +975,6 @@ select:not([multiple]):not([size]) {
 
 .page-header__title {
   margin: 0;
-  font-weight: var(--font-weight-title);
-  letter-spacing: var(--tracking-tight);
 }
 
 .page-header__subtitle {

@@ -25,7 +25,7 @@ export function SessionConfirmDialog({ confirm, pending, deleting, reasonRequire
   const cancelling = confirm.action === "CANCEL";
   return (
     <Dialog title={confirm.title} closeButton={false} onClose={onClose} canClose={!pending}>
-      <p className="gsd-modal-message">{confirm.message}</p>
+      <p className="gsd-modal-message subtext">{confirm.message}</p>
 
       {cancelling && (
         <div className="field field--sentence">

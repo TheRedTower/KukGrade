@@ -51,8 +51,8 @@ export function SessionLifecycle({ status = "DRAFT" }: { status?: GradingSession
                 {state === "completed" && "✓"}
               </div>
               <div className="gsd-step-content">
-                <span className="gsd-step-label">{SESSION_STATUS_LABELS[key]}</span>
-                <span className="gsd-step-subtext">
+                <span className="item-title">{SESSION_STATUS_LABELS[key]}</span>
+                <span className="meta">
                   {state === "completed" ? "Completed" : state === "current" ? "Current" : "Upcoming"}
                 </span>
               </div>
@@ -87,8 +87,8 @@ export function SessionNotes({
       <div className="gsd-notes-card">
         <div className="action-row gsd-notes-header">
           <div>
-            <h2 id="notes-heading" className="gsd-notes-title">Session notes</h2>
-            <p className="gsd-notes-sub">
+            <h2 id="notes-heading" className="gsd-notes-title section-title">Session notes</h2>
+            <p className="gsd-notes-sub subtext">
               Notes are only visible to authorised instructors for this session.
             </p>
           </div>
@@ -138,7 +138,7 @@ export function SessionNotes({
               {notes ? (
                 <p className="gsd-notes-text">{notes}</p>
               ) : (
-                <p className="gsd-notes-empty">No notes recorded for this session.</p>
+                <p className="gsd-notes-empty subtext">No notes recorded for this session.</p>
               )}
             </div>
           )}
@@ -182,9 +182,19 @@ export function SessionCandidateTable({
           primary: true,
           render: (item) => (
             <>
-              <span className="gsd-candidate-name">{item.candidate.student_display_name}</span>
+              <span className="gsd-candidate-name item-title">{item.candidate.student_display_name}</span>
               {item.candidate.student_wksa_id && (
-                <span className="gsd-candidate-wksa">WKSA: {item.candidate.student_wksa_id}</span>
+                <span className="gsd-candidate-wksa meta">WKSA: {item.candidate.student_wksa_id}</span>
+              )}
+              {/* Why they withdrew sits with the person, so the status pill stands
+                  alone in its cell, on the row's line with the other pills. */}
+              {item.candidate.status === "WITHDRAWN" && (
+                <span className="gsd-withdrawal-record meta">
+                  {item.candidate.withdrawal_reason_display && (
+                    <span>{item.candidate.withdrawal_reason_display}</span>
+                  )}
+                  {item.candidate.withdrawal_note && <span>{item.candidate.withdrawal_note}</span>}
+                </span>
               )}
             </>
           ),
@@ -213,15 +223,7 @@ export function SessionCandidateTable({
           header: "Assessment",
           render: (item) =>
             item.candidate.status === "WITHDRAWN" ? (
-              <>
-                <Badge tone="neutral">Withdrawn</Badge>
-                <span className="gsd-withdrawal-record">
-                  {item.candidate.withdrawal_reason_display && (
-                    <span>{item.candidate.withdrawal_reason_display}</span>
-                  )}
-                  {item.candidate.withdrawal_note && <span>{item.candidate.withdrawal_note}</span>}
-                </span>
-              </>
+              <Badge tone="neutral">Withdrawn</Badge>
             ) : (
               <AssessmentBadge assessment={item.assessment} />
             ),
@@ -253,7 +255,7 @@ export function SessionCandidateTable({
             return (
               <>
                 {isWithdrawn ? (
-                  <span className="gsd-withdrawal-record">No further action</span>
+                  <span className="gsd-withdrawal-record meta">No further action</span>
                 ) : next.opensProposalDrawer ? (
                   <Button
                     variant="ghost" small

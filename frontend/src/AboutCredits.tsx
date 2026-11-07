@@ -27,7 +27,7 @@ function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) 
                 <strong>{credit.name}</strong>
               )}
               <br />
-              <span className="st-row-description">{credit.version}</span>
+              <span className="st-row-description subtext">{credit.version}</span>
             </>
           ),
         },
@@ -47,7 +47,7 @@ export function AboutCredits() {
     <>
       <header>
         <h2>Credits</h2>
-        <p className="st-row-description">
+        <p className="st-row-description subtext">
           KukGrade stands on the work of many open source projects. This list is written when each
           version is built, so it matches what is running.
         </p>
@@ -70,7 +70,7 @@ export function AboutCredits() {
         <>
           <section aria-labelledby="ab-server" className="card card--flush">
             <div className="st-row">
-              <h2 id="ab-server" className="st-row-title">
+              <h2 id="ab-server" className="st-row-title item-title">
                 The server
               </h2>
             </div>
@@ -80,7 +80,7 @@ export function AboutCredits() {
           {credits.browser.length > 0 ? (
             <section aria-labelledby="ab-browser" className="card card--flush">
               <div className="st-row">
-                <h2 id="ab-browser" className="st-row-title">
+                <h2 id="ab-browser" className="st-row-title item-title">
                   The screens you use
                 </h2>
               </div>
@@ -92,7 +92,7 @@ export function AboutCredits() {
             <div className="action-row">
               <div>
                 <h2 id="ab-all">Everything else</h2>
-                <p className="st-row-description">
+                <p className="st-row-description subtext">
                   Every other Python and browser package, with its licence and copyright notice, in one file.
                 </p>
               </div>

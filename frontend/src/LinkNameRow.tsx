@@ -68,11 +68,11 @@ function NameDetails({
     <div className="ix-name-detail">
       <div className="ix-section ix-name-records">
         <h3 className="ix-minor">
-          Records <span className="ix-muted">· tick the ones to link</span>
+          Records <span className="subtext">· tick the ones to link</span>
         </h3>
         <ul className="ix-detail-list">
           {records.isPending ? (
-            <li className="ix-muted" role="status">
+            <li className="subtext" role="status">
               Loading the records…
             </li>
           ) : records.isError ? (
@@ -92,12 +92,12 @@ function NameDetails({
                   />
                 </label>
                 <div className="ix-row-main">
-                  <p className="ix-bold">
+                  <p className="item-title">
                     {recordMonth(record)} · {recordRanks(record)}
                     {record.outcome_display ? ` · ${record.outcome_display}` : ""}
                     {record.record_kind === "DID_NOT_ATTEND" ? " · Did not attend" : ""}
                   </p>
-                  {record.report || record.note ? <p className="ix-muted ix-small">“{record.report || record.note}”</p> : null}
+                  {record.report || record.note ? <p className="subtext">“{record.report || record.note}”</p> : null}
                   <RankFix record={record} onDone={refresh} />
                 </div>
                 <Button
@@ -125,12 +125,12 @@ function NameDetails({
                 type="button"
                 onClick={() => onChoose({ student: candidate.student, name: candidate.full_name })}
               >
-                <span className="ix-bold">{candidate.full_name}</span>{" "}
-                <span className="ix-muted ix-small">
+                <span className="item-title">{candidate.full_name}</span>{" "}
+                <span className="subtext">
                   {candidate.current_rank_name} now · {candidate.status_display} · {candidate.wksa_id}
                 </span>
                 {candidate.reasons.map((reason) => (
-                  <span className="ix-small ix-semibold" key={reason}>
+                  <span className="item-title" key={reason}>
                     {" "}
                     {reason}
                   </span>
@@ -139,7 +139,7 @@ function NameDetails({
             ))}
           </div>
         ) : (
-          <p className="ix-muted ix-small ix-flush">No student looks like this. Search every student below.</p>
+          <p className="subtext ix-flush">No student looks like this. Search every student below.</p>
         )}
         <SomeoneElse chosen={chosen} onChoose={onChoose} />
         {error ? (
@@ -221,7 +221,7 @@ function NameStudent(item: NameItem) {
       <Badge dot tone={tone}>
         {pill}
       </Badge>
-      <p className="ix-semibold ix-flush">
+      <p className="item-title ix-flush">
         {done ? (
           person.linked_student ? (
             <>
@@ -234,8 +234,8 @@ function NameStudent(item: NameItem) {
           studentLine
         )}
       </p>
-      {detail ? <p className="ix-muted ix-small ix-flush">{detail}</p> : null}
-      {sameAs && !done ? <p className="ix-small ix-semibold ix-flush">Same student as “{sameAs}”, just linked</p> : null}
+      {detail ? <p className="subtext ix-flush">{detail}</p> : null}
+      {sameAs && !done ? <p className="item-title ix-flush">Same student as “{sameAs}”, just linked</p> : null}
     </>
   );
 }
@@ -305,7 +305,7 @@ const NAME_COLUMNS: readonly Column<NameItem>[] = [
     render: ({ person }) => (
       <>
         <p className="ix-flush">“{person.source_name}”</p>
-        <p className="ix-muted ix-small ix-flush">
+        <p className="subtext ix-flush">
           {counted(person.records, "record", "records")} · {periodRange(person)}
         </p>
       </>
@@ -317,7 +317,7 @@ const NAME_COLUMNS: readonly Column<NameItem>[] = [
     render: ({ person }) => (
       <>
         {person.ranks.join(" · ")}
-        {person.needs_rank ? <span className="ix-warning-text ix-semibold ix-block">A rank is not matched yet</span> : null}
+        {person.needs_rank ? <span className="ix-warning-text item-title ix-block">A rank is not matched yet</span> : null}
       </>
     ),
   },

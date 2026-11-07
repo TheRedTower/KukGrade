@@ -43,13 +43,13 @@ export function TemporaryPasswordIssued({
         <span id="issued-password-label">Temporary password</span>
         <code aria-labelledby="issued-password-label">{issued.temporary_password}</code>
       </div>
-      <p className="users-issued-password-warning">
+      <p className="users-issued-password-warning item-title">
         Copy this temporary password now. It will not be shown again.
       </p>
-      <p className="users-form-note">
+      <p className="users-form-note meta">
         It stops working at {formatDateTime(issued.temporary_password_expires_at)}.
       </p>
-      <p className="users-form-note" role="status">
+      <p className="users-form-note meta" role="status">
         {copy === "copied"
           ? "Copied."
           : copy === "failed"

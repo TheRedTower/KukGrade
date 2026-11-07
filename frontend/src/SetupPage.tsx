@@ -84,9 +84,9 @@ export function SetupPage() {
           </p>
 
           <div className="setup-theme">
-            <span className="setup-theme-label">Display theme</span>
+            <span className="item-title">Display theme</span>
             <ThemeToggle />
-            <p className="setup-theme-help">
+            <p className="setup-theme-help subtext">
               Light, dark, or match this device. You can change it later in Settings.
             </p>
           </div>
@@ -192,7 +192,7 @@ export function SetupPage() {
               {isSubmitting ? "Setting up" : "Create administrator"}
             </Button>
           </form>
-          <p className="login-security-note">
+          <p className="login-security-note meta">
             This page is shown once. After setup, every other account is added from the Users
             screen.
           </p>

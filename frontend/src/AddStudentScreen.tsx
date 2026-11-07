@@ -210,7 +210,7 @@ export function AddStudentScreen() {
               {form.errorFor("date_of_birth") ? (
                 <ErrorText field id="dob-error">{form.errorFor("date_of_birth")}</ErrorText>
               ) : (
-                <div className="privacy-badge-line">
+                <div className="privacy-badge-line meta">
                   <LockIcon size={14} className="privacy-icon" />
                   <span>Date of birth is visible only on the individual student record.</span>
                 </div>

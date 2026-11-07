@@ -1,5 +1,4 @@
 
-
 .users-form-grid input:focus,
 .users-form-grid select:focus,
 .user-authority-options input:focus-visible {
@@ -13,13 +12,6 @@
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-title);
   letter-spacing: var(--tracking-label);
-}
-
-.users-info-note,
-.users-form-note,
-.user-authority-footer p {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .users-info-note {
@@ -79,8 +71,6 @@
 .users-issued-password-warning {
   border-left: 3px solid var(--color-warning);
   background: var(--color-warning-surface);
-  color: var(--color-text);
-  font-weight: var(--font-weight-strong);
   padding: var(--space-2) var(--space-3);
 }
 .users-dialog-actions {
@@ -89,7 +79,6 @@
   margin-top: var(--space-1);
   padding-top: var(--space-4);
 }
-
 
 .user-detail-section,
 .user-detail-aside > section {
@@ -100,8 +89,6 @@
 .user-detail-section h2,
 .user-detail-aside h2 {
   margin: 0 0 var(--space-1);
-  color: var(--color-text);
-  font-size: var(--font-size-xl);
 }
 
 .user-detail-section > p,
@@ -156,13 +143,9 @@
   padding: var(--space-3) 0;
 }
 
-.user-activity-list li span { color: var(--color-text-muted); font-size: var(--font-size-sm); }
-
 .users-self-password-hint {
   margin: 0;
   max-width: 16rem;
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
 }
 
 /* Holds the user page's forms so a view-only account disables them all. */
@@ -172,11 +155,6 @@
 .users-authority-summary {
   display: block;
   color: var(--color-text-muted);
-}
-
-.users-email {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-normal);
 }
 
 .users-ledger {

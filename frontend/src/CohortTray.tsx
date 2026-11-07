@@ -24,7 +24,7 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
           <aside className="bgc-section" aria-labelledby="bgc-tray-heading">
             <div className="action-row">
               <h2 id="bgc-tray-heading" className="section-title">Cohort to register</h2>
-              <span className="bgc-cohort-count" data-testid="bgc-cohort-count">
+              <span className="bgc-cohort-count item-title" data-testid="bgc-cohort-count">
                 {count} candidate{count === 1 ? "" : "s"} selected
               </span>
             </div>
@@ -48,7 +48,7 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
                       <RankFlow from={item.currentRank} to={item.destinationRank} />
                     ),
                   },
-                  { key: "count", header: "Count", render: (item) => <span className="bgc-tray-count">{item.count}</span> },
+                  { key: "count", header: "Count", render: (item) => <span className="item-title">{item.count}</span> },
                   {
                     key: "remove",
                     header: "Remove",
@@ -77,7 +77,7 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
                 >
                   Review exceptions →
                 </Button>
-                <p className="bgc-exceptions-help">
+                <p className="bgc-exceptions-help meta">
                   Remove individual students from the selected roster before registering. Only needed if there are exceptions.
                 </p>
               </div>
@@ -96,8 +96,8 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
                     <span className="bgc-switch-slider" aria-hidden="true" />
                   </div>
                   <div className="bgc-switch-text">
-                    <span className="bgc-switch-title">Prepare assessment forms now</span>
-                    <span className="bgc-switch-desc">Forms will be created as Not started.</span>
+                    <span className="item-title">Prepare assessment forms now</span>
+                    <span className="meta">Forms will be created as Not started.</span>
                   </div>
                 </label>
               </div>

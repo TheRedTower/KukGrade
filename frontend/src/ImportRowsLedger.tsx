@@ -110,12 +110,12 @@ export function RowsLedger({
           {errorMessage(rows.query.error, "The rows could not be loaded.")}
         </ErrorText>
       ) : cleared ? (
-        <p className="ix-row ix-muted">
+        <p className="ix-row subtext">
           The row-by-row list is kept for 30 days after an import, and this one’s has been
           cleared. The counts above stay for good.
         </p>
       ) : list.length === 0 && !rows.query.isPending ? (
-        <p className="ix-row ix-muted">Nothing here.</p>
+        <p className="ix-row subtext">Nothing here.</p>
       ) : (
         <div className="ix-ruled">
           <ResponsiveTable

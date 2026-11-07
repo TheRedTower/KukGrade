@@ -116,10 +116,10 @@ function LoginPage() {
               {isSubmitting ? "Signing in" : "Sign in"}
             </Button>
           </form>
-          <p className="login-help">
+          <p className="login-help subtext">
             Having trouble signing in? <strong>Contact your administrator.</strong>
           </p>
-          <p className="login-security-note">
+          <p className="login-security-note meta">
             Authorised staff only. Student and grading information is protected.
           </p>
         </section>

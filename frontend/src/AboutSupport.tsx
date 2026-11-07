@@ -19,7 +19,7 @@ export function AboutSupport() {
     <>
       <header>
         <h2>Support</h2>
-        <p className="st-row-description">
+        <p className="st-row-description subtext">
           Start with your own school's administrator: they know how KukGrade is set up.
         </p>
       </header>
@@ -35,7 +35,7 @@ export function AboutSupport() {
                 <p>
                   <strong>Copy your details.</strong>
                   <br />
-                  <span className="st-row-description">
+                  <span className="st-row-description subtext">
                     They list the version and build you are using. They hold no student names or
                     results.
                   </span>
@@ -48,7 +48,7 @@ export function AboutSupport() {
                 <p>
                   <strong>Say what you were doing.</strong>
                   <br />
-                  <span className="st-row-description">
+                  <span className="st-row-description subtext">
                     What you clicked, what you expected and what happened. Never include a
                     student's name or results.
                   </span>
@@ -61,7 +61,7 @@ export function AboutSupport() {
                 <p>
                   <strong>Send it.</strong>
                   <br />
-                  <span className="st-row-description">
+                  <span className="st-row-description subtext">
                     Email the project, or open a public issue for anything that is not private.
                   </span>
                 </p>
@@ -74,7 +74,7 @@ export function AboutSupport() {
               <div className="ab-contact">
                 <div>
                   <strong>Email support</strong>
-                  <p className="st-row-description">Questions, help, and code of conduct reports.</p>
+                  <p className="st-row-description subtext">Questions, help, and code of conduct reports.</p>
                 </div>
                 <a className={buttonClass({ variant: "secondary" })} href={`mailto:${data.support_email}`}>
                   {data.support_email}
@@ -83,7 +83,7 @@ export function AboutSupport() {
               <div className="ab-contact">
                 <div>
                   <strong>Report a problem or suggest a change</strong>
-                  <p className="st-row-description">Public. Do not include student information.</p>
+                  <p className="st-row-description subtext">Public. Do not include student information.</p>
                 </div>
                 <a className={buttonClass({ variant: "secondary" })} href={data.issues_url} rel="noopener noreferrer" target="_blank">
                   Open an issue ↗<span className="visually-hidden"> (opens in a new tab)</span>
@@ -92,7 +92,7 @@ export function AboutSupport() {
               <div className="ab-contact">
                 <div>
                   <strong>Report a security weakness</strong>
-                  <p className="st-row-description">Private. Please do not open a public issue.</p>
+                  <p className="st-row-description subtext">Private. Please do not open a public issue.</p>
                 </div>
                 <a className={buttonClass({ variant: "secondary" })} href={`mailto:${data.security_email}`}>
                   {data.security_email}
@@ -104,7 +104,7 @@ export function AboutSupport() {
         <section aria-labelledby="ab-your-details" className="card stack">
           <div>
             <h2 id="ab-your-details">Your details</h2>
-            <p className="st-row-description">Quote these with your question.</p>
+            <p className="st-row-description subtext">Quote these with your question.</p>
           </div>
           <DetailsList details={details} />
           <div className="action-row">

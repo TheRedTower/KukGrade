@@ -5,11 +5,6 @@
 
 .outcome-eyebrow {
   margin: 0;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
-  color: var(--color-text-muted);
 }
 
 .outcome-rank-line {
@@ -18,8 +13,6 @@
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
 }
 
 .outcome-segments {

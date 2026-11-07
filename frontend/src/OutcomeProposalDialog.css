@@ -24,12 +24,9 @@
   float: left;
   width: 100%;
   padding: 0;
-  font-weight: var(--font-weight-strong);
   color: var(--color-text);
 }
 
 .opd-footer-text {
   margin: 0;
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
 }

@@ -16,8 +16,6 @@
 }
 
 .bgc-section-subtext {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -35,20 +33,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
 }
 
 .bgc-info-icon {
   font-weight: var(--font-weight-strong);
   font-size: var(--font-size-md);
   color: var(--color-accent-text);
-}
-
-.bgc-matching-count {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
 }
 
 /* ── Section 2 Tables & Rank Visuals ─────────────────────────────────────── */
@@ -59,15 +49,8 @@
   gap: var(--space-2);
 }
 
-.bgc-rank-label {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-}
-
 .bgc-highest-rank {
   font-style: italic;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .bgc-eligible-count-cell {
@@ -76,19 +59,8 @@
   gap: 0.1rem;
 }
 
-.bgc-eligible-num {
-  font-weight: var(--font-weight-strong);
-  font-size: var(--font-size-base);
-}
-
-.bgc-eligible-breakdown {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
 .bgc-inactive-alert {
   color: var(--color-warning);
-  font-weight: var(--font-weight-semibold);
 }
 
 
@@ -96,8 +68,6 @@
 /* ── RIGHT COLUMN: Cohort Ledger Tray ───────────────────────────────────── */
 
 .bgc-cohort-count {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
   color: var(--color-accent-text);
 }
 
@@ -111,8 +81,6 @@
 }
 
 .bgc-exceptions-help {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
   line-height: var(--line-height-snug);
   margin: 0;
 }
@@ -190,17 +158,6 @@
   gap: 0.15rem;
 }
 
-.bgc-switch-title {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-}
-
-.bgc-switch-desc {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 .bgc-tray-primary {
   flex: 1 1 auto;
   justify-content: center;
@@ -235,22 +192,6 @@
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
-  font-size: var(--font-size-md);
-}
-
-.bgc-modal-student-name {
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.bgc-modal-student-wksa {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.bgc-modal-rank-flow {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 /* ── EXCEPTION RESOLVER ───────────────────────────────────────── */
@@ -268,22 +209,6 @@
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
-}
-
-.bgc-resolver-counter {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
-.bgc-student-name {
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.bgc-issue-text {
-  color: var(--color-danger);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-md);
 }
 
 
@@ -304,9 +229,6 @@
   padding: var(--space-3) var(--space-4);
   background: transparent;
   border: none;
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-base);
   text-align: left;
   cursor: pointer;
   transition: background var(--duration) ease;
@@ -317,15 +239,11 @@
 }
 
 .bgc-accordion-chevron {
-  font-size: var(--font-size-md);
   color: var(--color-text-muted);
 }
 
 .bgc-accordion-count {
   margin-left: auto;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-medium);
 }
 
 .bgc-accordion-content {
@@ -347,23 +265,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-md);
   flex-wrap: wrap;
-}
-
-.bgc-created-name {
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.bgc-created-wksa {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .bgc-created-rank {
   color: var(--color-accent-text);
-  font-weight: var(--font-weight-semibold);
 }
 
 /* ── Resolver Footer Actions ────────────────────────────────────────────── */
@@ -384,18 +290,11 @@
   gap: var(--space-1);
 }
 
-.bgc-retry-helper-text {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
 /* A student's name with their WKSA ID beneath. */
 .bgc-student-id {
   display: block;
   margin-top: 0.15rem;
-  color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
 }
 
 .bgc-rank-flow {
@@ -407,17 +306,12 @@
 
 .bgc-rank-arrow {
   color: var(--color-text-muted);
-  font-weight: var(--font-weight-semibold);
 }
 
 .bgc-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
-}
-
-.bgc-tray-count {
-  font-weight: var(--font-weight-strong);
 }
 
 .bgc-created-item .badge {

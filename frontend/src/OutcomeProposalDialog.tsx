@@ -75,7 +75,7 @@ export function OutcomeProposalDialog({
       onClose={onClose}
       canClose={!isSubmitting}
     >
-      <p className="outcome-rank-line">
+      <p className="outcome-rank-line subtext">
         <span className="opd-sub">{candidate.student_wksa_id}</span>
         <RankBelt rankId={candidate.from_rank} />
         {candidate.from_rank_name}
@@ -134,7 +134,7 @@ export function OutcomeProposalDialog({
           </ErrorText>
         )}
 
-        <p className="opd-footer-text">
+        <p className="opd-footer-text subtext">
           A proposal does not finalise the grading or promote the candidate. An authorised
           Master records the final decision.
         </p>

@@ -37,7 +37,7 @@ export function CopyDetailsButton({ details }: { details: [string, string][] }) 
         Copy details
       </Button>
       {copied === "done" ? (
-        <p className="st-saved" role="status">
+        <p className="st-saved item-title" role="status">
           Copied.
         </p>
       ) : null}

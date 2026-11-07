@@ -109,14 +109,14 @@ export function CohortFindSection({
 
             {/* Filter matching summary banner */}
             <div className="action-row bgc-filter-summary-card">
-              <div className="bgc-summary-info">
+              <div className="bgc-summary-info subtext">
                 <span className="bgc-info-icon" aria-hidden="true">ℹ</span>
                 <span>
                   Students who have left, or are still registered for another grading that has not reached its result, are not listed.
                 </span>
               </div>
               <div className="action-row">
-                <span className="bgc-matching-count">
+                <span className="item-title">
                   {students.length === 1
                     ? "1 student matches"
                     : `${students.length} students match`}
@@ -158,7 +158,7 @@ export function CohortFindSection({
                           >
                             {student.first_name} {student.last_name}
                           </Link>
-                          <span className="bgc-student-id">{student.wksa_id || "—"}</span>
+                          <span className="bgc-student-id meta">{student.wksa_id || "—"}</span>
                         </>
                       ),
                     },

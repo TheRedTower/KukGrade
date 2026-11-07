@@ -48,8 +48,6 @@
 .attendance-candidate-option small,
 .attendance-dialog-summary {
   margin-top: var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
 }
 
 .attendance-form .field {
@@ -72,8 +70,6 @@
   display: grid;
   gap: 0.2rem;
   margin-top: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
   line-height: var(--line-height-snug);
 }
 

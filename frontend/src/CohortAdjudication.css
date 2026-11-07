@@ -1,15 +1,7 @@
 /* Cohort Adjudication Board. Theme tokens only. */
 
-.cab-footnote,
-.cab-note-by {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
-}
-
 .cab-progress {
   margin: 0;
-  font-size: var(--font-size-base);
-  color: var(--color-text-muted);
 }
 
 .cab-progress strong {
@@ -31,34 +23,25 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--color-text);
   font: inherit;
-  font-weight: var(--font-weight-semibold);
   text-align: left;
   cursor: pointer;
 }
 
 .cab-row-sub {
   display: block;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 .cab-counts {
   display: block;
   margin: 0;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
 }
 
 .cab-flags {
   display: block;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 .cab-flags-shortfall {
-  font-weight: var(--font-weight-semibold);
   color: var(--color-danger);
 }
 
@@ -66,8 +49,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
 }
 
 .cab-row-name:focus-visible{
@@ -87,8 +68,6 @@
 
 .cab-detail h2 {
   margin: 0;
-  font-size: var(--font-size-xl);
-  color: var(--color-text);
 }
 
 .cab-detail-section {
@@ -101,8 +80,6 @@
 
 .cab-detail-section h3 {
   margin: 0;
-  font-size: var(--font-size-md);
-  color: var(--color-text);
 }
 
 .cab-detail-section p {
@@ -131,14 +108,10 @@
 .cab-bar-text {
   flex: 1 1 18rem;
   margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 .cab-bar-result {
   margin: 0;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
 }
 
 .cab-detail h2:focus-visible,

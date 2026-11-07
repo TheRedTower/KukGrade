@@ -179,8 +179,8 @@ export function LinkRecordsScreen() {
         subtitle="Each row is a name as written in the workbook. Tick the ones whose suggestion is right and link them together, or open a row to choose a student, match a rank or void a record. Nothing is linked until you say so, and a link can be undone."
       >
         <div className="ix-link-progress">
-          <p className="ix-small ix-flush">
-            <strong className="ix-big-count">{linkedNames}</strong> of {totalNames} names linked
+          <p className="ix-flush">
+            <strong className="stat__value">{linkedNames}</strong> of {totalNames} names linked
           </p>
           <progress aria-label="Names linked" max={Math.max(totalNames, 1)} value={linkedNames} />
         </div>
@@ -231,7 +231,7 @@ export function LinkRecordsScreen() {
         <div className="card ix-gold-edge ix-bulk">
           <p className="ix-flush">
             <strong>{counted(pageSelected.length, "name", "names")} selected.</strong>{" "}
-            <span className="ix-muted">
+            <span className="subtext">
               {pageSelected.length > 0 ? "Each is linked to the student shown on its row." : "Tick rows, or select every clear suggestion on this page."}
             </span>
           </p>
@@ -254,12 +254,12 @@ export function LinkRecordsScreen() {
       ) : null}
 
       {tooMany ? (
-        <p className="ix-warning-text ix-semibold ix-flush" role="status">
+        <p className="ix-warning-text item-title ix-flush" role="status">
           {`${selectedRecords} records are selected; link at most ${BULK_LINK_LIMIT} at a time. Untick some names.`}
         </p>
       ) : null}
       {notice ? (
-        <p className="ix-success-text ix-bold ix-flush" role="status">
+        <p className="ix-success-text item-title ix-flush" role="status">
           {notice}
         </p>
       ) : null}
@@ -279,7 +279,7 @@ export function LinkRecordsScreen() {
 
       <div className="card card--flush">
         {loading ? (
-          <p className="ix-card-pad ix-muted" role="status">
+          <p className="ix-card-pad subtext" role="status">
             Loading the names…
           </p>
         ) : people.isError ? (
@@ -296,9 +296,9 @@ export function LinkRecordsScreen() {
         ) : rows.length === 0 ? (
           <div className="ix-card-pad">
             {everyNameLinked ? (
-              <p className="ix-success-text ix-bold ix-flush">✓ Every imported record is linked to a student.</p>
+              <p className="ix-success-text item-title ix-flush">✓ Every imported record is linked to a student.</p>
             ) : (
-              <p className="ix-muted ix-flush">
+              <p className="subtext ix-flush">
                 {view === "todo" && !debouncedSearch && (counts.left ?? 0) > 0
                   ? `Nothing else to link. ${counted(counts.left ?? 0, "name is", "names are")} left for now.`
                   : view === "left"

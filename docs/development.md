@@ -121,7 +121,10 @@ serializers and the committed frontend types match the schema.
   of choices too long for the screen (a plain native scroller: swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch; the
   one place a screen may scroll a row sideways; `.scroll-region` is the other, for a grid that is wide by nature, such as a preview of the user's own spreadsheet). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
-  the table when there are no rows; `selected` marks the row a side panel shows; `flush` drops the border for a table that fills a card.
+  the table when there are no rows; `selected` marks the row a side panel shows; `flush` drops the border for a table that fills a card;
+  `detail` shows what a row's own button opened beneath it, across the table. Rows sit in the middle of their line, and an
+  `actions` column's buttons sit side by side at the end of the row, on one line while it is a table; a screen does not
+  wrap them in its own box or build its own row grid.
   `e2e/widthDebt.json` (Chrome) and `e2e/widthDebtWebkit.json` (per WebKit device) list screens that still do
   not fit: delete a screen from them when you fix it.
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
@@ -162,6 +165,8 @@ serializers and the committed frontend types match the schema.
   breaks between words, and inside a word only when the word cannot fit on a line of its own.
   A screen does not set `overflow-wrap`, and nothing uses `anywhere`, which lets a table
   squeeze a column to one letter wide and split ordinary words.
+  A date never splits: the formatters in `dates.ts` join its parts with no-break spaces (it may
+  break only after a comma), so a screen shows a date only through them.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

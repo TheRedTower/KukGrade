@@ -43,16 +43,16 @@ describe("the club's time zone", () => {
 
   it("shows a timestamp as the club's clock reads", () => {
     setClubTimeZone("Pacific/Auckland");
-    expect(formatDateTime("2026-10-15T11:30:00Z")).toMatch(/^16 October 2026.*00:30$/);
+    expect(formatDateTime("2026-10-15T11:30:00Z")).toMatch(/^16\u00a0October\u00a02026.*00:30$/);
     setClubTimeZone("America/Los_Angeles");
-    expect(formatDateTime("2026-10-15T11:30:00Z")).toMatch(/^15 October 2026.*04:30$/);
+    expect(formatDateTime("2026-10-15T11:30:00Z")).toMatch(/^15\u00a0October\u00a02026.*04:30$/);
   });
 
   it("never moves a date-only value", () => {
     for (const zone of ["Pacific/Auckland", "Pacific/Kiritimati", "America/Los_Angeles"]) {
       setClubTimeZone(zone);
-      expect(formatShortDate("2026-10-05")).toBe("5 Oct 2026");
-      expect(formatSessionDate("2027-06-01")).toBe("Tuesday, 1 June 2027");
+      expect(formatShortDate("2026-10-05")).toBe("5\u00a0Oct\u00a02026");
+      expect(formatSessionDate("2027-06-01")).toBe("Tuesday, 1\u00a0June\u00a02027");
     }
   });
 
@@ -68,13 +68,13 @@ describe("the club's time zone", () => {
 
   it("falls back to the browser's zone for a name it does not know", () => {
     setClubTimeZone("Not/AZone");
-    expect(formatShortDate("2026-10-05")).toBe("5 Oct 2026");
+    expect(formatShortDate("2026-10-05")).toBe("5\u00a0Oct\u00a02026");
   });
 });
 
 describe("formatSessionDate", () => {
   it("reads an API date as that calendar day, whatever the time zone", () => {
-    expect(formatSessionDate("2027-06-01")).toBe("Tuesday, 1 June 2027");
+    expect(formatSessionDate("2027-06-01")).toBe("Tuesday, 1\u00a0June\u00a02027");
   });
 
   it("shows anything unparseable as given", () => {
@@ -85,7 +85,7 @@ describe("formatSessionDate", () => {
 
 describe("formatShortDate", () => {
   it("formats a date-only value as that calendar day", () => {
-    expect(formatShortDate("2026-10-05")).toBe("5 Oct 2026");
+    expect(formatShortDate("2026-10-05")).toBe("5\u00a0Oct\u00a02026");
   });
 
   it("uses the fallback for a missing value", () => {

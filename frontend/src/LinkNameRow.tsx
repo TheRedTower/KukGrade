@@ -10,6 +10,7 @@ import { type Chosen, periodRange, recordMonth, recordsToLink } from "./linkReco
 import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
 import { useLegacyLinking } from "./useLegacyLinking";
 import { Button } from "./Button";
+import { type Column, ResponsiveTable } from "./ResponsiveTable";
 
 export type NameView = "todo" | "clear" | "choose" | "none" | "left" | "done";
 
@@ -164,28 +165,8 @@ function NameDetails({
   );
 }
 
-/** A name as written, the student suggested for it, and what can be done with it. */
-export function NameRow({
-  person,
-  view,
-  batch,
-  chosen,
-  open,
-  selected,
-  left,
-  unticked,
-  sameAs,
-  pending,
-  error,
-  onSelect,
-  onToggle,
-  onChoose,
-  onTick,
-  onLink,
-  onLeave,
-  onPutBack,
-  onUndo,
-}: {
+/** Everything one name's row shows and does, as the linking page hands it over. */
+export interface NameItem {
   person: LegacyPerson;
   view: NameView;
   batch: number | undefined;
@@ -205,20 +186,26 @@ export function NameRow({
   onLeave: () => void;
   onPutBack: () => void;
   onUndo: () => void;
-}) {
-  const done = view === "done";
-  const kind = done ? "done" : left ? "left" : person.suggestion;
+}
+
+function kindOf({ view, left, person }: NameItem) {
+  return view === "done" ? "done" : left ? "left" : person.suggestion;
+}
+
+/** The student a name is (or could be) linked to, and why. */
+function NameStudent(item: NameItem) {
+  const { person, chosen, sameAs } = item;
+  const kind = kindOf(item);
+  const done = kind === "done";
   const [pill, tone] = PILLS[kind];
   const suggested = chosen ? person.candidates.find((candidate) => candidate.student === chosen.student) : undefined;
-  const studentLine = done
-    ? null
-    : chosen
-      ? chosen.name
-      : kind === "choose"
-        ? `${person.candidates.length} students could be this person`
-        : kind === "left"
-          ? "Put aside for now"
-          : "No student looks like this";
+  const studentLine = chosen
+    ? chosen.name
+    : kind === "choose"
+      ? `${person.candidates.length} students could be this person`
+      : kind === "left"
+        ? "Put aside for now"
+        : "No student looks like this";
   const detail = done
     ? ""
     : chosen
@@ -230,100 +217,139 @@ export function NameRow({
         : "Open the row to search every student";
 
   return (
-    <li className={`ix-name${open ? " ix-name-open" : ""}`}>
-      <div className="ix-name-row">
+    <>
+      <Badge dot tone={tone}>
+        {pill}
+      </Badge>
+      <p className="ix-semibold ix-flush">
         {done ? (
-          <span />
-        ) : (
-          <label className="ix-tick-hit">
-            <input
-              aria-label={`Select “${person.source_name}”`}
-              checked={selected}
-              className="ix-tick"
-              disabled={!chosen}
-              type="checkbox"
-              onChange={onSelect}
-            />
-          </label>
-        )}
-        <div className="ix-name-main">
-          <p className="ix-bold">“{person.source_name}”</p>
-          <p className="ix-muted ix-small ix-flush">
-            {counted(person.records, "record", "records")} · {periodRange(person)}
-          </p>
-        </div>
-        <p className="ix-small ix-flush">
-          {person.ranks.join(" · ")}
-          {person.needs_rank ? <span className="ix-warning-text ix-semibold ix-block">A rank is not matched yet</span> : null}
-        </p>
-        <div className="ix-name-student">
-          <Badge dot tone={tone}>
-            {pill}
-          </Badge>
-          <p className="ix-semibold ix-flush">
-            {done ? (
-              person.linked_student ? (
-                <>
-                  Linked to <Link to={`/students/${person.linked_student}`}>{person.linked_student_name}</Link>
-                </>
-              ) : (
-                "Linked to more than one student"
-              )
-            ) : (
-              studentLine
-            )}
-          </p>
-          {detail ? <p className="ix-muted ix-small ix-flush">{detail}</p> : null}
-          {sameAs && !done ? <p className="ix-small ix-semibold ix-flush">Same student as “{sameAs}”, just linked</p> : null}
-        </div>
-        <div className="ix-actions ix-name-actions">
-          {done ? (
-            <Button aria-label={`Undo linking “${person.source_name}”`} variant="ghost" disabled={pending} onClick={onUndo}>
-              Undo
-            </Button>
-          ) : (
+          person.linked_student ? (
             <>
-              {chosen && !open ? (
-                <Button
-                  aria-label={`Link “${person.source_name}” to ${chosen.name}`}
-                  variant="primary"
-                  disabled={pending || recordsToLink(person, unticked).length === 0}
-                  onClick={onLink}
-                >
-                  Link
-                </Button>
-              ) : null}
-              {left ? (
-                <Button aria-label={`Put “${person.source_name}” back`} variant="ghost" onClick={onPutBack}>
-                  Put back
-                </Button>
-              ) : null}
-              <Button
-                aria-expanded={open}
-                aria-label={`${open ? "Close" : person.suggestion === "clear" ? "Review" : "Choose a student for"} “${person.source_name}”`}
-                variant="ghost"
-                onClick={onToggle}
-              >
-                {open ? "Close" : person.suggestion === "clear" ? "Review" : "Choose"}
-              </Button>
+              Linked to <Link to={`/students/${person.linked_student}`}>{person.linked_student_name}</Link>
             </>
-          )}
-        </div>
-      </div>
-      {open && !done ? (
-        <NameDetails
-          batch={batch}
-          chosen={chosen}
-          error={error}
-          pending={pending}
-          person={person}
-          unticked={unticked}
-          onChoose={onChoose}
-          onLeave={left ? undefined : onLeave}
-          onLink={onLink}
-          onTick={onTick}
-        />
+          ) : (
+            "Linked to more than one student"
+          )
+        ) : (
+          studentLine
+        )}
+      </p>
+      {detail ? <p className="ix-muted ix-small ix-flush">{detail}</p> : null}
+      {sameAs && !done ? <p className="ix-small ix-semibold ix-flush">Same student as “{sameAs}”, just linked</p> : null}
+    </>
+  );
+}
+
+/** What can be done with a name from its row. */
+function NameActions({ person, view, chosen, open, left, unticked, pending, onLink, onPutBack, onToggle, onUndo }: NameItem) {
+  if (view === "done") {
+    return (
+      <Button aria-label={`Undo linking “${person.source_name}”`} variant="ghost" disabled={pending} onClick={onUndo}>
+        Undo
+      </Button>
+    );
+  }
+  return (
+    <>
+      {chosen && !open ? (
+        <Button
+          aria-label={`Link “${person.source_name}” to ${chosen.name}`}
+          variant="primary"
+          disabled={pending || recordsToLink(person, unticked).length === 0}
+          onClick={onLink}
+        >
+          Link
+        </Button>
       ) : null}
-    </li>
+      {left ? (
+        <Button aria-label={`Put “${person.source_name}” back`} variant="ghost" onClick={onPutBack}>
+          Put back
+        </Button>
+      ) : null}
+      <Button
+        aria-expanded={open}
+        aria-label={`${open ? "Close" : person.suggestion === "clear" ? "Review" : "Choose a student for"} “${person.source_name}”`}
+        variant="ghost"
+        onClick={onToggle}
+      >
+        {open ? "Close" : person.suggestion === "clear" ? "Review" : "Choose"}
+      </Button>
+    </>
+  );
+}
+
+/** The linking page's columns: a name as written, the student suggested for it, and what can be done with it. */
+const NAME_COLUMNS: readonly Column<NameItem>[] = [
+  {
+    key: "select",
+    header: "Select",
+    actions: "inline",
+    render: ({ person, view, chosen, selected, onSelect }) =>
+      view === "done" ? null : (
+        <label className="ix-tick-hit">
+          <input
+            aria-label={`Select “${person.source_name}”`}
+            checked={selected}
+            className="ix-tick"
+            disabled={!chosen}
+            type="checkbox"
+            onChange={onSelect}
+          />
+        </label>
+      ),
+  },
+  {
+    key: "name",
+    header: "Name as written",
+    primary: true,
+    render: ({ person }) => (
+      <>
+        <p className="ix-flush">“{person.source_name}”</p>
+        <p className="ix-muted ix-small ix-flush">
+          {counted(person.records, "record", "records")} · {periodRange(person)}
+        </p>
+      </>
+    ),
+  },
+  {
+    key: "ranks",
+    header: "Ranks in the records",
+    render: ({ person }) => (
+      <>
+        {person.ranks.join(" · ")}
+        {person.needs_rank ? <span className="ix-warning-text ix-semibold ix-block">A rank is not matched yet</span> : null}
+      </>
+    ),
+  },
+  { key: "student", header: "Student", render: (item) => <NameStudent {...item} /> },
+  { key: "actions", header: "Actions", actions: true, render: (item) => <NameActions {...item} /> },
+];
+
+/** Every name on the page, one row each; the open one shows its records and students beneath it. */
+export function NamesTable({ items }: { items: readonly NameItem[] }) {
+  return (
+    <ResponsiveTable
+      label="Names as written"
+      flush
+      columns={NAME_COLUMNS}
+      rowKey={(item) => item.person.group_key}
+      rows={items}
+      detail={(item) =>
+        item.open && item.view !== "done" ? (
+          <NameDetails
+            batch={item.batch}
+            chosen={item.chosen}
+            error={item.error}
+            pending={item.pending}
+            person={item.person}
+            unticked={item.unticked}
+            onChoose={item.onChoose}
+            onLeave={item.left ? undefined : item.onLeave}
+            onLink={item.onLink}
+            onTick={item.onTick}
+          />
+        ) : null
+      }
+    />
   );
 }

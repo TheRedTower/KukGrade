@@ -74,6 +74,18 @@ function parseApiDate(value: string | null | undefined): Date | null {
 }
 
 /**
+ * A date reads as one unit: its parts are held together with no-break spaces,
+ * so "Nov 2021" never splits across two lines. It may still break after a
+ * comma, between the weekday, the date and the time.
+ */
+function unbroken(text: string): string {
+  return text
+    .split(", ")
+    .map((part) => part.replaceAll(" ", "\u00a0"))
+    .join(", ");
+}
+
+/**
  * Formats an API date or timestamp in en-GB. Returns `fallback` when the value
  * is absent, and the original string when it cannot be parsed - so a value the
  * app does not understand is still shown rather than silently blanked.
@@ -88,7 +100,7 @@ export function formatApiDate(
   if (!date) return value;
   try {
     const timeZone = DATE_ONLY.test(value) ? undefined : clubTimeZone;
-    return new Intl.DateTimeFormat("en-GB", { ...options, timeZone }).format(date);
+    return unbroken(new Intl.DateTimeFormat("en-GB", { ...options, timeZone }).format(date));
   } catch {
     return value;
   }
@@ -159,8 +171,8 @@ export function formatDayMonth(value: string | null | undefined, fallback = ""):
 
 /** "Jun 2025" - a historical record's grading month, given as numbers. */
 export function formatMonthYear(year: number, month: number): string {
-  return new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(
-    new Date(year, month - 1, 1),
+  return unbroken(
+    new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(year, month - 1, 1)),
   );
 }
 

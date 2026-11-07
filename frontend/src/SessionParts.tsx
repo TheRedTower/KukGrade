@@ -240,7 +240,7 @@ export function SessionCandidateTable({
               outcomeStatus !== "FINALISED";
             const next = nextActionFor(item);
             return (
-              <div className="gsd-row-actions">
+              <>
                 {isWithdrawn ? (
                   <span className="gsd-withdrawal-record">No further action</span>
                 ) : next.opensProposalDrawer ? (
@@ -282,7 +282,7 @@ export function SessionCandidateTable({
                     Withdraw candidate
                   </Button>
                 )}
-              </div>
+              </>
             );
           },
         },

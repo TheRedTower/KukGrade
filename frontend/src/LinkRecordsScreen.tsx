@@ -13,7 +13,7 @@ import {
 import { ErrorText } from "./ErrorText";
 import { ImportPager } from "./ImportPager";
 import { counted } from "./importSteps";
-import { NameRow, type NameView } from "./LinkNameRow";
+import { type NameItem, type NameView, NamesTable } from "./LinkNameRow";
 import { BULK_LINK_LIMIT, type Chosen, recordsToLink } from "./linkRecords";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { useLeftNames } from "./useLeftNames";
@@ -278,13 +278,6 @@ export function LinkRecordsScreen() {
       ) : null}
 
       <div className="card card--flush">
-        <div aria-hidden="true" className="ix-name-row ix-name-head">
-          <span />
-          <span>Name as written</span>
-          <span>Ranks in the records</span>
-          <span>Student</span>
-          <span />
-        </div>
         {loading ? (
           <p className="ix-card-pad ix-muted" role="status">
             Loading the names…
@@ -315,51 +308,46 @@ export function LinkRecordsScreen() {
             )}
           </div>
         ) : (
-          <ul className="ix-names">
-            {rows.map((person) => {
+          <NamesTable
+            items={rows.map((person): NameItem => {
               const chosen = chosenFor(person, picks);
-              return (
-                <NameRow
-                  batch={batchId}
-                  chosen={chosen}
-                  error={linkedFrom === person.group_key ? link.error : null}
-                  key={person.group_key}
-                  // The server keeps the list: only that view shows names left for now.
-                  left={view === "left"}
-                  open={open === person.group_key}
-                  pending={link.isPending || undo.isPending}
-                  person={person}
-                  sameAs={chosen ? (linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null : null}
-                  selected={selected.includes(person.group_key)}
-                  unticked={unticked}
-                  view={view}
-                  onChoose={(choice) => setPicks((current) => ({ ...current, [person.group_key]: choice }))}
-                  onLeave={() => leaveName(person.group_key)}
-                  onLink={() => linkNames([person], open === person.group_key ? person.group_key : null)}
-                  onPutBack={() => {
-                    resetLeft();
-                    putBack(person.group_key, { onSuccess: () => setPage(1) });
-                  }}
-                  onSelect={() =>
-                    setSelected((current) =>
-                      current.includes(person.group_key) ? current.filter((key) => key !== person.group_key) : [...current, person.group_key],
-                    )
-                  }
-                  onTick={(record) =>
-                    setUnticked((current) => (current.includes(record) ? current.filter((id) => id !== record) : [...current, record]))
-                  }
-                  onToggle={() => {
-                    if (!link.isPending) link.reset();
-                    setOpen(open === person.group_key ? null : person.group_key);
-                  }}
-                  onUndo={() => {
-                    setNotice("");
-                    undo.mutate(person.record_ids, { onSuccess: () => setPage(1) });
-                  }}
-                />
-              );
+              return {
+                batch: batchId,
+                chosen,
+                error: linkedFrom === person.group_key ? link.error : null,
+                // The server keeps the list: only that view shows names left for now.
+                left: view === "left",
+                open: open === person.group_key,
+                pending: link.isPending || undo.isPending,
+                person,
+                sameAs: chosen ? (linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null : null,
+                selected: selected.includes(person.group_key),
+                unticked,
+                view,
+                onChoose: (choice) => setPicks((current) => ({ ...current, [person.group_key]: choice })),
+                onLeave: () => leaveName(person.group_key),
+                onLink: () => linkNames([person], open === person.group_key ? person.group_key : null),
+                onPutBack: () => {
+                  resetLeft();
+                  putBack(person.group_key, { onSuccess: () => setPage(1) });
+                },
+                onSelect: () =>
+                  setSelected((current) =>
+                    current.includes(person.group_key) ? current.filter((key) => key !== person.group_key) : [...current, person.group_key],
+                  ),
+                onTick: (record) =>
+                  setUnticked((current) => (current.includes(record) ? current.filter((id) => id !== record) : [...current, record])),
+                onToggle: () => {
+                  if (!link.isPending) link.reset();
+                  setOpen(open === person.group_key ? null : person.group_key);
+                },
+                onUndo: () => {
+                  setNotice("");
+                  undo.mutate(person.record_ids, { onSuccess: () => setPage(1) });
+                },
+              };
             })}
-          </ul>
+          />
         )}
         <ImportPager
           label="Pages of names"

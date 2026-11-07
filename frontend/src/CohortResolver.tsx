@@ -145,7 +145,7 @@ export function CohortResolver({
               header: "Actions",
               actions: true,
               render: (item) => (
-                <div className="bgc-row-actions">
+                <>
                   <Link
                     to={`/students/${item.student?.id}`}
                     className={buttonClass({ variant: "ghost", small: true })}
@@ -161,7 +161,7 @@ export function CohortResolver({
                   >
                     Remove from list
                   </Button>
-                </div>
+                </>
               ),
             },
           ]}

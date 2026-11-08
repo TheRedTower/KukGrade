@@ -252,6 +252,35 @@ def test_the_roster_costs_the_same_queries_however_many_candidates(
     assert len(results(response)) == 6
 
 
+@pytest.mark.parametrize(
+    "path",
+    ["/api/gradings/candidates/", "/api/gradings/assessments/"],
+)
+def test_the_masters_view_of_a_locked_session_costs_no_query_per_row(
+    path: str,
+) -> None:
+    """Whether marks are still open is read for every row only for the
+    Master; it must use the outcome the list already joins (Codex, #192)."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+    from rest_framework.test import APIClient
+
+    def queries_for(size: int, name: str) -> int:
+        session = grading_session(title=name, status=GradingSession.Status.OPEN)
+        for _ in range(size):
+            complete_assessment(assessment(candidate=candidate(session=session)))
+        transition_grading_session(session, GradingSession.Status.LOCKED)
+        client = APIClient()
+        client.force_authenticate(user=master(f"{name}@example.com"))
+        url = f"{path}?session={session.pk}"
+        client.get(url)  # warm: permission and content-type lookups
+        with CaptureQueriesContext(connection) as captured:
+            assert client.get(url).status_code == 200
+        return len(captured)
+
+    assert queries_for(2, "small") == queries_for(5, "large")
+
+
 def test_a_write_returns_the_registration_without_the_roster_extras() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     other = grading_session(title="Other", status=GradingSession.Status.OPEN)

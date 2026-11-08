@@ -446,7 +446,7 @@ def _validate_assessment_open_for_item_work(
                     ],
                 },
             )
-        outcome = getattr(assessment, "outcome", None)
+        outcome = getattr(assessment.candidate, "outcome", None)
         if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
             raise ValidationError(
                 {

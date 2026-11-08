@@ -291,7 +291,7 @@ export function UsersScreen(): React.ReactElement {
                 {
                   key: "action",
                   header: "Action",
-                  actions: "inline",
+                  actions: true,
                   render: (user) => (
                     <Button variant="secondary" small onClick={() => navigate(`/users/${user.id}`)}>
                       Manage user

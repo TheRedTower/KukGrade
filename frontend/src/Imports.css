@@ -384,13 +384,30 @@
   color: var(--color-on-gold);
 }
 
-/* A phone has no room for five labels in a row beside their numbers: each
-   label sits under its number, in the small size, and wraps between words. */
+.ix-step-caption {
+  display: none;
+}
+
+/* A phone has no room for five names in a row, whatever the font: each step
+   shows its number, centred under its bar, and the current step is named
+   once beneath them. The names stay in the list for a screen reader. */
 @media (max-width: 40rem) {
   .ix-step-label {
-    flex-direction: column;
-    gap: var(--space-1);
-    text-align: center;
+    justify-content: center;
+  }
+
+  .ix-step-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .ix-step-caption {
+    display: block;
+    margin: var(--space-2) 0 0;
+    color: var(--color-text);
   }
 }
 

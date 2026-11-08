@@ -555,11 +555,12 @@ select:not([multiple]):not([size]) {
   text-align: end;
 }
 
-/* A row's buttons, however many: side by side at the end of the row, on one
-   line while it is a table (a card lets them wrap). */
+/* A row's buttons, however many: side by side at the end of the row while
+   there is room, each one under the last when the columns need it (a wider
+   font, or a narrower page beside the sidebar), never cut off. */
 .rtable td[data-actions] > .rtable__value {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);

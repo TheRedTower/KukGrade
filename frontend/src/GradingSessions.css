@@ -2,59 +2,7 @@
    Grading Sessions List Screen (/gradings)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.gs-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
 /* ── Filters ─────────────────────────────────────────────────────────────── */
-
-.gs-filter-search-wrap {
-  position: relative;
-}
-
-.gs-search-icon {
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-muted);
-  pointer-events: none;
-}
-
-.gs-search-input {
-  width: 100%;
-  height: var(--target-min);
-  padding: 0 var(--space-4) 0 var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font-size: var(--font-size-base);
-  transition: border-color var(--duration) ease, box-shadow var(--duration) ease;
-}
-
-.gs-search-input:focus {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-  border-color: var(--color-accent);
-}
-
-.gs-filter-select {
-  padding-left: var(--space-3);
-  border-radius: var(--radius-control);
-  background-color: var(--color-surface-sunken);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  transition: border-color var(--duration) ease;
-}
-
-.gs-filter-select:focus {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-  border-color: var(--color-accent);
-}
 
 /* ── Current Session Spotlight ───────────────────────────────────────────── */
 
@@ -93,21 +41,15 @@
 }
 
 .gs-current-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-title);
   margin: 0 0 var(--space-1);
   color: var(--color-text);
 }
 
 .gs-current-date {
-  font-size: var(--font-size-base);
-  color: var(--color-text-muted);
   margin: 0 0 var(--space-1);
 }
 
 .gs-current-location {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
   margin: 0 0 var(--space-2);
 }
 
@@ -129,19 +71,9 @@
 }
 
 .gs-table-heading {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
   margin: 0;
 }
 
-.gs-row-actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
 
 /* ── Status Badges ───────────────────────────────────────────────────────── */
 
@@ -151,12 +83,6 @@
 /* ==========================================================================
    Create Grading Session Screen (/gradings/new)
    ========================================================================== */
-
-.cgs-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
 
 /* ── Alert Banner ────────────────────────────────────────────────────────── */
 
@@ -180,14 +106,11 @@
 
 .cgs-char-counter {
   text-align: right;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
   margin-top: 0.15rem;
 }
 
 .cgs-char-near-limit {
   color: var(--color-warning);
-  font-weight: var(--font-weight-semibold);
 }
 
 /* ── Actions ─────────────────────────────────────────────────────────────── */
@@ -209,15 +132,10 @@
 }
 
 .cgs-preview-title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
   margin: 0 0 var(--space-1) 0;
 }
 
 .cgs-preview-subtitle {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
   margin: 0 0 var(--space-5) 0;
   line-height: var(--line-height-snug);
 }
@@ -231,23 +149,11 @@
    Grading Session Detail / Roster Screen (.gsd-*)
    ========================================================================== */
 
-.gsd-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-/* The page's own gap already spaces its header. */
-.gsd-page > .page-header {
-  margin-bottom: 0;
-}
-
 .gsd-dropdown-wrap {
   position: relative;
 }
 
 .gsd-chevron-down {
-  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
@@ -276,8 +182,6 @@
   background: none;
   border: none;
   color: var(--color-text);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background var(--duration) ease;
   text-decoration: none;
@@ -358,17 +262,6 @@
   flex-direction: column;
 }
 
-.gsd-step-label {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.gsd-step-subtext {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
 /* ── Candidates Roster Section ───────────────────────────────────────────── */
 
 .gsd-candidates-section {
@@ -378,103 +271,16 @@
   min-width: 0;
 }
 
-.gsd-section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
-
-.gsd-section-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-  margin: 0;
-}
-
-.gsd-controls-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.gsd-search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: 1 1 14rem;
-}
-
-.gsd-search-icon {
-  position: absolute;
-  left: 0.75rem;
-  font-size: var(--font-size-md);
-  pointer-events: none;
-  opacity: 0.6;
-}
-
-.gsd-search-input {
-  width: 100%;
-  min-width: 0;
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-  min-height: var(--target-min);
-}
-
-.gsd-search-input:focus {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-  border-color: var(--btn-primary-bg);
-}
-
-.gsd-filter-wrap {
-  position: relative;
-}
-
-.gsd-filter-select {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-  min-height: var(--target-min);
-  cursor: pointer;
-}
-
-.gsd-filter-select:focus {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-  border-color: var(--btn-primary-bg);
-}
-
-.gsd-count-chip {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-muted);
-}
-
 /* ── Candidate Table ─────────────────────────────────────────────────────── */
 
 .gsd-candidate-name {
   display: block;
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
 }
 
 .gsd-candidate-wksa {
   display: block;
   width: max-content;
   max-width: 100%;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-normal);
-  color: var(--color-text-muted);
   margin-top: 0.15rem;
 }
 
@@ -496,9 +302,6 @@
 
 /* ── Session Notes Section ───────────────────────────────────────────────── */
 
-.gsd-notes-section {
-  margin-top: var(--space-2);
-}
 
 .gsd-notes-card {
   background: var(--color-surface);
@@ -515,29 +318,20 @@
 }
 
 .gsd-notes-title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
   margin: 0;
 }
 
 .gsd-notes-sub {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
   margin: var(--space-1) 0 0;
 }
 
 .gsd-notes-text {
-  font-size: var(--font-size-base);
   line-height: var(--line-height-body);
-  color: var(--color-text);
   margin: 0;
   white-space: pre-wrap;
 }
 
 .gsd-notes-empty {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
   font-style: italic;
   margin: 0;
 }
@@ -554,9 +348,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
-  color: var(--color-text);
   font-family: inherit;
-  font-size: var(--font-size-md);
   resize: vertical;
   box-sizing: border-box;
 }

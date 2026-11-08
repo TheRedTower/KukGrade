@@ -114,9 +114,9 @@ export function AddStudentScreen() {
         <Alert className="form-alert">{form.banner}</Alert>
       )}
 
-      <form onSubmit={handleSubmit} noValidate className="add-student-form-body">
+      <form onSubmit={handleSubmit} noValidate className="stack">
         {/* Card 1: Identity */}
-        <div className="card">
+        <div className="card stack">
           <h2 className="section-title section-title--ruled">Identity</h2>
 
           <div className="form-row-grid-2">
@@ -188,7 +188,7 @@ export function AddStudentScreen() {
         </div>
 
         {/* Card 2: Grading details */}
-        <div className="card">
+        <div className="card stack">
           <h2 className="section-title section-title--ruled">Grading details</h2>
 
           <div className="form-row-grid-3">
@@ -210,7 +210,7 @@ export function AddStudentScreen() {
               {form.errorFor("date_of_birth") ? (
                 <ErrorText field id="dob-error">{form.errorFor("date_of_birth")}</ErrorText>
               ) : (
-                <div className="privacy-badge-line">
+                <div className="privacy-badge-line meta">
                   <LockIcon size={14} className="privacy-icon" />
                   <span>Date of birth is visible only on the individual student record.</span>
                 </div>

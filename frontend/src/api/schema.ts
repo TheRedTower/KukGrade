@@ -1392,28 +1392,22 @@ export interface paths {
         /**
          * @description The administrator-facing users API.
          *
-         *     Deactivate via is_active for routine offboarding - that is reversible
-         *     and keeps every attribution intact with no extra work. destroy() is a
-         *     genuine hard delete, gated to accounts.delete_user (Administrator group
-         *     only), for corruption or test-data cleanup: see
-         *     accounts.services.delete_platform_user for how it keeps every PROTECT
-         *     attribution foreign key satisfied by reassigning history to a
-         *     placeholder account rather than erasing it. No PUT: partial_update
-         *     covers every real edit.
+         *     Deactivate via is_active for routine offboarding - that is reversible.
+         *     destroy(), gated to accounts.delete_user (Administrator group only),
+         *     removes an account that recorded nothing and closes one that did, so
+         *     their name stays on their records (accounts.services.delete_platform_user).
+         *     No PUT: partial_update covers every real edit.
          */
         get: operations["users_list"];
         put?: never;
         /**
          * @description The administrator-facing users API.
          *
-         *     Deactivate via is_active for routine offboarding - that is reversible
-         *     and keeps every attribution intact with no extra work. destroy() is a
-         *     genuine hard delete, gated to accounts.delete_user (Administrator group
-         *     only), for corruption or test-data cleanup: see
-         *     accounts.services.delete_platform_user for how it keeps every PROTECT
-         *     attribution foreign key satisfied by reassigning history to a
-         *     placeholder account rather than erasing it. No PUT: partial_update
-         *     covers every real edit.
+         *     Deactivate via is_active for routine offboarding - that is reversible.
+         *     destroy(), gated to accounts.delete_user (Administrator group only),
+         *     removes an account that recorded nothing and closes one that did, so
+         *     their name stays on their records (accounts.services.delete_platform_user).
+         *     No PUT: partial_update covers every real edit.
          */
         post: operations["users_create"];
         delete?: never;
@@ -1432,14 +1426,11 @@ export interface paths {
         /**
          * @description The administrator-facing users API.
          *
-         *     Deactivate via is_active for routine offboarding - that is reversible
-         *     and keeps every attribution intact with no extra work. destroy() is a
-         *     genuine hard delete, gated to accounts.delete_user (Administrator group
-         *     only), for corruption or test-data cleanup: see
-         *     accounts.services.delete_platform_user for how it keeps every PROTECT
-         *     attribution foreign key satisfied by reassigning history to a
-         *     placeholder account rather than erasing it. No PUT: partial_update
-         *     covers every real edit.
+         *     Deactivate via is_active for routine offboarding - that is reversible.
+         *     destroy(), gated to accounts.delete_user (Administrator group only),
+         *     removes an account that recorded nothing and closes one that did, so
+         *     their name stays on their records (accounts.services.delete_platform_user).
+         *     No PUT: partial_update covers every real edit.
          */
         get: operations["users_retrieve"];
         put?: never;
@@ -1447,14 +1438,11 @@ export interface paths {
         /**
          * @description The administrator-facing users API.
          *
-         *     Deactivate via is_active for routine offboarding - that is reversible
-         *     and keeps every attribution intact with no extra work. destroy() is a
-         *     genuine hard delete, gated to accounts.delete_user (Administrator group
-         *     only), for corruption or test-data cleanup: see
-         *     accounts.services.delete_platform_user for how it keeps every PROTECT
-         *     attribution foreign key satisfied by reassigning history to a
-         *     placeholder account rather than erasing it. No PUT: partial_update
-         *     covers every real edit.
+         *     Deactivate via is_active for routine offboarding - that is reversible.
+         *     destroy(), gated to accounts.delete_user (Administrator group only),
+         *     removes an account that recorded nothing and closes one that did, so
+         *     their name stays on their records (accounts.services.delete_platform_user).
+         *     No PUT: partial_update covers every real edit.
          */
         delete: operations["users_destroy"];
         options?: never;
@@ -1462,14 +1450,11 @@ export interface paths {
         /**
          * @description The administrator-facing users API.
          *
-         *     Deactivate via is_active for routine offboarding - that is reversible
-         *     and keeps every attribution intact with no extra work. destroy() is a
-         *     genuine hard delete, gated to accounts.delete_user (Administrator group
-         *     only), for corruption or test-data cleanup: see
-         *     accounts.services.delete_platform_user for how it keeps every PROTECT
-         *     attribution foreign key satisfied by reassigning history to a
-         *     placeholder account rather than erasing it. No PUT: partial_update
-         *     covers every real edit.
+         *     Deactivate via is_active for routine offboarding - that is reversible.
+         *     destroy(), gated to accounts.delete_user (Administrator group only),
+         *     removes an account that recorded nothing and closes one that did, so
+         *     their name stays on their records (accounts.services.delete_platform_user).
+         *     No PUT: partial_update covers every real edit.
          */
         patch: operations["users_partial_update"];
         trace?: never;
@@ -1490,14 +1475,11 @@ export interface paths {
         /**
          * @description The administrator-facing users API.
          *
-         *     Deactivate via is_active for routine offboarding - that is reversible
-         *     and keeps every attribution intact with no extra work. destroy() is a
-         *     genuine hard delete, gated to accounts.delete_user (Administrator group
-         *     only), for corruption or test-data cleanup: see
-         *     accounts.services.delete_platform_user for how it keeps every PROTECT
-         *     attribution foreign key satisfied by reassigning history to a
-         *     placeholder account rather than erasing it. No PUT: partial_update
-         *     covers every real edit.
+         *     Deactivate via is_active for routine offboarding - that is reversible.
+         *     destroy(), gated to accounts.delete_user (Administrator group only),
+         *     removes an account that recorded nothing and closes one that did, so
+         *     their name stays on their records (accounts.services.delete_platform_user).
+         *     No PUT: partial_update covers every real edit.
          */
         patch: operations["users_authority_partial_update"];
         trace?: never;
@@ -1839,6 +1821,8 @@ export interface components {
             readonly overall: components["schemas"]["AssessmentSummaryCounts"];
             /** @description Whether the viewer may change this assessment's marks, or comment on its items, now: while the session is open, or once it is locked and the viewer is the authorised Master and the candidate's final decision is not yet recorded. */
             readonly marks_open: boolean;
+            /** @description Whether the viewer may permanently delete this assessment: an administrator, while its candidate's final decision is not recorded. */
+            readonly can_delete: boolean;
         };
         CandidateAssessmentItem: {
             readonly id: number;
@@ -2104,6 +2088,8 @@ export interface components {
             readonly next_action: components["schemas"]["NextActionEnum"];
             /** @description Whether a final decision can be recorded for this candidate now: their outcome is proposed in a locked session. Whether the viewer may make it is their own authority. */
             readonly can_be_finalised: boolean;
+            /** @description Whether the viewer may withdraw this candidate now: the session is locked, the candidate is not withdrawn and has no final decision, and the viewer holds the locked-session override. */
+            readonly can_be_withdrawn_after_lock: boolean;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -2545,9 +2531,10 @@ export interface components {
          *     * `REVIEW_DECISION` - Review the decision
          *     * `VIEW_DECISION` - View the final decision
          *     * `PROMOTION_LEDGER` - Promotion ledger
+         *     * `NONE` - No further action
          * @enum {string}
          */
-        NextActionEnum: "PREPARE_ASSESSMENT" | "START_ASSESSMENT" | "CONTINUE_ASSESSMENT" | "VIEW_ASSESSMENT" | "PROPOSE_OUTCOME" | "REVIEW_PROPOSAL" | "REVIEW_DECISION" | "VIEW_DECISION" | "PROMOTION_LEDGER";
+        NextActionEnum: "PREPARE_ASSESSMENT" | "START_ASSESSMENT" | "CONTINUE_ASSESSMENT" | "VIEW_ASSESSMENT" | "PROPOSE_OUTCOME" | "REVIEW_PROPOSAL" | "REVIEW_DECISION" | "VIEW_DECISION" | "PROMOTION_LEDGER" | "NONE";
         /** @enum {string} */
         NextStepEnum: "MATCH_COLUMNS" | "REVIEW" | "CLOSED";
         /** @enum {unknown} */
@@ -3071,6 +3058,8 @@ export interface components {
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
             readonly age_band_display: string;
+            /** Format: date-time */
+            readonly deleted_at: string | null;
             /** Format: date-time */
             readonly created_at: string;
         };

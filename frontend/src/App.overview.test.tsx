@@ -152,18 +152,18 @@ describe("Overview screen (Operational Ledger)", () => {
 
     const ledger = await screen.findByRole("table", { name: "Recent activity" });
     const statusOf = (summary: string) =>
-      within(ledger).getByText(summary).closest("tr")!.querySelector(".status-pill-badge")!;
+      within(ledger).getByText(summary).closest("tr")!.querySelector(".badge")!;
     expect(statusOf("Password reset for someone@example.com.")).toHaveTextContent("User updated");
-    expect(statusOf("Password reset for someone@example.com.")).toHaveClass("status-pill-neutral");
+    expect(statusOf("Password reset for someone@example.com.")).toHaveClass("badge--neutral");
     expect(statusOf("Outcome proposed as PASS.")).toHaveTextContent("Outcome proposed · Pass");
-    expect(statusOf("Outcome proposed as PASS.")).toHaveClass("status-pill-in-progress");
+    expect(statusOf("Outcome proposed as PASS.")).toHaveClass("badge--info");
     const overridden = statusOf("Final decision FAIL, overriding a proposed PASS.");
     expect(overridden).toHaveTextContent("Outcome finalised · Fail");
-    expect(overridden).toHaveClass("status-pill-warning");
+    expect(overridden).toHaveClass("badge--warning");
     expect(statusOf("Final decision CONDITIONAL.")).toHaveTextContent("Outcome finalised · Conditional");
-    expect(statusOf("Withdrawn: did not attend.")).toHaveClass("status-pill-warning");
-    expect(statusOf("Promoted to Yellow.")).toHaveClass("status-pill-approved");
-    expect(statusOf("Notes: everyone should pass.")).toHaveClass("status-pill-neutral");
+    expect(statusOf("Withdrawn: did not attend.")).toHaveClass("badge--warning");
+    expect(statusOf("Promoted to Yellow.")).toHaveClass("badge--success");
+    expect(statusOf("Notes: everyone should pass.")).toHaveClass("badge--neutral");
     expect(within(ledger).queryByText("Approved")).not.toBeInTheDocument();
     expect(within(ledger).getAllByText("Morgan Master")).toHaveLength(events.length);
   });
@@ -207,6 +207,7 @@ describe("Overview screen (Operational Ledger)", () => {
         generated_by_email: authUser.email,
         overall: assessmentSummaryFor([]).overall,
         marks_open: true,
+        can_delete: false,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:00:00Z",
         completed_at: "2026-05-15T11:00:00Z",
@@ -220,6 +221,7 @@ describe("Overview screen (Operational Ledger)", () => {
         generated_by_email: authUser.email,
         overall: assessmentSummaryFor([]).overall,
         marks_open: true,
+        can_delete: false,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:30:00Z",
         completed_at: null,

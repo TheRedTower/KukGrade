@@ -195,7 +195,7 @@ describe("First-time setup", () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByText("Casey Instructor")).toBeVisible());
+    await waitFor(() => expect(screen.getByText("Casey")).toBeVisible());
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/setup/"))).toBe(
       false,
     );

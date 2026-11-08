@@ -54,8 +54,8 @@ export function CohortRankGroupsSection({ groups, filteredCount, inCohort, onAdd
                   header: "Eligible",
                   render: (group) => (
                     <div className="bgc-eligible-count-cell">
-                      <span className="bgc-eligible-num">{group.students.length}</span>
-                      <span className="bgc-eligible-breakdown">
+                      <span className="item-title">{group.students.length}</span>
+                      <span className="meta">
                         ({group.activeCount} active
                         {group.inactiveCount > 0 && (
                           <>

@@ -3,14 +3,14 @@ import { keys } from "./queryKeys";
 import { Link, useParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { type AgeBandEnum, type Rank, type StudentListItem, errorMessage, getAllStudents, getGradingSession } from "./api";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { PageHeader } from "./PageHeader";
+import { SessionFacts } from "./SessionParts";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { SessionStatusBadge } from "./StatusBadge";
-import { formatSessionDate } from "./dates";
 import "./BuildGradingCohort.css";
 import { buttonClass } from "./buttonClass";
 import { CohortResolver } from "./CohortResolver";
@@ -87,7 +87,7 @@ export function BuildGradingCohortScreen() {
 
   if (!valid) {
     return (
-      <section aria-labelledby="bgc-invalid-id-heading" className="page bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-invalid-id-heading" className="page" data-testid="bgc-page">
         <EmptyState
           titleAs="h2"
           titleId="bgc-invalid-id-heading"
@@ -102,7 +102,7 @@ export function BuildGradingCohortScreen() {
 
   if (sessionQuery.isLoading) {
     return (
-      <section aria-label="Build grading cohort" className="page bgc-page" data-testid="bgc-page">
+      <section aria-label="Build grading cohort" className="page" data-testid="bgc-page">
         <LoadingState>Loading the grading session…</LoadingState>
       </section>
     );
@@ -110,7 +110,7 @@ export function BuildGradingCohortScreen() {
 
   if (sessionQuery.isError || !session) {
     return (
-      <section aria-labelledby="bgc-error-heading" className="page bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-error-heading" className="page" data-testid="bgc-page">
         <EmptyState
           titleAs="h2"
           titleId="bgc-error-heading"
@@ -139,31 +139,22 @@ export function BuildGradingCohortScreen() {
   }
 
   return (
-    <section aria-labelledby="bgc-title" className="page bgc-page" data-testid="bgc-page">
-      <Breadcrumbs
-        items={[
+    <section aria-labelledby="bgc-title" className="page" data-testid="bgc-page">
+      <PageHeader
+        crumbs={[
           { label: "Gradings", to: "/gradings" },
           { label: session.title, to: `/gradings/${session.id}` },
           { label: "Build grading cohort" },
         ]}
-      />
-
-      <header className="bgc-header">
-        <h1 className="bgc-title" id="bgc-title">Build grading cohort</h1>
-        <p className="bgc-subtitle">Add whole groups, then review any exceptions.</p>
-      </header>
-
-      <div className="bgc-session-card">
-        <div className="bgc-session-card-left">
-          <span className="bgc-session-title">{session.title}</span>
-          <SessionStatusBadge status={session.status} label={session.status_display} />
-        </div>
-        <div className="bgc-session-card-meta">
-          <span>{formatSessionDate(session.grading_date)}</span>
-          <span className="bgc-meta-sep" aria-hidden="true">·</span>
-          <span>{session.location || "No location specified"}</span>
-        </div>
-      </div>
+        title="Build grading cohort"
+        titleId="bgc-title"
+        subtitle="Add whole groups, then review any exceptions."
+        tag={<SessionStatusBadge status={session.status} label={session.status_display} />}
+      >
+        <p className="page-header__subtitle">
+          <SessionFacts session={session} />
+        </p>
+      </PageHeader>
 
       {registration.submitError && <Alert onDismiss={registration.clearError}>{registration.submitError}</Alert>}
 

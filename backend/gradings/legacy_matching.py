@@ -186,7 +186,9 @@ def suggest_for_groups(
     pool = list(
         students
         if students is not None
-        else Student.objects.select_related("current_rank").order_by("pk"),
+        else Student.objects.filter(deleted_at__isnull=True)
+        .select_related("current_rank")
+        .order_by("pk"),
     )
     ranks = active_rank_lookup()
     for group in groups:

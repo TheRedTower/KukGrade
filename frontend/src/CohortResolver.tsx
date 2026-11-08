@@ -4,12 +4,13 @@ import { Link } from "react-router-dom";
 import type { BulkCandidateRegistrationResponse, GradingSession, Rank, StudentListItem } from "./api";
 import { Alert } from "./Alert";
 import { Badge } from "./Badge";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { PageHeader } from "./PageHeader";
+import { SessionFacts } from "./SessionParts";
 import { Button } from "./Button";
+import { CheckIcon, WarningIcon } from "./Icons";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
-import { formatSessionDate } from "./dates";
-import { SessionStatusBadge, StudentStatusBadge } from "./StatusBadge";
+import { StudentStatusBadge } from "./StatusBadge";
 
 /** A student the registration refused, with why, as the resolver lists them. */
 export interface FlaggedCandidateItem {
@@ -50,43 +51,31 @@ export function CohortResolver({
   const retryableCount = flaggedItems.filter((i) => !i.registered).length;
 
   return (
-    <section aria-labelledby="bgc-resolver-title" className="page bgc-page" data-testid="bgc-page">
-      <Breadcrumbs
-        items={[
+    <section aria-labelledby="bgc-resolver-title" className="page" data-testid="bgc-page">
+      <PageHeader
+        crumbs={[
           { label: "Gradings", to: "/gradings" },
           { label: session.title, to: `/gradings/${session.id}` },
           { label: "Resolve flagged candidates" },
         ]}
-      />
-
-      {/* Header */}
-      <header className="bgc-header">
-        <h1 className="bgc-title" id="bgc-resolver-title">Resolve flagged candidates</h1>
-        <div className="bgc-resolver-summary-bar">
-          <span className="bgc-summary-pill bgc-summary-success">
-            <span className="bgc-summary-icon" aria-hidden="true">✓</span>
-            {createdCount} registered
-          </span>
-          <span className="bgc-summary-pill bgc-summary-flagged">
-            <span className="bgc-summary-icon" aria-hidden="true">!</span>
-            {flaggedCount} flagged
-          </span>
-          <span className="bgc-resolver-subtext">Successful registrations are already saved.</span>
-        </div>
-      </header>
-
-      {/* Session card strip */}
-      <div className="bgc-session-card">
-        <div className="bgc-session-card-left">
-          <span className="bgc-session-title">{session.title}</span>
-          <SessionStatusBadge status={session.status} label={session.status_display} />
-        </div>
-        <div className="bgc-session-card-meta">
-          <span>{formatSessionDate(session.grading_date)}</span>
-          <span className="bgc-meta-sep" aria-hidden="true">·</span>
-          <span>{session.location || "No location specified"}</span>
-        </div>
-      </div>
+        title="Resolve flagged candidates"
+        titleId="bgc-resolver-title"
+        subtitle="Successful registrations are already saved."
+        tag={
+          <>
+            <Badge tone="success" icon={<CheckIcon size={14} />}>
+              {createdCount} registered
+            </Badge>
+            <Badge tone="warning" icon={<WarningIcon size={14} />}>
+              {flaggedCount} flagged
+            </Badge>
+          </>
+        }
+      >
+        <p className="page-header__subtitle">
+          <SessionFacts session={session} />
+        </p>
+      </PageHeader>
 
       {submitError && (
         <Alert onDismiss={onDismissError}>{submitError}</Alert>
@@ -103,7 +92,7 @@ export function CohortResolver({
               These candidates could not be registered. Resolve the issues below, then retry only the flagged candidates.
             </p>
           </div>
-          <span className="bgc-resolver-counter">
+          <span className="meta">
             Showing {flaggedCount} of {flaggedCount} flagged candidates
           </span>
         </div>
@@ -119,14 +108,14 @@ export function CohortResolver({
               primary: true,
               render: (item) => (
                 <>
-                  <span className="bgc-student-name">
+                  <span className="item-title">
                     {item.student?.first_name} {item.student?.last_name}
                   </span>
-                  <span className="bgc-student-id">{item.student?.wksa_id}</span>
+                  <span className="bgc-student-id meta">{item.student?.wksa_id}</span>
                 </>
               ),
             },
-            { key: "issue", header: "Issue", render: (item) => <span className="bgc-issue-text">{item.error}</span> },
+            { key: "issue", header: "Issue", render: (item) => <span className="error-text">{item.error}</span> },
             {
               key: "status",
               header: "Status",
@@ -145,7 +134,7 @@ export function CohortResolver({
               header: "Actions",
               actions: true,
               render: (item) => (
-                <div className="bgc-row-actions">
+                <>
                   <Link
                     to={`/students/${item.student?.id}`}
                     className={buttonClass({ variant: "ghost", small: true })}
@@ -161,7 +150,7 @@ export function CohortResolver({
                   >
                     Remove from list
                   </Button>
-                </div>
+                </>
               ),
             },
           ]}
@@ -173,7 +162,7 @@ export function CohortResolver({
         <section className="bgc-successful-section">
           <button
             type="button"
-            className="bgc-accordion-toggle"
+            className="bgc-accordion-toggle item-title"
             onClick={() => setShowSuccessfulList((prev) => !prev)}
             aria-expanded={showSuccessfulList}
           >
@@ -181,7 +170,7 @@ export function CohortResolver({
               {showSuccessfulList ? "▾" : "▸"}
             </span>
             <span>View {createdCount} successful registration{createdCount === 1 ? "" : "s"}</span>
-            <span className="bgc-accordion-count">
+            <span className="bgc-accordion-count meta">
               {createdCount} registered · {flaggedCount} flagged
             </span>
           </button>
@@ -191,9 +180,9 @@ export function CohortResolver({
               <ul className="bgc-created-list">
                 {registrationResult.created.map((entry) => (
                   <li key={entry.candidate.id} className="bgc-created-item">
-                    <span className="bgc-created-name">{entry.candidate.student_display_name}</span>
-                    <span className="bgc-created-wksa">({entry.candidate.student_wksa_id})</span>
-                    <span className="bgc-created-rank">➔ {entry.candidate.testing_for_rank_name}</span>
+                    <span className="item-title">{entry.candidate.student_display_name}</span>
+                    <span className="meta">({entry.candidate.student_wksa_id})</span>
+                    <span className="bgc-created-rank item-title">➔ {entry.candidate.testing_for_rank_name}</span>
                     {entry.assessment && (
                       <Badge tone="info">Form created (Not started)</Badge>
                     )}
@@ -224,7 +213,7 @@ export function CohortResolver({
           >
             {isSubmitting ? "Retrying..." : `Save changes and retry ${retryableCount}`}
           </Button>
-          <span className="bgc-retry-helper-text">Only resolved candidates will be retried.</span>
+          <span className="meta">Only resolved candidates will be retried.</span>
         </div>
       </footer>
     </section>

@@ -24,6 +24,7 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import "./UserManagement.css";
 import { formatShortDateTime } from "./dates";
 import { Button } from "./Button";
+import { EmailAddress } from "./EmailAddress";
 
 const PAGE_SIZE = 10;
 
@@ -116,7 +117,7 @@ function CreateUserDialog({
                 </select>
               </label>
             </div>
-            <p className="users-form-note">
+            <p className="users-form-note meta">
               A temporary password is created for them. They'll choose their own when they first
               sign in.
             </p>
@@ -178,7 +179,7 @@ export function UsersScreen(): React.ReactElement {
   };
 
   return (
-    <section className="page stack" aria-labelledby="users-heading">
+    <section className="page" aria-labelledby="users-heading">
       <PageHeader
         title="Users"
         titleId="users-heading"
@@ -200,7 +201,7 @@ export function UsersScreen(): React.ReactElement {
           updateFilters({ search: searchRef.current?.value.trim() ?? "" });
         }}
       >
-        <label className="field filter-bar__full">
+        <label className="field field--search filter-bar__full">
           <span className="visually-hidden">Search users</span>
           <div className="field__row">
             <input
@@ -230,10 +231,10 @@ export function UsersScreen(): React.ReactElement {
             <option value="inactive">Inactive</option>
           </select>
         </label>
-        <strong className="users-count">{count} user{count === 1 ? "" : "s"}</strong>
+        <p className="filter-bar__count">{count} user{count === 1 ? "" : "s"}</p>
       </form>
 
-      <div className="users-info-note">
+      <div className="users-info-note meta">
         <span aria-hidden="true">i</span>
         Master authority is granted separately from a user's role.
       </div>
@@ -269,7 +270,7 @@ export function UsersScreen(): React.ReactElement {
                   render: (user) => (
                     <>
                       <strong>{user.full_name}</strong>
-                      <span className="users-email">{user.email}</span>
+                      <span className="users-email meta"><EmailAddress address={user.email} /></span>
                     </>
                   ),
                 },
@@ -283,16 +284,14 @@ export function UsersScreen(): React.ReactElement {
                   key: "status",
                   header: "Status",
                   render: (user) => (
-                    <span className={`users-status ${user.is_active ? "is-active" : "is-inactive"}`}>
-                      {user.is_active ? "Active" : "Inactive"}
-                    </span>
+                    <Badge dot tone={user.is_active ? "success" : "neutral"}>{user.is_active ? "Active" : "Inactive"}</Badge>
                   ),
                 },
                 { key: "login", header: "Last active", render: (user) => formatShortDateTime(user.last_login, "Never") },
                 {
                   key: "action",
                   header: "Action",
-                  actions: "inline",
+                  actions: true,
                   render: (user) => (
                     <Button variant="secondary" small onClick={() => navigate(`/users/${user.id}`)}>
                       Manage user

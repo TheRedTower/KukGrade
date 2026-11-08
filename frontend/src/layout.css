@@ -4,13 +4,13 @@
 
 :root {
   /* The side gutter of every page. Fluid, so it suits every device between
-     the breakpoints. .workspace applies it; a page never adds its own. */
-  --page-gutter: clamp(1rem, 3vw, 2.5rem);
+     the breakpoints. .workspace applies it; a page never adds its own. It is
+     rounded to a whole pixel so a box's 1px border on the page edge stays
+     crisp and a heading can be judged against it. */
+  --page-gutter: round(clamp(1rem, 3vw, 2.5rem), 1px);
 
   --page-max: 76rem;
   --page-end-space: 3rem;
-  /* The height of a crumb row and the gap under it, where a header has none. */
-  --crumb-row: 3.25rem;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -43,7 +43,7 @@
   --font-weight-strong: 700;
   --font-weight-title: 800;
   --card-pad: clamp(1rem, 3vw, 1.5rem);
-  --section-gap: var(--space-4);
+  --section-gap: var(--space-5);
   /* Corners: a chip's edge, a small box, a control, a card; a pill is fully round. */
   --radius-xs: 0.25rem;
   --radius-sm: 0.375rem;
@@ -63,7 +63,8 @@
 
 /* A screen's root. Centred, never wider than its size, with room beneath. It
    is also the container its contents' queries measure: they adapt to the room
-   they have, not to the window. */
+   they have, not to the window. Its sections are stacked (below), so the
+   space between them is the same on every page and no screen sets its own. */
 .page {
   container-type: inline-size;
   width: 100%;
@@ -73,15 +74,20 @@
   padding-block-end: var(--page-end-space);
 }
 
-/* The space between sections stacked on a page, in one place. A screen puts
-   `stack` on the box that holds them instead of giving each its own margin. */
+/* The space between sections stacked on a page, in one place: every page, and
+   any other box of sections that puts `stack` on itself. A section never gives
+   itself a margin to set that space. */
+.page,
 .stack {
   display: grid;
+  align-content: start;
   gap: var(--section-gap);
 }
 
+.page > *,
 .stack > * {
   min-width: 0;
+  margin-block: 0;
 }
 
 /* Keeps a label available to assistive tech without showing it - e.g. the
@@ -136,6 +142,51 @@
   background: var(--color-surface);
 }
 
+/* Type roles. A line of text is a heading element (App.css), one of these, or
+   a shared piece's own part; a screen does not set its own size, weight or
+   colour for text.
+   - .eyebrow: the small capitals above a title or naming a group;
+     .eyebrow--muted (on its own) when it only labels.
+   - .item-title: the name a row, tile or card is about.
+   - .subtext: a sentence under a heading or beside a control.
+   - .meta: a detail on a line, such as a time, a count or who did it. */
+.eyebrow,
+.eyebrow--muted,
+.page-header__eyebrow,
+.dialog__eyebrow {
+  margin: 0;
+  color: var(--color-accent-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.eyebrow--muted,
+.dialog__eyebrow {
+  color: var(--color-text-muted);
+}
+
+.item-title {
+  color: var(--color-text);
+  font-weight: var(--font-weight-strong);
+}
+
+.subtext {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.dialog__eyebrow {
+  margin-bottom: var(--space-1);
+}
+
 /* The title of a section or a card. `--ruled` draws a line under it, for the
    head of a card whose body is a form or a list. */
 .section-title {
@@ -149,6 +200,11 @@
   margin-bottom: var(--space-5);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border);
+}
+
+/* In a .stack the stack's gap spaces it instead. */
+.stack > .section-title--ruled {
+  margin-bottom: 0;
 }
 
 /* A card whose contents bring their own padding: a list, a table, rows. */
@@ -186,20 +242,35 @@
 
 /* ── Filters ───────────────────────────────────────────────────────────── */
 
-/* As many columns as fit, each at least 12rem, so it needs no breakpoint. */
+/* Fields side by side, wrapping when there is no room, so it needs no breakpoint. */
 .filter-bar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-4);
-  align-items: end;
+  align-items: flex-end;
   padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
 }
 
+/* The fields share the row, each at least 12rem; one that is full width (the
+   search, say) takes a row of its own. */
+.filter-bar > * {
+  flex: 1 1 12rem;
+}
+
 .filter-bar__full {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
+}
+
+/* How many results the filters leave, quietly, in the bar. */
+.filter-bar > .filter-bar__count {
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
 }
 
 .field {
@@ -287,7 +358,6 @@ select:not([multiple]):not([size]) {
 @media (forced-colors: active) {
   select:not([multiple]):not([size]) {
     appearance: auto;
-    -webkit-appearance: auto;
     background-image: none;
   }
 }
@@ -330,15 +400,41 @@ select:not([multiple]):not([size]) {
   display: flex;
 }
 
+/* A search box: a .field whose magnifier is drawn at the box's start, in the
+   theme's muted colour, so a screen adds no icon of its own. Its label may be
+   visually hidden; the box is always the field's last child. */
+.field--search {
+  position: relative;
+}
+
+.field--search input {
+  padding-inline-start: calc(var(--space-3) + 1.5rem);
+}
+
+.field--search::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  bottom: calc((var(--target-min) - 1rem) / 2);
+  width: 1rem;
+  height: 1rem;
+  background: var(--color-text-muted);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E") center / contain no-repeat;
+  pointer-events: none;
+}
+
 /* A search box and its button, joined. */
 .field__row > input {
   flex: 1 1 auto;
   width: auto;
+  min-width: 0;
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
 
-/* The button joined to a search box. */
+/* The button joined to a search box. The box gives way on a narrow screen;
+   the button keeps its word whole. */
 .field__row > button {
+  flex-shrink: 0;
   border: 1px solid var(--btn-primary-border);
   border-left: 0;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
@@ -386,7 +482,7 @@ select:not([multiple]):not([size]) {
 }
 
 .rtable th {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-sunken);
   color: var(--color-text-muted);
@@ -398,10 +494,21 @@ select:not([multiple]):not([size]) {
 }
 
 .rtable td {
-  padding: var(--space-4) var(--space-4);
+  padding: var(--space-4) var(--space-3);
   border-top: 1px solid var(--color-border);
-  overflow-wrap: anywhere;
-  vertical-align: top;
+  vertical-align: middle;
+}
+
+/* Columns sit closer to each other than to the table's edge, which lines up
+   with a card's own padding. (Only while it is a table: a card has its own.) */
+@container (min-width: 56rem) {
+  .rtable :is(th, td):first-child {
+    padding-inline-start: var(--space-4);
+  }
+
+  .rtable :is(th, td):last-child {
+    padding-inline-end: var(--space-4);
+  }
 }
 
 .rtable tbody tr:first-child td {
@@ -428,10 +535,16 @@ select:not([multiple]):not([size]) {
   min-width: 0;
 }
 
-/* A button label wraps between words, never inside one. */
-.rtable button,
-.rtable a {
-  overflow-wrap: normal;
+/* A name in a table that opens its record: the cell's own text, underlined in
+   the accent so it still reads as a link. Its target is full height, made with
+   padding that a negative margin takes back, so the text stays on the line of
+   the cells beside it. */
+.rtable a:not([class]) {
+  display: inline-block;
+  padding-block: calc((var(--target-min) - 1lh) / 2);
+  margin-block: calc((1lh - var(--target-min)) / 2);
+  color: inherit;
+  text-decoration-color: var(--color-accent);
 }
 
 .rtable [data-align="end"] {
@@ -440,6 +553,17 @@ select:not([multiple]):not([size]) {
 
 .rtable [data-actions] {
   text-align: end;
+}
+
+/* A row's buttons, however many: side by side at the end of the row while
+   there is room, each one under the last when the columns need it (a wider
+   font, or a narrower page beside the sidebar), never cut off. */
+.rtable td[data-actions] > .rtable__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 @container (max-width: 56rem) {
@@ -512,6 +636,11 @@ select:not([multiple]):not([size]) {
     padding-top: var(--space-2);
   }
 
+  .rtable td[data-actions] > .rtable__value {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
   /* One short button on the title's row. */
   .rtable td[data-actions="inline"] {
     grid-column: 2;
@@ -541,17 +670,21 @@ select:not([multiple]):not([size]) {
 
 /* ── Key figures ───────────────────────────────────────────────────────── */
 
+/* A few figures side by side, sharing the width equally; a label wraps under
+   its own figure, and a figure moves to the next line only when the longest
+   word of its label no longer fits. */
 .stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-4);
   text-align: center;
 }
 
 .stat {
   display: grid;
+  flex: 1 1 0;
   gap: var(--space-1);
-  min-width: 0;
+  min-width: min-content;
 }
 
 .stat__value {
@@ -590,7 +723,6 @@ select:not([multiple]):not([size]) {
 
 .facts dd {
   margin: var(--space-1) 0 0;
-  overflow-wrap: anywhere;
 }
 
 /* Label and value as rows, divided by a line. By default the value is at the
@@ -623,7 +755,6 @@ select:not([multiple]):not([size]) {
 .facts-list dd {
   margin: 0;
   font-weight: var(--font-weight-semibold);
-  overflow-wrap: anywhere;
   text-align: end;
 }
 
@@ -667,7 +798,6 @@ select:not([multiple]):not([size]) {
   background: var(--color-surface-sunken);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-body);
-  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -724,19 +854,10 @@ select:not([multiple]):not([size]) {
   min-width: 0;
 }
 
-.dialog__eyebrow {
-  margin: 0 0 var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
 
 .dialog__heading {
   margin: 0;
   font-size: var(--font-size-2xl);
-  overflow-wrap: anywhere;
 }
 
 /* On a phone the dialog is a sheet from the bottom edge: it never starts
@@ -824,16 +945,8 @@ select:not([multiple]):not([size]) {
   margin-bottom: var(--space-6);
 }
 
-/* A page with no way back above its title still starts it at the same height as
-   one that has (the room a crumb row takes), so a title does not jump when you
-   move between pages on a desktop. A phone keeps its own, tighter top. */
-@media (min-width: 56rem) {
-  .page-header--bare {
-    padding-top: var(--crumb-row);
-  }
-}
-
-/* In a .stack the stack's own gap is part of the same space. */
+/* On a page (or in a .stack) the stack's own gap is part of the same space. */
+.page > .page-header,
 .stack > .page-header {
   margin-bottom: calc(var(--space-6) - var(--section-gap));
 }
@@ -854,14 +967,6 @@ select:not([multiple]):not([size]) {
   min-width: 0;
 }
 
-.page-header__eyebrow {
-  margin: 0;
-  color: var(--color-accent-text);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
 
 .page-header__title-row {
   display: flex;
@@ -872,9 +977,6 @@ select:not([multiple]):not([size]) {
 
 .page-header__title {
   margin: 0;
-  font-weight: var(--font-weight-title);
-  letter-spacing: var(--tracking-tight);
-  overflow-wrap: anywhere;
 }
 
 .page-header__subtitle {

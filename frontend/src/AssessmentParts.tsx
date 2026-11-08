@@ -30,11 +30,11 @@ export function CategoryHeader({ group }: { group: CategoryGroup }) {
 
   return (
     <div className="caw-band-header" data-testid={`caw-cat-header-${group.category}`}>
-      <h2 className="caw-band-title">
+      <h2 className="caw-band-title item-title">
         {group.categoryDisplay}
       </h2>
       <span aria-hidden="true" className="caw-band-rule" />
-      <span className="caw-band-progress">
+      <span className="caw-band-progress meta">
         {group.isDone
           ? `${group.requiredCount} of ${group.requiredCount} required`
           : `${group.requiredAssessedCount} of ${group.requiredCount} required`}
@@ -59,10 +59,9 @@ export function DeleteAssessmentDialog({
 }) {
   return (
     <Dialog title="Delete assessment" closeButton={false} onClose={onClose} canClose={!isPending}>
-      <p className="gsd-modal-message">
-        Permanently delete {candidateName}&apos;s assessment? If it has a finalised outcome
-        or promotion, those are deleted too and the student's rank is reverted. This cannot
-        be undone.
+      <p className="gsd-modal-message subtext">
+        Permanently delete {candidateName}&apos;s assessment? Any proposed outcome is
+        deleted with it. This cannot be undone.
       </p>
       {error && (
         <Alert>{error}</Alert>
@@ -180,19 +179,19 @@ export function AssessmentItemRow({
     >
       <div className="caw-row-detail">
         <div className="caw-row-title-line">
-          <span className="caw-row-seq">#{item.position}</span>
-          <span className="caw-row-name">{item.item_name}</span>
-          {item.korean_name && <span className="caw-row-korean">{item.korean_name}</span>}
+          <span className="caw-row-seq meta">#{item.position}</span>
+          <span className="item-title">{item.item_name}</span>
+          {item.korean_name && <span className="meta" lang="ko">{item.korean_name}</span>}
           <RequirementBadge required={item.required} />
           {(item.display_range || item.notation) && (
-            <span className="caw-row-range">{item.display_range || item.notation}</span>
+            <span className="caw-row-range meta">{item.display_range || item.notation}</span>
           )}
         </div>
 
         {/* Chart notation is served as wording and shown as the range above,
             as the syllabus screen does; only other notes print here. */}
         {!item.notation && item.requirement_notes && (
-          <p className="caw-row-desc">{item.requirement_notes}</p>
+          <p className="caw-row-desc meta">{item.requirement_notes}</p>
         )}
 
         {/*
@@ -314,14 +313,14 @@ export function AssessmentItemRow({
 
         {canEdit && !isAsking && (
           <div className="caw-row-tools">
-            <button type="button" className="caw-row-tool" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
+            <button type="button" className="caw-row-tool meta" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
               Add comment
             </button>
             {/* Clearing is only offered once there is a result to clear. */}
             {canClear && (
               <button
                 type="button"
-                className="caw-row-tool"
+                className="caw-row-tool meta"
                 onClick={() => onAskChange("NOT_ASSESSED")}
                 data-testid={`btn-clear-${item.id}`}
                 ref={clearButtonRef}

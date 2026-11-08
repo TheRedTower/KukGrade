@@ -21,13 +21,13 @@ export function SettingsRow({
     <div className="st-row">
       <div className="st-row-label">
         {htmlFor ? (
-          <label className="st-row-title" htmlFor={htmlFor}>
+          <label className="st-row-title item-title" htmlFor={htmlFor}>
             {title}
           </label>
         ) : (
-          <p className="st-row-title">{title}</p>
+          <p className="st-row-title item-title">{title}</p>
         )}
-        {description ? <p className="st-row-description">{description}</p> : null}
+        {description ? <p className="st-row-description subtext">{description}</p> : null}
       </div>
       {children ? <div className="st-row-control">{children}</div> : null}
       {below ? <div className="st-row-below">{below}</div> : null}

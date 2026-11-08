@@ -48,17 +48,15 @@ export function CohortFindSection({
 
             {/* Filter toolbar */}
             <div className="filter-bar">
-              <div className="filter-bar__full bgc-search-field">
-                <span className="bgc-search-icon" aria-hidden="true">🔍</span>
+              <label className="field field--search filter-bar__full">
+                <span className="visually-hidden">Search name or WKSA ID</span>
                 <input
                   type="search"
-                  className="bgc-search-input"
                   placeholder="Search name or WKSA ID"
                   value={search}
                   onChange={(e) => onSearch(e.target.value)}
-                  aria-label="Search name or WKSA ID"
                 />
-              </div>
+              </label>
 
               <div className="field">
                 <label htmlFor="bgc-rank-filter">Current rank</label>
@@ -111,14 +109,14 @@ export function CohortFindSection({
 
             {/* Filter matching summary banner */}
             <div className="action-row bgc-filter-summary-card">
-              <div className="bgc-summary-info">
+              <div className="bgc-summary-info subtext">
                 <span className="bgc-info-icon" aria-hidden="true">ℹ</span>
                 <span>
                   Students who have left, or are still registered for another grading that has not reached its result, are not listed.
                 </span>
               </div>
               <div className="action-row">
-                <span className="bgc-matching-count">
+                <span className="item-title">
                   {students.length === 1
                     ? "1 student matches"
                     : `${students.length} students match`}
@@ -155,13 +153,12 @@ export function CohortFindSection({
                         <>
                           <Link
                             to={`/students/${student.id}`}
-                            className="bgc-student-name-link"
                             target="_blank"
                             rel="noreferrer"
                           >
                             {student.first_name} {student.last_name}
                           </Link>
-                          <span className="bgc-student-id">{student.wksa_id || "—"}</span>
+                          <span className="bgc-student-id meta">{student.wksa_id || "—"}</span>
                         </>
                       ),
                     },

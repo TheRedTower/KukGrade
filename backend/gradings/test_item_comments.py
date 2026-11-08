@@ -185,7 +185,7 @@ def test_comments_go_with_their_session_when_an_administrator_deletes_it() -> No
     assert not AssessmentItemComment.objects.exists()
 
 
-def test_deleting_a_user_keeps_their_comments_under_the_deleted_user_account() -> None:
+def test_deleting_a_user_keeps_their_name_on_their_comments() -> None:
     item = started_item()
     author = user("leaving-commenter@example.com")
     comment = add_item_comment(item, "Still here after I go.", author)
@@ -194,7 +194,7 @@ def test_deleting_a_user_keeps_their_comments_under_the_deleted_user_account() -
     delete_platform_user(author, administrator)
 
     comment.refresh_from_db()
-    assert comment.author.email == DELETED_USER_PLACEHOLDER_EMAIL
+    assert comment.author == author
     assert comment.body == "Still here after I go."
 
 

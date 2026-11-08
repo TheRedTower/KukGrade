@@ -652,6 +652,7 @@ describe("Student detail screen (/students/:id)", () => {
     status: "ACTIVE",
     status_display: "Active",
     age_band_display: "13-17",
+    deleted_at: null,
     created_at: "2021-01-08T10:00:00Z",
   } satisfies StudentDetail;
 

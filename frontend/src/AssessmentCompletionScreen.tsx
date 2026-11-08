@@ -46,6 +46,7 @@ import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { CoreAreaMark, LedgerTable, ResultMark, SealIcon } from "./AssessmentRecordParts";
+import { EmailAddress, EmailList } from "./EmailAddress";
 
 export function AssessmentCompletionScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -98,7 +99,7 @@ export function AssessmentCompletionScreen() {
 
   if (isLoading) {
     return (
-      <section aria-label="Assessment completion review" className="page caw-page" data-testid="caw-review-loading">
+      <section aria-label="Assessment completion review" className="page" data-testid="caw-review-loading">
         <LoadingState>Loading completion review…</LoadingState>
       </section>
     );
@@ -106,7 +107,7 @@ export function AssessmentCompletionScreen() {
 
   if (hasLoadError) {
     return (
-      <section aria-label="Assessment completion review" className="page caw-page" data-testid="caw-review-load-error">
+      <section aria-label="Assessment completion review" className="page" data-testid="caw-review-load-error">
         <Alert action={<Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
             ← Return to scoring
           </Link>}>
@@ -119,7 +120,7 @@ export function AssessmentCompletionScreen() {
 
   if (!session || !candidate) {
     return (
-      <section aria-label="Assessment completion review" className="page caw-page" data-testid="caw-review-not-found">
+      <section aria-label="Assessment completion review" className="page" data-testid="caw-review-not-found">
         <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>}>
@@ -136,7 +137,7 @@ export function AssessmentCompletionScreen() {
   // this state explains itself rather than showing an empty proof.
   if (!assessment || (!isSealed && !stats.canComplete)) {
     return (
-      <section aria-label="Assessment completion review" className="page caw-page" data-testid="caw-review-unavailable">
+      <section aria-label="Assessment completion review" className="page" data-testid="caw-review-unavailable">
         <Alert action={<Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
             ← Return to scoring
           </Link>}>
@@ -185,7 +186,7 @@ export function AssessmentCompletionScreen() {
             History
           </Link>
         )}
-        <span className="acp-topbar-note">
+        <span className="meta">
           {isSealed
             ? assessment?.marks_open
               ? session.status === "OPEN"
@@ -205,7 +206,7 @@ export function AssessmentCompletionScreen() {
         <article aria-label="Assessment record proof" className="acp-sheet">
           <div className="acp-sheet-head">
             <div>
-              <div className="acp-org">
+              <div className="eyebrow--muted">
                 {clubName}{session.location && ` · ${session.location}`}
               </div>
               <h1 className="acp-sheet-title" id="acp-title">Assessment record</h1>
@@ -217,15 +218,15 @@ export function AssessmentCompletionScreen() {
 
           <div className="acp-identity">
             <div className="acp-identity-left">
-              <div className="acp-label">Candidate</div>
-              <div className="acp-candidate-name">{candidate.student_display_name}</div>
-              <div className="acp-candidate-sub">
+              <div className="eyebrow--muted">Candidate</div>
+              <div className="acp-candidate-name section-title">{candidate.student_display_name}</div>
+              <div className="acp-candidate-sub meta">
                 {candidate.student_wksa_id && `WKSA ID ${candidate.student_wksa_id} · `}
                 {candidate.age_band_display}
               </div>
             </div>
             <div className="acp-identity-right">
-              <div className="acp-label">Assessed for</div>
+              <div className="eyebrow--muted">Assessed for</div>
               <div className="acp-rank-line">
                 <span className="acp-rank">
                   {candidate && <RankBelt rankId={candidate.from_rank} />}
@@ -234,12 +235,12 @@ export function AssessmentCompletionScreen() {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
                   <path d="M4 12h15M14 7l5 5-5 5" />
                 </svg>
-                <span className="acp-rank acp-rank-dest">
+                <span className="acp-rank item-title">
                   <RankBelt rankId={candidate.testing_for_rank} />
                   <span>{candidate.testing_for_rank_name}</span>
                 </span>
               </div>
-              <div className="acp-candidate-sub">
+              <div className="acp-candidate-sub meta">
                 {session.title}
                 {session.grading_date && ` · ${formatShortDate(session.grading_date, "")}`}
               </div>
@@ -248,14 +249,14 @@ export function AssessmentCompletionScreen() {
 
           {coreGroups.length > 0 && (
             <>
-              <h2 className="acp-section">Core grading areas · always assessed</h2>
+              <h2 className="acp-section eyebrow--muted">Core grading areas · always assessed</h2>
               <div className="acp-core-grid">
                 {coreGroups.map((group) => (
                   <div key={group.category} className="acp-core-cell" data-testid={`acp-core-${group.category}`}>
                     <CoreAreaMark group={group} />
                     <span className="acp-core-text">
-                      <span className="acp-core-name">{group.categoryDisplay}</span>
-                      <span className="acp-core-detail">
+                      <span className="acp-core-name item-title">{group.categoryDisplay}</span>
+                      <span className="acp-core-detail meta">
                         {group.metCount} of {group.totalCount} met
                         {group.notMetCount > 0 && ` · ${group.notMetCount} not met`}
                         {group.notAssessedCount > 0 && ` · ${group.notAssessedCount} not assessed`}
@@ -271,27 +272,27 @@ export function AssessmentCompletionScreen() {
             <LedgerTable key={group.category} group={group} />
           ))}
 
-          <h2 className="acp-section">Comments on individual requirements</h2>
+          <h2 className="acp-section eyebrow--muted">Comments on individual requirements</h2>
           {notedItems.length === 0 ? (
-            <p className="acp-section-note">No comments were recorded against individual requirements.</p>
+            <p className="acp-section-note meta">No comments were recorded against individual requirements.</p>
           ) : (
             <>
-              <p className="acp-section-note">
+              <p className="acp-section-note meta">
                 Every comment recorded during scoring, whichever way the requirement went.
               </p>
               {notedItems.map((item) => (
                 <div key={item.id} className="acp-note" data-testid={`acp-note-${item.id}`}>
                   <div className="acp-note-head">
-                    <span className="acp-note-title">
+                    <span className="item-title">
                       #{item.position} {item.item_name}
                       {item.korean_name && ` · ${item.korean_name}`}
                     </span>
                     <ResultMark result={item.result} />
                   </div>
                   {item.comments.map((comment) => (
-                    <p key={comment.id} className="acp-note-body">
+                    <p key={comment.id} className="acp-note-body meta">
                       “{comment.body}”
-                      <span className="acp-note-by">
+                      <span className="meta">
                         {" "}— {comment.author_name} · {formatShortDateTime(comment.created_at)}
                       </span>
                     </p>
@@ -301,7 +302,7 @@ export function AssessmentCompletionScreen() {
             </>
           )}
 
-          <h2 className="acp-section">
+          <h2 className="acp-section eyebrow--muted">
             <label htmlFor="general-assessment-notes">Assessment note</label>
           </h2>
           {isSealed ? (
@@ -310,7 +311,7 @@ export function AssessmentCompletionScreen() {
             </p>
           ) : (
             <>
-              <p className="acp-section-note">
+              <p className="acp-section-note meta">
                 Editable until the record is sealed. This is the only point at which the overall
                 assessment note can be written — it is saved with the record and cannot be changed afterwards.
               </p>
@@ -327,12 +328,12 @@ export function AssessmentCompletionScreen() {
 
           <div className="acp-seal-line">
             <div>
-              <div className="acp-label">Recorded by</div>
-              <div className="acp-seal-value">
-                {assessors.length > 0 ? assessors.join(", ") : "Not yet attributed"}
+              <div className="eyebrow--muted">Recorded by</div>
+              <div className="acp-seal-value item-title">
+                {assessors.length > 0 ? <EmailList addresses={assessors} /> : "Not yet attributed"}
               </div>
               {assessment.started_at && (
-                <div className="acp-seal-detail">
+                <div className="acp-seal-detail meta">
                   Assessed from {formatTime(assessment.started_at)}
                   {assessment.completed_at && ` to ${formatTime(assessment.completed_at)}`}
                   {session.grading_date && ` on ${formatShortDate(session.grading_date, "")}`}
@@ -340,20 +341,20 @@ export function AssessmentCompletionScreen() {
               )}
             </div>
             <div>
-              <div className="acp-label">Seal</div>
+              <div className="eyebrow--muted">Seal</div>
               {/* Blank until sealed: the line is the point of the document. */}
               {isSealed && assessment.completed_at ? (
                 <>
-                  <div className="acp-seal-value acp-seal-applied" data-testid="acp-seal-applied">
+                  <div className="acp-seal-value item-title acp-seal-applied" data-testid="acp-seal-applied">
                     Sealed {formatShortDate(assessment.completed_at, "")} at{" "}
                     {formatTime(assessment.completed_at)}
                   </div>
-                  <div className="acp-seal-detail">This record can no longer be changed.</div>
+                  <div className="acp-seal-detail meta">This record can no longer be changed.</div>
                 </>
               ) : (
                 <>
                   <div className="acp-seal-blank" aria-hidden="true" />
-                  <div className="acp-seal-detail">Applied when the record is sealed</div>
+                  <div className="acp-seal-detail meta">Applied when the record is sealed</div>
                 </>
               )}
             </div>
@@ -363,7 +364,7 @@ export function AssessmentCompletionScreen() {
         {/* ── Provenance, counts and the seal controls ───────────────────── */}
         <aside aria-label="Record details and seal" className="acp-aside">
           <div className="acp-card">
-            <h2 className="acp-card-title">Record details</h2>
+            <h2 className="acp-card-title eyebrow--muted">Record details</h2>
             <dl className="facts-list facts-list--aligned facts-list--compact">
               <div>
                 <dt>Form prepared</dt>
@@ -371,7 +372,7 @@ export function AssessmentCompletionScreen() {
               </div>
               <div>
                 <dt>Prepared by</dt>
-                <dd>{assessment.generated_by_email || "—"}</dd>
+                <dd>{assessment.generated_by_email ? <EmailAddress address={assessment.generated_by_email} /> : "—"}</dd>
               </div>
               <div>
                 <dt>Age group</dt>
@@ -379,21 +380,21 @@ export function AssessmentCompletionScreen() {
               </div>
               <div>
                 <dt>Assessors</dt>
-                <dd>{assessors.length > 0 ? assessors.join(", ") : "—"}</dd>
+                <dd>{assessors.length > 0 ? <EmailList addresses={assessors} /> : "—"}</dd>
               </div>
             </dl>
           </div>
 
           <div className="acp-card">
-            <h2 className="acp-card-title">Counts</h2>
+            <h2 className="acp-card-title eyebrow--muted">Counts</h2>
             {/*
               No percentage. `Result` is NOT_ASSESSED / MET / NOT_MET with no
               partial credit, so a percentage would imply a score the model
               cannot express. Counts are served, not recounted.
             */}
             <div className="acp-count-figure">
-              <strong>{stats.requiredAssessed}</strong>
-              <span>{`/ ${stats.requiredItems} required`}</span>
+              <strong className="stat__value">{stats.requiredAssessed}</strong>
+              <span className="subtext">{`/ ${stats.requiredItems} required`}</span>
             </div>
             <div className="acp-count-tallies">
               <span className="acp-result acp-result-met">
@@ -406,7 +407,7 @@ export function AssessmentCompletionScreen() {
               </span>
             </div>
             {stats.notAssessedCount > 0 && (
-              <p className="acp-count-optional">
+              <p className="acp-count-optional meta">
                 {`${stats.notAssessedCount} optional ${
                   stats.notAssessedCount === 1 ? "requirement was" : "requirements were"
                 } left unassessed.`}

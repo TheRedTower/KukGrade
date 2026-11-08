@@ -33,7 +33,9 @@ from gradings.testing import (
     finalised_outcome,
     grading_session,
     locked_completed_candidate,
+    locked_session_with_undecided_candidate,
     master,
+    override_master,
     start_assessment,
     user,
 )
@@ -757,6 +759,26 @@ def test_proposing_for_a_candidate_opens_the_record_once_and_then_revises_it() -
     assert first.pk == second.pk
     assert CandidateOutcome.objects.filter(candidate=built).count() == 1
     assert second.proposed_outcome == CandidateOutcome.Outcome.FAIL
+
+
+def test_a_proposal_cannot_be_revised_once_the_session_is_cancelled() -> None:
+    """Review N-04 (2026-11-07): only the first proposal checked the session."""
+    session, built = locked_session_with_undecided_candidate()
+    proposed = propose_for_candidate(
+        built, "PASS", "", user("n04-proposer@example.com")
+    )
+    transition_grading_session(
+        session,
+        GradingSession.Status.CANCELLED,
+        actor=override_master("n04-canceller@example.com"),
+        reason="Abandoned",
+    )
+
+    with pytest.raises(ValidationError, match="only be proposed in locked sessions"):
+        propose_for_candidate(built, "FAIL", "", user("n04-reviser@example.com"))
+
+    proposed.refresh_from_db()
+    assert proposed.proposed_outcome == "PASS"
 
 
 def test_proposing_for_a_candidate_who_cannot_have_an_outcome_is_refused() -> None:

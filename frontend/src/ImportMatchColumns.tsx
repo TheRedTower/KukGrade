@@ -192,7 +192,7 @@ export function ImportMatchColumns({
           onSave={(next) => correct.mutateAsync({ row: row.row_number, field, value: next })}
         />
         {corrected ? (
-          <span className="ix-fix-note">
+          <span className="ix-fix-note meta">
             Your fix · file had “{original || "nothing"}”
             <Button
               variant="link"
@@ -215,13 +215,13 @@ export function ImportMatchColumns({
             <h2 className="ix-title" id="ix-match-h" tabIndex={-1}>
               Match your columns
             </h2>
-            <p className="ix-muted">
+            <p className="subtext">
               Set what each column holds, above it. Then type into any cell to fix or fill it:
               the file itself is never changed, and your fix is what KukGrade imports.
             </p>
           </div>
           {saved && previewRows.length ? (
-            <p aria-live="polite" className="ix-small ix-flush">
+            <p aria-live="polite" className="ix-flush">
               <strong className="ix-success-text">{readyCount}</strong> of {previewRows.length} ready ·{" "}
               <strong className="ix-warning-text">{previewRows.length - readyCount}</strong> need attention
             </p>
@@ -269,7 +269,7 @@ export function ImportMatchColumns({
         ))}
 
         {rankDefault && !columnFor.current_rank ? (
-          <p className="ix-small ix-flush">
+          <p className="ix-flush">
             Rank for everyone: <strong>{rankDefault}</strong>. A row can still be given its own.{" "}
             <Button
               variant="link"
@@ -306,7 +306,7 @@ export function ImportMatchColumns({
         <div className="card card--flush scroll-region" role="region" aria-label="Your file's columns and first rows" tabIndex={0}>
           <table className="ix-table ix-table-cells">
             <thead>
-              <tr>
+              <tr className="eyebrow--muted">
                 <th scope="col">Row</th>
                 {batch.detected_headers.map((header, index) => {
                   const choice = choices[header] ?? "";
@@ -355,13 +355,13 @@ export function ImportMatchColumns({
               {!saved ? (
                 <tr>
                   <td colSpan={batch.detected_headers.length + typedColumns.length + 2}>
-                    <span className="ix-muted">Match a column to see how KukGrade reads the first rows.</span>
+                    <span className="subtext">Match a column to see how KukGrade reads the first rows.</span>
                   </td>
                 </tr>
               ) : rows.isPending ? (
                 <tr>
                   <td colSpan={batch.detected_headers.length + typedColumns.length + 2}>
-                    <span className="ix-muted" role="status">Reading the first rows…</span>
+                    <span className="subtext" role="status">Reading the first rows…</span>
                   </td>
                 </tr>
               ) : (
@@ -369,7 +369,7 @@ export function ImportMatchColumns({
                   const state = rowState(row);
                   return (
                     <tr key={row.row_number}>
-                      <td className="ix-muted ix-small">{row.row_number}</td>
+                      <td className="subtext">{row.row_number}</td>
                       {batch.detected_headers.map((header) => {
                         const choice = choices[header] ?? "";
                         const isField = choice in columnFor && columnFor[choice] === header && !clashes.has(choice);
@@ -378,7 +378,7 @@ export function ImportMatchColumns({
                             {isField ? (
                               cell(row, choice, header)
                             ) : (
-                              <span className={`ix-cell-text scroll-region__nowrap ${choice === EXTRA ? "ix-muted" : "ix-struck"}`}>
+                              <span className={`ix-cell-text scroll-region__nowrap ${choice === EXTRA ? "subtext" : "ix-struck"}`}>
                                 {row.cells[header] || "(blank)"}
                               </span>
                             )}
@@ -391,7 +391,7 @@ export function ImportMatchColumns({
                       <td className="ix-cell-reading scroll-region__wide">
                         <Badge dot tone={state.tone}>{state.label}</Badge>
                         {row.outcome === "REVIEW_REQUIRED" && row.issues.length ? (
-                          <span className="ix-muted ix-small">
+                          <span className="subtext">
                             {row.issues.slice(0, 2).join(" ")}
                           </span>
                         ) : null}
@@ -403,7 +403,7 @@ export function ImportMatchColumns({
             </tbody>
           </table>
         </div>
-        <p className="ix-muted ix-small ix-flush">
+        <p className="subtext ix-flush">
           These are the first {Math.min(PREVIEW_ROWS, batch.row_counts.total)} of {batch.row_counts.total} rows. In the next step every
           row can be checked and fixed the same way. Columns left out are struck through; Status is
           Active where none is given.
@@ -416,15 +416,15 @@ export function ImportMatchColumns({
         </Button>
         <div className="ix-actions">
           {save.isPending ? (
-            <span className="ix-muted ix-small" role="status">
+            <span className="subtext" role="status">
               Checking every row…
             </span>
           ) : null}
           {dirty || dirtyCells.length > 0 || correct.isPending || correct.isError ? (
-            <span className="ix-why" role="status">Save the visible changes before continuing.</span>
+            <span className="ix-why error-text" role="status">Save the visible changes before continuing.</span>
           ) : null}
           {blockedWhy ? (
-            <span className="ix-why" id="ix-match-why">
+            <span className="ix-why error-text" id="ix-match-why">
               {blockedWhy}
             </span>
           ) : null}

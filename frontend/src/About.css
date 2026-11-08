@@ -36,8 +36,6 @@
   margin: var(--space-2) 0 0;
   padding: var(--space-3) var(--space-3) var(--space-2);
   border-top: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .ab-main {
@@ -49,36 +47,10 @@
 
 .ab-main > header h2 {
   margin: 0;
-  font-size: var(--font-size-3xl);
 }
 
 .ab-main > header p {
   margin: var(--space-1) 0 0;
-}
-
-.ab-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-4);
-}
-
-.ab-head h2 {
-  margin: 0;
-  font-size: var(--font-size-xl);
-}
-
-.ab-note {
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-info-border);
-  border-radius: var(--radius-control);
-  background: var(--color-info-surface);
-  font-size: var(--font-size-md);
-}
-
-.ab-note a {
-  color: var(--color-info);
 }
 
 /* Overview. */
@@ -120,11 +92,6 @@
 
 .st-eyebrow {
   margin: 0.1rem 0 var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
 }
 
 .st-version-tile {
@@ -132,22 +99,6 @@
   flex-direction: column;
   align-items: center;
   margin: 0;
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface-sunken);
-}
-
-.st-version-tile span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
-.st-version-tile strong {
-  font-size: var(--font-size-2xl);
 }
 
 .st-links a {
@@ -181,7 +132,6 @@
 
 .st-mono {
   font-family: var(--font-mono);
-  font-size: var(--font-size-md);
 }
 
 /* Documents. */
@@ -189,49 +139,23 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
   gap: var(--space-4);
-  margin-top: var(--space-4);
-}
-
-.ab-three > div {
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-sunken);
 }
 
 .ab-three h3 {
   margin: 0 0 var(--space-2);
-  font-size: var(--font-size-lg);
 }
 
 .ab-three ul {
   margin: 0;
   padding-left: var(--space-4);
-  font-size: var(--font-size-md);
-}
-
-.ab-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
 }
 
 /* A line under a card's buttons. */
-.ab-note {
-  margin-top: var(--space-3);
-}
-
 .ab-licence-text {
   max-height: 24rem;
   overscroll-behavior: contain;
-  margin-top: var(--space-4);
 }
 
-.ab-credit-link {
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-}
 
 .ab-doc-columns {
   display: grid;
@@ -252,11 +176,6 @@
   flex: 0 0 100%;
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
 }
 
 .ab-contents button {
@@ -278,12 +197,10 @@
    down, and long words and links wrap rather than push it sideways. */
 .ab-prose {
   padding: var(--space-5);
-  overflow-wrap: anywhere;
 }
 
 .ab-prose h3 {
   margin: var(--space-5) 0 var(--space-2);
-  font-size: var(--font-size-xl);
   scroll-margin-top: 1rem;
 }
 
@@ -298,7 +215,6 @@
 
 .ab-prose h4 {
   margin: var(--space-4) 0 var(--space-1);
-  font-size: var(--font-size-lg);
   scroll-margin-top: 1rem;
 }
 
@@ -317,9 +233,6 @@
   padding-left: var(--space-5);
 }
 
-.ab-prose a {
-  color: var(--color-accent-text);
-}
 
 .ab-prose code {
   padding: 0.05rem var(--space-1);

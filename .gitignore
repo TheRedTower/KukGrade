@@ -53,3 +53,8 @@ tmp/
 # What the deploy/ Compose files keep on the host.
 deploy/data/
 deploy/certs/
+
+# Editor and merge leftovers never belong in the repository.
+*.bak
+*.orig
+*~

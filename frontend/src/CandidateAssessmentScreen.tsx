@@ -6,7 +6,6 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
-import { useAuth } from "./auth";
 import { addAssessmentItemComment, CandidateAssessmentItem, CandidateAssessmentItemResult, deleteCandidateAssessment, generateCandidateAssessment, updateCandidateAssessment, updateCandidateAssessmentItem, errorMessage } from "./api";
 import { RankBelt } from "./Belt";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
@@ -19,12 +18,12 @@ import { buttonClass } from "./buttonClass";
 import { assessmentTone } from "./badgeClass";
 import { AssessmentItemRow, CategoryHeader, DeleteAssessmentDialog } from "./AssessmentParts";
 import "./CandidateAssessment.css";
+import { EmailAddress } from "./EmailAddress";
 
 export function CandidateAssessmentScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user: currentUser } = useAuth();
 
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
@@ -225,7 +224,7 @@ export function CandidateAssessmentScreen() {
 
   if (isLoading) {
     return (
-      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-loading">
+      <section aria-label="Candidate assessment" className="page" data-testid="caw-loading">
         <LoadingState>Loading the assessment…</LoadingState>
       </section>
     );
@@ -233,7 +232,7 @@ export function CandidateAssessmentScreen() {
 
   if (hasLoadError) {
     return (
-      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-load-error">
+      <section aria-label="Candidate assessment" className="page" data-testid="caw-load-error">
         <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>}>
@@ -245,7 +244,7 @@ export function CandidateAssessmentScreen() {
 
   if (!session || !candidate) {
     return (
-      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-not-found">
+      <section aria-label="Candidate assessment" className="page" data-testid="caw-not-found">
         <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>}>
@@ -292,7 +291,7 @@ export function CandidateAssessmentScreen() {
       <header className="caw-identity">
         <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>
         {candidate.student_wksa_id && (
-          <span className="caw-candidate-wksa">{candidate.student_wksa_id}</span>
+          <span className="caw-candidate-wksa meta">{candidate.student_wksa_id}</span>
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
         <Badge tone="neutral">
@@ -320,12 +319,12 @@ export function CandidateAssessmentScreen() {
 
         {/* Provenance: who prepared the snapshot, and when it was frozen. */}
         {assessment?.generated_by_email && (
-          <span className="caw-provenance">
-            Form prepared by {assessment.generated_by_email}
+          <span className="meta">
+            Form prepared by <EmailAddress address={assessment.generated_by_email} />
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
         )}
-        {currentUser?.can_delete_assessments && assessment && (
+        {assessment?.can_delete && (
           <Button
             variant="danger"
             small
@@ -345,7 +344,7 @@ export function CandidateAssessmentScreen() {
         <div className="action-row caw-not-started-banner" data-testid="caw-missing-assessment-banner">
           <div className="caw-not-started-content">
             <h2>Prepare assessment form</h2>
-            <p>
+            <p className="subtext">
               Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as it is today, so later changes to the syllabus never alter it.
             </p>
           </div>
@@ -378,7 +377,7 @@ export function CandidateAssessmentScreen() {
         <div className="action-row caw-not-started-banner" data-testid="caw-not-started-banner">
           <div className="caw-not-started-content">
             <h2>Assessment ready to begin</h2>
-            <p>
+            <p className="subtext">
               Candidates must have their assessment started before individual syllabus items
               can be scored.
             </p>
@@ -446,7 +445,7 @@ export function CandidateAssessmentScreen() {
         )}
 
         {categoryGroups.length > 0 && (
-          <p className="caw-run-end">
+          <p className="caw-run-end meta">
             End of assessment form · {categoryGroups.length}{" "}
             {categoryGroups.length === 1 ? "category" : "categories"}
             {assessment?.generated_at && ` · prepared ${formatDayMonth(assessment.generated_at)}`} from{" "}
@@ -458,8 +457,8 @@ export function CandidateAssessmentScreen() {
       {/* Persistent mat bar: the live count and the only completion action. */}
       <div className="caw-mat-bar" data-testid="caw-mat-bar">
         <div className="caw-mat-count" role="status" aria-live="polite">
-          <span className="caw-mat-figure">{`${stats.requiredAssessed} / ${stats.requiredItems}`}</span>
-          <span className="caw-mat-figure-label">required assessed</span>
+          <span className="caw-mat-figure item-title">{`${stats.requiredAssessed} / ${stats.requiredItems}`}</span>
+          <span className="meta">required assessed</span>
         </div>
 
         <Meter

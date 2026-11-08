@@ -292,7 +292,7 @@ def test_voiding_twice_is_refused() -> None:
         void_legacy_record(record, reason="Second attempt", actor=actor)
 
 
-def test_deleting_a_user_reassigns_legacy_void_attribution() -> None:
+def test_deleting_a_user_keeps_their_name_on_a_void() -> None:
     from accounts.services import delete_platform_user
 
     record = legacy_record()
@@ -300,10 +300,10 @@ def test_deleting_a_user_reassigns_legacy_void_attribution() -> None:
     void_legacy_record(record, reason="Duplicate row", actor=voider)
 
     remover = user("legacy-void-remover@example.com", role=User.Role.ADMINISTRATOR)
-    placeholder = delete_platform_user(voider, remover)
+    delete_platform_user(voider, remover)
 
     record.refresh_from_db()
-    assert record.voided_by_id == placeholder.pk
+    assert record.voided_by_id == voider.pk
 
 
 def test_deleting_a_linked_student_is_protected() -> None:

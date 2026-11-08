@@ -66,10 +66,10 @@ function MarkdownText({ content, repositoryUrl }: { content: string; repositoryU
 
 function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitle?: string; sourceUrl?: string }) {
   return (
-    <header className="ab-head">
+    <header className="action-row">
       <div>
-        <h2>{title}</h2>
-        {subtitle ? <p className="st-row-description">{subtitle}</p> : null}
+        <h2 className="section-title">{title}</h2>
+        {subtitle ? <p className="st-row-description subtext">{subtitle}</p> : null}
       </div>
       {sourceUrl ? (
         <a className={buttonClass({ variant: "secondary" })} href={sourceUrl} rel="noopener noreferrer" target="_blank">
@@ -110,7 +110,7 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
         <div className="ab-doc-columns">
           {contents.length > 0 ? (
             <nav aria-label={`${label}, on this page`} className="card card--flush ab-contents">
-              <p>On this page</p>
+              <p className="eyebrow--muted">On this page</p>
               {contents.map((entry) => (
                 <button key={entry.id} onClick={() => jump(entry.id)} type="button">
                   {entry.text}
@@ -158,7 +158,7 @@ export function AboutConduct() {
       {pledge.isError ? <Problem error={pledge.error} /> : null}
       {pledge.data ? (
         <section aria-labelledby="ab-pledge" className="card">
-          <p className="st-eyebrow">Kuk Sool Won</p>
+          <p className="st-eyebrow eyebrow--muted">Kuk Sool Won</p>
           <h2 id="ab-pledge">{pledge.data.title}</h2>
           <ol className="ab-pledge">
             {pledge.data.points.map((point, index) => (
@@ -201,12 +201,14 @@ export function AboutLicence() {
       <DocumentHeader sourceUrl={doc?.source_url} subtitle={name} title="Licence" />
       {query.isError ? <Problem error={query.error} /> : null}
 
-      <section aria-labelledby="ab-plain" className="card">
-        <h2 id="ab-plain">In plain words</h2>
-        <p className="st-row-description">
-          KukGrade is free software. This is a short guide, not legal advice: the full licence
-          below is the only text that counts.
-        </p>
+      <section aria-labelledby="ab-plain" className="card stack">
+        <div>
+          <h2 id="ab-plain">In plain words</h2>
+          <p className="st-row-description subtext">
+            KukGrade is free software. This is a short guide, not legal advice: the full licence
+            below is the only text that counts.
+          </p>
+        </div>
         <div className="ab-three">
           <div>
             <h3>You may</h3>
@@ -232,20 +234,22 @@ export function AboutLicence() {
             </ul>
           </div>
         </div>
-        <div className="ab-actions">
+        <div className="action-row">
           {about ? (
             <a className={buttonClass({ variant: "primary" })} href={about.repository_url} rel="noopener noreferrer" target="_blank">
               Get the source code ↗<span className="visually-hidden"> (opens in a new tab)</span>
             </a>
           ) : null}
         </div>
-        {about ? <p className="st-row-description ab-note">{about.copyright}</p> : null}
+        {about ? <p className="st-row-description subtext">{about.copyright}</p> : null}
       </section>
 
       {doc ? (
-        <section aria-labelledby="ab-full" className="card">
-          <h2 id="ab-full">Full licence</h2>
-          <p className="st-row-description">The licence file that ships with this version.</p>
+        <section aria-labelledby="ab-full" className="card stack">
+          <div>
+            <h2 id="ab-full">Full licence</h2>
+            <p className="st-row-description subtext">The licence file that ships with this version.</p>
+          </div>
           {/* A scrolling box has to be reachable by keyboard to be read. */}
           <pre aria-label="Full licence text" className="code-block ab-licence-text" role="region" tabIndex={0}>
             {doc.content}
@@ -253,10 +257,10 @@ export function AboutLicence() {
         </section>
       ) : null}
 
-      <p className="ab-note">
+      <Alert tone="info" role="note">
         Not sure what the licence means for your school? Ask on the{" "}
         <Link to="/settings/about/support">Support</Link> page. The project cannot give legal advice.
-      </p>
+      </Alert>
     </>
   );
 }

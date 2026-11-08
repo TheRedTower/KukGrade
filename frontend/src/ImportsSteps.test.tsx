@@ -947,7 +947,7 @@ describe("Linking historical records", () => {
     await user.selectOptions(await screen.findByLabelText(/“Brn stripe” is not matched/), "8");
     await waitFor(() => expect(api.resolveLegacyTestingForRank).toHaveBeenCalledWith(102, 8));
 
-    await user.click(screen.getByRole("button", { name: "Void the Mar 2025 record" }));
+    await user.click(screen.getByRole("button", { name: "Void the Mar\u00a02025 record" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Void the record" })).toBeDisabled();
     expect(within(dialog).getByLabelText("Why")).toHaveFocus();

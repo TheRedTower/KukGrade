@@ -74,6 +74,19 @@ function parseApiDate(value: string | null | undefined): Date | null {
 }
 
 /**
+ * A date reads as one unit: its parts are held together with no-break spaces,
+ * so "Nov 2021" never splits across two lines. It may still break after a
+ * comma or before "at", between the weekday, the date and the time, so a
+ * narrow box wraps the time whole instead of splitting it.
+ */
+function unbroken(text: string): string {
+  return text
+    .split(/(, | at )/)
+    .map((part, index) => (index % 2 === 0 ? part.replaceAll(" ", "\u00a0") : part === " at " ? " at\u00a0" : part))
+    .join("");
+}
+
+/**
  * Formats an API date or timestamp in en-GB. Returns `fallback` when the value
  * is absent, and the original string when it cannot be parsed - so a value the
  * app does not understand is still shown rather than silently blanked.
@@ -88,7 +101,7 @@ export function formatApiDate(
   if (!date) return value;
   try {
     const timeZone = DATE_ONLY.test(value) ? undefined : clubTimeZone;
-    return new Intl.DateTimeFormat("en-GB", { ...options, timeZone }).format(date);
+    return unbroken(new Intl.DateTimeFormat("en-GB", { ...options, timeZone }).format(date));
   } catch {
     return value;
   }
@@ -152,6 +165,14 @@ export function formatTime(value: string | null | undefined, fallback = ""): str
   return formatApiDate(value, { hour: "2-digit", minute: "2-digit" }, fallback);
 }
 
+/** "Today 14:30", "Yesterday 14:30" or "5 Oct 14:30": when something recent happened. */
+export function formatRecentTime(value: string): string {
+  const daysAgo = calendarDaysAgo(value);
+  if (daysAgo === null) return value;
+  const day = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : formatApiDate(value, { day: "numeric", month: "short" });
+  return unbroken(`${day} ${formatTime(value)}`);
+}
+
 /** "05 Oct" - when the year is already carried by the surrounding context. */
 export function formatDayMonth(value: string | null | undefined, fallback = ""): string {
   return formatApiDate(value, { day: "2-digit", month: "short" }, fallback);
@@ -159,8 +180,8 @@ export function formatDayMonth(value: string | null | undefined, fallback = ""):
 
 /** "Jun 2025" - a historical record's grading month, given as numbers. */
 export function formatMonthYear(year: number, month: number): string {
-  return new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(
-    new Date(year, month - 1, 1),
+  return unbroken(
+    new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(new Date(year, month - 1, 1)),
   );
 }
 

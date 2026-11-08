@@ -28,6 +28,9 @@ Want something here, or something that is missing? Open an
       Done when the owner has checked the demo site on a real phone and tablet.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.
+- [ ] **Measure the audit log's record history** on a real session: the history behind a
+      grading or a student filters events by `session_id` and `student_id` in their details,
+      which no index serves yet. Add one if it is slow once real data exists.
 - [ ] **Other schools' spreadsheets**: the historical-workbook adapter was written for the first
       school's layout. Document how to adapt it for another.
 
@@ -80,6 +83,10 @@ Want something here, or something that is missing? Open an
   resolved when it reconnects, before any PWA or local-storage work.
 - **Explicit syllabus versions.** Copying requirement text into every assessment already keeps
   history reproducible, so publishing named syllabus versions is deferred until there is a need.
+- **Erasing a former student's personal details on request.** Deleting a student who has
+  been in a grading keeps their record whole, so their history shows who it was
+  (2026-11-07). To decide: whether an erasure request should blank their name and date of
+  birth on that kept record while the gradings stay.
 - **Backup ownership and retention** guidance for schools that host it themselves.
 - **How long audit events are kept.** The log is permanent today and the retention period is
   not set; the erasure procedure in [Privacy](privacy.md) works whatever it turns out to be.

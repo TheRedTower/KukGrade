@@ -523,6 +523,12 @@ def _parse_cycle_sheet(
             parsed = _parse_auxiliary_row(row, section_name=current_section, **place)
             if parsed is not None:
                 canonical_rows.append(parsed)
+            else:
+                # No name in the first cell - a note run on from the row
+                # above, say - is nobody's record, but its cells are kept.
+                found = notes_for(row, range(1, len(row)), place, heading="")
+                canonical_rows.extend(found)
+                sheet_notes += len(found)
             continue
 
         parsed = _parse_main_table_row(row, columns, **place)

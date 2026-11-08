@@ -12,20 +12,27 @@ export function ImportStepBar({ kind, current }: { kind: DataImportKind; current
             <li
               key={name}
               aria-current={index === current ? "step" : undefined}
-              className={`ix-step ix-step-${state}`}
+              className={`ix-step meta ix-step-${state}`}
             >
               <span aria-hidden="true" className="ix-step-bar" />
               <span className="ix-step-label">
                 <span aria-hidden="true" className="ix-step-dot">
                   {state === "done" ? "✓" : index + 1}
                 </span>
-                <span>{name}</span>
+                <span className="ix-step-name">{name}</span>
                 {state === "done" ? <span className="visually-hidden">, done</span> : null}
               </span>
             </li>
           );
         })}
       </ol>
+      {/* A phone shows the numbers only, and the current step's name here once
+          (the list above still names every step for a screen reader). */}
+      <p aria-hidden="true" className="ix-step-caption meta">
+        <strong>
+          Step {current + 1} of {names.length}: {names[current]}
+        </strong>
+      </p>
     </nav>
   );
 }

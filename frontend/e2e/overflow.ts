@@ -132,3 +132,101 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
     return out;
   });
 }
+
+/**
+ * What fits but still looks broken, reported for the page as it is now:
+ *  - a word split across two lines between letters (a break at a hyphen,
+ *    slash or dash is a place a word may break; a run of text wider than
+ *    most of the screen, such as a long web address, is left alone);
+ *  - a table column whose rows do not start at one left edge (a column of
+ *    text, read from the start: centred and end-aligned cells are left alone);
+ *  - a link or button the browser draws itself (its default blue, purple or
+ *    grey), because no shared style reached it.
+ * data-clip-ok and data-scroll-ok leave an element alone, as in findOverflow.
+ */
+export async function findLayoutFaults(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out: string[] = [];
+    const label = (el: Element): string => {
+      const cls = [...el.classList].slice(0, 2).map((c) => `.${c}`).join("");
+      const text = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 32);
+      return `${el.tagName.toLowerCase()}${cls}${text ? ` "${text}"` : ""}`;
+    };
+    const shown = (el: Element) => {
+      for (let up: Element | null = el; up; up = up.parentElement) {
+        if (up.matches(".visually-hidden, [data-scroll-ok], [data-clip-ok], svg")) return false;
+        const style = getComputedStyle(up);
+        if (style.display === "none" || style.visibility === "hidden" || style.clipPath.startsWith("inset(50%")) return false;
+      }
+      return true;
+    };
+
+    // Words split between letters.
+    const split = new Set<string>();
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent ?? "";
+      const parent = node.parentElement;
+      if (!parent || !/\S{2}/.test(text) || ["SCRIPT", "STYLE", "TEXTAREA", "OPTION"].includes(parent.tagName)) continue;
+      if (!shown(parent)) continue;
+      // A run of text too long for any box on this screen (a long web
+      // address) has nowhere whole to go. Its own box is not the measure: a
+      // table squeezes a column until a word no longer fits, which is the fault.
+      const room = document.documentElement.clientWidth * 0.6;
+      for (const run of text.matchAll(/\S+/g)) {
+        range.setStart(node, run.index);
+        range.setEnd(node, run.index + run[0].length);
+        if (range.getBoundingClientRect().width === 0) continue;
+        const runWidth = [...range.getClientRects()].reduce((sum, r) => sum + r.width, 0);
+        if (runWidth > room) continue;
+        for (const match of run[0].matchAll(/[^\-/–—·]{2,}/g)) {
+          range.setStart(node, run.index + match.index);
+          range.setEnd(node, run.index + match.index + match[0].length);
+          const rects = [...range.getClientRects()].filter((r) => r.width > 0);
+          if (rects.length < 2 || Math.abs(rects[0].top - rects[rects.length - 1].top) < 2) continue;
+          split.add(`a word is split across lines: "${match[0]}" in ${label(parent)}`);
+        }
+      }
+    }
+    out.push(...[...split].slice(0, 8));
+
+    // Table columns that do not line up.
+    for (const table of document.body.querySelectorAll("table")) {
+      if (!shown(table) || getComputedStyle(table).display !== "table") continue;
+      const starts = new Map<number, number[]>();
+      for (const row of table.tBodies[0]?.rows ?? []) {
+        [...row.cells].forEach((cell, index) => {
+          if (cell.colSpan > 1 || !/^(start|left)$/.test(getComputedStyle(cell).textAlign)) return;
+          const first = [...cell.querySelectorAll("*"), cell].find(
+            (el) => el.getBoundingClientRect().width > 0 && (el.textContent ?? "").trim() !== "",
+          );
+          if (!first) return;
+          const r = document.createRange();
+          r.selectNodeContents(first);
+          const left = r.getClientRects()[0]?.left ?? first.getBoundingClientRect().left;
+          starts.set(index, [...(starts.get(index) ?? []), left]);
+        });
+      }
+      for (const [index, lefts] of starts) {
+        if (lefts.length > 1 && Math.max(...lefts) - Math.min(...lefts) > 1.5) {
+          const head = table.tHead?.rows[0]?.cells[index]?.textContent?.trim() || `column ${index + 1}`;
+          out.push(`a table column does not start at one edge: "${head}" in ${label(table).slice(0, 40)}`);
+        }
+      }
+    }
+
+    // Links and buttons the browser draws itself.
+    const browserColours = new Set(["rgb(0, 0, 238)", "rgb(85, 26, 139)", "rgb(0, 0, 255)", "rgb(238, 0, 0)"]);
+    for (const el of document.body.querySelectorAll("a[href], button")) {
+      if (!shown(el) || el.getBoundingClientRect().width === 0) continue;
+      const style = getComputedStyle(el);
+      const bare =
+        el.tagName === "A"
+          ? browserColours.has(style.color)
+          : ["rgb(239, 239, 239)", "rgb(240, 240, 240)", "rgb(233, 233, 237)"].includes(style.backgroundColor);
+      if (bare) out.push(`${el.tagName === "A" ? "a link" : "a button"} has no style of its own: ${label(el)}`);
+    }
+    return out;
+  });
+}

@@ -78,6 +78,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     generated_by_email: "casey@example.com",
     overall: assessmentSummaryFor([]).overall,
     marks_open: true,
+    can_delete: false,
     generated_at: "2026-09-18T10:00:00Z",
     started_at: "2026-09-18T10:05:00Z",
     completed_at: null,
@@ -510,7 +511,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await screen.findByRole("heading", { name: "Assessment record" });
 
     expect(screen.getByTestId("acp-stamp")).toHaveTextContent("Sealed");
-    expect(screen.getByText(/^Kuk Sool Won Testville/, { selector: ".acp-org" })).toBeVisible();
+    expect(screen.getByText(/^Kuk Sool Won Testville/, { selector: ".eyebrow--muted" })).toBeVisible();
     expect(screen.getByTestId("acp-seal-applied")).toBeVisible();
     expect(screen.getByTestId("acp-sealed-panel")).toBeVisible();
 
@@ -879,6 +880,18 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         await screen.findByRole("heading", { name: "Alex Carter" });
 
         expect(screen.queryByTestId("btn-comment-1001")).toBeNull();
+      });
+
+      it.each([
+        [true, "offers"],
+        [false, "does not offer"],
+      ])("with can_delete %s, %s Delete assessment: the server decides", async (canDelete) => {
+        // A final decision is never erased, so the server says false once one is recorded.
+        stateMock({ assessment: { can_delete: canDelete } });
+        render(<App />);
+        await screen.findByRole("heading", { name: "Alex Carter" });
+
+        expect(screen.queryByTestId("caw-delete-assessment-btn") !== null).toBe(canDelete);
       });
 
       it("holds the text still while a comment is saving, so nothing typed meanwhile is lost", async () => {

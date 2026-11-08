@@ -77,25 +77,25 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
     <section aria-labelledby="ix-link-h" className="card card--flush ix-gold-edge">
       <div className="ix-row ix-align-end">
         <div className="ix-row-main">
-          <p className="ix-eyebrow">Next job</p>
+          <p className="ix-eyebrow eyebrow">Next job</p>
           <h2 className="ix-title" id="ix-link-h">
             Who is each record?
           </h2>
-          <p className="ix-muted ix-small">
+          <p className="subtext">
             Grouped by the name as written. KukGrade suggests a student; nothing is linked until
             you say so. A linked record shows in that student’s history.
           </p>
         </div>
         {waiting !== undefined ? (
-          <p className="ix-small ix-flush">
+          <p className="ix-flush">
             <strong>{counted(waiting, "record", "records")}</strong> still to link
           </p>
         ) : null}
       </div>
       {!canLink ? (
-        <p className="ix-row ix-muted">An administrator links these records to students.</p>
+        <p className="ix-row subtext">An administrator links these records to students.</p>
       ) : people.isPending ? (
-        <p className="ix-row ix-muted" role="status">
+        <p className="ix-row subtext" role="status">
           Loading suggestions…
         </p>
       ) : people.isError ? (
@@ -111,15 +111,15 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
           return (
             <div className={`ix-row${done ? " ix-row-done" : ""}`} key={person.source_name}>
               <div className="ix-row-main ix-row-name">
-                <p className="ix-strong">
+                <p className="item-title">
                   “{person.source_name}” · {counted(person.records, "record", "records")}
                 </p>
-                <p className="ix-muted ix-small">{periodRange(person)}</p>
+                <p className="subtext">{periodRange(person)}</p>
               </div>
               <div className="ix-actions ix-row-choice">
                 {done ? (
                   <>
-                    <span className="ix-success-text ix-bold">✓ Linked to {done.name}</span>
+                    <span className="ix-success-text item-title">✓ Linked to {done.name}</span>
                     <Button
                       aria-label={`Undo linking “${person.source_name}”`}
                       variant="link"
@@ -131,7 +131,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
                   </>
                 ) : person.suggestion === "choose" ? (
                   <>
-                    <span className="ix-warning-text ix-small ix-semibold ix-full">Students share this name. Choose one.</span>
+                    <span className="ix-warning-text item-title ix-full">Students share this name. Choose one.</span>
                     {person.candidates.slice(0, 3).map((candidate) => (
                       <Button
                         variant="secondary"
@@ -146,11 +146,11 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
                 ) : best ? (
                   <>
                     <span className="ix-suggested">
-                      <span className="ix-muted ix-small">Suggested</span>
-                      <span className="ix-semibold">
+                      <span className="subtext">Suggested</span>
+                      <span className="item-title">
                         {best.full_name} · {best.current_rank_name}
                       </span>
-                      {best.reasons.length ? <span className="ix-muted ix-small">{best.reasons.join(" · ")}</span> : null}
+                      {best.reasons.length ? <span className="subtext">{best.reasons.join(" · ")}</span> : null}
                     </span>
                     <Button
                       aria-label={`${person.records === 1 ? "Link it" : `Link all ${person.records}`}: “${person.source_name}” to ${best.full_name}`}
@@ -166,7 +166,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
                   </>
                 ) : (
                   <>
-                    <span className="ix-muted ix-small">No student looks like this.</span>
+                    <span className="subtext">No student looks like this.</span>
                     <Link className={buttonClass({ variant: "secondary" })} to="/imports/records">
                       Find a student
                     </Link>
@@ -184,7 +184,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
       ) : null}
       {canLink ? (
         <div className="ix-row ix-actions-split">
-          <span className="ix-muted ix-small">
+          <span className="subtext">
             {people.data && people.data.count > fromServer.length
               ? `${fromServer.length} of ${people.data.count} names shown. The rest are on the linking page.`
               : "Every name still to link is shown."}

@@ -244,6 +244,7 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "status",
             "status_display",
             "age_band_display",
+            "deleted_at",
             "created_at",
         )
         read_only_fields = (
@@ -251,6 +252,7 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "current_rank_name",
             "status_display",
             "age_band_display",
+            "deleted_at",
             "created_at",
         )
 

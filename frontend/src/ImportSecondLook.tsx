@@ -61,11 +61,11 @@ export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: 
     <section aria-labelledby="ix-look-h" className="card card--flush ix-gold-edge">
       <div className="ix-row">
         <div className="ix-row-main">
-          <p className="ix-eyebrow">Worth a second look</p>
+          <p className="ix-eyebrow eyebrow">Worth a second look</p>
           <h2 className="ix-title" id="ix-look-h">
             What KukGrade filled in for you
           </h2>
-          <p className="ix-muted ix-small">
+          <p className="subtext">
             Everything was imported. These are the details that did not all come straight from
             the file.
           </p>
@@ -77,8 +77,8 @@ export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: 
         items.map((item) => (
           <div className="ix-row" key={item.title}>
             <div className="ix-row-main">
-              <p className="ix-bold">{item.title}</p>
-              <p className="ix-muted ix-small">{item.body}</p>
+              <p className="item-title">{item.title}</p>
+              <p className="subtext">{item.body}</p>
             </div>
             {item.show ? (
               <Button variant="secondary" onClick={() => onShow(item.show!)}>

@@ -64,6 +64,8 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   outlineNone: (prop, value) => (prop === "outline" && /^(?:none|0)\b/.test(value) ? 1 : 0),
 };
 
+const TYPE_FILES = ["layout.css", "controls.css"];
+
 function countFile(file: string): Record<string, number> {
   const css = readCss(file);
   const counts: Record<string, number> = {};
@@ -78,6 +80,9 @@ function countFile(file: string): Record<string, number> {
   // A button is written once, in controls.css: a screen's own button class is a second one.
   const buttons = file === "controls.css" ? 0 : [...definedClasses(css)].filter((name) => /(?:^|-)(?:btn|button)(?:-|$)/.test(name)).length;
   if (buttons > 0) counts.buttonClass = buttons;
+  // Text takes a heading's size (App.css) or a type role in layout.css: a screen's own size or weight is a second one.
+  const ownType = TYPE_FILES.includes(file) ? 0 : decls.filter(({ prop }) => prop === "font-size" || prop === "font-weight").length;
+  if (ownType > 0) counts.ownType = ownType;
   const dark = (css.match(/\[data-theme=|prefers-color-scheme/g) ?? []).length;
   if (dark > 0) counts.darkOverride = dark;
   return counts;

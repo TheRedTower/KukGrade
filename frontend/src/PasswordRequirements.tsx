@@ -30,7 +30,7 @@ export function PasswordRequirements({ password }: { password: string }) {
   ];
 
   return (
-    <div className="password-requirements">
+    <div className="password-requirements meta">
       <ul aria-label="Password requirements">
         {rules.map((rule) => (
           <li className={rule.met ? "is-met" : undefined} key={rule.key}>

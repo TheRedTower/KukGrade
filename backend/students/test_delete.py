@@ -1,19 +1,24 @@
-"""Administrator-only hard delete of a student, cascading through every
-grading-session registration, assessment, outcome and promotion involving
-them; a linked LegacyGradingRecord is unlinked, not deleted."""
+"""Administrator-only delete of a student: never before a final decision;
+afterwards the record is kept for its history, and only a record with no
+history is erased."""
 
 from __future__ import annotations
 
 from typing import Any
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.test import Client
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from data_imports.testing import legacy_record
-from gradings.assessment_services import generate_candidate_assessment
+from gradings.legacy_matching import PersonGroup, suggest_for_groups
+from gradings.legacy_services import (
+    bulk_link_legacy_records,
+    link_legacy_record_to_student,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
@@ -21,22 +26,22 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
-from gradings.outcome_services import promote_candidate
-from gradings.services import get_next_active_rank, transition_grading_session
+from gradings.outcome_services import promote_candidate, propose_for_candidate
+from gradings.services import register_candidate
 from gradings.testing import (
     candidate,
-    complete_assessment,
     finalised_outcome,
     grading_session,
     locked_completed_candidate,
+    master,
+    override_master,
     promoter,
     rank,
-    start_assessment,
     student,
     user,
 )
 from kukgrade.testing import render_admin_pages
-from students.models import Student
+from students.models import RetiredWksaId, Student
 from students.services import delete_student
 
 pytestmark = pytest.mark.django_db
@@ -54,148 +59,221 @@ def test_delete_requires_the_students_delete_permission() -> None:
     assert Student.objects.filter(pk=built.student.pk).exists()
 
 
-def test_administrator_can_delete_a_student_with_no_history() -> None:
-    student = Student.objects.create(
-        wksa_id="123-4-500",
+def _admin(email: str) -> User:
+    return user(email, role=User.Role.ADMINISTRATOR)
+
+
+def _no_history_student(wksa_id: str = "123-4-500") -> Student:
+    return Student.objects.create(
+        wksa_id=wksa_id,
         first_name="No",
         last_name="History",
         date_of_birth="2015-01-01",
         current_rank=rank("WHITE"),
     )
-    admin = user("student-delete-admin-1@example.com", role=User.Role.ADMINISTRATOR)
-    events_before = AuditEvent.objects.count()
-    student_pk = student.pk
 
-    delete_student(student, admin)
 
-    assert not Student.objects.filter(pk=student_pk).exists()
-    event = AuditEvent.objects.filter(
+def _event(student_pk: int) -> AuditEvent:
+    return AuditEvent.objects.filter(
         entity_type="Student",
         entity_id=str(student_pk),
         action=AuditAction.STUDENT_DELETED,
     ).get()
+
+
+def test_a_student_with_no_history_is_erased_and_their_number_retired() -> None:
+    student = _no_history_student()
+    student_pk = student.pk
+
+    assert delete_student(student, _admin("student-delete-admin-1@example.com"))
+
+    assert not Student.objects.filter(pk=student_pk).exists()
+    assert RetiredWksaId.objects.filter(wksa_id="123-4-500").exists()
+    event = _event(student_pk)
     assert event.metadata["wksa_id"] == "123-4-500"
-    assert event.metadata["cascaded_grading_candidates"] == []
-    assert event.metadata["cascaded_promotions"] == 0
-    assert event.metadata["cascaded_outcomes"] == 0
-    assert event.metadata["legacy_records_unlinked"] == []
-    assert AuditEvent.objects.count() == events_before + 1
+    assert event.metadata["kept_for_their_history"] is False
 
 
-def test_deleting_a_student_cascades_registrations_assessments_outcomes_and_promotions() -> (  # noqa: E501
-    None
-):
+def test_a_student_is_not_deleted_while_their_grading_has_no_decision() -> None:
+    built = candidate(session=grading_session(title="Spring grading"))
+
+    with pytest.raises(ValidationError) as refused:
+        delete_student(built.student, _admin("student-delete-open@example.com"))
+
+    assert "'Spring grading'" in refused.value.message_dict["student"][0]
+    assert "not reached its final decision" in refused.value.message_dict["student"][0]
+    built.student.refresh_from_db()
+    assert built.student.deleted_at is None
+    assert GradingCandidate.objects.filter(pk=built.pk).exists()
+
+
+def test_a_proposal_is_not_a_final_decision() -> None:
+    built, _generated = locked_completed_candidate()
+    propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("student-delete-proposer@example.com"),
+    )
+
+    with pytest.raises(ValidationError, match="not reached its final decision"):
+        delete_student(built.student, _admin("student-delete-proposal@example.com"))
+
+
+def test_a_pass_waits_for_its_promotion() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built)
+
+    with pytest.raises(ValidationError, match="promotion has not been recorded"):
+        delete_student(built.student, _admin("student-delete-unpromoted@example.com"))
+
+
+def test_after_the_decision_the_student_is_deleted_and_their_history_kept() -> None:
     built, generated = locked_completed_candidate()
     student = built.student
     outcome = finalised_outcome(built)
     promotion = promote_candidate(
         outcome,
-        promoter("student-delete-cascade@example.com"),
+        promoter("student-delete-kept@example.com"),
     )
-
-    other_session = grading_session()
-    other_candidate = candidate(session=other_session, student=student)
-
-    admin = user(
-        "student-delete-cascade-admin@example.com", role=User.Role.ADMINISTRATOR
-    )
-    student_pk = student.pk
-
-    delete_student(student, admin)
-
-    assert not Student.objects.filter(pk=student_pk).exists()
-    assert not GradingCandidate.objects.filter(pk=built.pk).exists()
-    assert not GradingCandidate.objects.filter(pk=other_candidate.pk).exists()
-    assert not CandidateAssessment.objects.filter(pk=generated.pk).exists()
-    assert not CandidateOutcome.objects.filter(pk=outcome.pk).exists()
-    assert not Promotion.objects.filter(pk=promotion.pk).exists()
-
-    event = AuditEvent.objects.filter(
-        entity_type="Student",
-        entity_id=str(student_pk),
-        action=AuditAction.STUDENT_DELETED,
-    ).get()
-    assert event.metadata["cascaded_promotions"] == 1
-    assert event.metadata["cascaded_outcomes"] == 1
-    cascaded_ids = {row["id"] for row in event.metadata["cascaded_grading_candidates"]}
-    assert cascaded_ids == {built.pk, other_candidate.pk}
-
-
-def test_deleting_a_student_unlinks_but_does_not_delete_linked_legacy_records() -> None:
-    built, _generated = locked_completed_candidate()
-    student = built.student
     legacy = legacy_record(student=student)
 
-    admin = user(
-        "student-delete-legacy-admin@example.com", role=User.Role.ADMINISTRATOR
-    )
-    student_pk = student.pk
+    kept = delete_student(student, _admin("student-delete-kept-admin@example.com"))
 
-    delete_student(student, admin)
-
-    assert not Student.objects.filter(pk=student_pk).exists()
+    assert kept is False
+    student.refresh_from_db()
+    assert student.deleted_at is not None
+    assert GradingCandidate.objects.filter(pk=built.pk, student=student).exists()
+    assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
+    assert CandidateOutcome.objects.filter(pk=outcome.pk).exists()
+    assert Promotion.objects.filter(pk=promotion.pk).exists()
     legacy.refresh_from_db()
-    assert legacy.student_id is None
-    assert AuditEvent.objects.filter(
-        action=AuditAction.LEGACY_GRADING_UNLINKED,
-        entity_id=str(legacy.pk),
-    ).exists()
-    event = AuditEvent.objects.filter(
-        entity_type="Student",
-        entity_id=str(student_pk),
-        action=AuditAction.STUDENT_DELETED,
-    ).get()
-    assert event.metadata["legacy_records_unlinked"] == [legacy.pk]
+    assert legacy.student_id == student.pk
+    # The number stays with the record that still holds it.
+    assert not RetiredWksaId.objects.filter(wksa_id=student.wksa_id).exists()
+    assert _event(student.pk).metadata["kept_for_their_history"] is True
 
 
-def test_deleting_a_student_with_multiple_promotions_needs_no_supersession_check() -> (
-    None
-):
-    # Contrast with session-cascade delete: every promotion this student has
-    # is removed together, so there is no surviving promotion left for
-    # either one to supersede - unlike gradings.testing's
-    # test_session_delete_with_a_superseded_promotion_is_refused_and_deletes_nothing.
+def test_a_fail_is_a_final_decision_too() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
+    )
+
+    assert not delete_student(built.student, _admin("student-delete-fail@example.com"))
+
+
+def test_a_student_taken_out_of_a_grading_can_be_deleted() -> None:
+    built = candidate()
+    # Taken out by cancelling that grading; withdrawal settles it the same
+    # way (gradings.services.unsettled_registrations).
+    GradingSession.objects.filter(pk=built.session_id).update(
+        status=GradingSession.Status.CANCELLED,
+    )
+
+    assert not delete_student(
+        built.student, _admin("student-delete-withdrawn@example.com")
+    )
+    assert GradingCandidate.objects.filter(pk=built.pk).exists()
+
+
+def test_a_deleted_student_is_gone_from_the_list_and_closed_to_changes() -> None:
     built, _generated = locked_completed_candidate()
     student = built.student
-    first_outcome = finalised_outcome(built)
-    first_promotion = promote_candidate(
-        first_outcome,
-        promoter("student-delete-multi-promotion-1@example.com"),
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
     )
-
-    student.refresh_from_db()
-    next_rank = get_next_active_rank(student.current_rank)
-    assert next_rank is not None
-    second_session = grading_session(status=GradingSession.Status.OPEN)
-    second_built = candidate(
-        session=second_session,
-        student=student,
-        testing_for_rank=next_rank,
-    )
-    second_generated = generate_candidate_assessment(
-        second_built,
-        user("student-delete-multi-generator@example.com"),
-    )
-    start_assessment(second_generated)
-    complete_assessment(second_generated)
-    transition_grading_session(second_session, GradingSession.Status.LOCKED)
-    second_outcome = finalised_outcome(second_built)
-    second_promotion = promote_candidate(
-        second_outcome,
-        promoter("student-delete-multi-promotion-2@example.com"),
-    )
-
-    admin = user(
-        "student-delete-multi-promotion-admin@example.com",
-        role=User.Role.ADMINISTRATOR,
-    )
-    student_pk = student.pk
-
+    admin = _admin("student-delete-closed@example.com")
     delete_student(student, admin)
+    client = APIClient()
+    client.force_authenticate(user=admin)
 
-    assert not Student.objects.filter(pk=student_pk).exists()
-    assert not Promotion.objects.filter(pk=first_promotion.pk).exists()
-    assert not Promotion.objects.filter(pk=second_promotion.pk).exists()
+    listed = client.get("/api/students/").json()
+    page = client.get(f"/api/students/{student.pk}/")
+    history = client.get(f"/api/students/{student.pk}/grading-history/")
+    edited = client.patch(f"/api/students/{student.pk}/", {"first_name": "X"})
+    again = client.delete(f"/api/students/{student.pk}/")
+    open_session = grading_session(status=GradingSession.Status.OPEN)
+    student.refresh_from_db()
+    with pytest.raises(ValidationError, match="has been deleted"):
+        register_candidate(
+            session=open_session,
+            student=student,
+            testing_for_rank=rank("YELLOW_STRIPE"),
+        )
+
+    rows = listed["results"] if isinstance(listed, dict) else listed
+    assert student.pk not in {row["id"] for row in rows}
+    assert page.status_code == 200
+    assert page.json()["deleted_at"] is not None
+    assert history.status_code == 200
+    assert edited.status_code == 404
+    assert again.status_code == 404
+
+
+def test_a_deleted_student_is_not_suggested_or_linked_to_new_records() -> None:
+    """Their existing historical records stay theirs; nothing new is linked
+    to a closed record, and they are not offered as a match (Codex, #192)."""
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
+    )
+    deleted = built.student
+    kept = legacy_record(student=deleted)
+    admin = _admin("student-delete-legacy@example.com")
+    delete_student(deleted, admin)
+    deleted.refresh_from_db()
+    loose = legacy_record(source_name=deleted.full_name)
+
+    with pytest.raises(ValidationError, match="has been deleted"):
+        link_legacy_record_to_student(loose, deleted, actor=admin)
+    with pytest.raises(ValidationError, match="has been deleted"):
+        bulk_link_legacy_records([(loose, deleted)], actor=admin)
+
+    group = PersonGroup(key="x", source_name=deleted.full_name, records=[loose])
+    suggest_for_groups([group])
+    assert deleted.pk not in {c.student.pk for c in group.candidates}
+    kept.refresh_from_db()
+    assert kept.student_id == deleted.pk
+
+
+def test_a_deleted_students_kept_assessment_cannot_be_marked_or_changed() -> None:
+    """Withdrawn after lock, then deleted: their assessment stays exactly as
+    recorded, even for the Master who could otherwise still correct it
+    (Codex, #192 sweep)."""
+    from gradings.assessment_services import (
+        add_item_comment,
+        assessment_marks_open,
+        update_candidate_assessment_item,
+    )
+    from gradings.services import withdraw_locked_candidate
+
+    built, started = locked_completed_candidate()
+    withdraw_locked_candidate(
+        built,
+        "INJURY",
+        "Hurt in the warm-up.",
+        override_master("deleted-marks-withdrawer@example.com"),
+    )
+    marker = master("deleted-marks-master@example.com")
+    delete_student(built.student, _admin("deleted-marks-admin@example.com"))
+    started.refresh_from_db()
+    item = started.items.first()
+    assert item is not None
+
+    assert assessment_marks_open(started, marker) is False
+    for attempt in (
+        lambda: update_candidate_assessment_item(item, result="MET", assessor=marker),
+        lambda: add_item_comment(item, "Good form.", author=marker),
+    ):
+        with pytest.raises(ValidationError, match="has been deleted"):
+            attempt()
 
 
 def test_api_admin_can_delete_student() -> None:

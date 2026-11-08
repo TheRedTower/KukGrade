@@ -48,7 +48,7 @@ describe("App authentication", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText("Casey Instructor")).toBeVisible();
+      expect(screen.getByText("Casey")).toBeVisible();
     });
 
     expect(screen.getByText("Instructor")).toBeVisible();
@@ -174,7 +174,7 @@ describe("App authentication", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Casey Instructor")).toBeVisible();
+      expect(screen.getByText("Casey")).toBeVisible();
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -273,7 +273,7 @@ describe("App authentication", () => {
 
     render(<App />);
 
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {
@@ -369,7 +369,7 @@ describe("App authentication", () => {
     await user.type(screen.getByLabelText("Password"), "StrongPass123!");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-    await screen.findByText("Dana Instructor");
+    await screen.findByRole("link", { name: /^Dana Instructor, / });
     await user.click(screen.getByRole("link", { name: "Students" }));
     await screen.findByRole("heading", { name: "Students" });
 
@@ -456,7 +456,7 @@ describe("Connection failures are not sign-outs", () => {
     await user.click(screen.getByRole("button", { name: "Try again" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Casey Instructor")).toBeVisible();
+      expect(screen.getByText("Casey")).toBeVisible();
     });
   });
 
@@ -551,14 +551,14 @@ describe("Connection failures are not sign-outs", () => {
 
     render(<App />);
 
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     // The session may still be live, so a signed-out UI would be a lie.
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Could not sign out",
     );
-    expect(screen.getByText("Casey Instructor")).toBeVisible();
+    expect(screen.getByText("Casey")).toBeVisible();
     expect(window.location.pathname).toBe("/");
   });
 });
@@ -612,7 +612,7 @@ describe("First-time login copy", () => {
     await user.type(screen.getByLabelText("Password"), "StrongPass123!");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {

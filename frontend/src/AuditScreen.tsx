@@ -178,7 +178,7 @@ export function AuditScreen(): React.ReactElement {
           updateFilters({ search: searchInputRef.current?.value.trim() ?? "" });
         }}
       >
-        <label className="field filter-bar__full">
+        <label className="field field--search filter-bar__full">
           <span>Search student name, record number or summary</span>
           <div className="field__row">
             <input
@@ -238,7 +238,7 @@ export function AuditScreen(): React.ReactElement {
           />
         </label>
 
-        <div className="action-row filter-bar__full audit-filter-summary">
+        <div className="action-row filter-bar__full audit-filter-summary meta">
           <span>
             {totalCount} event{totalCount === 1 ? "" : "s"}
             {entityId && (
@@ -293,7 +293,7 @@ export function AuditScreen(): React.ReactElement {
                     return (
                       <>
                         <span className="audit-date">{time.date}</span>
-                        <time className="audit-time" dateTime={event.occurred_at}>{time.time}</time>
+                        <time className="audit-time meta" dateTime={event.occurred_at}>{time.time}</time>
                       </>
                     );
                   },
@@ -306,8 +306,8 @@ export function AuditScreen(): React.ReactElement {
                   header: "Record",
                   render: (event) => (
                     <>
-                      <span className="audit-entity-type">{event.entity_type_display}</span>
-                      <span className="audit-entity-id">#{event.entity_id}</span>
+                      <span className="audit-entity-type item-title">{event.entity_type_display}</span>
+                      <span className="audit-entity-id meta">#{event.entity_id}</span>
                     </>
                   ),
                 },
@@ -343,7 +343,7 @@ export function AuditScreen(): React.ReactElement {
         )}
       </div>
 
-      <p className="audit-integrity-note">Audit events cannot be changed or deleted.</p>
+      <p className="audit-integrity-note meta">Audit events cannot be changed or deleted.</p>
 
       {selectedEvent && (
         <Dialog

@@ -2,70 +2,6 @@
    BUILD GRADING COHORT
    ══════════════════════════════════════════════════════════════════════════════ */
 
-.bgc-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-.bgc-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.bgc-title {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-title);
-  color: var(--color-text);
-  letter-spacing: var(--tracking-tight);
-  margin: 0;
-}
-
-.bgc-subtitle {
-  font-size: var(--font-size-base);
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
-.bgc-session-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-}
-
-.bgc-session-card-left {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.bgc-session-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.bgc-session-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
-}
-
-.bgc-meta-sep {
-  color: var(--color-border);
-}
-
 .bgc-left-column {
   display: flex;
   flex-direction: column;
@@ -80,43 +16,10 @@
 }
 
 .bgc-section-subtext {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
   margin: 0;
 }
 
 /* ── Section 1 Toolbar & Summary ────────────────────────────────────────── */
-
-.bgc-search-field {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.bgc-search-icon {
-  position: absolute;
-  left: 0.75rem;
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
-  pointer-events: none;
-}
-
-.bgc-search-input {
-  width: 100%;
-  min-width: 0;
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-}
-
-.bgc-search-input:focus {
-  border-color: var(--btn-primary-bg);
-  outline: 2px solid var(--color-accent-strong);
-  outline-offset: 1px;
-}
 
 .bgc-filter-summary-card {
   padding: var(--space-3) var(--space-4);
@@ -130,20 +33,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
 }
 
 .bgc-info-icon {
   font-weight: var(--font-weight-strong);
   font-size: var(--font-size-md);
   color: var(--color-accent-text);
-}
-
-.bgc-matching-count {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
 }
 
 /* ── Section 2 Tables & Rank Visuals ─────────────────────────────────────── */
@@ -154,15 +49,8 @@
   gap: var(--space-2);
 }
 
-.bgc-rank-label {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-}
-
 .bgc-highest-rank {
   font-style: italic;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .bgc-eligible-count-cell {
@@ -171,63 +59,16 @@
   gap: 0.1rem;
 }
 
-.bgc-eligible-num {
-  font-weight: var(--font-weight-strong);
-  font-size: var(--font-size-base);
-}
-
-.bgc-eligible-breakdown {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
 .bgc-inactive-alert {
   color: var(--color-warning);
-  font-weight: var(--font-weight-semibold);
 }
 
-.bgc-student-name-link {
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
-}
 
-.bgc-student-name-link:hover {
-  color: var(--color-accent-text);
-  text-decoration: underline;
-}
 
 /* ── RIGHT COLUMN: Cohort Ledger Tray ───────────────────────────────────── */
 
-.bgc-cohort-tray {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  box-shadow: var(--shadow-sm);
-}
-
-.bgc-tray-title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-  margin: 0;
-}
-
 .bgc-cohort-count {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
   color: var(--color-accent-text);
-}
-
-.bgc-tray-subtext {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  line-height: var(--line-height-snug);
-  margin: var(--space-1) 0 0 0;
 }
 
 .bgc-exceptions-callout {
@@ -240,8 +81,6 @@
 }
 
 .bgc-exceptions-help {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
   line-height: var(--line-height-snug);
   margin: 0;
 }
@@ -319,21 +158,6 @@
   gap: 0.15rem;
 }
 
-.bgc-switch-title {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-}
-
-.bgc-switch-desc {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
-.bgc-tray-actions {
-  margin-top: var(--space-2);
-}
-
 .bgc-tray-primary {
   flex: 1 1 auto;
   justify-content: center;
@@ -368,65 +192,9 @@
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
-  font-size: var(--font-size-md);
-}
-
-.bgc-modal-student-name {
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.bgc-modal-student-wksa {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.bgc-modal-rank-flow {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 /* ── EXCEPTION RESOLVER ───────────────────────────────────────── */
-
-.bgc-resolver-summary-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-top: var(--space-1);
-}
-
-.bgc-summary-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-}
-
-.bgc-summary-success {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-  border: 1px solid var(--color-success);
-}
-
-.bgc-summary-flagged {
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
-  border: 1px solid var(--color-warning);
-}
-
-.bgc-summary-icon {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-title);
-}
-
-.bgc-resolver-subtext {
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
-}
 
 .bgc-resolver-section {
   background: var(--color-surface);
@@ -443,28 +211,6 @@
   flex-wrap: wrap;
 }
 
-.bgc-resolver-counter {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
-.bgc-student-name {
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.bgc-issue-text {
-  color: var(--color-danger);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-md);
-}
-
-.bgc-row-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
 
 /* ── Collapsible Successful Registrations ───────────────────────────────── */
 
@@ -483,9 +229,6 @@
   padding: var(--space-3) var(--space-4);
   background: transparent;
   border: none;
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-base);
   text-align: left;
   cursor: pointer;
   transition: background var(--duration) ease;
@@ -496,15 +239,11 @@
 }
 
 .bgc-accordion-chevron {
-  font-size: var(--font-size-md);
   color: var(--color-text-muted);
 }
 
 .bgc-accordion-count {
   margin-left: auto;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-medium);
 }
 
 .bgc-accordion-content {
@@ -526,23 +265,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-md);
   flex-wrap: wrap;
-}
-
-.bgc-created-name {
-  font-weight: var(--font-weight-strong);
-  color: var(--color-text);
-}
-
-.bgc-created-wksa {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .bgc-created-rank {
   color: var(--color-accent-text);
-  font-weight: var(--font-weight-semibold);
 }
 
 /* ── Resolver Footer Actions ────────────────────────────────────────────── */
@@ -563,18 +290,11 @@
   gap: var(--space-1);
 }
 
-.bgc-retry-helper-text {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
 /* A student's name with their WKSA ID beneath. */
 .bgc-student-id {
   display: block;
   margin-top: 0.15rem;
-  color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
 }
 
 .bgc-rank-flow {
@@ -586,17 +306,12 @@
 
 .bgc-rank-arrow {
   color: var(--color-text-muted);
-  font-weight: var(--font-weight-semibold);
 }
 
 .bgc-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
-}
-
-.bgc-tray-count {
-  font-weight: var(--font-weight-strong);
 }
 
 .bgc-created-item .badge {

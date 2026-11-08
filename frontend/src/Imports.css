@@ -1,64 +1,20 @@
 /* The Imports area. Tokens only, from theme.css. */
 
-.ix-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-/* The page's own gap already spaces its header. */
-.ix-page > .page-header {
-  margin-bottom: 0;
-}
-
 /* Headings inside a page, largest first. */
 .ix-title {
   margin: 0 0 var(--space-1);
-  font-size: var(--font-size-2xl);
 }
 
 .ix-minor {
   margin: 0;
-  font-size: var(--font-size-xl);
 }
 
 .ix-h3 {
   margin: 0 0 var(--space-2);
-  font-size: var(--font-size-lg);
-}
-
-.ix-headline {
-  font-size: var(--font-size-xl);
-}
-
-.ix-big-count {
-  font-size: var(--font-size-2xl);
 }
 
 .ix-eyebrow {
   margin: 0 0 var(--space-2);
-  color: var(--color-accent-text);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
-.ix-muted {
-  margin: 0;
-  color: var(--color-text-muted);
-}
-
-.ix-small {
-  font-size: var(--font-size-md);
-}
-
-.ix-semibold {
-  font-weight: var(--font-weight-semibold);
-}
-
-.ix-bold {
-  font-weight: var(--font-weight-strong);
 }
 
 .ix-block {
@@ -93,9 +49,6 @@
 /* Why something is unavailable or wrong, next to it. */
 .ix-why {
   margin: 0;
-  color: var(--color-danger);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
 }
 
 .ix-section {
@@ -114,7 +67,6 @@
 
 .ix-section-head h2 {
   margin: 0;
-  font-size: var(--font-size-xl);
 }
 
 .ix-head-text {
@@ -190,18 +142,8 @@
   gap: var(--space-3);
 }
 
-.ix-strong {
-  font-weight: var(--font-weight-strong);
-  overflow-wrap: anywhere;
-}
-
 .ix-kind {
   margin: 0 0 0.15rem;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
 }
 
 .ix-actions {
@@ -253,7 +195,6 @@
 
 .ix-panel-body h3 {
   margin: 0;
-  font-size: var(--font-size-xl);
 }
 
 .ix-panel-foot p {
@@ -276,13 +217,6 @@
   margin-top: auto;
 }
 
-.ix-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3);
-}
-
 .ix-field-narrow {
   max-width: 22rem;
 }
@@ -292,10 +226,6 @@
   color: var(--color-text);
 }
 
-.ix-hint {
-  font-weight: var(--font-weight-normal);
-}
-
 .ix-chips-inset {
   padding: 0 var(--space-5) var(--space-4);
 }
@@ -303,18 +233,12 @@
 .ix-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-md);
 }
 
 .ix-table th {
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
   text-align: left;
-  text-transform: uppercase;
 }
 
 .ix-table td {
@@ -325,7 +249,6 @@
 
 .ix-caption {
   margin: 0;
-  font-weight: var(--font-weight-strong);
 }
 
 .ix-table-foot {
@@ -370,36 +293,9 @@
   background: var(--color-success-surface);
 }
 
-.ix-mark {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-title);
-}
-
-.ix-mark-ok {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-}
-
-.ix-mark-large {
-  width: 2.5rem;
-  height: 2.5rem;
-  font-size: var(--font-size-xl);
-}
-
-.ix-mark-on-surface {
+/* On the tinted banner the mark keeps a plain fill, or it would vanish into it. */
+.mark.ix-mark-on-surface {
   background: var(--color-surface);
-}
-
-.ix-mark-warn {
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
 }
 
 .ix-checklist {
@@ -435,8 +331,6 @@
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .ix-step-bar {
@@ -449,7 +343,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  overflow-wrap: anywhere;
 }
 
 .ix-step-dot {
@@ -491,6 +384,33 @@
   color: var(--color-on-gold);
 }
 
+.ix-step-caption {
+  display: none;
+}
+
+/* A phone has no room for five names in a row, whatever the font: each step
+   shows its number, centred under its bar, and the current step is named
+   once beneath them. The names stay in the list for a screen reader. */
+@media (max-width: 40rem) {
+  .ix-step-label {
+    justify-content: center;
+  }
+
+  .ix-step-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .ix-step-caption {
+    display: block;
+    margin: var(--space-2) 0 0;
+    color: var(--color-text);
+  }
+}
+
 /* Choose file. */
 .ix-drop {
   display: flex;
@@ -512,11 +432,6 @@
 
 .ix-drop p {
   margin: 0;
-}
-
-.ix-drop-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-strong);
 }
 
 .ix-split {
@@ -553,16 +468,6 @@
 
 .ix-guide-list p {
   margin: 0;
-}
-
-.ix-tag {
-  flex: 0 0 auto;
-  padding: 0.05rem var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
 }
 
 .ix-file {
@@ -684,9 +589,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
-  color: var(--color-text);
   font: inherit;
-  font-size: var(--font-size-md);
 }
 
 .ix-cell-input:focus {
@@ -710,8 +613,6 @@
   gap: 0 var(--space-1);
   margin-top: var(--space-1);
   color: var(--color-info);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
 }
 
 .ix-table-cells td {
@@ -726,7 +627,6 @@
 .ix-col-name {
   display: block;
   color: var(--color-text);
-  font-size: var(--font-size-md);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -736,7 +636,7 @@
   padding: var(--space-2) 0.1rem;
 }
 
-.ix-cell-reading .ix-small {
+.ix-cell-reading .subtext {
   display: block;
   margin-top: var(--space-1);
 }
@@ -751,8 +651,6 @@
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -781,8 +679,6 @@
 .ix-field-label {
   display: block;
   margin-bottom: var(--space-1);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
 }
 
 .ix-field-grid select {
@@ -791,9 +687,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
-  color: var(--color-text);
   font: inherit;
-  font-size: var(--font-size-md);
 }
 
 .ix-label-invalid {
@@ -860,7 +754,6 @@
 
 .ix-queue-name {
   display: block;
-  font-weight: var(--font-weight-semibold);
 }
 
 .ix-tick {
@@ -904,56 +797,10 @@
   padding: var(--space-4) var(--space-4);
 }
 
-.ix-names {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ix-name {
-  border-top: 1px solid var(--color-border);
-}
-
-.ix-name-open {
-  background: var(--color-surface-sunken);
-}
-
-.ix-name-row {
-  display: grid;
-  grid-template-columns: var(--target-min) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1.7fr) auto;
-  gap: var(--space-4);
-  align-items: center;
-  padding: var(--space-3) var(--space-4);
-}
-
-.ix-name-head {
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
-.ix-name-main p,
-.ix-name-student p {
-  margin: 0;
-}
-
-.ix-name-student {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.ix-name-actions {
-  justify-content: flex-end;
-}
-
 .ix-name-detail {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
-  padding: var(--space-1) var(--space-4) var(--space-4) 3.5rem;
 }
 
 .ix-name-records,
@@ -1012,30 +859,6 @@
   background: var(--color-surface-sunken);
 }
 
-/* Narrow screens: the checkbox keeps its column, each row's cells stack. */
-@media (max-width: 56rem) {
-  .ix-name-head {
-    display: none;
-  }
-
-  .ix-name-row {
-    grid-template-columns: var(--target-min) minmax(0, 1fr);
-    gap: var(--space-2) var(--space-3);
-  }
-
-  .ix-name-row > :not(:first-child) {
-    grid-column: 2;
-  }
-
-  .ix-name-actions {
-    justify-content: flex-start;
-  }
-
-  .ix-name-detail {
-    padding-left: var(--space-4);
-  }
-}
-
 .ix-rank-fix {
   margin-top: var(--space-1);
 }
@@ -1071,18 +894,11 @@
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-2);
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-title);
   line-height: var(--line-height-tight);
 }
 
 .ix-tile-count [aria-hidden="true"] {
   font-size: var(--font-size-lg);
-}
-
-.ix-tile-label {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
 }
 
 /* The seal on the review page. */

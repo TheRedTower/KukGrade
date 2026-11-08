@@ -184,6 +184,9 @@ export function StudentDetailScreen() {
   const gradingHistoryItems = gradingHistoryQuery.data?.items ?? [];
   const statusStr = student.status || "ACTIVE";
   const statusDisplay = student.status_display || statusStr;
+  // Deleted after their history began: kept so past gradings still show who
+  // it was, and closed to changes (the server refuses them).
+  const isDeleted = student.deleted_at !== null;
 
   return (
     <section aria-labelledby="student-heading" className="page">
@@ -194,13 +197,13 @@ export function StudentDetailScreen() {
         tag={<StudentStatusBadge status={student.status} label={statusDisplay} />}
         subtitle={
           <>
-            WKSA ID <span className="wksa-id-pill">{student.wksa_id}</span>
+            WKSA ID <span className="wksa-id-pill meta">{student.wksa_id}</span>
             {student.previous_wksa_ids.length > 0 ? (
               <span>
                 {" "}
                 Previously{" "}
                 {student.previous_wksa_ids.map((previous) => (
-                  <span className="wksa-id-pill" key={previous.wksa_id}>
+                  <span className="wksa-id-pill meta" key={previous.wksa_id}>
                     {previous.wksa_id}
                   </span>
                 ))}
@@ -219,18 +222,28 @@ export function StudentDetailScreen() {
                 History
               </Link>
             )}
-            <Button
-              variant="secondary"
-              onClick={() => {
-                editForm.reset();
-                setIsEditModalOpen(true);
-              }}
-            >
-              Edit student
-            </Button>
+            {!isDeleted && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  editForm.reset();
+                  setIsEditModalOpen(true);
+                }}
+              >
+                Edit student
+              </Button>
+            )}
           </>
         }
       />
+
+      {isDeleted && (
+        <Alert tone="info" title={`Deleted on ${formatLongDate(student.deleted_at)}`}>
+          This student is no longer on the student list and their record can no longer be
+          changed. It is kept so that their past gradings, marks and decisions still show who
+          they were.
+        </Alert>
+      )}
 
       {/* Two-Column Grid Layout */}
       <div className="student-detail-grid">
@@ -257,7 +270,7 @@ export function StudentDetailScreen() {
 
               <div>
                 <dt>Current rank</dt>
-                <dd className="cell-rank-highlight">{student.current_rank_name}</dd>
+                <dd className="cell-rank-highlight item-title">{student.current_rank_name}</dd>
               </div>
 
               <div>
@@ -318,11 +331,11 @@ export function StudentDetailScreen() {
                     header: "Testing for",
                     render: (item) => (
                       <>
-                        <span className="cell-rank-highlight">
+                        <span className="cell-rank-highlight item-title">
                           {item.testing_for_rank_name || item.source_testing_for_rank_text || "—"}
                         </span>
                         {item.from_rank_name ? (
-                          <small className="grading-history-detail">
+                          <small className="grading-history-detail meta">
                             From {item.from_rank_name} · {item.age_band_display}
                           </small>
                         ) : null}
@@ -345,10 +358,10 @@ export function StudentDetailScreen() {
                     key: "comments",
                     header: "Comments",
                     render: (item) => (
-                      <span className="grading-history-comments-cell">
+                      <span className="grading-history-comments-cell subtext">
                         {item.comments || "—"}
                         {item.conditional_requirements ? (
-                          <small className="grading-history-detail">
+                          <small className="grading-history-detail meta">
                             Still required: {item.conditional_requirements}
                           </small>
                         ) : null}
@@ -373,9 +386,9 @@ export function StudentDetailScreen() {
                 <div key={p.id} className="timeline-node-item">
                   <div className={`timeline-indicator ${idx === 0 ? "indicator-active" : ""}`} />
                   <div>
-                    <div className="timeline-date">{formatShortDate(p.effective_date || p.promoted_at)}</div>
-                    <div className="timeline-rank-name">{p.to_rank_name}</div>
-                    <div className="timeline-subtext">
+                    <div className="meta">{formatShortDate(p.effective_date || p.promoted_at)}</div>
+                    <div className="item-title">{p.to_rank_name}</div>
+                    <div className="subtext">
                       Promoted at {p.session_title || "Grading Session"}
                     </div>
                   </div>
@@ -386,13 +399,13 @@ export function StudentDetailScreen() {
               <div className="timeline-node-item">
                 <div className="timeline-indicator indicator-base" />
                 <div>
-                  <div className="timeline-date">{formatShortDate(student.created_at)}</div>
-                  <div className="timeline-rank-name">
+                  <div className="meta">{formatShortDate(student.created_at)}</div>
+                  <div className="item-title">
                     {promotions.length > 0
                       ? promotions[promotions.length - 1].from_rank_name
                       : student.current_rank_name}
                   </div>
-                  <div className="timeline-subtext">
+                  <div className="subtext">
                     Initial rank recorded in KukGrade
                   </div>
                 </div>
@@ -408,12 +421,12 @@ export function StudentDetailScreen() {
             <h2 className="section-title section-title--ruled">Grading readiness</h2>
             <div className="readiness-body">
               <div className="readiness-row">
-                <span className="readiness-label">Next rank</span>
-                <span className="readiness-value">{nextRank?.name || "Highest curriculum rank"}</span>
+                <span className="meta">Next rank</span>
+                <span className="readiness-value item-title">{nextRank?.name || "Highest curriculum rank"}</span>
               </div>
 
               <div className="readiness-row">
-                <span className="readiness-label">Current status</span>
+                <span className="meta">Current status</span>
                 {student.status === "ACTIVE" ? (
                   <Badge tone="success" icon={<CheckIcon size={14} />}>Can be registered</Badge>
                 ) : student.status === "INACTIVE" ? (
@@ -423,7 +436,7 @@ export function StudentDetailScreen() {
                 )}
               </div>
 
-              <p className="readiness-guidance">
+              <p className="readiness-guidance subtext">
                 {student.status === "ACTIVE"
                   ? "Active students can be added to a grading cohort, one grading at a time. KukGrade does not track training time or attendance, so readiness is the instructor's judgement."
                   : student.status === "INACTIVE"
@@ -438,11 +451,11 @@ export function StudentDetailScreen() {
             <h2 className="section-title section-title--ruled">Record status</h2>
             <div className="record-status-body">
               <div className="record-status-badge-row">
-                <span className="record-status-label">Status</span>
+                <span className="meta">Status</span>
                 <StudentStatusBadge status={student.status} label={statusDisplay} />
               </div>
 
-              <div className="record-status-policy-note">
+              <div className="record-status-policy-note subtext">
                 <p>
                   Active students can be added to gradings and appear in active registers.
                 </p>
@@ -451,17 +464,19 @@ export function StudentDetailScreen() {
                 </p>
               </div>
 
-              <Button
-                variant="secondary" block
-                onClick={() => {
-                  setStatusError(null);
-                  setIsStatusModalOpen(true);
-                }}
-              >
-                Change status
-              </Button>
+              {!isDeleted && (
+                <Button
+                  variant="secondary" block
+                  onClick={() => {
+                    setStatusError(null);
+                    setIsStatusModalOpen(true);
+                  }}
+                >
+                  Change status
+                </Button>
+              )}
 
-              {currentUser?.can_delete_students && (
+              {currentUser?.can_delete_students && !isDeleted && (
                 <Button
                   variant="danger"
                   onClick={() => {
@@ -501,8 +516,8 @@ export function StudentDetailScreen() {
 
             <div>
               <p className="modal-lead-text">
-                Permanently delete <strong>{student.first_name} {student.last_name}</strong>&apos;s
-                record? This cannot be undone. It also deletes every grading registration, assessment, outcome and promotion of theirs, and puts back any rank they were promoted to. Historical grading records linked to them are kept, just no longer linked.
+                Delete this student? This cannot be undone. Their past gradings, marks and
+                decisions stay as recorded.
               </p>
             </div>
 

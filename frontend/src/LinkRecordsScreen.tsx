@@ -13,7 +13,7 @@ import {
 import { ErrorText } from "./ErrorText";
 import { ImportPager } from "./ImportPager";
 import { counted } from "./importSteps";
-import { NameRow, type NameView } from "./LinkNameRow";
+import { type NameItem, type NameView, NamesTable } from "./LinkNameRow";
 import { BULK_LINK_LIMIT, type Chosen, recordsToLink } from "./linkRecords";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { useLeftNames } from "./useLeftNames";
@@ -171,7 +171,7 @@ export function LinkRecordsScreen() {
   const everyNameLinked = view === "todo" && !debouncedSearch && counts.todo === 0 && counts.left === 0;
 
   return (
-    <section aria-labelledby="ix-link-title" className="page ix-page">
+    <section aria-labelledby="ix-link-title" className="page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
         title="Link historical records"
@@ -179,15 +179,15 @@ export function LinkRecordsScreen() {
         subtitle="Each row is a name as written in the workbook. Tick the ones whose suggestion is right and link them together, or open a row to choose a student, match a rank or void a record. Nothing is linked until you say so, and a link can be undone."
       >
         <div className="ix-link-progress">
-          <p className="ix-small ix-flush">
-            <strong className="ix-big-count">{linkedNames}</strong> of {totalNames} names linked
+          <p className="ix-flush">
+            <strong className="stat__value">{linkedNames}</strong> of {totalNames} names linked
           </p>
           <progress aria-label="Names linked" max={Math.max(totalNames, 1)} value={linkedNames} />
         </div>
       </PageHeader>
 
-      <div className="ix-filters">
-        <label className="field field--sentence ix-field-wide">
+      <div className="filter-bar" role="search" aria-label="Name filters">
+        <label className="field">
           <span>Find a name</span>
           <input
             placeholder="Name as written"
@@ -200,7 +200,7 @@ export function LinkRecordsScreen() {
             }}
           />
         </label>
-        <label className="field field--sentence">
+        <label className="field">
           <span>Import</span>
           <select
             value={batch}
@@ -231,7 +231,7 @@ export function LinkRecordsScreen() {
         <div className="card ix-gold-edge ix-bulk">
           <p className="ix-flush">
             <strong>{counted(pageSelected.length, "name", "names")} selected.</strong>{" "}
-            <span className="ix-muted">
+            <span className="subtext">
               {pageSelected.length > 0 ? "Each is linked to the student shown on its row." : "Tick rows, or select every clear suggestion on this page."}
             </span>
           </p>
@@ -254,12 +254,12 @@ export function LinkRecordsScreen() {
       ) : null}
 
       {tooMany ? (
-        <p className="ix-warning-text ix-semibold ix-flush" role="status">
+        <p className="ix-warning-text item-title ix-flush" role="status">
           {`${selectedRecords} records are selected; link at most ${BULK_LINK_LIMIT} at a time. Untick some names.`}
         </p>
       ) : null}
       {notice ? (
-        <p className="ix-success-text ix-bold ix-flush" role="status">
+        <p className="ix-success-text item-title ix-flush" role="status">
           {notice}
         </p>
       ) : null}
@@ -278,15 +278,8 @@ export function LinkRecordsScreen() {
       ) : null}
 
       <div className="card card--flush">
-        <div aria-hidden="true" className="ix-name-row ix-name-head">
-          <span />
-          <span>Name as written</span>
-          <span>Ranks in the records</span>
-          <span>Student</span>
-          <span />
-        </div>
         {loading ? (
-          <p className="ix-card-pad ix-muted" role="status">
+          <p className="ix-card-pad subtext" role="status">
             Loading the names…
           </p>
         ) : people.isError ? (
@@ -303,9 +296,9 @@ export function LinkRecordsScreen() {
         ) : rows.length === 0 ? (
           <div className="ix-card-pad">
             {everyNameLinked ? (
-              <p className="ix-success-text ix-bold ix-flush">✓ Every imported record is linked to a student.</p>
+              <p className="ix-success-text item-title ix-flush">✓ Every imported record is linked to a student.</p>
             ) : (
-              <p className="ix-muted ix-flush">
+              <p className="subtext ix-flush">
                 {view === "todo" && !debouncedSearch && (counts.left ?? 0) > 0
                   ? `Nothing else to link. ${counted(counts.left ?? 0, "name is", "names are")} left for now.`
                   : view === "left"
@@ -315,51 +308,46 @@ export function LinkRecordsScreen() {
             )}
           </div>
         ) : (
-          <ul className="ix-names">
-            {rows.map((person) => {
+          <NamesTable
+            items={rows.map((person): NameItem => {
               const chosen = chosenFor(person, picks);
-              return (
-                <NameRow
-                  batch={batchId}
-                  chosen={chosen}
-                  error={linkedFrom === person.group_key ? link.error : null}
-                  key={person.group_key}
-                  // The server keeps the list: only that view shows names left for now.
-                  left={view === "left"}
-                  open={open === person.group_key}
-                  pending={link.isPending || undo.isPending}
-                  person={person}
-                  sameAs={chosen ? (linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null : null}
-                  selected={selected.includes(person.group_key)}
-                  unticked={unticked}
-                  view={view}
-                  onChoose={(choice) => setPicks((current) => ({ ...current, [person.group_key]: choice }))}
-                  onLeave={() => leaveName(person.group_key)}
-                  onLink={() => linkNames([person], open === person.group_key ? person.group_key : null)}
-                  onPutBack={() => {
-                    resetLeft();
-                    putBack(person.group_key, { onSuccess: () => setPage(1) });
-                  }}
-                  onSelect={() =>
-                    setSelected((current) =>
-                      current.includes(person.group_key) ? current.filter((key) => key !== person.group_key) : [...current, person.group_key],
-                    )
-                  }
-                  onTick={(record) =>
-                    setUnticked((current) => (current.includes(record) ? current.filter((id) => id !== record) : [...current, record]))
-                  }
-                  onToggle={() => {
-                    if (!link.isPending) link.reset();
-                    setOpen(open === person.group_key ? null : person.group_key);
-                  }}
-                  onUndo={() => {
-                    setNotice("");
-                    undo.mutate(person.record_ids, { onSuccess: () => setPage(1) });
-                  }}
-                />
-              );
+              return {
+                batch: batchId,
+                chosen,
+                error: linkedFrom === person.group_key ? link.error : null,
+                // The server keeps the list: only that view shows names left for now.
+                left: view === "left",
+                open: open === person.group_key,
+                pending: link.isPending || undo.isPending,
+                person,
+                sameAs: chosen ? (linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null : null,
+                selected: selected.includes(person.group_key),
+                unticked,
+                view,
+                onChoose: (choice) => setPicks((current) => ({ ...current, [person.group_key]: choice })),
+                onLeave: () => leaveName(person.group_key),
+                onLink: () => linkNames([person], open === person.group_key ? person.group_key : null),
+                onPutBack: () => {
+                  resetLeft();
+                  putBack(person.group_key, { onSuccess: () => setPage(1) });
+                },
+                onSelect: () =>
+                  setSelected((current) =>
+                    current.includes(person.group_key) ? current.filter((key) => key !== person.group_key) : [...current, person.group_key],
+                  ),
+                onTick: (record) =>
+                  setUnticked((current) => (current.includes(record) ? current.filter((id) => id !== record) : [...current, record])),
+                onToggle: () => {
+                  if (!link.isPending) link.reset();
+                  setOpen(open === person.group_key ? null : person.group_key);
+                },
+                onUndo: () => {
+                  setNotice("");
+                  undo.mutate(person.record_ids, { onSuccess: () => setPage(1) });
+                },
+              };
             })}
-          </ul>
+          />
         )}
         <ImportPager
           label="Pages of names"

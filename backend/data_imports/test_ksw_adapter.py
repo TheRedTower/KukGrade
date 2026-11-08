@@ -465,6 +465,25 @@ def test_a_row_with_no_name_and_anything_above_the_table_are_kept_as_notes() -> 
     ]
 
 
+def test_a_row_with_no_name_under_a_side_section_is_kept_as_a_note() -> None:
+    """Review N-05 (2026-11-07): such a row used to be dropped whole."""
+    content = sheet(
+        ["Name", "Current Rank", "Testing For", "Outcome", "Comments"],
+        ["Alex Example", "White", "Yellow Stripe", "Pass", ""],
+        ["Missing"],
+        ["Sam Example", "away"],
+        [None, "Ran on from the row above: rang to say ill"],
+    )
+
+    result = parse_ksw_workbook(content)
+    notes = [row for row in result.rows if row.source_name == "Sheet note"]
+
+    assert [(row.admin_note, row.source_locator) for row in notes] == [
+        ("Ran on from the row above: rang to say ill", "062025!Note!B5"),
+    ]
+    assert "1 note(s) in no table" in result.warnings[0]
+
+
 def test_a_note_far_to_the_right_cannot_be_mistaken_for_a_main_row() -> None:
     # Column R row 2 is "R2" - the main table's own row 2 is "062025!R2".
     far = [None] * 17 + ["far note"]

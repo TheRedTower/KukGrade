@@ -151,14 +151,11 @@ class UserViewSet(
 ):
     """The administrator-facing users API.
 
-    Deactivate via is_active for routine offboarding - that is reversible
-    and keeps every attribution intact with no extra work. destroy() is a
-    genuine hard delete, gated to accounts.delete_user (Administrator group
-    only), for corruption or test-data cleanup: see
-    accounts.services.delete_platform_user for how it keeps every PROTECT
-    attribution foreign key satisfied by reassigning history to a
-    placeholder account rather than erasing it. No PUT: partial_update
-    covers every real edit.
+    Deactivate via is_active for routine offboarding - that is reversible.
+    destroy(), gated to accounts.delete_user (Administrator group only),
+    removes an account that recorded nothing and closes one that did, so
+    their name stays on their records (accounts.services.delete_platform_user).
+    No PUT: partial_update covers every real edit.
     """
 
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
@@ -228,8 +225,11 @@ class UserViewSet(
         # bookkeeping, not an account anyone administers - hidden from the
         # users API entirely so it can never show up in the list, be edited,
         # or be deleted itself through this endpoint.
-        return User.objects.exclude(email=DELETED_USER_PLACEHOLDER_EMAIL).order_by(
-            "email",
+        # A deleted account kept for its records (deleted_at) is gone too.
+        return (
+            User.objects.exclude(email=DELETED_USER_PLACEHOLDER_EMAIL)
+            .filter(deleted_at__isnull=True)
+            .order_by("email")
         )
 
     @extend_schema(

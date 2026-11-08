@@ -29,7 +29,7 @@ export function SettingsAbout() {
           </NavLink>
         ))}
         {about ? (
-          <p className="ab-rail-foot">
+          <p className="ab-rail-foot meta">
             KukGrade {about.release}
             <br />
             {about.licence}

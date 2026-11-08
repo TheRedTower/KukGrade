@@ -71,6 +71,8 @@ export function nextActionFor(item: EnrichedCandidate, session: GradingSession) 
       return { label: "View record →", url: decisionsUrl, opensProposalDrawer: false };
     case "PROMOTION_LEDGER":
       return { label: "Promotion ledger →", url: `/gradings/${session.id}/promotions`, opensProposalDrawer: false };
+    case "NONE":
+      return { label: "No further action", url: null, opensProposalDrawer: false };
   }
 }
 

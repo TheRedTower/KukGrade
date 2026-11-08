@@ -20,6 +20,8 @@ from accounts.models import User
 
 class AccountBackend(ModelBackend):
     def user_can_authenticate(self, user: User | AnonymousUser | None) -> bool:
-        if isinstance(user, User) and user.temporary_password_expired:
+        if isinstance(user, User) and (
+            user.temporary_password_expired or user.deleted_at is not None
+        ):
             return False
         return super().user_can_authenticate(user)

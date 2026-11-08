@@ -80,12 +80,12 @@ function SyllabusLedgerTable({
             const noteText = !row.notation && row.notes && row.notes !== rangeDisplay ? row.notes : "";
             return (
               <div className="syl-cell-curriculum">
-                <div className="syl-item-name">
+                <div className="syl-item-name item-title">
                   {row.item_name}
                   {isNew && <Badge tone="info">NEW</Badge>}
                 </div>
-                {row.item_korean_name && <div className="syl-item-korean">{row.item_korean_name}</div>}
-                {noteText && <div className="syl-item-notes">{noteText}</div>}
+                {row.item_korean_name && <div className="meta" lang="ko">{row.item_korean_name}</div>}
+                {noteText && <div className="syl-item-notes meta">{noteText}</div>}
               </div>
             );
           },
@@ -93,9 +93,9 @@ function SyllabusLedgerTable({
         {
           key: "range",
           header: "Range",
-          render: (row) => <span className="syl-range-value">{row.display_range || row.notation || "—"}</span>,
+          render: (row) => <span className="syl-range-value item-title">{row.display_range || row.notation || "—"}</span>,
         },
-        { key: "since", header: "Since", render: (row) => <span className="syl-cell-provenance">{provenance(row).text}</span> },
+        { key: "since", header: "Since", render: (row) => <span className="subtext">{provenance(row).text}</span> },
         {
           key: "requirement",
           header: "Requirement",
@@ -185,7 +185,7 @@ export function SyllabusScreen() {
       <PageHeader title="Syllabus" titleId="syllabus-heading" subtitle="Teaching and grading requirements" />
 
       {/* Top Filter Controls */}
-      <div className="filter-bar syl-filter-bar" aria-label="Syllabus filters">
+      <div className="filter-bar" aria-label="Syllabus filters">
         <div className="field">
           <label htmlFor="syl-curriculum-select">Curriculum</label>
           <select
@@ -234,7 +234,7 @@ export function SyllabusScreen() {
       </div>
 
       {/* The ranks: a page at a time, so every one is shown whole. */}
-      <ScrollRail label="Ranks" watch={selectedRankCode} className="syl-belt-rail">
+      <ScrollRail label="Ranks" watch={selectedRankCode}>
         {ranks.map((rank) => {
           const isSelected = rank.code === selectedRankCode;
           return (
@@ -258,11 +258,11 @@ export function SyllabusScreen() {
         <div className="syl-rank-header">
           <div>
             <h2 className="syl-rank-title">{rankName}</h2>
-            <p className="syl-rank-subtitle">
+            <p className="syl-rank-subtitle subtext">
               {currentAgeBand?.description || "Curriculum requirements"}
             </p>
             {requirements.length > 0 && (
-              <p className="syl-rank-everything-note">
+              <p className="syl-rank-everything-note subtext">
                 Everything examinable through {rankName}, all assessed at every grading.
               </p>
             )}
@@ -291,16 +291,16 @@ export function SyllabusScreen() {
               <div className="syl-section-block">
                 <div className="syl-section-title-wrap">
                   <h3 className="section-title">Core grading areas</h3>
-                  <p className="syl-section-subtitle">The same areas at every rank.</p>
+                  <p className="syl-section-subtitle subtext">The same areas at every rank.</p>
                 </div>
                 <div className="syl-core-grid">
                   {coreAreas.map((area) => (
                     <div key={area.item_code} className="syl-core-card">
-                      <div className="syl-core-name">{area.item_name}</div>
+                      <div className="item-title">{area.item_name}</div>
                       {area.item_korean_name && (
-                        <div className="syl-core-korean">{area.item_korean_name}</div>
+                        <div className="subtext" lang="ko">{area.item_korean_name}</div>
                       )}
-                      <div className="syl-core-english">{area.category_display}</div>
+                      <div className="syl-core-english meta">{area.category_display}</div>
                     </div>
                   ))}
                 </div>
@@ -311,7 +311,7 @@ export function SyllabusScreen() {
               <div key={ledger.category} className="syl-section-block">
                 <div className="syl-section-title-wrap">
                   <h3 className="section-title">{ledger.title}</h3>
-                  <p className="syl-section-subtitle">
+                  <p className="syl-section-subtitle subtext">
                     Where a later rank extended an item, its latest range is shown.
                   </p>
                 </div>
@@ -323,13 +323,13 @@ export function SyllabusScreen() {
       </div>
 
       {/* Footer Reference */}
-      <footer className="syl-footer">
+      <footer className="syl-footer subtext">
         <div className="syl-footer-brand">
           <strong>KukGrade</strong>
           <span className="syl-footer-divider">|</span>
           <span>Past assessments keep the wording they were graded on.</span>
         </div>
-        <div className="syl-footer-reference">
+        <div className="meta">
           Preliminary reference: WKSA curriculum chart, 2014
         </div>
       </footer>

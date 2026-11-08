@@ -37,20 +37,20 @@ export function ResultMark({ result }: { result: CandidateAssessmentItem["result
 export function CoreAreaMark({ group }: { group: CategoryGroup }) {
   if (group.notMetCount > 0) {
     return (
-      <span className="acp-core-mark acp-core-mark-not-met" aria-hidden="true">
+      <span className="mark mark--small mark--danger" aria-hidden="true">
         <CrossIcon size={13} />
       </span>
     );
   }
   if (group.notAssessedCount > 0) {
     return (
-      <span className="acp-core-mark acp-core-mark-partial" aria-hidden="true">
+      <span className="mark mark--small mark--neutral" aria-hidden="true">
         –
       </span>
     );
   }
   return (
-    <span className="acp-core-mark acp-core-mark-met" aria-hidden="true">
+    <span className="mark mark--small mark--success" aria-hidden="true">
       <CheckIcon size={13} />
     </span>
   );
@@ -67,10 +67,10 @@ export function LedgerTable({ group }: { group: CategoryGroup }) {
 
   return (
     <>
-      <h2 className="acp-section">{group.categoryDisplay}</h2>
+      <h2 className="acp-section eyebrow--muted">{group.categoryDisplay}</h2>
       <table className="acp-ledger" data-testid={`acp-ledger-${group.category}`}>
         <thead>
-          <tr>
+          <tr className="eyebrow--muted">
             <th scope="col">Requirement</th>
             {hasAnyRange && <th scope="col" className="acp-ledger-range-col">Numbers</th>}
             <th scope="col" className="acp-ledger-result-col">Result</th>
@@ -81,11 +81,11 @@ export function LedgerTable({ group }: { group: CategoryGroup }) {
             <tr key={item.id} data-testid={`acp-ledger-row-${item.id}`}>
               <td>
                 <strong>{item.item_name}</strong>
-                {item.korean_name && <span className="acp-ledger-korean"> {item.korean_name}</span>}
+                {item.korean_name && <span className="acp-ledger-korean" lang="ko"> {item.korean_name}</span>}
                 {!item.required && <RequirementBadge required={false} />}
               </td>
               {hasAnyRange && (
-                <td className="acp-ledger-range">{item.display_range || item.notation}</td>
+                <td className="acp-ledger-range meta">{item.display_range || item.notation}</td>
               )}
               <td>
                 <ResultMark result={item.result} />

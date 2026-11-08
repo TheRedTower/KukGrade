@@ -1,4 +1,5 @@
 import { type ChangeEvent, type DragEvent, useRef, useState } from "react";
+import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -118,21 +119,21 @@ function GuideList({ kind }: { kind: DataImportKind }) {
   const guide = GUIDES[kind];
   return (
     <>
-      <p className="ix-muted ix-small">{guide.lead}</p>
+      <p className="subtext">{guide.lead}</p>
       <ul className="ix-guide-list">
         {guide.fields.map((field) => (
           <li key={field.name}>
             <span>
-              <p className="ix-semibold">{field.name}</p>
-              {field.hint ? <p className="ix-muted ix-small">{field.hint}</p> : null}
+              <p className="item-title">{field.name}</p>
+              {field.hint ? <p className="subtext">{field.hint}</p> : null}
             </span>
-            <span className={`ix-tag${field.needed ? "" : " ix-muted"}`}>
+            <Badge tone={field.needed ? "info" : "neutral"}>
               {field.needed ? "Needed" : kind === "STUDENT_ROSTER" ? "Optional" : "If present"}
-            </span>
+            </Badge>
           </li>
         ))}
       </ul>
-      <p className="ix-small ix-flush">
+      <p className="ix-flush">
         {guide.foot}
       </p>
     </>
@@ -211,12 +212,12 @@ function FoundChecklist({
       <ul className="ix-checklist">
         {items.map((item) => (
           <li key={item.title}>
-            <span aria-hidden="true" className={`ix-mark ${item.ok ? "ix-mark-ok" : "ix-mark-warn"}`}>
+            <span aria-hidden="true" className={`mark ${item.ok ? "mark--success" : "mark--warning"}`}>
               {item.ok ? "✓" : "!"}
             </span>
             <span>
-              <p className="ix-semibold">{item.title}</p>
-              <p className="ix-muted ix-small">{item.detail}</p>
+              <p className="item-title">{item.title}</p>
+              <p className="subtext">{item.detail}</p>
             </span>
           </li>
         ))}
@@ -304,7 +305,7 @@ export function ImportStartScreen() {
   const nextName = kind === "STUDENT_ROSTER" ? "Continue to match columns" : "Continue to match ranks";
 
   return (
-    <section aria-labelledby="ix-start-title" className="page ix-page">
+    <section aria-labelledby="ix-start-title" className="page">
       <PageHeader back={{ to: "/imports", label: "Imports" }} title={importKindTitle(kind)} titleId="ix-start-title" />
 
       <ImportStepBar current={0} kind={kind} />
@@ -316,8 +317,8 @@ export function ImportStartScreen() {
           </h2>
           <div className="ix-file">
             <div className="ix-row-main">
-              <p className="ix-strong">{loaded.original_filename}</p>
-              <p className="ix-muted ix-small">{fileSize(loaded.file_size)}</p>
+              <p className="item-title">{loaded.original_filename}</p>
+              <p className="subtext">{fileSize(loaded.file_size)}</p>
             </div>
             <Button variant="ghost" disabled={discard.isPending} onClick={chooseAnother}>
               Choose a different file
@@ -343,7 +344,7 @@ export function ImportStartScreen() {
                   </option>
                 ))}
               </select>
-              <span className="ix-small ix-hint">
+              <span className="subtext">
                 {sheet.isPending
                   ? "Reading that sheet…"
                   : `The workbook has ${loaded.sheet_names.length} sheets. KukGrade picked the one it opens on.`}
@@ -380,7 +381,7 @@ export function ImportStartScreen() {
               <h2 className="ix-title" id="ix-choose">
                 Choose your file
               </h2>
-              <p className="ix-muted">
+              <p className="subtext">
                 {kind === "STUDENT_ROSTER"
                   ? "A spreadsheet of students, one per row. Nothing is saved until the last step."
                   : "The grading record workbook, downloaded from Google Sheets as Excel. Nothing is saved until the last step."}
@@ -395,11 +396,11 @@ export function ImportStartScreen() {
               }}
               onDrop={onDrop}
             >
-              <span className="ix-muted">
+              <span className="subtext">
                 <UploadIcon />
               </span>
-              <p className="ix-drop-title">Drag your file here</p>
-              <p className="ix-muted ix-small">or</p>
+              <p className="item-title">Drag your file here</p>
+              <p className="subtext">or</p>
               <input
                 ref={inputRef}
                 accept={accept}
@@ -416,7 +417,7 @@ export function ImportStartScreen() {
               >
                 {upload.isPending || (created !== null && batch.isPending) ? "Reading your file…" : "Choose a file"}
               </Button>
-              <p className="ix-muted ix-small">
+              <p className="subtext">
                 {kind === "STUDENT_ROSTER"
                   ? `Excel (.xlsx) or CSV, ${limit ? `up to ${limit}` : "size checked when uploaded"} and 1,000 rows`
                   : `Excel (.xlsx), ${limit ? `up to ${limit}` : "size checked when uploaded"}`}
@@ -448,7 +449,7 @@ export function ImportStartScreen() {
         </Button>
         <div className="ix-actions">
           {!loaded ? (
-            <span className="ix-muted ix-small" id="ix-continue-why">
+            <span className="subtext" id="ix-continue-why">
               Choose a file first.
             </span>
           ) : null}

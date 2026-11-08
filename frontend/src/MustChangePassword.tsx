@@ -54,14 +54,14 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
         </div>
 
         <h1 id="change-password-title">Choose a new password</h1>
-        <p className="must-change-password-subtitle">
+        <p className="must-change-password-subtitle subtext">
           You signed in with a temporary password. Choose your own password to
           continue.
         </p>
 
         {user ? (
           <div className="account-pill" aria-label={`Account: ${user.email}`}>
-            <span className="account-pill-name">{user.full_name || user.email}</span>
+            <span className="item-title">{user.full_name || user.email}</span>
             <span className="account-pill-role">{user.role_display}</span>
           </div>
         ) : null}

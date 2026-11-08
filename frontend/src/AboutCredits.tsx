@@ -19,7 +19,7 @@ function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) 
           render: (credit) => (
             <>
               {credit.homepage ? (
-                <a className="ab-credit-link" href={credit.homepage} rel="noopener noreferrer" target="_blank">
+                <a href={credit.homepage} rel="noopener noreferrer" target="_blank">
                   {credit.name}
                   <span className="visually-hidden"> (opens in a new tab)</span>
                 </a>
@@ -27,7 +27,7 @@ function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) 
                 <strong>{credit.name}</strong>
               )}
               <br />
-              <span className="st-row-description">{credit.version}</span>
+              <span className="st-row-description subtext">{credit.version}</span>
             </>
           ),
         },
@@ -47,7 +47,7 @@ export function AboutCredits() {
     <>
       <header>
         <h2>Credits</h2>
-        <p className="st-row-description">
+        <p className="st-row-description subtext">
           KukGrade stands on the work of many open source projects. This list is written when each
           version is built, so it matches what is running.
         </p>
@@ -60,17 +60,17 @@ export function AboutCredits() {
       ) : null}
 
       {credits && !credits.available ? (
-        <p className="ab-note">
+        <Alert tone="info" role="note">
           This copy of KukGrade was not packaged for release, so it has no credits list. Releases
           have one.
-        </p>
+        </Alert>
       ) : null}
 
       {credits?.available ? (
         <>
           <section aria-labelledby="ab-server" className="card card--flush">
             <div className="st-row">
-              <h2 id="ab-server" className="st-row-title">
+              <h2 id="ab-server" className="st-row-title item-title">
                 The server
               </h2>
             </div>
@@ -80,7 +80,7 @@ export function AboutCredits() {
           {credits.browser.length > 0 ? (
             <section aria-labelledby="ab-browser" className="card card--flush">
               <div className="st-row">
-                <h2 id="ab-browser" className="st-row-title">
+                <h2 id="ab-browser" className="st-row-title item-title">
                   The screens you use
                 </h2>
               </div>
@@ -89,10 +89,10 @@ export function AboutCredits() {
           ) : null}
 
           <section aria-labelledby="ab-all" className="card">
-            <div className="ab-head">
+            <div className="action-row">
               <div>
                 <h2 id="ab-all">Everything else</h2>
-                <p className="st-row-description">
+                <p className="st-row-description subtext">
                   Every other Python and browser package, with its licence and copyright notice, in one file.
                 </p>
               </div>

@@ -49,7 +49,10 @@ flowchart LR
    - *Until the lock*, a mark can be changed, including on a completed assessment, but
      every change after the first mark needs a written reason (even changing your own, even
      clearing it). The change, who made it, when and why are kept and shown on the item, and
-     a completed assessment keeps every required item marked.
+     a completed assessment keeps every required item marked. The log starts with the release
+     that added it (0.2.0-rc.8): an item marked before then begins with its mark at that time,
+     credited to its assessor, and changes made before it, including a mark cleared then, are
+     not known.
    - *After the lock*, only the authorised Master can correct a mark or add a comment,
      always with a written reason, until that candidate's final decision is recorded. Each
      such change is flagged "after the lock" and shown with the decision (on the final
@@ -192,7 +195,7 @@ protection.
 | Read the audit log | with `can_view_grading_audit_log` | ✓ | ✓ |
 | Manage users, roles and authority | | ✓ | |
 | Import student rosters and past gradings; reconcile imported history | | ✓ | |
-| Permanently delete a user, student, assessment or session without final decisions | | ✓ | |
+| Delete a user or student, or an assessment or session without final decisions | | ✓ | |
 | Archive or restore a completed or cancelled session | | ✓ | |
 
 Notes:
@@ -206,9 +209,18 @@ Notes:
   grading, student, rank and syllabus data but cannot add, change or delete it, so
   every such change is checked and recorded by KukGrade. It still recovers accounts.
 - User-management events in the audit log are visible to administrators only.
-- Deleting is for correcting mistakes and clearing test data. Deleting a student or
-  session removes its dependent records and is itself audited; removing a user keeps
-  the history attributed to them by name.
+- Deleting never erases a recorded decision, and is itself audited.
+  - *A student* is never deleted before their final decision: while any grading they are
+    in has not reached it (a Pass waits for its promotion), the student's page says which
+    grading and offers no delete. Once it has, or once they are taken out, they can be
+    deleted: they leave the student list and searches, cannot be registered, and their
+    record is closed to changes, but it is kept, so every past grading, mark, decision and
+    promotion still shows who it was. Only a record with no grading history at all (added
+    by mistake, twice, or for testing) is erased, and its WKSA IDs are never given out again.
+  - *A staff account* that recorded anything is closed rather than erased: it can no longer
+    sign in, leaves the staff list, and its email cannot be reused, while every comment,
+    mark, proposal and decision keeps its name. One that recorded nothing is erased.
+  - *A session or an assessment* holding a final decision cannot be deleted.
 
 ## The demo mode
 

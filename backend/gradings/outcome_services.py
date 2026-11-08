@@ -218,6 +218,12 @@ def propose_candidate_outcome(
         raise ValidationError(
             {"status": ["A final decision cannot be proposed again."]},
         )
+    # As for the first proposal: once the session is cancelled or completed,
+    # nothing about its outcomes moves (review N-04, 2026-11-07).
+    if locked_outcome.candidate.session.status not in OUTCOME_CREATION_SESSION_STATUSES:
+        raise ValidationError(
+            {"session": ["Outcomes can only be proposed in locked sessions."]},
+        )
     _validate_outcome_choice(proposed_outcome, "proposed_outcome")
 
     previous_proposal = {

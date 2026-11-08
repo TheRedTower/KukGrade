@@ -2,12 +2,6 @@
    Student Promotion Ledger
    ───────────────────────────────────────────────────────────────────────────── */
 
-.pl-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
 /* Banners */
 
 .pl-alert {
@@ -21,7 +15,6 @@
   background: var(--color-warning-surface);
   border: 1.5px solid var(--color-warning);
   border-radius: var(--radius);
-  margin-bottom: var(--space-5);
 }
 
 .pl-summary-info {
@@ -31,14 +24,7 @@
 }
 
 .pl-summary-count {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-strong);
   color: var(--color-warning);
-}
-
-.pl-summary-note {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 /* Table Container & Table */
@@ -71,17 +57,6 @@
   gap: 2px;
 }
 
-.pl-candidate-name {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  font-size: var(--font-size-base);
-}
-
-.pl-candidate-belt-sub {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 /* Belt Chip */
 
 .pl-belt-chip {
@@ -92,8 +67,6 @@
   border-radius: var(--radius-pill);
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
   color: var(--color-text);
 }
 
@@ -106,36 +79,21 @@
   gap: 3px;
 }
 
-.pl-promoted-date {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
-.pl-ineligible-note {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 .pl-action-complete {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
   color: var(--color-success);
 }
 
 .pl-action-disabled {
   color: var(--color-text-muted);
-  font-size: var(--font-size-lg);
 }
 
 /* ── Promotion dialogs (the shared Dialog supplies the card) ─────────────── */
 
 .pl-batch-count {
   margin: 0;
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-semibold);
 }
 
 .pl-batch-chips {
@@ -156,17 +114,12 @@
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  font-size: var(--font-size-sm);
 }
 
 .pl-chip-num,
 .pl-chip-rank,
 .pl-chip-arrow {
   color: var(--color-text-muted);
-}
-
-.pl-chip-num {
-  font-weight: var(--font-weight-strong);
 }
 
 .pl-chip-name {
@@ -188,8 +141,6 @@
 .pl-modal-name {
   display: block;
   margin-bottom: var(--space-2);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-strong);
 }
 
 .pl-modal-ranks {
@@ -206,8 +157,6 @@
 
 .pl-modal-date-notice {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 

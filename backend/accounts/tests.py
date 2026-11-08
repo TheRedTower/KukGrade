@@ -33,11 +33,17 @@ from accounts.permissions import (
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
 )
-from accounts.services import reset_password, set_user_authority
+from accounts.services import (
+    delete_platform_user,
+    reset_password,
+    set_admin_site_access,
+    set_user_authority,
+    update_platform_user,
+)
 from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
-from kukgrade.testing import render_admin_pages
+from kukgrade.testing import render_admin_pages, results
 
 pytestmark = pytest.mark.django_db
 
@@ -933,6 +939,16 @@ def test_put_is_not_allowed() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_an_email_already_in_use_is_refused_in_any_case() -> None:
+    client, _admin = admin_client("duplicate-email-admin@example.com")
+    create_user_via_api(client, email="taken@example.com")
+
+    response = client.post("/api/users/", {"email": "Taken@Example.com"}, format="json")
+
+    assert response.status_code == 400
+    assert "already exists" in str(response.json())
+
+
 def test_delete_requires_the_delete_user_permission() -> None:
     admin_facing, _admin = admin_client("delete-forbidden-admin@example.com")
     created = create_user_via_api(
@@ -1009,52 +1025,100 @@ def test_deleted_user_placeholder_is_hidden_from_django_admin() -> None:
     assert DELETED_USER_PLACEHOLDER_EMAIL not in emails
 
 
-def test_deleting_a_user_reassigns_history_to_the_placeholder_account() -> None:
+def test_deleting_a_user_who_recorded_something_keeps_their_name_on_it() -> None:
+    """Owner, 2026-11-07: a deleted staff member's name stays on their records,
+    so who made each decision is always known (review N-02)."""
     from gradings.models import GradingSession
 
     client, admin = admin_client("delete-history-admin@example.com")
-    created = create_user_via_api(client, email="delete-history-target@example.com")
+    created = create_user_via_api(
+        client,
+        email="delete-history-target@example.com",
+        first_name="Robin",
+        last_name="Leaving",
+    )
     target = User.objects.get(pk=created["id"])
-
     session = GradingSession.objects.create(
         title="History grading",
         grading_date="2027-03-20",
         created_by=target,
-    )
-    actored_event = record(
-        AuditAction.SESSION_CREATED,
-        session,
-        "Some earlier action by the target user.",
-        actor=target,
     )
     events_before = AuditEvent.objects.count()
 
     response = client.delete(f"/api/users/{created['id']}/")
 
     assert response.status_code == 204
-    assert not User.objects.filter(pk=created["id"]).exists()
-
-    placeholder = User.objects.get(email=DELETED_USER_PLACEHOLDER_EMAIL)
+    kept = User.objects.get(pk=created["id"])
+    assert kept.deleted_at is not None
+    assert kept.is_active is False
+    assert kept.has_usable_password() is False
+    assert kept.get_full_name() == "Robin Leaving"
     session.refresh_from_db()
-    actored_event.refresh_from_db()
-    assert session.created_by == placeholder
-    assert actored_event.actor == placeholder
-    # The trail still names the real person: the actor is only re-pointed.
-    assert actored_event.actor_email == "delete-history-target@example.com"
+    assert session.created_by == kept
+    # Gone from user management, and it cannot sign in.
+    assert client.get(f"/api/users/{created['id']}/").status_code == 404
+    assert created["id"] not in [
+        row["id"] for row in results(client.get("/api/users/"))
+    ]
+    # Its email stays with its records.
+    again = client.post(
+        "/api/users/",
+        {"email": "delete-history-target@example.com"},
+        format="json",
+    )
+    assert again.status_code == 400
+    assert "belonged to an account that was deleted" in str(again.json())
 
-    deletion_event = AuditEvent.objects.filter(
-        entity_type="User",
-        entity_id=created["id"],
-        action=AuditAction.USER_DELETED,
-    ).get()
-    assert deletion_event.actor == admin
-    assert deletion_event.actor_email == admin.email
-    assert deletion_event.metadata["email"] == "delete-history-target@example.com"
-    assert deletion_event.metadata["reassigned"]["grading_sessions_created"] == 1
-    assert deletion_event.metadata["reassigned"]["audit_events_actored"] == 1
-    # The deletion event itself, plus the reassignment - not one event per
-    # reassigned row.
+    event = AuditEvent.objects.get(
+        entity_type="User", entity_id=created["id"], action=AuditAction.USER_DELETED
+    )
+    assert event.actor == admin
+    assert event.metadata["kept_for_their_records"] is True
     assert AuditEvent.objects.count() == events_before + 1
+
+
+def test_a_deleted_account_cannot_be_reactivated_or_given_a_password_anywhere() -> None:
+    """Every path that writes to an account refuses a deleted one: the
+    Django admin's recovery forms call these same services (Codex, #192)."""
+    from gradings.models import GradingSession
+
+    superuser = create_user(
+        "delete-closed-super@example.com",
+        role=User.Role.ADMINISTRATOR,
+        is_staff=True,
+        is_superuser=True,
+    )
+    target = create_user("delete-closed-target@example.com", password="StrongPass123!")
+    GradingSession.objects.create(
+        title="Closed grading", grading_date="2027-03-20", created_by=target
+    )
+    assert delete_platform_user(target, superuser) is False
+    target.refresh_from_db()
+
+    for attempt in (
+        lambda: update_platform_user(target, actor=superuser, is_active=True),
+        lambda: update_platform_user(target, is_active=True),
+        lambda: reset_password(target, actor=superuser),
+        lambda: set_user_authority(target, superuser, can_promote_student=True),
+        lambda: set_admin_site_access(target, actor=superuser, is_staff=True),
+    ):
+        with pytest.raises(ValidationError, match="has been deleted"):
+            attempt()
+
+    target.refresh_from_db()
+    assert target.is_active is False
+    assert target.has_usable_password() is False
+    # And the sign-in backend refuses it even if a row were edited by hand.
+    User.objects.filter(pk=target.pk).update(is_active=True)
+    target.refresh_from_db()
+    target.set_password("StrongPass123!")
+    target.save()
+    assert (
+        Client().login(
+            username="delete-closed-target@example.com", password="StrongPass123!"
+        )
+        is False
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1811,10 +1875,10 @@ def test_admin_user_delete_goes_through_the_service() -> None:
     assert model_admin.get_deleted_objects([target], request)[3] == []
     model_admin.delete_model(request, target)
 
-    assert not User.objects.filter(pk=target.pk).exists()
+    target.refresh_from_db()
+    assert target.deleted_at is not None
     kept = AuditEvent.objects.get(summary="History to keep.")
-    assert kept.actor is not None
-    assert kept.actor.email == DELETED_USER_PLACEHOLDER_EMAIL
+    assert kept.actor == target
     assert AuditEvent.objects.filter(
         action=AuditAction.USER_DELETED,
         actor=request.user,

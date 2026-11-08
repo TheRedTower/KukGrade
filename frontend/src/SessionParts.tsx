@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
-import type { CandidateAssessment, CandidateOutcome, GradingCandidateRoster, GradingSessionStatus } from "./api";
+import type { CandidateAssessment, CandidateOutcome, GradingCandidateRoster, GradingSession, GradingSessionStatus } from "./api";
 import { Badge } from "./Badge";
 import { RankBelt } from "./Belt";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { formatSessionDate } from "./dates";
 import { SESSION_STATUS_LABELS } from "./sessionStatus";
 import { AssessmentBadge, OutcomeBadge } from "./StatusBadge";
 
@@ -17,11 +18,21 @@ export interface EnrichedCandidate {
   outcome?: CandidateOutcome;
 }
 
-/** What a candidate's row offers next: a link, or the proposal drawer. */
-interface NextAction {
+/** What a candidate's row offers next: a link, the proposal drawer, or nothing (no url). */
+export interface NextAction {
   label: string;
-  url: string;
+  url: string | null;
   opensProposalDrawer: boolean;
+}
+
+/** When and where a session is held, as one line reads it under a page's title. */
+export function SessionFacts({ session }: { session: Pick<GradingSession, "grading_date" | "location"> }) {
+  return (
+    <>
+      <span>{formatSessionDate(session.grading_date)}</span> <span aria-hidden="true">·</span>{" "}
+      <span>{session.location || "No location specified"}</span>
+    </>
+  );
 }
 
 const STAGES = ["DRAFT", "OPEN", "LOCKED", "COMPLETED"] as const;
@@ -40,8 +51,8 @@ export function SessionLifecycle({ status = "DRAFT" }: { status?: GradingSession
                 {state === "completed" && "✓"}
               </div>
               <div className="gsd-step-content">
-                <span className="gsd-step-label">{SESSION_STATUS_LABELS[key]}</span>
-                <span className="gsd-step-subtext">
+                <span className="item-title">{SESSION_STATUS_LABELS[key]}</span>
+                <span className="meta">
                   {state === "completed" ? "Completed" : state === "current" ? "Current" : "Upcoming"}
                 </span>
               </div>
@@ -72,12 +83,12 @@ export function SessionNotes({
   }
 
   return (
-    <section className="gsd-notes-section" aria-labelledby="notes-heading">
+    <section aria-labelledby="notes-heading">
       <div className="gsd-notes-card">
         <div className="action-row gsd-notes-header">
           <div>
-            <h2 id="notes-heading" className="gsd-notes-title">Session notes</h2>
-            <p className="gsd-notes-sub">
+            <h2 id="notes-heading" className="gsd-notes-title section-title">Session notes</h2>
+            <p className="gsd-notes-sub subtext">
               Notes are only visible to authorised instructors for this session.
             </p>
           </div>
@@ -127,7 +138,7 @@ export function SessionNotes({
               {notes ? (
                 <p className="gsd-notes-text">{notes}</p>
               ) : (
-                <p className="gsd-notes-empty">No notes recorded for this session.</p>
+                <p className="gsd-notes-empty subtext">No notes recorded for this session.</p>
               )}
             </div>
           )}
@@ -140,8 +151,6 @@ export function SessionNotes({
 /** The session's candidates: ranks, assessment, outcome and what each row offers next. */
 export function SessionCandidateTable({
   candidates,
-  sessionStatus,
-  canOverrideLocked,
   nextActionFor,
   onPropose,
   onMove,
@@ -149,8 +158,6 @@ export function SessionCandidateTable({
   onWithdraw,
 }: {
   candidates: EnrichedCandidate[];
-  sessionStatus?: GradingSessionStatus;
-  canOverrideLocked: boolean;
   nextActionFor: (item: EnrichedCandidate) => NextAction;
   onPropose: (item: EnrichedCandidate) => void;
   onMove: (item: EnrichedCandidate) => void;
@@ -171,9 +178,19 @@ export function SessionCandidateTable({
           primary: true,
           render: (item) => (
             <>
-              <span className="gsd-candidate-name">{item.candidate.student_display_name}</span>
+              <span className="gsd-candidate-name item-title">{item.candidate.student_display_name}</span>
               {item.candidate.student_wksa_id && (
-                <span className="gsd-candidate-wksa">WKSA: {item.candidate.student_wksa_id}</span>
+                <span className="gsd-candidate-wksa meta">WKSA: {item.candidate.student_wksa_id}</span>
+              )}
+              {/* Why they withdrew sits with the person, so the status pill stands
+                  alone in its cell, on the row's line with the other pills. */}
+              {item.candidate.status === "WITHDRAWN" && (
+                <span className="gsd-withdrawal-record meta">
+                  {item.candidate.withdrawal_reason_display && (
+                    <span>{item.candidate.withdrawal_reason_display}</span>
+                  )}
+                  {item.candidate.withdrawal_note && <span>{item.candidate.withdrawal_note}</span>}
+                </span>
               )}
             </>
           ),
@@ -202,15 +219,7 @@ export function SessionCandidateTable({
           header: "Assessment",
           render: (item) =>
             item.candidate.status === "WITHDRAWN" ? (
-              <>
-                <Badge tone="neutral">Withdrawn</Badge>
-                <span className="gsd-withdrawal-record">
-                  {item.candidate.withdrawal_reason_display && (
-                    <span>{item.candidate.withdrawal_reason_display}</span>
-                  )}
-                  {item.candidate.withdrawal_note && <span>{item.candidate.withdrawal_note}</span>}
-                </span>
-              </>
+              <Badge tone="neutral">Withdrawn</Badge>
             ) : (
               <AssessmentBadge assessment={item.assessment} />
             ),
@@ -231,18 +240,11 @@ export function SessionCandidateTable({
           actions: true,
           render: (item) => {
             const candidateId = item.candidate.id;
-            const outcomeStatus = item.outcome?.status;
-            const isWithdrawn = item.candidate.status === "WITHDRAWN";
-            const canWithdrawLocked =
-              sessionStatus === "LOCKED" &&
-              canOverrideLocked &&
-              !isWithdrawn &&
-              outcomeStatus !== "FINALISED";
             const next = nextActionFor(item);
             return (
-              <div className="gsd-row-actions">
-                {isWithdrawn ? (
-                  <span className="gsd-withdrawal-record">No further action</span>
+              <>
+                {next.url === null ? (
+                  <span className="meta">{next.label}</span>
                 ) : next.opensProposalDrawer ? (
                   <Button
                     variant="ghost" small
@@ -274,15 +276,16 @@ export function SessionCandidateTable({
                     Remove
                   </Button>
                 )}
-                {canWithdrawLocked && (
+                {item.candidate.can_be_withdrawn_after_lock && (
                   <Button
                     variant="danger-quiet" small
                     onClick={() => onWithdraw(item)}
+                    aria-label={`Withdraw ${item.candidate.student_display_name}`}
                   >
-                    Withdraw candidate
+                    Withdraw
                   </Button>
                 )}
-              </div>
+              </>
             );
           },
         },

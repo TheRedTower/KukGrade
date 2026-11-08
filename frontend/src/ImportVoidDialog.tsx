@@ -28,7 +28,7 @@ export function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose
       onClose={onClose}
       onConfirm={() => voiding.mutate()}
     >
-      <p className="ix-muted">
+      <p className="subtext">
         They are kept, marked void with your reason, and leave every student’s history. This
         cannot be undone except by importing the workbook again.
       </p>

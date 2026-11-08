@@ -26,6 +26,9 @@ import { Dialog } from "./Dialog";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
 import { Button } from "./Button";
+import { Badge } from "./Badge";
+import { buttonClass } from "./buttonClass";
+import { EmailAddress } from "./EmailAddress";
 
 function AccountForm({
   user,
@@ -104,7 +107,7 @@ function AccountForm({
           </select>
         </label>
       </div>
-      <p className="users-form-note">
+      <p className="users-form-note meta">
         The role decides what someone can do in KukGrade. Master authority is granted separately.
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
@@ -197,7 +200,7 @@ function AuthorityForm({
         ))}
       </div>
       <div className="action-row user-authority-footer">
-        <p>
+        <p className="meta">
           {isSelf
             ? "You cannot change your own authority."
             : targetIsAdministrator
@@ -299,8 +302,9 @@ function DeleteUserDialog({
       canClose={!mutation.isPending}
     >
       <p>
-        Permanently delete <strong>{user.full_name}</strong>&apos;s account? This cannot be
-        undone. Their grading history is kept, credited to a "Deleted user" account.
+        Delete <strong>{user.full_name}</strong>&apos;s account? They can no longer sign in and
+        the account leaves the staff list. Everything they recorded keeps their name, so it
+        still shows who did it. This cannot be undone.
       </p>
       {mutation.error && <Alert>{errorMessage(mutation.error, "The account could not be deleted.")}</Alert>}
       <div className="action-row users-dialog-actions">
@@ -398,19 +402,17 @@ export function UserDetailScreen(): React.ReactElement {
         titleId="user-detail-heading"
         subtitle={
           <>
-            {managedUser.email} <span aria-hidden="true">·</span>{" "}
-            <span className={`users-status ${managedUser.is_active ? "is-active" : "is-inactive"}`}>
-              {managedUser.is_active ? "Active" : "Inactive"}
-            </span>
+            <EmailAddress address={managedUser.email} /> <span aria-hidden="true">·</span>{" "}
+            <Badge dot tone={managedUser.is_active ? "success" : "neutral"}>{managedUser.is_active ? "Active" : "Inactive"}</Badge>
           </>
         }
         actions={
           // A reset sets someone else's password and asks for no current one;
           // the server refuses it on your own account.
           isSelf ? (
-            <p className="users-self-password-hint">Change your own password in Settings.</p>
+            <p className="users-self-password-hint subtext">Change your own password in Settings.</p>
           ) : viewOnly ? (
-            <p className="users-self-password-hint">Only a superuser can change this account.</p>
+            <p className="users-self-password-hint subtext">Only a superuser can change this account.</p>
           ) : (
             <Button ref={passwordButtonRef} variant="secondary" onClick={() => setPasswordOpen(true)}>Reset password</Button>
           )
@@ -436,9 +438,9 @@ export function UserDetailScreen(): React.ReactElement {
             <section className="user-detail-section">
               <h2>Danger zone</h2>
               <p>
-                Permanently delete this account. Their grading history is kept, credited to a
-                &ldquo;Deleted user&rdquo; account. For someone who has left, set the account to
-                Inactive instead.
+                Delete this account. They can no longer sign in, and everything they recorded
+                keeps their name so it still shows who did it. For someone who may come back,
+                set the account to Inactive instead.
               </p>
               <Button
                 ref={deleteButtonRef}
@@ -470,13 +472,13 @@ export function UserDetailScreen(): React.ReactElement {
             ) : activityQuery.data?.results.length ? (
               <ul className="user-activity-list">
                 {activityQuery.data.results.map((event) => (
-                  <li key={event.id}><strong>{event.summary}</strong><span>{formatDateTime(event.occurred_at)}</span></li>
+                  <li key={event.id}><strong>{event.summary}</strong><span className="meta">{formatDateTime(event.occurred_at)}</span></li>
                 ))}
               </ul>
             ) : (
               <p>No administrative activity recorded.</p>
             )}
-            <Link className="users-audit-link" to={`/audit?subject=user:${encodeURIComponent(id)}`}>View full history <span aria-hidden="true">→</span></Link>
+            <Link className={buttonClass({ variant: "link" })} to={`/audit?subject=user:${encodeURIComponent(id)}`}>View full history <span aria-hidden="true">→</span></Link>
           </section>
         </aside>
       </div>

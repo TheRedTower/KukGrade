@@ -7,6 +7,7 @@ import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { SettingsRow } from "./SettingsRow";
 import { Button } from "./Button";
+import { EmailAddress } from "./EmailAddress";
 
 const CAPABILITIES = [
   { key: "can_make_final_grading_decision", label: "Final grading decisions" },
@@ -74,7 +75,7 @@ function NameRow() {
           </Alert>
         ) : null}
         {saved ? (
-          <p className="st-saved st-full" role="status">
+          <p className="st-saved item-title st-full" role="status">
             Your name is saved.
           </p>
         ) : null}
@@ -116,7 +117,7 @@ function PasswordRow() {
       {open ? null : (
         <>
           {changed ? (
-            <span className="st-saved" role="status">
+            <span className="st-saved item-title" role="status">
               Your password has been changed.
             </span>
           ) : null}
@@ -143,7 +144,7 @@ export function SettingsAccount() {
     <section aria-label="Account" className="card card--flush">
       <NameRow />
       <SettingsRow description="An administrator changes it on the Users page." title="Email">
-        <span>{user.email}</span>
+        <span><EmailAddress address={user.email} /></span>
       </SettingsRow>
       <PasswordRow />
       <SettingsRow
@@ -160,7 +161,7 @@ export function SettingsAccount() {
                 );
               })}
             </ul>
-            <p className="st-row-description">Capabilities are independent of your role.</p>
+            <p className="st-row-description subtext">Capabilities are independent of your role.</p>
           </>
         }
         description={`${user.role_display}. What you can do beyond your role is set by an administrator.`}

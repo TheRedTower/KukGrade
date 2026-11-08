@@ -269,7 +269,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Header and Session info
     expect(await screen.findByRole("heading", { name: "Build grading cohort" })).toBeVisible();
     expect(screen.getByText("Add whole groups, then review any exceptions.")).toBeVisible();
-    expect(screen.getByText("Autumn Grading", { selector: ".bgc-session-title" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Autumn Grading" })).toBeVisible();
 
     // Section 1: Find eligible students
     expect(screen.getByRole("heading", { name: "1. Find eligible students" })).toBeVisible();
@@ -469,8 +469,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Modal opens
     expect(screen.getByRole("heading", { name: "Review cohort candidates (2)" })).toBeVisible();
     expect(screen.getByTestId("bgc-modal-done-btn")).toHaveFocus();
-    expect(screen.getByText("Alice Smith", { selector: ".bgc-modal-student-name" })).toBeVisible();
-    expect(screen.getByText("Bob Jones", { selector: ".bgc-modal-student-name" })).toBeVisible();
+    expect(screen.getByText("Alice Smith", { selector: ".item-title" })).toBeVisible();
+    expect(screen.getByText("Bob Jones", { selector: ".item-title" })).toBeVisible();
 
     // Remove Bob Jones (student 102)
     await user.click(screen.getByTestId("bgc-remove-student-102"));

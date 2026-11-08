@@ -17,7 +17,6 @@ import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
-import { SearchIcon } from "./Icons";
 import { Dialog } from "./Dialog";
 import { SESSION_STATUS_LABELS } from "./sessionStatus";
 import { SessionStatusBadge } from "./StatusBadge";
@@ -69,8 +68,8 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
       <div className="gs-current-body">
         <div className="gs-current-info">
           <h2 className="gs-current-title">{session.title}</h2>
-          <p className="gs-current-date">{formatSessionDate(session.grading_date)}</p>
-          {session.location && <p className="gs-current-location">{session.location}</p>}
+          <p className="gs-current-date subtext">{formatSessionDate(session.grading_date)}</p>
+          {session.location && <p className="gs-current-location subtext">{session.location}</p>}
           <div className="gs-current-status-row">
             <SessionStatusBadge status={session.status} label={session.status_display} />
           </div>
@@ -186,7 +185,7 @@ export function GradingSessionsScreen() {
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL" && !archivedOnly;
 
   return (
-    <section aria-labelledby="gradings-heading" className="page gs-page">
+    <section aria-labelledby="gradings-heading" className="page">
 
       <PageHeader
         title="Gradings"
@@ -201,35 +200,33 @@ export function GradingSessionsScreen() {
 
       {/* ── Filters */}
       <div className="filter-bar" role="search">
-        <div className="filter-bar__full gs-filter-search-wrap">
-          <SearchIcon size={16} className="gs-search-icon" />
+        <label className="field field--search filter-bar__full">
+          <span className="visually-hidden">Search grading sessions</span>
           <input
-            aria-label="Search grading sessions"
-            className="gs-search-input"
             id="gs-search-input"
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search title, place, date or status…"
             type="search"
             value={searchText}
           />
-        </div>
+        </label>
         <div className="field">
           <label htmlFor="gs-status-filter">Status</label>
-          <select className="gs-filter-select" id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
+          <select id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
             <option value="ALL">All statuses</option>
             {STATUS_ORDER.map((s) => <option key={s} value={s}>{SESSION_STATUS_LABELS[s]}</option>)}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-year-filter">Year</label>
-          <select className="gs-filter-select" id="gs-year-filter" onChange={(e) => handleYearFilter(e.target.value)} value={yearFilter}>
+          <select id="gs-year-filter" onChange={(e) => handleYearFilter(e.target.value)} value={yearFilter}>
             <option value="ALL">All years</option>
             {availableYears.map((y) => <option key={y} value={String(y)}>{y}</option>)}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-archive-filter">Show</label>
-          <select className="gs-filter-select" id="gs-archive-filter" onChange={(e) => handleArchived(e.target.value === "ARCHIVED")} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
+          <select id="gs-archive-filter" onChange={(e) => handleArchived(e.target.value === "ARCHIVED")} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
             <option value="CURRENT">Current gradings</option>
             <option value="ARCHIVED">Archived gradings</option>
           </select>
@@ -256,7 +253,7 @@ export function GradingSessionsScreen() {
       {!isLoading && (
         <>
           <div className="gs-table-section">
-            <h2 className="gs-table-heading">{archivedOnly ? "Archived grading sessions" : "All grading sessions"}</h2>
+            <h2 className="gs-table-heading section-title">{archivedOnly ? "Archived grading sessions" : "All grading sessions"}</h2>
             {sessions.length > 0 ? (
               <ResponsiveTable
                 label="Grading sessions"
@@ -281,7 +278,7 @@ export function GradingSessionsScreen() {
                     header: "Action",
                     actions: true,
                     render: (session) => (
-                      <div className="gs-row-actions">
+                      <>
                         <Button variant="ghost" small onClick={() => navigate(`/gradings/${session.id}`)}>
                           {session.status === "OPEN" ? "Open grading" : "View grading"} <ArrowRightIcon />
                         </Button>
@@ -297,7 +294,7 @@ export function GradingSessionsScreen() {
                             Delete
                           </Button>
                         )}
-                      </div>
+                      </>
                     ),
                   },
                 ]}
@@ -352,7 +349,7 @@ export function GradingSessionsScreen() {
           onClose={closeDeleteConfirm}
           canClose={!deleteSessionMutation.isPending}
         >
-          <p className="gsd-modal-message">
+          <p className="gsd-modal-message subtext">
             Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
           </p>
           {deleteError && (

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from rest_framework.test import APIClient
 
@@ -26,7 +28,7 @@ from gradings.testing import (
     user,
 )
 from kukgrade.testing import results
-from students.services import delete_student
+from students.services import create_student, delete_student
 
 pytestmark = pytest.mark.django_db
 
@@ -210,7 +212,7 @@ def test_a_malformed_or_unknown_history_is_an_empty_page_not_an_error() -> None:
             assert results(response) == []
 
 
-def test_the_subject_is_named_as_it_is_now_and_blank_once_gone() -> None:
+def test_the_subject_is_named_as_it_is_now_and_blank_once_erased() -> None:
     session, (first, _second) = graded_session()
     admin = administrator()
 
@@ -234,16 +236,34 @@ def test_the_subject_is_named_as_it_is_now_and_blank_once_gone() -> None:
         f"/gradings/{session.pk}/assessments/{first.pk}/review"
     )
 
-    delete_student(
-        first.student, user("history-remover@example.com", role=User.Role.ADMINISTRATOR)
-    )
-    gone = admin.get(
+    remover = user("history-remover@example.com", role=User.Role.ADMINISTRATOR)
+    # Deleted after their decision: the record stays for its history, so the
+    # subject is still named and still leads to it.
+    delete_student(first.student, remover)
+    kept = admin.get(
         "/api/audit-events/subject/",
         {"subject": f"student:{first.student_id}"},
     ).json()
+    assert first.student.first_name in kept["name"]
+    assert kept["path"] == f"/students/{first.student_id}"
+
+    # A record with no history is erased: blank once gone.
+    mistake = create_student(
+        wksa_id="123-4-777",
+        first_name="Added",
+        last_name="Twice",
+        date_of_birth=date(2015, 1, 1),
+        current_rank=rank("WHITE"),
+        actor=remover,
+    )
+    delete_student(mistake, remover)
+    gone = admin.get(
+        "/api/audit-events/subject/",
+        {"subject": f"student:{mistake.pk}"},
+    ).json()
     assert gone["name"] == "" and gone["path"] == ""
     # The events outlive the record.
-    assert history(admin, f"student:{first.student_id}")
+    assert history(admin, f"student:{mistake.pk}")
 
 
 def test_only_those_who_may_read_the_audit_log_can_ask_for_a_history() -> None:

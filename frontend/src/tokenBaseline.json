@@ -1,14 +1,38 @@
 {
   "About.css": {
-    "outlineNone": 1
+    "outlineNone": 1,
+    "ownType": 10
   },
   "App.css": {
-    "darkOverride": 1
+    "darkOverride": 1,
+    "ownType": 13
+  },
+  "BuildGradingCohort.css": {
+    "ownType": 2
+  },
+  "CandidateAssessment.css": {
+    "ownType": 8
+  },
+  "GradingSessions.css": {
+    "ownType": 4
+  },
+  "Imports.css": {
+    "ownType": 5
   },
   "NavigationRail.css": {
-    "buttonClass": 2
+    "buttonClass": 2,
+    "ownType": 18
   },
-  "StudentScreens.css": {
-    "outlineNone": 1
+  "OutcomeControls.css": {
+    "ownType": 2
+  },
+  "PromotionLedger.css": {
+    "ownType": 2
+  },
+  "Settings.css": {
+    "ownType": 1
+  },
+  "UserManagement.css": {
+    "ownType": 5
   }
 }

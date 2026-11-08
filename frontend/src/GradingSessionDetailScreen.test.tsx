@@ -315,6 +315,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     outcome: null,
     promotion: null,
     next_action: "PREPARE_ASSESSMENT",
+    can_be_withdrawn_after_lock: false,
     can_be_finalised: false,
     ...overrides,
   };

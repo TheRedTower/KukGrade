@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
@@ -217,6 +217,10 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
         # access is not something it should be able to hand out. Role and
         # is_active are writable; role decides group membership via the
         # post_save signal in accounts/apps.py.
+        # validate_email checks uniqueness itself.
+        extra_kwargs: ClassVar[dict[str, dict[str, Any]]] = {
+            "email": {"validators": []}
+        }
         read_only_fields = (
             "id",
             "full_name",
@@ -233,6 +237,23 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
 
     def get_manageable(self, user: User) -> bool:
         return can_manage(user, self.context["request"].user)
+
+    def validate_email(self, value: str) -> str:
+        # Uniqueness checked here, not by the field's own validator, so an
+        # email a deleted account keeps can say why it is taken.
+        email = User.objects.normalize_email(value)
+        taken = User.objects.filter(email__iexact=email)
+        if self.instance is not None:
+            taken = taken.exclude(pk=self.instance.pk)
+        holder = taken.first()
+        if holder is None:
+            return email
+        if holder.deleted_at is not None:
+            raise serializers.ValidationError(
+                "This email belonged to an account that was deleted. Its "
+                "records still carry it, so use another email."
+            )
+        raise serializers.ValidationError("An account with this email already exists.")
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]

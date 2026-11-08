@@ -1,6 +1,4 @@
 
-
-.users-audit-link:focus-visible,
 .users-form-grid input:focus,
 .users-form-grid select:focus,
 .user-authority-options input:focus-visible {
@@ -14,13 +12,6 @@
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-title);
   letter-spacing: var(--tracking-label);
-}
-
-.users-info-note,
-.users-form-note,
-.user-authority-footer p {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .users-info-note {
@@ -44,24 +35,6 @@
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-title);
 }
-
-.users-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-weight: var(--font-weight-strong);
-}
-
-.users-status::before {
-  content: "";
-  width: 0.58rem;
-  height: 0.58rem;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.users-status.is-active { color: var(--color-success); }
-.users-status.is-inactive { color: var(--color-text-muted); }
 
 .users-dialog-form,
 .users-password-form {
@@ -93,14 +66,11 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xl);
   letter-spacing: var(--tracking-label);
-  overflow-wrap: anywhere;
   user-select: all;
 }
 .users-issued-password-warning {
   border-left: 3px solid var(--color-warning);
   background: var(--color-warning-surface);
-  color: var(--color-text);
-  font-weight: var(--font-weight-strong);
   padding: var(--space-2) var(--space-3);
 }
 .users-dialog-actions {
@@ -109,14 +79,6 @@
   margin-top: var(--space-1);
   padding-top: var(--space-4);
 }
-
-.users-audit-link {
-  color: var(--color-accent-text);
-  font-weight: var(--font-weight-strong);
-  text-decoration: none;
-}
-
-.users-audit-link:hover { color: var(--color-accent-text); text-decoration: underline; }
 
 .user-detail-section,
 .user-detail-aside > section {
@@ -127,8 +89,6 @@
 .user-detail-section h2,
 .user-detail-aside h2 {
   margin: 0 0 var(--space-1);
-  color: var(--color-text);
-  font-size: var(--font-size-xl);
 }
 
 .user-detail-section > p,
@@ -183,35 +143,18 @@
   padding: var(--space-3) 0;
 }
 
-.user-activity-list li span { color: var(--color-text-muted); font-size: var(--font-size-sm); }
-
 .users-self-password-hint {
   margin: 0;
   max-width: 16rem;
-  font-size: var(--font-size-md);
-  color: var(--color-text-muted);
 }
 
 /* Holds the user page's forms so a view-only account disables them all. */
 .user-detail-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 
-.users-count {
-  align-self: center;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-}
-
 .users-email,
 .users-authority-summary {
   display: block;
   color: var(--color-text-muted);
-}
-
-/* An address has no word breaks, so it may break anywhere rather than run on. */
-.users-email {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-normal);
-  overflow-wrap: anywhere;
 }
 
 .users-ledger {

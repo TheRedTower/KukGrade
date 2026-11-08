@@ -45,7 +45,7 @@ export function ImportScreen() {
 
   if (!Number.isInteger(batchId) || batchId <= 0 || (batch.error instanceof ApiError && batch.error.status === 404)) {
     return (
-      <section aria-labelledby="ix-missing-title" className="page ix-page">
+      <section aria-labelledby="ix-missing-title" className="page">
         <PageHeader
           back={{ to: "/imports", label: "Imports" }}
           title="Import not found"
@@ -57,7 +57,7 @@ export function ImportScreen() {
   }
   if (batch.isPending) {
     return (
-      <p className="ix-muted" role="status">
+      <p className="subtext" role="status">
         Loading the import…
       </p>
     );
@@ -75,7 +75,7 @@ export function ImportScreen() {
 
   if (loaded.status !== "UPLOADED") {
     return (
-      <section aria-labelledby="ix-closed-title" className="page ix-page">
+      <section aria-labelledby="ix-closed-title" className="page">
         <PageHeader
           back={{ to: "/imports", label: "Imports" }}
           title={loaded.original_filename}
@@ -100,7 +100,7 @@ export function ImportScreen() {
   const current = matching ? 1 : sorted ? 3 : 2;
 
   return (
-    <section aria-labelledby="ix-step-title" className="page ix-page">
+    <section aria-labelledby="ix-step-title" className="page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
         title={importKindTitle(loaded.kind)}

@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StudentDetailScreen } from "./StudentDetailScreen";
+import { ApiError } from "./api";
 import type {
   AuthUser,
   StudentDetail,
@@ -51,6 +52,7 @@ const student = {
   status: "ACTIVE",
   status_display: "Active",
   age_band_display: "9-12",
+  deleted_at: null,
   created_at: "2025-01-01T00:00:00Z",
 } satisfies StudentDetail;
 
@@ -123,7 +125,7 @@ describe("StudentDetailScreen delete action", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("lets an administrator delete the student after confirming", async () => {
+  function signInAsAdministrator() {
     currentUser = {
       id: "admin-user",
       email: "admin@example.com",
@@ -144,19 +146,20 @@ describe("StudentDetailScreen delete action", () => {
       can_read_audit_log: true,
       must_change_password: false,
     };
+  }
+
+  it("lets an administrator delete the student after confirming", async () => {
+    signInAsAdministrator();
     const user = userEvent.setup();
 
     renderScreen();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Alex Kim" }),
-      ).toBeInTheDocument(),
-    );
+    await screen.findByRole("heading", { name: "Alex Kim" });
 
     await user.click(screen.getByRole("button", { name: "Delete student" }));
     const dialog = await screen.findByRole("dialog", {
       name: "Delete student",
     });
+    expect(dialog).toHaveTextContent("past gradings, marks and decisions stay as recorded");
 
     await user.click(
       within(dialog).getByRole("button", { name: "Delete student" }),
@@ -166,6 +169,40 @@ describe("StudentDetailScreen delete action", () => {
     await waitFor(() =>
       expect(screen.getByText("Students list")).toBeInTheDocument(),
     );
+  });
+
+  it("shows the server's reason when a student cannot be deleted yet", async () => {
+    signInAsAdministrator();
+    mockDeleteStudent.mockRejectedValue(
+      new ApiError(
+        "This student is in the grading 'Spring grading', which has not reached its final decision for them yet.",
+        400,
+      ),
+    );
+    const user = userEvent.setup();
+
+    renderScreen();
+    await user.click(await screen.findByRole("button", { name: "Delete student" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete student" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete student" }));
+
+    expect(await within(dialog).findByText(/'Spring grading'/)).toBeInTheDocument();
+  });
+
+  it("shows a deleted student's record as kept and closed to changes", async () => {
+    signInAsAdministrator();
+    mockGetStudent.mockResolvedValue({
+      ...student,
+      deleted_at: "2026-11-07T10:00:00Z",
+    });
+
+    renderScreen();
+
+    expect(await screen.findByText("Deleted on 7 November 2026")).toBeInTheDocument();
+    expect(screen.getByText(/still show who\s+they were/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit student" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change status" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete student" })).not.toBeInTheDocument();
   });
 });
 

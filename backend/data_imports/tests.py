@@ -923,7 +923,7 @@ def test_cancel_a_committed_batch_is_refused() -> None:
 # --- deleting a user reassigns ImportBatch attribution -----------------------
 
 
-def test_deleting_a_user_reassigns_import_batch_attribution() -> None:
+def test_deleting_a_user_keeps_their_name_on_import_batches() -> None:
     uploader = admin_user("uploader@example.com")
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=uploader)
     commit_student_import(batch, actor=uploader, column_mapping=STANDARD_MAPPING)
@@ -931,11 +931,12 @@ def test_deleting_a_user_reassigns_import_batch_attribution() -> None:
     assert batch.committed_by == uploader
 
     remover = admin_user("remover@example.com")
-    placeholder = delete_platform_user(uploader, remover)
+    removed = delete_platform_user(uploader, remover)
 
+    assert removed is False
     batch.refresh_from_db()
-    assert batch.uploaded_by == placeholder
-    assert batch.committed_by == placeholder
+    assert batch.uploaded_by == uploader
+    assert batch.committed_by == uploader
 
 
 # --- API/permissions -----------------------------------------------------

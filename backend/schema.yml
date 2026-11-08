@@ -2704,14 +2704,11 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        Deactivate via is_active for routine offboarding - that is reversible
-        and keeps every attribution intact with no extra work. destroy() is a
-        genuine hard delete, gated to accounts.delete_user (Administrator group
-        only), for corruption or test-data cleanup: see
-        accounts.services.delete_platform_user for how it keeps every PROTECT
-        attribution foreign key satisfied by reassigning history to a
-        placeholder account rather than erasing it. No PUT: partial_update
-        covers every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible.
+        destroy(), gated to accounts.delete_user (Administrator group only),
+        removes an account that recorded nothing and closes one that did, so
+        their name stays on their records (accounts.services.delete_platform_user).
+        No PUT: partial_update covers every real edit.
       parameters:
       - name: is_active
         required: false
@@ -2762,14 +2759,11 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        Deactivate via is_active for routine offboarding - that is reversible
-        and keeps every attribution intact with no extra work. destroy() is a
-        genuine hard delete, gated to accounts.delete_user (Administrator group
-        only), for corruption or test-data cleanup: see
-        accounts.services.delete_platform_user for how it keeps every PROTECT
-        attribution foreign key satisfied by reassigning history to a
-        placeholder account rather than erasing it. No PUT: partial_update
-        covers every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible.
+        destroy(), gated to accounts.delete_user (Administrator group only),
+        removes an account that recorded nothing and closes one that did, so
+        their name stays on their records (accounts.services.delete_platform_user).
+        No PUT: partial_update covers every real edit.
       tags:
       - users
       requestBody:
@@ -2799,14 +2793,11 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        Deactivate via is_active for routine offboarding - that is reversible
-        and keeps every attribution intact with no extra work. destroy() is a
-        genuine hard delete, gated to accounts.delete_user (Administrator group
-        only), for corruption or test-data cleanup: see
-        accounts.services.delete_platform_user for how it keeps every PROTECT
-        attribution foreign key satisfied by reassigning history to a
-        placeholder account rather than erasing it. No PUT: partial_update
-        covers every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible.
+        destroy(), gated to accounts.delete_user (Administrator group only),
+        removes an account that recorded nothing and closes one that did, so
+        their name stays on their records (accounts.services.delete_platform_user).
+        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2831,14 +2822,11 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        Deactivate via is_active for routine offboarding - that is reversible
-        and keeps every attribution intact with no extra work. destroy() is a
-        genuine hard delete, gated to accounts.delete_user (Administrator group
-        only), for corruption or test-data cleanup: see
-        accounts.services.delete_platform_user for how it keeps every PROTECT
-        attribution foreign key satisfied by reassigning history to a
-        placeholder account rather than erasing it. No PUT: partial_update
-        covers every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible.
+        destroy(), gated to accounts.delete_user (Administrator group only),
+        removes an account that recorded nothing and closes one that did, so
+        their name stays on their records (accounts.services.delete_platform_user).
+        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2874,14 +2862,11 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        Deactivate via is_active for routine offboarding - that is reversible
-        and keeps every attribution intact with no extra work. destroy() is a
-        genuine hard delete, gated to accounts.delete_user (Administrator group
-        only), for corruption or test-data cleanup: see
-        accounts.services.delete_platform_user for how it keeps every PROTECT
-        attribution foreign key satisfied by reassigning history to a
-        placeholder account rather than erasing it. No PUT: partial_update
-        covers every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible.
+        destroy(), gated to accounts.delete_user (Administrator group only),
+        removes an account that recorded nothing and closes one that did, so
+        their name stays on their records (accounts.services.delete_platform_user).
+        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2903,14 +2888,11 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        Deactivate via is_active for routine offboarding - that is reversible
-        and keeps every attribution intact with no extra work. destroy() is a
-        genuine hard delete, gated to accounts.delete_user (Administrator group
-        only), for corruption or test-data cleanup: see
-        accounts.services.delete_platform_user for how it keeps every PROTECT
-        attribution foreign key satisfied by reassigning history to a
-        placeholder account rather than erasing it. No PUT: partial_update
-        covers every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible.
+        destroy(), gated to accounts.delete_user (Administrator group only),
+        removes an account that recorded nothing and closes one that did, so
+        their name stays on their records (accounts.services.delete_platform_user).
+        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -3699,7 +3681,13 @@ components:
             comment on its items, now: while the session is open, or once it is locked
             and the viewer is the authorised Master and the candidate''s final decision
             is not yet recorded.'
+        can_delete:
+          type: boolean
+          readOnly: true
+          description: 'Whether the viewer may permanently delete this assessment:
+            an administrator, while its candidate''s final decision is not recorded.'
       required:
+      - can_delete
       - candidate
       - candidate_student_name
       - completed_at
@@ -4411,12 +4399,19 @@ components:
           description: 'Whether a final decision can be recorded for this candidate
             now: their outcome is proposed in a locked session. Whether the viewer
             may make it is their own authority.'
+        can_be_withdrawn_after_lock:
+          type: boolean
+          readOnly: true
+          description: 'Whether the viewer may withdraw this candidate now: the session
+            is locked, the candidate is not withdrawn and has no final decision, and
+            the viewer holds the locked-session override.'
       required:
       - age_band_display
       - assessment
       - can_be_finalised
       - can_be_moved
       - can_be_removed
+      - can_be_withdrawn_after_lock
       - from_rank
       - from_rank_name
       - id
@@ -5490,6 +5485,7 @@ components:
       - REVIEW_DECISION
       - VIEW_DECISION
       - PROMOTION_LEDGER
+      - NONE
       type: string
       description: |-
         * `PREPARE_ASSESSMENT` - Prepare assessment
@@ -5501,6 +5497,7 @@ components:
         * `REVIEW_DECISION` - Review the decision
         * `VIEW_DECISION` - View the final decision
         * `PROMOTION_LEDGER` - Promotion ledger
+        * `NONE` - No further action
     NextStepEnum:
       enum:
       - MATCH_COLUMNS
@@ -6493,6 +6490,11 @@ components:
         age_band_display:
           type: string
           readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -6503,6 +6505,7 @@ components:
       - current_rank
       - current_rank_name
       - date_of_birth
+      - deleted_at
       - extra_information
       - first_name
       - id

@@ -6,7 +6,7 @@ import { buttonClass } from "./buttonClass";
 import { Alert } from "./Alert";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
-import { type EnrichedCandidate, SessionCandidateTable } from "./SessionParts";
+import { type EnrichedCandidate, type NextAction, SessionCandidateTable } from "./SessionParts";
 import type { useCandidateWork } from "./useCandidateWork";
 
 interface SessionCandidatesSectionProps {
@@ -26,8 +26,7 @@ interface SessionCandidatesSectionProps {
   attendanceCount: number;
   unpreparedIds: number[];
   preparedIds: number[];
-  canOverrideLocked: boolean;
-  nextActionFor: (item: EnrichedCandidate) => { label: string; url: string; opensProposalDrawer: boolean };
+  nextActionFor: (item: EnrichedCandidate) => NextAction;
   onConfirmAttendance: () => void;
 }
 
@@ -46,7 +45,6 @@ export function SessionCandidatesSection({
   attendanceCount,
   unpreparedIds,
   preparedIds,
-  canOverrideLocked,
   nextActionFor,
   onConfirmAttendance,
 }: SessionCandidatesSectionProps) {
@@ -55,12 +53,12 @@ export function SessionCandidatesSection({
 
   return (
     <section className="gsd-candidates-section" aria-labelledby="candidates-heading">
-      <div className="action-row gsd-section-header">
-        <h2 id="candidates-heading" className="gsd-section-title">
+      <div className="action-row">
+        <h2 id="candidates-heading" className="section-title">
           Candidates
         </h2>
 
-        <div className="action-row gsd-controls-row">
+        <div className="action-row">
           {editable && attendanceCount > 0 && (
             <Button variant="secondary" onClick={onConfirmAttendance}>
               Confirm attendance
@@ -76,40 +74,38 @@ export function SessionCandidatesSection({
               {bulkStart.isPending ? "Starting…" : `Start all prepared (${preparedIds.length})`}
             </Button>
           )}
-
-          <div className="gsd-search-wrap">
-            <span className="gsd-search-icon" aria-hidden="true">🔍</span>
-            <input
-              type="search"
-              className="gsd-search-input"
-              placeholder="Search name, ID, rank or status…"
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-              aria-label="Search candidates by name, WKSA ID, rank or status"
-              data-testid="gsd-candidate-search"
-            />
-          </div>
-
-          <div className="gsd-filter-wrap">
-            <select
-              className="gsd-filter-select"
-              value={statusFilter}
-              onChange={(e) => onStatusFilter(e.target.value)}
-              aria-label="Filter by assessment status"
-              data-testid="gsd-status-filter"
-            >
-              <option value="ALL">Assessment status</option>
-              <option value="NOT_STARTED">Not started</option>
-              <option value="IN_PROGRESS">In progress</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="WITHDRAWN">Withdrawn</option>
-            </select>
-          </div>
-
-          <div className="gsd-count-chip">
-            {shown.length} candidate{shown.length === 1 ? "" : "s"}
-          </div>
         </div>
+      </div>
+
+      <div className="filter-bar" role="search" aria-label="Candidate filters">
+        <label className="field field--search">
+          <span>Search</span>
+          <input
+            type="search"
+            placeholder="Name, ID, rank or status"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            data-testid="gsd-candidate-search"
+          />
+        </label>
+
+        <label className="field">
+          <span>Assessment</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => onStatusFilter(e.target.value)}
+            data-testid="gsd-status-filter"
+          >
+            <option value="ALL">Any status</option>
+            <option value="NOT_STARTED">Not started</option>
+            <option value="IN_PROGRESS">In progress</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="WITHDRAWN">Withdrawn</option>
+          </select>
+        </label>
+        <p className="filter-bar__count">
+          {shown.length} candidate{shown.length === 1 ? "" : "s"}
+        </p>
       </div>
 
       {all.length === 0 ? (
@@ -158,9 +154,7 @@ export function SessionCandidatesSection({
       ) : (
         <SessionCandidateTable
           candidates={shown}
-          canOverrideLocked={canOverrideLocked}
           nextActionFor={nextActionFor}
-          sessionStatus={session.status}
           onMove={(item) => work.registration.begin("move", item)}
           onPropose={work.proposal.begin}
           onRemove={(item) => work.registration.begin("remove", item)}

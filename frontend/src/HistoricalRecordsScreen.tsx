@@ -78,7 +78,7 @@ export function HistoricalRecordsScreen() {
   }
 
   return (
-    <section aria-labelledby="ix-history-title" className="page ix-page">
+    <section aria-labelledby="ix-history-title" className="page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
         title="Historical records"
@@ -89,7 +89,7 @@ export function HistoricalRecordsScreen() {
       <div className="ix-two-col ix-two-col-queue">
         <div className="ix-section">
           {!id ? (
-            <p className="card ix-muted">Choose a record to inspect and correct it.</p>
+            <p className="card subtext">Choose a record to inspect and correct it.</p>
           ) : detail.isPending ? (
             <p role="status">Loading record…</p>
           ) : detail.isError || !record ? (
@@ -97,7 +97,7 @@ export function HistoricalRecordsScreen() {
           ) : (
             <div className="card ix-section" key={record.id}>
               <h2 className="ix-title ix-flush">“{record.source_name}” · {formatMonthYear(record.cycle_year, record.cycle_month)}</h2>
-              <p className="ix-muted">{record.record_kind.replaceAll("_", " ")} · {record.source_section} · {record.outcome_display || record.attendance_status_display}</p>
+              <p className="subtext">{record.record_kind.replaceAll("_", " ")} · {record.source_section} · {record.outcome_display || record.attendance_status_display}</p>
               {record.report ? <p>Report as written: {record.report}</p> : null}
               {record.note ? <p>Other workbook notes: {record.note}</p> : null}
               {record.is_void ? (
@@ -151,12 +151,12 @@ export function HistoricalRecordsScreen() {
             <ErrorText>{errorMessage(records.error, "Records could not be loaded.")}</ErrorText>
           ) : (
             <>
-              {records.data.results.length === 0 ? <p className="ix-muted ix-card-pad">No records match these filters.</p> : null}
+              {records.data.results.length === 0 ? <p className="subtext ix-card-pad">No records match these filters.</p> : null}
               <ol className="ix-queue">
                 {records.data.results.map((item) => <li key={item.id}>
                   <Link className="ix-queue-text" to={`/imports/history/${item.id}?${params}`}>
                     <strong>“{item.source_name}” · {formatMonthYear(item.cycle_year, item.cycle_month)}</strong>
-                    <span className="ix-small ix-muted">{item.is_void ? "Voided" : item.student_display_name || "Unlinked"}</span>
+                    <span className="subtext">{item.is_void ? "Voided" : item.student_display_name || "Unlinked"}</span>
                   </Link>
                 </li>)}
               </ol>

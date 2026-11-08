@@ -18,7 +18,7 @@ import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
+import { formatRecentTime, formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
 import { OUTCOME_LABELS } from "./OutcomeControls";
@@ -26,6 +26,8 @@ import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { PageHeader } from "./PageHeader";
 import { SessionStatusBadge } from "./StatusBadge";
+import { Badge } from "./Badge";
+import type { BadgeTone } from "./badgeClass";
 
 function CalendarIcon() {
   return (
@@ -110,16 +112,8 @@ function AlertIcon() {
   );
 }
 
-function formatRelativeTime(isoString: string): string {
-  const daysAgo = calendarDaysAgo(isoString);
-  if (daysAgo === null) return isoString;
-  const time = formatTime(isoString);
-  if (daysAgo === 0) return `Today ${time}`;
-  if (daysAgo === 1) return `Yesterday ${time}`;
-  return `${formatApiDate(isoString, { day: "numeric", month: "short" })} ${time}`;
-}
-
-type ActivityStatus = "approved" | "warning" | "in-progress" | "neutral";
+/** A badge tone: done, needs a look, under way, or neither. */
+type ActivityStatus = Extract<BadgeTone, "success" | "warning" | "info" | "neutral">;
 
 type FormattedActivityItem = {
   id: number;
@@ -148,15 +142,15 @@ function metadataString(event: AuditEvent, ...path: string[]): string | undefine
 function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: string } {
   switch (event.action) {
     case "PROMOTION_RECORDED":
-      return { type: "approved" };
+      return { type: "success" };
     case "OUTCOME_FINALISED": {
       const outcome = metadataString(event, "final_outcome");
-      return { type: outcome === "PASS" ? "approved" : "warning", outcome };
+      return { type: outcome === "PASS" ? "success" : "warning", outcome };
     }
     case "OUTCOME_PROPOSED":
-      return { type: "in-progress", outcome: metadataString(event, "after", "proposed_outcome") };
+      return { type: "info", outcome: metadataString(event, "after", "proposed_outcome") };
     case "ASSESSMENT_STARTED":
-      return { type: "in-progress" };
+      return { type: "info" };
     case "CANDIDATE_WITHDRAWN":
       return { type: "warning" };
     default:
@@ -169,7 +163,7 @@ function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
   const outcomeLabel = outcome ? OUTCOME_LABELS[outcome as CandidateOutcomeOutcome] : undefined;
   return {
     id: event.id,
-    timeDisplay: formatRelativeTime(event.occurred_at),
+    timeDisplay: formatRecentTime(event.occurred_at),
     actorName: event.actor_name || event.actor_email || "System",
     summary: eventSummary(event),
     statusType: type,
@@ -281,7 +275,7 @@ export function OverviewScreen() {
         titleId="overview-heading"
         subtitle={currentDateDisplay}
         actions={
-          <div aria-hidden="true" className="overview-motto">
+          <div aria-hidden="true" className="overview-motto eyebrow--muted">
             <span>TRADITION BUILDS PEOPLE</span>
             <span>PEOPLE BUILD TOMORROW</span>
           </div>
@@ -297,35 +291,33 @@ export function OverviewScreen() {
       {/* Top 3-Column Grid */}
       <div className="overview-grid">
         {/* Card 1: Now */}
-        <div className="ledger-card">
-          <div className="card-top-label">
-            <span>Now</span>
-          </div>
+        <section className="card">
+          <h2 className="section-title section-title--ruled">Now</h2>
 
           {openSession ? (
-            <div className="card-content-now">
-              <div className="session-title-row">
-                <h2 className="session-title">{openSession.title}</h2>
-                <SessionStatusBadge status={openSession.status} label={openSession.status_display} />
-              </div>
-              {openSession.location && <p className="session-location">{openSession.location}</p>}
-
-              <div className="metrics-row">
-                <div className="metric-box">
-                  <span className="metric-number">{candidatesCount}</span>
-                  <span className="metric-label">Candidates</span>
+            <div className="stack">
+              <div>
+                <div className="action-row">
+                  <h3 className="session-title">{openSession.title}</h3>
+                  <SessionStatusBadge status={openSession.status} label={openSession.status_display} />
                 </div>
-                <div className="metric-divider" aria-hidden="true" />
-                <div className="metric-box">
-                  <span className="metric-number">
+                {openSession.location && <p className="session-location subtext">{openSession.location}</p>}
+              </div>
+
+              <div className="stats">
+                <div className="stat">
+                  <span className="stat__value">{candidatesCount}</span>
+                  <span className="stat__label">Candidates</span>
+                </div>
+                <div className="stat">
+                  <span className="stat__value">
                     {completedAssessmentsCount} / {candidatesCount}
                   </span>
-                  <span className="metric-label">Assessments complete</span>
+                  <span className="stat__label">Assessments complete</span>
                 </div>
-                <div className="metric-divider" aria-hidden="true" />
-                <div className="metric-box">
-                  <span className="metric-number">{awaitingDecisionCount}</span>
-                  <span className="metric-label">Awaiting final decision</span>
+                <div className="stat">
+                  <span className="stat__value">{awaitingDecisionCount}</span>
+                  <span className="stat__label">Awaiting final decision</span>
                 </div>
               </div>
 
@@ -346,27 +338,25 @@ export function OverviewScreen() {
               No grading session in progress on the mat.
             </EmptyState>
           )}
-        </div>
+        </section>
 
         {/* Card 2: Needs attention */}
-        <div className="ledger-card">
-          <div className="card-top-label">
-            <span>Needs attention</span>
-          </div>
+        <section className="card">
+          <h2 className="section-title section-title--ruled">Needs attention</h2>
 
           {attentionItems.length > 0 ? (
             <div className="attention-list" role="list">
               {attentionItems.map((item) => (
                 <div key={item.id} role="listitem">
                   <Link className="attention-item-row" to={item.path}>
-                    <span aria-hidden="true" className="attention-badge">
+                    <span aria-hidden="true" className="mark mark--warning">
                       !
                     </span>
                     <div className="attention-item-info">
-                      <strong className="attention-student-name">
+                      <strong className="item-title">
                         {item.candidate_student_name}
                       </strong>
-                      <span className="attention-status-desc">
+                      <span className="meta">
                         {item.statusDescription}
                       </span>
                     </div>
@@ -382,13 +372,11 @@ export function OverviewScreen() {
               No candidate assessments currently requiring review.
             </EmptyState>
           )}
-        </div>
+        </section>
 
         {/* Card 3: Upcoming */}
-        <div className="ledger-card">
-          <div className="card-top-label">
-            <span>Upcoming</span>
-          </div>
+        <section className="card">
+          <h2 className="section-title section-title--ruled">Upcoming</h2>
 
           {upcomingSession ? (
             <Link className="upcoming-session-row" to={`/gradings/${upcomingSession.id}`}>
@@ -396,14 +384,14 @@ export function OverviewScreen() {
                 <CalendarIcon />
               </div>
               <div className="upcoming-session-info">
-                <strong className="upcoming-session-title">
+                <strong className="item-title">
                   {upcomingSession.title}
                 </strong>
-                <span className="upcoming-session-date">
+                <span className="upcoming-session-date meta">
                   {formatSessionDate(upcomingSession.grading_date)}
                 </span>
                 {upcomingSession.location && (
-                  <span className="upcoming-session-location">{upcomingSession.location}</span>
+                  <span className="meta">{upcomingSession.location}</span>
                 )}
               </div>
               <span aria-hidden="true" className="chevron-icon">
@@ -423,15 +411,15 @@ export function OverviewScreen() {
               No future grading sessions are currently scheduled.
             </EmptyState>
           )}
-        </div>
+        </section>
       </div>
 
       {/* Bottom Section: Recent Activity - the audit log's latest entries,
           so only for someone who may read it; nobody else is told there is
           nothing. */}
       {canViewAudit && (
-      <div className="recent-activity-section">
-        <div className="activity-section-header">
+      <section className="stack">
+        <div className="action-row">
           <h2 className="section-title">Recent activity</h2>
           <Link className={buttonClass({ variant: "link" })} to="/audit">
             View all activity <span aria-hidden="true">&rarr;</span>
@@ -444,23 +432,27 @@ export function OverviewScreen() {
             rows={recentActivities}
             rowKey={(activity) => activity.id}
             columns={[
-              { key: "time", header: "Time", render: (activity) => <span className="cell-time">{activity.timeDisplay}</span> },
+              { key: "time", header: "Time", render: (activity) => <span className="meta">{activity.timeDisplay}</span> },
               { key: "actor", header: "By", render: (activity) => <strong>{activity.actorName}</strong> },
               { key: "event", header: "Event", primary: true, render: (activity) => activity.summary },
               {
                 key: "status",
                 header: "Status",
                 render: (activity) => (
-                  <span className={`status-pill-badge status-pill-${activity.statusType}`}>
-                    {activity.statusType === "approved" ? (
-                      <CheckIcon size={14} className="overview-icon" />
-                    ) : activity.statusType === "warning" ? (
-                      <AlertIcon />
-                    ) : activity.statusType === "in-progress" ? (
-                      <ClockIcon />
-                    ) : null}
-                    <span>{activity.statusLabel}</span>
-                  </span>
+                  <Badge
+                    tone={activity.statusType}
+                    icon={
+                      activity.statusType === "success" ? (
+                        <CheckIcon size={14} />
+                      ) : activity.statusType === "warning" ? (
+                        <AlertIcon />
+                      ) : activity.statusType === "info" ? (
+                        <ClockIcon />
+                      ) : null
+                    }
+                  >
+                    {activity.statusLabel}
+                  </Badge>
                 ),
               },
             ]}
@@ -472,7 +464,7 @@ export function OverviewScreen() {
             <EmptyState title="No recent activity recorded." />
           )
         )}
-      </div>
+      </section>
       )}
     </section>
   );

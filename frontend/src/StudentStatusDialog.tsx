@@ -60,7 +60,7 @@ export function StudentStatusDialog({
                   <div>
                     <StudentStatusBadge status={choice.status} />
                   </div>
-                  <p className="status-radio-desc">{choice.description}</p>
+                  <p className="status-radio-desc meta">{choice.description}</p>
                 </div>
               </label>
             ))}

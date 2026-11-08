@@ -50,6 +50,10 @@ class Student(models.Model):
     # can show just its students; blank for one added by hand. By number for
     # the reason StudentExtraInfo.source_import is.
     source_import = models.PositiveIntegerField(null=True, blank=True)
+    # Set when the student is deleted after their history began
+    # (students.services.delete_student): gone from the lists and closed to
+    # changes, kept so their past gradings still show who it was.
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -135,7 +139,7 @@ class Student(models.Model):
     @property
     def can_be_graded(self) -> bool:
         """Whether this student may be registered as a grading candidate."""
-        return self.status != Student.Status.LEFT
+        return self.status != Student.Status.LEFT and self.deleted_at is None
 
     @property
     def age_band(self) -> str:

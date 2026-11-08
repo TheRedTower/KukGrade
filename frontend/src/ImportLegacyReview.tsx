@@ -54,7 +54,7 @@ export function LegacyReview({
       tone: "",
       mark: "i",
     },
-    { key: "EXCLUDED", label: "Left out", count: batch.row_counts.excluded, tone: "ix-muted", mark: "–" },
+    { key: "EXCLUDED", label: "Left out", count: batch.row_counts.excluded, tone: "subtext", mark: "–" },
   ];
   const heads: Record<LegacyView, [string, string]> = {
     attention: [
@@ -136,7 +136,7 @@ export function LegacyReview({
         <Button variant="ghost" onClick={onMatch}>
           Back to matching ranks
         </Button>
-        <span className="ix-muted ix-small">Ranks still to match can be matched later, when linking records.</span>
+        <span className="subtext">Ranks still to match can be matched later, when linking records.</span>
       </div>
     </>
   );

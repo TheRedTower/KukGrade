@@ -48,7 +48,7 @@ export function RankFix({ record, onDone, showAll = false }: { record: LegacyGra
         </label>
       ))}
       {fix.isError ? (
-        <ErrorText as="span" className="ix-small">
+        <ErrorText as="span">
           {errorMessage(fix.error, "That rank could not be saved.")}
         </ErrorText>
       ) : null}
@@ -77,7 +77,7 @@ export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingR
       onClose={onClose}
       onConfirm={() => voiding.mutate()}
     >
-      <p className="ix-muted">It is kept, marked void with your reason, and is never linked to anyone.</p>
+      <p className="subtext">It is kept, marked void with your reason, and is never linked to anyone.</p>
       <div className="field field--sentence">
         <label htmlFor="ix-void-record-reason">Why</label>
         <textarea data-dialog-autofocus id="ix-void-record-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
@@ -111,15 +111,15 @@ export function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onCho
             type="button"
             onClick={() => onChoose({ student: student.id, name })}
           >
-            <span className="ix-bold">{name}</span>{" "}
-            <span className="ix-muted ix-small">
+            <span className="item-title">{name}</span>{" "}
+            <span className="subtext">
               {[`${student.current_rank_name} now`, student.age_band_display, student.status_display, student.wksa_id].filter(Boolean).join(" · ")}
             </span>
           </button>
         );
       })}
       {found.isSuccess && found.data.results.length === 0 ? (
-        <p className="ix-muted ix-small ix-flush">No student matches “{debounced}”.</p>
+        <p className="subtext ix-flush">No student matches “{debounced}”.</p>
       ) : null}
     </div>
   );

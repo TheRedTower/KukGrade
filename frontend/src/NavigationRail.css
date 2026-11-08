@@ -1,11 +1,12 @@
-/* The sidebar: open at 16.5rem, a 4.5rem strip of icons, or on a
-   phone a Menu button over a stacked panel. Tokens only, from theme.css. */
+/* The sidebar: open at 18rem, wide enough for the account card's first
+   name and the longest role ("Administrator") beside its two buttons; a
+   4.5rem strip of icons; or on a phone a Menu button over a stacked panel. Tokens only, from theme.css. */
 
 .nav-rail {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  width: 16.5rem;
+  width: 18rem;
   height: 100dvh;
   position: sticky;
   top: 0;
@@ -107,8 +108,11 @@
   text-transform: uppercase;
 }
 
+/* Everything in the sidebar starts on one inner edge: a link's icon, the
+   club's name, the avatar and the version line all sit var(--space-3) inside
+   their box (less a bordered box's 1px border). */
 .nav-club-card {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) calc(var(--space-3) - 1px);
   border: 1px solid var(--color-rail-border);
   border-radius: var(--radius-control);
   background: var(--color-rail-wash-faint);
@@ -121,7 +125,6 @@
 .nav-club-name {
   margin-top: 0.15rem;
   font-weight: var(--font-weight-strong);
-  overflow-wrap: anywhere;
 }
 
 .nav-links {
@@ -167,39 +170,49 @@
   margin-top: auto;
 }
 
+/* The name keeps its words whole: when the longest one does not fit beside the
+   buttons, the buttons move to a line of their own, at the end. */
 .nav-person {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 0.15rem;
-  padding: var(--space-2) var(--space-1) var(--space-2) var(--space-2);
+  padding: var(--space-2) calc(var(--space-3) - 1px);
   border: 1px solid var(--color-rail-border);
   border-radius: var(--radius-control);
   background: var(--color-rail-wash-faint);
 }
 
+/* Measured from nothing, so the buttons stay beside the name and a long name
+   wraps between its words; they move under it only when the name's longest
+   word no longer fits beside them. */
 .nav-person-link {
   display: flex;
-  flex: 1;
+  flex: 1 1 0;
   align-items: center;
   gap: var(--space-2);
-  min-width: 0;
+  min-width: min-content;
   min-height: var(--target-min);
   border-radius: var(--radius-control);
   color: var(--color-text-on-ink);
   text-decoration: none;
 }
 
+.nav-person-actions {
+  display: flex;
+  gap: 0.15rem;
+}
+
 .nav-person-text {
   display: flex;
   flex-direction: column;
-  min-width: 0;
   line-height: var(--line-height-tight);
 }
 
 .nav-person-name {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-strong);
-  overflow-wrap: break-word;
 }
 
 .nav-person-role {
@@ -234,11 +247,19 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 var(--space-2);
+  gap: 0 var(--space-1);
   margin: 0;
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-3);
   color: var(--color-text-on-ink-muted);
   font-size: var(--font-size-sm);
+}
+
+/* Each dot travels with the link after it, outside the link, so a line
+   never ends on one and the dot is never underlined or clickable. */
+.nav-about-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .nav-about-line a {

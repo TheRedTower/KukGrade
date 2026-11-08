@@ -90,7 +90,7 @@ export function CohortAdjudicationScreen() {
 
   if (sessionQuery.isLoading || candidatesQuery.isLoading) {
     return (
-      <section aria-label="Final decisions" className="page cab-page">
+      <section aria-label="Final decisions" className="page">
         <LoadingState>Loading final decisions…</LoadingState>
       </section>
     );
@@ -103,7 +103,7 @@ export function CohortAdjudicationScreen() {
   );
   if (!session || failedQueries.length > 0) {
     return (
-      <section aria-label="Final decisions" className="page cab-page">
+      <section aria-label="Final decisions" className="page">
         <Alert
           action={
             failedQueries.length > 0 ? (
@@ -120,14 +120,14 @@ export function CohortAdjudicationScreen() {
   }
 
   return (
-    <section aria-labelledby="cab-title" className="page cab-page">
+    <section aria-labelledby="cab-title" className="page">
       <PageHeader
         back={{ to: `/gradings/${session.id}`, label: "Back to session" }}
         title={`Final decisions · ${session.title}`}
         titleId="cab-title"
         subtitle={`${session.status_display} · ${formatSessionDate(session.grading_date)}${session.location ? ` · ${session.location}` : ""}`}
         actions={
-          <p className="cab-progress" role="status">
+          <p className="cab-progress subtext" role="status">
             <strong>{finalisedCount}</strong> / {rows.length} finalised
           </p>
         }
@@ -157,7 +157,7 @@ export function CohortAdjudicationScreen() {
         </p>
       )}
       {withdrawnCount > 0 && (
-        <p className="cab-footnote">
+        <p className="subtext">
           {withdrawnCount} withdrawn {withdrawnCount === 1 ? "candidate is" : "candidates are"} not shown.
         </p>
       )}

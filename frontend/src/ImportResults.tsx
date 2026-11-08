@@ -17,8 +17,8 @@ import { VoidDialog } from "./ImportVoidDialog";
 function AlsoItem({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
     <div className="ix-section ix-also">
-      <p className="ix-bold">{title}</p>
-      <p className="ix-muted ix-small">{body}</p>
+      <p className="item-title">{title}</p>
+      <p className="subtext">{body}</p>
       {children}
     </div>
   );
@@ -56,7 +56,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
   const unresolvedRanks = (summary.unresolved_current_rank ?? 0) + (summary.unresolved_testing_for_rank ?? 0);
 
   return (
-    <section aria-labelledby="ix-results-title" className="page ix-page">
+    <section aria-labelledby="ix-results-title" className="page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
         title={batch.original_filename}
@@ -66,12 +66,12 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
       />
 
       <div className="ix-banner ix-banner-success" role="status">
-        <span aria-hidden="true" className="ix-mark ix-mark-ok ix-mark-large ix-mark-on-surface">
+        <span aria-hidden="true" className="mark mark--large mark--success ix-mark-on-surface">
           ✓
         </span>
         <p>
-          <strong className="ix-headline">{headline}</strong>
-          {banner.length ? <span className="ix-small ix-block">{banner.join(" ")}</span> : null}
+          <strong className="section-title">{headline}</strong>
+          {banner.length ? <span className="ix-block">{banner.join(" ")}</span> : null}
         </p>
       </div>
 

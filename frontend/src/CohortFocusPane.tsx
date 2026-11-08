@@ -26,11 +26,11 @@ interface CohortFocusPaneProps {
 export function CohortFocusPane({ row, sessionId, decision, canStage, recording, evidenceLoaded, headingRef, onUpdate, onRecord }: CohortFocusPaneProps) {
   return (
           <aside className="cab-detail split__aside" aria-labelledby="cab-focus-title" data-testid="cab-detail">
-            <p className="outcome-eyebrow">In focus</p>
+            <p className="outcome-eyebrow eyebrow--muted">In focus</p>
             <h2 id="cab-focus-title" ref={headingRef} tabIndex={-1}>
               {row.candidate.student_display_name}
             </h2>
-            <p className="outcome-rank-line">
+            <p className="outcome-rank-line subtext">
               <RankBelt rankId={row.candidate.from_rank} />
               {row.candidate.from_rank_name}
               <span aria-hidden="true">→</span>
@@ -51,7 +51,7 @@ export function CohortFocusPane({ row, sessionId, decision, canStage, recording,
                 <>
                   <p>
                     <Badge tone={outcomeTone(row.outcome.proposed_outcome)}>{row.outcome.proposed_outcome_display}</Badge>{" "}
-                    <span className="cab-note-by">
+                    <span className="subtext">
                       {row.outcome.proposed_by_name}
                       {row.outcome.proposed_at ? ` · ${formatTime(row.outcome.proposed_at)}` : ""}
                     </span>
@@ -59,7 +59,7 @@ export function CohortFocusPane({ row, sessionId, decision, canStage, recording,
                   {row.outcome.proposal_notes && <p>{row.outcome.proposal_notes}</p>}
                 </>
               ) : (
-                <p className="cab-flags">No proposal yet.</p>
+                <p className="cab-flags meta">No proposal yet.</p>
               )}
             </section>
 
@@ -68,7 +68,7 @@ export function CohortFocusPane({ row, sessionId, decision, canStage, recording,
                 <h3 id="cab-decision-title">Final decision</h3>
                 <p>
                   <Badge tone={outcomeTone(row.outcome.final_outcome)}>{row.outcome.final_outcome_display}</Badge>{" "}
-                  <span className="cab-note-by">
+                  <span className="subtext">
                     {row.outcome.decided_by_name}
                     {row.outcome.decided_at ? ` · ${formatTime(row.outcome.decided_at)}` : ""}
                   </span>

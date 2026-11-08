@@ -68,7 +68,7 @@ cd frontend
 npm ci
 npm run generate:types
 git diff --exit-code -- src/api/schema.ts
-npm run lint
+npm run lint        # ESLint, then Stylelint (stylelint.config.mjs) for the CSS
 npm run typecheck
 npm run test
 npm run build
@@ -98,6 +98,12 @@ serializers and the committed frontend types match the schema.
 - **Every feature has tests**: a success case, a validation case and a permission
   case where they apply. Sensitive writes also need an audit-event test. A bug fix
   comes with a test that fails without it.
+- **A rule covers every path, and every promise has a test.** When a rule says "never" or
+  "only when" (a final decision is never erased, outcomes move only in a locked session, a band
+  needs a syllabus), find every code path that does that act, not just the one in front of you,
+  and test each. Anything `features.md` or `privacy.md` promises is proved by a test; write
+  those pages from the code, not from memory. A rule the server owns reaches the screen as a
+  field (`can_*`, `next_action`), and the screen never compares statuses to work it out again.
 - **Test data is synthetic.** Use `example.com` addresses and made-up names. Never
   commit real student data, exports, secrets or screenshots containing them.
 - **Builders live in `testing.py`** inside their own app, never in another app's tests.
@@ -113,15 +119,19 @@ serializers and the committed frontend types match the schema.
   (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
-  on a narrow page), `Dialog` for every modal (a sheet on a phone), `.stack` on the box that holds a page's sections (the space between them is `--section-gap`, not a margin on each), `.filter-bar` and
-  `.field` (`.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help) for every labelled text box, select and date box (one size and one iOS date-box fix, in
+  on a narrow page), `Dialog` for every modal (a sheet on a phone), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form), `.filter-bar` for every set of filters (its
+  `.filter-bar__count` for how many results they leave) and
+  `.field` (`.field--search` for every search box, which draws its own magnifier; `.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help) for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
-  Cancel and Save) for a row of buttons or a header, `.stats` for key figures, `.split` for a main
-  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `PageHeader` for every page's title area (title, subtitle, `back` link or `crumbs`, and the page's `actions`), `BackLink` for a way back outside one, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `.card` (with `.card--flush` when its contents bring their own padding) for every boxed section, `Badge` for every short status label (a label: its text is centred; a `Button`'s text reads from the start when it wraps, so an arrow stays beside its words; one rule each in `controls.css`, never a per-screen text-align), `ChoiceGroup` for a pick-one row of buttons (a switch, or filter chips with counts), `Pagination` for page controls, `ScrollRail` for a row
+  Cancel and Save) for a row of buttons or a header, `.stats` for key figures (side by side, wrapping only when a label's longest word no longer fits), `.split` for a main
+  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `PageHeader` for every page's title area (title, subtitle, `back` link or `crumbs`, and the page's `actions`), `BackLink` for a way back outside one, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `.card` (with `.card--flush` when its contents bring their own padding) for every boxed section, text through a heading element (`h1` to `h4`, sized once in `App.css`) or a type role in `layout.css` (`.eyebrow` and `.eyebrow--muted` for small capitals, `.item-title` for the name a row or tile is about, `.subtext` for a sentence under a heading, `.meta` for a time, count or by-line; `tokenRules.test.ts` counts each screen stylesheet's own `font-size` and `font-weight` as `ownType`, which only goes down), `.mark` (`--success`, `--warning`, `--danger`, `--neutral`; `--small`, `--large`) for a single symbol in a circle, `Badge` for every short status label (a label: its text is centred; a `Button`'s text reads from the start when it wraps, so an arrow stays beside its words; one rule each in `controls.css`, never a per-screen text-align), `ChoiceGroup` for a pick-one row of buttons (a switch, or filter chips with counts), `Pagination` for page controls, `ScrollRail` for a row
   of choices too long for the screen (a plain native scroller: swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch; the
   one place a screen may scroll a row sideways; `.scroll-region` is the other, for a grid that is wide by nature, such as a preview of the user's own spreadsheet). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
-  the table when there are no rows; `selected` marks the row a side panel shows; `flush` drops the border for a table that fills a card.
+  the table when there are no rows; `selected` marks the row a side panel shows; `flush` drops the border for a table that fills a card;
+  `detail` shows what a row's own button opened beneath it, across the table. Rows sit in the middle of their line, and an
+  `actions` column's buttons sit side by side at the end of the row, on one line while it is a table; a screen does not
+  wrap them in its own box or build its own row grid.
   `e2e/widthDebt.json` (Chrome) and `e2e/widthDebtWebkit.json` (per WebKit device) list screens that still do
   not fit: delete a screen from them when you fix it.
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
@@ -131,6 +141,7 @@ serializers and the committed frontend types match the schema.
   `--radius` and `-pill`; elevation `--shadow-xs` to `-lg` and `--shadow-up`; and the focus and
   validation marks `--ring-*` and `--edge-accent`; space `--space-1` to `-7` (0.25rem to 3rem; a hairline offset of 0.2rem or less and a clearance over 3.25rem are not steps); letter-spacing `--tracking-label`, `-display` and `-tight`; line height `--line-height-tight`, `-snug` and `-body`; and one change time, `--duration` (a `transition` names what changes, never `all`). A value that sits between two steps takes the
   nearer one; if a design really needs a new step, add it to the scale for everyone.
+  Stylelint (`stylelint.config.mjs`, part of `npm run lint`) rejects invalid CSS and what is already at zero everywhere: a named colour, an id selector, `!important` (the reduced-motion rule in `theme.css` is the one exception) and a word-splitting `overflow-wrap: anywhere` or `word-break: break-all`. An email address goes through `EmailAddress`, which lets it wrap after the `@` or before a dot; a Korean name carries `lang="ko"`, which keeps it whole.
   `tokenRules.test.ts` counts what each stylesheet still holds outside them (raw colours,
   dark-mode patches, `!important`, type, space, letter-spacing, line-height, transition, radius and shadow literals, z-index) and fails if
   the count goes up; `tokenBaseline.json` only ever shrinks. It also fails on a `var()`
@@ -153,6 +164,17 @@ serializers and the committed frontend types match the schema.
   `RequirementBadge`): the one way to show it, so it cannot look different on two screens.
   Their look is in `controls.css`, and the status colours (`--color-status-*`) are tokens in
   `theme.css`, with a dark value each.
+- **A link in running text is a plain `<Link>` or `<a>`, with no class.** `App.css` gives every
+  unclassed link one look (the accent, underlined, the same once visited), and `layout.css`
+  gives a name in a `ResponsiveTable` the cell's own colour with an accent underline and a
+  full-size target. A link with a class is a component (a button, badge or navigation item)
+  and styles itself. A screen never colours or underlines its own links.
+- **Text wraps by one inherited rule**, `overflow-wrap: break-word` on `body` in `App.css`: it
+  breaks between words, and inside a word only when the word cannot fit on a line of its own.
+  A screen does not set `overflow-wrap`, and nothing uses `anywhere`, which lets a table
+  squeeze a column to one letter wide and split ordinary words.
+  A date never splits: the formatters in `dates.ts` (`formatRecentTime` for "Today 14:30") join its
+  parts with no-break spaces (it may break only after a comma), so a screen shows a date only through them.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

@@ -764,41 +764,46 @@ def test_session_details_edit_keeps_a_concurrent_cancellation() -> None:
     assert session.title == "Renamed grading"
 
 
-def test_assessment_cleanup_refuses_after_a_later_promotion() -> None:
-    """Cleanup must not roll a rank back over a newer promotion.
+def test_assessment_cleanup_refuses_a_decision_recorded_meanwhile() -> None:
+    """A final decision recorded while the cleanup waits is never erased.
 
-    Cleanup checked "this is the student's latest promotion" against a
-    student read before a later grading's promotion committed, then wrote
-    the old from_rank over the newer rank.
+    The cleanup reads the outcome only once it holds the session, so a
+    decision committed first is seen as final and the cleanup is refused.
     """
-    graded = student()
-    earlier, (later_outcome,) = promoted_then_passed_again(graded)
-    earlier_assessment = CandidateAssessment.objects.get(candidate__session=earlier)
-    promoting_actor = promoter("race-cleanup-promoter@example.com")
+    built, generated = locked_completed_candidate()
+    proposed = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("race-cleanup-proposer@example.com"),
+    )
+    decider = master("race-cleanup-master@example.com")
     cleaner = user("race-cleanup-admin@example.com", role=User.Role.ADMINISTRATOR)
-    stale_outcome = CandidateOutcome.objects.get(pk=later_outcome.pk)
+    stale_outcome = CandidateOutcome.objects.get(pk=proposed.pk)
+    stale_assessment = CandidateAssessment.objects.get(pk=generated.pk)
 
-    promoting, cleaning = interleave(
-        lambda: promote_candidate(stale_outcome, promoting_actor),
-        lambda: delete_candidate_assessment(earlier_assessment, cleaner),
+    finalising, cleaning = interleave(
+        lambda: finalise_candidate_outcome(
+            stale_outcome,
+            CandidateOutcome.Outcome.PASS,
+            "Confirmed.",
+            "",
+            decider,
+        ),
+        lambda: delete_candidate_assessment(stale_assessment, cleaner),
         pause_first_at="gradings.outcome_services.record",
     )
 
-    assert isinstance(promoting, Promotion)
-    refused(cleaning, "no longer the student's most recent promotion")
-    graded.refresh_from_db()
-    assert graded.current_rank_id == promoting.to_rank_id
-    assert CandidateAssessment.objects.filter(pk=earlier_assessment.pk).exists()
-    assert Promotion.objects.filter(student=graded).count() == 2
-    assert events(AuditAction.ASSESSMENT_DELETED, earlier_assessment) == 0
+    assert isinstance(finalising, CandidateOutcome)
+    refused(cleaning, "never erased")
+    assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
+    assert events(AuditAction.ASSESSMENT_DELETED, generated) == 0
 
 
-def test_student_deletion_and_promotion_serialise() -> None:
-    """Promoting a student being deleted is refused, not a crash.
-
-    The promotion used to wait on a row the deletion had removed, then fail
-    with an unhandled DoesNotExist - a 500 for what is a plain refusal.
-    """
+def test_student_deletion_waits_for_a_promotion_in_flight() -> None:
+    """A deletion that meets a promotion being recorded waits for it, then
+    keeps the student's record with that promotion, instead of refusing on
+    a stale read or erasing what was just recorded."""
     built, _generated = locked_completed_candidate()
     outcome = finalised_outcome(built)
     remover = user(
@@ -808,16 +813,75 @@ def test_student_deletion_and_promotion_serialise() -> None:
     stale_student = Student.objects.get(pk=built.student_id)
     stale_outcome = CandidateOutcome.objects.get(pk=outcome.pk)
 
-    deleting, promoting = interleave(
-        lambda: delete_student(stale_student, remover),
+    promoting, deleting = interleave(
         lambda: promote_candidate(stale_outcome, promoting_actor),
+        lambda: delete_student(stale_student, remover),
+        pause_first_at="gradings.outcome_services.record",
+    )
+
+    assert isinstance(promoting, Promotion), promoting
+    assert deleting is False
+    kept = Student.objects.get(pk=built.student_id)
+    assert kept.deleted_at is not None
+    assert Promotion.objects.filter(student_id=built.student_id).exists()
+
+
+def test_a_student_is_not_deleted_while_their_decision_is_being_recorded() -> None:
+    """The deletion waits for the decision, then refuses: a Pass still
+    waits for its promotion."""
+    built, _generated = locked_completed_candidate()
+    proposal = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("race-delete-proposer@example.com"),
+    )
+    remover = user("race-delete-undecided@example.com", role=User.Role.ADMINISTRATOR)
+    stale_student = Student.objects.get(pk=built.student_id)
+
+    deciding, deleting = interleave(
+        lambda: finalise_candidate_outcome(
+            proposal,
+            CandidateOutcome.Outcome.PASS,
+            "Final decision recorded.",
+            "",
+            master("race-delete-master@example.com"),
+        ),
+        lambda: delete_student(stale_student, remover),
+        pause_first_at="gradings.outcome_services.record",
+    )
+
+    assert isinstance(deciding, CandidateOutcome), deciding
+    refused(deleting, "promotion has not been recorded")
+    assert Student.objects.get(pk=built.student_id).deleted_at is None
+
+
+def test_an_edit_racing_a_deletion_does_not_change_the_closed_record() -> None:
+    """The edit loaded the student before the deletion committed; it waits
+    on the student lock, then sees the record closed (Codex, #192)."""
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
+    )
+    remover = user("race-delete-edit-admin@example.com", role=User.Role.ADMINISTRATOR)
+    editor = user("race-delete-editor@example.com")
+    stale_for_delete = Student.objects.get(pk=built.student_id)
+    stale_for_edit = Student.objects.get(pk=built.student_id)
+    name_before = stale_for_edit.first_name
+
+    deleting, editing = interleave(
+        lambda: delete_student(stale_for_delete, remover),
+        lambda: update_student(stale_for_edit, first_name="Changed", actor=editor),
         pause_first_at="students.services.record",
     )
 
-    assert not isinstance(deleting, BaseException), deleting
-    refused(promoting, "no longer exists")
-    assert not Student.objects.filter(pk=built.student_id).exists()
-    assert not Promotion.objects.filter(student_id=built.student_id).exists()
+    assert deleting is False
+    refused(editing, "has been deleted")
+    kept = Student.objects.get(pk=built.student_id)
+    assert kept.deleted_at is not None
+    assert kept.first_name == name_before
 
 
 def test_concurrent_student_edits_both_survive() -> None:

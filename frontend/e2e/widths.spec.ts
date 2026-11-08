@@ -2,7 +2,7 @@ import { type APIRequestContext, type Browser, type BrowserContext, type Page, e
 
 import debt from "./widthDebt.json" with { type: "json" };
 import webkitDebt from "./widthDebtWebkit.json" with { type: "json" };
-import { findOverflow, findSmallTargets } from "./overflow";
+import { findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
 import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
 
 type Role = "master" | "administrator";
@@ -276,6 +276,7 @@ for (const screen of SCREENS) {
       await page.waitForLoadState("networkidle");
       await screen.after?.(page);
       for (const issue of await findOverflow(page, width)) problems.push(`${width}px  ${issue}`);
+      for (const issue of await findLayoutFaults(page)) problems.push(`${width}px  ${issue}`);
     }
     await page.close();
     if (owedHere && !authoritative) {

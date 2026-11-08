@@ -11,6 +11,7 @@ from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from rest_framework.test import APIClient
 
+from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from gradings.age import resolve_age_band
 from gradings.models import (
@@ -475,6 +476,33 @@ def test_reinstating_a_withdrawn_candidate_clears_the_withdrawal() -> None:
     reinstated.refresh_from_db()
     assert reinstated.withdrawal_reason == ""
     assert reinstated.withdrawn_by is None and reinstated.withdrawn_at is None
+
+
+def test_a_deleted_students_withdrawn_registration_cannot_be_reinstated() -> None:
+    """Withdrawn, then deleted: their registration is kept as history and
+    never made active again, singly or in bulk (Codex, #192)."""
+    from students.services import delete_student
+
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    actor = user("reinstate-deleted@example.com")
+    apply_candidate_update(
+        built, status="WITHDRAWN", withdrawal_reason="ABSENT", actor=actor
+    )
+    admin = user("reinstate-deleted-admin@example.com", role=User.Role.ADMINISTRATOR)
+    assert delete_student(built.student, admin) is False
+    built.refresh_from_db()
+
+    with pytest.raises(ValidationError, match="has been deleted"):
+        apply_candidate_update(built, status="REGISTERED", actor=actor)
+    response = auth_client("reinstate-deleted-api@example.com").post(
+        "/api/gradings/candidates/bulk-update-status/",
+        {"candidates": [built.pk], "status": "REGISTERED"},
+        format="json",
+    )
+
+    assert "has been deleted" in str(response.json())
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.WITHDRAWN
 
 
 def test_candidate_patch_changes_nothing_but_the_session() -> None:

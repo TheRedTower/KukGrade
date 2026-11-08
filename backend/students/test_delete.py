@@ -33,6 +33,8 @@ from gradings.testing import (
     finalised_outcome,
     grading_session,
     locked_completed_candidate,
+    master,
+    override_master,
     promoter,
     rank,
     student,
@@ -239,6 +241,39 @@ def test_a_deleted_student_is_not_suggested_or_linked_to_new_records() -> None:
     assert deleted.pk not in {c.student.pk for c in group.candidates}
     kept.refresh_from_db()
     assert kept.student_id == deleted.pk
+
+
+def test_a_deleted_students_kept_assessment_cannot_be_marked_or_changed() -> None:
+    """Withdrawn after lock, then deleted: their assessment stays exactly as
+    recorded, even for the Master who could otherwise still correct it
+    (Codex, #192 sweep)."""
+    from gradings.assessment_services import (
+        add_item_comment,
+        assessment_marks_open,
+        update_candidate_assessment_item,
+    )
+    from gradings.services import withdraw_locked_candidate
+
+    built, started = locked_completed_candidate()
+    withdraw_locked_candidate(
+        built,
+        "INJURY",
+        "Hurt in the warm-up.",
+        override_master("deleted-marks-withdrawer@example.com"),
+    )
+    marker = master("deleted-marks-master@example.com")
+    delete_student(built.student, _admin("deleted-marks-admin@example.com"))
+    started.refresh_from_db()
+    item = started.items.first()
+    assert item is not None
+
+    assert assessment_marks_open(started, marker) is False
+    for attempt in (
+        lambda: update_candidate_assessment_item(item, result="MET", assessor=marker),
+        lambda: add_item_comment(item, "Good form.", author=marker),
+    ):
+        with pytest.raises(ValidationError, match="has been deleted"):
+            attempt()
 
 
 def test_api_admin_can_delete_student() -> None:

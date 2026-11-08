@@ -42,6 +42,10 @@ ASSESSMENT_HOLDS_FINAL_DECISION = (
     "This assessment holds a final decision, which is never erased."
 )
 
+STUDENT_DELETED_MESSAGE = (
+    "This student has been deleted, so their assessment is kept as recorded."
+)
+
 
 def assessment_holds_final_decision(assessment: CandidateAssessment) -> bool:
     # Read through the candidate, which a list already joins (one outcome per
@@ -314,6 +318,8 @@ def update_candidate_assessment(
     )
     if locked_assessment.status == CandidateAssessment.Status.COMPLETED:
         raise ValidationError({"status": ["A completed assessment cannot be changed."]})
+    if locked_assessment.candidate.student.deleted_at is not None:
+        raise ValidationError({"student": [STUDENT_DELETED_MESSAGE]})
 
     previous_notes = locked_assessment.notes
     if notes is not None:
@@ -435,6 +441,9 @@ def _validate_assessment_open_for_item_work(
     """
     if assessment.status == CandidateAssessment.Status.NOT_STARTED:
         raise ValidationError({"assessment": [started_message]})
+    if assessment.candidate.student.deleted_at is not None:
+        # A deleted student's assessment is kept as recorded, never changed.
+        raise ValidationError({"student": [STUDENT_DELETED_MESSAGE]})
     session = assessment.candidate.session
     if session.status == GradingSession.Status.LOCKED:
         if not actor.has_perm(FINAL_GRADING_DECISION_PERMISSION):

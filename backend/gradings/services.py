@@ -94,11 +94,15 @@ def ranks_open_for_grading(age_band: str) -> list[int]:
     ]
 
 
-def validate_student_can_be_graded(student: Student) -> None:
+def validate_student_not_deleted(student: Student) -> None:
     if student.deleted_at is not None:
         raise ValidationError(
             {"student": ["This student has been deleted and cannot be registered."]},
         )
+
+
+def validate_student_can_be_graded(student: Student) -> None:
+    validate_student_not_deleted(student)
     if not student.can_be_graded:
         raise ValidationError(
             {
@@ -916,6 +920,10 @@ def update_candidate(
         and status != GradingCandidate.Status.WITHDRAWN
         and candidate.status == GradingCandidate.Status.WITHDRAWN
     )
+    if session_changed or rank_changed or reinstating:
+        # Checked on the locked student (apply_candidate_update): a deleted
+        # student's kept registration never becomes active again.
+        validate_student_not_deleted(candidate.student)
     if reinstating:
         validate_no_unsettled_registration(candidate)
     # The rank is checked when it is chosen, so a registration whose student

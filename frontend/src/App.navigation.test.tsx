@@ -53,7 +53,7 @@ describe("Navigation rail and role-gated routes", () => {
 
     render(<App />);
 
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
     expect(
       within(screen.getByRole("complementary", { name: "Sidebar" })).getByRole("img", {
@@ -103,7 +103,7 @@ describe("Navigation rail and role-gated routes", () => {
 
     render(<App />);
 
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     await waitFor(() => {
       expect(window.location.pathname).toBe("/");
     });
@@ -116,7 +116,7 @@ describe("Navigation rail and role-gated routes", () => {
 
     render(<App />);
 
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     await waitFor(() => {
       expect(window.location.pathname).toBe("/");
     });
@@ -132,7 +132,7 @@ describe("Navigation rail and role-gated routes", () => {
 
     render(<App />);
 
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     await waitFor(() => {
       expect(window.location.pathname).toBe("/");
     });
@@ -148,7 +148,7 @@ describe("Navigation rail and role-gated routes", () => {
 
     render(<App />);
 
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     expect(screen.getByRole("link", { name: "Audit" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Users" })).not.toBeInTheDocument();
 
@@ -166,7 +166,7 @@ describe("Navigation rail and role-gated routes", () => {
 
     render(<App />);
 
-    await screen.findByText("Alex Admin");
+    await screen.findByRole("link", { name: /^Alex Admin, / });
     expect(screen.getByRole("link", { name: "Audit" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Users" })).toBeVisible();
 
@@ -226,7 +226,9 @@ describe("The sidebar", () => {
 
     expect(await screen.findByText("Kuk Sool Won Testville")).toBeVisible();
     expect(screen.getByText("CI")).toBeVisible();
-    expect(screen.getByText("Casey Instructor")).toBeVisible();
+    expect(screen.getByText("Casey")).toBeVisible();
+    // The card shows the first name; the full name is the link's label.
+    expect(screen.queryByText("Casey Instructor")).toBeNull();
     expect(screen.getByRole("link", { name: "Casey Instructor, Instructor: your account" })).toHaveAttribute(
       "href",
       "/settings/account",
@@ -234,19 +236,21 @@ describe("The sidebar", () => {
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
   });
 
-  it("links the version to About and the project to GitHub in a new tab", async () => {
+  it("names the version and links About and the project's GitHub, each dot outside its link", async () => {
     stubSite();
 
     render(<App />);
 
-    expect(await screen.findByRole("link", { name: "KukGrade 0.2.0" })).toHaveAttribute(
-      "href",
-      "/settings/about",
-    );
+    expect(await screen.findByText("KukGrade 0.2.0")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "KukGrade 0.2.0" })).toBeNull();
+    const about = screen.getAllByRole("link", { name: "About" }).find((link) => link.closest(".nav-about-line"));
+    expect(about).toHaveAttribute("href", "/settings/about");
     const github = screen.getByRole("link", { name: /^GitHub/ });
     expect(github).toHaveAttribute("href", ABOUT.repository_url);
     expect(github).toHaveAttribute("target", "_blank");
     expect(github).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    expect(github.textContent).not.toContain("·");
+    expect(about?.textContent).toBe("About");
   });
 
   it("collapses to a strip of icons that keeps every name, and remembers it", async () => {
@@ -254,14 +258,14 @@ describe("The sidebar", () => {
     const user = userEvent.setup();
 
     const { unmount } = render(<App />);
-    await screen.findByText("Casey Instructor");
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
     await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
 
     expect(screen.getByRole("button", { name: "Expand sidebar" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("link", { name: "Students" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "About KukGrade, version 0.2.0" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /KukGrade on GitHub/ })).toHaveAttribute("target", "_blank");
-    expect(screen.queryByText("Casey Instructor")).not.toBeInTheDocument();
+    expect(screen.queryByText("Casey")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
     expect(window.localStorage.getItem("kukgrade-sidebar")).toBe("icons");
 
@@ -308,7 +312,7 @@ describe("The sidebar", () => {
       expect(menu).toHaveAttribute("aria-expanded", "false");
       await user.click(menu);
       expect(menu).toHaveAttribute("aria-expanded", "true");
-      expect(screen.getByText("Casey Instructor")).toBeVisible();
+      expect(screen.getByText("Casey")).toBeVisible();
       expect(screen.queryByRole("button", { name: /sidebar/ })).not.toBeInTheDocument();
       // Escape closes it and gives focus back to the button.
       await user.keyboard("{Escape}");

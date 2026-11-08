@@ -198,7 +198,9 @@ export function NavigationRail({
                     {initials}
                   </span>
                   <span className="nav-person-text">
-                    <span className="nav-person-name">{user.full_name}</span>
+                    {/* The first name only: a surname such as "Administrator" would push the
+                        buttons off the line. The full name is in the link's label. */}
+                    <span className="nav-person-name">{user.first_name || user.full_name}</span>
                     <span className="nav-person-role">{user.role_display}</span>
                   </span>
                 </Link>
@@ -219,11 +221,18 @@ export function NavigationRail({
                 </span>
               </div>
               <p className="nav-about-line">
-                <Link to="/settings/about">KukGrade{version ? ` ${version}` : ""}</Link>
+                <span>KukGrade{version ? ` ${version}` : ""}</span>
+                <span className="nav-about-item">
+                  <span aria-hidden="true">·</span>
+                  <Link to="/settings/about">About</Link>
+                </span>
                 {about ? (
-                  <a href={about.repository_url} rel="noopener noreferrer" target="_blank">
-                    GitHub<span className="visually-hidden"> (opens in a new tab)</span>
-                  </a>
+                  <span className="nav-about-item">
+                    <span aria-hidden="true">·</span>
+                    <a href={about.repository_url} rel="noopener noreferrer" target="_blank">
+                      GitHub<span className="visually-hidden"> (opens in a new tab)</span>
+                    </a>
+                  </span>
                 ) : null}
               </p>
             </>

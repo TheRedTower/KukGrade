@@ -1,11 +1,12 @@
-/* The sidebar: open at 16.5rem, a 4.5rem strip of icons, or on a
-   phone a Menu button over a stacked panel. Tokens only, from theme.css. */
+/* The sidebar: open at 18rem, wide enough for the account card's first
+   name and the longest role ("Administrator") beside its two buttons; a
+   4.5rem strip of icons; or on a phone a Menu button over a stacked panel. Tokens only, from theme.css. */
 
 .nav-rail {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  width: 16.5rem;
+  width: 18rem;
   height: 100dvh;
   position: sticky;
   top: 0;
@@ -183,9 +184,12 @@
   background: var(--color-rail-wash-faint);
 }
 
+/* Measured from nothing, so the buttons stay beside the name and a long name
+   wraps between its words; they move under it only when the name's longest
+   word no longer fits beside them. */
 .nav-person-link {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   align-items: center;
   gap: var(--space-2);
   min-width: min-content;
@@ -243,18 +247,19 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 var(--space-2);
+  gap: 0 var(--space-1);
   margin: 0;
   padding: 0 var(--space-3);
   color: var(--color-text-on-ink-muted);
   font-size: var(--font-size-sm);
 }
 
-/* The dot between two links belongs to the second, so a line never ends on one. */
-.nav-about-line a + a::before {
-  content: "·" / "";
-  margin-inline-end: var(--space-2);
-  color: var(--color-text-on-ink-muted);
+/* Each dot travels with the link after it, outside the link, so a line
+   never ends on one and the dot is never underlined or clickable. */
+.nav-about-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .nav-about-line a {

@@ -71,7 +71,7 @@ describe("About: the overview", () => {
 
     const details = within(await screen.findByRole("region", { name: "Version details" }));
     expect(await details.findByText("0.2.0-rc.4")).toBeVisible();
-    expect(screen.getByRole("link", { name: "KukGrade 0.2.0-rc.4" })).toBeInTheDocument();
+    expect(screen.getByText("KukGrade 0.2.0-rc.4")).toBeInTheDocument();
   });
 
   it("takes the links from the server, each opening in a new tab", async () => {

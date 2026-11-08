@@ -49,6 +49,7 @@ def _snapshot(user: User) -> dict[str, Any]:
 
 SUPERUSER_ONLY_MESSAGE = "Only a superuser can change this account."
 OWN_ROLE_OR_STATUS_MESSAGE = "You cannot change your own role or account status."
+DELETED_ACCOUNT_MESSAGE = "This account has been deleted and cannot be changed."
 
 
 def can_manage(target: User, actor: User) -> bool:
@@ -61,12 +62,23 @@ def can_manage(target: User, actor: User) -> bool:
     rules of its own: no role or status change (update_platform_user), no
     reset, authority change or deletion.
     """
+    if target.deleted_at is not None:
+        return False
     if target.pk == actor.pk:
         return True
     return actor.is_superuser or not (target.is_staff or target.is_superuser)
 
 
+def _validate_not_deleted(target: User) -> None:
+    """A deleted account is closed for good, on every path that writes to it
+    - the app, and the Django admin's recovery forms alike - so it can never
+    be reactivated or given a password again."""
+    if target.deleted_at is not None:
+        raise ValidationError({"user": [DELETED_ACCOUNT_MESSAGE]})
+
+
 def _validate_can_manage(target: User, actor: User) -> None:
+    _validate_not_deleted(target)
     if not can_manage(target, actor):
         raise ValidationError({"user": [SUPERUSER_ONLY_MESSAGE]})
 
@@ -222,6 +234,7 @@ def update_platform_user(
     # AbstractBaseUser.save() call sites) that this change has no reason to
     # touch.
     locked.full_clean(exclude=["password"])
+    _validate_not_deleted(locked)
 
     after = _snapshot(locked)
     if before == after:
@@ -454,6 +467,7 @@ def _password_set(locked: User, *, actor: User) -> User:
     # temporary - it expires, and must be replaced at next sign-in. The owner
     # reaches this only through change_own_password: Django admin has no
     # password form for your own account (accounts/admin_site.py).
+    _validate_not_deleted(locked)
     chosen_by_owner = locked.pk == actor.pk
     expires_at = None if chosen_by_owner else _temporary_password_expiry()
     locked.must_change_password = not chosen_by_owner
@@ -498,6 +512,7 @@ def set_admin_site_access(
     every other account change. Only a superuser grants or removes
     them - anyone else could make themselves one."""
     locked = _lock_user(target.pk)
+    _validate_not_deleted(locked)
     before = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
     if is_staff is not None:
         locked.is_staff = is_staff

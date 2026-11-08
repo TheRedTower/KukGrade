@@ -88,6 +88,10 @@ def _link(
     if locked.student_id == student.pk:
         # Already linked there: nothing changes, so nothing is recorded.
         return locked
+    if student.deleted_at is not None:
+        # A deleted student keeps the records already theirs, but their
+        # record is closed: nothing new is linked to it.
+        raise ValidationError({"student": ["This student has been deleted."]})
     if locked.student_id is not None and not replace:
         raise ValidationError({"student": [LINKED_ELSEWHERE_MESSAGE]})
     previous_student_id = locked.student_id

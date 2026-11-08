@@ -33,7 +33,13 @@ from accounts.permissions import (
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
 )
-from accounts.services import reset_password, set_user_authority
+from accounts.services import (
+    delete_platform_user,
+    reset_password,
+    set_admin_site_access,
+    set_user_authority,
+    update_platform_user,
+)
 from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -1069,6 +1075,50 @@ def test_deleting_a_user_who_recorded_something_keeps_their_name_on_it() -> None
     assert event.actor == admin
     assert event.metadata["kept_for_their_records"] is True
     assert AuditEvent.objects.count() == events_before + 1
+
+
+def test_a_deleted_account_cannot_be_reactivated_or_given_a_password_anywhere() -> None:
+    """Every path that writes to an account refuses a deleted one: the
+    Django admin's recovery forms call these same services (Codex, #192)."""
+    from gradings.models import GradingSession
+
+    superuser = create_user(
+        "delete-closed-super@example.com",
+        role=User.Role.ADMINISTRATOR,
+        is_staff=True,
+        is_superuser=True,
+    )
+    target = create_user("delete-closed-target@example.com", password="StrongPass123!")
+    GradingSession.objects.create(
+        title="Closed grading", grading_date="2027-03-20", created_by=target
+    )
+    assert delete_platform_user(target, superuser) is False
+    target.refresh_from_db()
+
+    for attempt in (
+        lambda: update_platform_user(target, actor=superuser, is_active=True),
+        lambda: update_platform_user(target, is_active=True),
+        lambda: reset_password(target, actor=superuser),
+        lambda: set_user_authority(target, superuser, can_promote_student=True),
+        lambda: set_admin_site_access(target, actor=superuser, is_staff=True),
+    ):
+        with pytest.raises(ValidationError, match="has been deleted"):
+            attempt()
+
+    target.refresh_from_db()
+    assert target.is_active is False
+    assert target.has_usable_password() is False
+    # And the sign-in backend refuses it even if a row were edited by hand.
+    User.objects.filter(pk=target.pk).update(is_active=True)
+    target.refresh_from_db()
+    target.set_password("StrongPass123!")
+    target.save()
+    assert (
+        Client().login(
+            username="delete-closed-target@example.com", password="StrongPass123!"
+        )
+        is False
+    )
 
 
 # ---------------------------------------------------------------------------

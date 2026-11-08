@@ -372,6 +372,10 @@ def update_student(
         date_of_birth is not None or current_rank is not None,
     )
     locked = lock_student(student.pk)
+    if locked.deleted_at is not None:
+        # Checked on the locked row: an edit that loaded the student just
+        # before a deletion committed must not change the closed record.
+        raise ValidationError({"student": ["This student has been deleted."]})
     before = _snapshot(locked)
     if date_of_birth is not None:
         _check_registrations_still_in_session(

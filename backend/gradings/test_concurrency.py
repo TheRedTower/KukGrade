@@ -856,6 +856,34 @@ def test_a_student_is_not_deleted_while_their_decision_is_being_recorded() -> No
     assert Student.objects.get(pk=built.student_id).deleted_at is None
 
 
+def test_an_edit_racing_a_deletion_does_not_change_the_closed_record() -> None:
+    """The edit loaded the student before the deletion committed; it waits
+    on the student lock, then sees the record closed (Codex, #192)."""
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
+    )
+    remover = user("race-delete-edit-admin@example.com", role=User.Role.ADMINISTRATOR)
+    editor = user("race-delete-editor@example.com")
+    stale_for_delete = Student.objects.get(pk=built.student_id)
+    stale_for_edit = Student.objects.get(pk=built.student_id)
+    name_before = stale_for_edit.first_name
+
+    deleting, editing = interleave(
+        lambda: delete_student(stale_for_delete, remover),
+        lambda: update_student(stale_for_edit, first_name="Changed", actor=editor),
+        pause_first_at="students.services.record",
+    )
+
+    assert deleting is False
+    refused(editing, "has been deleted")
+    kept = Student.objects.get(pk=built.student_id)
+    assert kept.deleted_at is not None
+    assert kept.first_name == name_before
+
+
 def test_concurrent_student_edits_both_survive() -> None:
     """Two edits to different fields of one student both land."""
     subject = student(first_name="Before")

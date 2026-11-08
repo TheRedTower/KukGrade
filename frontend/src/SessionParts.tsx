@@ -18,10 +18,10 @@ export interface EnrichedCandidate {
   outcome?: CandidateOutcome;
 }
 
-/** What a candidate's row offers next: a link, or the proposal drawer. */
-interface NextAction {
+/** What a candidate's row offers next: a link, the proposal drawer, or nothing (no url). */
+export interface NextAction {
   label: string;
-  url: string;
+  url: string | null;
   opensProposalDrawer: boolean;
 }
 
@@ -151,8 +151,6 @@ export function SessionNotes({
 /** The session's candidates: ranks, assessment, outcome and what each row offers next. */
 export function SessionCandidateTable({
   candidates,
-  sessionStatus,
-  canOverrideLocked,
   nextActionFor,
   onPropose,
   onMove,
@@ -160,8 +158,6 @@ export function SessionCandidateTable({
   onWithdraw,
 }: {
   candidates: EnrichedCandidate[];
-  sessionStatus?: GradingSessionStatus;
-  canOverrideLocked: boolean;
   nextActionFor: (item: EnrichedCandidate) => NextAction;
   onPropose: (item: EnrichedCandidate) => void;
   onMove: (item: EnrichedCandidate) => void;
@@ -244,18 +240,11 @@ export function SessionCandidateTable({
           actions: true,
           render: (item) => {
             const candidateId = item.candidate.id;
-            const outcomeStatus = item.outcome?.status;
-            const isWithdrawn = item.candidate.status === "WITHDRAWN";
-            const canWithdrawLocked =
-              sessionStatus === "LOCKED" &&
-              canOverrideLocked &&
-              !isWithdrawn &&
-              outcomeStatus !== "FINALISED";
             const next = nextActionFor(item);
             return (
               <>
-                {isWithdrawn ? (
-                  <span className="gsd-withdrawal-record meta">No further action</span>
+                {next.url === null ? (
+                  <span className="meta">{next.label}</span>
                 ) : next.opensProposalDrawer ? (
                   <Button
                     variant="ghost" small
@@ -287,12 +276,13 @@ export function SessionCandidateTable({
                     Remove
                   </Button>
                 )}
-                {canWithdrawLocked && (
+                {item.candidate.can_be_withdrawn_after_lock && (
                   <Button
                     variant="danger-quiet" small
                     onClick={() => onWithdraw(item)}
+                    aria-label={`Withdraw ${item.candidate.student_display_name}`}
                   >
-                    Withdraw candidate
+                    Withdraw
                   </Button>
                 )}
               </>

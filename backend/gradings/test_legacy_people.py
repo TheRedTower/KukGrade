@@ -661,10 +661,11 @@ def test_a_student_with_a_voided_record_can_still_be_deleted() -> None:
     record = legacy_record(source_name="Zac W", student=zac)
     void_legacy_record(record, reason="Entered twice", actor=admin())
 
-    delete_student(zac, admin())
+    # The record is history, so Zac's record is kept with it.
+    assert delete_student(zac, admin()) is False
 
     record.refresh_from_db()
-    assert record.student_id is None
+    assert record.student_id == zac.pk
 
 
 # --- the record list -------------------------------------------------------------
@@ -746,7 +747,7 @@ def test_a_link_made_while_the_student_is_deleted_waits_then_is_refused() -> Non
         pause_first_at="students.services.record",
     )
 
-    assert deleted is None
+    assert deleted is True
     assert isinstance(linked, ValidationError), linked
     record.refresh_from_db()
     assert record.student_id is None

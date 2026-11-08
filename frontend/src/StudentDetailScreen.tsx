@@ -184,6 +184,9 @@ export function StudentDetailScreen() {
   const gradingHistoryItems = gradingHistoryQuery.data?.items ?? [];
   const statusStr = student.status || "ACTIVE";
   const statusDisplay = student.status_display || statusStr;
+  // Deleted after their history began: kept so past gradings still show who
+  // it was, and closed to changes (the server refuses them).
+  const isDeleted = student.deleted_at !== null;
 
   return (
     <section aria-labelledby="student-heading" className="page">
@@ -219,18 +222,28 @@ export function StudentDetailScreen() {
                 History
               </Link>
             )}
-            <Button
-              variant="secondary"
-              onClick={() => {
-                editForm.reset();
-                setIsEditModalOpen(true);
-              }}
-            >
-              Edit student
-            </Button>
+            {!isDeleted && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  editForm.reset();
+                  setIsEditModalOpen(true);
+                }}
+              >
+                Edit student
+              </Button>
+            )}
           </>
         }
       />
+
+      {isDeleted && (
+        <Alert tone="info" title={`Deleted on ${formatLongDate(student.deleted_at)}`}>
+          This student is no longer on the student list and their record can no longer be
+          changed. It is kept so that their past gradings, marks and decisions still show who
+          they were.
+        </Alert>
+      )}
 
       {/* Two-Column Grid Layout */}
       <div className="student-detail-grid">
@@ -451,17 +464,19 @@ export function StudentDetailScreen() {
                 </p>
               </div>
 
-              <Button
-                variant="secondary" block
-                onClick={() => {
-                  setStatusError(null);
-                  setIsStatusModalOpen(true);
-                }}
-              >
-                Change status
-              </Button>
+              {!isDeleted && (
+                <Button
+                  variant="secondary" block
+                  onClick={() => {
+                    setStatusError(null);
+                    setIsStatusModalOpen(true);
+                  }}
+                >
+                  Change status
+                </Button>
+              )}
 
-              {currentUser?.can_delete_students && (
+              {currentUser?.can_delete_students && !isDeleted && (
                 <Button
                   variant="danger"
                   onClick={() => {
@@ -501,8 +516,8 @@ export function StudentDetailScreen() {
 
             <div>
               <p className="modal-lead-text">
-                Permanently delete <strong>{student.first_name} {student.last_name}</strong>&apos;s
-                record? This cannot be undone. It also deletes every grading registration, assessment, outcome and promotion of theirs, and puts back any rank they were promoted to. Historical grading records linked to them are kept, just no longer linked.
+                Delete this student? This cannot be undone. Their past gradings, marks and
+                decisions stay as recorded.
               </p>
             </div>
 

@@ -18,7 +18,7 @@ from gradings.testing import (
     user,
 )
 from students.services import update_student
-from syllabus.models import AgeBand
+from syllabus.models import AgeBand, SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
 
@@ -39,6 +39,23 @@ def test_a_corrected_birth_date_moves_an_open_registration_to_its_band() -> None
     assert event.metadata["rebanded"] == [
         {"candidate": built.pk, "from": "AGE_9_TO_12", "to": "AGE_13_TO_17"},
     ]
+
+
+def test_a_correction_into_a_band_with_no_syllabus_for_the_rank_is_refused() -> None:
+    """Review N-08 (2026-11-07): the C-02 rule, on the re-banding path."""
+    built = candidate()
+    SyllabusRequirement.objects.filter(
+        rank=built.testing_for_rank,
+        age_band=AgeBand.AGE_13_TO_17,
+    ).delete()
+
+    with pytest.raises(ValidationError, match="no syllabus recorded for Yellow Stripe"):
+        update_student(built.student, date_of_birth=CORRECTED)
+
+    built.refresh_from_db()
+    built.student.refresh_from_db()
+    assert built.age_band == AgeBand.AGE_9_TO_12
+    assert built.student.date_of_birth != CORRECTED
 
 
 def test_a_correction_inside_the_same_band_changes_no_registration() -> None:

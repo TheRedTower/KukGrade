@@ -24,7 +24,9 @@ from gradings.testing import (
     finalised_outcome,
     grading_session,
     locked_completed_candidate,
+    locked_session_with_undecided_candidate,
     master,
+    override_master,
     promoter,
     start_assessment,
     user,
@@ -124,6 +126,66 @@ def test_a_final_decision_leads_to_the_ledger_or_the_record(
         candidate_next_action(refreshed(built), can_make_final_decision=True)
         == expected
     )
+
+
+def test_a_withdrawn_candidate_is_offered_nothing() -> None:
+    """Review N-06 (2026-11-07): the page used to work this out itself."""
+    built = candidate(
+        session=grading_session(status=GradingSession.Status.OPEN),
+        status=GradingCandidate.Status.WITHDRAWN,
+    )
+
+    assert (
+        candidate_next_action(refreshed(built), can_make_final_decision=True)
+        == CandidateNextAction.NONE
+    )
+
+
+def test_a_cancelled_session_offers_only_what_was_recorded() -> None:
+    """Review N-04/N-06: a cancelled session offered preparing and proposing."""
+    session, proposed = locked_session_with_undecided_candidate()
+    propose_for_candidate(
+        proposed, "PASS", "", user("roster-cancel-proposer@example.com")
+    )
+    transition_grading_session(
+        session,
+        GradingSession.Status.CANCELLED,
+        actor=override_master("roster-cancel-master@example.com"),
+        reason="Abandoned",
+    )
+
+    assert (
+        candidate_next_action(refreshed(proposed), can_make_final_decision=True)
+        == CandidateNextAction.VIEW_ASSESSMENT
+    )
+    # A registration with nothing prepared, as a session cancelled while open has.
+    unprepared = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    GradingSession.objects.filter(pk=unprepared.session_id).update(
+        status=GradingSession.Status.CANCELLED
+    )
+    assert (
+        candidate_next_action(refreshed(unprepared), can_make_final_decision=True)
+        == CandidateNextAction.NONE
+    )
+
+
+def test_the_roster_says_who_may_withdraw_a_candidate_after_lock() -> None:
+    """The page used to work this out from statuses and the viewer's flags."""
+    built, _generated = locked_completed_candidate()
+    row = f"/api/gradings/candidates/?session={built.session_id}"
+
+    def offered(client: APIClient) -> bool:
+        return bool(results(client.get(row))[0]["can_be_withdrawn_after_lock"])
+
+    overrider = APIClient()
+    overrider.force_authenticate(
+        user=override_master("roster-withdraw-master@example.com")
+    )
+    assert offered(overrider) is True
+    assert offered(auth_client("roster-withdraw-instructor@example.com")) is False
+
+    finalised_outcome(built)
+    assert offered(overrider) is False
 
 
 def test_the_session_list_carries_assessment_outcome_and_next_action() -> None:

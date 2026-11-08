@@ -91,6 +91,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     # cannot sign in until an administrator issues a new one
     # (accounts/backends.py). Null for every password its owner chose.
     temporary_password_expires_at = models.DateTimeField(null=True, blank=True)
+    # Set when the account is deleted after recording something: the row stays
+    # so their name stays on their records, but it cannot sign in and is
+    # hidden from user management (accounts.services.delete_platform_user).
+    deleted_at = models.DateTimeField(null=True, blank=True)
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects: ClassVar[UserManager] = UserManager()

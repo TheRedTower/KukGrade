@@ -18,13 +18,13 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
 
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.models import User
 from accounts.password_policy import generate_temporary_password
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
 )
-from audit.models import AuditAction, AuditEvent
+from audit.models import AuditAction
 from audit.recording import record
 
 
@@ -101,6 +101,18 @@ def create_platform_user(
 ) -> TemporaryPassword:
     """A new account with a generated temporary password, which expires and
     which its owner must replace at their first sign-in."""
+    if User.objects.filter(
+        email=User.objects.normalize_email(email),
+        deleted_at__isnull=False,
+    ).exists():
+        raise ValidationError(
+            {
+                "email": [
+                    "This email belonged to an account that was deleted. Its "
+                    "records still carry it, so use another email.",
+                ],
+            },
+        )
     expires_at = _temporary_password_expiry()
     extra: dict[str, Any] = {
         "first_name": first_name,
@@ -237,128 +249,73 @@ def update_platform_user(
     return locked
 
 
-def get_deleted_user_placeholder() -> User:
-    return User.objects.get(email=DELETED_USER_PLACEHOLDER_EMAIL)
+def has_recorded_work(user: User) -> bool:
+    """Whether anything in the record names this account: every PROTECT
+    foreign key to User is an attribution (who marked, decided, imported...),
+    so this reads them all, including any added later."""
+    for relation in User._meta.related_objects:
+        if relation.on_delete is not models.PROTECT:
+            continue
+        related = relation.related_model
+        if not isinstance(related, type):
+            continue
+        manager = related._default_manager
+        if manager.filter(**{relation.field.name: user}).exists():
+            return True
+    return False
 
 
 @transaction.atomic
-def delete_platform_user(target: User, actor: User) -> User:
-    """Hard-delete a user account, for corruption or test-data cleanup only.
+def delete_platform_user(target: User, actor: User) -> bool:
+    """Delete a staff account. Returns whether the row itself was removed.
 
-    Every attribution foreign key to User in this codebase is PROTECT
-    specifically so that deleting a user can never erase who did something
-    (see the comments on `audit.AuditEvent.actor` and
-    `gradings.CandidateAssessmentItem.assessor`). Deleting the row outright
-    would violate that, so every reference is reassigned to the "Deleted
-    User" placeholder account first (seeded by
-    accounts/migrations/0005_seed_deleted_user_placeholder.py) - the history
-    stays intact and attributable to "a since-deleted account", just not to
-    this specific person's row any more, which then has nothing left
-    pointing at it and can actually be removed.
-
-    Audit events, promotions, and finalised outcomes all refuse ordinary
-    bulk updates - `AuditEventQuerySet.update()` and `PromotionQuerySet.
-    update()` unconditionally raise, and `CandidateOutcomeQuerySet.update()`
-    raises whenever a finalised outcome is in scope, by design, to keep
-    those rows append-only/immutable against ordinary code paths. That
-    protects against rewriting what happened; it was never meant to block
-    this one narrow, admin-only case of moving whose account a historical
-    `actor`/`promoted_by`/`proposed_by`/`decided_by` reference resolves to.
-    `models.QuerySet.update` - the real, unbound base implementation - is
-    therefore called directly for those models, bypassing the
-    instance-level override on purpose. Every other field on the affected
-    rows is untouched.
+    An account that recorded nothing is removed completely. One that did is
+    closed instead (owner, 2026-11-07): it can no longer sign in, leaves the
+    Users list and holds no authority, but the row stays, so every mark,
+    comment, proposal and decision still names the person who made it.
     """
     if target.pk == actor.pk:
         raise ValidationError({"user": ["You cannot delete your own account."]})
     _validate_can_manage(target, actor)
-
-    placeholder = get_deleted_user_placeholder()
-    if target.pk == placeholder.pk:
+    if target.is_deleted_user_placeholder:
         raise ValidationError(
             {"user": ["The deleted-user placeholder account cannot be deleted."]},
         )
+    locked = User.objects.select_for_update().get(pk=target.pk)
+    if locked.deleted_at is not None:
+        raise ValidationError({"user": ["This account is already deleted."]})
 
-    from data_imports.models import ImportBatch
-    from gradings.models import (
-        AssessmentItemComment,
-        AssessmentItemResultChange,
-        CandidateAssessment,
-        CandidateAssessmentItem,
-        CandidateOutcome,
-        GradingCandidate,
-        GradingSession,
-        LegacyGradingRecord,
-        Promotion,
-    )
-
-    reassigned = {
-        "grading_sessions_created": GradingSession.objects.filter(
-            created_by=target,
-        ).update(created_by=placeholder),
-        "grading_candidates_withdrawn": GradingCandidate.objects.filter(
-            withdrawn_by=target,
-        ).update(withdrawn_by=placeholder),
-        "assessments_generated": CandidateAssessment.objects.filter(
-            generated_by=target,
-        ).update(generated_by=placeholder),
-        "outcomes_proposed": models.QuerySet.update(
-            CandidateOutcome.objects.filter(proposed_by=target),
-            proposed_by=placeholder,
-        ),
-        "outcomes_decided": models.QuerySet.update(
-            CandidateOutcome.objects.filter(decided_by=target),
-            decided_by=placeholder,
-        ),
-        "assessment_items_assessed": CandidateAssessmentItem.objects.filter(
-            assessor=target,
-        ).update(assessor=placeholder),
-        "assessment_item_marks_changed": models.QuerySet.update(
-            AssessmentItemResultChange.objects.filter(changed_by=target),
-            changed_by=placeholder,
-        ),
-        "assessment_item_comments_written": models.QuerySet.update(
-            AssessmentItemComment.objects.filter(author=target),
-            author=placeholder,
-        ),
-        "promotions_recorded": models.QuerySet.update(
-            Promotion.objects.filter(promoted_by=target),
-            promoted_by=placeholder,
-        ),
-        "audit_events_actored": models.QuerySet.update(
-            AuditEvent.objects.filter(actor=target),
-            actor=placeholder,
-        ),
-        "import_batches_uploaded": ImportBatch.objects.filter(
-            uploaded_by=target,
-        ).update(uploaded_by=placeholder),
-        "import_batches_committed": ImportBatch.objects.filter(
-            committed_by=target,
-        ).update(committed_by=placeholder),
-        "import_batches_cancelled": ImportBatch.objects.filter(
-            cancelled_by=target,
-        ).update(cancelled_by=placeholder),
-        "legacy_grading_records_voided": models.QuerySet.update(
-            LegacyGradingRecord.objects.filter(voided_by=target),
-            voided_by=placeholder,
-        ),
-    }
-
+    keep = has_recorded_work(locked)
     record(
         AuditAction.USER_DELETED,
-        target,
-        f"User account {target.email} deleted; their history is kept under "
-        "the Deleted user account.",
+        locked,
+        (
+            f"User account {locked.email} deleted; their name stays on what "
+            "they recorded."
+            if keep
+            else f"User account {locked.email} deleted."
+        ),
         actor=actor,
         metadata={
-            "email": target.email,
-            "name": target.get_full_name(),
-            "role": target.role,
-            "reassigned": reassigned,
+            "email": locked.email,
+            "name": locked.get_full_name(),
+            "role": locked.role,
+            "kept_for_their_records": keep,
         },
     )
-    target.delete()
-    return placeholder
+    if not keep:
+        locked.delete()
+        return True
+    locked.deleted_at = timezone.now()
+    locked.is_active = False
+    locked.must_change_password = False
+    locked.temporary_password_expires_at = None
+    locked.set_unusable_password()
+    locked.save()
+    # Authority is per-user permissions; a closed account keeps none. (Its
+    # role group is harmless: an inactive account holds no permission.)
+    locked.user_permissions.clear()
+    return False
 
 
 def validate_authority_change(

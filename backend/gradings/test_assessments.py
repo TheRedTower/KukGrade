@@ -30,7 +30,7 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
-from gradings.outcome_services import promote_candidate
+from gradings.outcome_services import promote_candidate, propose_for_candidate
 from gradings.read_models import candidate_assessment_summary
 from gradings.services import (
     register_candidate,
@@ -46,6 +46,7 @@ from gradings.testing import (
     finalised_outcome,
     grading_session,
     locked_completed_candidate,
+    locked_session_with_undecided_candidate,
     promoter,
     rank,
     start_assessment,
@@ -53,7 +54,6 @@ from gradings.testing import (
     user,
 )
 from kukgrade.testing import results
-from students.models import Student
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
 from syllabus.services import effective_syllabus_requirements
 
@@ -1088,40 +1088,68 @@ def test_administrator_can_delete_a_not_started_assessment() -> None:
     assert not CandidateAssessment.objects.filter(pk=generated.pk).exists()
 
 
-def test_deleting_completed_assessment_cascades_and_reverts_rank() -> None:
+def test_deleting_an_assessment_with_a_final_decision_is_refused() -> None:
+    """A recorded final decision is never erased (review N-01, 2026-11-07).
+
+    Before, the delete removed the outcome and promotion and rolled the rank
+    back, and in a completed session left a registration nothing could
+    settle, which blocked the student from every later grading.
+    """
     built, generated = locked_completed_candidate()
     outcome = finalised_outcome(built)
-    actor = promoter("assessment-cascade-delete@example.com")
-    promotion = promote_candidate(outcome, actor)
-    student = built.student
-    student.refresh_from_db()
-    assert student.current_rank == promotion.to_rank
-
+    promotion = promote_candidate(
+        outcome, promoter("assessment-final-delete@example.com")
+    )
+    session = transition_grading_session(built.session, GradingSession.Status.COMPLETED)
+    assert session.status == GradingSession.Status.COMPLETED
     admin = User.objects.create_user(
-        email="assessment-cascade-delete-admin@example.com",
+        email="assessment-final-delete-admin@example.com",
         role=User.Role.ADMINISTRATOR,
     )
     events_before = AuditEvent.objects.count()
 
-    delete_candidate_assessment(generated, admin)
+    with pytest.raises(ValidationError, match="never erased"):
+        delete_candidate_assessment(generated, admin)
 
-    student.refresh_from_db()
-    assert student.current_rank == promotion.from_rank
-    assert not CandidateAssessment.objects.filter(pk=generated.pk).exists()
-    assert not CandidateOutcome.objects.filter(pk=outcome.pk).exists()
-    assert not Promotion.objects.filter(pk=promotion.pk).exists()
-    cascade_event = AuditEvent.objects.filter(
-        entity_type="CandidateAssessment",
-        entity_id=str(generated.pk),
-        action=AuditAction.ASSESSMENT_DELETED,
-    ).get()
-    assert cascade_event.metadata["had_outcome"] is True
-    assert cascade_event.metadata["had_promotion"] is True
-    assert cascade_event.metadata["reverted_student_rank"] == {
-        "from": promotion.to_rank.code,
-        "to": promotion.from_rank.code,
-    }
-    assert AuditEvent.objects.count() == events_before + 1
+    client = APIClient()
+    client.force_authenticate(user=admin)
+    shown = client.get(f"/api/gradings/assessments/?candidate={built.id}")
+    assert shown.status_code == 200
+    assert results(shown)[0]["can_delete"] is False
+    refused = client.delete(f"/api/gradings/assessments/{generated.id}/")
+    assert refused.status_code == 400
+    assert "never erased" in str(refused.json())
+
+    built.refresh_from_db()
+    built.student.refresh_from_db()
+    assert built.status == GradingCandidate.Status.COMPLETED
+    assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
+    assert CandidateOutcome.objects.filter(pk=outcome.pk).exists()
+    assert Promotion.objects.filter(pk=promotion.pk).exists()
+    assert built.student.current_rank == promotion.to_rank
+    assert AuditEvent.objects.count() == events_before
+
+
+def test_deleting_an_assessment_removes_its_proposal() -> None:
+    session, built = locked_session_with_undecided_candidate()
+    proposal = propose_for_candidate(
+        built, "PASS", "", user("assessment-proposal-delete@example.com")
+    )
+    admin = User.objects.create_user(
+        email="assessment-proposal-delete-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    client = APIClient()
+    client.force_authenticate(user=admin)
+    listed = results(client.get(f"/api/gradings/assessments/?candidate={built.id}"))
+    assert listed[0]["can_delete"] is True
+
+    delete_candidate_assessment(proposal.assessment, admin)
+
+    assert not CandidateOutcome.objects.filter(pk=proposal.pk).exists()
+    event = AuditEvent.objects.get(action=AuditAction.ASSESSMENT_DELETED)
+    assert event.metadata["had_outcome"] is True
+    assert session.pk == built.session_id
 
 
 def test_deleting_a_completed_assessment_registers_its_candidate_again() -> None:
@@ -1167,30 +1195,6 @@ def test_deleting_an_assessment_after_lock_leaves_a_withdrawable_candidate() -> 
     )
     session = transition_grading_session(built.session, GradingSession.Status.COMPLETED)
     assert session.status == GradingSession.Status.COMPLETED
-
-
-def test_deleting_an_assessment_is_refused_when_a_later_promotion_exists() -> None:
-    built, _generated = locked_completed_candidate()
-    outcome = finalised_outcome(built)
-    actor = promoter("assessment-delete-later-promotion@example.com")
-    promotion = promote_candidate(outcome, actor)
-
-    # The student has since been promoted again through a second grading -
-    # this promotion is no longer "the" record of the student's rank, so
-    # reverting it would silently corrupt the student's current rank.
-    student = built.student
-    student.refresh_from_db()
-    Student.objects.filter(pk=student.pk).update(current_rank=rank("YELLOW"))
-
-    admin = User.objects.create_user(
-        email="assessment-delete-later-promotion-admin@example.com",
-        role=User.Role.ADMINISTRATOR,
-    )
-
-    with pytest.raises(ValidationError):
-        delete_candidate_assessment(outcome.assessment, admin)
-
-    assert Promotion.objects.filter(pk=promotion.pk).exists()
 
 
 def test_assessment_api_lifecycle_patch_uses_service_rules() -> None:

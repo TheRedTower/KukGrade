@@ -14,7 +14,6 @@ from audit.recording import grading_context, record, student_label
 from gradings.locking import (
     lock_in_session,
     lock_sessions_of,
-    lock_student,
     require_pinned,
 )
 from gradings.models import (
@@ -25,10 +24,8 @@ from gradings.models import (
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
-    Promotion,
 )
 from gradings.service_support import each_independently, unique_violation_on
-from students.models import Student
 from syllabus.models import AgeBand
 from syllabus.services import (
     EffectiveSyllabusRequirement,
@@ -41,24 +38,20 @@ ASSESSMENT_GENERATION_SESSION_STATUSES = {
 }
 
 
+ASSESSMENT_HOLDS_FINAL_DECISION = (
+    "This assessment holds a final decision, which is never erased."
+)
+
+
+def assessment_holds_final_decision(assessment: CandidateAssessment) -> bool:
+    # Read through the candidate, which a list already joins (one outcome per
+    # candidate, the same row as the assessment's).
+    outcome = getattr(assessment.candidate, "outcome", None)
+    return outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED
+
+
 def _status_label(status: str) -> str:
     return str(CandidateAssessment.Status(status).label).lower()
-
-
-def validate_assessment_deletion_promotion(
-    promotion: Promotion,
-    student: Student,
-) -> None:
-    if promotion.to_rank_id != student.current_rank_id:
-        raise ValidationError(
-            {
-                "promotion": [
-                    "This promotion is no longer the student's most recent "
-                    "promotion - the student has since been promoted again. "
-                    "Delete that later promotion's assessment first.",
-                ],
-            },
-        )
 
 
 @transaction.atomic
@@ -66,22 +59,14 @@ def delete_candidate_assessment(
     assessment: CandidateAssessment,
     actor: User,
 ) -> None:
-    """Hard-delete an assessment, for test-data or bad-grading cleanup only.
+    """Hard-delete an assessment, for test data or a grading prepared in error.
 
-    Cascades through the assessment's outcome and promotion, if either
-    exists, and reverts the student's rank when a promotion is undone.
-    `CandidateOutcome.delete()` refuses a finalised outcome, and `Promotion`
-    refuses unconditionally at both the instance *and* queryset level
-    (`PromotionQuerySet.delete()`, gradings/models.py) - deliberately, so an
-    ordinary caller cannot casually erase a decision. This is the one
-    sanctioned bypass of both guards, administrator-gated (see
-    accounts.groups._DATA_CLEANUP_PERMISSIONS):
-
-    - Both `CandidateOutcomeQuerySet.delete()` (for a finalised outcome)
-      and `PromotionQuerySet.delete()` refuse, so the rows are removed here
-      by calling `models.QuerySet.delete` directly - the real, unbound base
-      implementation - bypassing those overrides on purpose rather than by
-      omission.
+    A recorded final decision is never erased, by anyone, as for a session
+    (`session_deletion_blocker`): an assessment whose outcome is finalised is
+    refused, so no promotion is ever undone and no rank rolled back here. A
+    proposal is removed with it. A proposal refuses ordinary delete(), so it
+    goes through the unbound base QuerySet.delete, the one sanctioned bypass
+    (administrator-gated, see accounts.groups._DATA_CLEANUP_PERMISSIONS).
     """
     locked = lock_in_session(
         CandidateAssessment.objects.select_related(
@@ -93,19 +78,8 @@ def delete_candidate_assessment(
         name="assessment",
     )
     outcome = getattr(locked, "outcome", None)
-    promotion = getattr(outcome, "promotion", None) if outcome else None
-
-    reverted_rank: dict[str, str] | None = None
-    if promotion is not None:
-        # Locked and re-read, not taken from the join above: a promotion from
-        # another session can move the student on at any moment, and rolling
-        # back to this one's from_rank would then overwrite it.
-        student = lock_student(locked.candidate.student_id)
-        validate_assessment_deletion_promotion(promotion, student)
-        reverted_rank = {"from": promotion.to_rank.code, "to": promotion.from_rank.code}
-        Student.objects.filter(pk=student.pk).update(current_rank=promotion.from_rank)
-        models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
-
+    if assessment_holds_final_decision(locked):
+        raise ValidationError({"assessment": [ASSESSMENT_HOLDS_FINAL_DECISION]})
     if outcome is not None:
         models.QuerySet.delete(CandidateOutcome.objects.filter(pk=outcome.pk))
 
@@ -120,8 +94,6 @@ def delete_candidate_assessment(
         metadata={
             "status": locked.status,
             "had_outcome": outcome is not None,
-            "had_promotion": promotion is not None,
-            "reverted_student_rank": reverted_rank,
             **grading_context(locked.candidate),
         },
     )
@@ -474,7 +446,7 @@ def _validate_assessment_open_for_item_work(
                     ],
                 },
             )
-        outcome = getattr(assessment.candidate, "outcome", None)
+        outcome = getattr(assessment, "outcome", None)
         if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
             raise ValidationError(
                 {

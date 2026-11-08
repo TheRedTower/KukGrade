@@ -60,9 +60,8 @@ export function DeleteAssessmentDialog({
   return (
     <Dialog title="Delete assessment" closeButton={false} onClose={onClose} canClose={!isPending}>
       <p className="gsd-modal-message subtext">
-        Permanently delete {candidateName}&apos;s assessment? If it has a finalised outcome
-        or promotion, those are deleted too and the student's rank is reverted. This cannot
-        be undone.
+        Permanently delete {candidateName}&apos;s assessment? Any proposed outcome is
+        deleted with it. This cannot be undone.
       </p>
       {error && (
         <Alert>{error}</Alert>

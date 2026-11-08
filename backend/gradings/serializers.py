@@ -8,6 +8,7 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.assessment_services import (
+    assessment_holds_final_decision,
     assessment_marks_open,
     update_candidate_assessment,
     update_candidate_assessment_item,
@@ -42,8 +43,10 @@ from gradings.services import (
     WITHDRAWAL_REASON_REQUIRED_MESSAGE,
     apply_candidate_update,
     candidate_can_be_deleted,
+    candidate_can_be_withdrawn_after_lock,
     candidate_can_change_session,
     create_grading_session,
+    may_override_locked_session,
     session_can_be_archived,
     session_can_be_restored,
     session_deletion_blocker,
@@ -369,6 +372,13 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
         ),
     )
 
+    can_delete = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may permanently delete this assessment: an "
+            "administrator, while its candidate's final decision is not recorded."
+        ),
+    )
+
     class Meta:
         model = CandidateAssessment
         fields = (
@@ -384,6 +394,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
             "notes",
             "overall",
             "marks_open",
+            "can_delete",
         )
         read_only_fields = (
             "id",
@@ -402,6 +413,12 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
 
     def get_marks_open(self, obj: CandidateAssessment) -> bool:
         return assessment_marks_open(obj, self.context["request"].user)
+
+    def get_can_delete(self, obj: CandidateAssessment) -> bool:
+        user = self.context["request"].user
+        return user.has_perm("gradings.delete_candidateassessment") and not (
+            assessment_holds_final_decision(obj)
+        )
 
     def update(
         self,
@@ -651,6 +668,13 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "may make it is their own authority."
         ),
     )
+    can_be_withdrawn_after_lock = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may withdraw this candidate now: the session is "
+            "locked, the candidate is not withdrawn and has no final decision, "
+            "and the viewer holds the locked-session override."
+        ),
+    )
 
     class Meta(GradingCandidateSerializer.Meta):
         fields = (
@@ -660,6 +684,7 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "promotion",
             "next_action",
             "can_be_finalised",
+            "can_be_withdrawn_after_lock",
         )
 
     @extend_schema_field(PromotionSerializer(allow_null=True))
@@ -673,6 +698,17 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
     def get_can_be_finalised(self, instance: GradingCandidate) -> bool:
         outcome = getattr(instance, "outcome", None)
         return outcome is not None and outcome_can_be_finalised(outcome)
+
+    def get_can_be_withdrawn_after_lock(self, instance: GradingCandidate) -> bool:
+        # Asked once for the whole list: the context is shared by every row.
+        if "may_override_locked_session" not in self.context:
+            self.context["may_override_locked_session"] = may_override_locked_session(
+                self.context["request"].user
+            )
+        return candidate_can_be_withdrawn_after_lock(
+            instance,
+            may_override=self.context["may_override_locked_session"],
+        )
 
     @extend_schema_field(serializers.ChoiceField(choices=CandidateNextAction.choices))
     def get_next_action(self, instance: GradingCandidate) -> str:

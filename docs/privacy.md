@@ -10,12 +10,18 @@ personal details.
 - A change to a student records **which fields changed** (`changed_fields`), never a
   name or a date of birth. Rank and status values are kept; they are not identifying.
 - The audit screen and the overview show the student's **current name beside the event**,
-  read when the page loads. It is blank once the student has been deleted. Correcting a
+  read when the page loads. It is blank once a student with no history has been erased (a
+  deleted student with history keeps their record, so their name still shows). Correcting a
   student's name therefore corrects every screen at once.
-- Written judgements are kept as written because accountability needs them: a mark
-  change's reason, and both versions of an assessment's overall notes whenever they
-  change. These can mention a child, and **they stay in the log even after the student is
-  deleted**; see "What this does not do".
+- Some written judgements are copied into the log as written, because accountability
+  needs them: both versions of an assessment's overall notes whenever they change; a
+  proposal's notes, before and after each revision; a Conditional pass's requirements; the
+  notes of a proposal discarded by a withdrawal after lock; a withdrawal note; and a
+  historical record's void reason. These can mention a child, and **they stay in the log
+  even after the student's record is erased**; see "What this does not do".
+- Item comments and the reasons given for changing a mark are **not** copied: the log
+  records that one was written, by whom and when, and the text lives only on the
+  assessment, which is kept with the student's grading history.
 
 Staff accounts appear in user-management events by email address; those events are
 visible to administrators only.
@@ -65,15 +71,19 @@ into their details. They are permanent, and the app refuses every change to them
 
 ## What this does not do
 
-- It does not delete the student or their grading history; that is a separate, deliberate
-  act (the student's page), and it removes the student's results.
+- It does not delete the student or their grading history. Deleting a student (their page)
+  does not erase personal details either once they have been in a grading: the record is
+  kept, name and date of birth included, so their past gradings still show who it was
+  (owner, 2026-11-07). Only a record with no grading history is erased. An erasure request
+  for a student with history is therefore not met by deleting them.
 - It does not reach **backups** taken before the erasure. Those must be expired or
   replaced under your own retention rules.
-- It does not erase other free text that someone typed about a child. Deleting the student
-  removes their comments, reasons and notes from the records, but **the audit log keeps its
-  own copy** of every version of an assessment's overall notes and of a withdrawal note, and
-  the command only replaces the name you give it, so a birth date or other identifying
-  detail written into those notes stays. Treat a deletion as not complete until those
-  events have been checked (the audit screen shows each event's recorded details).
+- It does not erase other free text that someone typed about a child. The assessments keep
+  their comments, reasons and notes, and **the audit log keeps its own copy** of the free
+  text listed under "What a new event holds" (overall notes, proposal notes, Conditional
+  requirements, discarded proposals, withdrawal notes, void reasons), and the command only
+  replaces the name you give it, so a birth date or other identifying detail written into
+  those notes stays. Treat an erasure as not complete until those events have been checked
+  (the audit screen shows each event's recorded details).
 - It cannot find a name that was typed into free text in some other spelling.
 - How long audit events are kept is not decided yet; see the [roadmap](roadmap.md).

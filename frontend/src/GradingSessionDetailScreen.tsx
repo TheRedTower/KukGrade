@@ -327,7 +327,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         attendanceCount={attendanceCandidates.length}
         unpreparedIds={unpreparedIds}
         preparedIds={preparedIds}
-        canOverrideLocked={Boolean(currentUser?.can_override_locked_session)}
         nextActionFor={(item) => nextActionFor(item, session)}
         onConfirmAttendance={() => {
           setActionError(null);

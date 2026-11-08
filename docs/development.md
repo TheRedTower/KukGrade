@@ -98,6 +98,12 @@ serializers and the committed frontend types match the schema.
 - **Every feature has tests**: a success case, a validation case and a permission
   case where they apply. Sensitive writes also need an audit-event test. A bug fix
   comes with a test that fails without it.
+- **A rule covers every path, and every promise has a test.** When a rule says "never" or
+  "only when" (a final decision is never erased, outcomes move only in a locked session, a band
+  needs a syllabus), find every code path that does that act, not just the one in front of you,
+  and test each. Anything `features.md` or `privacy.md` promises is proved by a test; write
+  those pages from the code, not from memory. A rule the server owns reaches the screen as a
+  field (`can_*`, `next_action`), and the screen never compares statuses to work it out again.
 - **Test data is synthetic.** Use `example.com` addresses and made-up names. Never
   commit real student data, exports, secrets or screenshots containing them.
 - **Builders live in `testing.py`** inside their own app, never in another app's tests.

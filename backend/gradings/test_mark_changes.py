@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.models import User
 from accounts.services import delete_platform_user
 from audit.models import AuditAction, AuditEvent
 from gradings.assessment_services import update_candidate_assessment_item
@@ -377,9 +377,7 @@ def test_the_database_itself_requires_a_reason_after_the_first_entry() -> None:
             AssessmentItemResultChange.objects.bulk_create([bad])
 
 
-def test_deleting_a_user_keeps_their_mark_changes_under_the_deleted_user_account() -> (
-    None
-):
+def test_deleting_a_user_keeps_their_name_on_their_mark_changes() -> None:
     item = open_item()
     leaving = user("leaving-marker@example.com")
     mark(item, MET, leaving)
@@ -388,7 +386,8 @@ def test_deleting_a_user_keeps_their_mark_changes_under_the_deleted_user_account
     delete_platform_user(leaving, administrator)
 
     [entry] = item.changes.all()
-    assert entry.changed_by.email == DELETED_USER_PLACEHOLDER_EMAIL
+    assert entry.changed_by == leaving
+    assert entry.changed_by.get_full_name() == leaving.get_full_name()
 
 
 # --- the API ------------------------------------------------------------------

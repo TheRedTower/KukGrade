@@ -6,7 +6,7 @@ import { buttonClass } from "./buttonClass";
 import { Alert } from "./Alert";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
-import { type EnrichedCandidate, SessionCandidateTable } from "./SessionParts";
+import { type EnrichedCandidate, type NextAction, SessionCandidateTable } from "./SessionParts";
 import type { useCandidateWork } from "./useCandidateWork";
 
 interface SessionCandidatesSectionProps {
@@ -26,8 +26,7 @@ interface SessionCandidatesSectionProps {
   attendanceCount: number;
   unpreparedIds: number[];
   preparedIds: number[];
-  canOverrideLocked: boolean;
-  nextActionFor: (item: EnrichedCandidate) => { label: string; url: string; opensProposalDrawer: boolean };
+  nextActionFor: (item: EnrichedCandidate) => NextAction;
   onConfirmAttendance: () => void;
 }
 
@@ -46,7 +45,6 @@ export function SessionCandidatesSection({
   attendanceCount,
   unpreparedIds,
   preparedIds,
-  canOverrideLocked,
   nextActionFor,
   onConfirmAttendance,
 }: SessionCandidatesSectionProps) {
@@ -156,9 +154,7 @@ export function SessionCandidatesSection({
       ) : (
         <SessionCandidateTable
           candidates={shown}
-          canOverrideLocked={canOverrideLocked}
           nextActionFor={nextActionFor}
-          sessionStatus={session.status}
           onMove={(item) => work.registration.begin("move", item)}
           onPropose={work.proposal.begin}
           onRemove={(item) => work.registration.begin("remove", item)}

@@ -6,7 +6,6 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
-import { useAuth } from "./auth";
 import { addAssessmentItemComment, CandidateAssessmentItem, CandidateAssessmentItemResult, deleteCandidateAssessment, generateCandidateAssessment, updateCandidateAssessment, updateCandidateAssessmentItem, errorMessage } from "./api";
 import { RankBelt } from "./Belt";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
@@ -25,7 +24,6 @@ export function CandidateAssessmentScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user: currentUser } = useAuth();
 
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
@@ -326,7 +324,7 @@ export function CandidateAssessmentScreen() {
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
         )}
-        {currentUser?.can_delete_assessments && assessment && (
+        {assessment?.can_delete && (
           <Button
             variant="danger"
             small

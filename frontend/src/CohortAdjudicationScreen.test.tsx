@@ -121,6 +121,7 @@ function assessment(
     generated_by_email: "master@example.com",
     overall,
     marks_open: true,
+    can_delete: false,
     generated_at: "2026-11-12T09:00:00Z",
     started_at: "2026-11-12T09:05:00Z",
     completed_at: "2026-11-12T11:00:00Z",
@@ -224,6 +225,7 @@ const roster = cohort.map((row): GradingCandidateRoster => {
     outcome: found,
     next_action: "REVIEW_DECISION",
     promotion: null,
+    can_be_withdrawn_after_lock: false,
     can_be_finalised: found?.status === "PROPOSED",
   };
 });

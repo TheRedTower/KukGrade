@@ -11,10 +11,10 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
-from django.db import connection, models, transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from accounts.models import User
@@ -24,6 +24,9 @@ from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
 from students import wksa_ids
 from students.models import PreviousWksaId, RetiredWksaId, Student, StudentExtraInfo
+
+if TYPE_CHECKING:
+    from gradings.models import GradingCandidate
 
 
 def _snapshot(student: Student) -> dict[str, Any]:
@@ -284,14 +287,19 @@ def _registrations_to_reband(student: Student) -> list[tuple[Any, str]]:
     The band is what the assessment's syllabus was chosen from, so once the
     form exists a different band cannot be applied quietly: the change is
     refused and the form must be removed first. A settled registration keeps
-    the band it was graded in.
+    the band it was graded in. A band with no syllabus for the testing rank
+    is refused, as at registration.
     """
     from gradings.age import resolve_age_band
     from gradings.services import unsettled_registrations
+    from syllabus.models import AgeBand
+    from syllabus.services import has_recorded_syllabus
 
     moves: list[tuple[Any, str]] = []
     registrations = unsettled_registrations().filter(student=student)
-    for registration in registrations.select_related("session", "assessment"):
+    for registration in registrations.select_related(
+        "session", "assessment", "testing_for_rank"
+    ):
         band = resolve_age_band(
             student.date_of_birth, registration.session.grading_date
         )
@@ -305,6 +313,19 @@ def _registrations_to_reband(student: Student) -> list[tuple[Any, str]]:
                         f"age band for '{registration.session.title}', where "
                         "their assessment form is already prepared. Remove the "
                         "assessment form first.",
+                    ],
+                },
+            )
+        # As registering checks (review N-08, 2026-11-07): the new band must
+        # have a syllabus for the rank, or its form could never be prepared.
+        if not has_recorded_syllabus(registration.testing_for_rank, band):
+            raise ValidationError(
+                {
+                    "date_of_birth": [
+                        "This date of birth puts the student in the "
+                        f"{AgeBand(band).label} age band for "
+                        f"'{registration.session.title}', which has no syllabus "
+                        f"recorded for {registration.testing_for_rank.name} yet.",
                     ],
                 },
             )
@@ -425,45 +446,80 @@ def update_student(
     return locked
 
 
-@transaction.atomic
-def delete_student(student: Student, actor: User) -> None:
-    """Hard-delete a student, for corruption or test-data cleanup only.
+def student_deletion_blocker(student: Student) -> str | None:
+    """Why this student cannot be deleted yet, or None when they can.
 
-    GradingCandidate.student and Promotion.student are both PROTECT, so
-    nothing cascades automatically - every grading-session registration,
-    assessment, outcome and promotion involving this student is removed
-    explicitly, in dependency order, before the student row itself can go:
-    Promotion (blocks Promotion.outcome, a PROTECT one-to-one) before
-    CandidateOutcome, before GradingCandidate (whose CASCADE then takes
-    CandidateAssessment/CandidateAssessmentItem with it). Promotion and a
-    finalised CandidateOutcome both refuse ordinary bulk delete - the same
-    sanctioned bypass as delete_candidate_assessment
-    (gradings/services.py) is used here: models.QuerySet.delete, the real
-    unbound base implementation, called directly. Unlike a single
-    assessment's cascade, no "is this still the student's most recent
-    promotion" check applies: every promotion this student has is being
-    removed together, so there is no surviving promotion it could still
-    supersede.
-
-    LegacyGradingRecord.student is nullable but PROTECT - it is independent
-    historical evidence of an imported workbook, not the student's own
-    record, so it is unlinked (student set to null) via
-    gradings.legacy_services.unlink_legacy_record_from_student, never
-    deleted.
+    A student is never deleted before a final decision (owner, 2026-11-07):
+    while a grading for them has not reached its result, they stay. Once it
+    has, the decision is recorded and the student may be deleted after the
+    fact, their history kept (delete_student).
     """
-    from gradings.legacy_services import unlink_legacy_record_from_student
-    from gradings.models import (
-        CandidateOutcome,
-        GradingCandidate,
-        LegacyGradingRecord,
-        Promotion,
+    from gradings.services import unsettled_registrations
+
+    registration = (
+        unsettled_registrations()
+        .filter(student=student)
+        .select_related("session")
+        .order_by("session__grading_date", "session_id")
+        .first()
+    )
+    if registration is None:
+        return None
+    title = registration.session.title
+    if _has_final_decision(registration):
+        # A Pass is settled by the promotion that follows it.
+        return (
+            f"This student passed in the grading '{title}' and their promotion "
+            "has not been recorded yet. They can be deleted once it has."
+        )
+    return (
+        f"This student is in the grading '{title}', which has not reached its "
+        "final decision for them yet. They can be deleted once that decision "
+        "is recorded, or once they are taken out of that grading."
     )
 
+
+def _has_final_decision(registration: GradingCandidate) -> bool:
+    from gradings.models import CandidateOutcome
+
+    return CandidateOutcome.objects.filter(
+        candidate=registration,
+        status=CandidateOutcome.Status.FINALISED,
+    ).exists()
+
+
+def student_has_history(student: Student) -> bool:
+    """Whether anything is recorded for this student: any grading they were
+    in, a promotion, or an imported grading record."""
+    from gradings.models import GradingCandidate, LegacyGradingRecord, Promotion
+
+    return (
+        GradingCandidate.objects.filter(student=student).exists()
+        or Promotion.objects.filter(student=student).exists()
+        or LegacyGradingRecord.objects.filter(student=student).exists()
+    )
+
+
+@transaction.atomic
+def delete_student(student: Student, actor: User) -> bool:
+    """Delete a student. True when the record is erased, False when it is
+    kept for their history.
+
+    Refused while a grading for them has not reached its final decision
+    (student_deletion_blocker). After that, a student with history - any
+    grading they were in, its marks and decision, a promotion, an imported
+    record - is deleted from the lists but kept, so every past grading still
+    shows who it was (owner, 2026-11-07): their record can no longer be
+    changed, registered or found in a search, and their WKSA IDs stay with
+    it. A record with no history at all (added by mistake, a duplicate, test
+    data) is erased, and its numbers retired so no one else is given them
+    (owner, 2026-10-20).
+    """
     # Sessions before the student, as every grading write takes them
-    # (gradings/locking.py). This deletes rows inside each of the student's
-    # sessions, and a promotion holding one of those sessions takes the
-    # student last: locking the student first here is how the two came to
-    # wait on each other.
+    # (gradings/locking.py), so a decision or registration in one of their
+    # gradings cannot slip past the checks below.
+    from gradings.models import GradingCandidate
+
     sessions = set(
         GradingCandidate.objects.filter(student_id=student.pk).values_list(
             "session_id",
@@ -472,6 +528,8 @@ def delete_student(student: Student, actor: User) -> None:
     )
     lock_sessions(sessions)
     locked = lock_student(student.pk)
+    if locked.deleted_at is not None:
+        raise ValidationError({"student": ["This student has already been deleted."]})
     registered_since = (
         set(
             GradingCandidate.objects.filter(student=locked).values_list(
@@ -494,50 +552,44 @@ def delete_student(student: Student, actor: User) -> None:
             },
         )
 
-    cascaded_candidates = list(
-        GradingCandidate.objects.filter(student=locked).values_list(
-            "id",
-            "session_id",
-            "session__title",
-        ),
-    )
-    promotion_count = models.QuerySet.delete(
-        Promotion.objects.filter(student=locked),
-    )[0]
-    outcome_count = models.QuerySet.delete(
-        CandidateOutcome.objects.filter(candidate__student=locked),
-    )[0]
-    models.QuerySet.delete(GradingCandidate.objects.filter(student=locked))
+    # Read under the locks, so a registration or decision made meanwhile is
+    # seen.
+    blocker = student_deletion_blocker(locked)
+    if blocker is not None:
+        raise ValidationError({"student": [blocker]})
 
-    legacy_records = list(LegacyGradingRecord.objects.filter(student=locked))
-    for legacy_record in legacy_records:
-        unlink_legacy_record_from_student(legacy_record, actor=actor, allow_void=True)
-
-    # Their numbers go with them, never to anyone else (owner, 2026-10-20).
-    retired = [
-        locked.wksa_id,
-        *locked.previous_wksa_ids.values_list("wksa_id", flat=True),
-    ]
-    lock_wksa_ids(*retired)
-    RetiredWksaId.objects.bulk_create(
-        [RetiredWksaId(wksa_id=wksa_id) for wksa_id in retired],
-    )
+    keep = student_has_history(locked)
+    retired: list[str] = []
+    if not keep:
+        # Their numbers go with them, never to anyone else (owner, 2026-10-20).
+        retired = [
+            locked.wksa_id,
+            *locked.previous_wksa_ids.values_list("wksa_id", flat=True),
+        ]
+        lock_wksa_ids(*retired)
+        RetiredWksaId.objects.bulk_create(
+            [RetiredWksaId(wksa_id=wksa_id) for wksa_id in retired],
+        )
 
     record(
         AuditAction.STUDENT_DELETED,
         locked,
-        f"{student_label(locked, first=True)} permanently deleted.",
+        (
+            f"{student_label(locked, first=True)} deleted; their grading "
+            "history is kept."
+            if keep
+            else f"{student_label(locked, first=True)} permanently deleted."
+        ),
         actor=actor,
         metadata={
             "wksa_id": locked.wksa_id,
             "previous_wksa_ids": retired[1:],
-            "cascaded_grading_candidates": [
-                {"id": candidate_id, "session_id": session_id, "session_title": title}
-                for candidate_id, session_id, title in cascaded_candidates
-            ],
-            "cascaded_promotions": promotion_count,
-            "cascaded_outcomes": outcome_count,
-            "legacy_records_unlinked": [record_.pk for record_ in legacy_records],
+            "kept_for_their_history": keep,
         },
     )
+    if keep:
+        locked.deleted_at = timezone.now()
+        locked.save(update_fields=["deleted_at", "updated_at"])
+        return False
     locked.delete()
+    return True

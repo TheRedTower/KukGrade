@@ -116,8 +116,9 @@ class StudentViewSet(
     # than just omitting an UpdateModelMixin's put support, is what
     # actually returns 405 for it - the router still binds it to any mixin
     # method that exists, and http_method_names is what dispatch checks
-    # before that binding is used. DELETE is the administrator-only hard
-    # delete (students.services.delete_student) - see
+    # before that binding is used. DELETE is the administrator-only
+    # delete (students.services.delete_student), which keeps a student with
+    # history and erases only one with none - see
     # accounts.groups._DATA_CLEANUP_PERMISSIONS.
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     permission_classes = [HasRequiredPermissions]
@@ -175,12 +176,19 @@ class StudentViewSet(
         ),
     )
 
+    _READABLE_ONCE_DELETED = frozenset({"retrieve", "rank_history", "grading_history"})
+
     def get_queryset(self) -> QuerySet[Student]:
         students = Student.objects.select_related("current_rank").order_by(
             "last_name",
             "first_name",
             "wksa_id",
         )
+        if self.action not in self._READABLE_ONCE_DELETED:
+            # A deleted student is gone from the lists and closed to
+            # changes; only their page and history stay readable, so a past
+            # grading can still show who it was.
+            students = students.filter(deleted_at__isnull=True)
         if self.action == "list":
             return with_current_grading(
                 with_age_band_on(students, self._age_band_date()),

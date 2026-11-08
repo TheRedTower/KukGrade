@@ -302,8 +302,9 @@ function DeleteUserDialog({
       canClose={!mutation.isPending}
     >
       <p>
-        Permanently delete <strong>{user.full_name}</strong>&apos;s account? This cannot be
-        undone. Their grading history is kept, credited to a "Deleted user" account.
+        Delete <strong>{user.full_name}</strong>&apos;s account? They can no longer sign in and
+        the account leaves the staff list. Everything they recorded keeps their name, so it
+        still shows who did it. This cannot be undone.
       </p>
       {mutation.error && <Alert>{errorMessage(mutation.error, "The account could not be deleted.")}</Alert>}
       <div className="action-row users-dialog-actions">
@@ -437,9 +438,9 @@ export function UserDetailScreen(): React.ReactElement {
             <section className="user-detail-section">
               <h2>Danger zone</h2>
               <p>
-                Permanently delete this account. Their grading history is kept, credited to a
-                &ldquo;Deleted user&rdquo; account. For someone who has left, set the account to
-                Inactive instead.
+                Delete this account. They can no longer sign in, and everything they recorded
+                keeps their name so it still shows who did it. For someone who may come back,
+                set the account to Inactive instead.
               </p>
               <Button
                 ref={deleteButtonRef}

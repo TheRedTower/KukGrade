@@ -56,6 +56,7 @@ class CandidateNextAction(models.TextChoices):
     REVIEW_DECISION = "REVIEW_DECISION", "Review the decision"
     VIEW_DECISION = "VIEW_DECISION", "View the final decision"
     PROMOTION_LEDGER = "PROMOTION_LEDGER", "Promotion ledger"
+    NONE = "NONE", "No further action"
 
 
 def candidate_next_action(
@@ -63,15 +64,32 @@ def candidate_next_action(
     *,
     can_make_final_decision: bool,
 ) -> str:
+    # A withdrawal ends the candidate's grading: their row offers nothing more.
+    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+        return CandidateNextAction.NONE
     assessment = getattr(candidate, "assessment", None)
+    outcome = getattr(candidate, "outcome", None)
+    finalised = (
+        outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED
+    )
+    # A cancelled or completed session moves no further: what was recorded can
+    # be looked at, and nothing else is offered.
+    if not finalised and candidate.session.status in {
+        GradingSession.Status.CANCELLED,
+        GradingSession.Status.COMPLETED,
+    }:
+        return (
+            CandidateNextAction.NONE
+            if assessment is None
+            else CandidateNextAction.VIEW_ASSESSMENT
+        )
     if assessment is None:
         return CandidateNextAction.PREPARE_ASSESSMENT
     if assessment.status == CandidateAssessment.Status.IN_PROGRESS:
         return CandidateNextAction.CONTINUE_ASSESSMENT
     if assessment.status != CandidateAssessment.Status.COMPLETED:
         return CandidateNextAction.START_ASSESSMENT
-    outcome = getattr(candidate, "outcome", None)
-    if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
+    if outcome is not None and finalised:
         if outcome.final_outcome == CandidateOutcome.Outcome.PASS:
             return CandidateNextAction.PROMOTION_LEDGER
         return CandidateNextAction.VIEW_DECISION

@@ -133,6 +133,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       generated_by_email: adminUser.email,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
       completed_at: null,
@@ -147,6 +148,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       generated_by_email: adminUser.email,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
       completed_at: "2026-09-15T10:00:00Z",
@@ -161,6 +163,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       generated_by_email: adminUser.email,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: null,
       completed_at: null,
@@ -211,12 +214,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     outcomes: CandidateOutcome[],
     sessionStatus: GradingSession["status"],
     canDecide: boolean,
+    canOverride = false,
   ): GradingCandidateRoster[] {
     return candidates.map((candidate) => {
       const assessment = assessments.find((item) => item.candidate === candidate.id) ?? null;
       const outcome = outcomes.find((item) => item.candidate === candidate.id) ?? null;
       let nextAction: GradingCandidateRoster["next_action"] = "PREPARE_ASSESSMENT";
-      if (assessment?.status === "IN_PROGRESS") nextAction = "CONTINUE_ASSESSMENT";
+      if (candidate.status === "WITHDRAWN") nextAction = "NONE";
+      else if (assessment?.status === "IN_PROGRESS") nextAction = "CONTINUE_ASSESSMENT";
       else if (assessment?.status === "NOT_STARTED") nextAction = "START_ASSESSMENT";
       else if (assessment?.status === "COMPLETED") {
         if (outcome?.status === "FINALISED") nextAction = outcome.final_outcome === "PASS" ? "PROMOTION_LEDGER" : "VIEW_DECISION";
@@ -224,7 +229,17 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         else nextAction = sessionStatus === "LOCKED" ? "PROPOSE_OUTCOME" : "VIEW_ASSESSMENT";
       }
       const canBeFinalised = outcome?.status === "PROPOSED" && sessionStatus === "LOCKED";
-      return { ...candidate, assessment, outcome, promotion: null, next_action: nextAction, can_be_finalised: canBeFinalised };
+      const canWithdraw =
+        sessionStatus === "LOCKED" && canOverride && candidate.status !== "WITHDRAWN" && outcome?.status !== "FINALISED";
+      return {
+        ...candidate,
+        assessment,
+        outcome,
+        promotion: null,
+        next_action: nextAction,
+        can_be_finalised: canBeFinalised,
+        can_be_withdrawn_after_lock: canWithdraw,
+      };
     });
   }
 
@@ -374,6 +389,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           outcomes,
           locked ? "LOCKED" : "OPEN",
           authenticatedUser.can_make_final_grading_decision,
+          authenticatedUser.can_override_locked_session,
         );
         return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
       }
@@ -533,7 +549,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     render(<App />);
 
     const row = await screen.findByTestId("candidate-row-101");
-    await user.click(within(row).getByRole("button", { name: "Withdraw candidate" }));
+    await user.click(within(row).getByRole("button", { name: "Withdraw Alex Carter" }));
     const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
     await user.click(await within(dialog).findByRole("radio", { name: "Other" }));
     const submit = within(dialog).getByRole("button", { name: "Withdraw candidate" });
@@ -551,7 +567,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     render(<App />);
 
     const row = await screen.findByTestId("candidate-row-101");
-    await user.click(within(row).getByRole("button", { name: "Withdraw candidate" }));
+    await user.click(within(row).getByRole("button", { name: "Withdraw Alex Carter" }));
     const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
     await user.click(await within(dialog).findByRole("radio", { name: "Injured during grading" }));
     await user.type(
@@ -586,7 +602,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     render(<App />);
 
     await screen.findByRole("heading", { name: "Autumn Grading" });
-    expect(screen.queryByRole("button", { name: "Withdraw candidate" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Withdraw / })).not.toBeInTheDocument();
   });
 
   it("shows the recorded reason for a withdrawn candidate without further actions", async () => {

@@ -95,6 +95,10 @@ def ranks_open_for_grading(age_band: str) -> list[int]:
 
 
 def validate_student_can_be_graded(student: Student) -> None:
+    if student.deleted_at is not None:
+        raise ValidationError(
+            {"student": ["This student has been deleted and cannot be registered."]},
+        )
     if not student.can_be_graded:
         raise ValidationError(
             {
@@ -441,6 +445,30 @@ def update_grading_session(
             reason=reason,
         )
     return locked
+
+
+def may_override_locked_session(actor: User | None) -> bool:
+    try:
+        validate_locked_session_override_actor(actor)
+    except ValidationError:
+        return False
+    return True
+
+
+def candidate_can_be_withdrawn_after_lock(
+    candidate: GradingCandidate,
+    *,
+    may_override: bool,
+) -> bool:
+    """Whether a viewer who `may_override` a locked session may withdraw this
+    candidate now: the rules withdraw_locked_candidate enforces, for the
+    roster. The viewer's authority is passed in, so a list asks it once."""
+    if not may_override or candidate.session.status != GradingSession.Status.LOCKED:
+        return False
+    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+        return False
+    outcome = getattr(candidate, "outcome", None)
+    return outcome is None or outcome.status != CandidateOutcome.Status.FINALISED
 
 
 @transaction.atomic

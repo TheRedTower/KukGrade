@@ -52,7 +52,11 @@ from django.db import connection
 from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from accounts.serializers import ChangePasswordSerializer
-from accounts.services import set_user_authority, update_platform_user
+from accounts.services import (
+    change_own_password,
+    set_user_authority,
+    update_platform_user,
+)
 from audit.models import AuditAction, AuditEvent
 from gradings.assessment_services import (
     delete_candidate_assessment,
@@ -73,11 +77,11 @@ from gradings.outcome_services import (
     promote_candidate,
     propose_for_candidate,
 )
-from gradings.serializers import GradingSessionSerializer
 from gradings.services import (
     apply_candidate_update,
     register_candidate,
     transition_grading_session,
+    update_grading_session,
     withdraw_locked_candidate,
 )
 from gradings.testing import (
@@ -736,14 +740,14 @@ def test_session_details_edit_keeps_a_concurrent_cancellation() -> None:
     editing_copy = GradingSession.objects.get(pk=session.pk)
 
     def rename() -> object:
-        serializer = GradingSessionSerializer(
+        # What the session edit does (GradingSessionViewSet.perform_update).
+        return update_grading_session(
             editing_copy,
-            data={"title": "Renamed grading"},
-            partial=True,
-            context={"request": SimpleNamespace(user=editor)},
+            changes={"title": "Renamed grading"},
+            target_status=None,
+            reason="",
+            actor=editor,
         )
-        serializer.is_valid(raise_exception=True)
-        return serializer.save()
 
     cancelling, renaming = interleave(
         lambda: transition_grading_session(
@@ -926,7 +930,8 @@ def test_admin_edit_does_not_revert_a_password_change() -> None:
         "race-password-admin@example.com", role=User.Role.ADMINISTRATOR
     )
 
-    def change_own_password() -> object:
+    def choose_own_password() -> object:
+        # What the change-password endpoint does (ChangePasswordView).
         owner = User.objects.get(pk=account.pk)
         serializer = ChangePasswordSerializer(
             owner,
@@ -937,10 +942,13 @@ def test_admin_edit_does_not_revert_a_password_change() -> None:
             context={"request": SimpleNamespace(user=owner)},
         )
         serializer.is_valid(raise_exception=True)
-        return serializer.save()
+        return change_own_password(
+            owner,
+            password=serializer.validated_data["new_password"],
+        )
 
     changing, editing = interleave(
-        change_own_password,
+        choose_own_password,
         lambda: update_platform_user(
             stale_account, first_name="Renamed", actor=administrator
         ),

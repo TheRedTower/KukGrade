@@ -3,6 +3,7 @@ from __future__ import annotations
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from ranks.models import Rank
 from syllabus.models import (
     AGE_BAND_PROGRAMME,
     CORE_CATEGORIES,
@@ -95,3 +96,28 @@ class AgeBandSerializer(serializers.Serializer[str]):
 
     def get_programme_display(self, code: str) -> str:
         return AGE_BAND_PROGRAMME[code].label
+
+
+class EffectiveSyllabusQuerySerializer(serializers.Serializer):
+    """GET requirements/effective/: the rank and age band asked about."""
+
+    rank_code = serializers.CharField(
+        error_messages={
+            "required": "rank_code is required.",
+            "blank": "rank_code is required.",
+        },
+    )
+    age_band = serializers.ChoiceField(
+        choices=AgeBand.choices,
+        error_messages={
+            "required": "Choose an age group.",
+            "blank": "Choose an age group.",
+            "invalid_choice": "Choose an age group.",
+        },
+    )
+
+    def validate_rank_code(self, code: str) -> Rank:
+        rank = Rank.objects.filter(code=code, active=True).first()
+        if rank is None:
+            raise serializers.ValidationError("No active rank matches this code.")
+        return rank

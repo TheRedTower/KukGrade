@@ -120,6 +120,21 @@ def test_ledger_eligibility_uses_promotion_policy_and_updates_with_student_id() 
     assert "no longer the next active rank" in wrong_rank.json()[0]["reason"]
 
 
+def test_ledger_eligibility_needs_a_session_and_nothing_else() -> None:
+    client = auth_client("eligibility-asker@example.com")
+    url = "/api/gradings/outcomes/promotion-eligibility/"
+
+    for query in ({}, {"session": "x"}, {"session": "0"}):
+        response = client.get(url, query)
+        assert response.status_code == 400
+        assert response.json()["error"]["fields"]["session"] == [
+            "Choose a grading session.",
+        ]
+    undeclared = client.get(url, {"session": "1", "colour": "red"})
+    assert undeclared.status_code == 400
+    assert "colour" in undeclared.json()["error"]["fields"]
+
+
 def test_ledger_eligibility_reflects_a_recorded_promotion() -> None:
     built, _assessment = locked_completed_candidate()
     outcome = finalised_outcome(built)

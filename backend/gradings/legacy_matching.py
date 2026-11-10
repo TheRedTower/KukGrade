@@ -23,6 +23,7 @@ from difflib import SequenceMatcher
 from django.db import models
 
 from gradings.models import LegacyGradingRecord
+from kukgrade.search import apply_search
 from ranks.matching import RANK_TITLES, active_rank_lookup, rank_for_text
 from ranks.models import Rank
 from students.models import Student
@@ -244,3 +245,46 @@ def suggest_for_groups(
         ]
         scored.sort(key=lambda candidate: (-candidate.score, candidate.student.pk))
         group.candidates = scored[:_SHOWN]
+
+
+# How the people list narrows to the names a viewer has put aside for now.
+SET_ASIDE_CHOICES = ("exclude", "only")
+
+
+def people_groups(
+    records: models.QuerySet[LegacyGradingRecord],
+    *,
+    search_term: str = "",
+    suggestion: str = "",
+    set_aside: str = "",
+    aside: Iterable[str] = (),
+) -> list[PersonGroup]:
+    """The people a set of records is about: grouped by the name as written,
+    then narrowed - to the names put aside for now (`aside`) or all but them,
+    to the names a search finds, and to how clear their suggested students
+    are. A person is kept whole: one record a search finds keeps the group.
+
+    A value no group can match (an unknown suggestion, say) matches none, as
+    on every list. Suggestions are scored only when they narrow the list; the
+    people list scores the page it shows.
+    """
+    if set_aside and set_aside not in SET_ASIDE_CHOICES:
+        return []
+    if suggestion and suggestion not in Suggestion.values:
+        return []
+    groups = group_records(records.order_by("pk"))
+    if set_aside:
+        kept = set(aside)
+        groups = [g for g in groups if (g.key in kept) == (set_aside == "only")]
+    if search_term.strip():
+        found = set(
+            apply_search(records, search_term, ("source_name",)).values_list(
+                "pk",
+                flat=True,
+            ),
+        )
+        groups = [g for g in groups if any(r.pk in found for r in g.records)]
+    if suggestion:
+        suggest_for_groups(groups)
+        groups = [group for group in groups if group.suggestion == suggestion]
+    return groups

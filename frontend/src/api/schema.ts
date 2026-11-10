@@ -247,6 +247,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-imports/batches/{batch_pk}/rows/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The import's rows, a page at a time, in file order. */
+        get: operations["data_imports_batches_rows_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{batch_pk}/rows/{row_number}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Fix a roster row's values; every row is checked again. */
+        patch: operations["data_imports_batches_rows_partial_update"];
+        trace?: never;
+    };
+    "/api/data-imports/batches/{batch_pk}/rows/{row_number}/exclusion/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave a row out of the import, or bring it back. */
+        post: operations["data_imports_batches_rows_exclusion_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{batch_pk}/rows/leave-out-attention/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave out every roster row still needing attention, in one go. */
+        post: operations["data_imports_batches_rows_leave_out_attention_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/data-imports/batches/{id}/": {
         parameters: {
             query?: never;
@@ -342,74 +410,6 @@ export interface paths {
          *     would do. A roster's columns are matched with mapping/ instead.
          */
         post: operations["data_imports_batches_preview_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/rows/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description The import's rows, a page at a time, in file order. */
-        get: operations["data_imports_batches_rows_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/rows/{row_number}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** @description Fix a roster row's values; every row is checked again. */
-        patch: operations["data_imports_batches_rows_partial_update"];
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/rows/{row_number}/exclusion/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Leave a row out of the import, or bring it back. */
-        post: operations["data_imports_batches_rows_exclusion_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/rows/leave-out-attention/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Leave out every roster row still needing attention, in one go. */
-        post: operations["data_imports_batches_rows_leave_out_attention_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1371,7 +1371,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         get: operations["users_list"];
         put?: never;
@@ -1382,7 +1381,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         post: operations["users_create"];
         delete?: never;
@@ -1405,7 +1403,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         get: operations["users_retrieve"];
         put?: never;
@@ -1417,7 +1414,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         delete: operations["users_destroy"];
         options?: never;
@@ -1429,7 +1425,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         patch: operations["users_partial_update"];
         trace?: never;
@@ -1454,7 +1449,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         patch: operations["users_authority_partial_update"];
         trace?: never;
@@ -3606,6 +3600,127 @@ export interface operations {
             };
         };
     };
+    data_imports_batches_rows_list: {
+        parameters: {
+            query?: {
+                /** @description Only rows with (or without) a fix of the importer's. */
+                corrected?: boolean;
+                /** @description A roster's rows whose value for this field the file did not give and nobody typed in, so the whole-file value or KukGrade's default was used. */
+                filled?: "current_rank" | "status";
+                /** @description Only rows with this outcome. */
+                outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A historical import's rows that write a rank this way, held or tested for (any case). */
+                rank_text?: string;
+                /** @description A historical import's rows of these kinds. Comma-separated; one of AUXILIARY_NOTE, DID_NOT_ATTEND, GRADING_RESULT. */
+                record_kind?: string;
+                /** @description Any of the row's values. */
+                search?: string;
+                /** @description Only rows with (or without) issues: for a historical import, the records worth a look, left out or not. */
+                worth_a_look?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedImportRowList"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+                row_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedImportRowCorrectionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedImportRowCorrectionRequest"];
+                "multipart/form-data": components["schemas"]["PatchedImportRowCorrectionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_exclusion_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+                row_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRowExclusionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRowExclusionRequest"];
+                "multipart/form-data": components["schemas"]["ImportRowExclusionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_leave_out_attention_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
     data_imports_batches_retrieve: {
         parameters: {
             query?: never;
@@ -3723,127 +3838,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyImportPreview"];
-                };
-            };
-        };
-    };
-    data_imports_batches_rows_list: {
-        parameters: {
-            query?: {
-                /** @description Only rows with (or without) a fix of the importer's. */
-                corrected?: boolean;
-                /** @description A roster's rows whose value for this field the file did not give and nobody typed in, so the whole-file value or KukGrade's default was used. */
-                filled?: "current_rank" | "status";
-                /** @description Only rows with this outcome. */
-                outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-                /** @description A historical import's rows that write a rank this way, held or tested for (any case). */
-                rank_text?: string;
-                /** @description A historical import's rows of these kinds, comma-separated: GRADING_RESULT, AUXILIARY_NOTE, DID_NOT_ATTEND. */
-                record_kind?: string;
-                /** @description Matches any of the row's values. */
-                search?: string;
-                /** @description Only rows with (or without) issues. */
-                worth_a_look?: boolean;
-            };
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedImportRowList"];
-                };
-            };
-        };
-    };
-    data_imports_batches_rows_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-                row_number: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "multipart/form-data": components["schemas"]["PatchedImportRowCorrectionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedImportRowCorrectionRequest"];
-                "application/json": components["schemas"]["PatchedImportRowCorrectionRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportRow"];
-                };
-            };
-        };
-    };
-    data_imports_batches_rows_exclusion_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-                row_number: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportRowExclusionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportRowExclusionRequest"];
-                "application/json": components["schemas"]["ImportRowExclusionRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportRow"];
-                };
-            };
-        };
-    };
-    data_imports_batches_rows_leave_out_attention_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
         };
@@ -5353,7 +5347,13 @@ export interface operations {
     syllabus_requirements_effective_list: {
         parameters: {
             query: {
-                age_band: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
+                /**
+                 * @description * `AGE_8_AND_UNDER` - 8 and under
+                 *     * `AGE_9_TO_12` - 9-12
+                 *     * `AGE_13_TO_17` - 13-17
+                 *     * `AGE_18_AND_OVER` - 18+
+                 */
+                age_band: "AGE_8_AND_UNDER" | "AGE_9_TO_12" | "AGE_13_TO_17" | "AGE_18_AND_OVER";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */

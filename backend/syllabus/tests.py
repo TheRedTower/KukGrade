@@ -358,6 +358,12 @@ def test_effective_syllabus_requirement_api_rejects_invalid_parameters() -> None
     assert "age_band" in missing.json()["error"]["fields"]
     assert unknown_rank.status_code == 400
     assert bad_age_band.status_code == 400
+    undeclared = client.get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=BLUE_STRIPE&age_band={AgeBand.AGE_13_TO_17}&colour=red",
+    )
+    assert undeclared.status_code == 400
+    assert "colour" in undeclared.json()["error"]["fields"]
 
 
 def test_effective_syllabus_requirement_blue_stripe_regression() -> None:

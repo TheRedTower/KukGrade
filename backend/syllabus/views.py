@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import serializers
+from typing import Any
+
+from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
 
 from accounts.permissions import HasRequiredPermissions
-from ranks.models import Rank
+from kukgrade.filtering import read_query
+from kukgrade.viewsets import KukGradeViewSet
 from syllabus.models import AgeBand
 from syllabus.serializers import (
     AgeBandSerializer,
+    EffectiveSyllabusQuerySerializer,
     EffectiveSyllabusRequirementSerializer,
 )
 from syllabus.services import (
@@ -20,7 +22,7 @@ from syllabus.services import (
 )
 
 
-class AgeBandViewSet(GenericViewSet):
+class AgeBandViewSet(KukGradeViewSet[Any]):
     """The age bands in order, as reference data for every age-band control."""
 
     serializer_class = AgeBandSerializer
@@ -35,7 +37,7 @@ class AgeBandViewSet(GenericViewSet):
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
 
-class SyllabusRequirementViewSet(GenericViewSet):
+class SyllabusRequirementViewSet(KukGradeViewSet[Any]):
     """Requirements are read only as the cumulative `effective` view."""
 
     serializer_class = EffectiveSyllabusRequirementSerializer
@@ -45,12 +47,7 @@ class SyllabusRequirementViewSet(GenericViewSet):
     }
 
     @extend_schema(
-        parameters=[
-            OpenApiParameter("rank_code", str, required=True),
-            OpenApiParameter(
-                "age_band", str, required=True, enum=sorted(AgeBand.values)
-            ),
-        ],
+        parameters=[EffectiveSyllabusQuerySerializer],
         responses=EffectiveSyllabusRequirementSerializer(many=True),
     )
     @action(detail=False, methods=["get"])
@@ -61,27 +58,11 @@ class SyllabusRequirementViewSet(GenericViewSet):
         services.effective_syllabus_requirements` for the accumulation
         policy. Empty when no syllabus is recorded for the rank.
         """
-        rank_code = request.query_params.get("rank_code")
-        age_band = request.query_params.get("age_band")
-
-        errors: dict[str, list[str]] = {}
-        rank: Rank | None = None
-        if not rank_code:
-            errors["rank_code"] = ["rank_code is required."]
-        else:
-            rank = Rank.objects.filter(code=rank_code, active=True).first()
-            if rank is None:
-                errors["rank_code"] = ["No active rank matches this code."]
-        if age_band not in AgeBand.values:
-            errors["age_band"] = ["Choose an age group."]
-        if errors:
-            raise serializers.ValidationError(errors)
-
-        # No errors means rank_code resolved to a real rank and age_band was
-        # one of AgeBand.values, so neither can be None here.
-        assert rank is not None
-        assert age_band is not None
-        effective = effective_syllabus_requirements(rank=rank, age_band=age_band)
+        asked = read_query(request, EffectiveSyllabusQuerySerializer)
+        effective = effective_syllabus_requirements(
+            rank=asked["rank_code"],
+            age_band=asked["age_band"],
+        )
 
         # Paginated like every other list endpoint (see kukgrade/pagination.py)
         # even though one rank's cumulative content is small - one envelope

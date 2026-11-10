@@ -18,13 +18,13 @@ from gradings.read_models import (
     StudentGradingHistory,
     StudentRankTimeline,
 )
+from kukgrade.serializers import ModelSerializer
 from students import wksa_ids
 from students.models import PreviousWksaId, Student, StudentExtraInfo
-from students.services import create_student, update_student
 from syllabus.models import AgeBand
 
 
-class PromotionRankHistorySerializer(serializers.ModelSerializer[Promotion]):
+class PromotionRankHistorySerializer(ModelSerializer[Promotion]):
     from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
     to_rank_name = serializers.CharField(source="to_rank.name", read_only=True)
     session_title = serializers.CharField(
@@ -113,7 +113,7 @@ class CurrentGradingSerializer(serializers.Serializer):
     stage_display = serializers.CharField()
 
 
-class StudentListSerializer(serializers.ModelSerializer[Student]):
+class StudentListSerializer(ModelSerializer[Student]):
     """The list representation. Deliberately excludes date of birth.
 
     Date of birth is the most sensitive field held, on people who may be
@@ -186,21 +186,21 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
         return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]
 
 
-class PreviousWksaIdSerializer(serializers.ModelSerializer[PreviousWksaId]):
+class PreviousWksaIdSerializer(ModelSerializer[PreviousWksaId]):
     class Meta:
         model = PreviousWksaId
         fields = ("wksa_id", "replaced_at")
         read_only_fields = fields
 
 
-class StudentExtraInfoSerializer(serializers.ModelSerializer[StudentExtraInfo]):
+class StudentExtraInfoSerializer(ModelSerializer[StudentExtraInfo]):
     class Meta:
         model = StudentExtraInfo
         fields = ("label", "value")
         read_only_fields = fields
 
 
-class StudentSerializer(serializers.ModelSerializer[Student]):
+class StudentSerializer(ModelSerializer[Student]):
     """Detail, create and update.
 
     One serializer rather than three: create and update share every field,
@@ -262,11 +262,3 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
 
     def get_wksa_id_can_change(self, obj: Student) -> bool:
         return wksa_ids.can_change(obj.wksa_id)
-
-    def create(self, validated_data: dict[str, Any]) -> Student:
-        request = self.context["request"]
-        return create_student(actor=request.user, **validated_data)
-
-    def update(self, instance: Student, validated_data: dict[str, Any]) -> Student:
-        request = self.context["request"]
-        return update_student(instance, actor=request.user, **validated_data)

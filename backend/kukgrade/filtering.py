@@ -13,7 +13,13 @@ empty page rather than a 400 or being silently ignored.
 
 A parameter a list does not declare at all - a misspelling, or a filter that
 was removed - is refused with a 400 naming it. Ignoring it returned the
-unfiltered list, which looks exactly like a filter that worked.
+unfiltered list, which looks exactly like a filter that worked. The same
+holds for an action that declares its own (`@action(query_filters=...)`),
+and for the parameters an action reads with a serializer (`read_query`).
+
+A declared filter with no `apply` is one the view reads itself - grouping
+people, say, which is not a filter on a queryset - but it is declared,
+documented and refused the same way.
 """
 
 from __future__ import annotations
@@ -23,7 +29,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.request import Request
@@ -35,7 +42,8 @@ type Apply = Callable[[QuerySet[Any], str], QuerySet[Any]]
 @dataclass(frozen=True)
 class QueryFilter:
     name: str
-    apply: Apply
+    # None: the view reads the value itself (see the module docstring).
+    apply: Apply | None
     schema: dict[str, Any] = field(default_factory=lambda: {"type": "string"})
     description: str = ""
 
@@ -143,27 +151,63 @@ def on_date(name: str, lookup: str, description: str = "") -> QueryFilter:
     return QueryFilter(name, apply, {"type": "string", "format": "date"}, description)
 
 
-def boolean(
-    name: str,
-    lookup: str,
-    *,
-    invert: bool = False,
-    description: str = "",
-) -> QueryFilter:
-    """`true` or `false`; `invert` suits a lookup phrased the other way
-    round, such as `linked` over `student__isnull`."""
+def boolean(name: str, condition: Q, description: str = "") -> QueryFilter:
+    """`true` keeps the rows `condition` holds for, `false` the others."""
 
     def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
-        if value not in {"true", "false"}:
-            return queryset.none()
-        return queryset.filter(**{lookup: (value == "true") != invert})
+        if value == "true":
+            return queryset.filter(condition)
+        if value == "false":
+            return queryset.exclude(condition)
+        return queryset.none()
 
     return QueryFilter(name, apply, {"type": "boolean"}, description)
+
+
+def read_by_view(
+    name: str,
+    schema: dict[str, Any] | None = None,
+    description: str = "",
+) -> QueryFilter:
+    """A declared parameter the view reads itself rather than a queryset
+    filter: accepted and documented like the rest, applied by nobody here."""
+    return QueryFilter(name, None, schema or {"type": "string"}, description)
 
 
 # Pagination's own parameters (kukgrade/pagination.py) and DRF's format
 # override, which every list answers whatever its filters are.
 ACCEPTED_ON_EVERY_LIST = frozenset({"page", "page_size", "format"})
+
+_UNDECLARED = "This list cannot be filtered that way."
+
+
+def refuse_undeclared(params: Collection[str], declared: Collection[str]) -> None:
+    """Refuse, naming each, the parameters nobody declared."""
+    unknown = sorted(set(params) - set(declared) - ACCEPTED_ON_EVERY_LIST)
+    if unknown:
+        raise ValidationError({name: [_UNDECLARED] for name in unknown})
+
+
+def read_query(
+    request: Request,
+    serializer_class: type[serializers.Serializer[Any]],
+) -> dict[str, Any]:
+    """The parameters an action needs, read and checked by a serializer -
+    which the schema documents too (`extend_schema(parameters=[...])`) - and
+    nothing else: an undeclared one is refused as on every list."""
+    serializer = serializer_class(data=request.query_params)
+    refuse_undeclared(request.query_params, serializer.fields)
+    serializer.is_valid(raise_exception=True)
+    validated: dict[str, Any] = serializer.validated_data
+    return validated
+
+
+def declares_its_own(view: APIView) -> bool:
+    action = getattr(view, "action", None)
+    if action == "list":
+        return True
+    handler = getattr(view, action, None) if action else None
+    return "query_filters" in getattr(handler, "kwargs", {})
 
 
 class DeclaredQueryFilters(BaseFilterBackend):
@@ -175,22 +219,12 @@ class DeclaredQueryFilters(BaseFilterBackend):
         queryset: QuerySet[Any],
         view: APIView,
     ) -> QuerySet[Any]:
-        declared = getattr(view, "query_filters", ())
-        if getattr(view, "action", None) == "list":
-            known = {
-                query_filter.name for query_filter in declared
-            } | ACCEPTED_ON_EVERY_LIST
-            unknown = sorted(set(request.query_params) - known)
-            if unknown:
-                raise ValidationError(
-                    {
-                        name: ["This list cannot be filtered that way."]
-                        for name in unknown
-                    },
-                )
+        declared: Sequence[QueryFilter] = getattr(view, "query_filters", ())
+        if declares_its_own(view):
+            refuse_undeclared(request.query_params, [f.name for f in declared])
         for query_filter in declared:
             value = request.query_params.get(query_filter.name)
-            if value:
+            if value and query_filter.apply is not None:
                 queryset = query_filter.apply(queryset, value)
         return queryset
 

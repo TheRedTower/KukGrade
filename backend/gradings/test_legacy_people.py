@@ -374,7 +374,8 @@ def test_people_filter_by_suggestion_and_count_what_matches() -> None:
         response = client.get(PEOPLE, {"suggestion": kind})
         assert response.json()["count"] == 1
         assert results(response)[0]["source_name"] == expected
-    assert client.get(PEOPLE, {"suggestion": "maybe"}).status_code == 400
+    # An unknown choice matches nobody, as on every list (docs/api.md).
+    assert results(client.get(PEOPLE, {"suggestion": "maybe"})) == []
 
 
 def test_people_search_by_part_of_the_name_as_written() -> None:
@@ -418,7 +419,7 @@ def test_people_can_leave_out_or_show_only_the_names_put_aside() -> None:
 
     assert [person["source_name"] for person in kept] == ["Nobody Known"]
     assert sorted(person["source_name"] for person in only) == ["Theo", "Zac W"]
-    assert client.get(PEOPLE, {"set_aside": "maybe"}).status_code == 400
+    assert results(client.get(PEOPLE, {"set_aside": "maybe"})) == []
 
 
 def test_names_put_aside_are_each_persons_own_and_can_be_put_back() -> None:

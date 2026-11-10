@@ -175,6 +175,12 @@ serializers and the committed frontend types match the schema.
   squeeze a column to one letter wide and split ordinary words.
   A date never splits: the formatters in `dates.ts` (`formatRecentTime` for "Today 14:30") join its
   parts with no-break spaces (it may break only after a comma), so a screen shows a date only through them.
+- **A view calls the service; a serializer never saves.** A viewset is a `KukGradeViewSet`
+  and its serializers are `kukgrade.serializers.ModelSerializer`; `perform_create` and
+  `perform_update` hand the checked data to the app's service, a delete names its service
+  (`ServiceDestroyMixin`), a bulk action goes through `run_bulk`, and an action's own
+  query parameters are declared (`query_filters=` on the action, or a query serializer
+  read with `read_query`), never parsed by hand. `kukgrade/test_view_machinery.py` holds it.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

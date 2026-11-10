@@ -5,7 +5,7 @@ from typing import Any
 from rest_framework import serializers
 
 from audit.models import AuditEntity, AuditEvent
-from kukgrade.serializers import ChoiceSerializer
+from kukgrade.serializers import ChoiceSerializer, ModelSerializer
 
 
 def student_id_of(event: AuditEvent) -> int | None:
@@ -21,7 +21,7 @@ def student_id_of(event: AuditEvent) -> int | None:
         return None
 
 
-class AuditEventSerializer(serializers.ModelSerializer):
+class AuditEventSerializer(ModelSerializer):
     action_display = serializers.CharField(source="get_action_display", read_only=True)
     entity_type_display = serializers.CharField(
         source="get_entity_type_display",

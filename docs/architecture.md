@@ -58,8 +58,12 @@ and never hard-codes a rule.
 
 **Services own every state change.** Each app has a `services.py` that validates a
 change, writes it in a transaction, and records its audit event in that same
-transaction. Views and serializers call the services, so a change is validated and
-audited the same way every time. The Django admin does not write grading or student
+transaction. The view calls the service: a serializer reads and checks the request
+and never saves (`kukgrade.serializers.ModelSerializer` refuses to), and the view hands
+what it checked to the service with the acting user, so a change is validated and
+audited the same way every time. Every viewset is a `KukGradeViewSet`
+(`kukgrade/viewsets.py`): no PUT, so an edit is a PATCH of what changes; a delete goes
+through the app's own delete service; and every bulk action has one shape (`run_bulk`). The Django admin does not write grading or student
 data at all: it shows it, and recovers accounts.
 
 **Models refuse the worst mistakes themselves.** Deletion rules, and the immutability of
@@ -73,7 +77,9 @@ refuses an invalid status; a registration is always the same student's, and a fi
 never changes.
 
 **Permissions fail closed.** Every API viewset declares a `permission_map` per action;
-an action that is not declared is denied. Django permissions are the authority; the
+an action that is not declared is denied. The two gates applied to every request (a required password
+change, and the demo's closed changes) are decided on the resolved view's name, never
+its path (`kukgrade/middleware.py`). Django permissions are the authority; the
 `role` field is only a label that decides group membership.
 
 **History is reproducible.** Generating an assessment copies every requirement's text

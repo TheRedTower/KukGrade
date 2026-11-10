@@ -22,6 +22,7 @@ from data_imports.services import (
     roster_cells,
     roster_file_values,
 )
+from kukgrade.serializers import ModelSerializer
 
 
 class ImportRowCountsSerializer(serializers.Serializer):
@@ -43,7 +44,7 @@ class ImportFieldSerializer(serializers.Serializer):
     )
 
 
-class ImportBatchSerializer(serializers.ModelSerializer):
+class ImportBatchSerializer(ModelSerializer):
     """An import: what was uploaded, where it is up to, and its rows' counts."""
 
     kind_display = serializers.CharField(source="get_kind_display", read_only=True)
@@ -201,7 +202,7 @@ class ImportBatchSerializer(serializers.ModelSerializer):
         return {name: getattr(batch, f"rows_{name}") for name in ROW_COUNT_NAMES}
 
 
-class ImportRowSerializer(serializers.ModelSerializer):
+class ImportRowSerializer(ModelSerializer):
     """One stored row and what the last check made of it."""
 
     outcome_display = serializers.CharField(
@@ -317,7 +318,7 @@ class ImportRowExclusionSerializer(serializers.Serializer):
     )
 
 
-class ImportBatchCreatedSerializer(serializers.ModelSerializer):
+class ImportBatchCreatedSerializer(ModelSerializer):
     """The new import's id, and whether this exact file was imported before -
     the one thing only the upload knows. Everything else, its headers and
     suggested matches included, is the import's own (batches/{id}/)."""

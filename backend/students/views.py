@@ -6,13 +6,12 @@ from typing import Any, cast
 from django.contrib.postgres.aggregates import StringAgg
 from django.db.models import OuterRef, Q, QuerySet, Subquery, TextField
 from django.utils import timezone
-from rest_framework import mixins, status
+from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
+from rest_framework.serializers import BaseSerializer
 
-from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
 from gradings.models import GradingCandidate, GradingSession
 from gradings.read_models import (
@@ -28,6 +27,7 @@ from kukgrade.filtering import (
     exact,
 )
 from kukgrade.search import ExactOnly, full_name_of, label_of, search, squashed
+from kukgrade.viewsets import KukGradeViewSet, ServiceDestroyMixin
 from students.models import PreviousWksaId, Student
 from students.serializers import (
     StudentGradingHistorySerializer,
@@ -35,7 +35,7 @@ from students.serializers import (
     StudentRankHistorySerializer,
     StudentSerializer,
 )
-from students.services import delete_student
+from students.services import create_student, delete_student, update_student
 from syllabus.age import with_age_band_on
 from syllabus.models import AgeBand
 
@@ -109,18 +109,27 @@ class StudentViewSet(
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
-    GenericViewSet[Student],
+    ServiceDestroyMixin,
+    KukGradeViewSet[Student],
 ):
-    # No PUT: partial_update covers every real edit and a full-replace
-    # endpoint has no client that needs it. Excluding 'put' here, rather
-    # than just omitting an UpdateModelMixin's put support, is what
-    # actually returns 405 for it - the router still binds it to any mixin
-    # method that exists, and http_method_names is what dispatch checks
-    # before that binding is used. DELETE is the administrator-only
-    # delete (students.services.delete_student), which keeps a student with
+    # DELETE is the administrator-only delete, which keeps a student with
     # history and erases only one with none - see
     # accounts.groups._DATA_CLEANUP_PERMISSIONS.
-    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    delete_service = staticmethod(delete_student)
+
+    def perform_create(self, serializer: BaseSerializer[Student]) -> None:
+        serializer.instance = create_student(
+            actor=self.actor,
+            **serializer.validated_data,
+        )
+
+    def perform_update(self, serializer: BaseSerializer[Student]) -> None:
+        serializer.instance = update_student(
+            cast(Student, serializer.instance),
+            actor=self.actor,
+            **serializer.validated_data,
+        )
+
     permission_classes = [HasRequiredPermissions]
     serializer_class = StudentSerializer
     permission_map = {
@@ -213,11 +222,6 @@ class StudentViewSet(
             if grading_date is not None:
                 return grading_date
         return timezone.localdate()
-
-    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
-        instance = self.get_object()
-        delete_student(instance, cast(User, request.user))
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get"], url_path="rank-history")
     def rank_history(

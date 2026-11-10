@@ -428,6 +428,195 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportBatchCreated'
           description: ''
+  /api/data-imports/batches/{batch_pk}/rows/:
+    get:
+      operationId: data_imports_batches_rows_list
+      description: The import's rows, a page at a time, in file order.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - name: corrected
+        required: false
+        in: query
+        description: Only rows with (or without) a fix of the importer's.
+        schema:
+          type: boolean
+      - name: filled
+        required: false
+        in: query
+        description: A roster's rows whose value for this field the file did not give
+          and nobody typed in, so the whole-file value or KukGrade's default was used.
+        schema:
+          type: string
+          enum:
+          - current_rank
+          - status
+      - name: outcome
+        required: false
+        in: query
+        description: Only rows with this outcome.
+        schema:
+          type: string
+          enum:
+          - EXCLUDED
+          - READY
+          - REVIEW_REQUIRED
+          - SKIP_EXISTING
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: rank_text
+        required: false
+        in: query
+        description: A historical import's rows that write a rank this way, held or
+          tested for (any case).
+        schema:
+          type: string
+      - name: record_kind
+        required: false
+        in: query
+        description: A historical import's rows of these kinds. Comma-separated; one
+          of AUXILIARY_NOTE, DID_NOT_ATTEND, GRADING_RESULT.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: Any of the row's values.
+        schema:
+          type: string
+      - name: worth_a_look
+        required: false
+        in: query
+        description: 'Only rows with (or without) issues: for a historical import,
+          the records worth a look, left out or not.'
+        schema:
+          type: boolean
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedImportRowList'
+          description: ''
+  /api/data-imports/batches/{batch_pk}/rows/{row_number}/:
+    patch:
+      operationId: data_imports_batches_rows_partial_update
+      description: Fix a roster row's values; every row is checked again.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: string
+          pattern: ^[0-9]+$
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
+          description: ''
+  /api/data-imports/batches/{batch_pk}/rows/{row_number}/exclusion/:
+    post:
+      operationId: data_imports_batches_rows_exclusion_create
+      description: Leave a row out of the import, or bring it back.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: string
+          pattern: ^[0-9]+$
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
+          description: ''
+  /api/data-imports/batches/{batch_pk}/rows/leave-out-attention/:
+    post:
+      operationId: data_imports_batches_rows_leave_out_attention_create
+      description: Leave out every roster row still needing attention, in one go.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
   /api/data-imports/batches/{id}/:
     get:
       operationId: data_imports_batches_retrieve
@@ -569,187 +758,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LegacyImportPreview'
-          description: ''
-  /api/data-imports/batches/{id}/rows/:
-    get:
-      operationId: data_imports_batches_rows_list
-      description: The import's rows, a page at a time, in file order.
-      parameters:
-      - in: query
-        name: corrected
-        schema:
-          type: boolean
-        description: Only rows with (or without) a fix of the importer's.
-      - in: query
-        name: filled
-        schema:
-          type: string
-          enum:
-          - current_rank
-          - status
-        description: A roster's rows whose value for this field the file did not give
-          and nobody typed in, so the whole-file value or KukGrade's default was used.
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      - in: query
-        name: outcome
-        schema:
-          type: string
-          enum:
-          - EXCLUDED
-          - READY
-          - REVIEW_REQUIRED
-          - SKIP_EXISTING
-        description: Only rows with this outcome.
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      - in: query
-        name: rank_text
-        schema:
-          type: string
-        description: A historical import's rows that write a rank this way, held or
-          tested for (any case).
-      - in: query
-        name: record_kind
-        schema:
-          type: string
-        description: 'A historical import''s rows of these kinds, comma-separated:
-          GRADING_RESULT, AUXILIARY_NOTE, DID_NOT_ATTEND.'
-      - in: query
-        name: search
-        schema:
-          type: string
-        description: Matches any of the row's values.
-      - in: query
-        name: worth_a_look
-        schema:
-          type: boolean
-        description: Only rows with (or without) issues.
-      tags:
-      - data-imports
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedImportRowList'
-          description: ''
-  /api/data-imports/batches/{id}/rows/{row_number}/:
-    patch:
-      operationId: data_imports_batches_rows_partial_update
-      description: Fix a roster row's values; every row is checked again.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      - in: path
-        name: row_number
-        schema:
-          type: string
-          pattern: ^[0-9]+$
-        required: true
-      tags:
-      - data-imports
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportRow'
-          description: ''
-  /api/data-imports/batches/{id}/rows/{row_number}/exclusion/:
-    post:
-      operationId: data_imports_batches_rows_exclusion_create
-      description: Leave a row out of the import, or bring it back.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      - in: path
-        name: row_number
-        schema:
-          type: string
-          pattern: ^[0-9]+$
-        required: true
-      tags:
-      - data-imports
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ImportRowExclusionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ImportRowExclusionRequest'
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImportRowExclusionRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportRow'
-          description: ''
-  /api/data-imports/batches/{id}/rows/leave-out-attention/:
-    post:
-      operationId: data_imports_batches_rows_leave_out_attention_create
-      description: Leave out every roster row still needing attention, in one go.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      tags:
-      - data-imports
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportBatch'
           description: ''
   /api/data-imports/batches/{id}/sheet/:
     post:
@@ -1666,16 +1674,18 @@ paths:
         Only the names on the page are scored for suggested students, unless
         the list is filtered by how clear those are, which needs them all.
       parameters:
-      - in: query
-        name: batch
+      - name: batch
+        required: false
+        in: query
+        description: Only records from this import.
         schema:
           type: integer
-        description: Only records from this import.
-      - in: query
-        name: linked
+      - name: linked
+        required: false
+        in: query
+        description: Only people whose records are (or are not) linked.
         schema:
           type: boolean
-        description: Only people whose records are (or are not) linked.
       - name: page
         required: false
         in: query
@@ -1688,28 +1698,31 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
-      - in: query
-        name: search
+      - name: search
+        required: false
+        in: query
+        description: Part of the name as written.
         schema:
           type: string
-        description: Part of the name as written.
-      - in: query
-        name: set_aside
+      - name: set_aside
+        required: false
+        in: query
+        description: Only, or all but, the names the viewer has put aside for now.
         schema:
           type: string
           enum:
           - exclude
           - only
-        description: Only, or all but, the names the viewer has put aside for now.
-      - in: query
-        name: suggestion
+      - name: suggestion
+        required: false
+        in: query
+        description: Only people whose suggested students are this clear.
         schema:
           type: string
           enum:
           - choose
           - clear
           - none
-        description: Only people whose suggested students are this clear.
       tags:
       - gradings
       security:
@@ -1728,19 +1741,21 @@ paths:
         How many names still wait, by how clear their suggestions are, and
         how many have every record linked.
       parameters:
-      - in: query
-        name: batch
+      - name: batch
+        required: false
+        in: query
+        description: Only records from this import.
         schema:
           type: integer
-        description: Only records from this import.
-      - in: query
-        name: set_aside
+      - name: set_aside
+        required: false
+        in: query
+        description: Only, or all but, the names the viewer has put aside for now.
         schema:
           type: string
           enum:
           - exclude
           - only
-        description: Only, or all but, the names the viewer has put aside for now.
       tags:
       - gradings
       security:
@@ -1946,6 +1961,7 @@ paths:
         name: session
         schema:
           type: integer
+          minimum: 1
         required: true
       tags:
       - gradings
@@ -1969,6 +1985,7 @@ paths:
         name: session
         schema:
           type: integer
+          minimum: 1
         required: true
       tags:
       - gradings
@@ -2611,12 +2628,18 @@ paths:
       - in: query
         name: age_band
         schema:
-          type: string
           enum:
-          - AGE_13_TO_17
-          - AGE_18_AND_OVER
           - AGE_8_AND_UNDER
           - AGE_9_TO_12
+          - AGE_13_TO_17
+          - AGE_18_AND_OVER
+          type: string
+          minLength: 1
+        description: |-
+          * `AGE_8_AND_UNDER` - 8 and under
+          * `AGE_9_TO_12` - 9-12
+          * `AGE_13_TO_17` - 13-17
+          * `AGE_18_AND_OVER` - 18+
         required: true
       - name: page
         required: false
@@ -2634,6 +2657,7 @@ paths:
         name: rank_code
         schema:
           type: string
+          minLength: 1
         required: true
       tags:
       - syllabus
@@ -2656,7 +2680,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - name: is_active
         required: false
@@ -2711,7 +2734,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       tags:
       - users
       requestBody:
@@ -2745,7 +2767,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2774,7 +2795,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2814,7 +2834,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2840,7 +2859,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id

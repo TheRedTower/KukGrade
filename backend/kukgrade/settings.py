@@ -347,7 +347,7 @@ REST_FRAMEWORK = {
     # Nth-from-last X-Forwarded-For entry (see PROXY_HOPS). Zero ignores
     # X-Forwarded-For altogether.
     "NUM_PROXIES": PROXY_HOPS,
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "kukgrade.schema.KukGradeAutoSchema",
 }
 
 # The frontend generates its TypeScript types from this schema rather than

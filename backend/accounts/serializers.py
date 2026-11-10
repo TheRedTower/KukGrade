@@ -10,7 +10,6 @@ from rest_framework import serializers
 
 from accounts.models import User
 from accounts.permissions import (
-    AUTHORITY_PERMISSIONS,
     DELETE_ANY_SESSION_PERMISSION,
     FINAL_GRADING_DECISION_PERMISSION,
     GRADING_AUDIT_LOG_PERMISSION,
@@ -23,11 +22,9 @@ from accounts.permissions import (
 from accounts.services import (
     DELETED_ACCOUNT_EMAIL_MESSAGE,
     can_manage,
-    change_own_password,
     email_holder,
-    set_user_authority,
-    update_platform_user,
 )
+from kukgrade.serializers import ModelSerializer
 
 security_logger = logging.getLogger("kukgrade.security")
 
@@ -66,7 +63,7 @@ class AuthorityFields(serializers.Serializer):
     can_view_grading_audit_log = HasPermission(GRADING_AUDIT_LOG_PERMISSION)
 
 
-class UserSerializer(AuthorityFields, serializers.ModelSerializer):
+class UserSerializer(AuthorityFields, ModelSerializer):
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     # What the signed-in user may do beyond ordinary grading, from the exact
@@ -129,10 +126,6 @@ class SelfProfileSerializer(UserSerializer):
             if field not in {"first_name", "last_name"}
         )
 
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        return update_platform_user(instance, actor=request.user, **validated_data)
-
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(write_only=True)
@@ -171,7 +164,7 @@ class PermissionPrimedListSerializer(serializers.ListSerializer[User]):
         return super().to_representation(users)
 
 
-class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
+class UserManagementSerializer(AuthorityFields, ModelSerializer):
     """List, retrieve, create and update for the administrator-facing API.
 
     Deliberately separate from UserSerializer, which is a fixed read-only
@@ -251,10 +244,6 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             raise serializers.ValidationError(DELETED_ACCOUNT_EMAIL_MESSAGE)
         raise serializers.ValidationError("An account with this email already exists.")
 
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        return update_platform_user(instance, actor=request.user, **validated_data)
-
 
 class UserAuthoritySerializer(serializers.Serializer):
     """PATCH /api/users/{id}/authority/.
@@ -267,14 +256,6 @@ class UserAuthoritySerializer(serializers.Serializer):
     can_promote_student = serializers.BooleanField(required=False)
     can_override_locked_session = serializers.BooleanField(required=False)
     can_view_grading_audit_log = serializers.BooleanField(required=False)
-
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        return set_user_authority(
-            instance,
-            actor=request.user,
-            **{name: validated_data.get(name) for name in AUTHORITY_PERMISSIONS},
-        )
 
 
 class IssuedTemporaryPasswordSerializer(UserManagementSerializer):
@@ -326,9 +307,6 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate_new_password(self, value: str) -> str:
         return _validated_password(value, self.instance)
-
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        return change_own_password(instance, password=validated_data["new_password"])
 
 
 class SetupStatusSerializer(serializers.Serializer):

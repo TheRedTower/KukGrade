@@ -13,7 +13,7 @@ This page covers the conventions the schema does not.
 
 Sessions and CSRF, as in any Django site. Sign in with `POST /api/auth/login/`
 (email and password); the response sets the `sessionid` and `csrftoken` cookies. Send
-the `X-CSRFToken` header on every `POST`, `PATCH` and `DELETE`. There are no API keys
+the `X-CSRFToken` header on every `POST`, `PUT`, `PATCH` and `DELETE`. There are no API keys
 or tokens, and students have no accounts.
 
 Sign-in and password change are rate-limited. A request from an account that must change
@@ -51,7 +51,13 @@ The default page size is 50; `?page_size=` goes up to 200. A page out of range i
 **Filters** follow one rule on every list. A blank or absent parameter does not filter.
 A value that cannot match (a non-numeric id, an unknown choice, a malformed date) returns
 an empty page. A parameter the list does not declare is refused with a `400` naming it,
-so a misspelt filter never silently returns everything.
+so a misspelt filter never silently returns everything. The same holds for an action that reads
+parameters, such as `promotion-eligibility/?session=`: a required one that is missing or
+malformed, or one it does not declare, is a `400` naming it.
+
+**Edits** are a `PATCH` of what changes; nothing is replaced whole, so `PUT` answers
+`405`, except a Master's staged decision (`outcomes/<id>/staged-decision/`), a draft
+kept whole.
 
 **Bulk endpoints** (register, generate, start, update status, promote) process each row
 independently. The response lists what succeeded and an `errors` map keyed by row index

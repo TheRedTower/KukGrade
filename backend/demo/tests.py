@@ -155,6 +155,10 @@ def test_resets_fall_on_whole_multiples_of_the_interval(
         ("patch", "/api/users/00000000-0000-0000-0000-000000000000/authority/"),
         ("post", "/api/users/00000000-0000-0000-0000-000000000000/set-password/"),
         ("post", "/api/data-imports/batches/"),
+        # Its rows are their own viewset (import-batch-row), closed the same way.
+        ("patch", "/api/data-imports/batches/1/rows/2/"),
+        ("post", "/api/data-imports/batches/1/rows/2/exclusion/"),
+        ("post", "/api/data-imports/batches/1/rows/leave-out-attention/"),
     ],
 )
 def test_changes_that_would_affect_other_visitors_are_closed(

@@ -1812,13 +1812,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
+              $ref: '#/components/schemas/CandidateOutcomeFinaliseRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
+              $ref: '#/components/schemas/CandidateOutcomeFinaliseRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
+              $ref: '#/components/schemas/CandidateOutcomeFinaliseRequest'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -3907,6 +3908,19 @@ components:
       - proposed_outcome
       - proposed_outcome_display
       - status
+    CandidateOutcomeFinaliseRequest:
+      type: object
+      description: 'The final decision. It is always given whole: final_outcome is
+        required.'
+      properties:
+        final_outcome:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        decision_notes:
+          type: string
+        conditional_requirements:
+          type: string
+      required:
+      - final_outcome
     CandidateOutcomeOutcomeEnum:
       enum:
       - PASS
@@ -4781,9 +4795,9 @@ components:
     ImportBatchCreated:
       type: object
       description: |-
-        The new batch's id, plus one-shot creation-response extras: a
-        duplicate-hash warning and the file's own headers, so the frontend can
-        build its mapping step without a second request. Not persisted state.
+        The new import's id, and whether this exact file was imported before -
+        the one thing only the upload knows. Everything else, its headers and
+        suggested matches included, is the import's own (batches/{id}/).
       properties:
         id:
           type: integer
@@ -4791,21 +4805,9 @@ components:
         already_imported_warning:
           type: boolean
           readOnly: true
-        detected_headers:
-          type: array
-          items:
-            type: string
-          readOnly: true
-        suggested_mapping:
-          type: object
-          additionalProperties:
-            type: string
-          readOnly: true
       required:
       - already_imported_warning
-      - detected_headers
       - id
-      - suggested_mapping
     ImportBatchStatusEnum:
       enum:
       - UPLOADED
@@ -5851,15 +5853,6 @@ components:
         status:
           $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
         notes:
-          type: string
-    PatchedCandidateOutcomeFinaliseRequest:
-      type: object
-      properties:
-        final_outcome:
-          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
-        decision_notes:
-          type: string
-        conditional_requirements:
           type: string
     PatchedGradingCandidateRequest:
       type: object

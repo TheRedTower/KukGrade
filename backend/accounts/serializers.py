@@ -16,6 +16,7 @@ from accounts.permissions import (
     GRADING_AUDIT_LOG_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
+    USER_ADMINISTRATION_PERMISSION,
     can_view_audit_log,
     prime_permission_cache,
 )
@@ -71,7 +72,7 @@ class UserSerializer(AuthorityFields, serializers.ModelSerializer):
     # What the signed-in user may do beyond ordinary grading, from the exact
     # permission each action checks - so the UI offers a control only when
     # the server will accept it, and never decides that from role.
-    can_manage_users = HasPermission("accounts.view_user")
+    can_manage_users = HasPermission(USER_ADMINISTRATION_PERMISSION)
     can_import_data = HasPermission("data_imports.add_importbatch")
     can_reconcile_imported_history = HasPermission(
         "gradings.can_reconcile_imported_history",

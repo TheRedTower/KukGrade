@@ -177,8 +177,6 @@ describe("Choosing the file", () => {
   const created: CreateDataImportBatchResponse = {
     id: 7,
     already_imported_warning: true,
-    detected_headers: [],
-    suggested_mapping: {},
   };
 
   function xlsx(name = "spring-roster.xlsx", size = 1000) {

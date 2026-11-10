@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 from django.db import models
 
+from accounts.permissions import USER_ADMINISTRATION_PERMISSION
 from kukgrade.kept import KeptModel, KeptQuerySet
 from kukgrade.modelchecks import clean_without_database_checks
 
@@ -113,7 +114,7 @@ USER_MANAGEMENT_ACTIONS: tuple[str, ...] = (
 def hidden_actions(user: User) -> tuple[str, ...]:
     """The actions `user` may not read: user management, unless they may
     open the Users API themselves (see USER_MANAGEMENT_ACTIONS)."""
-    if user.has_perm("accounts.view_user"):
+    if user.has_perm(USER_ADMINISTRATION_PERMISSION):
         return ()
     return USER_MANAGEMENT_ACTIONS
 

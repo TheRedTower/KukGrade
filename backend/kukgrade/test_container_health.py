@@ -27,7 +27,7 @@ from kukgrade.container_health import _database_reachable, _host, _NoRedirects, 
 def test_health_check_uses_first_allowed_host(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "kukgrade.container_health.settings.ALLOWED_HOSTS",
-        ["www.kukgrade.co.uk", "localhost"],
+        ["www.kukgrade.example.com", "localhost"],
     )
     monkeypatch.setattr("kukgrade.container_health.settings.SERVES_TLS", False)
     monkeypatch.setattr("kukgrade.container_health.settings.PORT", 6942)
@@ -42,7 +42,7 @@ def test_health_check_uses_first_allowed_host(monkeypatch: pytest.MonkeyPatch) -
 
     request = opener.open.call_args.args[0]
     assert request.full_url == "http://127.0.0.1:6942/api/health/"
-    assert request.get_header("Host") == "www.kukgrade.co.uk"
+    assert request.get_header("Host") == "www.kukgrade.example.com"
     assert request.get_header("X-forwarded-proto") == "https"
     assert opener.open.call_args.kwargs == {"timeout": 3}
     assert build.call_args.args == (_NoRedirects,)
@@ -52,7 +52,7 @@ def test_health_check_uses_first_allowed_host(monkeypatch: pytest.MonkeyPatch) -
     ("allowed", "host"),
     [
         (["localhost", "127.0.0.1"], "localhost"),
-        ([".kukgrade.co.uk"], "kukgrade.co.uk"),
+        ([".kukgrade.example.com"], "kukgrade.example.com"),
         (["*"], "localhost"),
         ([], "localhost"),
     ],

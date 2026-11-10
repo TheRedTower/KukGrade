@@ -660,7 +660,7 @@ export async function discardStagedDecision(outcomeId: number): Promise<void> {
 
 export async function finaliseCandidateOutcome(
   outcomeId: number,
-  data: Schemas["PatchedCandidateOutcomeFinaliseRequest"],
+  data: Schemas["CandidateOutcomeFinaliseRequest"],
 ): Promise<CandidateOutcome> {
   return apiRequest<CandidateOutcome>(
     `/api/gradings/outcomes/${outcomeId}/finalise/`,

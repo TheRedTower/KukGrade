@@ -42,7 +42,6 @@ from data_imports.mappings import (
     STUDENT_FIELD_LABELS,
     STUDENT_TARGET_FIELDS,
     STUDENT_WHOLE_FILE_FIELDS,
-    suggest_column_mapping,
 )
 from data_imports.models import (
     COMMITTED_ROWS_KEPT_FOR,
@@ -112,8 +111,6 @@ class ImportStep(models.TextChoices):
 class CreateImportBatchResult:
     batch: ImportBatch
     already_imported_warning: bool
-    detected_headers: list[str]
-    suggested_mapping: dict[str, str]
 
 
 def expire_stale_import_batches(
@@ -279,12 +276,6 @@ def _create_import_batch(
     return CreateImportBatchResult(
         batch=batch,
         already_imported_warning=already_imported_warning,
-        detected_headers=detected_headers,
-        suggested_mapping=(
-            suggest_column_mapping(detected_headers)
-            if kind == ImportBatch.Kind.STUDENT_ROSTER
-            else {}
-        ),
     )
 
 

@@ -167,8 +167,9 @@ def test_create_import_batch_accepts_valid_xlsx_and_computes_hash() -> None:
     assert len(result.batch.sha256) == 64
     assert result.batch.uploaded_by == admin
     assert result.already_imported_warning is False
-    assert result.detected_headers == list(STANDARD_STUDENT_HEADERS.values())
-    assert result.suggested_mapping == STANDARD_MAPPING
+    assert result.batch.configuration.detected_headers == list(
+        STANDARD_STUDENT_HEADERS.values(),
+    )
 
 
 def test_create_import_batch_rejects_csv_for_legacy_gradings_kind() -> None:
@@ -963,8 +964,11 @@ def test_admin_completes_the_full_upload_match_commit_flow_via_the_api() -> None
     assert create_response.status_code == 201
     created = create_response.json()
     batch_id = created["id"]
-    assert created["detected_headers"] == list(STANDARD_STUDENT_HEADERS.values())
-    assert created["suggested_mapping"] == STANDARD_MAPPING
+    # The upload answers only what it alone knows; the rest is the import's.
+    assert set(created) == {"id", "already_imported_warning"}
+    served = client.get(f"/api/data-imports/batches/{batch_id}/").json()
+    assert served["detected_headers"] == list(STANDARD_STUDENT_HEADERS.values())
+    assert served["suggested_mapping"] == STANDARD_MAPPING
 
     mapping_response = client.post(
         f"/api/data-imports/batches/{batch_id}/mapping/",

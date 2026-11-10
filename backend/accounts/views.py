@@ -19,7 +19,10 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
-from accounts.permissions import HasRequiredPermissions
+from accounts.permissions import (
+    USER_ADMINISTRATION_PERMISSION,
+    HasRequiredPermissions,
+)
 from accounts.serializers import (
     ChangePasswordSerializer,
     IssuedTemporaryPasswordSerializer,
@@ -162,8 +165,8 @@ class UserViewSet(
     permission_classes = [HasRequiredPermissions]
     serializer_class = UserManagementSerializer
     permission_map = {
-        "list": ("accounts.view_user",),
-        "retrieve": ("accounts.view_user",),
+        "list": (USER_ADMINISTRATION_PERMISSION,),
+        "retrieve": (USER_ADMINISTRATION_PERMISSION,),
         "create": ("accounts.add_user",),
         "partial_update": ("accounts.change_user",),
         "destroy": ("accounts.delete_user",),

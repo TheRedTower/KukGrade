@@ -23,6 +23,7 @@ from data_imports.testing import (
 )
 from data_imports.tests import admin_user, instructor_user, rank
 from gradings.models import LegacyGradingRecord, LegacyOutcome, LegacyRecordKind
+from ranks.models import Rank
 
 pytestmark = pytest.mark.django_db
 
@@ -151,6 +152,31 @@ def test_preview_counts_unresolved_ranks_until_a_mapping_is_supplied() -> None:
         rank_mappings={"Yellow Belt": yellow.code},
     )
     assert mapped.unresolved_current_rank == 0
+
+
+def test_every_preview_judges_each_record_against_the_ranks_as_they_are_now() -> None:
+    # The rank choices are saved once, but each preview reads them against
+    # the active ranks again: a rank switched off since is "not matched",
+    # on the row and in the counts alike, as the commit would find it.
+    content = standard_workbook(
+        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
+    )
+    batch = legacy_batch(content)
+    yellow = rank("YELLOW")
+    not_matched = "Rank 'Yellow Belt' is not matched to a KukGrade rank yet."
+
+    chosen = preview_legacy_grading_import(
+        batch,
+        rank_mappings={"Yellow Belt": yellow.code},
+    )
+    assert chosen.unresolved_current_rank == 0
+    assert not_matched not in batch.rows.get().issues
+
+    Rank.objects.filter(pk=yellow.pk).update(active=False)
+    again = preview_legacy_grading_import(batch)
+
+    assert again.unresolved_current_rank == 1
+    assert not_matched in batch.rows.get().issues
 
 
 def test_preview_counts_unresolved_free_form_outcomes() -> None:

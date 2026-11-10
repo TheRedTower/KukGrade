@@ -292,8 +292,8 @@ export function CandidateAssessmentScreen() {
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
         <Badge tone="neutral">
-          {candidate && <RankBelt rankId={candidate.from_rank} />}
-          <span>{candidate?.from_rank_name ?? ""}</span>
+          <RankBelt rankId={candidate.from_rank} />
+          <span>{candidate.from_rank_name}</span>
         </Badge>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
           <path d="M4 12h15M14 7l5 5-5 5" />

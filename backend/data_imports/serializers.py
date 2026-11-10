@@ -318,21 +318,17 @@ class ImportRowExclusionSerializer(serializers.Serializer):
 
 
 class ImportBatchCreatedSerializer(serializers.ModelSerializer):
-    """The new batch's id, plus one-shot creation-response extras: a
-    duplicate-hash warning and the file's own headers, so the frontend can
-    build its mapping step without a second request. Not persisted state."""
+    """The new import's id, and whether this exact file was imported before -
+    the one thing only the upload knows. Everything else, its headers and
+    suggested matches included, is the import's own (batches/{id}/)."""
 
     already_imported_warning = serializers.SerializerMethodField()
-    detected_headers = serializers.SerializerMethodField()
-    suggested_mapping = serializers.SerializerMethodField()
 
     class Meta:
         model = ImportBatch
         fields = [
             "id",
             "already_imported_warning",
-            "detected_headers",
-            "suggested_mapping",
         ]
         read_only_fields = fields
 
@@ -342,12 +338,6 @@ class ImportBatchCreatedSerializer(serializers.ModelSerializer):
 
     def get_already_imported_warning(self, obj: Any) -> bool:
         return self._creation().already_imported_warning
-
-    def get_detected_headers(self, obj: Any) -> list[str]:
-        return self._creation().detected_headers
-
-    def get_suggested_mapping(self, obj: Any) -> dict[str, str]:
-        return self._creation().suggested_mapping
 
 
 class ImportBatchCreateSerializer(serializers.Serializer):

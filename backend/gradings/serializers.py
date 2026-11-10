@@ -779,6 +779,8 @@ class StagedDecisionSerializer(serializers.ModelSerializer):
 
 
 class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
+    """The final decision. It is always given whole: final_outcome is required."""
+
     final_outcome = serializers.ChoiceField(choices=CandidateOutcome.Outcome.choices)
     decision_notes = serializers.CharField(
         allow_blank=True,
@@ -806,6 +808,17 @@ class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
             ),
             actor=cast(User, request.user),
         )
+
+    # Never a partial update, though it arrives as a PATCH: the schema
+    # generator reads every PATCH body as partial (dropping final_outcome's
+    # "required") unless the serializer refuses to be.
+    @property
+    def partial(self) -> bool:
+        return False
+
+    @partial.setter
+    def partial(self, value: bool) -> None:
+        pass
 
 
 class CandidatePromotionSerializer(serializers.Serializer):

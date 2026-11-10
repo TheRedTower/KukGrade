@@ -125,10 +125,10 @@ docker run -d --name kg-prod --network kg-smoke -p 127.0.0.1:16942:6942 \
     --cap-drop ALL --security-opt no-new-privileges:true \
     -e POSTGRES_HOST=kg-db -e POSTGRES_PASSWORD=smoke \
     -e DJANGO_SECRET_KEY=ci-only-secret-key-000000000000000000000000000000000000 \
-    -e DJANGO_ALLOWED_HOSTS=www.kukgrade.co.uk -e DJANGO_NUM_PROXIES=2 \
+    -e DJANGO_ALLOWED_HOSTS=www.kukgrade.example.com -e DJANGO_NUM_PROXIES=2 \
     "$image" >/dev/null
 wait_healthy kg-prod
-[ "$(status -H 'Host: www.kukgrade.co.uk' -H 'X-Forwarded-Proto: https' \
+[ "$(status -H 'Host: www.kukgrade.example.com' -H 'X-Forwarded-Proto: https' \
     -H 'X-Forwarded-For: 203.0.113.1, 198.51.100.1' \
     http://127.0.0.1:16942/api/health/)" = 200 ] || fail "the forwarded scheme is not trusted"
 docker exec kg-prod sh -c 'touch /var/lib/kukgrade/import_uploads/probe && rm /var/lib/kukgrade/import_uploads/probe' \

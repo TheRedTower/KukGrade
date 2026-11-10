@@ -154,8 +154,8 @@ def test_a_sheet_can_be_named_at_upload() -> None:
     )
 
     assert response.status_code == 201, response.json()
-    assert response.json()["detected_headers"] == HEADERS
     batch = ImportBatch.objects.get(pk=response.json()["id"])
+    assert batch.configuration.detected_headers == HEADERS
     assert batch.rows.count() == 2
 
 

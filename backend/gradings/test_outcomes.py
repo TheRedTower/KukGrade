@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
+from drf_spectacular.settings import spectacular_settings
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -816,3 +817,19 @@ def test_finalising_with_no_outcome_is_refused_with_a_message() -> None:
     assert "final_outcome" in response.json()["error"]["fields"]
     outcome.refresh_from_db()
     assert outcome.status == CandidateOutcome.Status.PROPOSED
+
+
+def test_the_contract_says_a_final_decision_needs_its_outcome() -> None:
+    # Served as a PATCH, yet never partial: the schema states what the
+    # server refuses without (above), so a client's types require it too.
+    schema = spectacular_settings.DEFAULT_GENERATOR_CLASS().get_schema(
+        request=None,
+        public=True,
+    )
+    body = schema["paths"]["/api/gradings/outcomes/{id}/finalise/"]["patch"][
+        "requestBody"
+    ]
+    assert body["required"] is True
+    ref = body["content"]["application/json"]["schema"]["$ref"]
+    component = schema["components"]["schemas"][ref.rsplit("/", 1)[-1]]
+    assert component["required"] == ["final_outcome"]

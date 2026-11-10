@@ -1877,6 +1877,12 @@ export interface components {
             readonly decision_notes: string;
             readonly conditional_requirements: string;
         };
+        /** @description The final decision. It is always given whole: final_outcome is required. */
+        CandidateOutcomeFinaliseRequest: {
+            final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            decision_notes?: string;
+            conditional_requirements?: string;
+        };
         /**
          * @description * `PASS` - Pass
          *     * `FAIL` - Fail
@@ -2231,17 +2237,13 @@ export interface components {
             sheet?: string;
         };
         /**
-         * @description The new batch's id, plus one-shot creation-response extras: a
-         *     duplicate-hash warning and the file's own headers, so the frontend can
-         *     build its mapping step without a second request. Not persisted state.
+         * @description The new import's id, and whether this exact file was imported before -
+         *     the one thing only the upload knows. Everything else, its headers and
+         *     suggested matches included, is the import's own (batches/{id}/).
          */
         ImportBatchCreated: {
             readonly id: number;
             readonly already_imported_warning: boolean;
-            readonly detected_headers: string[];
-            readonly suggested_mapping: {
-                [key: string]: string;
-            };
         };
         /**
          * @description * `UPLOADED` - Uploaded
@@ -2770,11 +2772,6 @@ export interface components {
         PatchedCandidateAssessmentRequest: {
             status?: components["schemas"]["CandidateAssessmentStatusEnum"];
             notes?: string;
-        };
-        PatchedCandidateOutcomeFinaliseRequest: {
-            final_outcome?: components["schemas"]["CandidateOutcomeOutcomeEnum"];
-            decision_notes?: string;
-            conditional_requirements?: string;
         };
         PatchedGradingCandidateRequest: {
             session?: number;
@@ -4668,11 +4665,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
+                "application/json": components["schemas"]["CandidateOutcomeFinaliseRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandidateOutcomeFinaliseRequest"];
+                "multipart/form-data": components["schemas"]["CandidateOutcomeFinaliseRequest"];
             };
         };
         responses: {

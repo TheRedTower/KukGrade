@@ -84,7 +84,8 @@ def can_view_audit_log(user: User) -> bool:
     The one statement of this rule: the API (`CanViewAuditLog`) and Django
     admin (`audit.admin.AuditEventAdmin`) both ask it.
     """
-    return user.is_active and (
+    # has_perm refuses a closed account everything, superusers included.
+    return (
         user.has_perm(AUDIT_LOG_PERMISSION)
         or user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
         or user.has_perm(GRADING_AUDIT_LOG_PERMISSION)

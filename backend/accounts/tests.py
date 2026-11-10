@@ -32,6 +32,8 @@ from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
+    can_see_school_settings,
+    can_view_audit_log,
 )
 from accounts.services import (
     delete_platform_user,
@@ -662,6 +664,13 @@ def test_inactive_users_fail_every_permission_check() -> None:
     view.action = "list"  # type: ignore[attr-defined]
     view.permission_map = {"list": ()}  # type: ignore[attr-defined]
     assert HasRequiredPermissions().has_permission(request, view) is False
+    # The audit log asks has_perm alone, which refuses a closed account -
+    # a superuser's too.
+    assert can_view_audit_log(inactive) is False
+    closed_superuser = User.objects.create_superuser("closed-super@example.com")
+    closed_superuser.is_active = False
+    assert can_view_audit_log(closed_superuser) is False
+    assert can_see_school_settings(closed_superuser) is False
 
 
 def test_configured_user_model_is_custom_user() -> None:

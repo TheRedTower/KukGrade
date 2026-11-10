@@ -182,9 +182,7 @@ def assert_safe_to_build() -> None:
     """
     if not settings.DEMO_MODE:
         raise CommandError(DEMO_ONLY_MESSAGE)
-    others = User.objects.exclude(email__in=PERSONA_EMAILS).exclude(
-        email="deleted-user@kukgrade.internal",
-    )
+    others = User.objects.exclude(email__in=PERSONA_EMAILS)
     if others.exists():
         raise CommandError(REAL_USERS_MESSAGE)
 

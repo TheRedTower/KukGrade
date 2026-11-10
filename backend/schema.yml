@@ -106,7 +106,6 @@ paths:
           - ASSESSMENT_COMPLETED
           - ASSESSMENT_DELETED
           - ASSESSMENT_GENERATED
-          - ASSESSMENT_REOPENED
           - ASSESSMENT_STARTED
           - ASSESSMENT_UPDATED
           - AUDIT_REDACTED
@@ -3019,7 +3018,6 @@ components:
       - ASSESSMENT_STARTED
       - ASSESSMENT_UPDATED
       - ASSESSMENT_COMPLETED
-      - ASSESSMENT_REOPENED
       - ASSESSMENT_DELETED
       - ITEM_RESULT_RECORDED
       - ITEM_COMMENT_ADDED
@@ -3059,7 +3057,6 @@ components:
         * `ASSESSMENT_STARTED` - Assessment started
         * `ASSESSMENT_UPDATED` - Assessment notes updated
         * `ASSESSMENT_COMPLETED` - Assessment completed
-        * `ASSESSMENT_REOPENED` - Assessment reopened
         * `ASSESSMENT_DELETED` - Assessment deleted
         * `ITEM_RESULT_RECORDED` - Assessment item result recorded
         * `ITEM_COMMENT_ADDED` - Assessment item comment added

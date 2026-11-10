@@ -11,7 +11,7 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from rest_framework.test import APIClient
 
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.models import User
 from accounts.services import delete_platform_user
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -37,6 +37,10 @@ from gradings.testing import (
     user,
 )
 from kukgrade.testing import results
+
+# Where migrations 0019 and 0024 credit a note with nobody else to credit; the
+# account itself goes in accounts migration 0011.
+DELETED_USER_PLACEHOLDER_EMAIL = "deleted-user@kukgrade.internal"
 
 pytestmark = pytest.mark.django_db
 

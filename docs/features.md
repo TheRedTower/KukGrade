@@ -211,7 +211,8 @@ Notes:
   Django admin site.
 - The Django admin site (a shell-only emergency tool, not served by the app) shows
   grading, student, rank and syllabus data but cannot add, change or delete it, so
-  every such change is checked and recorded by KukGrade. It still recovers accounts.
+  every such change is checked and recorded by KukGrade. It still recovers accounts,
+  but deletes none: an account is deleted in KukGrade.
 - User-management events in the audit log are visible to administrators only.
 - Deleting never erases a recorded decision, and is itself audited.
   - *A student* is never deleted before their final decision: while any grading they are

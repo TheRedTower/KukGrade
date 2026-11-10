@@ -839,7 +839,7 @@ describe("Linking historical records", () => {
     await waitFor(() => expect(api.getLegacyPeopleSummary).toHaveBeenCalledWith({ batch: 51, set_aside: "exclude" }));
   });
 
-  it("puts a name aside on the server, not in this browser, and puts it back", async () => {
+  it("puts a name aside on the server and puts it back", async () => {
     const user = userEvent.setup();
     renderAt("/imports/records");
 
@@ -848,7 +848,6 @@ describe("Linking historical records", () => {
 
     await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r"]));
     await waitFor(() => expect(screen.queryByText("“Mia R”")).not.toBeInTheDocument());
-    expect(window.localStorage.getItem("kukgrade-left-names")).toBeNull();
     await user.click(screen.getByRole("button", { name: /^Left for now/ }));
     expect(await screen.findByText("“Mia R”")).toBeInTheDocument();
     expect(api.getLegacyPeople).toHaveBeenCalledWith(expect.objectContaining({ set_aside: "only", linked: false }));
@@ -868,24 +867,6 @@ describe("Linking historical records", () => {
 
     expect(await screen.findByText("Server error.")).toBeVisible();
     expect(screen.getByRole("button", { name: "Leave for now" })).toBeVisible();
-  });
-
-  it("moves names an earlier version kept in this browser to the server, then forgets them", async () => {
-    window.localStorage.setItem("kukgrade-left-names", JSON.stringify(["mia r", 7, "theo"]));
-    renderAt("/imports/records");
-
-    await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r", "theo"]));
-    await waitFor(() => expect(window.localStorage.getItem("kukgrade-left-names")).toBeNull());
-  });
-
-  it("keeps the browser's old names if the server could not take them, to try again", async () => {
-    window.localStorage.setItem("kukgrade-left-names", JSON.stringify(["mia r"]));
-    api.setAsideNames.mockRejectedValueOnce(new ApiError("Server error.", 500));
-    renderAt("/imports/records");
-
-    await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r"]));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(window.localStorage.getItem("kukgrade-left-names")).toBe('["mia r"]');
   });
 
   it("lists names already linked, and can undo one", async () => {

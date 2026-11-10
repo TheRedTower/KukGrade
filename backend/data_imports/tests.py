@@ -886,7 +886,7 @@ def test_cancel_a_committed_batch_is_refused() -> None:
         cancel_import_batch(batch, actor=admin)
 
 
-# --- deleting a user reassigns ImportBatch attribution -----------------------
+# --- deleting a user keeps their name on the import ----------------------------
 
 
 def test_deleting_a_user_keeps_their_name_on_import_batches() -> None:

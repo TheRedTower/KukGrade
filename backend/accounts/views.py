@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
 from accounts.serializers import (
     ChangePasswordSerializer,
@@ -221,16 +221,8 @@ class UserViewSet(
     )
 
     def get_queryset(self) -> QuerySet[User]:
-        # The "Deleted User" placeholder (see accounts.services) is internal
-        # bookkeeping, not an account anyone administers - hidden from the
-        # users API entirely so it can never show up in the list, be edited,
-        # or be deleted itself through this endpoint.
-        # A deleted account kept for its records (deleted_at) is gone too.
-        return (
-            User.objects.exclude(email=DELETED_USER_PLACEHOLDER_EMAIL)
-            .filter(deleted_at__isnull=True)
-            .order_by("email")
-        )
+        # A deleted account kept for its records (deleted_at) is gone.
+        return User.objects.filter(deleted_at__isnull=True).order_by("email")
 
     @extend_schema(
         request=UserAuthoritySerializer,

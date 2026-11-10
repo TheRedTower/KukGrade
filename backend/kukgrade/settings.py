@@ -189,7 +189,9 @@ ROOT_URLCONF = "kukgrade.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [FRONTEND_DIST] if FRONTEND_DIST.is_dir() else [],
+        # The app's page is served as a file (kukgrade.views.frontend), not
+        # rendered, so only the apps' own templates are looked up.
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

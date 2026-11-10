@@ -87,7 +87,6 @@ def test_a_reset_rebuilds_the_same_club_and_keeps_the_accounts_and_catalogue() -
         syllabus,
     )
     assert Promotion.objects.count() == 14
-    assert User.objects.filter(email="deleted-user@kukgrade.internal").exists()
     # Numbering carries on: a sequence cannot be set back safely in a transaction.
     assert session_named("Autumn Grading").pk > 5
 

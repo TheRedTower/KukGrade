@@ -290,10 +290,6 @@ def delete_platform_user(target: User, actor: User) -> bool:
     if target.pk == actor.pk:
         raise ValidationError({"user": ["You cannot delete your own account."]})
     _validate_can_manage(target, actor)
-    if target.is_deleted_user_placeholder:
-        raise ValidationError(
-            {"user": ["The deleted-user placeholder account cannot be deleted."]},
-        )
     locked = User.objects.select_for_update().get(pk=target.pk)
     if locked.deleted_at is not None:
         raise ValidationError({"user": ["This account is already deleted."]})

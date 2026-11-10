@@ -157,7 +157,7 @@ def _classify_outcome(source_outcome_text: str) -> tuple[str, str | None, str]:
             _DETERMINISTIC_OUTCOMES[normalised],
             LegacyAttendance.ATTENDED,
         )
-    # N/A, free-form text ("Testing? JKN Adi: No"), or anything else
+    # N/A, free-form text ("Testing? JKN Example: No"), or anything else
     # uncertain - preserved verbatim, left unresolved for review rather
     # than forced into Pass/Fail/Conditional.
     return LegacyRecordKind.GRADING_RESULT, None, LegacyAttendance.ATTENDED

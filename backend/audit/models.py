@@ -40,9 +40,6 @@ class AuditAction(models.TextChoices):
     ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
     ASSESSMENT_UPDATED = "ASSESSMENT_UPDATED", "Assessment notes updated"
     ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
-    # No longer written (a completed assessment is corrected, not reopened), but
-    # events already in the log carry it, so it stays a valid choice.
-    ASSESSMENT_REOPENED = "ASSESSMENT_REOPENED", "Assessment reopened"
     ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
     ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"
     ITEM_COMMENT_ADDED = "ITEM_COMMENT_ADDED", "Assessment item comment added"
@@ -142,9 +139,8 @@ class AuditEvent(models.Model):
         null=True,
         blank=True,
     )
-    # Who acted, as they were at the time. `actor` can later be reassigned to
-    # the deleted-user placeholder (accounts.services.delete_platform_user);
-    # these copies are what keep the trail attributable to the real person.
+    # Who acted, as they were at the time: a later change to the account's
+    # name or email address never rewrites the trail.
     actor_email = models.EmailField(blank=True)
     actor_name = models.CharField(max_length=301, blank=True)
     action = models.CharField(max_length=64, choices=AuditAction.choices)

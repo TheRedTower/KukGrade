@@ -8,7 +8,6 @@ from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse
 from django.template.response import TemplateResponse
@@ -16,18 +15,16 @@ from django.utils.cache import add_never_cache_headers
 from django.utils.translation import gettext_lazy as _
 
 from accounts.admin_site import admin_notice
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.models import User
 from accounts.services import (
     TemporaryPassword,
     can_manage,
     create_platform_user,
-    delete_platform_user,
     reset_password,
     set_admin_site_access,
     update_platform_user,
     validate_can_reset_password,
 )
-from kukgrade.admin_mixins import ServiceDeleteMixin
 
 # Where save_model leaves the password it just issued for response_add to
 # show: the request, never the ModelAdmin, which every request shares.
@@ -66,8 +63,7 @@ class UserChangeForm(forms.ModelForm):
 
 
 @admin.register(User)
-class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
-    deletion_service = staticmethod(delete_platform_user)
+class UserAdmin(DjangoUserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     # Django's own add-user template asks for a password, which this form has
@@ -104,16 +100,6 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         "last_login",
         "date_joined",
     )
-
-    def get_queryset(self, request: HttpRequest) -> QuerySet[User]:
-        # Internal bookkeeping, not an account anyone administers.
-        return (
-            super()
-            .get_queryset(request)
-            .exclude(
-                email=DELETED_USER_PLACEHOLDER_EMAIL,
-            )
-        )
 
     fieldsets = (
         (
@@ -294,11 +280,9 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         request: HttpRequest,
         obj: User | None = None,
     ) -> bool:
-        if obj is not None and obj.pk == request.user.pk:
-            return False
-        if obj is not None and not can_manage(obj, cast(User, request.user)):
-            return False
-        return super().has_delete_permission(request, obj)
+        # Accounts are recovered here, never deleted: deleting one is done in
+        # KukGrade, which closes an account that holds history.
+        return False
 
     def get_readonly_fields(
         self,

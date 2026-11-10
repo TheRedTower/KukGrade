@@ -155,7 +155,7 @@ def test_preview_counts_unresolved_ranks_until_a_mapping_is_supplied() -> None:
 
 def test_preview_counts_unresolved_free_form_outcomes() -> None:
     content = standard_workbook(
-        [["A. Example", "White", "Yellow Stripe", "Testing? JKN Adi: No", ""]],
+        [["A. Example", "White", "Yellow Stripe", "Testing? JKN Example: No", ""]],
     )
     batch = legacy_batch(content)
 

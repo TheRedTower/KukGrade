@@ -217,12 +217,12 @@ def test_empty_comments_are_an_empty_string_not_none() -> None:
 
 def test_free_form_outcome_is_preserved_unresolved() -> None:
     content = standard_workbook(
-        [["A. Example", "White", "Yellow Stripe", "Testing? JKN Adi: No", ""]],
+        [["A. Example", "White", "Yellow Stripe", "Testing? JKN Example: No", ""]],
     )
     result = parse_ksw_workbook(content)
 
     row = result.rows[0]
-    assert row.source_outcome_text == "Testing? JKN Adi: No"
+    assert row.source_outcome_text == "Testing? JKN Example: No"
     assert row.outcome is None
     assert row.record_kind == LegacyRecordKind.GRADING_RESULT
 

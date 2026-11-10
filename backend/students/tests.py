@@ -626,7 +626,7 @@ def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
 def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:
     # Registration bands a student by their age on the grading date; the
     # cohort builder's list must agree, or a birthday in between shows the
-    # wrong band and filters the student out (audit F-33).
+    # wrong band and filters the student out.
     from gradings.testing import grading_session
 
     today = timezone.localdate()
@@ -656,8 +656,8 @@ def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:
 
 
 def test_student_list_shows_each_students_current_grading_and_its_stage() -> None:
-    # Replaces the old "Next action" guess with the registration the student
-    # actually has, worked out from its assessment and outcome (audit F-29).
+    # The registration the student actually has, and how far it has got,
+    # worked out from its assessment and outcome.
     from gradings.models import CandidateOutcome, GradingCandidate, GradingSession
     from gradings.outcome_services import (
         promote_candidate,

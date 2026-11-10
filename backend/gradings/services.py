@@ -242,11 +242,7 @@ def validate_session_transition(
 
 
 def validate_locked_session_override_actor(actor: User | None) -> None:
-    if (
-        actor is None
-        or not actor.is_active
-        or not actor.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
-    ):
+    if actor is None or not actor.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION):
         raise ValidationError(
             {"actor": ["Locked session override authority is required."]}
         )
@@ -564,8 +560,6 @@ def withdraw_locked_candidate(
 
 
 def validate_session_grading_date_change(session: GradingSession) -> None:
-    if session._state.adding:
-        return
     previous_grading_date = (
         GradingSession.objects.filter(pk=session.pk)
         .values_list("grading_date", flat=True)
@@ -1314,7 +1308,7 @@ def apply_candidate_update(
         # locks it, and re-read: the copy joined above was read before any
         # student lock and may already be out of date. Relying instead on the
         # key-share lock a write happens to take was how the reinstatement
-        # race was first found covered by accident (audit D1, 2026-10-18).
+        # race was first found covered by accident.
         locked.student = lock_student(locked.student_id)
     before = _candidate_snapshot(locked)
     updated = update_candidate(

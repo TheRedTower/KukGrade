@@ -301,8 +301,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Finish the import. With no body, the stored mapping, fixes and rank
-         *     choices are used; any given here replace them first.
+         * @description Finish the import from what is stored: a roster's mapping and fixes,
+         *     or a historical import's rank choices.
          */
         post: operations["data_imports_batches_commit_create"];
         delete?: never;
@@ -338,10 +338,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import.
-         *
-         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         * @description A historical import's rank choices, saved when given, and what it
+         *     would do. A roster's columns are matched with mapping/ instead.
          */
         post: operations["data_imports_batches_preview_create"];
         delete?: never;
@@ -2301,7 +2299,6 @@ export interface components {
             /** @description The file's columns to keep as each student's extra information. */
             extra_columns?: string[];
         };
-        ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
         /** @description POST /{id}/void-records/: void every record a historical import made. */
         ImportRecordsVoidRequest: {
             /** @description Why, kept on every record. */
@@ -2311,7 +2308,6 @@ export interface components {
             /** @description How many records were voided. */
             voided: number;
         };
-        ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
         /** @description One stored row and what the last check made of it. */
         ImportRow: {
             readonly row_number: number;
@@ -2446,12 +2442,13 @@ export interface components {
             rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
         };
         /**
-         * @description Shared request shape for the historical preview and commit actions.
+         * @description The historical preview's request: the rank choices to save, if any.
          *
          *     Keys are the source rank text exactly as it appeared in the workbook
-         *     (case-insensitive on the service side); a null/omitted value explicitly
-         *     means "leave unresolved" - never a block on committing that row,
-         *     unlike the student roster importer's required rank.
+         *     (case-insensitive on the service side); a null value explicitly means
+         *     "leave unresolved" - never a block on committing that row, unlike the
+         *     student roster importer's required rank. Left out, the stored choices
+         *     are kept.
          */
         LegacyImportRequest: {
             rank_mappings?: {
@@ -3077,32 +3074,6 @@ export interface components {
         StudentGradingHistory: {
             items: components["schemas"]["GradingHistoryItem"][];
         };
-        /** @description One row's corrected values, by target field; any may be left out. */
-        StudentImportCorrectionRequest: {
-            wksa_id?: string;
-            first_name?: string;
-            last_name?: string;
-            date_of_birth?: string;
-            current_rank?: string;
-            status?: string;
-        };
-        StudentImportPreview: {
-            total: number;
-            ready: number;
-            review_required: number;
-            skip_existing: number;
-            excluded: number;
-            rows: components["schemas"]["StudentImportRowResult"][];
-        };
-        /** @description Shared request shape for the preview and commit actions. */
-        StudentImportRequest: {
-            column_mapping: {
-                [key: string]: string;
-            };
-            corrections?: {
-                [key: string]: components["schemas"]["StudentImportCorrectionRequest"];
-            };
-        };
         /**
          * @description * `READY` - Ready
          *     * `REVIEW_REQUIRED` - Needs attention
@@ -3111,17 +3082,6 @@ export interface components {
          * @enum {string}
          */
         StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING" | "EXCLUDED";
-        StudentImportRowResult: {
-            row_number: number;
-            outcome: components["schemas"]["StudentImportRowOutcomeEnum"];
-            wksa_id: string;
-            first_name: string;
-            last_name: string;
-            date_of_birth_display: string;
-            current_rank_text: string;
-            status: string;
-            issues: string[];
-        };
         /**
          * @description The list representation. Deliberately excludes date of birth.
          *
@@ -3710,13 +3670,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportRequestRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportRequestRequest"];
-                "application/json": components["schemas"]["ImportRequestRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -3768,9 +3722,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "multipart/form-data": components["schemas"]["ImportRequestRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportRequestRequest"];
-                "application/json": components["schemas"]["ImportRequestRequest"];
+                "multipart/form-data": components["schemas"]["LegacyImportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LegacyImportRequest"];
+                "application/json": components["schemas"]["LegacyImportRequest"];
             };
         };
         responses: {
@@ -3779,7 +3733,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImportPreview"];
+                    "application/json": components["schemas"]["LegacyImportPreview"];
                 };
             };
         };

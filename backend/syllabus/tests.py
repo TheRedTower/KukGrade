@@ -598,7 +598,7 @@ def test_effective_syllabus_is_everything_examinable_through_the_rank(
         (row["category"], row["item_code"], row["display_range"] or row["notation"])
         for row in rows
     ] == expected
-    # Which rows are core areas is served, not kept in the browser (F-31).
+    # Which rows are core areas is served, not kept in the browser.
     assert {row["category"] for row in rows if row["category_is_core"]} == {
         "ETIQUETTE",
         "FUNDAMENTALS",
@@ -718,7 +718,7 @@ def test_normalize_chart_notation(notes: str, expected: str) -> None:
 
 # 8-and-under Cho Geup Hyung is taught in parts: 1 at Blue, 2 at Red stripe,
 # 3 at Red. Every part taught so far is examinable, so the cumulative row
-# names them all (2026-10-18, audit F-09).
+# names them all.
 @pytest.mark.parametrize(
     ("rank_code", "expected"),
     [

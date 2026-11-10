@@ -466,7 +466,7 @@ def test_a_row_with_no_name_and_anything_above_the_table_are_kept_as_notes() -> 
 
 
 def test_a_row_with_no_name_under_a_side_section_is_kept_as_a_note() -> None:
-    """Review N-05 (2026-11-07): such a row used to be dropped whole."""
+    """Its other cells are kept, not dropped with the missing name."""
     content = sheet(
         ["Name", "Current Rank", "Testing For", "Outcome", "Comments"],
         ["Alex Example", "White", "Yellow Stripe", "Pass", ""],

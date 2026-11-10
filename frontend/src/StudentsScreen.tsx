@@ -38,7 +38,7 @@ export function StudentsScreen() {
   const ranksQuery = useRanksQuery();
 
   const ranks = useMemo<Rank[]>(() => {
-    return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
+    return ranksQuery.data?.results ?? [];
   }, [ranksQuery.data]);
 
   // 2. Fetch paginated students with active filters. The search waits for a
@@ -60,7 +60,7 @@ export function StudentsScreen() {
   });
 
   const students = useMemo<StudentListItem[]>(() => {
-    return Array.isArray(studentsQuery.data?.results) ? studentsQuery.data.results : [];
+    return studentsQuery.data?.results ?? [];
   }, [studentsQuery.data]);
 
   const totalCount = studentsQuery.data?.count ?? 0;
@@ -231,7 +231,7 @@ export function StudentsScreen() {
                   render: (student) => <StudentStatusBadge status={student.status} label={student.status_display} />,
                 },
                 // The registration the server says is still in progress, and how
-                // far it has got - not a guess from the student's status (audit F-29).
+                // far it has got - not a guess from the student's status.
                 {
                   key: "grading",
                   header: "Current grading",

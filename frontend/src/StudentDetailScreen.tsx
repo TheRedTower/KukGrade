@@ -136,7 +136,7 @@ export function StudentDetailScreen() {
   const student = studentQuery.data;
   const rankHistory = rankHistoryQuery.data;
   const ranks = useMemo<Rank[]>(() => {
-    return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
+    return ranksQuery.data?.results ?? [];
   }, [ranksQuery.data]);
 
   // The next rank as the server defines it (Rank.next_rank), unless its syllabus
@@ -161,7 +161,7 @@ export function StudentDetailScreen() {
     );
   }
 
-  if (studentQuery.isError || !student || !student.id) {
+  if (studentQuery.isError || !student) {
     return (
       <section aria-labelledby="student-error-title" className="page">
         <EmptyState
@@ -182,8 +182,6 @@ export function StudentDetailScreen() {
 
   const promotions = rankHistory?.promotions ?? [];
   const gradingHistoryItems = gradingHistoryQuery.data?.items ?? [];
-  const statusStr = student.status || "ACTIVE";
-  const statusDisplay = student.status_display || statusStr;
   // Deleted after their history began: kept so past gradings still show who
   // it was, and closed to changes (the server refuses them).
   const isDeleted = student.deleted_at !== null;
@@ -194,7 +192,7 @@ export function StudentDetailScreen() {
         crumbs={[{ label: "Students", to: "/students" }, { label: `${student.first_name} ${student.last_name}` }]}
         title={`${student.first_name} ${student.last_name}`}
         titleId="student-heading"
-        tag={<StudentStatusBadge status={student.status} label={statusDisplay} />}
+        tag={<StudentStatusBadge status={student.status} label={student.status_display} />}
         subtitle={
           <>
             WKSA ID <span className="wksa-id-pill meta">{student.wksa_id}</span>
@@ -454,7 +452,7 @@ export function StudentDetailScreen() {
             <div className="record-status-body">
               <div className="record-status-badge-row">
                 <span className="meta">Status</span>
-                <StudentStatusBadge status={student.status} label={statusDisplay} />
+                <StudentStatusBadge status={student.status} label={student.status_display} />
               </div>
 
               <div className="record-status-policy-note subtext">

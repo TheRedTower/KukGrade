@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -219,7 +218,7 @@ def propose_candidate_outcome(
             {"status": ["A final decision cannot be proposed again."]},
         )
     # As for the first proposal: once the session is cancelled or completed,
-    # nothing about its outcomes moves (review N-04, 2026-11-07).
+    # nothing about its outcomes moves.
     if locked_outcome.candidate.session.status not in OUTCOME_CREATION_SESSION_STATUSES:
         raise ValidationError(
             {"session": ["Outcomes can only be proposed in locked sessions."]},
@@ -252,14 +251,14 @@ def propose_candidate_outcome(
 
 
 def validate_final_decision_actor(actor: User) -> None:
-    if not actor.is_active or not actor.has_perm(FINAL_GRADING_DECISION_PERMISSION):
+    if not actor.has_perm(FINAL_GRADING_DECISION_PERMISSION):
         raise ValidationError(
             {"actor": ["Final grading decision authority is required."]},
         )
 
 
 def validate_promotion_actor(actor: User) -> None:
-    if not actor.is_active or not actor.has_perm(PROMOTE_STUDENT_PERMISSION):
+    if not actor.has_perm(PROMOTE_STUDENT_PERMISSION):
         raise ValidationError(
             {"actor": ["Student promotion authority is required."]},
         )
@@ -436,7 +435,6 @@ def validate_promotion_eligibility(
     candidate: GradingCandidate,
     assessment: CandidateAssessment,
     student: Student,
-    effective_date: date,
     facts: PromotionEligibilityFacts | None = None,
 ) -> tuple[Rank, Rank]:
     if (
@@ -452,22 +450,6 @@ def validate_promotion_eligibility(
     ):
         raise ValidationError(
             {"grading_candidate": ["Grading candidate already has a promotion."]},
-        )
-    if outcome.candidate_id != candidate.pk:
-        raise ValidationError(
-            {"outcome": ["Outcome must belong to the grading candidate."]},
-        )
-    if outcome.assessment_id != assessment.pk:
-        raise ValidationError(
-            {"assessment": ["Outcome assessment must match the locked assessment."]},
-        )
-    if assessment.candidate_id != candidate.pk:
-        raise ValidationError(
-            {"assessment": ["Outcome assessment must belong to the candidate."]},
-        )
-    if candidate.student_id != student.pk:
-        raise ValidationError(
-            {"student": ["Candidate student must match the promoted student."]},
         )
     if outcome.status != CandidateOutcome.Status.FINALISED:
         raise ValidationError(
@@ -490,14 +472,6 @@ def validate_promotion_eligibility(
     if candidate.session.status not in PROMOTION_SESSION_STATUSES:
         raise ValidationError(
             {"session": ["Promotions require a locked or completed grading session."]},
-        )
-    if effective_date != candidate.session.grading_date:
-        raise ValidationError(
-            {
-                "effective_date": [
-                    "Promotion effective date must equal the grading session date.",
-                ],
-            },
         )
 
     from_rank = student.current_rank
@@ -575,7 +549,6 @@ def promotion_eligibility_for_session(session_id: int) -> list[dict[str, object]
                     candidate=candidate,
                     assessment=assessment,
                     student=candidate.student,
-                    effective_date=candidate.session.grading_date,
                     facts=facts,
                 )
             except ValidationError as exc:
@@ -597,13 +570,8 @@ def promote_candidate(
     actor: User,
     notes: str = "",
 ) -> Promotion:
-    """Promote a candidate whose outcome was a finalised PASS.
-
-    The promotion is always dated the grading it came from, so there is no
-    effective_date parameter: validation required any value passed to equal
-    the session date, which made the argument redundant when correct and
-    rejected when not.
-    """
+    """Promote a candidate whose outcome was a finalised PASS, dated the
+    grading it came from."""
     validate_promotion_actor(actor)
     locked_outcome = lock_in_session(
         CandidateOutcome.objects.select_related("candidate", "assessment"),
@@ -632,7 +600,6 @@ def promote_candidate(
         candidate=locked_candidate,
         assessment=locked_assessment,
         student=locked_student,
-        effective_date=candidate_effective_date,
     )
 
     try:
@@ -653,11 +620,7 @@ def promote_candidate(
             {"promotion": ["Outcome or grading candidate already has a promotion."]},
         ) from exc
 
-    updated = Student.objects.filter(pk=locked_student.pk).update(current_rank=to_rank)
-    if updated != 1:
-        raise ValidationError(
-            {"student": ["Student current rank could not be updated."]},
-        )
+    Student.objects.filter(pk=locked_student.pk).update(current_rank=to_rank)
     locked_student.current_rank = to_rank
     record(
         AuditAction.PROMOTION_RECORDED,

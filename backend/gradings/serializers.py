@@ -811,19 +811,6 @@ class CandidatePromotionSerializer(serializers.Serializer):
         trim_whitespace=True,
     )
 
-    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
-        forbidden_fields = {"effective_date", "promoted_by", "promoted_at"} & set(
-            self.initial_data,
-        )
-        if forbidden_fields:
-            raise serializers.ValidationError(
-                {
-                    field: ["KukGrade sets this; it cannot be changed here."]
-                    for field in sorted(forbidden_fields)
-                },
-            )
-        return attrs
-
     def update(
         self,
         instance: CandidateOutcome,

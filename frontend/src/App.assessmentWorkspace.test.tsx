@@ -191,7 +191,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
     expect(screen.getByText("KG-0264")).toBeVisible();
     expect(screen.getByText("Junior (9–12)")).toBeVisible();
-    // The status pill also carries the start time in 1A, so match on the pill.
+    // The status pill also carries the start time, so match on the pill.
     expect(screen.getByTestId("caw-status-pill")).toHaveTextContent("In progress");
 
     // Mat bar carries the live count in place of the progress ledger
@@ -202,7 +202,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByText("1 remaining")).toBeVisible();
     expect(screen.getByText("2 / 3").closest('[role="status"]')).not.toBeNull();
 
-    // Sticky band headers replace the category sub-rail
+    // Each category has a sticky band header
     expect(screen.getByTestId("caw-cat-header-ETIQUETTE")).toBeVisible();
     expect(screen.getByTestId("caw-cat-header-KICKING")).toBeVisible();
     // A category has no Korean name of its own; its first item's must not

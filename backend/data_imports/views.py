@@ -6,7 +6,6 @@ from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Q, QuerySet
 from drf_spectacular.utils import (
     OpenApiParameter,
-    PolymorphicProxySerializer,
     extend_schema,
 )
 from rest_framework import mixins, status
@@ -34,8 +33,6 @@ from data_imports.serializers import (
     ImportSheetSerializer,
     LegacyImportPreviewSerializer,
     LegacyImportSerializer,
-    StudentImportPreviewSerializer,
-    StudentImportSerializer,
 )
 from data_imports.services import (
     cancel_import_batch,
@@ -46,7 +43,6 @@ from data_imports.services import (
     create_import_batch,
     leave_out_rows_needing_attention,
     preview_legacy_grading_import,
-    preview_student_import,
     rows_given_a_value,
     save_import_mapping,
     set_import_row_excluded,
@@ -111,28 +107,6 @@ _ROW_PARAMETERS = frozenset(
     },
 )
 
-# Preview and commit take, and preview returns, a different shape per batch
-# kind: a student roster's column mapping, or a legacy workbook's rank
-# mappings.
-_IMPORT_REQUEST = PolymorphicProxySerializer(
-    component_name="ImportRequest",
-    serializers=[StudentImportSerializer, LegacyImportSerializer],
-    resource_type_field_name=None,
-)
-_IMPORT_PREVIEW = PolymorphicProxySerializer(
-    component_name="ImportPreview",
-    serializers=[StudentImportPreviewSerializer, LegacyImportPreviewSerializer],
-    resource_type_field_name=None,
-)
-
-
-def _given(request: Request, serializer: Any, name: str) -> Any:
-    """A field's value if the request sent it, else None - so a field left
-    out keeps what is stored, rather than its empty default replacing it."""
-    if name not in request.data:
-        return None
-    return serializer.validated_data.get(name)
-
 
 class ImportBatchViewSet(
     mixins.ListModelMixin,
@@ -153,8 +127,8 @@ class ImportBatchViewSet(
         "retrieve": ("data_imports.view_importbatch",),
         "create": ("data_imports.add_importbatch",),
         "cancel": ("data_imports.change_importbatch",),
-        # A check stores the mapping and fixes it is given, so it changes
-        # the import: the same permission as matching columns.
+        # A historical preview stores the rank choices it is given, so it
+        # changes the import: the same permission as matching columns.
         "preview": ("data_imports.change_importbatch",),
         "commit": ("data_imports.can_commit_import",),
         "mapping": ("data_imports.change_importbatch",),
@@ -416,55 +390,31 @@ class ImportBatchViewSet(
         cancel_import_batch(batch, actor=cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(request=_IMPORT_REQUEST, responses=_IMPORT_PREVIEW)
+    @extend_schema(
+        request=LegacyImportSerializer, responses=LegacyImportPreviewSerializer
+    )
     @action(detail=True, methods=["post"])
     def preview(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """A historical import's rank choices, saved when given, and what it
+        would do. A roster's columns are matched with mapping/ instead."""
         batch = self.get_object()
-
-        if batch.kind == ImportBatch.Kind.LEGACY_GRADINGS:
-            legacy_input = LegacyImportSerializer(data=request.data)
-            legacy_input.is_valid(raise_exception=True)
-            legacy_preview = preview_legacy_grading_import(
-                batch,
-                rank_mappings=_given(request, legacy_input, "rank_mappings"),
-            )
-            return Response(LegacyImportPreviewSerializer(legacy_preview).data)
-
-        input_serializer = StudentImportSerializer(data=request.data)
-        input_serializer.is_valid(raise_exception=True)
-        preview = preview_student_import(
+        legacy_input = LegacyImportSerializer(data=request.data)
+        legacy_input.is_valid(raise_exception=True)
+        legacy_preview = preview_legacy_grading_import(
             batch,
-            column_mapping=input_serializer.validated_data["column_mapping"],
-            corrections=_given(request, input_serializer, "corrections"),
+            rank_mappings=legacy_input.validated_data.get("rank_mappings"),
         )
-        return Response(StudentImportPreviewSerializer(preview).data)
+        return Response(LegacyImportPreviewSerializer(legacy_preview).data)
 
-    @extend_schema(request=_IMPORT_REQUEST, responses=ImportBatchSerializer)
+    @extend_schema(request=None, responses=ImportBatchSerializer)
     @action(detail=True, methods=["post"])
     def commit(self, request: Request, *args: object, **kwargs: object) -> Response:
-        """Finish the import. With no body, the stored mapping, fixes and rank
-        choices are used; any given here replace them first."""
+        """Finish the import from what is stored: a roster's mapping and fixes,
+        or a historical import's rank choices."""
         batch = self.get_object()
-
+        actor = cast(User, request.user)
         if batch.kind == ImportBatch.Kind.LEGACY_GRADINGS:
-            legacy_input = LegacyImportSerializer(data=request.data)
-            legacy_input.is_valid(raise_exception=True)
-            legacy_committed = commit_legacy_grading_import(
-                batch,
-                actor=cast(User, request.user),
-                rank_mappings=_given(request, legacy_input, "rank_mappings"),
-            )
-            return self._batch_response(request, legacy_committed)
-
-        if not request.data:
-            committed = commit_student_import(batch, actor=cast(User, request.user))
-            return self._batch_response(request, committed)
-        input_serializer = StudentImportSerializer(data=request.data)
-        input_serializer.is_valid(raise_exception=True)
-        committed = commit_student_import(
-            batch,
-            actor=cast(User, request.user),
-            column_mapping=input_serializer.validated_data["column_mapping"],
-            corrections=_given(request, input_serializer, "corrections"),
-        )
+            committed = commit_legacy_grading_import(batch, actor=actor)
+        else:
+            committed = commit_student_import(batch, actor=actor)
         return self._batch_response(request, committed)

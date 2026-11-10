@@ -221,9 +221,7 @@ export function OverviewScreen() {
   });
 
   const assessments = useMemo<CandidateAssessment[]>(() => {
-    return Array.isArray(assessmentsQuery.data?.results)
-      ? assessmentsQuery.data.results
-      : [];
+    return assessmentsQuery.data?.results ?? [];
   }, [assessmentsQuery.data]);
 
   // Counted on the server, so they agree with every other screen.
@@ -255,8 +253,7 @@ export function OverviewScreen() {
 
   // Recent activity items
   const recentActivities: FormattedActivityItem[] = useMemo(() => {
-    if (!Array.isArray(auditQuery.data?.results)) return [];
-    return auditQuery.data.results.map(formatAuditEvent);
+    return (auditQuery.data?.results ?? []).map(formatAuditEvent);
   }, [auditQuery.data]);
 
   const isInitialLoading =

@@ -395,7 +395,7 @@ def test_assessment_snapshot_survives_live_syllabus_edits() -> None:
 def test_snapshot_keeps_the_cumulative_parts_of_a_form_taught_in_parts() -> None:
     # 8-and-under Cho Geup Hyung: part 1 at Blue, 2 at Red stripe, 3 at Red.
     # A Red grading assesses all three, and the record keeps that wording
-    # whatever later happens to the syllabus (audit F-09).
+    # whatever later happens to the syllabus.
     built = candidate(
         student=student(
             date_of_birth=BORN_IN_BAND[AgeBand.AGE_8_AND_UNDER],
@@ -1089,11 +1089,9 @@ def test_administrator_can_delete_a_not_started_assessment() -> None:
 
 
 def test_deleting_an_assessment_with_a_final_decision_is_refused() -> None:
-    """A recorded final decision is never erased (review N-01, 2026-11-07).
-
-    Before, the delete removed the outcome and promotion and rolled the rank
-    back, and in a completed session left a registration nothing could
-    settle, which blocked the student from every later grading.
+    """A recorded final decision is never erased: not its outcome, its
+    promotion or the rank it gave, and never a registration left unsettled,
+    which would block the student from every later grading.
     """
     built, generated = locked_completed_candidate()
     outcome = finalised_outcome(built)
@@ -1328,7 +1326,7 @@ def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
         "FALLING",
         "BREAKING",
     ]
-    # The six core areas are flagged as such; rank content is not (F-31).
+    # The six core areas are flagged as such; rank content is not.
     assert all(row["category_is_core"] for row in rows[:6])
     assert not any(row["category_is_core"] for row in rows[6:])
     assert [row["item_name"] for row in rows if row["category"] == "WEAPONS"] == [

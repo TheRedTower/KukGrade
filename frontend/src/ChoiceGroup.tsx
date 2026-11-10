@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export interface Choice<Value extends string> {
+interface Choice<Value extends string> {
   value: Value;
   label: ReactNode;
   /** How many there are of it, shown beside the label (a filter's count). */

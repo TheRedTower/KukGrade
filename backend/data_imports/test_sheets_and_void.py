@@ -26,6 +26,7 @@ from data_imports.services import (
     save_import_mapping,
     void_import_records,
 )
+from data_imports.storage import import_upload_storage
 from data_imports.testing import standard_workbook, workbook_bytes
 from data_imports.tests import (
     CLEAN_ROW,
@@ -240,6 +241,14 @@ def test_choosing_a_sheet_needs_one_the_workbook_has_and_an_open_import() -> Non
     commit_student_import(batch, actor=admin)
     with pytest.raises(ValidationError, match="already imported"):
         choose_import_sheet(batch, sheet="Notes")
+
+
+def test_choosing_a_sheet_once_the_file_has_gone_says_so() -> None:
+    batch = upload_batch(content=two_sheet_workbook())
+    import_upload_storage().delete(batch.source_file.name)
+
+    with pytest.raises(ValidationError, match="no longer available"):
+        choose_import_sheet(batch, sheet="Roster")
 
 
 # --- voiding a wrong historical import ----------------------------------------------

@@ -17,7 +17,6 @@ from data_imports.services import (
     ROW_COUNT_NAMES,
     CreateImportBatchResult,
     ImportStep,
-    StudentImportRowOutcome,
     extra_values,
     next_step,
     roster_cells,
@@ -402,25 +401,6 @@ class ImportRecordsVoidedSerializer(serializers.Serializer):
     voided = serializers.IntegerField(help_text="How many records were voided.")
 
 
-def _validate_column_mapping(value: dict[str, str]) -> None:
-    unknown = set(value) - set(STUDENT_TARGET_FIELDS)
-    if unknown:
-        raise serializers.ValidationError(
-            f"Unknown field(s): {', '.join(sorted(unknown))}."
-        )
-
-
-class StudentImportCorrectionSerializer(serializers.Serializer):
-    """One row's corrected values, by target field; any may be left out."""
-
-    wksa_id = serializers.CharField(required=False, allow_blank=True)
-    first_name = serializers.CharField(required=False, allow_blank=True)
-    last_name = serializers.CharField(required=False, allow_blank=True)
-    date_of_birth = serializers.CharField(required=False, allow_blank=True)
-    current_rank = serializers.CharField(required=False, allow_blank=True)
-    status = serializers.CharField(required=False, allow_blank=True)
-
-
 class ImportRowCorrectionSerializer(serializers.Serializer):
     """PATCH /{id}/rows/{row_number}/: a roster row's fixes, by field.
 
@@ -452,56 +432,19 @@ class ImportRowCorrectionSerializer(serializers.Serializer):
         return attrs
 
 
-class StudentImportSerializer(serializers.Serializer):
-    """Shared request shape for the preview and commit actions."""
-
-    column_mapping = serializers.DictField(
-        child=serializers.CharField(allow_blank=True),
-        validators=[_validate_column_mapping],
-    )
-    # Keyed by row number. Each correction declares the target fields it may
-    # carry, so the schema - and the generated frontend type - name them.
-    corrections = serializers.DictField(
-        child=StudentImportCorrectionSerializer(),
-        required=False,
-        default=dict,
-    )
-
-
-class StudentImportRowResultSerializer(serializers.Serializer):
-    row_number = serializers.IntegerField()
-    outcome = serializers.ChoiceField(choices=StudentImportRowOutcome.choices)
-    wksa_id = serializers.CharField()
-    first_name = serializers.CharField()
-    last_name = serializers.CharField()
-    date_of_birth_display = serializers.CharField()
-    current_rank_text = serializers.CharField()
-    status = serializers.CharField()
-    issues = serializers.ListField(child=serializers.CharField())
-
-
-class StudentImportPreviewSerializer(serializers.Serializer):
-    total = serializers.IntegerField()
-    ready = serializers.IntegerField()
-    review_required = serializers.IntegerField()
-    skip_existing = serializers.IntegerField()
-    excluded = serializers.IntegerField()
-    rows = StudentImportRowResultSerializer(many=True)
-
-
 class LegacyImportSerializer(serializers.Serializer):
-    """Shared request shape for the historical preview and commit actions.
+    """The historical preview's request: the rank choices to save, if any.
 
     Keys are the source rank text exactly as it appeared in the workbook
-    (case-insensitive on the service side); a null/omitted value explicitly
-    means "leave unresolved" - never a block on committing that row,
-    unlike the student roster importer's required rank.
+    (case-insensitive on the service side); a null value explicitly means
+    "leave unresolved" - never a block on committing that row, unlike the
+    student roster importer's required rank. Left out, the stored choices
+    are kept.
     """
 
     rank_mappings = serializers.DictField(
         child=serializers.CharField(allow_null=True, allow_blank=True, required=False),
         required=False,
-        default=dict,
     )
 
 

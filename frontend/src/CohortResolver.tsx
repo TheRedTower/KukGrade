@@ -109,9 +109,9 @@ export function CohortResolver({
               render: (item) => (
                 <>
                   <span className="item-title">
-                    {item.student?.first_name} {item.student?.last_name}
+                    {item.student.first_name} {item.student.last_name}
                   </span>
-                  <span className="bgc-student-id meta">{item.student?.wksa_id}</span>
+                  <span className="bgc-student-id meta">{item.student.wksa_id}</span>
                 </>
               ),
             },
@@ -126,7 +126,7 @@ export function CohortResolver({
                     {item.registered === "THIS_SESSION" ? "No retry needed" : "Registered for another grading"}
                   </Badge>
                 ) : (
-                  <StudentStatusBadge status={item.student?.status} label={item.student?.status_display} />
+                  <StudentStatusBadge status={item.student.status} label={item.student.status_display} />
                 ),
             },
             {
@@ -136,7 +136,7 @@ export function CohortResolver({
               render: (item) => (
                 <>
                   <Link
-                    to={`/students/${item.student?.id}`}
+                    to={`/students/${item.student.id}`}
                     className={buttonClass({ variant: "ghost", small: true })}
                     target="_blank"
                     rel="noreferrer"

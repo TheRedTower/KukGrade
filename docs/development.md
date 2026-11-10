@@ -204,7 +204,7 @@ roster and list tests hold their counts flat as data grows. Measured 2026-11-05:
 | Student list (any length of page) | 2 | 4 |
 | A session's roster (any number of candidates) | 12 or fewer | 12 |
 
-Marking an item cost 76 until P3-2: about fifty of those statements were the database
+Marking an item once cost 76: about fifty of those statements were the database
 re-checking constraints that `Model.save()` had just validated (`full_clean()` runs a
 statement per foreign key and a few per CHECK and UNIQUE constraint, and the write is then
 checked again by the database anyway). The hot writes (an item's update, its comment and

@@ -29,7 +29,7 @@ export type GradingCandidate = Schemas["GradingCandidate"];
 export type GradingCandidateRoster = Schemas["GradingCandidateRoster"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
-export type AssessmentItemComment = Schemas["AssessmentItemComment"];
+type AssessmentItemComment = Schemas["AssessmentItemComment"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type StagedDecision = Schemas["StagedDecision"];
@@ -225,8 +225,8 @@ export async function getSiteSettings(): Promise<SiteSettings> {
 
 export type About = Schemas["About"];
 type AboutDocument = Schemas["Document"];
-export type Pledge = Schemas["Pledge"];
-export type Credits = Schemas["Credits"];
+type Pledge = Schemas["Pledge"];
+type Credits = Schemas["Credits"];
 export type Credit = Schemas["Credit"];
 
 export async function getAbout(): Promise<About> {
@@ -583,7 +583,7 @@ export async function getAllCandidateAssessmentItems(
 }
 
 /** An item as a mark returns it: with the assessment's counts as the save left them. */
-export type CandidateAssessmentItemSaved = Schemas["CandidateAssessmentItemSaved"];
+type CandidateAssessmentItemSaved = Schemas["CandidateAssessmentItemSaved"];
 
 export async function updateCandidateAssessmentItem(
   id: number,
@@ -910,7 +910,6 @@ export async function leaveOutDataImportRowsNeedingAttention(
 export async function commitDataImport(batchId: number): Promise<DataImportBatch> {
   return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/commit/`, {
     method: "POST",
-    body: JSON.stringify({}),
   });
 }
 

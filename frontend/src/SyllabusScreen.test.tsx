@@ -282,7 +282,7 @@ describe("SyllabusScreen", () => {
     vi.restoreAllMocks();
   });
 
-  // Which categories are core areas is the server's to say (audit F-31): a
+  // Which categories are core areas is the server's to say: a
   // category the browser has never heard of follows the served flag.
   it("places rows by the served core flag, not by a category list of its own", async () => {
     stubFetch({

@@ -338,14 +338,14 @@ def test_extra_information_goes_with_the_student() -> None:
 
 
 def test_the_current_screens_check_keeps_the_whole_file_values() -> None:
-    from data_imports.services import preview_student_import
+    from data_imports.testing import check_roster
 
     batch = club_file(row("123-4-001"))
     save_import_mapping(
         batch, column_mapping=MAPPING, defaults={"current_rank": "White"}
     )
 
-    preview: Any = preview_student_import(batch, column_mapping=MAPPING)
+    preview: Any = check_roster(batch, column_mapping=MAPPING)
 
     assert preview.ready == 1
 

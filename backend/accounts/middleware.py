@@ -111,14 +111,3 @@ class ForcePasswordChangeMiddleware:
             ),
             status=status.HTTP_403_FORBIDDEN,
         )
-
-
-__all__ = [
-    "ADMIN_EXEMPT_URL_NAMES",
-    "ADMIN_NAMESPACE",
-    "ADMIN_PASSWORD_CHANGE_REQUIRED_MESSAGE",
-    "EXEMPT_URL_NAMES",
-    "PASSWORD_CHANGE_REQUIRED_CODE",
-    "PASSWORD_CHANGE_REQUIRED_MESSAGE",
-    "ForcePasswordChangeMiddleware",
-]

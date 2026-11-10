@@ -87,7 +87,7 @@ def test_history_is_sorted_newest_first_across_sources() -> None:
 
 
 def test_rank_history_endpoint_is_unaffected_stays_promotion_only() -> None:
-    """Import Decision 6: /rank-history/ must not merge legacy Pass records."""
+    """/rank-history/ must not merge legacy Pass records."""
     built, _generated = locked_completed_candidate()
     legacy_record(student=built.student)
 
@@ -100,7 +100,7 @@ def test_rank_history_endpoint_is_unaffected_stays_promotion_only() -> None:
 
 
 def test_instructor_can_view_grading_history_too() -> None:
-    """Decision 15: historical visibility matches native grading visibility
+    """Historical visibility matches native grading visibility
     for both roles."""
     built, _generated = locked_completed_candidate()
     legacy_record(student=built.student)

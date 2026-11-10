@@ -255,7 +255,7 @@ def test_a_student_with_no_previous_id_retires_just_their_own() -> None:
 
 
 def test_a_roster_row_quoting_a_deleted_students_id_needs_review() -> None:
-    from data_imports.services import preview_student_import
+    from data_imports.testing import check_roster
     from data_imports.tests import STANDARD_MAPPING, student_workbook, upload_batch
 
     delete_student(dahn_bo(), admin())
@@ -266,14 +266,14 @@ def test_a_roster_row_quoting_a_deleted_students_id_needs_review() -> None:
         uploaded_by=admin(),
     )
 
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
 
     assert (preview.ready, preview.review_required) == (0, 1)
     assert "was deleted" in " ".join(preview.rows[0].issues)
 
 
 def test_a_roster_row_quoting_an_old_id_is_an_existing_student() -> None:
-    from data_imports.services import preview_student_import
+    from data_imports.testing import check_roster
     from data_imports.tests import STANDARD_MAPPING, student_workbook, upload_batch
 
     promoted()
@@ -284,7 +284,7 @@ def test_a_roster_row_quoting_an_old_id_is_an_existing_student() -> None:
         uploaded_by=admin(),
     )
 
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
 
     assert (preview.ready, preview.skip_existing, preview.review_required) == (0, 1, 0)
     assert f"now holds {NEW}" in " ".join(preview.rows[0].issues)

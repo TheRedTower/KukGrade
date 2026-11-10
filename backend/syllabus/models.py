@@ -159,8 +159,7 @@ CATEGORY_ORDER: dict[str, int] = {
 
 # The six universal core grading areas, which every rank shares;
 # Techniques, Forms, Weapons and Other are rank-specific content. Served as
-# `category_is_core` so screens group by it without keeping their own list
-# (audit F-31).
+# `category_is_core` so screens group by it without keeping their own list.
 CORE_CATEGORIES: frozenset[str] = frozenset(
     {
         SyllabusItem.Category.ETIQUETTE,

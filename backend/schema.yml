@@ -481,8 +481,8 @@ paths:
     post:
       operationId: data_imports_batches_commit_create
       description: |-
-        Finish the import. With no body, the stored mapping, fixes and rank
-        choices are used; any given here replace them first.
+        Finish the import from what is stored: a roster's mapping and fixes,
+        or a historical import's rank choices.
       parameters:
       - in: path
         name: id
@@ -492,17 +492,6 @@ paths:
         required: true
       tags:
       - data-imports
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
       security:
       - cookieAuth: []
       responses:
@@ -551,10 +540,8 @@ paths:
     post:
       operationId: data_imports_batches_preview_create
       description: |-
-        Administrator-only bulk data import.
-
-        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+        A historical import's rank choices, saved when given, and what it
+        would do. A roster's columns are matched with mapping/ instead.
       parameters:
       - in: path
         name: id
@@ -568,13 +555,13 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
+              $ref: '#/components/schemas/LegacyImportRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
+              $ref: '#/components/schemas/LegacyImportRequest'
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
+              $ref: '#/components/schemas/LegacyImportRequest'
       security:
       - cookieAuth: []
       responses:
@@ -582,7 +569,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportPreview'
+                $ref: '#/components/schemas/LegacyImportPreview'
           description: ''
   /api/data-imports/batches/{id}/rows/:
     get:
@@ -4916,10 +4903,6 @@ components:
           description: The file's columns to keep as each student's extra information.
       required:
       - column_mapping
-    ImportPreview:
-      oneOf:
-      - $ref: '#/components/schemas/StudentImportPreview'
-      - $ref: '#/components/schemas/LegacyImportPreview'
     ImportRecordsVoidRequest:
       type: object
       description: 'POST /{id}/void-records/: void every record a historical import
@@ -4939,10 +4922,6 @@ components:
           description: How many records were voided.
       required:
       - voided
-    ImportRequestRequest:
-      oneOf:
-      - $ref: '#/components/schemas/StudentImportRequest'
-      - $ref: '#/components/schemas/LegacyImportRequest'
     ImportRow:
       type: object
       description: One stored row and what the last check made of it.
@@ -5317,12 +5296,13 @@ components:
     LegacyImportRequest:
       type: object
       description: |-
-        Shared request shape for the historical preview and commit actions.
+        The historical preview's request: the rank choices to save, if any.
 
         Keys are the source rank text exactly as it appeared in the workbook
-        (case-insensitive on the service side); a null/omitted value explicitly
-        means "leave unresolved" - never a block on committing that row,
-        unlike the student roster importer's required rank.
+        (case-insensitive on the service side); a null value explicitly means
+        "leave unresolved" - never a block on committing that row, unlike the
+        student roster importer's required rank. Left out, the stored choices
+        are kept.
       properties:
         rank_mappings:
           type: object
@@ -6544,60 +6524,6 @@ components:
             $ref: '#/components/schemas/GradingHistoryItem'
       required:
       - items
-    StudentImportCorrectionRequest:
-      type: object
-      description: One row's corrected values, by target field; any may be left out.
-      properties:
-        wksa_id:
-          type: string
-        first_name:
-          type: string
-        last_name:
-          type: string
-        date_of_birth:
-          type: string
-        current_rank:
-          type: string
-        status:
-          type: string
-    StudentImportPreview:
-      type: object
-      properties:
-        total:
-          type: integer
-        ready:
-          type: integer
-        review_required:
-          type: integer
-        skip_existing:
-          type: integer
-        excluded:
-          type: integer
-        rows:
-          type: array
-          items:
-            $ref: '#/components/schemas/StudentImportRowResult'
-      required:
-      - excluded
-      - ready
-      - review_required
-      - rows
-      - skip_existing
-      - total
-    StudentImportRequest:
-      type: object
-      description: Shared request shape for the preview and commit actions.
-      properties:
-        column_mapping:
-          type: object
-          additionalProperties:
-            type: string
-        corrections:
-          type: object
-          additionalProperties:
-            $ref: '#/components/schemas/StudentImportCorrectionRequest'
-      required:
-      - column_mapping
     StudentImportRowOutcomeEnum:
       enum:
       - READY
@@ -6610,39 +6536,6 @@ components:
         * `REVIEW_REQUIRED` - Needs attention
         * `SKIP_EXISTING` - Already in KukGrade
         * `EXCLUDED` - Left out
-    StudentImportRowResult:
-      type: object
-      properties:
-        row_number:
-          type: integer
-        outcome:
-          $ref: '#/components/schemas/StudentImportRowOutcomeEnum'
-        wksa_id:
-          type: string
-        first_name:
-          type: string
-        last_name:
-          type: string
-        date_of_birth_display:
-          type: string
-        current_rank_text:
-          type: string
-        status:
-          type: string
-        issues:
-          type: array
-          items:
-            type: string
-      required:
-      - current_rank_text
-      - date_of_birth_display
-      - first_name
-      - issues
-      - last_name
-      - outcome
-      - row_number
-      - status
-      - wksa_id
     StudentList:
       type: object
       description: |-

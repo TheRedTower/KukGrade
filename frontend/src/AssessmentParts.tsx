@@ -22,9 +22,8 @@ function AssessorIcon() {
 }
 
 /**
- * Sticky band header. It carries the category's own progress, which is what
- * the removed sub-rail was really for - the instructor wants to know where
- * they are in the section they are standing in, not to jump to another one.
+ * Sticky band header. It carries the category's own progress: the instructor
+ * wants to know where they are in the section they are standing in.
  */
 export function CategoryHeader({ group }: { group: CategoryGroup }) {
   const filled = group.requiredCount > 0 ? (group.requiredAssessedCount / group.requiredCount) * 100 : 100;

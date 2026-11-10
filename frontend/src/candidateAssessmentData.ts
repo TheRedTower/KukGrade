@@ -11,7 +11,7 @@
  * serves scoring as well as review.
  *
  * The client groups the served items by category for rendering, since headers
- * and ledgers are per category. It no longer decides the counts.
+ * and ledgers are per category. It never decides the counts.
  */
 import { useCallback, useMemo, useState } from "react";
 import { keys } from "./queryKeys";

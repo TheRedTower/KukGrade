@@ -17,7 +17,7 @@
  * - The assessment note stays **editable** while unsealed. Completion is the
  *   only point at which `CandidateAssessment.notes` can be written - it is
  *   submitted with the `COMPLETED` transition and is immutable afterwards -
- *   and the 1A scoring screen has no overall-note control, so rendering it as
+ *   and the scoring screen has no overall-note control, so rendering it as
  *   static prose would remove the only write path in the application.
  *
  * Counts are served, never recounted here. No percentages: `Result`

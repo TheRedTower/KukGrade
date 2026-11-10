@@ -200,7 +200,7 @@ def test_commit_creates_one_legacy_record_per_row() -> None:
     assert AuditEvent.objects.count() == events_before + 1
 
 
-def test_commit_applies_approved_rank_mappings() -> None:
+def test_commit_applies_the_saved_rank_choices() -> None:
     admin = admin_user()
     content = standard_workbook(
         [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
@@ -208,11 +208,8 @@ def test_commit_applies_approved_rank_mappings() -> None:
     batch = legacy_batch(content, uploaded_by=admin)
     yellow = rank("YELLOW")
 
-    commit_legacy_grading_import(
-        batch,
-        actor=admin,
-        rank_mappings={"Yellow Belt": yellow.code},
-    )
+    preview_legacy_grading_import(batch, rank_mappings={"Yellow Belt": yellow.code})
+    commit_legacy_grading_import(batch, actor=admin)
 
     record = LegacyGradingRecord.objects.get(source_batch=batch)
     assert record.current_rank_id == yellow.pk
@@ -293,11 +290,7 @@ def test_instructor_cannot_preview_or_commit_a_legacy_batch() -> None:
     )
     assert preview_response.status_code == 403
 
-    commit_response = client.post(
-        f"/api/data-imports/batches/{batch.pk}/commit/",
-        {"rank_mappings": {}},
-        format="json",
-    )
+    commit_response = client.post(f"/api/data-imports/batches/{batch.pk}/commit/")
     assert commit_response.status_code == 403
 
 
@@ -332,11 +325,13 @@ def test_admin_completes_the_full_legacy_flow_via_the_api() -> None:
     assert any(s["source_text"] == "Yellow Belt" for s in body["rank_suggestions"])
 
     yellow = rank("YELLOW")
-    commit_response = client.post(
-        f"/api/data-imports/batches/{batch_id}/commit/",
+    chosen = client.post(
+        f"/api/data-imports/batches/{batch_id}/preview/",
         {"rank_mappings": {"Yellow Belt": yellow.code}},
         format="json",
     )
+    assert chosen.status_code == 200
+    commit_response = client.post(f"/api/data-imports/batches/{batch_id}/commit/")
     assert commit_response.status_code == 200
     assert commit_response.json()["id"] == batch_id
     assert ImportBatch.objects.get(pk=batch_id).status == ImportBatch.Status.COMMITTED

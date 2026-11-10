@@ -100,7 +100,7 @@ def cumulative_notation(mappings: list[SyllabusRequirement]) -> str:
     The latest mapping's notation, except for a form taught in parts across
     ranks: every part taught so far is examinable, so 8-and-under Cho Geup
     Hyung (part 1 at Blue, 2 at Red stripe, 3 at Red) reads "Parts 1-3"
-    from Red on, not only the latest "Part 3" (2026-10-18, audit F-09). A
+    from Red on, not only the latest "Part 3". A
     latest mapping without part notation - the whole form, or a range -
     stands as it is.
     """

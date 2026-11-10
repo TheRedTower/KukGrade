@@ -192,20 +192,3 @@ class CanViewAuditLog(BasePermission):
     def has_permission(self, request: Request, view: APIView) -> bool:
         user = _active_user(request)
         return user is not None and can_view_audit_log(user)
-
-
-__all__ = [
-    "AUDIT_LOG_PERMISSION",
-    "AUTHORITY_PERMISSIONS",
-    "DELETE_ANY_SESSION_PERMISSION",
-    "FINAL_GRADING_DECISION_PERMISSION",
-    "GRADING_AUDIT_LOG_PERMISSION",
-    "OVERRIDE_LOCKED_SESSION_PERMISSION",
-    "PROMOTE_STUDENT_PERMISSION",
-    "CanMakeFinalGradingDecision",
-    "CanOverrideLockedSession",
-    "CanPromoteStudent",
-    "CanViewAuditLog",
-    "HasRequiredPermissions",
-    "can_view_audit_log",
-]

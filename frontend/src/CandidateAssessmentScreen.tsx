@@ -47,10 +47,7 @@ export function CandidateAssessmentScreen() {
   } = useCandidateAssessmentData(numSessionId, numCandidateId);
 
   const generateAssessmentMutation = useMutation({
-    mutationFn: () => {
-      if (!candidate) throw new Error("Candidate not found");
-      return generateCandidateAssessment(candidate.id);
-    },
+    mutationFn: (candidateId: number) => generateCandidateAssessment(candidateId),
     onSuccess: (generated) => {
       setActionError(null);
       queryClient.setQueryData(keys.candidateAssessments.byCandidate(numCandidateId), generated);
@@ -350,7 +347,7 @@ export function CandidateAssessmentScreen() {
           </div>
           <Button
             variant="primary"
-            onClick={() => generateAssessmentMutation.mutate()}
+            onClick={() => generateAssessmentMutation.mutate(candidate.id)}
             disabled={generateAssessmentMutation.isPending || !canPrepare}
             data-testid="generate-assessment-btn"
           >

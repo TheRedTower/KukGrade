@@ -1027,7 +1027,7 @@ def test_deleted_user_placeholder_is_hidden_from_django_admin() -> None:
 
 def test_deleting_a_user_who_recorded_something_keeps_their_name_on_it() -> None:
     """Owner, 2026-11-07: a deleted staff member's name stays on their records,
-    so who made each decision is always known (review N-02)."""
+    so who made each decision is always known."""
     from gradings.models import GradingSession
 
     client, admin = admin_client("delete-history-admin@example.com")
@@ -1537,7 +1537,7 @@ def test_user_created_via_api_has_must_change_password_flag() -> None:
 
 def test_admin_cannot_reset_their_own_password() -> None:
     # A reset asks for no current password, so on your own account a
-    # signed-in session alone could replace it (audit F-04). Your own is
+    # signed-in session alone could replace it. Your own is
     # changed through change-password.
     client, admin = admin_client("reset-own-admin@example.com")
     admin.set_password("kg-OriginalOwn123!")

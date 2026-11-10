@@ -30,11 +30,10 @@ from data_imports.services import (
     commit_student_import,
     create_import_batch,
     expire_import_batch,
-    preview_student_import,
     remove_orphaned_uploads,
 )
 from data_imports.storage import import_upload_storage
-from data_imports.testing import workbook_bytes
+from data_imports.testing import check_roster, commit_roster, workbook_bytes
 from ranks.matching import active_rank_lookup
 from ranks.models import Rank
 from students.models import Student
@@ -196,7 +195,7 @@ def test_create_import_batch_flags_identical_already_committed_hash() -> None:
     content = student_workbook([CLEAN_ROW])
     admin = admin_user()
     first = upload_batch(content=content, uploaded_by=admin)
-    commit_student_import(first, actor=admin, column_mapping=STANDARD_MAPPING)
+    commit_roster(first, actor=admin, column_mapping=STANDARD_MAPPING)
 
     result = create_import_batch(
         kind=ImportBatch.Kind.STUDENT_ROSTER,
@@ -206,12 +205,12 @@ def test_create_import_batch_flags_identical_already_committed_hash() -> None:
     assert result.already_imported_warning is True
 
 
-# --- preview_student_import ---------------------------------------------
+# --- checking a roster --------------------------------------------------
 
 
 def test_preview_classifies_clean_row_as_ready() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
     assert preview.total == 1
     assert preview.ready == 1
     assert preview.rows[0].outcome == "READY"
@@ -243,9 +242,9 @@ def test_preview_queries_do_not_grow_with_the_number_of_rows() -> None:
     large = upload_batch(content=student_workbook(roster(40)), uploaded_by=creator)
 
     with CaptureQueriesContext(connection) as few:
-        preview_student_import(small, column_mapping=STANDARD_MAPPING)
+        check_roster(small, column_mapping=STANDARD_MAPPING)
     with CaptureQueriesContext(connection) as many:
-        preview = preview_student_import(large, column_mapping=STANDARD_MAPPING)
+        preview = check_roster(large, column_mapping=STANDARD_MAPPING)
 
     assert {row.outcome for row in preview.rows} == {
         "READY",
@@ -273,7 +272,7 @@ def test_the_rank_lookup_matches_code_or_name_of_active_ranks_ignoring_case() ->
 def test_preview_flags_missing_required_field_as_review_required() -> None:
     row = ["123-4-524", "", "Kim", "2012-05-01", "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
     assert preview.review_required == 1
     assert "First name is required." in preview.rows[0].issues
 
@@ -282,7 +281,7 @@ def test_preview_flags_future_dob_as_review_required() -> None:
     future = (timezone.localdate() + timedelta(days=1)).isoformat()
     row = ["123-4-525", "Alex", "Kim", future, "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
     assert preview.review_required == 1
     assert "cannot be in the future" in preview.rows[0].issues[0]
 
@@ -290,7 +289,7 @@ def test_preview_flags_future_dob_as_review_required() -> None:
 def test_preview_flags_unresolved_rank_as_review_required() -> None:
     row = ["123-4-526", "Alex", "Kim", "2012-05-01", "Not A Rank", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
     assert preview.review_required == 1
     assert "is not a rank KukGrade recognises" in preview.rows[0].issues[0]
 
@@ -304,7 +303,7 @@ def test_preview_flags_existing_wksa_id_as_skip_existing_and_never_updates() -> 
         current_rank=rank("YELLOW"),
     )
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
     assert preview.skip_existing == 1
     row = preview.rows[0]
     assert row.outcome == "SKIP_EXISTING"
@@ -312,7 +311,7 @@ def test_preview_flags_existing_wksa_id_as_skip_existing_and_never_updates() -> 
 
 def test_preview_flags_duplicate_wksa_id_within_file() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW, CLEAN_ROW]))
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
     assert preview.review_required == 1
     assert preview.ready == 1
     duplicate_row = next(r for r in preview.rows if r.outcome == "REVIEW_REQUIRED")
@@ -322,7 +321,7 @@ def test_preview_flags_duplicate_wksa_id_within_file() -> None:
 def test_preview_applies_row_correction() -> None:
     row = ["123-4-527", "", "Kim", "2012-05-01", "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
-    preview = preview_student_import(
+    preview = check_roster(
         batch,
         column_mapping=STANDARD_MAPPING,
         corrections={"2": {"first_name": "Alex"}},
@@ -333,8 +332,8 @@ def test_preview_applies_row_correction() -> None:
 
 def test_preview_is_recomputed_fresh_and_deterministic_across_calls() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
-    first = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
-    second = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    first = check_roster(batch, column_mapping=STANDARD_MAPPING)
+    second = check_roster(batch, column_mapping=STANDARD_MAPPING)
     assert first == second
 
 
@@ -406,27 +405,25 @@ def test_preview_and_commit_agree_on_every_row(
     admin = admin_user()
     batch = upload_batch(content=student_workbook([row]), uploaded_by=admin)
 
-    previewed = preview_student_import(batch, column_mapping=STANDARD_MAPPING).rows[0]
+    previewed = check_roster(batch, column_mapping=STANDARD_MAPPING).rows[0]
 
     if issue is None:
         assert previewed.outcome == "READY", previewed.issues
-        committed = commit_student_import(
-            batch, actor=admin, column_mapping=STANDARD_MAPPING
-        )
+        committed = commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
         assert committed.summary_json["created"] == 1
     else:
         assert previewed.outcome == "REVIEW_REQUIRED"
         assert previewed.issues == [issue]
         # A row needing attention is never passed over: the commit refuses.
         with pytest.raises(DjangoValidationError):
-            commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+            commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
         assert not Student.objects.exists()
 
 
 def test_a_correction_is_held_to_the_same_rules() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
 
-    preview = preview_student_import(
+    preview = check_roster(
         batch,
         column_mapping=STANDARD_MAPPING,
         corrections={"2": {"last_name": "L" * 151}},
@@ -461,7 +458,7 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
         ),
         pytest.raises(DjangoValidationError) as raised,
     ):
-        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+        commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     [message] = raised.value.message_dict["rows"]
     assert message.startswith("Row 2 (123-4-500) is no longer valid: ")
@@ -482,7 +479,7 @@ def test_a_database_conflict_during_commit_fails_it_clearly() -> None:
         ),
         pytest.raises(DjangoValidationError, match="conflicts with a change saved"),
     ):
-        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+        commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
 
 # --- commit_student_import ---------------------------------------------
@@ -493,9 +490,7 @@ def test_commit_creates_students_via_the_normal_service_and_audits_both() -> Non
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
     events_before = AuditEvent.objects.count()
 
-    committed = commit_student_import(
-        batch, actor=admin, column_mapping=STANDARD_MAPPING
-    )
+    committed = commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     assert committed.status == ImportBatch.Status.COMMITTED
     student = Student.objects.get(wksa_id="123-4-500")
@@ -526,7 +521,7 @@ def test_commit_never_creates_a_student_for_a_skip_existing_row() -> None:
     admin = admin_user()
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
 
-    commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+    commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     existing.refresh_from_db()
     assert existing.first_name == "Existing"
@@ -543,7 +538,7 @@ def test_commit_refuses_while_a_row_needs_attention_and_creates_nothing() -> Non
     )
 
     with pytest.raises(DjangoValidationError) as refused:
-        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+        commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     assert "1 row needs attention" in str(refused.value)
     assert not Student.objects.exists()
@@ -561,10 +556,8 @@ def test_committing_two_batches_with_the_same_wksa_id_skips_the_second_safely() 
     batch_a = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
     batch_b = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
 
-    commit_student_import(batch_a, actor=admin, column_mapping=STANDARD_MAPPING)
-    committed_b = commit_student_import(
-        batch_b, actor=admin, column_mapping=STANDARD_MAPPING
-    )
+    commit_roster(batch_a, actor=admin, column_mapping=STANDARD_MAPPING)
+    committed_b = commit_roster(batch_b, actor=admin, column_mapping=STANDARD_MAPPING)
 
     assert committed_b.summary_json["created"] == 0
     assert committed_b.summary_json["skipped_existing"] == 1
@@ -574,10 +567,10 @@ def test_committing_two_batches_with_the_same_wksa_id_skips_the_second_safely() 
 def test_commit_is_not_idempotent_a_second_attempt_is_refused() -> None:
     admin = admin_user()
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
-    commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+    commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     with pytest.raises(Exception, match="cannot be imported again"):
-        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+        commit_student_import(batch, actor=admin)
 
 
 def test_commit_deletes_the_temporary_source_file(
@@ -589,9 +582,7 @@ def test_commit_deletes_the_temporary_source_file(
     assert stored(name)
 
     with django_capture_on_commit_callbacks(execute=True):
-        committed = commit_student_import(
-            batch, actor=admin, column_mapping=STANDARD_MAPPING
-        )
+        committed = commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     assert not committed.source_file
     assert not stored(name)
@@ -608,13 +599,13 @@ def test_a_commit_whose_audit_fails_leaves_the_batch_retryable(
         patch("data_imports.services.record", side_effect=RuntimeError("audit")),
         pytest.raises(RuntimeError),
     ):
-        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+        commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     batch.refresh_from_db()
     assert batch.status == ImportBatch.Status.UPLOADED
     assert stored(batch.source_file.name)
     assert not Student.objects.filter(wksa_id="123-4-500").exists()
-    retried = commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+    retried = commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
     assert retried.status == ImportBatch.Status.COMMITTED
 
 
@@ -632,9 +623,7 @@ def test_a_failed_delete_after_commit_still_reports_the_commit(
         patch.object(storage_class, "delete", side_effect=OSError("read-only")),
         django_capture_on_commit_callbacks(execute=True),
     ):
-        committed = commit_student_import(
-            batch, actor=admin, column_mapping=STANDARD_MAPPING
-        )
+        committed = commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     assert committed.status == ImportBatch.Status.COMMITTED
     assert f"Import batch #{batch.pk} is closed" in caplog.text
@@ -749,7 +738,7 @@ def test_expiry_refuses_a_retention_under_one_hour(hours: str) -> None:
 def test_expiry_leaves_a_batch_that_closed_since_it_was_selected() -> None:
     admin = admin_user()
     batch = stale_batch(admin)
-    commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+    commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     assert expire_import_batch(batch.pk, max_age=timedelta(hours=24)) is False
 
@@ -883,38 +872,15 @@ def test_a_check_reads_the_stored_rows_not_the_file() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
     import_upload_storage().delete(batch.source_file.name)
 
-    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+    preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
 
     assert preview.ready == 1
-
-
-def test_an_open_import_from_before_rows_were_stored_reads_its_file_once() -> None:
-    batch = upload_batch(content=student_workbook([CLEAN_ROW]))
-    # As an import uploaded before this release left it: no rows.
-    batch.rows.all().delete()
-    batch.configuration_json = {}
-    batch.save()
-
-    assert preview_student_import(batch, column_mapping=STANDARD_MAPPING).ready == 1
-    assert batch.rows.count() == 1
-
-    import_upload_storage().delete(batch.source_file.name)
-    gone = upload_batch(
-        content=student_workbook([CLEAN_ROW]),
-        uploaded_by=batch.uploaded_by,
-    )
-    gone.rows.all().delete()
-    gone.configuration_json = {}
-    gone.save()
-    import_upload_storage().delete(gone.source_file.name)
-    with pytest.raises(Exception, match="no longer available"):
-        preview_student_import(gone, column_mapping=STANDARD_MAPPING)
 
 
 def test_cancel_a_committed_batch_is_refused() -> None:
     admin = admin_user()
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
-    commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+    commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     with pytest.raises(Exception, match="already imported"):
         cancel_import_batch(batch, actor=admin)
@@ -926,7 +892,7 @@ def test_cancel_a_committed_batch_is_refused() -> None:
 def test_deleting_a_user_keeps_their_name_on_import_batches() -> None:
     uploader = admin_user("uploader@example.com")
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=uploader)
-    commit_student_import(batch, actor=uploader, column_mapping=STANDARD_MAPPING)
+    commit_roster(batch, actor=uploader, column_mapping=STANDARD_MAPPING)
     batch.refresh_from_db()
     assert batch.committed_by == uploader
 
@@ -942,7 +908,7 @@ def test_deleting_a_user_keeps_their_name_on_import_batches() -> None:
 # --- API/permissions -----------------------------------------------------
 
 
-def test_instructor_cannot_upload_preview_commit_or_cancel() -> None:
+def test_instructor_cannot_upload_match_commit_or_cancel() -> None:
     client = APIClient()
     client.force_authenticate(user=instructor_user())
     content = student_workbook([CLEAN_ROW])
@@ -960,18 +926,14 @@ def test_instructor_cannot_upload_preview_commit_or_cancel() -> None:
     admin = admin_user()
     batch = upload_batch(content=content, uploaded_by=admin)
 
-    preview_response = client.post(
-        f"/api/data-imports/batches/{batch.pk}/preview/",
+    mapping_response = client.post(
+        f"/api/data-imports/batches/{batch.pk}/mapping/",
         {"column_mapping": STANDARD_MAPPING},
         format="json",
     )
-    assert preview_response.status_code == 403
+    assert mapping_response.status_code == 403
 
-    commit_response = client.post(
-        f"/api/data-imports/batches/{batch.pk}/commit/",
-        {"column_mapping": STANDARD_MAPPING},
-        format="json",
-    )
+    commit_response = client.post(f"/api/data-imports/batches/{batch.pk}/commit/")
     assert commit_response.status_code == 403
 
     cancel_response = client.post(f"/api/data-imports/batches/{batch.pk}/cancel/")
@@ -984,7 +946,7 @@ def test_anonymous_user_is_denied() -> None:
     assert response.status_code in (401, 403)
 
 
-def test_admin_completes_the_full_upload_preview_commit_flow_via_the_api() -> None:
+def test_admin_completes_the_full_upload_match_commit_flow_via_the_api() -> None:
     client = APIClient()
     admin = admin_user()
     client.force_authenticate(user=admin)
@@ -1004,26 +966,22 @@ def test_admin_completes_the_full_upload_preview_commit_flow_via_the_api() -> No
     assert created["detected_headers"] == list(STANDARD_STUDENT_HEADERS.values())
     assert created["suggested_mapping"] == STANDARD_MAPPING
 
-    preview_response = client.post(
-        f"/api/data-imports/batches/{batch_id}/preview/",
+    mapping_response = client.post(
+        f"/api/data-imports/batches/{batch_id}/mapping/",
         {"column_mapping": STANDARD_MAPPING},
         format="json",
     )
-    assert preview_response.status_code == 200
-    assert preview_response.json()["ready"] == 1
+    assert mapping_response.status_code == 200
+    assert mapping_response.json()["row_counts"]["ready"] == 1
 
-    commit_response = client.post(
-        f"/api/data-imports/batches/{batch_id}/commit/",
-        {"column_mapping": STANDARD_MAPPING},
-        format="json",
-    )
+    commit_response = client.post(f"/api/data-imports/batches/{batch_id}/commit/")
     assert commit_response.status_code == 200
     assert commit_response.json()["id"] == batch_id
     assert ImportBatch.objects.get(pk=batch_id).status == ImportBatch.Status.COMMITTED
     assert Student.objects.filter(wksa_id="123-4-500").exists()
 
 
-def test_preview_of_a_mapping_missing_a_needed_field_shows_the_row_waiting() -> None:
+def test_a_mapping_missing_a_needed_field_shows_the_row_waiting() -> None:
     # A needed field may have no column: its value is typed in row by row.
     client = APIClient()
     admin = admin_user()
@@ -1031,9 +989,29 @@ def test_preview_of_a_mapping_missing_a_needed_field_shows_the_row_waiting() -> 
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
 
     response = client.post(
-        f"/api/data-imports/batches/{batch.pk}/preview/",
+        f"/api/data-imports/batches/{batch.pk}/mapping/",
         {"column_mapping": {"wksa_id": "WKSA ID"}},
         format="json",
     )
     assert response.status_code == 200
-    assert response.json()["review_required"] == 1
+    assert response.json()["row_counts"]["review_required"] == 1
+
+
+def test_a_roster_is_matched_with_mapping_not_preview() -> None:
+    # Preview is a historical import's rank choices; a roster's columns are
+    # matched with mapping/ and its rows fixed one at a time.
+    client = APIClient()
+    admin = admin_user()
+    client.force_authenticate(user=admin)
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    response = client.post(
+        f"/api/data-imports/batches/{batch.pk}/preview/",
+        {"column_mapping": STANDARD_MAPPING},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "not a historical gradings import" in response.json()["error"]["message"]
+    saved = ImportBatch.objects.get(pk=batch.pk).configuration_json
+    assert "column_mapping" not in saved

@@ -15,6 +15,12 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from accounts.permissions import (
+    FINAL_GRADING_DECISION_PERMISSION,
+    OVERRIDE_LOCKED_SESSION_PERMISSION,
+    PROMOTE_STUDENT_PERMISSION,
+)
+from accounts.testing import grant_permission
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
@@ -27,9 +33,14 @@ from gradings.outcome_services import (
     promote_candidate,
     promotion_eligibility_for_session,
     propose_for_candidate,
+    validate_final_decision_actor,
+    validate_promotion_actor,
 )
 from gradings.read_models import student_rank_timeline
-from gradings.services import transition_grading_session
+from gradings.services import (
+    transition_grading_session,
+    validate_locked_session_override_actor,
+)
 from gradings.testing import (
     assessment,
     auth_client,
@@ -473,6 +484,30 @@ def test_promotion_records_are_immutable_and_protected() -> None:
         built.student.save()
 
 
+def test_a_deactivated_account_keeps_no_master_authority() -> None:
+    # has_perm() is false for every inactive account, a superuser's too, so
+    # the authority checks need no is_active test of their own.
+    granted = user("deactivated-master@example.com", is_active=False)
+    for permission in (
+        FINAL_GRADING_DECISION_PERMISSION,
+        PROMOTE_STUDENT_PERMISSION,
+        OVERRIDE_LOCKED_SESSION_PERMISSION,
+    ):
+        grant_permission(granted, permission)
+    superuser = user(
+        "deactivated-superuser@example.com", is_active=False, is_superuser=True
+    )
+
+    for actor in (User.objects.get(pk=granted.pk), superuser):
+        for check in (
+            validate_final_decision_actor,
+            validate_promotion_actor,
+            validate_locked_session_override_actor,
+        ):
+            with pytest.raises(ValidationError):
+                check(actor)
+
+
 def test_promotion_api_workflow_filters_and_rank_history() -> None:
     built, _generated = locked_completed_candidate()
     outcome = finalised_outcome(built)
@@ -483,17 +518,14 @@ def test_promotion_api_workflow_filters_and_rank_history() -> None:
     client.force_authenticate(user=user("promotion-api-ordinary@example.com"))
     forbidden = client.post(f"/api/gradings/outcomes/{outcome.id}/promote/")
     client.force_authenticate(user=actor)
-    spoofed = client.post(
+    # The date and the promoter are the server's: anything else sent is ignored.
+    promote_response = client.post(
         f"/api/gradings/outcomes/{outcome.id}/promote/",
         {
+            "notes": "API promotion.",
             "effective_date": "2030-01-01",
             "promoted_by": str(user("promotion-spoof@example.com").id),
         },
-        format="json",
-    )
-    promote_response = client.post(
-        f"/api/gradings/outcomes/{outcome.id}/promote/",
-        {"notes": "API promotion."},
         format="json",
     )
     duplicate = client.post(f"/api/gradings/outcomes/{outcome.id}/promote/")
@@ -514,7 +546,6 @@ def test_promotion_api_workflow_filters_and_rank_history() -> None:
 
     assert unauthenticated.status_code == 403
     assert forbidden.status_code == 403
-    assert spoofed.status_code == 400
     assert promote_response.status_code == 201
     assert promote_response.json()["effective_date"] == str(built.session.grading_date)
     stored_promotion = Promotion.objects.get(pk=promotion_id)

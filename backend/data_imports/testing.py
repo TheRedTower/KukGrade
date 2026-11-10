@@ -18,7 +18,14 @@ from openpyxl.workbook.workbook import Workbook
 
 from accounts.models import User
 from data_imports.models import ImportBatch
-from data_imports.services import create_import_batch
+from data_imports.services import (
+    StudentImportPreview,
+    _classify_roster,
+    commit_student_import,
+    correct_import_row,
+    create_import_batch,
+    save_import_mapping,
+)
 from gradings.legacy_services import (
     link_legacy_record_to_student,
 )
@@ -58,6 +65,41 @@ def standard_workbook(main_rows: list[list[object]], sheet: str = "06-2025") -> 
             ws.append(row)
 
     return workbook_bytes(build)
+
+
+def check_roster(
+    batch: ImportBatch,
+    *,
+    column_mapping: dict[str, str],
+    corrections: dict[str, dict[str, str]] | None = None,
+) -> StudentImportPreview:
+    """Match a roster's columns and make its fixes the way the import screens
+    do (save_import_mapping, then correct_import_row for each row, keyed by
+    row number), and return what checking every row found. Whole-file values
+    and kept columns already saved stay as they are."""
+    saved = ImportBatch.objects.get(pk=batch.pk).configuration_json
+    save_import_mapping(
+        batch,
+        column_mapping=column_mapping,
+        defaults=saved.get("defaults"),
+        extra_columns=saved.get("extra_columns"),
+    )
+    for row_number, changes in (corrections or {}).items():
+        correct_import_row(batch, row_number=int(row_number), changes=dict(changes))
+    # The same check every save above has just run and stored on the rows.
+    return _classify_roster(ImportBatch.objects.get(pk=batch.pk))
+
+
+def commit_roster(
+    batch: ImportBatch,
+    *,
+    actor: User,
+    column_mapping: dict[str, str],
+    corrections: dict[str, dict[str, str]] | None = None,
+) -> ImportBatch:
+    """check_roster, then finish the import from what it stored."""
+    check_roster(batch, column_mapping=column_mapping, corrections=corrections)
+    return commit_student_import(batch, actor=actor)
 
 
 def legacy_batch(

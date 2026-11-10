@@ -182,8 +182,7 @@ def test_anonymous_user_is_denied() -> None:
 
 
 def test_linking_does_not_change_source_name() -> None:
-    """Decision 3/24.4: a link/unlink correction never touches source
-    identity text."""
+    """A link/unlink correction never touches source identity text."""
     record = legacy_record(source_name="Original Name")
     target = student(wksa_id="123-4-503")
     client = APIClient()

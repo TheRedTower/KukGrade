@@ -194,15 +194,3 @@ def require_pinned(pk: int, pinned: Collection[int], name: str) -> None:
                 ],
             },
         )
-
-
-__all__ = [
-    "STUDENT_GONE_MESSAGE",
-    "lock_in_session",
-    "lock_session",
-    "lock_sessions",
-    "lock_sessions_of",
-    "lock_student",
-    "lock_students",
-    "require_pinned",
-]

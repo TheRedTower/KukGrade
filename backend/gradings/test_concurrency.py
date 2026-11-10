@@ -575,8 +575,8 @@ def test_registering_waits_for_an_edit_to_the_students_rank() -> None:
     """Registering checks the testing rank against the student, so it locks them.
 
     The student was read before any student lock; checked against that copy,
-    a registration went through on a rank an administrator had just corrected
-    (audit D1). A registered student's rank can no longer be edited, so the
+    a registration went through on a rank an administrator had just corrected.
+    A registered student's rank can no longer be edited, so the
     race is an edit of an unregistered student against their registration.
     """
     session = grading_session(status=GradingSession.Status.OPEN)

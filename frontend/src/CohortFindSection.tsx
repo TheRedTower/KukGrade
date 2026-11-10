@@ -178,7 +178,7 @@ export function CohortFindSection({
                       header: "Age and status",
                       render: (student) => (
                         <div className="bgc-chips">
-                          <Badge tone="neutral">{student.age_band_display || student.age_band || "—"}</Badge>
+                          <Badge tone="neutral">{student.age_band_display}</Badge>
                           <StudentStatusBadge status={student.status} label={student.status_display} />
                         </div>
                       ),

@@ -762,7 +762,7 @@ def test_proposing_for_a_candidate_opens_the_record_once_and_then_revises_it() -
 
 
 def test_a_proposal_cannot_be_revised_once_the_session_is_cancelled() -> None:
-    """Review N-04 (2026-11-07): only the first proposal checked the session."""
+    """A revised proposal checks the session as the first one does."""
     session, built = locked_session_with_undecided_candidate()
     proposed = propose_for_candidate(
         built, "PASS", "", user("n04-proposer@example.com")

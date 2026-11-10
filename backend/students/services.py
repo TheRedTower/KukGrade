@@ -316,7 +316,7 @@ def _registrations_to_reband(student: Student) -> list[tuple[Any, str]]:
                     ],
                 },
             )
-        # As registering checks (review N-08, 2026-11-07): the new band must
+        # As registering checks: the new band must
         # have a syllabus for the rank, or its form could never be prepared.
         if not has_recorded_syllabus(registration.testing_for_rank, band):
             raise ValidationError(

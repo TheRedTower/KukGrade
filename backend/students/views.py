@@ -201,7 +201,7 @@ class StudentViewSet(
         Registering for a session bands a student by their age on its
         grading date (gradings.age.resolve_age_band), so a list of who could
         be registered for one says the same - near a birthday, today's band
-        and the grading's differ (audit F-33).
+        and the grading's differ.
         """
         session_id = self.request.query_params.get("eligible_for_session", "")
         if session_id.isdecimal():

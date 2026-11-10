@@ -49,7 +49,7 @@ export function AddStudentScreen() {
   const ranksQuery = useRanksQuery();
 
   const ranks = useMemo<Rank[]>(() => {
-    return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
+    return ranksQuery.data?.results ?? [];
   }, [ranksQuery.data]);
 
   // Set initial rank once ranks load if not yet selected

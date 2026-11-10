@@ -75,15 +75,6 @@ export function XCircleIcon(props: IconProps) {
   );
 }
 
-export function SearchIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" x2="16.65" y1="21" y2="16.65" />
-    </svg>
-  );
-}
-
 // Navigation rail: 20px and styled by .nav-icon.
 const NAV_ICON: IconProps = { size: 20, className: "nav-icon" };
 

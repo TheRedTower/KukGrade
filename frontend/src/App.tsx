@@ -159,14 +159,10 @@ function App() {
                 }
               >
                 <Route element={<OverviewScreen />} index />
-                <Route element={<Navigate replace to="/" />} path="overview" />
                 <Route element={<StudentsScreen />} path="students" />
                 <Route element={<AddStudentScreen />} path="students/new" />
-                <Route element={<Navigate replace to="/imports/new?kind=STUDENT_ROSTER" />} path="students/import" />
                 <Route element={<StudentDetailScreen />} path="students/:id" />
                 <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
-                <Route element={<Navigate replace to="/imports/new?kind=LEGACY_GRADINGS" />} path="gradings/import-legacy" />
-                <Route element={<Navigate replace to="/imports/records" />} path="gradings/legacy-records" />
                 <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
                 <Route element={<CohortAdjudicationScreen />} path="gradings/:id/decisions" />
                 <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />

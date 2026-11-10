@@ -120,7 +120,7 @@ def link_legacy_record_to_student(
     actor: User,
     replace: bool = False,
 ) -> LegacyGradingRecord:
-    """Import Decision 3: every link is an explicit administrator decision,
+    """Every link is an explicit administrator decision,
     never inferred from a name match, however strong the suggestion looked.
 
     A record already linked to someone else moves only when `replace` says
@@ -228,8 +228,8 @@ def _resolve_legacy_rank(
     rank: Rank | None,
     actor: User,
 ) -> LegacyGradingRecord:
-    """`rank=None` explicitly leaves the mapping unresolved (import
-    Decision 4) - the source text is never touched either way."""
+    """`rank=None` explicitly leaves the mapping unresolved - the source text
+    is never touched either way."""
     locked = _locked(record_.pk)
     if getattr(locked, f"{field}_id") == (rank.pk if rank else None):
         # Already resolved that way: nothing changes, so nothing is recorded.
@@ -355,18 +355,6 @@ def void_legacy_records_from(
             },
         )
     return len(records)
-
-
-__all__ = [
-    "bulk_link_legacy_records",
-    "create_legacy_grading_records",
-    "link_legacy_record_to_student",
-    "resolve_legacy_current_rank",
-    "resolve_legacy_testing_for_rank",
-    "unlink_legacy_record_from_student",
-    "void_legacy_record",
-    "void_legacy_records_from",
-]
 
 
 def set_aside_keys(user: User) -> list[str]:

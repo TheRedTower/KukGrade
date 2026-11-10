@@ -428,7 +428,7 @@ def validate_can_reset_password(target: User, actor: User) -> None:
 
     Not your own: a reset asks for no current password, so on your own
     account it let whoever held a signed-in session replace the password and
-    lock the owner out (audit F-04); change_own_password, behind the current
+    lock the owner out; change_own_password, behind the current
     password, is the way. And, as with every change, not an account that can
     use the Django admin site unless you are a superuser (can_manage): the
     temporary password signs in as that account.

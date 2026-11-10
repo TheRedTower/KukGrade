@@ -327,6 +327,8 @@ describe("App authentication", () => {
             status: "ACTIVE",
             status_display: "Active",
             can_be_graded: true,
+            next_rank: null,
+            next_rank_name: null,
             age_band: "AGE_18_AND_OVER",
             age_band_display: "18+",
           },

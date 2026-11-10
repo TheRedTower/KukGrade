@@ -40,6 +40,14 @@ class GradingSessionStatus(models.TextChoices):
     CANCELLED = "CANCELLED", "Cancelled"
 
 
+# Draft or open: candidates can still be added, changed, removed and have
+# their forms prepared. The one statement, for a session and for a query.
+ROSTER_OPEN_STATUSES = frozenset(
+    {GradingSessionStatus.DRAFT, GradingSessionStatus.OPEN}
+)
+ROSTER_OPEN = models.Q(status__in=ROSTER_OPEN_STATUSES)
+
+
 class GradingSession(models.Model):
     if TYPE_CHECKING:
         created_by_id: int
@@ -155,7 +163,7 @@ class GradingSession(models.Model):
     def roster_open(self) -> bool:
         """Draft or open: candidates can still be added, changed, removed and
         have their forms prepared."""
-        return self.status in {self.Status.DRAFT, self.Status.OPEN}
+        return self.status in ROSTER_OPEN_STATUSES
 
     @property
     def marking_open(self) -> bool:

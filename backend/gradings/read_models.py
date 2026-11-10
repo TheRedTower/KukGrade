@@ -31,8 +31,10 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import unsettled_registrations
+from ranks.models import Rank
 from students.models import Student
 from syllabus.models import CATEGORY_ORDER
+from syllabus.services import rank_has_syllabus
 
 
 class GradingStage(models.TextChoices):
@@ -155,6 +157,21 @@ def with_current_grading(students: QuerySet[Student]) -> QuerySet[Student]:
         current_grading_stage=Subquery(
             current.annotate(stage=_grading_stage()).values("stage")[:1],
         ),
+    )
+
+
+def with_next_rank(students: QuerySet[Student]) -> QuerySet[Student]:
+    """Annotate the rank each student would be graded for next: their next
+    active rank (Rank.objects.next_active_after, the rule registration
+    holds them to), and whether its syllabus is recorded yet - a rank whose
+    charts are not in the app is not offered (`next_rank_pk`,
+    `next_rank_name`, `next_rank_has_syllabus`)."""
+    following = Rank.objects.next_active_after(OuterRef("current_rank__order"))
+    return students.annotate(
+        next_rank_pk=Subquery(following.values("pk")[:1]),
+        next_rank_name=Subquery(following.values("name")[:1]),
+    ).annotate(
+        next_rank_has_syllabus=rank_has_syllabus(rank=OuterRef("next_rank_pk")),
     )
 
 

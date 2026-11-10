@@ -17,10 +17,12 @@ from gradings.read_models import (
     GradingStage,
     StudentGradingHistory,
     StudentRankTimeline,
+    with_next_rank,
 )
 from kukgrade.serializers import ModelSerializer
 from students import wksa_ids
 from students.models import PreviousWksaId, Student, StudentExtraInfo
+from students.services import student_deletion_blocker
 from syllabus.models import AgeBand
 
 
@@ -113,7 +115,39 @@ class CurrentGradingSerializer(serializers.Serializer):
     stage_display = serializers.CharField()
 
 
-class StudentListSerializer(ModelSerializer[Student]):
+class NextRankFields(serializers.Serializer):
+    """The rank a student would be graded for next, as the server rules it
+    (gradings.read_models.with_next_rank): their next active rank, while its
+    syllabus is recorded. Null when there is none to offer."""
+
+    next_rank = serializers.SerializerMethodField(
+        help_text=(
+            "The rank the student would be graded for next: their next active "
+            "rank, when its syllabus is recorded. Null when there is none."
+        ),
+    )
+    next_rank_name = serializers.SerializerMethodField()
+
+    def _next_rank(self, obj: Student) -> tuple[int, str] | None:
+        if not hasattr(obj, "next_rank_pk"):
+            # Not loaded through the annotated queryset (a record just saved).
+            fresh = with_next_rank(Student.objects.filter(pk=obj.pk)).get()
+            for name in ("next_rank_pk", "next_rank_name", "next_rank_has_syllabus"):
+                setattr(obj, name, getattr(fresh, name))
+        if obj.next_rank_pk is None or not obj.next_rank_has_syllabus:  # type: ignore[attr-defined]
+            return None
+        return obj.next_rank_pk, obj.next_rank_name  # type: ignore[attr-defined]
+
+    def get_next_rank(self, obj: Student) -> int | None:
+        found = self._next_rank(obj)
+        return None if found is None else found[0]
+
+    def get_next_rank_name(self, obj: Student) -> str | None:
+        found = self._next_rank(obj)
+        return None if found is None else found[1]
+
+
+class StudentListSerializer(NextRankFields, ModelSerializer[Student]):
     """The list representation. Deliberately excludes date of birth.
 
     Date of birth is the most sensitive field held, on people who may be
@@ -162,6 +196,8 @@ class StudentListSerializer(ModelSerializer[Student]):
             "status",
             "status_display",
             "can_be_graded",
+            "next_rank",
+            "next_rank_name",
             "age_band",
             "age_band_display",
             "current_grading",
@@ -200,7 +236,7 @@ class StudentExtraInfoSerializer(ModelSerializer[StudentExtraInfo]):
         read_only_fields = fields
 
 
-class StudentSerializer(ModelSerializer[Student]):
+class StudentSerializer(NextRankFields, ModelSerializer[Student]):
     """Detail, create and update.
 
     One serializer rather than three: create and update share every field,
@@ -221,6 +257,19 @@ class StudentSerializer(ModelSerializer[Student]):
         help_text=(
             "Whether the ID is still a student ID, so the change to a black "
             "belt ID is still to come. Either form can be corrected."
+        ),
+    )
+    can_be_deleted = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may delete this student now: they may delete "
+            "students, and no grading the student is in is waiting for its "
+            "final decision."
+        ),
+    )
+    deletion_blocked_by = serializers.SerializerMethodField(
+        help_text=(
+            "Why the student cannot be deleted yet, naming the grading that "
+            "waits for its decision; null when nothing stands in the way."
         ),
     )
     previous_wksa_ids = PreviousWksaIdSerializer(many=True, read_only=True)
@@ -246,6 +295,10 @@ class StudentSerializer(ModelSerializer[Student]):
             "status",
             "status_display",
             "can_be_graded",
+            "next_rank",
+            "next_rank_name",
+            "can_be_deleted",
+            "deletion_blocked_by",
             "age_band_display",
             "deleted_at",
             "created_at",
@@ -258,6 +311,22 @@ class StudentSerializer(ModelSerializer[Student]):
             "age_band_display",
             "deleted_at",
             "created_at",
+        )
+
+    def get_deletion_blocked_by(self, obj: Student) -> str | None:
+        # Asked by both fields; read once per record.
+        if not hasattr(obj, "_deletion_blocker"):
+            obj._deletion_blocker = (  # type: ignore[attr-defined]
+                None if obj.deleted_at is not None else student_deletion_blocker(obj)
+            )
+        return obj._deletion_blocker  # type: ignore[attr-defined,no-any-return]
+
+    def get_can_be_deleted(self, obj: Student) -> bool:
+        user = self.context["request"].user
+        return (
+            obj.deleted_at is None
+            and user.has_perm("students.delete_student")
+            and self.get_deletion_blocked_by(obj) is None
         )
 
     def get_wksa_id_can_change(self, obj: Student) -> bool:

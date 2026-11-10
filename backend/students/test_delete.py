@@ -279,6 +279,47 @@ def test_a_deleted_students_kept_assessment_cannot_be_marked_or_changed() -> Non
             attempt()
 
 
+def _served(student: Student, reader: User) -> dict[str, Any]:
+    client = APIClient()
+    client.force_authenticate(user=reader)
+    body: dict[str, Any] = client.get(f"/api/students/{student.pk}/").json()
+    return body
+
+
+def test_the_record_says_whether_it_can_be_deleted_and_why_not() -> None:
+    # The student page follows these rather than finding out on the click.
+    admin = _admin("student-delete-flags-admin@example.com")
+    free = _no_history_student("123-4-510")
+    held = candidate(session=grading_session(title="Spring grading")).student
+
+    assert _served(free, admin)["can_be_deleted"] is True
+    assert _served(free, admin)["deletion_blocked_by"] is None
+    blocked = _served(held, admin)
+    assert blocked["can_be_deleted"] is False
+    assert "'Spring grading'" in blocked["deletion_blocked_by"]
+
+
+def test_an_instructor_is_never_offered_the_delete() -> None:
+    instructor = user("student-delete-flags-instructor@example.com")
+    served = _served(_no_history_student("123-4-511"), instructor)
+
+    assert served["can_be_deleted"] is False
+
+
+def test_a_deleted_record_is_not_offered_the_delete_again() -> None:
+    admin = _admin("student-delete-flags-again@example.com")
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
+    )
+    assert not delete_student(built.student, admin)
+    built.student.refresh_from_db()
+
+    assert _served(built.student, admin)["can_be_deleted"] is False
+
+
 def test_api_admin_can_delete_student() -> None:
     student = Student.objects.create(
         wksa_id="123-4-501",

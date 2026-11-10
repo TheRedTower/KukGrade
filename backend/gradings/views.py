@@ -47,6 +47,7 @@ from gradings.legacy_services import (
     void_legacy_record,
 )
 from gradings.models import (
+    ROSTER_OPEN,
     AssessmentItemComment,
     AssessmentItemResultChange,
     CandidateAssessment,
@@ -257,6 +258,12 @@ class GradingSessionViewSet(
 
     query_filters = (
         choices_in("status", "status", GradingSession.Status.values),
+        boolean(
+            "roster_open",
+            ROSTER_OPEN,
+            "Only sessions that accept candidates (draft or open), or only "
+            "those that no longer do.",
+        ),
         on_date("grading_date_from", "grading_date__gte"),
         on_date("grading_date_to", "grading_date__lte"),
         search(

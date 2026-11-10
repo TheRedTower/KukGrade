@@ -14,7 +14,7 @@ import { SessionStatusBadge } from "./StatusBadge";
 import "./BuildGradingCohort.css";
 import { buttonClass } from "./buttonClass";
 import { CohortResolver } from "./CohortResolver";
-import { type CohortItem, buildRankGroups, cohortBreakdown, newCohortItems, rankMaps } from "./cohortBuilder";
+import { type CohortItem, buildRankGroups, cohortBreakdown, destinationOf, newCohortItems, rankMapOf } from "./cohortBuilder";
 import { CohortFindSection, type StatusFilter } from "./CohortFindSection";
 import { CohortRankGroupsSection } from "./CohortRankGroupsSection";
 import { CohortReviewDialog } from "./CohortReviewDialog";
@@ -69,14 +69,14 @@ export function BuildGradingCohortScreen() {
   const rosterUpdating = studentsQuery.isPlaceholderData || search.trim() !== debouncedSearch;
 
   const ranks: Rank[] = useMemo(() => [...(ranksQuery.data?.results ?? [])].sort((a, b) => a.order - b.order), [ranksQuery.data]);
-  const { rankMap, nextRankMap } = useMemo(() => rankMaps(ranks), [ranks]);
-  const rankGroups = useMemo(() => buildRankGroups(eligibleStudents, ranks, nextRankMap, ageBands), [eligibleStudents, ranks, nextRankMap, ageBands]);
+  const rankMap = useMemo(() => rankMapOf(ranks), [ranks]);
+  const rankGroups = useMemo(() => buildRankGroups(eligibleStudents, ranks, rankMap, ageBands), [eligibleStudents, ranks, rankMap, ageBands]);
   const breakdown = useMemo(() => cohortBreakdown(cohort), [cohort]);
   const inCohort = useMemo(() => new Set(cohort.map((item) => item.student.id)), [cohort]);
 
   const rankFor = (student: StudentListItem) => ({
     currentRank: rankMap.get(student.current_rank) ?? null,
-    destinationRank: nextRankMap.get(student.current_rank) ?? null,
+    destinationRank: destinationOf(student, rankMap),
   });
   const addStudents = (students: StudentListItem[], ranksOf = rankFor) =>
     setCohort((prev) => [...prev, ...newCohortItems(prev, students, ranksOf)]);
@@ -171,7 +171,6 @@ export function BuildGradingCohortScreen() {
             onStatusFilter={setStatusFilter}
             ranks={ranks}
             rankMap={rankMap}
-            nextRankMap={nextRankMap}
             ageBands={ageBands}
             students={eligibleStudents}
             updating={rosterUpdating}

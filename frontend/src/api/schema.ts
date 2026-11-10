@@ -3074,6 +3074,13 @@ export interface components {
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
             readonly can_be_graded: boolean;
+            /** @description The rank the student would be graded for next: their next active rank, when its syllabus is recorded. Null when there is none. */
+            readonly next_rank: number | null;
+            readonly next_rank_name: string | null;
+            /** @description Whether the viewer may delete this student now: they may delete students, and no grading the student is in is waiting for its final decision. */
+            readonly can_be_deleted: boolean;
+            /** @description Why the student cannot be deleted yet, naming the grading that waits for its decision; null when nothing stands in the way. */
+            readonly deletion_blocked_by: string | null;
             readonly age_band_display: string;
             /** Format: date-time */
             readonly deleted_at: string | null;
@@ -3119,6 +3126,9 @@ export interface components {
             readonly status: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
             readonly can_be_graded: boolean;
+            /** @description The rank the student would be graded for next: their next active rank, when its syllabus is recorded. Null when there is none. */
+            readonly next_rank: number | null;
+            readonly next_rank_name: string | null;
             /**
              * @description On the session's grading date when the list is filtered by eligible_for_session, otherwise today.
              *
@@ -4872,6 +4882,8 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Only sessions that accept candidates (draft or open), or only those that no longer do. */
+                roster_open?: boolean;
                 /** @description The title, location, notes, status and date of a session. */
                 search?: string;
                 /** @description Comma-separated; one of CANCELLED, COMPLETED, DRAFT, LOCKED, OPEN. */

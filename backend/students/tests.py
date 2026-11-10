@@ -17,6 +17,7 @@ from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from ranks.models import Rank
 from students.models import Student
+from syllabus.models import SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
 
@@ -496,6 +497,36 @@ def test_can_be_graded_is_served_on_the_student_record() -> None:
     assert served(Student.Status.ACTIVE) is True
     assert served(Student.Status.INACTIVE) is True
     assert served(Student.Status.LEFT) is False
+
+
+def test_the_next_rank_is_served_on_the_list_the_record_and_a_fresh_save() -> None:
+    # The cohort builder and the student page read it rather than working it
+    # out from the rank list.
+    client = auth_client("next-rank@example.com")
+    yellow_stripe = Rank.objects.get(code="YELLOW_STRIPE")
+
+    created = create_via_api(client, wksa_id="123-4-522")
+    listed = client.get("/api/students/?search=123-4-522").json()["results"][0]
+    detail = client.get(f"/api/students/{created['id']}/").json()
+
+    for served in (created, listed, detail):
+        assert served["next_rank"] == yellow_stripe.pk
+        assert served["next_rank_name"] == yellow_stripe.name
+
+
+def test_no_next_rank_is_served_past_the_top_or_onto_a_rank_with_no_syllabus() -> None:
+    client = auth_client("no-next-rank@example.com")
+    top = Rank.objects.filter(active=True).order_by("-order").first()
+    assert top is not None
+    at_top = create_via_api(client, wksa_id="A-20823", current_rank=top.pk)
+    SyllabusRequirement.objects.filter(rank__code="YELLOW_STRIPE").update(active=False)
+    below_unrecorded = create_via_api(client, wksa_id="123-4-524")
+
+    for created in (at_top, below_unrecorded):
+        detail = client.get(f"/api/students/{created['id']}/").json()
+        assert (detail["next_rank"], detail["next_rank_name"]) == (None, None)
+    listed = client.get("/api/students/?search=123-4-524").json()["results"][0]
+    assert (listed["next_rank"], listed["next_rank_name"]) == (None, None)
 
 
 def test_only_students_view_student_can_read() -> None:

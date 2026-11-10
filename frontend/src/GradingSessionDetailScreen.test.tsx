@@ -359,7 +359,7 @@ describe("GradingSessionDetailScreen registration actions", () => {
     await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(3));
     // The server is asked for only the sessions that accept candidates, and
     // this one is not offered as its own destination.
-    expect(mockGetAllGradingSessions).toHaveBeenCalledWith({ status: "DRAFT,OPEN" });
+    expect(mockGetAllGradingSessions).toHaveBeenCalledWith({ roster_open: true });
     expect(within(select).queryByRole("option", { name: /March 2027/ })).toBeNull();
 
     await user.selectOptions(select, "10");

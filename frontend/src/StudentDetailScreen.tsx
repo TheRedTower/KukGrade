@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { keys, refresh } from "./queryKeys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import {
   type GradingHistoryItem,
-  type Rank,
   type StudentStatus,
   deleteStudent,
   getStudent,
@@ -21,7 +20,6 @@ import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
-import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import { Dialog } from "./Dialog";
 import { Badge } from "./Badge";
@@ -130,22 +128,8 @@ export function StudentDetailScreen() {
     enabled: !isNaN(studentId) && studentId > 0,
   });
 
-  // 3. Fetch Ranks Catalogue
-  const ranksQuery = useRanksQuery();
-
   const student = studentQuery.data;
   const rankHistory = rankHistoryQuery.data;
-  const ranks = useMemo<Rank[]>(() => {
-    return ranksQuery.data?.results ?? [];
-  }, [ranksQuery.data]);
-
-  // The next rank as the server defines it (Rank.next_rank), unless its syllabus
-  // is not recorded yet: such a rank is not offered.
-  const nextRank = useMemo(() => {
-    const current = ranks.find((r) => r.id === student?.current_rank);
-    const next = ranks.find((r) => r.id === current?.next_rank);
-    return next?.has_syllabus ? next : null;
-  }, [student, ranks]);
 
   function handleDeleteStudent() {
     if (!student) return;
@@ -423,7 +407,7 @@ export function StudentDetailScreen() {
               <div className="readiness-body">
                 <div className="readiness-row">
                   <span className="meta">Next rank</span>
-                  <span className="readiness-value item-title">{nextRank?.name || "Highest curriculum rank"}</span>
+                  <span className="readiness-value item-title">{student.next_rank_name ?? "Highest curriculum rank"}</span>
                 </div>
 
                 <div className="readiness-row">
@@ -476,7 +460,11 @@ export function StudentDetailScreen() {
                 </Button>
               )}
 
-              {currentUser?.can_delete_students && !isDeleted && (
+              {/* Whether they can be deleted now, and if not why, is the server's. */}
+              {currentUser?.can_delete_students && student.deletion_blocked_by && (
+                <p className="subtext" data-testid="student-delete-blocked">{student.deletion_blocked_by}</p>
+              )}
+              {student.can_be_deleted && (
                 <Button
                   variant="danger"
                   onClick={() => {

@@ -101,7 +101,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
   // Sessions a registration can move to; loaded only when the move dialog opens.
   const moveTargetsQuery = useQuery({
     queryKey: keys.gradingSessions.moveTargets(),
-    queryFn: () => getAllGradingSessions({ status: "DRAFT,OPEN" }),
+    queryFn: () => getAllGradingSessions({ roster_open: true }),
     enabled: registrationAction?.kind === "move",
   });
   const moveTargets = (moveTargetsQuery.data?.results ?? [])

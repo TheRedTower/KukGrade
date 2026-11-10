@@ -18,6 +18,7 @@ from gradings.read_models import (
     student_rank_timeline,
     unified_student_grading_history,
     with_current_grading,
+    with_next_rank,
 )
 from gradings.services import ranks_open_for_grading, unsettled_registrations
 from kukgrade.filtering import (
@@ -199,10 +200,15 @@ class StudentViewSet(
             # grading can still show who it was.
             students = students.filter(deleted_at__isnull=True)
         if self.action == "list":
-            return with_current_grading(
-                with_age_band_on(students, self._age_band_date()),
+            return with_next_rank(
+                with_current_grading(
+                    with_age_band_on(students, self._age_band_date()),
+                ),
             )
-        return students.prefetch_related("previous_wksa_ids", "extra_information")
+        return with_next_rank(students).prefetch_related(
+            "previous_wksa_ids",
+            "extra_information",
+        )
 
     def _age_band_date(self) -> date:
         """The date a list's age bands are worked out on.

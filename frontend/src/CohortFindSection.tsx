@@ -4,6 +4,7 @@ import type { AgeBand, Rank, StudentListItem } from "./api";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { RankFlow } from "./CohortRank";
+import { destinationOf } from "./cohortBuilder";
 import { EmptyState } from "./EmptyState";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
@@ -21,7 +22,6 @@ interface CohortFindSectionProps {
   onStatusFilter: (status: StatusFilter) => void;
   ranks: Rank[];
   rankMap: Map<number, Rank>;
-  nextRankMap: Map<number, Rank>;
   ageBands: AgeBand[];
   /** The students the filters leave, and whether that list is still catching up with them. */
   students: StudentListItem[];
@@ -35,7 +35,7 @@ interface CohortFindSectionProps {
 /** Step 1: filter the students who could still be registered, and add them one by one or all at once. */
 export function CohortFindSection({
   search, onSearch, rankFilter, onRankFilter, ageFilter, onAgeFilter, statusFilter, onStatusFilter,
-  ranks, rankMap, nextRankMap, ageBands, students, updating, inCohort, onAdd, onRemove, onAddAll,
+  ranks, rankMap, ageBands, students, updating, inCohort, onAdd, onRemove, onAddAll,
 }: CohortFindSectionProps) {
   return (
           <section className="bgc-section" aria-labelledby="bgc-find-heading">
@@ -67,7 +67,8 @@ export function CohortFindSection({
                 >
                   <option value="ALL">All ranks</option>
                   {ranks
-                    .filter((r) => nextRankMap.get(r.id)?.has_syllabus)
+                    // A rank whose next rank has its syllabus recorded, so its students can be graded.
+                    .filter((r) => r.next_rank !== null && rankMap.get(r.next_rank)?.has_syllabus)
                     .map((r) => (
                       <option key={r.id} value={String(r.id)}>
                         {r.name}
@@ -168,7 +169,7 @@ export function CohortFindSection({
                       render: (student) => (
                         <RankFlow
                           from={rankMap.get(student.current_rank)}
-                          to={nextRankMap.get(student.current_rank)}
+                          to={destinationOf(student, rankMap) ?? undefined}
                           fromFallback={student.current_rank_name || "—"}
                         />
                       ),

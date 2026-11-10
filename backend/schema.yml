@@ -2056,6 +2056,13 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: roster_open
+        required: false
+        in: query
+        description: Only sessions that accept candidates (draft or open), or only
+          those that no longer do.
+        schema:
+          type: boolean
       - name: search
         required: false
         in: query
@@ -6568,6 +6575,27 @@ components:
         can_be_graded:
           type: boolean
           readOnly: true
+        next_rank:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: 'The rank the student would be graded for next: their next
+            active rank, when its syllabus is recorded. Null when there is none.'
+        next_rank_name:
+          type: string
+          nullable: true
+          readOnly: true
+        can_be_deleted:
+          type: boolean
+          readOnly: true
+          description: 'Whether the viewer may delete this student now: they may delete
+            students, and no grading the student is in is waiting for its final decision.'
+        deletion_blocked_by:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Why the student cannot be deleted yet, naming the grading that
+            waits for its decision; null when nothing stands in the way.
         age_band_display:
           type: string
           readOnly: true
@@ -6582,16 +6610,20 @@ components:
           readOnly: true
       required:
       - age_band_display
+      - can_be_deleted
       - can_be_graded
       - created_at
       - current_rank
       - current_rank_name
       - date_of_birth
       - deleted_at
+      - deletion_blocked_by
       - extra_information
       - first_name
       - id
       - last_name
+      - next_rank
+      - next_rank_name
       - previous_wksa_ids
       - status_display
       - wksa_id
@@ -6674,6 +6706,16 @@ components:
         can_be_graded:
           type: boolean
           readOnly: true
+        next_rank:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: 'The rank the student would be graded for next: their next
+            active rank, when its syllabus is recorded. Null when there is none.'
+        next_rank_name:
+          type: string
+          nullable: true
+          readOnly: true
         age_band:
           allOf:
           - $ref: '#/components/schemas/AgeBandEnum'
@@ -6706,6 +6748,8 @@ components:
       - first_name
       - id
       - last_name
+      - next_rank
+      - next_rank_name
       - status
       - status_display
       - wksa_id

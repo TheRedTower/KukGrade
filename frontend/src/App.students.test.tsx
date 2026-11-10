@@ -95,6 +95,8 @@ describe("Students registry screen (/students)", () => {
         status: "ACTIVE",
         status_display: "Active",
         can_be_graded: true,
+        next_rank: 2,
+        next_rank_name: "Yellow Stripe",
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
         current_grading: {
@@ -115,6 +117,8 @@ describe("Students registry screen (/students)", () => {
         status: "INACTIVE",
         status_display: "Inactive",
         can_be_graded: true,
+        next_rank: 5,
+        next_rank_name: "Blue Belt",
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
         current_grading: null,
@@ -130,6 +134,8 @@ describe("Students registry screen (/students)", () => {
         status: "LEFT",
         status_display: "Left",
         can_be_graded: false,
+        next_rank: null,
+        next_rank_name: null,
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
         current_grading: null,
@@ -247,6 +253,8 @@ describe("Students registry screen (/students)", () => {
             status: "ACTIVE",
             status_display: "Active",
             can_be_graded: true,
+            next_rank: null,
+            next_rank_name: null,
             age_band: "AGE_18_AND_OVER",
             age_band_display: "18+",
           }],
@@ -428,6 +436,8 @@ describe("Add student screen (/students/new)", () => {
           status: "ACTIVE",
           status_display: "Active",
           can_be_graded: true,
+          next_rank: null,
+          next_rank_name: null,
           age_band: "AGE_18_AND_OVER",
           age_band_display: "18+",
           created_at: "2026-09-17T12:00:00Z",
@@ -450,6 +460,10 @@ describe("Add student screen (/students/new)", () => {
           status: "ACTIVE",
           status_display: "Active",
           can_be_graded: true,
+          next_rank: null,
+          next_rank_name: null,
+          can_be_deleted: false,
+          deletion_blocked_by: null,
           age_band: "AGE_18_AND_OVER",
           age_band_display: "18+",
           created_at: "2026-09-17T12:00:00Z",
@@ -652,6 +666,10 @@ describe("Student detail screen (/students/:id)", () => {
     status: "ACTIVE",
     status_display: "Active",
     can_be_graded: true,
+    next_rank: 3,
+    next_rank_name: "Yellow Belt",
+    can_be_deleted: false,
+    deletion_blocked_by: null,
     age_band_display: "13-17",
     deleted_at: null,
     created_at: "2021-01-08T10:00:00Z",
@@ -771,14 +789,14 @@ describe("Student detail screen (/students/:id)", () => {
     });
   });
 
-  it("does not offer a next rank whose syllabus is not recorded", async () => {
-    const ranks = testRanks.map((rank) => (rank.id === 3 ? { ...rank, has_syllabus: false } : rank));
+  it("shows no next rank when the server offers none", async () => {
+    // The server withholds a next rank that has no syllabus recorded.
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/ranks/")) {
-          return jsonResponse(200, { count: 3, next: null, previous: null, results: ranks });
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
         }
         if (url.includes("/api/students/10/rank-history/")) {
           return jsonResponse(200, {
@@ -791,7 +809,9 @@ describe("Student detail screen (/students/:id)", () => {
             promotions: [],
           });
         }
-        if (url.includes("/api/students/10/")) return jsonResponse(200, testStudent);
+        if (url.includes("/api/students/10/")) {
+          return jsonResponse(200, { ...testStudent, next_rank: null, next_rank_name: null });
+        }
         return jsonResponse(404, {});
       }),
     );

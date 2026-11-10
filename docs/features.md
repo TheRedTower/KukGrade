@@ -216,8 +216,8 @@ Notes:
 - User-management events in the audit log are visible to administrators only.
 - Deleting never erases a recorded decision, and is itself audited.
   - *A student* is never deleted before their final decision: while any grading they are
-    in has not reached it (a Pass waits for its promotion), deleting them is refused with a
-    message that names that grading. Once it has, or once they are taken out, they can be
+    in has not reached it (a Pass waits for its promotion), the student page names that
+    grading and offers no delete, and a delete asked for anyway is refused. Once it has, or once they are taken out, they can be
     deleted: they leave the student list and searches, cannot be registered, and their
     record is closed to changes, but it is kept, so every past grading, mark, decision and
     promotion still shows who it was. Only a record with no grading history at all (added

@@ -281,6 +281,31 @@ def test_session_api_filters_work() -> None:
     assert [item["id"] for item in results(response)] == [draft.id]
 
 
+def test_sessions_can_be_filtered_to_those_still_taking_candidates() -> None:
+    # The move-registration picker asks for these rather than naming statuses.
+    taking = {
+        grading_session(title=f"Taking {status}", status=status).pk
+        for status in (GradingSession.Status.DRAFT, GradingSession.Status.OPEN)
+    }
+    closed = {
+        grading_session(title=f"Closed {status}", status=status).pk
+        for status in (
+            GradingSession.Status.LOCKED,
+            GradingSession.Status.COMPLETED,
+            GradingSession.Status.CANCELLED,
+        )
+    }
+    client = auth_client("session-roster-open@example.com")
+
+    def listed(value: str) -> set[int]:
+        response = client.get(f"/api/gradings/sessions/?roster_open={value}")
+        assert response.status_code == 200
+        return {item["id"] for item in results(response)}
+
+    assert listed("true") == taking
+    assert listed("false") == closed
+
+
 def test_session_api_status_takes_several_values_and_orders_either_way() -> None:
     early = grading_session(title="Early", grading_date=date(2027, 4, 1))
     opened = grading_session(

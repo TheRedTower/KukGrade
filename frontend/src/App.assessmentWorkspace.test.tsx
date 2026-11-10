@@ -70,6 +70,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     age_band_display: "Junior (9–12)",
     status: "ACTIVE",
     can_be_graded: true,
+    next_rank: null,
+    next_rank_name: null,
     status_display: "Active",
     current_grading: null,
   };

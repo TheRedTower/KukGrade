@@ -615,8 +615,8 @@ describe("CohortAdjudicationScreen", () => {
 
     const detail = await screen.findByTestId("cab-detail");
     expect(within(detail).getByRole("heading", { name: "Alex Carter" })).toBeVisible();
-    expect(await within(detail).findByText("Guard dropped on the turn.")).toBeVisible();
-    expect(within(detail).getByText("Excellent chamber.")).toBeVisible();
+    expect(await within(detail).findByText("“Guard dropped on the turn.”")).toBeVisible();
+    expect(within(detail).getByText("“Excellent chamber.”")).toBeVisible();
     expect(within(detail).queryByText(/Yup Cha Gi/)).toBeNull();
     expect(within(detail).getByText("Back kick needs a re-test.")).toBeVisible();
     expect(within(detail).getByRole("link", { name: "Open the full assessment record" })).toHaveAttribute(

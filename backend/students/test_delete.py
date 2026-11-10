@@ -210,6 +210,9 @@ def test_a_deleted_student_is_gone_from_the_list_and_closed_to_changes() -> None
     assert student.pk not in {row["id"] for row in rows}
     assert page.status_code == 200
     assert page.json()["deleted_at"] is not None
+    # Their status stays as it was; the page still must not offer them.
+    assert page.json()["status"] == Student.Status.ACTIVE
+    assert page.json()["can_be_graded"] is False
     assert history.status_code == 200
     assert edited.status_code == 404
     assert again.status_code == 404

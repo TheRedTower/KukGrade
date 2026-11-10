@@ -3,11 +3,12 @@ import { Alert } from "./Alert";
 import { CandidateAssessmentItem, CandidateAssessmentItemResult } from "./api";
 import { CategoryGroup } from "./candidateAssessmentData";
 import { Dialog } from "./Dialog";
-import { formatShortDateTime, formatTime } from "./dates";
+import { formatTime } from "./dates";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { Button } from "./Button";
 import { ItemDraftBox } from "./ItemDraftBox";
-import { isReasonedChange, RESULT_WORDS } from "./resultWords";
+import { ItemRemarks } from "./ItemRemarks";
+import { hasRemarks, RESULT_WORDS } from "./resultWords";
 import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
 
@@ -169,7 +170,6 @@ export function AssessmentItemRow({
     if (isScored || hasHistory || reasonAlways) onAskChange(result);
     else onMark(result);
   };
-  const laterChanges = item.changes.filter(isReasonedChange);
   const clearing = pendingResult === "NOT_ASSESSED";
 
   return (
@@ -199,7 +199,7 @@ export function AssessmentItemRow({
           it only on not-met rows, so "who marked this, and when" was invisible
           across most of the record.
         */}
-        {(attribution || item.comments.length > 0 || laterChanges.length > 0) && (
+        {(attribution || hasRemarks(item)) && (
           <div className="caw-row-meta">
             {attribution && (
               <span>
@@ -207,25 +207,7 @@ export function AssessmentItemRow({
                 {attribution}
               </span>
             )}
-            {laterChanges.map((change) => (
-              <span key={change.sequence} className="caw-row-change" data-testid={`caw-change-${item.id}-${change.sequence}`}>
-                Changed from {RESULT_WORDS[change.from_result]} to {RESULT_WORDS[change.to_result]}
-                <span className="caw-row-note-by">
-                  {" "}— {change.changed_by_name}, {formatShortDateTime(change.changed_at)}
-                  {change.after_lock ? ", after the lock" : ""}
-                </span>
-                : “{change.reason}”
-              </span>
-            ))}
-            {item.comments.map((comment) => (
-              <span key={comment.id} className="caw-row-note">
-                “{comment.body}”
-                <span className="caw-row-note-by">
-                  {" "}— {comment.author_name}, {formatShortDateTime(comment.created_at)}
-                  {comment.after_lock ? ", after the lock" : ""}
-                </span>
-              </span>
-            ))}
+            <ItemRemarks item={item} />
           </div>
         )}
       </div>

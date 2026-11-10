@@ -651,6 +651,7 @@ describe("Student detail screen (/students/:id)", () => {
     current_rank_name: "Yellow Stripe",
     status: "ACTIVE",
     status_display: "Active",
+    can_be_graded: true,
     age_band_display: "13-17",
     deleted_at: null,
     created_at: "2021-01-08T10:00:00Z",

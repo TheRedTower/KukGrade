@@ -794,3 +794,25 @@ def test_proposing_for_a_candidate_who_cannot_have_an_outcome_is_refused() -> No
             user("propose-refused@example.com"),
         )
     assert not CandidateOutcome.objects.filter(candidate=built).exists()
+
+
+def test_finalising_with_no_outcome_is_refused_with_a_message() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "",
+        user("finalise-empty-proposer@example.com"),
+    )
+    client = APIClient()
+    client.force_authenticate(user=master("finalise-empty@example.com"))
+
+    response = client.patch(
+        f"/api/gradings/outcomes/{outcome.id}/finalise/", {}, format="json"
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "validation_error"
+    assert "final_outcome" in response.json()["error"]["fields"]
+    outcome.refresh_from_db()
+    assert outcome.status == CandidateOutcome.Status.PROPOSED

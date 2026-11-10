@@ -1,4 +1,4 @@
-import type { CandidateAssessmentItemResult } from "./api";
+import type { CandidateAssessmentItem, CandidateAssessmentItemResult } from "./api";
 
 /** An item's mark in running text ("Changed from Met to not assessed"). */
 export const RESULT_WORDS: Record<CandidateAssessmentItemResult, string> = {
@@ -13,4 +13,9 @@ export const RESULT_WORDS: Record<CandidateAssessmentItemResult, string> = {
  */
 export function isReasonedChange(change: { sequence: number; after_lock: boolean }): boolean {
   return change.sequence > 1 || change.after_lock;
+}
+
+/** Whether an item has anything for ItemRemarks to show: a comment or a reasoned change. */
+export function hasRemarks(item: Pick<CandidateAssessmentItem, "comments" | "changes">): boolean {
+  return item.comments.length > 0 || item.changes.some(isReasonedChange);
 }

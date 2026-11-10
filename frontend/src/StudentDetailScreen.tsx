@@ -416,35 +416,37 @@ export function StudentDetailScreen() {
 
         {/* Right Column: Operational Sidebar */}
         <div className="detail-right-column">
-          {/* Card 1: Grading readiness */}
-          <div className="card">
-            <h2 className="section-title section-title--ruled">Grading readiness</h2>
-            <div className="readiness-body">
-              <div className="readiness-row">
-                <span className="meta">Next rank</span>
-                <span className="readiness-value item-title">{nextRank?.name || "Highest curriculum rank"}</span>
-              </div>
+          {/* Card 1: Grading readiness. Whether they can be registered is the
+              server's answer (can_be_graded); a deleted record is closed, so
+              it has no readiness to show. */}
+          {!isDeleted && (
+            <div className="card">
+              <h2 className="section-title section-title--ruled">Grading readiness</h2>
+              <div className="readiness-body">
+                <div className="readiness-row">
+                  <span className="meta">Next rank</span>
+                  <span className="readiness-value item-title">{nextRank?.name || "Highest curriculum rank"}</span>
+                </div>
 
-              <div className="readiness-row">
-                <span className="meta">Current status</span>
-                {student.status === "ACTIVE" ? (
-                  <Badge tone="success" icon={<CheckIcon size={14} />}>Can be registered</Badge>
-                ) : student.status === "INACTIVE" ? (
-                  <Badge tone="warning">Inactive (temporary break)</Badge>
-                ) : (
-                  <Badge tone="danger">Left (registration blocked)</Badge>
-                )}
-              </div>
+                <div className="readiness-row">
+                  <span className="meta">Current status</span>
+                  {student.can_be_graded ? (
+                    <Badge tone="success" icon={<CheckIcon size={14} />}>Can be registered</Badge>
+                  ) : (
+                    <Badge tone="danger">Cannot be registered</Badge>
+                  )}
+                </div>
 
-              <p className="readiness-guidance subtext">
-                {student.status === "ACTIVE"
-                  ? "Active students can be added to a grading cohort, one grading at a time. KukGrade does not track training time or attendance, so readiness is the instructor's judgement."
-                  : student.status === "INACTIVE"
-                  ? "On a temporary break. Inactive blocks nothing: the student can still be added to a grading cohort."
-                  : "Student has left. Left status blocks grading registration while preserving complete historical records."}
-              </p>
+                <p className="readiness-guidance subtext">
+                  {student.status === "ACTIVE"
+                    ? "Active students can be added to a grading cohort, one grading at a time. KukGrade does not track training time or attendance, so readiness is the instructor's judgement."
+                    : student.status === "INACTIVE"
+                    ? "On a temporary break. Inactive blocks nothing: the student can still be added to a grading cohort."
+                    : "Student has left. Left status blocks grading registration while preserving complete historical records."}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Card 2: Record status */}
           <div className="card">

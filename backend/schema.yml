@@ -6487,6 +6487,9 @@ components:
         status_display:
           type: string
           readOnly: true
+        can_be_graded:
+          type: boolean
+          readOnly: true
         age_band_display:
           type: string
           readOnly: true
@@ -6501,6 +6504,7 @@ components:
           readOnly: true
       required:
       - age_band_display
+      - can_be_graded
       - created_at
       - current_rank
       - current_rank_name

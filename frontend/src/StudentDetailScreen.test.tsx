@@ -51,6 +51,7 @@ const student = {
   current_rank_name: "Yellow Stripe",
   status: "ACTIVE",
   status_display: "Active",
+  can_be_graded: true,
   age_band_display: "9-12",
   deleted_at: null,
   created_at: "2025-01-01T00:00:00Z",
@@ -203,6 +204,62 @@ describe("StudentDetailScreen delete action", () => {
     expect(screen.queryByRole("button", { name: "Edit student" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change status" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete student" })).not.toBeInTheDocument();
+  });
+
+  it("does not offer a deleted student for registration, whatever their status", async () => {
+    signInAsAdministrator();
+    // A deleted student keeps the status they had; the server says they
+    // cannot be graded, and the page follows it.
+    mockGetStudent.mockResolvedValue({
+      ...student,
+      status: "ACTIVE",
+      can_be_graded: false,
+      deleted_at: "2026-11-07T10:00:00Z",
+    });
+
+    renderScreen();
+
+    expect(await screen.findByText("Deleted on 7 November 2026")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Grading readiness" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Can be registered")).not.toBeInTheDocument();
+  });
+});
+
+describe("StudentDetailScreen grading readiness", () => {
+  beforeEach(() => {
+    mockGetStudentRankHistory.mockReset().mockResolvedValue(rankHistory);
+    mockGetStudentGradingHistory.mockReset().mockResolvedValue(gradingHistory);
+    mockGetRanks
+      .mockReset()
+      .mockResolvedValue({ count: 0, next: null, previous: null, results: [] });
+  });
+
+  it("says a student can be registered when the server says so", async () => {
+    mockGetStudent.mockReset().mockResolvedValue({
+      ...student,
+      status: "INACTIVE",
+      status_display: "Inactive",
+      can_be_graded: true,
+    });
+
+    renderScreen();
+
+    expect(await screen.findByText("Can be registered")).toBeVisible();
+    expect(screen.getByText(/Inactive blocks nothing/)).toBeVisible();
+  });
+
+  it("says a student cannot be registered when the server says not", async () => {
+    mockGetStudent.mockReset().mockResolvedValue({
+      ...student,
+      status: "LEFT",
+      status_display: "Left",
+      can_be_graded: false,
+    });
+
+    renderScreen();
+
+    expect(await screen.findByText("Cannot be registered")).toBeVisible();
+    expect(screen.queryByText("Can be registered")).not.toBeInTheDocument();
   });
 });
 

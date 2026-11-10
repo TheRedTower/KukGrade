@@ -424,6 +424,63 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.queryByTestId("acp-note-1003")).toBeNull();
   });
 
+  it("puts every changed mark on the proof, with who changed it and why", async () => {
+    const metWithNote: CandidateAssessmentItem = {
+      ...mockItem1,
+      comments: [{ id: 3, author_name: "Master Park", body: "Confirmed on the recording.", created_at: "2026-09-19T09:00:00Z", after_lock: true }],
+      changes: [
+        { sequence: 1, from_result: "NOT_ASSESSED", to_result: "NOT_MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
+        { sequence: 2, from_result: "NOT_MET", to_result: "MET", changed_by_name: "Morgan Reed", changed_at: "2026-09-18T10:30:00Z", reason: "Repeated cleanly on the second attempt.", after_lock: false },
+      ],
+    };
+    const assessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+    const proofItems = [metWithNote, mockItem2, assessedItem3];
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
+        return jsonResponse(200, mockCandidate);
+      }
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Assessment record" });
+
+    // The change after the first mark is on the record with its reason, who
+    // made it, and the new mark; the first mark is not a change.
+    const note = screen.getByTestId("acp-note-1001");
+    expect(within(note).getByTestId("remark-change-1001-2")).toHaveTextContent(
+      "Changed from Not met to Met: “Repeated cleanly on the second attempt.” — Morgan Reed",
+    );
+    expect(within(note).queryByTestId("remark-change-1001-1")).toBeNull();
+    // A Master's remark after the lock says so; remarks read oldest first.
+    expect(within(note).getByTestId("remark-comment-3")).toHaveTextContent("Master Park");
+    expect(within(note).getByTestId("remark-comment-3")).toHaveTextContent("after the lock");
+    expect(within(note).getAllByRole("listitem").map((line) => line.dataset.testid)).toEqual([
+      "remark-change-1001-2",
+      "remark-comment-3",
+    ]);
+  });
+
   // A sealed record is the permanent document. It must show its seal and offer
   // no way to write to it — the assessment note is immutable after COMPLETED.
   // `grading_date` is a date-only string. Parsed as a timestamp it is read as
@@ -1503,12 +1560,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       await screen.findByRole("heading", { name: "Alex Carter" });
 
       const row = screen.getByTestId("caw-item-1002");
-      expect(within(row).getByTestId("caw-change-1002-2")).toHaveTextContent(
-        "Changed from Met to Not met — Lee Coach",
+      expect(within(row).getByTestId("remark-change-1002-2")).toHaveTextContent(
+        "Changed from Met to Not met: “Dropped the guard on the replay.” — Lee Coach",
       );
-      expect(within(row).getByTestId("caw-change-1002-2")).toHaveTextContent("Dropped the guard on the replay.");
       // The first mark is the attribution already shown, not a "change".
-      expect(within(row).queryByTestId("caw-change-1002-1")).toBeNull();
+      expect(within(row).queryByTestId("remark-change-1002-1")).toBeNull();
     });
 
     it("says so, and brings back the real mark, when another person marked the item first", async () => {

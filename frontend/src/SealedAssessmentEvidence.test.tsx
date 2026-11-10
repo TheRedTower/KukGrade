@@ -90,8 +90,8 @@ describe("SealedAssessmentEvidence", () => {
     renderEvidence();
 
     expect(await screen.findByText("3 / 4 required met · 1 not met")).toBeVisible();
-    expect(screen.getByText("Chamber too low")).toBeVisible();
-    expect(screen.getByText("Crisp footwork")).toBeVisible();
+    expect(screen.getByText("“Chamber too low”")).toBeVisible();
+    expect(screen.getByText("“Crisp footwork”")).toBeVisible();
     expect(screen.getByRole("link", { name: "Open the full assessment record" })).toHaveAttribute(
       "href",
       "/gradings/10/assessments/102/review",
@@ -119,11 +119,11 @@ describe("SealedAssessmentEvidence", () => {
 
     renderEvidence();
 
-    const change = await screen.findByTestId("evd-change-5-2");
+    const change = await screen.findByTestId("remark-change-5-2");
     expect(change).toHaveTextContent("Dropped the guard on review.");
     expect(change).toHaveTextContent("Master Park");
     expect(change).toHaveTextContent("after the lock");
-    expect(screen.queryByTestId("evd-change-5-1")).toBeNull();
+    expect(screen.queryByTestId("remark-change-5-1")).toBeNull();
   });
 
   it("shows a first mark made after the lock, even on a met item with no comments", async () => {
@@ -144,7 +144,7 @@ describe("SealedAssessmentEvidence", () => {
 
     renderEvidence();
 
-    const change = await screen.findByTestId("evd-change-6-1");
+    const change = await screen.findByTestId("remark-change-6-1");
     expect(change).toHaveTextContent("Seen on the recording.");
     expect(change).toHaveTextContent("after the lock");
   });

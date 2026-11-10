@@ -12,8 +12,9 @@ import { Link } from "react-router-dom";
 
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { formatShortDateTime, formatTime } from "./dates";
-import { isReasonedChange, RESULT_WORDS } from "./resultWords";
+import { formatTime } from "./dates";
+import { ItemRemarks } from "./ItemRemarks";
+import { hasRemarks } from "./resultWords";
 import { ErrorText } from "./ErrorText";
 import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
@@ -36,10 +37,7 @@ export function SealedAssessmentEvidence({
   const itemsQuery = useAssessmentItemsQuery(assessmentId);
 
   const notedItems = (itemsQuery.data?.results ?? []).filter(
-    (item) =>
-      item.result === "NOT_MET" ||
-      item.comments.length > 0 ||
-      item.changes.some(isReasonedChange),
+    (item) => item.result === "NOT_MET" || hasRemarks(item),
   );
   const shortfalls = notedItems.filter((item) => item.result === "NOT_MET");
   const otherNotes = notedItems.filter((item) => item.result !== "NOT_MET");
@@ -88,27 +86,7 @@ export function SealedAssessmentEvidence({
                       {item.category_display}
                       {!shortfall && ` · ${item.result_display}`}
                     </span>
-                    {item.changes
-                      .filter(isReasonedChange)
-                      .map((change) => (
-                        <span key={change.sequence} className="evd-comment" data-testid={`evd-change-${item.id}-${change.sequence}`}>
-                          <q>{change.reason}</q>
-                          <span className="evd-note-by subtext">
-                            Changed from {RESULT_WORDS[change.from_result]} to {RESULT_WORDS[change.to_result]} by{" "}
-                            {change.changed_by_name}, {formatShortDateTime(change.changed_at)}
-                            {change.after_lock ? ", after the lock" : ""}
-                          </span>
-                        </span>
-                      ))}
-                    {item.comments.map((comment) => (
-                      <span key={comment.id} className="evd-comment">
-                        <q>{comment.body}</q>
-                        <span className="evd-note-by subtext">
-                          {comment.author_name}, {formatShortDateTime(comment.created_at)}
-                          {comment.after_lock ? ", after the lock" : ""}
-                        </span>
-                      </span>
-                    ))}
+                    <ItemRemarks item={item} />
                     <span className="evd-note-by subtext">
                       {item.assessor_email && <EmailAddress address={item.assessor_email} />}
                       {item.assessed_at ? `, ${formatTime(item.assessed_at)}` : ""}

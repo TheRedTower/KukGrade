@@ -519,7 +519,6 @@ class GradingCandidateViewSet(
         serializer = LockedCandidateWithdrawalSerializer(
             candidate,
             data=request.data,
-            partial=True,
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
@@ -825,7 +824,6 @@ class CandidateOutcomeViewSet(GenericViewSet):
         serializer = CandidateOutcomeFinaliseSerializer(
             outcome,
             data=request.data,
-            partial=True,
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
@@ -855,7 +853,6 @@ class CandidateOutcomeViewSet(GenericViewSet):
         serializer = CandidatePromotionSerializer(
             outcome,
             data=request.data,
-            partial=True,
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)

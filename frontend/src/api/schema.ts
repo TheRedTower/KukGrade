@@ -3057,6 +3057,7 @@ export interface components {
             readonly current_rank_name: string;
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
+            readonly can_be_graded: boolean;
             readonly age_band_display: string;
             /** Format: date-time */
             readonly deleted_at: string | null;

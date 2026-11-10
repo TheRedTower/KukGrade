@@ -1468,7 +1468,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     // The same served evidence the Master sees on the board - no percentage
     expect(await within(drawer).findByText("24 / 24 required met · none not met")).toBeVisible();
     expect(within(drawer).queryByText(/%/)).not.toBeInTheDocument();
-    expect(await within(drawer).findByText("Crisp, confident footwork")).toBeVisible();
+    expect(await within(drawer).findByText("“Crisp, confident footwork”")).toBeVisible();
     expect(
       within(drawer).getByRole("link", { name: "Open the full assessment record" }),
     ).toHaveAttribute("href", "/gradings/10/assessments/102/review");

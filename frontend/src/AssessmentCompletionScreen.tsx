@@ -12,7 +12,8 @@
  * - **Every** comment renders, not only those on `NOT_MET` items. Comments
  *   carry positive observations too, so one on a met requirement would
  *   otherwise be invisible at the last moment it can be read, and absent from
- *   the permanent record afterwards.
+ *   the permanent record afterwards. Every changed mark renders with its
+ *   reason as well (ItemRemarks), as on the scoring rows.
  * - The assessment note stays **editable** while unsealed. Completion is the
  *   only point at which `CandidateAssessment.notes` can be written - it is
  *   submitted with the `COMPLETED` transition and is immutable afterwards -
@@ -40,7 +41,9 @@ import {
   useAssessmentNotesDraft,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
-import { formatShortDate, formatShortDateTime, formatTime } from "./dates";
+import { formatShortDate, formatTime } from "./dates";
+import { ItemRemarks } from "./ItemRemarks";
+import { hasRemarks } from "./resultWords";
 import "./CandidateAssessment.css";
 import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
@@ -162,8 +165,8 @@ export function AssessmentCompletionScreen() {
   const coreGroups = categoryGroups.filter((group) => group.isCore);
   const ledgerGroups = categoryGroups.filter((group) => !group.isCore);
 
-  // Every comment, whichever way the requirement went.
-  const notedItems = items.filter((item) => item.comments.length > 0);
+  // Every comment and every changed mark, whichever way the requirement went.
+  const notedItems = items.filter(hasRemarks);
 
   // Distinct assessors across the record, in the order they first appear.
   const assessors = Array.from(
@@ -272,13 +275,15 @@ export function AssessmentCompletionScreen() {
             <LedgerTable key={group.category} group={group} />
           ))}
 
-          <h2 className="acp-section eyebrow--muted">Comments on individual requirements</h2>
+          <h2 className="acp-section eyebrow--muted">Comments and changed marks on individual requirements</h2>
           {notedItems.length === 0 ? (
-            <p className="acp-section-note meta">No comments were recorded against individual requirements.</p>
+            <p className="acp-section-note meta">
+              No comments or changed marks were recorded against individual requirements.
+            </p>
           ) : (
             <>
               <p className="acp-section-note meta">
-                Every comment recorded during scoring, whichever way the requirement went.
+                Every comment, and every mark changed with its reason, whichever way the requirement went.
               </p>
               {notedItems.map((item) => (
                 <div key={item.id} className="acp-note" data-testid={`acp-note-${item.id}`}>
@@ -289,14 +294,7 @@ export function AssessmentCompletionScreen() {
                     </span>
                     <ResultMark result={item.result} />
                   </div>
-                  {item.comments.map((comment) => (
-                    <p key={comment.id} className="acp-note-body meta">
-                      “{comment.body}”
-                      <span className="meta">
-                        {" "}— {comment.author_name} · {formatShortDateTime(comment.created_at)}
-                      </span>
-                    </p>
-                  ))}
+                  <ItemRemarks item={item} />
                 </div>
               ))}
             </>

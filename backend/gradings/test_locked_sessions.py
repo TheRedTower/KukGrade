@@ -432,3 +432,19 @@ def test_the_api_refuses_to_cancel_a_session_with_a_final_decision() -> None:
         GradingSession.objects.get(pk=built.session_id).status
         == GradingSession.Status.LOCKED
     )
+
+
+def test_withdrawing_with_no_reason_is_refused_with_a_message() -> None:
+    _session, built = locked_session_with_undecided_candidate()
+    client = APIClient()
+    client.force_authenticate(user=override_master("withdraw-empty@example.com"))
+
+    response = client.post(
+        f"/api/gradings/candidates/{built.id}/withdraw/", {}, format="json"
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "validation_error"
+    assert "withdrawal_reason" in response.json()["error"]["fields"]
+    built.refresh_from_db()
+    assert built.status != GradingCandidate.Status.WITHDRAWN

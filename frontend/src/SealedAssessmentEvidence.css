@@ -47,11 +47,3 @@
 .evd-note-shortfall .evd-note-title {
   color: var(--color-danger);
 }
-
-.evd-comment {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-

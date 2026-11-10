@@ -482,6 +482,22 @@ def test_can_be_graded_reflects_status_in_the_student_list() -> None:
     assert listed() is False
 
 
+def test_can_be_graded_is_served_on_the_student_record() -> None:
+    # The student page reads it rather than working it out from status.
+    client = auth_client("can-be-graded-detail@example.com")
+    created = create_via_api(client, wksa_id="123-4-521")
+
+    def served(status: str) -> bool:
+        client.patch(f"/api/students/{created['id']}/", {"status": status})
+        return bool(
+            client.get(f"/api/students/{created['id']}/").json()["can_be_graded"]
+        )
+
+    assert served(Student.Status.ACTIVE) is True
+    assert served(Student.Status.INACTIVE) is True
+    assert served(Student.Status.LEFT) is False
+
+
 def test_only_students_view_student_can_read() -> None:
     from django.contrib.auth.models import Permission
 

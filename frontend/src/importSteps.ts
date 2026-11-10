@@ -1,28 +1,22 @@
-import type { DataImportBatch, DataImportKind, DataImportRow } from "./api";
+import type { DataImportKind, DataImportRow, SiteSettings } from "./api";
+import { useSiteSettingsQuery } from "./queries";
 
 // The wording the import screens share, so a step, a kind of import or a
 // row is named the same way everywhere.
 
-/** The five steps every import runs through, named for its kind. */
-export function importStepNames(kind: DataImportKind): string[] {
-  return kind === "STUDENT_ROSTER"
-    ? ["Choose file", "Match columns", "Review rows", "Confirm", "Results"]
-    : ["Choose file", "Match ranks", "Review records", "Confirm", "Results"];
-}
+export type ImportSteps = SiteSettings["imports"]["kinds"][number]["steps"];
 
-/** Where an unfinished import is up to, as a step index (0-4). */
-export function importStepIndex(batch: DataImportBatch): number {
-  if (batch.status !== "UPLOADED") return 4;
-  if (batch.kind === "STUDENT_ROSTER" && batch.next_step === "MATCH_COLUMNS") return 1;
-  return batch.kind === "STUDENT_ROSTER" ? 2 : 1;
+/**
+ * The steps each kind of import runs through, named, as the server serves
+ * them (site settings, imports.kinds); none while the settings load.
+ */
+export function useImportSteps(): (kind: DataImportKind) => ImportSteps {
+  const kinds = useSiteSettingsQuery().data?.imports.kinds;
+  return (kind) => kinds?.find((served) => served.kind === kind)?.steps ?? [];
 }
 
 export function importKindTitle(kind: DataImportKind): string {
   return kind === "STUDENT_ROSTER" ? "Import students" : "Import past gradings";
-}
-
-export function importKindLabel(kind: DataImportKind): string {
-  return kind === "STUDENT_ROSTER" ? "Students" : "Past gradings";
 }
 
 /** A row's person as the file names them. */

@@ -336,7 +336,7 @@ def test_an_other_withdrawal_needs_a_note() -> None:
     )
 
     assert refused.status_code == 200
-    assert refused.json()["errors"]["0"] == ["Say what the other reason is."]
+    assert refused.json()["errors"][str(built.pk)] == ["Say what the other reason is."]
     assert accepted.status_code == 200
     assert accepted.json()["errors"] == {}
     built.refresh_from_db()

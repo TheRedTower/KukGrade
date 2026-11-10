@@ -14,13 +14,16 @@ from data_imports.mappings import (
 )
 from data_imports.models import ImportBatch, ImportRow
 from data_imports.services import (
+    REVIEW_STEPS,
     ROW_COUNT_NAMES,
     CreateImportBatchResult,
     ImportStep,
     extra_values,
     next_step,
+    review_step,
     roster_cells,
     roster_file_values,
+    uncovered_fields,
 )
 from kukgrade.serializers import ModelSerializer
 
@@ -44,6 +47,18 @@ class ImportFieldSerializer(serializers.Serializer):
     )
 
 
+class ImportSecondLookSerializer(serializers.Serializer):
+    corrected = serializers.IntegerField(
+        help_text="Added rows holding a fix of the importer's.",
+    )
+    given_status = serializers.IntegerField(
+        help_text="Added rows the file gave no status, so one was given them.",
+    )
+    given_rank = serializers.IntegerField(
+        help_text="Added rows the file gave no rank, so the whole-file rank was used.",
+    )
+
+
 class ImportBatchSerializer(ModelSerializer):
     """An import: what was uploaded, where it is up to, and its rows' counts."""
 
@@ -52,7 +67,16 @@ class ImportBatchSerializer(ModelSerializer):
     uploaded_by_name = serializers.SerializerMethodField()
     committed_by_name = serializers.SerializerMethodField()
     next_step = serializers.SerializerMethodField(
-        help_text="Where the import is up to, so a screen can resume it.",
+        help_text=(
+            "Where the import is up to, so a screen can resume it: one of the "
+            "steps its kind serves (site settings, imports.kinds)."
+        ),
+    )
+    review_step = serializers.SerializerMethodField(
+        help_text=(
+            "Where its review stands: REVIEW while rows need attention, "
+            "otherwise CONFIRM."
+        ),
     )
     detected_headers = serializers.SerializerMethodField(
         help_text="A roster's column headers, as in the file; empty otherwise.",
@@ -83,10 +107,10 @@ class ImportBatchSerializer(ModelSerializer):
     target_fields = serializers.SerializerMethodField(
         help_text="The fields a roster's columns are matched to; empty otherwise.",
     )
-    rank_mappings = serializers.SerializerMethodField(
+    uncovered_fields = serializers.SerializerMethodField(
         help_text=(
-            "A historical import's chosen rank for each spelling, by the "
-            "spelling lowercased; a spelling not here is left as written."
+            "A roster's needed fields that no saved column holds and no "
+            "whole-file value gives, so each row's value is typed in."
         ),
     )
     grading_sheets = serializers.SerializerMethodField(
@@ -118,6 +142,7 @@ class ImportBatchSerializer(ModelSerializer):
             "committed_by_name",
             "cancelled_at",
             "next_step",
+            "review_step",
             "detected_headers",
             "column_mapping",
             "defaults",
@@ -127,7 +152,7 @@ class ImportBatchSerializer(ModelSerializer):
             "sheet_error",
             "suggested_mapping",
             "target_fields",
-            "rank_mappings",
+            "uncovered_fields",
             "grading_sheets",
             "warnings",
             "row_counts",
@@ -142,9 +167,17 @@ class ImportBatchSerializer(ModelSerializer):
         user = batch.committed_by
         return (user.get_full_name() or user.email) if user else ""
 
+    # Counted by ImportBatchViewSet's queryset (services.with_row_counts).
+    def _rows_needing_review(self, batch: ImportBatch) -> int:
+        return self.get_row_counts(batch)["review_required"]
+
     @extend_schema_field(serializers.ChoiceField(choices=ImportStep.choices))
     def get_next_step(self, batch: ImportBatch) -> str:
-        return next_step(batch)
+        return next_step(batch, rows_needing_review=self._rows_needing_review(batch))
+
+    @extend_schema_field(serializers.ChoiceField(choices=REVIEW_STEPS))
+    def get_review_step(self, batch: ImportBatch) -> str:
+        return review_step(batch, rows_needing_review=self._rows_needing_review(batch))
 
     def get_detected_headers(self, batch: ImportBatch) -> list[str]:
         return batch.configuration.detected_headers
@@ -186,8 +219,8 @@ class ImportBatchSerializer(ModelSerializer):
             for field in STUDENT_TARGET_FIELDS
         ]
 
-    def get_rank_mappings(self, batch: ImportBatch) -> dict[str, str]:
-        return batch.configuration.rank_mappings
+    def get_uncovered_fields(self, batch: ImportBatch) -> list[str]:
+        return uncovered_fields(batch)
 
     def get_grading_sheets(self, batch: ImportBatch) -> list[str]:
         return batch.configuration.grading_sheets
@@ -421,6 +454,10 @@ class RankMappingSuggestionSerializer(serializers.Serializer):
         help_text="The source marks its own doubt, as in 'Red stripe?'.",
     )
     rows = serializers.IntegerField(help_text="How many rows use this text.")
+    chosen_rank_code = serializers.CharField(
+        allow_null=True,
+        help_text="The rank chosen for this spelling, or null while it has none.",
+    )
 
 
 class LegacyImportPreviewSerializer(serializers.Serializer):

@@ -781,6 +781,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/LegacyImportPreview'
           description: ''
+  /api/data-imports/batches/{id}/second-look/:
+    get:
+      operationId: data_imports_batches_second_look_retrieve
+      description: What KukGrade filled in for a roster's added students, counted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportSecondLook'
+          description: ''
   /api/data-imports/batches/{id}/sheet/:
     post:
       operationId: data_imports_batches_sheet_create
@@ -1691,6 +1713,58 @@ paths:
                 items:
                   $ref: '#/components/schemas/LegacyGradingRecord'
           description: ''
+  /api/gradings/legacy-records/bulk-unlink/:
+    post:
+      operationId: gradings_legacy_records_bulk_unlink_create
+      description: Unlink many records at once, all or nothing - Undo after a bulk
+        link.
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUnlinkLegacyRecordsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BulkUnlinkLegacyRecordsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BulkUnlinkLegacyRecordsRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/counts/:
+    get:
+      operationId: gradings_legacy_records_counts_retrieve
+      description: How many records still wait for a student, counted in one query.
+      parameters:
+      - name: batch
+        required: false
+        in: query
+        description: Only this import's.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyRecordCounts'
+          description: ''
   /api/gradings/legacy-records/people/:
     get:
       operationId: gradings_legacy_records_people_list
@@ -1766,8 +1840,9 @@ paths:
     get:
       operationId: gradings_legacy_records_people_summary_retrieve
       description: |-
-        How many names still wait, by how clear their suggestions are, and
-        how many have every record linked.
+        How many names still wait, by how clear their suggestions are; how
+        many have every record linked, or any; and how many the viewer has put
+        aside.
       parameters:
       - name: batch
         required: false
@@ -3402,6 +3477,18 @@ components:
           readOnly: true
           description: 'The current name of the student the event is about, read now:
             events hold no names. Blank once the student no longer exists.'
+        tone:
+          allOf:
+          - $ref: '#/components/schemas/ToneEnum'
+          description: 'How the event reads at a glance, from its action and the outcome
+            it records: success, warning, info or neutral.'
+          readOnly: true
+        outcome_display:
+          type: string
+          nullable: true
+          readOnly: true
+          description: The name of the grading outcome a proposal or final decision
+            records; null for every other event.
         metadata:
           readOnly: true
       required:
@@ -3415,8 +3502,10 @@ components:
       - id
       - metadata
       - occurred_at
+      - outcome_display
       - subject_name
       - summary
+      - tone
     AuditLabels:
       type: object
       description: |-
@@ -3441,20 +3530,27 @@ components:
       properties:
         kind:
           type: string
-          description: session, student, candidate or user.
+          description: session, student, candidate or user; blank for a malformed
+            subject.
         id:
           type: string
+          description: The record's id.
+        session_id:
+          type: integer
+          nullable: true
+          description: For a candidate, the grading it belongs to; null otherwise.
         name:
           type: string
           description: The record's current name; blank once it no longer exists.
-        path:
-          type: string
-          description: Where to open the record in the app; blank when it is gone.
+        exists:
+          type: boolean
+          description: Whether the record still exists, so the app can open it.
       required:
+      - exists
       - id
       - kind
       - name
-      - path
+      - session_id
     AuthorityChoice:
       type: object
       description: |-
@@ -3520,6 +3616,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         created:
           type: array
           items:
@@ -3545,6 +3643,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         started:
           type: array
           items:
@@ -3585,6 +3685,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         created:
           type: array
           items:
@@ -3599,9 +3701,9 @@ components:
             description: |-
               * `THIS_SESSION` - For this session
               * `ANOTHER_GRADING` - For another grading not yet settled
-          description: 'The keys of `errors` whose student is already registered,
-            for this session or for another grading that has not settled: nothing
-            to retry, unlike the other failures.'
+          description: 'The students (keys of `errors`) already registered, for this
+            session or for another grading that has not settled: nothing to retry,
+            unlike the other failures.'
       required:
       - already_registered
       - created
@@ -3631,6 +3733,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         updated:
           type: array
           items:
@@ -3670,6 +3774,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         promoted:
           type: array
           items:
@@ -3677,6 +3783,20 @@ components:
       required:
       - errors
       - promoted
+    BulkUnlinkLegacyRecordsRequest:
+      type: object
+      description: 'POST legacy-records/bulk-unlink/: let go of many records at once.'
+      properties:
+        records:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: The records to unlink from their students, all or nothing -
+            the undo of a bulk link. Errors are keyed by record id.
+          maxItems: 500
+      required:
+      - records
     CandidateAssessment:
       type: object
       properties:
@@ -4968,8 +5088,15 @@ components:
           nullable: true
         next_step:
           allOf:
-          - $ref: '#/components/schemas/NextStepEnum'
-          description: Where the import is up to, so a screen can resume it.
+          - $ref: '#/components/schemas/ImportStepEnum'
+          description: 'Where the import is up to, so a screen can resume it: one
+            of the steps its kind serves (site settings, imports.kinds).'
+          readOnly: true
+        review_step:
+          allOf:
+          - $ref: '#/components/schemas/ReviewStepEnum'
+          description: 'Where its review stands: REVIEW while rows need attention,
+            otherwise CONFIRM.'
           readOnly: true
         detected_headers:
           type: array
@@ -5022,13 +5149,13 @@ components:
             $ref: '#/components/schemas/ImportField'
           readOnly: true
           description: The fields a roster's columns are matched to; empty otherwise.
-        rank_mappings:
-          type: object
-          additionalProperties:
+        uncovered_fields:
+          type: array
+          items:
             type: string
           readOnly: true
-          description: A historical import's chosen rank for each spelling, by the
-            spelling lowercased; a spelling not here is left as written.
+          description: A roster's needed fields that no saved column holds and no
+            whole-file value gives, so each row's value is typed in.
         grading_sheets:
           type: array
           items:
@@ -5065,7 +5192,7 @@ components:
       - kind_display
       - next_step
       - original_filename
-      - rank_mappings
+      - review_step
       - row_counts
       - sheet
       - sheet_error
@@ -5075,6 +5202,7 @@ components:
       - suggested_mapping
       - summary_json
       - target_fields
+      - uncovered_fields
       - uploaded_at
       - uploaded_by_name
       - warnings
@@ -5140,20 +5268,26 @@ components:
       - name
       - needed
       - whole_file
-    ImportFileTypes:
+    ImportKind:
       type: object
       properties:
         kind:
           $ref: '#/components/schemas/KindEnum'
-        types:
+        file_types:
           type: array
           items:
             $ref: '#/components/schemas/Choice'
           description: 'The file types this kind of import reads: a suffix and its
             name.'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportStep'
+          description: The steps this kind of import runs through, in order, named.
       required:
+      - file_types
       - kind
-      - types
+      - steps
     ImportKindChoice:
       type: object
       description: |-
@@ -5336,6 +5470,23 @@ components:
       required:
       - label
       - value
+    ImportSecondLook:
+      type: object
+      properties:
+        corrected:
+          type: integer
+          description: Added rows holding a fix of the importer's.
+        given_status:
+          type: integer
+          description: Added rows the file gave no status, so one was given them.
+        given_rank:
+          type: integer
+          description: Added rows the file gave no rank, so the whole-file rank was
+            used.
+      required:
+      - corrected
+      - given_rank
+      - given_status
     ImportSettings:
       type: object
       properties:
@@ -5351,11 +5502,11 @@ components:
           description: How long a finished import's row-by-row list is kept.
         bulk_link_limit:
           type: integer
-          description: The most past records one link request takes.
-        file_types:
+          description: The most past records one link or unlink request takes.
+        kinds:
           type: array
           items:
-            $ref: '#/components/schemas/ImportFileTypes'
+            $ref: '#/components/schemas/ImportKind'
         template_headers:
           type: array
           items:
@@ -5363,7 +5514,7 @@ components:
           description: The header row of the standard roster template.
       required:
       - bulk_link_limit
-      - file_types
+      - kinds
       - max_bytes
       - max_rows
       - rows_kept_for_days
@@ -5390,6 +5541,27 @@ components:
       required:
       - label
       - value
+    ImportStep:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/ImportStepEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
+    ImportStepEnum:
+      enum:
+      - CHOOSE_FILE
+      - MATCH
+      - REVIEW
+      - CONFIRM
+      - RESULTS
+      type: string
     IssuedTemporaryPassword:
       type: object
       description: |-
@@ -5678,7 +5850,9 @@ components:
             nullable: true
     LegacyPeopleSummary:
       type: object
-      description: Names still to link, by how clear their suggested students are.
+      description: |-
+        Names still to link, by how clear their suggested students are, and the
+        other counts the linking screens show.
       properties:
         names:
           type: integer
@@ -5686,6 +5860,12 @@ components:
         linked:
           type: integer
           description: Names with every record linked; set_aside does not apply.
+        with_a_link:
+          type: integer
+          description: Names with any record linked; set_aside does not apply.
+        set_aside:
+          type: integer
+          description: Names still to link that the viewer has put aside for now.
         clear:
           type: integer
           description: One student fits clearly.
@@ -5701,6 +5881,8 @@ components:
       - linked
       - names
       - none
+      - set_aside
+      - with_a_link
     LegacyPerson:
       type: object
       description: The records that name one person the same way, and who they may
@@ -5780,6 +5962,15 @@ components:
       description: |-
         * `current_rank` - current rank
         * `testing_for_rank` - testing-for rank
+    LegacyRecordCounts:
+      type: object
+      properties:
+        awaiting_link:
+          type: integer
+          description: 'Someone''s records not yet linked to a student: not voided,
+            not a sheet note.'
+      required:
+      - awaiting_link
     LegacyRecordLinkRequest:
       type: object
       properties:
@@ -5849,12 +6040,6 @@ components:
         * `VIEW_DECISION` - View the final decision
         * `PROMOTION_LEDGER` - Promotion ledger
         * `NONE` - No further action
-    NextStepEnum:
-      enum:
-      - MATCH_COLUMNS
-      - REVIEW
-      - CLOSED
-      type: string
     NullEnum:
       enum:
       - null
@@ -6585,7 +6770,12 @@ components:
         rows:
           type: integer
           description: How many rows use this text.
+        chosen_rank_code:
+          type: string
+          nullable: true
+          description: The rank chosen for this spelling, or null while it has none.
       required:
+      - chosen_rank_code
       - doubtful
       - rows
       - source_text
@@ -6636,6 +6826,11 @@ components:
         * `NOT_ASSESSED` - Not assessed
         * `MET` - Met
         * `NOT_MET` - Not met
+    ReviewStepEnum:
+      enum:
+      - REVIEW
+      - CONFIRM
+      type: string
     RoleChoice:
       type: object
       description: |-
@@ -7189,6 +7384,13 @@ components:
         * `FORM` - Form
         * `WEAPONS` - Weapons
         * `OTHER` - Other
+    ToneEnum:
+      enum:
+      - success
+      - warning
+      - info
+      - neutral
+      type: string
     User:
       type: object
       properties:

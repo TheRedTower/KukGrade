@@ -254,7 +254,7 @@ def bulk_generate_candidate_assessments(
         require_pinned(candidate.pk, pinned, "candidate")
         return generate_candidate_assessment(candidate, generated_by)
 
-    return each_independently(candidates, generate)
+    return each_independently(candidates, generate, key=lambda candidate: candidate.pk)
 
 
 def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
@@ -446,7 +446,7 @@ def bulk_start_candidate_assessments(
             actor=actor,
         )
 
-    return each_independently(assessments, start)
+    return each_independently(assessments, start, key=lambda assessment: assessment.pk)
 
 
 def _validate_assessment_open_for_item_work(

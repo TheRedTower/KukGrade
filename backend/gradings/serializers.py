@@ -914,14 +914,19 @@ class BulkPromotionSerializer(serializers.Serializer):
 
 
 # The response of every bulk endpoint: what succeeded, under an
-# endpoint-specific key, plus `errors` mapping row index -> that row's
-# messages. A comment rather than a docstring, which drf-spectacular would
-# inherit as each subclass's description.
+# endpoint-specific key, plus `errors` mapping the id each refused row named
+# -> that row's messages. A comment rather than a docstring, which
+# drf-spectacular would inherit as each subclass's description.
 class BulkResultSerializer(serializers.Serializer):
     # Collides with Serializer.errors only in the type stubs: the serializer
     # metaclass lifts declared fields out of the class namespace.
     errors = serializers.DictField(  # type: ignore[assignment]
         child=serializers.ListField(child=serializers.CharField()),
+        help_text=(
+            "Each refused row's reasons, keyed by the id that row named: the "
+            "student for a registration, the candidate, assessment or outcome "
+            "otherwise."
+        ),
     )
 
 
@@ -935,7 +940,7 @@ class BulkCandidateRegistrationResultSerializer(BulkResultSerializer):
     already_registered = serializers.DictField(
         child=serializers.ChoiceField(choices=AlreadyRegistered.choices),
         help_text=(
-            "The keys of `errors` whose student is already registered, for this "
+            "The students (keys of `errors`) already registered, for this "
             "session or for another grading that has not settled: nothing to "
             "retry, unlike the other failures."
         ),
@@ -1103,6 +1108,20 @@ class BulkLinkLegacyRecordsSerializer(serializers.Serializer):
         return value
 
 
+class BulkUnlinkLegacyRecordsSerializer(serializers.Serializer):
+    """POST legacy-records/bulk-unlink/: let go of many records at once."""
+
+    records = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        max_length=BULK_LINK_LIMIT,
+        help_text=(
+            "The records to unlink from their students, all or nothing - "
+            "the undo of a bulk link. Errors are keyed by record id."
+        ),
+    )
+
+
 class SuggestedStudentSerializer(serializers.Serializer):
     student = serializers.IntegerField(source="student.pk")
     full_name = serializers.CharField(source="student.full_name")
@@ -1175,13 +1194,30 @@ class SetAsideNamesSerializer(serializers.Serializer):
     )
 
 
+class LegacyRecordCountsSerializer(serializers.Serializer):
+    awaiting_link = serializers.IntegerField(
+        help_text=(
+            "Someone's records not yet linked to a student: not voided, not a "
+            "sheet note."
+        ),
+    )
+
+
 class LegacyPeopleSummarySerializer(serializers.Serializer):
-    """Names still to link, by how clear their suggested students are."""
+    """Names still to link, by how clear their suggested students are, and the
+    other counts the linking screens show."""
 
     names = serializers.IntegerField(help_text="Names with a record still to link.")
     linked = serializers.IntegerField(
         help_text="Names with every record linked; set_aside does not apply.",
     )
+    with_a_link = serializers.IntegerField(
+        help_text="Names with any record linked; set_aside does not apply.",
+    )
+    set_aside = serializers.IntegerField(
+        help_text="Names still to link that the viewer has put aside for now.",
+    )
+
     clear = serializers.IntegerField(help_text="One student fits clearly.")
     choose = serializers.IntegerField(help_text="Several students fit equally well.")
     none = serializers.IntegerField(help_text="No student fits.")

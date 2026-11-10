@@ -38,6 +38,7 @@ export type Promotion = components["schemas"]["Promotion"];
 export type CategoryAssessmentSummary = Schemas["AssessmentCategorySummary"];
 export type CandidateAssessmentSummary = Schemas["CandidateAssessmentSummary"];
 export type AuditEvent = components["schemas"]["AuditEvent"];
+export type AuditSubject = components["schemas"]["AuditSubject"];
 export type AuditAction = components["schemas"]["ActionEnum"];
 export type AuditEntity = components["schemas"]["AuditEntityEnum"];
 export type StudentListItem = components["schemas"]["StudentList"];
@@ -688,8 +689,8 @@ export async function getAuditLabels(): Promise<Schemas["AuditLabels"]> {
 }
 
 /** What a record's history is of: its current name and where to open it. */
-export async function getAuditSubject(subject: string): Promise<Schemas["AuditSubject"]> {
-  return apiRequest<Schemas["AuditSubject"]>(withQuery("/api/audit-events/subject/", { subject }));
+export async function getAuditSubject(subject: string): Promise<AuditSubject> {
+  return apiRequest<AuditSubject>(withQuery("/api/audit-events/subject/", { subject }));
 }
 
 export async function getAuditEvents(params?: ListQuery<"audit_events_list">): Promise<PaginatedResponse<AuditEvent>> {
@@ -838,6 +839,13 @@ export async function getDataImportBatch(batchId: number): Promise<DataImportBat
   return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/`);
 }
 
+type ImportSecondLook = Schemas["ImportSecondLook"];
+
+/** What KukGrade filled in for a roster's added students, counted. */
+export async function getDataImportSecondLook(batchId: number): Promise<ImportSecondLook> {
+  return apiRequest<ImportSecondLook>(`/api/data-imports/batches/${batchId}/second-look/`);
+}
+
 export async function getDataImportRows(
   batchId: number,
   params?: ListQuery<"data_imports_batches_rows_list">,
@@ -983,6 +991,14 @@ export async function getLegacyPeople(
 }
 
 type LegacyPeopleSummary = Schemas["LegacyPeopleSummary"];
+type LegacyRecordCounts = Schemas["LegacyRecordCounts"];
+
+/** How many imported records still wait for a student, counted on the server. */
+export async function getLegacyRecordCounts(
+  params?: ListQuery<"gradings_legacy_records_counts_retrieve">,
+): Promise<LegacyRecordCounts> {
+  return apiRequest<LegacyRecordCounts>(withQuery("/api/gradings/legacy-records/counts/", params));
+}
 
 /** How many names still wait to be linked, by how clear their suggested students are. */
 export async function getLegacyPeopleSummary(
@@ -1015,6 +1031,16 @@ export async function bulkLinkLegacyRecords(
   return apiRequest<LegacyGradingRecord[]>("/api/gradings/legacy-records/bulk-link/", {
     method: "POST",
     body: JSON.stringify({ links }),
+  });
+}
+
+/** Unlink many records at once, all or nothing: Undo after a bulk link. */
+export async function bulkUnlinkLegacyRecords(
+  records: Schemas["BulkUnlinkLegacyRecordsRequest"]["records"],
+): Promise<LegacyGradingRecord[]> {
+  return apiRequest<LegacyGradingRecord[]>("/api/gradings/legacy-records/bulk-unlink/", {
+    method: "POST",
+    body: JSON.stringify({ records }),
   });
 }
 

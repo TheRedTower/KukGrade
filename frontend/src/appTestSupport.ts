@@ -80,15 +80,32 @@ export const SITE: SiteSettings = {
     max_rows: 1000,
     rows_kept_for_days: 30,
     bulk_link_limit: 500,
-    file_types: [
+    kinds: [
       {
         kind: "STUDENT_ROSTER",
-        types: [
+        file_types: [
           { value: "xlsx", label: "Excel" },
           { value: "csv", label: "CSV" },
         ],
+        steps: [
+          { value: "CHOOSE_FILE", label: "Choose file" },
+          { value: "MATCH", label: "Match columns" },
+          { value: "REVIEW", label: "Review rows" },
+          { value: "CONFIRM", label: "Confirm" },
+          { value: "RESULTS", label: "Results" },
+        ],
       },
-      { kind: "LEGACY_GRADINGS", types: [{ value: "xlsx", label: "Excel" }] },
+      {
+        kind: "LEGACY_GRADINGS",
+        file_types: [{ value: "xlsx", label: "Excel" }],
+        steps: [
+          { value: "CHOOSE_FILE", label: "Choose file" },
+          { value: "MATCH", label: "Match ranks" },
+          { value: "REVIEW", label: "Review records" },
+          { value: "CONFIRM", label: "Confirm" },
+          { value: "RESULTS", label: "Results" },
+        ],
+      },
     ],
     template_headers: ["WKSA ID", "First Name", "Last Name", "Date of Birth", "Current Rank", "Status"],
   },

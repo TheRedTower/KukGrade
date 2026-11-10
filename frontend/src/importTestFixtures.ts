@@ -10,7 +10,7 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
   return {
     id: 7,
     kind: "STUDENT_ROSTER",
-    kind_display: "Student roster",
+    kind_display: "Students",
     status: "UPLOADED",
     status_display: "Uploaded",
     original_filename: "spring-roster.xlsx",
@@ -21,6 +21,7 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
     committed_by_name: "",
     cancelled_at: null,
     next_step: "REVIEW",
+    review_step: "REVIEW",
     detected_headers: ["WKSA No", "First", "Surname", "DOB", "Belt", "Parent phone", "Joined"],
     column_mapping: {},
     defaults: {},
@@ -29,6 +30,7 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
     sheet_names: ["Members"],
     sheet_error: "",
     suggested_mapping: {},
+    uncovered_fields: [],
     target_fields: [
       { field: "wksa_id", name: "WKSA ID", needed: true, whole_file: false },
       { field: "first_name", name: "First name", needed: true, whole_file: false },
@@ -37,7 +39,6 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
       { field: "current_rank", name: "Rank", needed: true, whole_file: true },
       { field: "status", name: "Status", needed: false, whole_file: true },
     ],
-    rank_mappings: {},
     grading_sheets: [],
     warnings: [],
     row_counts: { total: 212, ready: 198, review_required: 9, skip_existing: 5, excluded: 0 },

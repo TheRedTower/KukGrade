@@ -1288,7 +1288,12 @@ def bulk_register_candidates(
             )
         return registered, generate_candidate_assessment(registered, actor)
 
-    return each_independently(rows, register_row, codes)
+    return each_independently(
+        rows,
+        register_row,
+        key=lambda row: cast(Student, row["student"]).pk,
+        codes=codes,
+    )
 
 
 def _candidate_snapshot(candidate: GradingCandidate) -> dict[str, object]:
@@ -1435,4 +1440,6 @@ def bulk_update_candidate_status(
             actor=actor,
         )
 
-    return each_independently(candidates, update_status)
+    return each_independently(
+        candidates, update_status, key=lambda candidate: candidate.pk
+    )

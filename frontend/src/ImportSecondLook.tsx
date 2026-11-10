@@ -1,29 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { labelOf, useChoices } from "./choices";
-import { type DataImportBatch, getDataImportRows } from "./api";
+import { type DataImportBatch, getDataImportSecondLook } from "./api";
 import { counted } from "./importSteps";
 import { Button } from "./Button";
 import type { RowFilter } from "./ImportRowsLedger";
 
-/** How many of a roster's added rows match a filter, for the second look. */
-function useAddedCount(batch: DataImportBatch, filter: "corrected" | "status" | "current_rank") {
-  return useQuery({
-    queryKey: ["imports", "rows", batch.id, "addedCount", filter],
-    queryFn: () =>
-      getDataImportRows(batch.id, {
-        outcome: "READY",
-        ...(filter === "corrected" ? { corrected: true } : { filled: filter }),
-        page_size: 1,
-      }),
-  }).data?.count;
-}
-
 /** Students: what KukGrade filled in, for a second look. */
 export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: (filter: RowFilter) => void }) {
   const statuses = useChoices().student_statuses;
-  const fixed = useAddedCount(batch, "corrected") ?? 0;
-  const givenStatus = useAddedCount(batch, "status") ?? 0;
-  const givenRank = useAddedCount(batch, "current_rank") ?? 0;
+  const counts = useQuery({
+    queryKey: ["imports", "rows", batch.id, "secondLook"],
+    queryFn: () => getDataImportSecondLook(batch.id),
+  }).data;
+  const fixed = counts?.corrected ?? 0;
+  const givenStatus = counts?.given_status ?? 0;
+  const givenRank = counts?.given_rank ?? 0;
   const items: { title: string; body: string; show?: RowFilter; count?: number }[] = [];
   if (givenStatus) {
     const status = batch.defaults.status ?? "ACTIVE";

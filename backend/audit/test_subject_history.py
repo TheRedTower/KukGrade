@@ -229,11 +229,19 @@ def test_the_subject_is_named_as_it_is_now_and_blank_once_erased() -> None:
     ).json()
 
     assert named["name"].startswith(session.title)
-    assert named["path"] == f"/gradings/{session.pk}"
+    assert (named["kind"], named["id"], named["exists"]) == (
+        "session",
+        str(session.pk),
+        True,
+    )
+    assert named["session_id"] is None
     assert first.student.first_name in student["name"]
-    assert student["path"] == f"/students/{first.student_id}"
-    assert registration["path"] == (
-        f"/gradings/{session.pk}/assessments/{first.pk}/review"
+    assert (student["kind"], student["id"]) == ("student", str(first.student_id))
+    # A registration opens inside its grading, so it names that grading too.
+    assert (registration["kind"], registration["id"], registration["session_id"]) == (
+        "candidate",
+        str(first.pk),
+        session.pk,
     )
 
     remover = user("history-remover@example.com", role=User.Role.ADMINISTRATOR)
@@ -245,7 +253,7 @@ def test_the_subject_is_named_as_it_is_now_and_blank_once_erased() -> None:
         {"subject": f"student:{first.student_id}"},
     ).json()
     assert first.student.first_name in kept["name"]
-    assert kept["path"] == f"/students/{first.student_id}"
+    assert kept["exists"] is True
 
     # A record with no history is erased: blank once gone.
     mistake = create_student(
@@ -261,7 +269,7 @@ def test_the_subject_is_named_as_it_is_now_and_blank_once_erased() -> None:
         "/api/audit-events/subject/",
         {"subject": f"student:{mistake.pk}"},
     ).json()
-    assert gone["name"] == "" and gone["path"] == ""
+    assert gone["name"] == "" and gone["exists"] is False
     # The events outlive the record.
     assert history(admin, f"student:{mistake.pk}")
 

@@ -38,6 +38,7 @@ from gradings.legacy_matching import (
 )
 from gradings.legacy_services import (
     bulk_link_legacy_records,
+    bulk_unlink_legacy_records,
     link_legacy_record_to_student,
     put_back_name,
     resolve_legacy_rank,
@@ -82,6 +83,7 @@ from gradings.serializers import (
     BulkLinkLegacyRecordsSerializer,
     BulkPromotionResultSerializer,
     BulkPromotionSerializer,
+    BulkUnlinkLegacyRecordsSerializer,
     CandidateAssessmentItemSavedSerializer,
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
@@ -97,6 +99,7 @@ from gradings.serializers import (
     LegacyGradingRecordSerializer,
     LegacyPeopleSummarySerializer,
     LegacyPersonSerializer,
+    LegacyRecordCountsSerializer,
     LinkLegacyRecordSerializer,
     LockedCandidateWithdrawalSerializer,
     PromotionEligibilitySerializer,
@@ -489,10 +492,10 @@ class GradingCandidateViewSet(
                 ],
                 "errors": errors,
                 "already_registered": {
-                    index: AlreadyRegistered.THIS_SESSION
+                    student: AlreadyRegistered.THIS_SESSION
                     if ALREADY_IN_SESSION in row_codes
                     else AlreadyRegistered.ANOTHER_GRADING
-                    for index, row_codes in codes.items()
+                    for student, row_codes in codes.items()
                     if row_codes & {ALREADY_IN_SESSION, REGISTERED_ELSEWHERE}
                 },
             }
@@ -998,11 +1001,14 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         )
 
 
+# Someone's record, not yet linked: a voided record and a sheet note are
+# no one's, so neither waits (legacy_matching leaves both out too).
+_AWAITING_LINK_Q = Q(student__isnull=True, is_void=False) & ~Q(
+    source_name=SHEET_NOTE_NAME
+)
 _AWAITING_LINK = boolean(
     "awaiting_link",
-    # Someone's record, not yet linked: a voided record and a sheet note are
-    # no one's, so neither waits (legacy_matching leaves both out too).
-    Q(student__isnull=True, is_void=False) & ~Q(source_name=SHEET_NOTE_NAME),
+    _AWAITING_LINK_Q,
     "Someone's record not yet linked to a student: not voided, not a sheet note.",
 )
 
@@ -1035,7 +1041,9 @@ class LegacyGradingRecordViewSet(
         "void": ("gradings.can_reconcile_imported_history",),
         "people": ("gradings.can_reconcile_imported_history",),
         "people_summary": ("gradings.can_reconcile_imported_history",),
+        "counts": ("gradings.view_legacygradingrecord",),
         "bulk_link": ("gradings.can_reconcile_imported_history",),
+        "bulk_unlink": ("gradings.can_reconcile_imported_history",),
         "set_aside": ("gradings.can_reconcile_imported_history",),
     }
 
@@ -1165,6 +1173,22 @@ class LegacyGradingRecordViewSet(
             suggest_for_groups(page)
         return self.get_paginated_response(LegacyPersonSerializer(page, many=True).data)
 
+    @extend_schema(responses=LegacyRecordCountsSerializer)
+    @action(
+        detail=False,
+        methods=["get"],
+        pagination_class=None,
+        query_filters=(by_id("batch", "source_batch_id", "Only this import's."),),
+    )
+    def counts(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """How many records still wait for a student, counted in one query."""
+        records = self.filter_queryset(LegacyGradingRecord.objects.all())
+        return Response(
+            LegacyRecordCountsSerializer(
+                {"awaiting_link": records.filter(_AWAITING_LINK_Q).count()},
+            ).data,
+        )
+
     @extend_schema(responses=LegacyPeopleSummarySerializer)
     @action(
         detail=False,
@@ -1179,8 +1203,9 @@ class LegacyGradingRecordViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        """How many names still wait, by how clear their suggestions are, and
-        how many have every record linked."""
+        """How many names still wait, by how clear their suggestions are; how
+        many have every record linked, or any; and how many the viewer has put
+        aside."""
         records = self._people_records()
         waiting = people_groups(
             records.filter(student__isnull=True),
@@ -1198,9 +1223,23 @@ class LegacyGradingRecordViewSet(
             for group in people_groups(records)
             if all(record.student_id is not None for record in group.records)
         )
+        unlinked = records.filter(student__isnull=True)
+        put_aside = people_groups(
+            unlinked,
+            set_aside="only",
+            aside=set_aside_keys(cast(User, request.user)),
+        )
         return Response(
             LegacyPeopleSummarySerializer(
-                {"names": len(waiting), "linked": linked, **counts},
+                {
+                    "names": len(waiting),
+                    "linked": linked,
+                    "with_a_link": len(
+                        people_groups(records.filter(student__isnull=False))
+                    ),
+                    "set_aside": len(put_aside),
+                    **counts,
+                },
             ).data,
         )
 
@@ -1266,6 +1305,34 @@ class LegacyGradingRecordViewSet(
             replace=payload.validated_data["replace"],
         )
         fresh = self.get_queryset().filter(pk__in=[record.pk for record in linked])
+        return Response(LegacyGradingRecordSerializer(fresh, many=True).data)
+
+    @extend_schema(
+        request=BulkUnlinkLegacyRecordsSerializer,
+        responses=LegacyGradingRecordSerializer(many=True),
+    )
+    # Not paginated: the response is the records just unlinked, as a list.
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="bulk-unlink",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def bulk_unlink(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Unlink many records at once, all or nothing - Undo after a bulk link."""
+        payload = BulkUnlinkLegacyRecordsSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        unlinked = bulk_unlink_legacy_records(
+            payload.validated_data["records"],
+            actor=cast(User, request.user),
+        )
+        fresh = self.get_queryset().filter(pk__in=[record.pk for record in unlinked])
         return Response(LegacyGradingRecordSerializer(fresh, many=True).data)
 
     @extend_schema(

@@ -36,8 +36,8 @@ export function useCohortRegistration({ sessionId, session, cohort, setCohort, g
   const [flaggedItems, setFlaggedItems] = useState<FlaggedCandidateItem[]>([]);
 
   // One registration request: the first for the whole cohort, or a retry of the
-  // flagged ones. `rows` are the people sent, in order: the server names a
-  // failure by its position in them.
+  // flagged ones. `rows` are the people sent: the server names a failure by
+  // the student it was for.
   const mutation = useMutation({
     mutationFn: (request: {
       payload: BulkCandidateRegistrationPayload;
@@ -62,16 +62,20 @@ export function useCohortRegistration({ sessionId, session, cohort, setCohort, g
       setRegistrationResult((previous) =>
         request.retry && previous ? { ...response, created: [...previous.created, ...response.created] } : response,
       );
-      const flagged = errorKeys.map((idxStr) => {
-        const row = request.rows[Number(idxStr)];
-        const errorMsg = (response.errors[idxStr] || []).join(", ");
-        return {
-          key: row ? String(row.student.id) : idxStr,
-          student: row?.student,
-          destinationRank: row?.destinationRank ?? null,
-          error: errorMsg || "Registration failed",
-          registered: response.already_registered[idxStr],
-        };
+      // Every refused row is one of the students sent.
+      const flagged = request.rows.flatMap((row): FlaggedCandidateItem[] => {
+        const key = String(row.student.id);
+        const reasons = response.errors[key];
+        if (!reasons) return [];
+        return [
+          {
+            key,
+            student: row.student,
+            destinationRank: row.destinationRank,
+            error: reasons.join(", ") || "Registration failed",
+            registered: response.already_registered[key],
+          },
+        ];
       });
       setFlaggedItems([...unsent, ...flagged]);
     },

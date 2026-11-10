@@ -198,9 +198,15 @@ def unlink_legacy_record_from_student(
 ) -> LegacyGradingRecord:
     """`allow_void` is for deleting the student: a voided record still has to
     let go of them (students.services.delete_student)."""
-    locked = _locked(record_.pk, allow_void=allow_void)
+    return _unlink(_locked(record_.pk, allow_void=allow_void), actor=actor)
+
+
+NOT_LINKED_MESSAGE = "This record is not linked to a student."
+
+
+def _unlink(locked: LegacyGradingRecord, *, actor: User) -> LegacyGradingRecord:
     if locked.student_id is None:
-        raise ValidationError({"student": ["This record is not linked to a student."]})
+        raise ValidationError({"student": [NOT_LINKED_MESSAGE]})
     previous_student_id = locked.student_id
     locked.student = None
     locked.save()
@@ -216,6 +222,37 @@ def unlink_legacy_record_from_student(
         },
     )
     return locked
+
+
+@transaction.atomic
+def bulk_unlink_legacy_records(
+    record_ids: list[int],
+    *,
+    actor: User,
+) -> list[LegacyGradingRecord]:
+    """Unlink many records at once, all or nothing - the undo of a bulk link,
+    each record with its own audit event as unlink_legacy_record_from_student
+    would write.
+
+    The records are locked in ascending order, as a bulk link locks them. A
+    refusal names the record (its id as the error key) and nothing is unlinked.
+    """
+    records: dict[int, LegacyGradingRecord] = {}
+    errors: dict[str, list[str]] = {}
+    for pk in sorted(set(record_ids)):
+        try:
+            records[pk] = _locked(pk)
+        except LegacyGradingRecord.DoesNotExist:
+            errors[str(pk)] = ["This record no longer exists."]
+            continue
+        except ValidationError as refused:
+            errors[str(pk)] = refused.messages
+            continue
+        if records[pk].student_id is None:
+            errors[str(pk)] = [NOT_LINKED_MESSAGE]
+    if errors:
+        raise ValidationError(errors)
+    return [_unlink(records[pk], actor=actor) for pk in sorted(records)]
 
 
 @transaction.atomic

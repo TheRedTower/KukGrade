@@ -1,17 +1,20 @@
-import type { DataImportKind } from "./api";
-import { importStepNames } from "./importSteps";
+import type { DataImportBatch, DataImportKind } from "./api";
+import { useImportSteps } from "./importSteps";
 
-export function ImportStepBar({ kind, current }: { kind: DataImportKind; current: number }) {
-  const names = importStepNames(kind);
+/** The import's steps, with the one shown now (a step the server names). */
+export function ImportStepBar({ kind, current }: { kind: DataImportKind; current: DataImportBatch["next_step"] }) {
+  const names = useImportSteps()(kind);
+  const at = names.findIndex((step) => step.value === current);
+  if (at < 0) return null;
   return (
     <nav aria-label="Import steps" className="ix-steps">
       <ol>
-        {names.map((name, index) => {
-          const state = index < current ? "done" : index === current ? "current" : "todo";
+        {names.map((step, index) => {
+          const state = index < at ? "done" : index === at ? "current" : "todo";
           return (
             <li
-              key={name}
-              aria-current={index === current ? "step" : undefined}
+              key={step.value}
+              aria-current={index === at ? "step" : undefined}
               className={`ix-step meta ix-step-${state}`}
             >
               <span aria-hidden="true" className="ix-step-bar" />
@@ -19,7 +22,7 @@ export function ImportStepBar({ kind, current }: { kind: DataImportKind; current
                 <span aria-hidden="true" className="ix-step-dot">
                   {state === "done" ? "✓" : index + 1}
                 </span>
-                <span className="ix-step-name">{name}</span>
+                <span className="ix-step-name">{step.label}</span>
                 {state === "done" ? <span className="visually-hidden">, done</span> : null}
               </span>
             </li>
@@ -30,7 +33,7 @@ export function ImportStepBar({ kind, current }: { kind: DataImportKind; current
           (the list above still names every step for a screen reader). */}
       <p aria-hidden="true" className="ix-step-caption meta">
         <strong>
-          Step {current + 1} of {names.length}: {names[current]}
+          Step {at + 1} of {names.length}: {names[at].label}
         </strong>
       </p>
     </nav>

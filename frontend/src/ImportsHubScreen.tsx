@@ -11,14 +11,14 @@ import {
   errorMessage,
   getDataImportBatches,
   LARGEST_PAGE,
-  getLegacyGradingRecords,
+  getLegacyRecordCounts,
 } from "./api";
 import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
 import { ImportDialog } from "./ImportDialog";
 import { ImportPager } from "./ImportPager";
-import { counted, importKindLabel, importStepIndex, importStepNames } from "./importSteps";
+import { counted, useImportSteps } from "./importSteps";
 import { useTemplateDownload } from "./importTemplate";
 import "./Imports.css";
 import { Button } from "./Button";
@@ -34,7 +34,7 @@ function unfinishedCounts(batch: DataImportBatch): string {
   if (batch.kind === "LEGACY_GRADINGS") {
     return `${counted(counts.total, "record", "records")} found`;
   }
-  if (batch.next_step === "MATCH_COLUMNS") {
+  if (batch.next_step === "MATCH") {
     return `${counted(counts.total, "row", "rows")} read · columns still to match`;
   }
   return [
@@ -75,6 +75,7 @@ function UnfinishedImports({
   batches: DataImportBatch[];
   onCancel: (batch: DataImportBatch) => void;
 }) {
+  const stepsOf = useImportSteps();
   return (
     <section aria-labelledby="ix-unfinished" className="ix-section">
       <div className="ix-section-head">
@@ -85,11 +86,12 @@ function UnfinishedImports({
       </div>
       <div className="card card--flush">
         {batches.map((batch) => {
-          const step = importStepIndex(batch);
+          const steps = stepsOf(batch.kind);
+          const step = steps.findIndex((served) => served.value === batch.next_step);
           return (
             <div className="ix-row" key={batch.id}>
               <div className="ix-row-main">
-                <p className="ix-kind eyebrow--muted">{importKindLabel(batch.kind)}</p>
+                <p className="ix-kind eyebrow--muted">{batch.kind_display}</p>
                 <p className="item-title">{batch.original_filename}</p>
                 <p className="subtext">
                   Uploaded {formatShortDateTime(batch.uploaded_at)} by {batch.uploaded_by_name}
@@ -97,11 +99,11 @@ function UnfinishedImports({
               </div>
               <div className="ix-row-main">
                 <p className="item-title">
-                  Step {step + 1} of 5 · {importStepNames(batch.kind)[step]}
+                  Step {step + 1} of {steps.length} · {steps[step]?.label}
                 </p>
                 <div aria-hidden="true" className="ix-progress">
-                  {[0, 1, 2, 3, 4].map((index) => (
-                    <span className={index <= step ? "ix-filled" : undefined} key={index} />
+                  {steps.map((served, index) => (
+                    <span className={index <= step ? "ix-filled" : undefined} key={served.value} />
                   ))}
                 </div>
                 <p className="subtext">{unfinishedCounts(batch)}</p>
@@ -276,7 +278,7 @@ function PastImports() {
                   primary: true,
                   render: (batch) => <strong>{batch.original_filename}</strong>,
                 },
-                { key: "what", header: "What", render: (batch) => importKindLabel(batch.kind) },
+                { key: "what", header: "What", render: (batch) => batch.kind_display },
                 { key: "state", header: "State", render: (batch) => statePill(batch) },
                 { key: "result", header: "Result", render: (batch) => finishedResult(batch) },
                 {
@@ -325,7 +327,7 @@ export function ImportsHubScreen() {
   });
   const awaitingLink = useQuery({
     queryKey: ["legacyRecords", "awaitingLinkCount"],
-    queryFn: () => getLegacyGradingRecords({ awaiting_link: true, page_size: 1 }),
+    queryFn: () => getLegacyRecordCounts(),
   });
 
   const cancel = useMutation({
@@ -356,7 +358,7 @@ export function ImportsHubScreen() {
       ) : null}
 
       <StartPanels
-        awaitingLink={awaitingLink.data?.count}
+        awaitingLink={awaitingLink.data?.awaiting_link}
         canLink={Boolean(user?.can_reconcile_imported_history)}
       />
 

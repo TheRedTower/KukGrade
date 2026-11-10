@@ -160,12 +160,9 @@ export function ImportMatchColumns({
   // saved fix (so it comes back after a reload). One with fixes stays.
   const withFixes = new Set(previewRows.flatMap((row) => row.corrected_fields));
   const typedColumns = [...new Set([...typed, ...withFixes])].filter((field) => !(field in columnFor));
+  // The fields the server says nothing covers, less the ones being typed in.
   const missing = batch.target_fields.filter(
-    (field) =>
-      field.needed &&
-      !(field.field in columnFor) &&
-      !typedColumns.includes(field.field) &&
-      !(field.whole_file && rankDefault && field.field === "current_rank"),
+    (field) => batch.uncovered_fields.includes(field.field) && !typedColumns.includes(field.field),
   );
   const readyCount = previewRows.filter((row) => row.outcome === "READY").length;
   const noColumn = Object.keys(columnFor).length === 0;

@@ -640,7 +640,7 @@ def test_bulk_promote_is_independent_per_row() -> None:
     assert [item["grading_candidate"] for item in payload["promoted"]] == [
         eligible_outcome.candidate_id,
     ]
-    assert list(payload["errors"].keys()) == ["1"]
+    assert list(payload["errors"].keys()) == [str(ineligible_outcome.id)]
     assert Promotion.objects.filter(outcome=eligible_outcome).exists()
     assert not Promotion.objects.filter(outcome=ineligible_outcome).exists()
 

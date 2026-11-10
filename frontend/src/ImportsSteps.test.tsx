@@ -29,7 +29,7 @@ const api = vi.hoisted(() => ({
   getLegacyPeople: vi.fn(),
   getLegacyPeopleSummary: vi.fn(),
   bulkLinkLegacyRecords: vi.fn(),
-  unlinkLegacyGradingRecord: vi.fn(),
+  bulkUnlinkLegacyRecords: vi.fn(),
   resolveLegacyRank: vi.fn(),
   voidLegacyGradingRecord: vi.fn(),
   setAsideNames: vi.fn(),
@@ -91,8 +91,8 @@ beforeEach(() => {
 });
 
 describe("Matching a roster's columns", () => {
-  const fresh = batch({ next_step: "MATCH_COLUMNS", suggested_mapping: MAPPING });
-  const saved = batch({ next_step: "REVIEW", suggested_mapping: MAPPING, column_mapping: MAPPING });
+  const fresh = batch({ next_step: "MATCH", suggested_mapping: MAPPING });
+  const saved = batch({ next_step: "REVIEW", suggested_mapping: MAPPING, column_mapping: MAPPING, uncovered_fields: ["current_rank"] });
   const rows = [
     row({
       row_number: 2,
@@ -276,7 +276,7 @@ describe("Matching a roster's columns", () => {
 });
 
 describe("Typing into a roster's rows", () => {
-  const saved = batch({ next_step: "REVIEW", suggested_mapping: MAPPING, column_mapping: MAPPING });
+  const saved = batch({ next_step: "REVIEW", suggested_mapping: MAPPING, column_mapping: MAPPING, uncovered_fields: ["current_rank"] });
   const typedIn = row({
     row_number: 2,
     cells: { "WKSA No": "104-2-311", First: "Mia", Surname: "Reynolds", DOB: "14/03/2015" },
@@ -313,7 +313,7 @@ describe("Typing into a roster's rows", () => {
 });
 
 describe("Matching a historical workbook's ranks", () => {
-  const gradings = batch({ kind: "LEGACY_GRADINGS", original_filename: "grading-record-2025.xlsx", grading_sheets: ["03-2025"], rank_mappings: { "white belt": "WHITE" } });
+  const gradings = batch({ kind: "LEGACY_GRADINGS", kind_display: "Past gradings", next_step: "MATCH", review_step: "CONFIRM", original_filename: "grading-record-2025.xlsx", grading_sheets: ["03-2025"] });
   const preview = {
     total: 3,
     grading_result: 3,
@@ -325,9 +325,9 @@ describe("Matching a historical workbook's ranks", () => {
     excluded: 0,
     warnings: [],
     rank_suggestions: [
-      { source_text: "White Belt", suggested_rank_code: "WHITE", doubtful: false, rows: 42 },
-      { source_text: "Brn stripe", suggested_rank_code: null, doubtful: false, rows: 2 },
-      { source_text: "Blue stripe?", suggested_rank_code: "BLUE_STRIPE", doubtful: true, rows: 3 },
+      { source_text: "White Belt", suggested_rank_code: "WHITE", doubtful: false, rows: 42, chosen_rank_code: "WHITE" },
+      { source_text: "Brn stripe", suggested_rank_code: null, doubtful: false, rows: 2, chosen_rank_code: null },
+      { source_text: "Blue stripe?", suggested_rank_code: "BLUE_STRIPE", doubtful: true, rows: 3, chosen_rank_code: null },
     ],
   };
 
@@ -376,6 +376,8 @@ describe("Reviewing and confirming a roster", () => {
   const sorted = batch({
     ...needing,
     row_counts: { total: 212, ready: 203, review_required: 0, skip_existing: 5, excluded: 4 },
+    next_step: "CONFIRM",
+    review_step: "CONFIRM",
     extra_columns: ["Parent phone"],
   });
   const attention = row({
@@ -554,7 +556,7 @@ describe("Reviewing and confirming a roster", () => {
 
   it("confirms the import on the same page once every row is sorted", async () => {
     const user = userEvent.setup();
-    const committed: DataImportBatch = { ...sorted, status: "COMMITTED", status_display: "Imported", next_step: "CLOSED", committed_by_name: "Sam Taylor", committed_at: "2026-10-20T10:18:00Z", summary_json: { total: 212, created: 203, skipped_existing: 5, excluded: 4 } };
+    const committed: DataImportBatch = { ...sorted, status: "COMMITTED", status_display: "Imported", next_step: "RESULTS", committed_by_name: "Sam Taylor", committed_at: "2026-10-20T10:18:00Z", summary_json: { total: 212, created: 203, skipped_existing: 5, excluded: 4 } };
     api.getDataImportBatch.mockResolvedValueOnce(sorted).mockResolvedValue(committed);
     api.getDataImportRows.mockResolvedValue(page([]));
     api.commitDataImport.mockResolvedValue(committed);
@@ -563,7 +565,7 @@ describe("Reviewing and confirming a roster", () => {
 
     expect(await screen.findByRole("heading", { name: "Everything is sorted · ready to add 203 students" })).toBeInTheDocument();
     expect(screen.getByText(/5 already in KukGrade are skipped, 4 you left out, “Parent phone” kept as extra information/)).toBeInTheDocument();
-    expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Confirm");
+    expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Confirm");
     await user.click(screen.getByRole("button", { name: "Add 203 students" }));
     const dialog = screen.getByRole("dialog", { name: "Add 203 students to KukGrade?" });
     expect(api.commitDataImport).not.toHaveBeenCalled();
@@ -593,7 +595,7 @@ describe("Reviewing and confirming a roster", () => {
   });
 
   it("lets a historical workbook be imported whatever is still unmatched", async () => {
-    const gradings = batch({ kind: "LEGACY_GRADINGS", original_filename: "grading-record-2025.xlsx", row_counts: { total: 231, ready: 229, review_required: 0, skip_existing: 0, excluded: 2 } });
+    const gradings = batch({ kind: "LEGACY_GRADINGS", kind_display: "Past gradings", next_step: "MATCH", review_step: "CONFIRM", original_filename: "grading-record-2025.xlsx", row_counts: { total: 231, ready: 229, review_required: 0, skip_existing: 0, excluded: 2 } });
     api.getDataImportBatch.mockResolvedValue(gradings);
     api.getDataImportRows.mockResolvedValue(page([row({ source_locator: "06-2025!R3", values: { name: "Theo", current_rank: "Yellow Belt", testing_for_rank: "Blue stripe?", outcome: "Pass.", report: "Needs work on falls." } })]));
     api.previewLegacyGradingImport.mockResolvedValue({ total: 229, grading_result: 190, auxiliary_note: 33, did_not_attend: 6, unresolved_current_rank: 1, unresolved_testing_for_rank: 2, unresolved_outcome: 0, excluded: 2, warnings: [], rank_suggestions: [] });
@@ -608,8 +610,8 @@ describe("Reviewing and confirming a roster", () => {
 
   it("does not refetch a historical preview after the batch is committed", async () => {
     const user = userEvent.setup();
-    const gradings = batch({ kind: "LEGACY_GRADINGS", row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 } });
-    const committed = { ...gradings, status: "COMMITTED" as const, next_step: "CLOSED" as const };
+    const gradings = batch({ kind: "LEGACY_GRADINGS", kind_display: "Past gradings", next_step: "MATCH", review_step: "CONFIRM", row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 } });
+    const committed = { ...gradings, status: "COMMITTED" as const, next_step: "RESULTS" as const };
     const onCommitted = vi.fn();
     api.getDataImportRows.mockResolvedValue(page([row({ values: { name: "Theo" } })]));
     api.previewLegacyGradingImport.mockResolvedValue({ total: 1, grading_result: 1, auxiliary_note: 0, did_not_attend: 0, unresolved_current_rank: 0, unresolved_testing_for_rank: 0, unresolved_outcome: 0, excluded: 0, warnings: [], rank_suggestions: [] });
@@ -632,7 +634,7 @@ describe("Reviewing and confirming a roster", () => {
 
   it("opens a workbook's review on the records worth a look, saying why", async () => {
     const user = userEvent.setup();
-    const gradings = batch({ kind: "LEGACY_GRADINGS", row_counts: { total: 231, ready: 231, review_required: 0, skip_existing: 0, excluded: 0 } });
+    const gradings = batch({ kind: "LEGACY_GRADINGS", kind_display: "Past gradings", next_step: "MATCH", review_step: "CONFIRM", row_counts: { total: 231, ready: 231, review_required: 0, skip_existing: 0, excluded: 0 } });
     const theo = row({
       row_number: 9,
       source_locator: "03-2025!R9",
@@ -710,7 +712,9 @@ describe("Linking historical records", () => {
     waiting = [mia, zac, theo, noah];
     api.getDataImportBatches.mockResolvedValue(page([]));
     api.getAllDataImportBatches.mockResolvedValue(page([]));
-    api.getLegacyPeopleSummary.mockResolvedValue({ names: 4, linked: 5, clear: 2, choose: 1, none: 1 });
+    api.getLegacyPeopleSummary.mockImplementation(() =>
+      Promise.resolve({ names: 4, linked: 5, with_a_link: 5, set_aside: names({ set_aside: "only" }).length, clear: 2, choose: 1, none: 1 }),
+    );
     api.getLegacyPeople.mockImplementation((params: Parameters<typeof names>[0]) =>
       Promise.resolve(params.linked ? page([], 5) : page(names(params))),
     );
@@ -881,46 +885,31 @@ describe("Linking historical records", () => {
     api.getLegacyPeople.mockImplementation((params: { linked?: boolean }) =>
       Promise.resolve(params.linked ? page([linked], 5) : page([])),
     );
-    api.unlinkLegacyGradingRecord.mockResolvedValue(record());
+    api.bulkUnlinkLegacyRecords.mockResolvedValue([record()]);
     renderAt("/imports/records");
 
     await user.click(await screen.findByRole("button", { name: /^Linked/ }));
     expect(await screen.findByRole("link", { name: "Mia Reynolds" })).toHaveAttribute("href", "/students/31");
     await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
 
-    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(2));
-    expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledWith(101);
+    await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledWith([101, 102]));
   });
 
-  it("retries only the records still linked after a partial undo failure", async () => {
+  it("says so when an undo is refused, and unlinks none of the records", async () => {
     const user = userEvent.setup();
-    let failOnce = true;
-    let linkedIds = [101, 102];
+    const linked = person({ record_ids: [101, 102], records: 2, linked_student: 31, linked_student_name: "Mia Reynolds" });
     api.getLegacyPeople.mockImplementation((params: { linked?: boolean }) =>
-      Promise.resolve(
-        params.linked
-          ? page(linkedIds.length ? [person({ record_ids: linkedIds, records: linkedIds.length, linked_student: 31, linked_student_name: "Mia Reynolds" })] : [], linkedIds.length ? 1 : 0)
-          : page([]),
-      ),
+      Promise.resolve(params.linked ? page([linked], 1) : page([])),
     );
-    api.unlinkLegacyGradingRecord.mockImplementation((id: number) => {
-      if (id === 102 && failOnce) {
-        failOnce = false;
-        return Promise.reject(new Error("temporary failure"));
-      }
-      linkedIds = linkedIds.filter((other) => other !== id);
-      return Promise.resolve(record({ id }));
-    });
+    api.bulkUnlinkLegacyRecords.mockRejectedValue(new Error("temporary failure"));
     renderAt("/imports/records");
 
     await user.click(await screen.findByRole("button", { name: /^Linked/ }));
     await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Some records were unlinked. Try Undo again for the rest.");
-    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(2));
-
-    await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
-    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
-    expect(api.unlinkLegacyGradingRecord.mock.calls.map(([id]) => id)).toEqual([101, 102, 102]);
+    expect(await screen.findByRole("alert")).toHaveTextContent("That link could not be undone.");
+    expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledTimes(1);
+    expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledWith([101, 102]);
+    expect(screen.getByRole("button", { name: "Undo linking “Mia R”" })).toBeVisible();
   });
 
   it("matches a rank still as written, and voids a record only with a reason", async () => {
@@ -958,7 +947,7 @@ describe("Linking historical records", () => {
   });
 
   it("says when every record is linked", async () => {
-    api.getLegacyPeopleSummary.mockResolvedValue({ names: 0, linked: 0, clear: 0, choose: 0, none: 0 });
+    api.getLegacyPeopleSummary.mockResolvedValue({ names: 0, linked: 0, with_a_link: 0, set_aside: 0, clear: 0, choose: 0, none: 0 });
     api.getLegacyPeople.mockResolvedValue(page([]));
 
     renderAt("/imports/records");

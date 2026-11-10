@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { type DataImportBatch, type LegacyPerson, errorMessage, getLegacyGradingRecords, getLegacyPeople } from "./api";
+import { type DataImportBatch, type LegacyPerson, errorMessage, getLegacyPeople, getLegacyRecordCounts } from "./api";
 import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
 import { counted } from "./importSteps";
 import { periodRange } from "./linkRecords";
-import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
+import { useLegacyLinking } from "./useLegacyLinking";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 
@@ -23,7 +23,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
 
   const awaiting = useQuery({
     queryKey: ["legacyRecords", "awaitingLinkCount", batch.id],
-    queryFn: () => getLegacyGradingRecords({ batch: batch.id, awaiting_link: true, page_size: 1 }),
+    queryFn: () => getLegacyRecordCounts({ batch: batch.id }),
   });
   const people = useQuery({
     queryKey: ["legacyPeople", batch.id, "unlinked"],
@@ -42,21 +42,12 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
   function undoLink(person: LegacyPerson) {
     link.reset();
     undo.mutate(person.record_ids, {
-      onSettled: (unlinkedIds, error) => {
-        const removed = unlinkedIds ?? (error instanceof PartialUnlinkError ? error.unlinkedIds : []);
+      onSuccess: () =>
         setLinked((current) => {
-          const entry = current[person.source_name];
-          if (!entry || removed.length === 0) return current;
           const next = { ...current };
-          const remaining = entry.person.record_ids.filter((id) => !removed.includes(id));
-          if (remaining.length === 0) delete next[person.source_name];
-          else next[person.source_name] = {
-            ...entry,
-            person: { ...entry.person, record_ids: remaining, records: remaining.length },
-          };
+          delete next[person.source_name];
           return next;
-        });
-      },
+        }),
     });
   }
 
@@ -65,12 +56,12 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
     ...Object.values(linked).map((entry) => entry.person),
     ...fromServer.filter((person) => !linked[person.source_name]),
   ].slice(0, LINK_GROUPS_SHOWN + Object.keys(linked).length);
-  const waiting = awaiting.data?.count;
+  const waiting = awaiting.data?.awaiting_link;
   const busy = link.isPending || undo.isPending;
   const failed = link.isError
     ? errorMessage(link.error, "Those records could not be linked.")
     : undo.isError
-      ? undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "Those records could not be unlinked.")
+      ? errorMessage(undo.error, "Those records could not be unlinked.")
       : null;
 
   return (

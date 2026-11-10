@@ -96,6 +96,27 @@ def test_preview_suggests_an_exact_rank_match() -> None:
     assert suggestion.suggested_rank_code == "YELLOW"
 
 
+def test_each_spelling_says_the_rank_chosen_for_it_however_it_was_written() -> None:
+    content = standard_workbook(
+        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
+    )
+    batch = legacy_batch(content)
+
+    before = preview_legacy_grading_import(batch)
+    assert {s.source_text: s.chosen_rank_code for s in before.rank_suggestions} == {
+        "Blue Stripe": None,
+        "Yellow Belt": None,
+    }
+    # The choice is matched to the spelling whatever its case or spacing.
+    after = preview_legacy_grading_import(
+        batch, rank_mappings={" yellow belt ": "YELLOW"}
+    )
+    assert {s.source_text: s.chosen_rank_code for s in after.rank_suggestions} == {
+        "Blue Stripe": None,
+        "Yellow Belt": "YELLOW",
+    }
+
+
 @pytest.mark.parametrize(
     ("text", "code", "doubtful"),
     [

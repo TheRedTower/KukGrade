@@ -620,4 +620,4 @@ def bulk_promote_candidates(
         require_pinned(outcome.pk, pinned, "outcome")
         return promote_candidate(outcome, actor=actor)
 
-    return each_independently(outcomes, promote)
+    return each_independently(outcomes, promote, key=lambda outcome: outcome.pk)

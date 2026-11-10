@@ -74,7 +74,7 @@ function sizeLimit(bytes: number): string {
 }
 
 /** Why the browser can refuse a file before sending it, or null. */
-type FileTypes = SiteSettings["imports"]["file_types"][number]["types"];
+type FileTypes = SiteSettings["imports"]["kinds"][number]["file_types"];
 
 /** The file types in a phrase: "Excel (.xlsx) or CSV (.csv)". */
 function typeWords(types: FileTypes): string {
@@ -239,7 +239,7 @@ export function ImportStartScreen() {
   const imports = useSiteSettingsQuery().data?.imports;
   const template = useTemplateDownload();
   const maxBytes = imports?.max_bytes;
-  const types = imports?.file_types.find((served) => served.kind === kind)?.types ?? [];
+  const types = imports?.kinds.find((served) => served.kind === kind)?.file_types ?? [];
   const limit = maxBytes === undefined ? undefined : sizeLimit(maxBytes);
   const inputRef = useRef<HTMLInputElement>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -315,7 +315,7 @@ export function ImportStartScreen() {
     <section aria-labelledby="ix-start-title" className="page">
       <PageHeader back={{ to: "/imports", label: "Imports" }} title={importKindTitle(kind)} titleId="ix-start-title" />
 
-      <ImportStepBar current={0} kind={kind} />
+      <ImportStepBar current="CHOOSE_FILE" kind={kind} />
 
       {loaded && created ? (
         <section aria-labelledby="ix-your-file" className="card ix-section ix-roomy">

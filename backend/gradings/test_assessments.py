@@ -845,7 +845,7 @@ def test_direct_candidate_completed_spoofing_rejected_through_api() -> None:
     )
 
     assert response.status_code == 200
-    assert list(response.json()["errors"]) == ["0"]
+    assert list(response.json()["errors"]) == [str(built.id)]
     built.refresh_from_db()
     assert built.status == GradingCandidate.Status.REGISTERED
 

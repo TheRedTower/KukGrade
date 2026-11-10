@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from data_imports.mappings import STANDARD_TEMPLATE_HEADERS, suggest_column_mapping
 from data_imports.models import COMMITTED_ROWS_KEPT_FOR
 from data_imports.parsers import MAX_ROWS
-from data_imports.services import ALLOWED_SUFFIXES
+from data_imports.services import ALLOWED_SUFFIXES, IMPORT_STEP_NAMES, ImportStep
 from gradings.serializers import BULK_LINK_LIMIT
 
 
@@ -45,9 +45,15 @@ def test_site_settings_serve_the_import_limits_the_server_enforces() -> None:
     assert imports["bulk_link_limit"] == BULK_LINK_LIMIT
     assert imports["template_headers"] == list(STANDARD_TEMPLATE_HEADERS.values())
     assert {
-        served["kind"]: [kind["value"] for kind in served["types"]]
-        for served in imports["file_types"]
+        served["kind"]: [kind["value"] for kind in served["file_types"]]
+        for served in imports["kinds"]
     } == {kind: list(suffixes) for kind, suffixes in ALLOWED_SUFFIXES.items()}
+    # Every kind runs through every step, in order, named its own way.
+    for served in imports["kinds"]:
+        assert [step["value"] for step in served["steps"]] == ImportStep.values
+        assert [step["label"] for step in served["steps"]] == list(
+            IMPORT_STEP_NAMES[served["kind"]].values()
+        )
 
 
 def test_the_template_headers_are_the_ones_the_import_recognises() -> None:

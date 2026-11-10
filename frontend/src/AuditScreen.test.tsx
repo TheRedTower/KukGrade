@@ -42,6 +42,8 @@ const auditEvent: AuditEvent = {
   actor_email: "master.kim@kuksoolwon.test",
   actor_name: "In Hyuk Kim",
   summary: "Finalised Carlos Rivera's grading outcome as Pass.",
+  tone: "success",
+  outcome_display: "Pass",
   metadata: { result: "PASS", previous_result: null },
 };
 
@@ -87,8 +89,9 @@ describe("AuditScreen", () => {
     mockGetAuditSubject.mockResolvedValue({
       kind: "session",
       id: "3",
+      session_id: null,
       name: "Spring Grading (25 October 2026)",
-      path: "/gradings/3",
+      exists: true,
     });
     renderScreen("/audit?subject=session:3");
 
@@ -101,15 +104,32 @@ describe("AuditScreen", () => {
     );
   });
 
+  it("opens a registration inside the grading it belongs to", async () => {
+    mockGetAuditSubject.mockResolvedValue({
+      kind: "candidate",
+      id: "9",
+      session_id: 3,
+      name: "Alex Kim - Spring Grading",
+      exists: true,
+    });
+    renderScreen("/audit?subject=candidate:9");
+
+    const banner = await screen.findByTestId("audit-subject");
+    expect(await within(banner).findByRole("link", { name: /Open the record/ })).toHaveAttribute(
+      "href",
+      "/gradings/3/assessments/9/review",
+    );
+  });
+
   it("says so when the record the history is of no longer exists", async () => {
-    mockGetAuditSubject.mockResolvedValue({ kind: "student", id: "9", name: "", path: "" });
+    mockGetAuditSubject.mockResolvedValue({ kind: "student", id: "9", session_id: null, name: "", exists: false });
     renderScreen("/audit?subject=student:9");
 
     expect(await screen.findByText(/History of a record that no longer exists/)).toBeVisible();
   });
 
   it("shows no history banner on the whole log, and clearing the filters leaves a history", async () => {
-    mockGetAuditSubject.mockResolvedValue({ kind: "user", id: "u", name: "Riley Khan", path: "/users/u" });
+    mockGetAuditSubject.mockResolvedValue({ kind: "user", id: "u", session_id: null, name: "Riley Khan", exists: true });
     const user = userEvent.setup();
     renderScreen("/audit?subject=user:u");
     await screen.findByTestId("audit-subject");

@@ -28,15 +28,11 @@ export function ImportScreen() {
   });
 
   // The step is the one in the address, so a reload keeps it; with none, it
-  // is where the import is up to - matching until a roster's columns are
-  // saved, and always first for a workbook's ranks. Matching, once opened,
+  // is where the server says the import is up to. Matching, once opened,
   // is written into the address: saving the first columns moves the import
   // on, but the importer has not finished matching.
   const asked = searchParams.get("step");
-  const upTo =
-    batch.data?.kind === "LEGACY_GRADINGS" || batch.data?.next_step === "MATCH_COLUMNS"
-      ? "match"
-      : "review";
+  const upTo = batch.data?.next_step === "MATCH" ? "match" : "review";
   const step = asked === "match" || asked === "review" ? asked : upTo;
   const open = batch.data?.status === "UPLOADED";
   useEffect(() => {
@@ -96,8 +92,6 @@ export function ImportScreen() {
 
   const matching = step === "match";
   const goTo = (step: "match" | "review") => setSearchParams({ step });
-  const sorted = loaded.kind !== "STUDENT_ROSTER" || loaded.row_counts.review_required === 0;
-  const current = matching ? 1 : sorted ? 3 : 2;
 
   return (
     <section aria-labelledby="ix-step-title" className="page">
@@ -115,7 +109,7 @@ export function ImportScreen() {
           </>
         }
       />
-      <ImportStepBar current={current} kind={loaded.kind} />
+      <ImportStepBar current={matching ? "MATCH" : loaded.review_step} kind={loaded.kind} />
       {matching ? (
         loaded.kind === "STUDENT_ROSTER" ? (
           <ImportMatchColumns batch={loaded} onBack={() => navigate("/imports")} onContinue={() => goTo("review")} />

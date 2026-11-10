@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { type DataImportBatch } from "./api";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
-import { counted, importKindLabel } from "./importSteps";
+import { counted } from "./importSteps";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { LinkPanel } from "./ImportLinkPanel";
@@ -62,7 +62,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
         title={batch.original_filename}
         titleId="ix-results-title"
         tag={<Badge tone="success">Imported</Badge>}
-        subtitle={`${importKindLabel(batch.kind)} · imported by ${batch.committed_by_name} on ${formatShortDateTime(batch.committed_at)}`}
+        subtitle={`${batch.kind_display} · imported by ${batch.committed_by_name} on ${formatShortDateTime(batch.committed_at)}`}
       />
 
       <div className="ix-banner ix-banner-success" role="status">

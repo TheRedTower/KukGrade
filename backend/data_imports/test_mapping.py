@@ -72,6 +72,29 @@ def test_a_whole_file_rank_fills_a_missing_column() -> None:
     }
 
 
+def test_the_import_names_the_needed_fields_nothing_covers_yet() -> None:
+    admin = admin_user("uncovered@example.com")
+    batch = club_file(row("123-4-001"), admin=admin)
+    detail = f"{BASE}{batch.pk}/"
+    client = client_for(admin)
+
+    # Nothing is said before the columns are first saved.
+    assert client.get(detail).json()["uncovered_fields"] == []
+    save_import_mapping(batch, column_mapping=MAPPING)
+    assert client.get(detail).json()["uncovered_fields"] == ["current_rank"]
+    save_import_mapping(
+        batch, column_mapping=MAPPING, defaults={"current_rank": "White"}
+    )
+    assert client.get(detail).json()["uncovered_fields"] == []
+    save_import_mapping(batch, column_mapping={"wksa_id": "ID"})
+    assert client.get(detail).json()["uncovered_fields"] == [
+        "first_name",
+        "last_name",
+        "date_of_birth",
+        "current_rank",
+    ]
+
+
 def test_a_whole_file_value_fills_only_blank_cells() -> None:
     batch = club_file(row("123-4-001", belt="Yellow"), row("123-4-002"))
 

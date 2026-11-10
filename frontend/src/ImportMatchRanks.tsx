@@ -17,10 +17,6 @@ import { Button } from "./Button";
 
 const EXAMPLES = 5;
 
-function key(text: string): string {
-  return text.trim().toLowerCase();
-}
-
 /**
  * Step 2 of a historical import: each way the workbook writes a rank, the
  * records that use it, and the KukGrade rank it means. The
@@ -46,8 +42,7 @@ export function ImportMatchRanks({
     queryFn: () => previewLegacyGradingImport(batch.id, {}),
   });
   const spellings = preview.data?.rank_suggestions ?? [];
-  const chosen = batch.rank_mappings;
-  const current = spellings.find((spelling) => spelling.source_text === picked) ?? spellings.find((spelling) => !chosen[key(spelling.source_text)]) ?? spellings[0];
+  const current = spellings.find((spelling) => spelling.source_text === picked) ?? spellings.find((spelling) => !spelling.chosen_rank_code) ?? spellings[0];
 
   const examples = useQuery({
     queryKey: ["imports", "rows", batch.id, "rank", current?.source_text],
@@ -59,7 +54,7 @@ export function ImportMatchRanks({
     mutationFn: (changes: Record<string, string | null>) => {
       const all: Record<string, string | null> = {};
       for (const spelling of spellings) {
-        all[spelling.source_text] = chosen[key(spelling.source_text)] ?? null;
+        all[spelling.source_text] = spelling.chosen_rank_code ?? null;
       }
       return previewLegacyGradingImport(batch.id, { rank_mappings: { ...all, ...changes } });
     },
@@ -69,9 +64,9 @@ export function ImportMatchRanks({
     },
   });
 
-  const matched = spellings.filter((spelling) => chosen[key(spelling.source_text)]).length;
+  const matched = spellings.filter((spelling) => spelling.chosen_rank_code).length;
   const withSuggestion = spellings.filter(
-    (spelling) => spelling.suggested_rank_code && !chosen[key(spelling.source_text)],
+    (spelling) => spelling.suggested_rank_code && !spelling.chosen_rank_code,
   );
 
   return (
@@ -122,7 +117,7 @@ export function ImportMatchRanks({
                     <span>“{current.source_text}” means</span>
                     <select
                       disabled={save.isPending}
-                      value={chosen[key(current.source_text)] ?? ""}
+                      value={current.chosen_rank_code ?? ""}
                       onChange={(event) => save.mutate({ [current.source_text]: event.target.value || null })}
                     >
                       <option value="">Decide later</option>
@@ -133,7 +128,7 @@ export function ImportMatchRanks({
                       ))}
                     </select>
                   </label>
-                  {current.suggested_rank_code && chosen[key(current.source_text)] !== current.suggested_rank_code ? (
+                  {current.suggested_rank_code && current.chosen_rank_code !== current.suggested_rank_code ? (
                     <Button
                       variant="secondary"
                       disabled={save.isPending}
@@ -173,7 +168,7 @@ export function ImportMatchRanks({
             <div aria-label="Rank spellings in the workbook" className="card card--flush" role="group">
               <ul className="ix-queue">
                 {spellings.map((spelling) => {
-                  const choice = chosen[key(spelling.source_text)];
+                  const choice = spelling.chosen_rank_code;
                   const status = choice ? rankName(choice) : spelling.suggested_rank_code ? "Suggested" : "No suggestion";
                   const tone = choice ? "success" : spelling.suggested_rank_code ? "info" : "warning";
                   return (

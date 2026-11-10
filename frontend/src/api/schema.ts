@@ -433,6 +433,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-imports/batches/{id}/second-look/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description What KukGrade filled in for a roster's added students, counted. */
+        get: operations["data_imports_batches_second_look_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/data-imports/batches/{id}/sheet/": {
         parameters: {
             query?: never;
@@ -918,6 +935,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-records/bulk-unlink/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Unlink many records at once, all or nothing - Undo after a bulk link. */
+        post: operations["gradings_legacy_records_bulk_unlink_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/counts/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description How many records still wait for a student, counted in one query. */
+        get: operations["gradings_legacy_records_counts_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/legacy-records/people/": {
         parameters: {
             query?: never;
@@ -950,8 +1001,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description How many names still wait, by how clear their suggestions are, and
-         *     how many have every record linked.
+         * @description How many names still wait, by how clear their suggestions are; how
+         *     many have every record linked, or any; and how many the viewer has put
+         *     aside.
          */
         get: operations["gradings_legacy_records_people_summary_retrieve"];
         put?: never;
@@ -1694,6 +1746,10 @@ export interface components {
             readonly summary: string;
             /** @description The current name of the student the event is about, read now: events hold no names. Blank once the student no longer exists. */
             readonly subject_name: string;
+            /** @description How the event reads at a glance, from its action and the outcome it records: success, warning, info or neutral. */
+            readonly tone: components["schemas"]["ToneEnum"];
+            /** @description The name of the grading outcome a proposal or final decision records; null for every other event. */
+            readonly outcome_display: string | null;
             readonly metadata: unknown;
         };
         /**
@@ -1706,13 +1762,16 @@ export interface components {
         };
         /** @description GET /api/audit-events/subject/: what a history is of, named as it is now. */
         AuditSubject: {
-            /** @description session, student, candidate or user. */
+            /** @description session, student, candidate or user; blank for a malformed subject. */
             kind: string;
+            /** @description The record's id. */
             id: string;
+            /** @description For a candidate, the grading it belongs to; null otherwise. */
+            session_id: number | null;
             /** @description The record's current name; blank once it no longer exists. */
             name: string;
-            /** @description Where to open the record in the app; blank when it is gone. */
-            path: string;
+            /** @description Whether the record still exists, so the app can open it. */
+            exists: boolean;
         };
         /**
          * @description One of a set of choices, as every list of them is served: the value
@@ -1747,6 +1806,7 @@ export interface components {
             candidates: number[];
         };
         BulkAssessmentGenerationResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
@@ -1756,6 +1816,7 @@ export interface components {
             assessments: number[];
         };
         BulkAssessmentStartResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
@@ -1772,11 +1833,12 @@ export interface components {
             generate_assessments?: boolean;
         };
         BulkCandidateRegistrationResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
             created: components["schemas"]["RegisteredCandidate"][];
-            /** @description The keys of `errors` whose student is already registered, for this session or for another grading that has not settled: nothing to retry, unlike the other failures. */
+            /** @description The students (keys of `errors`) already registered, for this session or for another grading that has not settled: nothing to retry, unlike the other failures. */
             already_registered: {
                 [key: string]: "THIS_SESSION" | "ANOTHER_GRADING";
             };
@@ -1788,6 +1850,7 @@ export interface components {
             withdrawal_note?: string;
         };
         BulkCandidateStatusUpdateResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
@@ -1806,10 +1869,16 @@ export interface components {
             outcomes: number[];
         };
         BulkPromotionResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
             promoted: components["schemas"]["Promotion"][];
+        };
+        /** @description POST legacy-records/bulk-unlink/: let go of many records at once. */
+        BulkUnlinkLegacyRecordsRequest: {
+            /** @description The records to unlink from their students, all or nothing - the undo of a bulk link. Errors are keyed by record id. */
+            records: number[];
         };
         CandidateAssessment: {
             readonly id: number;
@@ -2290,8 +2359,10 @@ export interface components {
             readonly committed_by_name: string;
             /** Format: date-time */
             readonly cancelled_at: string | null;
-            /** @description Where the import is up to, so a screen can resume it. */
-            readonly next_step: components["schemas"]["NextStepEnum"];
+            /** @description Where the import is up to, so a screen can resume it: one of the steps its kind serves (site settings, imports.kinds). */
+            readonly next_step: components["schemas"]["ImportStepEnum"];
+            /** @description Where its review stands: REVIEW while rows need attention, otherwise CONFIRM. */
+            readonly review_step: components["schemas"]["ReviewStepEnum"];
             /** @description A roster's column headers, as in the file; empty otherwise. */
             readonly detected_headers: string[];
             /** @description A roster's chosen column for each KukGrade field. */
@@ -2316,10 +2387,8 @@ export interface components {
             };
             /** @description The fields a roster's columns are matched to; empty otherwise. */
             readonly target_fields: components["schemas"]["ImportField"][];
-            /** @description A historical import's chosen rank for each spelling, by the spelling lowercased; a spelling not here is left as written. */
-            readonly rank_mappings: {
-                [key: string]: string;
-            };
+            /** @description A roster's needed fields that no saved column holds and no whole-file value gives, so each row's value is typed in. */
+            readonly uncovered_fields: string[];
             /** @description A historical workbook's grading sheets that were read. */
             readonly grading_sheets: string[];
             /** @description What the reading of the file left out, such as an unknown sheet. */
@@ -2363,10 +2432,12 @@ export interface components {
             /** @description It can be given once for the whole file. */
             whole_file: boolean;
         };
-        ImportFileTypes: {
+        ImportKind: {
             kind: components["schemas"]["KindEnum"];
             /** @description The file types this kind of import reads: a suffix and its name. */
-            types: components["schemas"]["Choice"][];
+            file_types: components["schemas"]["Choice"][];
+            /** @description The steps this kind of import runs through, in order, named. */
+            steps: components["schemas"]["ImportStep"][];
         };
         /**
          * @description One of a set of choices, as every list of them is served: the value
@@ -2455,6 +2526,14 @@ export interface components {
             value: components["schemas"]["StudentImportRowOutcomeEnum"];
             label: string;
         };
+        ImportSecondLook: {
+            /** @description Added rows holding a fix of the importer's. */
+            corrected: number;
+            /** @description Added rows the file gave no status, so one was given them. */
+            given_status: number;
+            /** @description Added rows the file gave no rank, so the whole-file rank was used. */
+            given_rank: number;
+        };
         ImportSettings: {
             /** @description The maximum import file size enforced by this deployment, in bytes. */
             max_bytes: number;
@@ -2462,9 +2541,9 @@ export interface components {
             max_rows: number;
             /** @description How long a finished import's row-by-row list is kept. */
             rows_kept_for_days: number;
-            /** @description The most past records one link request takes. */
+            /** @description The most past records one link or unlink request takes. */
             bulk_link_limit: number;
-            file_types: components["schemas"]["ImportFileTypes"][];
+            kinds: components["schemas"]["ImportKind"][];
             /** @description The header row of the standard roster template. */
             template_headers: string[];
         };
@@ -2480,6 +2559,16 @@ export interface components {
             value: components["schemas"]["ImportBatchStatusEnum"];
             label: string;
         };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ImportStep: {
+            value: components["schemas"]["ImportStepEnum"];
+            label: string;
+        };
+        /** @enum {string} */
+        ImportStepEnum: "CHOOSE_FILE" | "MATCH" | "REVIEW" | "CONFIRM" | "RESULTS";
         /**
          * @description The account, with the temporary password just issued for it.
          *
@@ -2590,12 +2679,19 @@ export interface components {
                 [key: string]: string | null;
             };
         };
-        /** @description Names still to link, by how clear their suggested students are. */
+        /**
+         * @description Names still to link, by how clear their suggested students are, and the
+         *     other counts the linking screens show.
+         */
         LegacyPeopleSummary: {
             /** @description Names with a record still to link. */
             names: number;
             /** @description Names with every record linked; set_aside does not apply. */
             linked: number;
+            /** @description Names with any record linked; set_aside does not apply. */
+            with_a_link: number;
+            /** @description Names still to link that the viewer has put aside for now. */
+            set_aside: number;
             /** @description One student fits clearly. */
             clear: number;
             /** @description Several students fit equally well. */
@@ -2638,6 +2734,10 @@ export interface components {
          * @enum {string}
          */
         LegacyRankFieldEnum: "current_rank" | "testing_for_rank";
+        LegacyRecordCounts: {
+            /** @description Someone's records not yet linked to a student: not voided, not a sheet note. */
+            awaiting_link: number;
+        };
         LegacyRecordLinkRequest: {
             record: number;
             student: number;
@@ -2673,8 +2773,6 @@ export interface components {
          * @enum {string}
          */
         NextActionEnum: "PREPARE_ASSESSMENT" | "START_ASSESSMENT" | "CONTINUE_ASSESSMENT" | "VIEW_ASSESSMENT" | "PROPOSE_OUTCOME" | "REVIEW_PROPOSAL" | "REVIEW_DECISION" | "VIEW_DECISION" | "PROMOTION_LEDGER" | "NONE";
-        /** @enum {string} */
-        NextStepEnum: "MATCH_COLUMNS" | "REVIEW" | "CLOSED";
         /** @enum {unknown} */
         NullEnum: null;
         /**
@@ -3080,6 +3178,8 @@ export interface components {
             doubtful: boolean;
             /** @description How many rows use this text. */
             rows: number;
+            /** @description The rank chosen for this spelling, or null while it has none. */
+            chosen_rank_code: string | null;
         };
         /**
          * @description * `GRADING_RESULT` - Grading result
@@ -3107,6 +3207,8 @@ export interface components {
          * @enum {string}
          */
         ResultEnum: "NOT_ASSESSED" | "MET" | "NOT_MET";
+        /** @enum {string} */
+        ReviewStepEnum: "REVIEW" | "CONFIRM";
         /**
          * @description One of a set of choices, as every list of them is served: the value
          *     sent back, and its name.
@@ -3357,6 +3459,8 @@ export interface components {
          * @enum {string}
          */
         SyllabusItemCategoryEnum: "ETIQUETTE" | "FUNDAMENTALS" | "HAND_TECHNIQUES" | "KICKING" | "FALLING" | "BREAKING" | "TECHNIQUE_SET" | "FORM" | "WEAPONS" | "OTHER";
+        /** @enum {string} */
+        ToneEnum: "success" | "warning" | "info" | "neutral";
         User: {
             /** Format: uuid */
             readonly id: string;
@@ -4063,6 +4167,28 @@ export interface operations {
             };
         };
     };
+    data_imports_batches_second_look_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportSecondLook"];
+                };
+            };
+        };
+    };
     data_imports_batches_sheet_create: {
         parameters: {
             query?: never;
@@ -4764,6 +4890,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyGradingRecord"][];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_bulk_unlink_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
+                "multipart/form-data": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"][];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_counts_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Only this import's. */
+                batch?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyRecordCounts"];
                 };
             };
         };

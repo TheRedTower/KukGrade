@@ -889,8 +889,8 @@ describe("PromotionLedgerScreen", () => {
           outcome: 101,
         }),
       ],
-      // The backend's shape: row index -> that row's messages.
-      errors: { "1": ["Outcome 102 cannot be promoted at this time"] },
+      // The backend's shape: the outcome each refused row sent -> its messages.
+      errors: { "102": ["Outcome 102 cannot be promoted at this time"] },
     });
 
     renderScreen(1);

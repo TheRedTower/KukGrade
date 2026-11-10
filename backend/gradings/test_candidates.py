@@ -585,7 +585,7 @@ def test_bulk_register_refuses_a_rank_out_of_turn() -> None:
 
     assert response.status_code == 200
     assert response.json()["created"] == []
-    assert list(response.json()["errors"]) == ["0"]
+    assert list(response.json()["errors"]) == [str(target.id)]
     assert not GradingCandidate.objects.filter(student=target).exists()
 
 
@@ -602,20 +602,21 @@ def test_candidate_api_rejects_invalid_session_state_operations(
 ) -> None:
     session = grading_session(status=session_status)
     client = auth_client(f"candidate-state-{session_status.lower()}@example.com")
+    target = student()
 
     response = client.post(
         "/api/gradings/candidates/bulk-register/",
         {
             "session": session.id,
             "candidates": [
-                {"student": student().id, "testing_for_rank": rank("YELLOW_STRIPE").id},
+                {"student": target.id, "testing_for_rank": rank("YELLOW_STRIPE").id},
             ],
         },
         format="json",
     )
 
     assert response.status_code == 200
-    assert list(response.json()["errors"]) == ["0"]
+    assert list(response.json()["errors"]) == [str(target.id)]
     assert not GradingCandidate.objects.filter(session=session).exists()
 
 
@@ -815,8 +816,10 @@ def test_bulk_register_is_independent_per_row_when_one_row_is_invalid() -> None:
     assert [item["candidate"]["student"] for item in payload["created"]] == [
         valid_student.id,
     ]
-    assert list(payload["errors"].keys()) == ["1"]
-    assert payload["already_registered"] == {"1": "THIS_SESSION"}
+    # Named by the student the row sent, not by its place in the request.
+    named = str(already_registered_student.id)
+    assert list(payload["errors"].keys()) == [named]
+    assert payload["already_registered"] == {named: "THIS_SESSION"}
     assert GradingCandidate.objects.filter(student=valid_student).exists()
     assert (
         GradingCandidate.objects.filter(student=already_registered_student).count() == 1
@@ -848,11 +851,13 @@ def test_bulk_register_names_only_the_already_registered_rows() -> None:
         format="json",
     ).json()
 
-    assert sorted(payload["errors"]) == ["0", "1", "2"]
-    assert "Summer Grading" in payload["errors"]["2"][0]
+    assert sorted(payload["errors"]) == sorted(
+        str(one.id) for one in (left, registered, held)
+    )
+    assert "Summer Grading" in payload["errors"][str(held.id)][0]
     assert payload["already_registered"] == {
-        "1": "THIS_SESSION",
-        "2": "ANOTHER_GRADING",
+        str(registered.id): "THIS_SESSION",
+        str(held.id): "ANOTHER_GRADING",
     }
 
 
@@ -919,7 +924,7 @@ def test_bulk_register_with_generation_rolls_back_only_the_failing_row() -> None
         registerable_student.id,
     ]
     assert payload["created"][0]["assessment"] is not None
-    assert list(payload["errors"].keys()) == ["1"]
+    assert list(payload["errors"].keys()) == [str(topped_out_student.id)]
     assert not GradingCandidate.objects.filter(student=topped_out_student).exists()
 
 
@@ -966,7 +971,7 @@ def test_bulk_generate_assessments_is_independent_per_row() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert [item["candidate"] for item in payload["created"]] == [fresh_candidate.id]
-    assert list(payload["errors"].keys()) == ["1"]
+    assert list(payload["errors"].keys()) == [str(already_assessed.id)]
     assert CandidateAssessment.objects.filter(candidate=fresh_candidate).exists()
 
 
@@ -1033,7 +1038,7 @@ def test_bulk_start_is_independent_per_row() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert [item["id"] for item in payload["started"]] == [fresh_assessment.id]
-    assert list(payload["errors"].keys()) == ["1"]
+    assert list(payload["errors"].keys()) == [str(draft_session_assessment.id)]
     fresh_assessment.refresh_from_db()
     draft_session_assessment.refresh_from_db()
     assert fresh_assessment.status == CandidateAssessment.Status.IN_PROGRESS
@@ -1108,7 +1113,7 @@ def test_bulk_update_status_is_independent_when_one_candidates_session_is_locked
     assert response.status_code == 200
     payload = response.json()
     assert [item["id"] for item in payload["updated"]] == [open_session_candidate.id]
-    assert list(payload["errors"].keys()) == ["1"]
+    assert list(payload["errors"].keys()) == [str(locked_session_candidate.id)]
     open_session_candidate.refresh_from_db()
     locked_session_candidate.refresh_from_db()
     assert open_session_candidate.status == GradingCandidate.Status.WITHDRAWN
@@ -1169,7 +1174,10 @@ def test_bulk_registration_reports_a_duplicate_insert_and_keeps_the_other_rows()
         )
 
     assert [registered.student_id for registered, _ in created] == [first.pk, second.pk]
-    assert errors == {"1": ["Student is already registered for this session."]}
+    # The student named twice is refused under their own id.
+    assert errors == {
+        str(first.pk): ["Student is already registered for this session."]
+    }
     registered_events = AuditEvent.objects.filter(
         action=AuditAction.CANDIDATE_REGISTERED,
     ).values_list("entity_id", flat=True)
@@ -1355,7 +1363,8 @@ def _graded_in(first: GradingSession) -> GradingCandidate:
     return built
 
 
-def _register_elsewhere(pupil: Student) -> dict[str, list[str]]:
+def _register_elsewhere(pupil: Student) -> list[str]:
+    """Why registering `pupil` for a later grading is refused; none if not."""
     later = grading_session(
         title="Later", grading_date=date(2027, 9, 20), status=GradingSession.Status.OPEN
     )
@@ -1364,7 +1373,8 @@ def _register_elsewhere(pupil: Student) -> dict[str, list[str]]:
         rows=[{"student": Student.objects.get(pk=pupil.pk)}],
         actor=user(f"registrar-{later.pk}@example.com"),
     )
-    return errors
+    assert set(errors) <= {str(pupil.pk)}
+    return errors.get(str(pupil.pk), [])
 
 
 def test_a_student_is_registered_for_one_grading_at_a_time() -> None:
@@ -1373,9 +1383,9 @@ def test_a_student_is_registered_for_one_grading_at_a_time() -> None:
 
     errors = _register_elsewhere(registered.student)
 
-    assert list(errors) == ["0"]
-    assert ONE_GRADING_REFUSAL in errors["0"][0]
-    assert "'First'" in errors["0"][0]
+    assert len(errors) == 1
+    assert ONE_GRADING_REFUSAL in errors[0]
+    assert "'First'" in errors[0]
     assert GradingCandidate.objects.filter(student=registered.student).count() == 1
 
 
@@ -1383,13 +1393,13 @@ def test_a_locked_grading_awaiting_its_decision_still_holds_the_student() -> Non
     from gradings.outcome_services import propose_for_candidate
 
     graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
-    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)[0]
 
     propose_for_candidate(
         graded, "PASS", "Ready for decision.", user("proposer@example.com")
     )
 
-    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)[0]
 
 
 def test_a_finalised_pass_holds_the_student_until_promoted() -> None:
@@ -1398,11 +1408,11 @@ def test_a_finalised_pass_holds_the_student_until_promoted() -> None:
 
     graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
     outcome = finalised_outcome(graded)
-    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)[0]
 
     promote_candidate(outcome, promoter())
 
-    assert _register_elsewhere(graded.student) == {}
+    assert _register_elsewhere(graded.student) == []
 
 
 @pytest.mark.parametrize("final", ["FAIL", "CONDITIONAL"])
@@ -1417,7 +1427,7 @@ def test_a_finalised_fail_or_conditional_releases_the_student(final: str) -> Non
         conditional_requirements="Re-test forms." if final == "CONDITIONAL" else "",
     )
 
-    assert _register_elsewhere(graded.student) == {}
+    assert _register_elsewhere(graded.student) == []
 
 
 def test_a_withdrawal_or_cancelled_session_releases_the_student() -> None:
@@ -1427,20 +1437,20 @@ def test_a_withdrawal_or_cancelled_session_releases_the_student() -> None:
         session=grading_session(title="Withdrawn", status=GradingSession.Status.OPEN),
         status=GradingCandidate.Status.WITHDRAWN,
     )
-    assert _register_elsewhere(withdrawn.student) == {}
+    assert _register_elsewhere(withdrawn.student) == []
 
     cancelled_session = grading_session(
         title="Cancelled", status=GradingSession.Status.OPEN
     )
     in_cancelled = candidate(session=cancelled_session)
     transition_grading_session(cancelled_session, GradingSession.Status.CANCELLED)
-    assert _register_elsewhere(in_cancelled.student) == {}
+    assert _register_elsewhere(in_cancelled.student) == []
 
 
 def test_reinstating_is_refused_while_another_grading_holds_the_student() -> None:
     first = grading_session(title="First", status=GradingSession.Status.OPEN)
     withdrawn = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
-    assert _register_elsewhere(withdrawn.student) == {}
+    assert _register_elsewhere(withdrawn.student) == []
 
     with pytest.raises(ValidationError) as refusal:
         apply_candidate_update(
@@ -1462,7 +1472,9 @@ def test_registering_twice_in_one_session_keeps_its_own_message() -> None:
         actor=user("registrar@example.com"),
     )
 
-    assert errors == {"0": ["Student is already registered for this session."]}
+    assert errors == {
+        str(registered.student.pk): ["Student is already registered for this session."]
+    }
 
 
 def test_bulk_reinstating_refuses_only_the_student_held_elsewhere() -> None:
@@ -1471,7 +1483,7 @@ def test_bulk_reinstating_refuses_only_the_student_held_elsewhere() -> None:
     first = grading_session(title="First", status=GradingSession.Status.OPEN)
     held = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
     free = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
-    assert _register_elsewhere(held.student) == {}
+    assert _register_elsewhere(held.student) == []
 
     updated, errors = bulk_update_candidate_status(
         candidates=[held, free],
@@ -1480,8 +1492,8 @@ def test_bulk_reinstating_refuses_only_the_student_held_elsewhere() -> None:
     )
 
     assert [row.pk for row in updated] == [free.pk]
-    assert list(errors) == ["0"]
-    assert ONE_GRADING_REFUSAL in errors["0"][0]
+    assert list(errors) == [str(held.pk)]
+    assert ONE_GRADING_REFUSAL in errors[str(held.pk)][0]
 
 
 def test_a_withdrawn_registration_in_the_session_gets_the_same_message() -> None:
@@ -1496,7 +1508,9 @@ def test_a_withdrawn_registration_in_the_session_gets_the_same_message() -> None
         actor=user("registrar-again@example.com"),
     )
 
-    assert errors == {"0": ["Student is already registered for this session."]}
+    assert errors == {
+        str(withdrawn.student.pk): ["Student is already registered for this session."]
+    }
 
 
 def test_moving_onto_a_session_holding_the_student_gets_the_same_message() -> None:

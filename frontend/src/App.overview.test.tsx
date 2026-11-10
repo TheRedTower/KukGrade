@@ -96,15 +96,16 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(await screen.findByText("No recent activity recorded.")).toBeVisible();
   });
 
-  // An event's status comes from its action and structured outcome,
-  // never from words in its summary.
-  it("labels activity by what happened, not by words in the summary", async () => {
+  // The server says how each event reads and which outcome it records;
+  // the overview shows that, never words from the summary.
+  it("labels activity with the tone and outcome the server serves", async () => {
     const event = (
       id: number,
       action: AuditEvent["action"],
       action_display: string,
       summary: string,
-      metadata: Record<string, unknown> = {},
+      tone: AuditEvent["tone"],
+      outcome_display: string | null = null,
     ) =>
       ({
         id,
@@ -118,22 +119,18 @@ describe("Overview screen (Operational Ledger)", () => {
         actor_email: "master@example.com",
         actor_name: "Morgan Master",
         summary,
-        metadata,
+        tone,
+        outcome_display,
+        metadata: {},
       }) satisfies AuditEvent;
     const events = [
-      event(1, "USER_UPDATED", "User updated", "Password reset for someone@example.com."),
-      event(2, "OUTCOME_PROPOSED", "Outcome proposed", "Outcome proposed as PASS.", {
-        after: { proposed_outcome: "PASS" },
-      }),
-      event(3, "OUTCOME_FINALISED", "Outcome finalised", "Final decision FAIL, overriding a proposed PASS.", {
-        final_outcome: "FAIL",
-      }),
-      event(4, "OUTCOME_FINALISED", "Outcome finalised", "Final decision CONDITIONAL.", {
-        final_outcome: "CONDITIONAL",
-      }),
-      event(5, "CANDIDATE_WITHDRAWN", "Candidate withdrawn", "Withdrawn: did not attend."),
-      event(6, "PROMOTION_RECORDED", "Promotion recorded", "Promoted to Yellow."),
-      event(7, "SESSION_UPDATED", "Grading session updated", "Notes: everyone should pass."),
+      event(1, "USER_UPDATED", "User updated", "Password reset for someone@example.com.", "neutral"),
+      event(2, "OUTCOME_PROPOSED", "Outcome proposed", "Outcome proposed as PASS.", "info", "Pass"),
+      event(3, "OUTCOME_FINALISED", "Outcome finalised", "Final decision FAIL, overriding a proposed PASS.", "warning", "Fail"),
+      event(4, "OUTCOME_FINALISED", "Outcome finalised", "Final decision CONDITIONAL.", "warning", "Conditional"),
+      event(5, "CANDIDATE_WITHDRAWN", "Candidate withdrawn", "Withdrawn: did not attend.", "warning"),
+      event(6, "PROMOTION_RECORDED", "Promotion recorded", "Promoted to Yellow.", "success"),
+      event(7, "SESSION_UPDATED", "Grading session updated", "Notes: everyone should pass.", "neutral"),
     ];
     vi.stubGlobal(
       "fetch",
@@ -250,6 +247,8 @@ describe("Overview screen (Operational Ledger)", () => {
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
         summary: "Assessment complete (ready for review)",
+        tone: "neutral",
+        outcome_display: null,
         metadata: {},
       },
       {
@@ -264,6 +263,8 @@ describe("Overview screen (Operational Ledger)", () => {
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
         summary: "Assessment started on the mat",
+        tone: "info",
+        outcome_display: null,
         metadata: {},
       },
     ] satisfies AuditEvent[];

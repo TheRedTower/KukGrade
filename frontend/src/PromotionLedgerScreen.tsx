@@ -139,24 +139,19 @@ export function PromotionLedgerScreen(): React.ReactElement {
     mutationFn: async (outcomes: number[]) => {
       return bulkPromoteCandidateOutcomes({ outcomes });
     },
-    onSuccess: (res, sentOutcomes) => {
+    onSuccess: (res) => {
       refresh.afterPromotion(queryClient, sessionId);
       setIsBatchSummaryOpen(false);
 
       const failures = Object.entries(res.errors);
       if (failures.length > 0) {
-        // Errors are keyed by the row's index in the request; name each
-        // candidate and say why, so the admin knows whom to look at rather
-        // than only how many.
-        const nameFor = (index: string) => {
-          const outcomeId = sentOutcomes[Number(index)];
-          return (
-            rows.find((r) => r.outcome?.id === outcomeId)?.candidate.student_display_name ??
-            "A candidate"
-          );
-        };
+        // Errors are keyed by the outcome each row sent; name each candidate
+        // and say why, so the admin knows whom to look at rather than only
+        // how many.
+        const nameFor = (outcomeId: string) =>
+          rows.find((r) => String(r.outcome?.id) === outcomeId)?.candidate.student_display_name ?? "A candidate";
         const details = failures
-          .map(([index, reasons]) => `${nameFor(index)}: ${reasons.join(" ")}`)
+          .map(([outcomeId, reasons]) => `${nameFor(outcomeId)}: ${reasons.join(" ")}`)
           .join("; ");
         setActionFeedback({
           type: "error",

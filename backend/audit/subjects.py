@@ -127,28 +127,34 @@ def _uuid(value: str) -> UUID | None:
 
 
 def describe(value: str) -> dict[str, Any]:
-    """What a history is of, by its current name and where the record is.
+    """What a history is of: its kind, its ids and its current name.
 
-    `name` is empty when the record no longer exists (a deleted student's events
-    are still there), so a screen can say so.
+    The ids are what the app needs to open the record (a registration opens
+    inside its grading, so a candidate also names its `session_id`); the app
+    keeps its own routes. `exists` is false and `name` empty once the record
+    no longer exists (a deleted student's events are still there), so a
+    screen can say so.
     """
     parsed = parse(value)
     if parsed is None:
-        return {"kind": "", "id": value, "name": "", "path": ""}
+        return {
+            "kind": "",
+            "id": value,
+            "session_id": None,
+            "name": "",
+            "exists": False,
+        }
     kind, ident = parsed
-    name, path = "", ""
+    name, session_id, row = "", None, None
     if ident.isdecimal() or kind == USER:
         if kind == SESSION:
             row = _model("gradings.GradingSession").objects.filter(pk=ident).first()
             if row is not None:
-                name, path = (
-                    f"{row.title} ({row.grading_date:%d %B %Y})",
-                    f"/gradings/{row.pk}",
-                )
+                name = f"{row.title} ({row.grading_date:%d %B %Y})"
         elif kind == STUDENT:
             row = _model("students.Student").objects.filter(pk=ident).first()
             if row is not None:
-                name, path = str(row), f"/students/{row.pk}"
+                name = str(row)
         elif kind == CANDIDATE:
             row = (
                 _model("gradings.GradingCandidate")
@@ -157,10 +163,15 @@ def describe(value: str) -> dict[str, Any]:
                 .first()
             )
             if row is not None:
-                name = str(row)
-                path = f"/gradings/{row.session_id}/assessments/{row.pk}/review"
+                name, session_id = str(row), row.session_id
         else:
             row = _model("accounts.User").objects.filter(pk=_uuid(ident)).first()
             if row is not None:
-                name, path = row.get_full_name() or row.email, f"/users/{row.pk}"
-    return {"kind": kind, "id": ident, "name": name, "path": path}
+                name = row.get_full_name() or row.email
+    return {
+        "kind": kind,
+        "id": ident,
+        "session_id": session_id,
+        "name": name,
+        "exists": row is not None,
+    }

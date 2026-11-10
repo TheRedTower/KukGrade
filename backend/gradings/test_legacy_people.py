@@ -46,6 +46,7 @@ CURRENT_RANK = LegacyRankField.CURRENT_RANK
 
 PEOPLE = "/api/gradings/legacy-records/people/"
 BULK = "/api/gradings/legacy-records/bulk-link/"
+BULK_UNLINK = "/api/gradings/legacy-records/bulk-unlink/"
 SUMMARY = "/api/gradings/legacy-records/people-summary/"
 SET_ASIDE = "/api/gradings/legacy-records/people/set-aside/"
 
@@ -533,8 +534,25 @@ def test_the_summary_counts_names_still_to_link_by_suggestion() -> None:
     client.post(SET_ASIDE, {"group_keys": ["theo", "done already"]}, format="json")
     left_out = client.get(SUMMARY, {"set_aside": "exclude"}).json()
 
-    assert summary == {"names": 3, "linked": 1, "clear": 1, "choose": 1, "none": 1}
-    assert left_out == {"names": 2, "linked": 1, "clear": 1, "choose": 0, "none": 1}
+    assert summary == {
+        "names": 3,
+        "linked": 1,
+        "with_a_link": 2,
+        "set_aside": 0,
+        "clear": 1,
+        "choose": 1,
+        "none": 1,
+    }
+    # Only the names still to link that were put aside count as set aside.
+    assert left_out == {
+        "names": 2,
+        "linked": 1,
+        "with_a_link": 2,
+        "set_aside": 1,
+        "clear": 1,
+        "choose": 0,
+        "none": 1,
+    }
     assert client.get(SUMMARY, {"linked": "true"}).status_code == 400
     assert client.get(SUMMARY, {"search": "zac"}).status_code == 400
 
@@ -547,7 +565,15 @@ def test_the_summary_follows_the_chosen_import() -> None:
 
     summary = client_for(admin()).get(SUMMARY, {"batch": first.pk}).json()
 
-    assert summary == {"names": 1, "linked": 0, "clear": 1, "choose": 0, "none": 0}
+    assert summary == {
+        "names": 1,
+        "linked": 0,
+        "with_a_link": 0,
+        "set_aside": 0,
+        "clear": 1,
+        "choose": 0,
+        "none": 0,
+    }
 
 
 def test_instructors_cannot_see_suggestions_or_link_in_bulk() -> None:
@@ -560,6 +586,7 @@ def test_instructors_cannot_see_suggestions_or_link_in_bulk() -> None:
     assert client.get(PEOPLE).status_code == 403
     assert client.get(SUMMARY).status_code == 403
     assert client.post(BULK, {"links": []}, format="json").status_code == 403
+    assert client.post(BULK_UNLINK, {"records": []}, format="json").status_code == 403
 
 
 # --- bulk links ------------------------------------------------------------------
@@ -638,6 +665,66 @@ def test_too_many_at_once_is_refused() -> None:
 
     assert response.status_code == 400
     assert "at most 500" in str(response.json())
+
+
+# --- bulk unlinks (Undo) ----------------------------------------------------------
+
+
+def test_undo_unlinks_a_persons_whole_history_at_once_each_audited() -> None:
+    zac = student("Zac", "Wood")
+    records = [legacy_record(source_name="Zac W", student=zac) for _ in range(3)]
+
+    response = client_for(admin()).post(
+        BULK_UNLINK,
+        {"records": [record.pk for record in records]},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.json()
+    assert {row["student"] for row in response.json()} == {None}
+    assert set(
+        LegacyGradingRecord.objects.values_list("student_id", flat=True),
+    ) == {None}
+    unlinked = AuditEvent.objects.filter(action=AuditAction.LEGACY_GRADING_UNLINKED)
+    assert unlinked.count() == 3
+    assert {event.metadata["student_id"] for event in unlinked} == {zac.pk}
+
+
+def test_one_refusal_unlinks_none_of_them_and_names_each_record() -> None:
+    zac = student("Zac", "Wood")
+    linked = legacy_record(source_name="Zac W", student=zac)
+    never_linked = legacy_record(source_name="Zac W")
+    voided = legacy_record(source_name="Zac W", student=zac)
+    void_legacy_record(voided, reason="Entered twice", actor=admin())
+
+    response = client_for(admin()).post(
+        BULK_UNLINK,
+        {"records": [linked.pk, never_linked.pk, voided.pk, 999999]},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    errors = response.json()["error"]["fields"]
+    assert set(errors) == {str(never_linked.pk), str(voided.pk), "999999"}
+    assert "not linked" in errors[str(never_linked.pk)][0]
+    assert "voided" in errors[str(voided.pk)][0]
+    assert "no longer exists" in errors["999999"][0]
+    linked.refresh_from_db()
+    assert linked.student_id == zac.pk
+    assert not AuditEvent.objects.filter(
+        action=AuditAction.LEGACY_GRADING_UNLINKED,
+    ).exists()
+
+
+def test_undo_is_refused_when_empty_or_too_many_at_once() -> None:
+    client = client_for(admin())
+
+    empty = client.post(BULK_UNLINK, {"records": []}, format="json")
+    too_many = client.post(BULK_UNLINK, {"records": [1] * 501}, format="json")
+
+    assert empty.status_code == 400
+    assert too_many.status_code == 400
+    assert "500" in str(too_many.json())
 
 
 # --- a voided record stays as it is -------------------------------------------------
@@ -727,6 +814,28 @@ def test_the_record_list_counts_the_records_awaiting_a_student() -> None:
     assert awaiting["count"] == 1
     assert len(others) == 3
     assert results(client.get(url, {"awaiting_link": "maybe"})) == []
+
+
+def test_the_counts_say_how_many_records_await_a_student_for_either_role() -> None:
+    batch, other = legacy_batch(), legacy_batch()
+    legacy_record(source_batch=batch, source_name="Zac W")
+    legacy_record(source_batch=batch, source_name="Max", student=student("Max", "Lee"))
+    legacy_record(source_batch=batch, source_name="Sheet note")
+    voided = legacy_record(source_batch=batch, source_name="Ann B")
+    void_legacy_record(voided, reason="Entered twice", actor=admin())
+    legacy_record(source_batch=other, source_name="Theo")
+    instructor = User.objects.create_user(
+        email="counts-instructor@example.com",
+        role=User.Role.INSTRUCTOR,
+    )
+    url = "/api/gradings/legacy-records/counts/"
+
+    assert client_for(admin()).get(url).json() == {"awaiting_link": 2}
+    assert client_for(instructor).get(url, {"batch": batch.pk}).json() == {
+        "awaiting_link": 1
+    }
+    assert client_for(admin()).get(url, {"linked": "true"}).status_code == 400
+    assert APIClient().get(url).status_code in {401, 403}
 
 
 # --- linking while the student is deleted -----------------------------------------

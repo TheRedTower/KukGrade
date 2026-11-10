@@ -20,11 +20,13 @@ const api = vi.hoisted(() => ({
   chooseDataImportSheet: vi.fn(),
   voidDataImportRecords: vi.fn(),
   getLegacyGradingRecords: vi.fn(),
+  getLegacyRecordCounts: vi.fn(),
+  getDataImportSecondLook: vi.fn(),
   getLegacyPeople: vi.fn(),
   getSiteSettings: vi.fn(),
   getChoices: vi.fn(),
   bulkLinkLegacyRecords: vi.fn(),
-  unlinkLegacyGradingRecord: vi.fn(),
+  bulkUnlinkLegacyRecords: vi.fn(),
 }));
 
 vi.mock("./api", async () => {
@@ -71,6 +73,8 @@ beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   auth.user = { ...authUser, ...ADMINISTRATOR_CAPABILITIES };
   api.getLegacyGradingRecords.mockResolvedValue(page([], 0));
+  api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 0 });
+  api.getDataImportSecondLook.mockResolvedValue({ corrected: 0, given_status: 0, given_rank: 0 });
   api.getSiteSettings.mockResolvedValue(SITE);
   api.getChoices.mockResolvedValue(CHOICES);
 });
@@ -157,12 +161,11 @@ describe("Imports hub", () => {
 
   it("says how many imported records still wait for a student", async () => {
     api.getDataImportBatches.mockResolvedValue(page([]));
-    api.getLegacyGradingRecords.mockResolvedValue(page([], 48));
+    api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 48 });
 
     renderAt("/imports");
 
     expect(await screen.findByText("48 imported records")).toBeInTheDocument();
-    expect(api.getLegacyGradingRecords).toHaveBeenCalledWith({ awaiting_link: true, page_size: 1 });
     expect(screen.getByRole("link", { name: "Link records" })).toBeInTheDocument();
   });
 });
@@ -183,14 +186,14 @@ describe("Choosing the file", () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue(created);
     api.getDataImportBatch.mockResolvedValue(
-      batch({ next_step: "MATCH_COLUMNS", sheet_names: ["Members", "Leavers"] }),
+      batch({ next_step: "MATCH", sheet_names: ["Members", "Leavers"] }),
     );
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
 
     expect(screen.getByRole("heading", { name: "What KukGrade looks for" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue to match columns" })).toBeDisabled();
-    expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Choose file");
+    expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Choose file");
 
     await user.upload(screen.getByLabelText("Choose a file"), xlsx());
 
@@ -313,6 +316,9 @@ describe("Choosing the file", () => {
     api.getDataImportBatch.mockResolvedValue(
       batch({
         kind: "LEGACY_GRADINGS",
+        kind_display: "Past gradings",
+        next_step: "MATCH",
+        review_step: "CONFIRM",
         original_filename: "grading-record-2025.xlsx",
         grading_sheets: ["03-2025", "06-2025"],
         warnings: ["Unknown sheet 'Notes' was not imported."],
@@ -334,7 +340,7 @@ describe("An import's results", () => {
   const roster = batch({
     status: "COMMITTED",
     status_display: "Imported",
-    next_step: "CLOSED",
+    next_step: "RESULTS",
     committed_at: "2026-10-20T10:18:00Z",
     committed_by_name: "Sam Taylor",
     defaults: { status: "ACTIVE" },
@@ -345,6 +351,7 @@ describe("An import's results", () => {
   it("shows what a roster import did, with a second look and every row", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(roster);
+    api.getDataImportSecondLook.mockResolvedValue({ corrected: 5, given_status: 2, given_rank: 0 });
     api.getDataImportRows.mockImplementation((_id: number, params: { corrected?: boolean }) =>
       Promise.resolve(
         params.corrected
@@ -362,7 +369,7 @@ describe("An import's results", () => {
     expect(await screen.findByText("5 students with your fixes")).toBeInTheDocument();
     expect(screen.getByText("“Parent phone” kept")).toBeInTheDocument();
     expect(await screen.findByText("2 students given the status Active")).toBeInTheDocument();
-    expect(api.getDataImportRows).toHaveBeenCalledWith(7, { outcome: "READY", filled: "status", page_size: 1 });
+    expect(api.getDataImportSecondLook).toHaveBeenCalledWith(7);
     expect(screen.getByRole("link", { name: "Open Mia Reynolds" })).toHaveAttribute("href", "/students/31");
     expect(screen.getByText("Already in KukGrade", { selector: ".badge" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to Students" })).toHaveAttribute(
@@ -392,10 +399,12 @@ describe("An import's results", () => {
   describe("of past gradings", () => {
     const gradings = batch({
       kind: "LEGACY_GRADINGS",
+      kind_display: "Past gradings",
+      review_step: "CONFIRM",
       original_filename: "grading-record-2025.xlsx",
       status: "COMMITTED",
       status_display: "Imported",
-      next_step: "CLOSED",
+      next_step: "RESULTS",
       committed_at: "2026-10-20T10:24:00Z",
       committed_by_name: "Sam Taylor",
       summary_json: { total: 229, excluded: 2, unresolved_current_rank: 1, unresolved_testing_for_rank: 2 },
@@ -404,14 +413,14 @@ describe("An import's results", () => {
     beforeEach(() => {
       api.getDataImportBatch.mockResolvedValue(gradings);
       api.getDataImportRows.mockResolvedValue(page([]));
-      api.getLegacyGradingRecords.mockResolvedValue(page([], 196));
+      api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 196 });
     });
 
     it("links a name's records to the suggested student, and can undo it", async () => {
       const user = userEvent.setup();
       api.getLegacyPeople.mockResolvedValue(page([person()], 61));
       api.bulkLinkLegacyRecords.mockResolvedValue([]);
-      api.unlinkLegacyGradingRecord.mockResolvedValue({});
+      api.bulkUnlinkLegacyRecords.mockResolvedValue([]);
 
       renderAt("/imports/7");
 
@@ -430,32 +439,28 @@ describe("An import's results", () => {
       );
       expect(await screen.findByText("✓ Linked to Mia Reynolds")).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
-      await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
+      await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledWith([101, 102, 103]));
+      expect(await screen.findByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" })).toBeVisible();
     });
 
-    it("retries only records still linked after a partial undo failure", async () => {
+    it("keeps the link and its Undo when the undo is refused, unlinking none", async () => {
       const user = userEvent.setup();
-      let failOnce = true;
       api.getLegacyPeople.mockResolvedValue(page([person()], 61));
       api.bulkLinkLegacyRecords.mockResolvedValue([]);
-      api.unlinkLegacyGradingRecord.mockImplementation((id: number) => {
-        if (id === 102 && failOnce) {
-          failOnce = false;
-          return Promise.reject(new Error("temporary failure"));
-        }
-        return Promise.resolve({});
-      });
+      api.bulkUnlinkLegacyRecords.mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValue([]);
 
       renderAt("/imports/7");
       await user.click(await screen.findByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" }));
       await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("Some records were unlinked. Try Undo again for the rest.");
-      await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Those records could not be unlinked.");
+      expect(screen.getByText("✓ Linked to Mia Reynolds")).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
-      await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(4));
-      expect(api.unlinkLegacyGradingRecord.mock.calls.map(([id]) => id)).toEqual([101, 102, 103, 102]);
-      expect(api.getLegacyPeople).toHaveBeenCalledTimes(4);
+      await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledTimes(2));
+      expect(api.bulkUnlinkLegacyRecords.mock.calls.map(([ids]) => ids)).toEqual([
+        [101, 102, 103],
+        [101, 102, 103],
+      ]);
     });
 
     it("asks a person to choose where students share a name", async () => {
@@ -514,7 +519,7 @@ describe("An import's results", () => {
 
   it("says plainly that a cancelled import saved nothing", async () => {
     api.getDataImportBatch.mockResolvedValue(
-      batch({ status: "CANCELLED", status_display: "Cancelled", next_step: "CLOSED" }),
+      batch({ status: "CANCELLED", status_display: "Cancelled", next_step: "RESULTS" }),
     );
 
     renderAt("/imports/7");

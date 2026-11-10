@@ -27,6 +27,7 @@ from data_imports.serializers import (
     ImportRowCorrectionSerializer,
     ImportRowExclusionSerializer,
     ImportRowSerializer,
+    ImportSecondLookSerializer,
     ImportSheetSerializer,
     LegacyImportPreviewSerializer,
     LegacyImportSerializer,
@@ -42,6 +43,7 @@ from data_imports.services import (
     preview_legacy_grading_import,
     rows_given_a_value,
     save_import_mapping,
+    second_look_counts,
     set_import_row_excluded,
     void_import_records,
     with_row_counts,
@@ -106,6 +108,7 @@ class ImportBatchViewSet(
         "mapping": ("data_imports.change_importbatch",),
         "sheet": ("data_imports.change_importbatch",),
         "void_records": ("gradings.can_reconcile_imported_history",),
+        "second_look": ("data_imports.view_importbatch",),
     }
     query_filters = (
         choices_in("status", "status", ImportBatch.Status.values),
@@ -217,6 +220,25 @@ class ImportBatchViewSet(
             rank_mappings=legacy_input.validated_data.get("rank_mappings"),
         )
         return Response(LegacyImportPreviewSerializer(legacy_preview).data)
+
+    @extend_schema(responses=ImportSecondLookSerializer)
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="second-look",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def second_look(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """What KukGrade filled in for a roster's added students, counted."""
+        return Response(
+            ImportSecondLookSerializer(second_look_counts(self.get_object())).data,
+        )
 
     @extend_schema(request=None, responses=ImportBatchSerializer)
     @action(detail=True, methods=["post"])

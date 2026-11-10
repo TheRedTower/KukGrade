@@ -40,6 +40,7 @@ from data_imports.ksw_adapter import (
 from data_imports.mappings import (
     EXTRA_LABEL_MAX_LENGTH,
     STUDENT_FIELD_LABELS,
+    STUDENT_OPTIONAL_FIELDS,
     STUDENT_TARGET_FIELDS,
     STUDENT_WHOLE_FILE_FIELDS,
 )
@@ -98,11 +99,35 @@ DUPLICATE_OF_EARLIER_IMPORT = (
 
 
 class ImportStep(models.TextChoices):
-    """Where an import is up to, so a screen can resume it."""
+    """The steps every import runs through, in order."""
 
-    MATCH_COLUMNS = "MATCH_COLUMNS", "Match columns"
-    REVIEW = "REVIEW", "Review rows"
-    CLOSED = "CLOSED", "Finished"
+    CHOOSE_FILE = "CHOOSE_FILE", "Choose file"
+    MATCH = "MATCH", "Match"
+    REVIEW = "REVIEW", "Review"
+    CONFIRM = "CONFIRM", "Confirm"
+    RESULTS = "RESULTS", "Results"
+
+
+# Where a review can stand (review_step).
+REVIEW_STEPS: tuple[str, ...] = (ImportStep.REVIEW, ImportStep.CONFIRM)
+
+# Each step as an import of that kind names it on screen.
+IMPORT_STEP_NAMES: dict[str, dict[str, str]] = {
+    ImportBatch.Kind.STUDENT_ROSTER: {
+        ImportStep.CHOOSE_FILE: "Choose file",
+        ImportStep.MATCH: "Match columns",
+        ImportStep.REVIEW: "Review rows",
+        ImportStep.CONFIRM: "Confirm",
+        ImportStep.RESULTS: "Results",
+    },
+    ImportBatch.Kind.LEGACY_GRADINGS: {
+        ImportStep.CHOOSE_FILE: "Choose file",
+        ImportStep.MATCH: "Match ranks",
+        ImportStep.REVIEW: "Review records",
+        ImportStep.CONFIRM: "Confirm",
+        ImportStep.RESULTS: "Results",
+    },
+}
 
 
 # --- batch lifecycle -------------------------------------------------------
@@ -378,15 +403,44 @@ def row_counts(rows: models.QuerySet[ImportRow]) -> dict[str, int]:
     return counts
 
 
-def next_step(batch: ImportBatch) -> str:
+def review_step(batch: ImportBatch, *, rows_needing_review: int) -> str:
+    """Where the review stands: still reviewing while a roster has rows needing
+    attention, otherwise ready to confirm. A historical import's records are
+    never fixed one by one, so its review is always ready to confirm."""
+    if batch.kind == ImportBatch.Kind.STUDENT_ROSTER and rows_needing_review:
+        return ImportStep.REVIEW
+    return ImportStep.CONFIRM
+
+
+def uncovered_fields(batch: ImportBatch) -> list[str]:
+    """A roster's needed fields that no column holds and no whole-file value
+    gives: each row's value must then be typed in as a fix. None until the
+    columns are first saved, and none for a historical workbook."""
+    configuration = batch.configuration
+    roster = batch.kind == ImportBatch.Kind.STUDENT_ROSTER
+    if not roster or not configuration.column_mapping:
+        return []
+    return [
+        field
+        for field in STUDENT_TARGET_FIELDS
+        if field not in STUDENT_OPTIONAL_FIELDS
+        and not configuration.column_mapping.get(field)
+        and not configuration.defaults.get(field)
+    ]
+
+
+def next_step(batch: ImportBatch, *, rows_needing_review: int) -> str:
+    """Where an import is up to, so a screen can resume it: matching until a
+    roster's columns are saved, and always the ranks first for a historical
+    workbook (its rank choices are checked again each time it is resumed)."""
     if batch.status != ImportBatch.Status.UPLOADED:
-        return ImportStep.CLOSED
+        return ImportStep.RESULTS
     if (
-        batch.kind == ImportBatch.Kind.STUDENT_ROSTER
-        and not batch.configuration.column_mapping
+        batch.kind == ImportBatch.Kind.LEGACY_GRADINGS
+        or not batch.configuration.column_mapping
     ):
-        return ImportStep.MATCH_COLUMNS
-    return ImportStep.REVIEW
+        return ImportStep.MATCH
+    return review_step(batch, rows_needing_review=rows_needing_review)
 
 
 def _drop_rows(locked: ImportBatch) -> None:
@@ -767,6 +821,18 @@ def rows_given_a_value(
         if field_name not in correction and not (header and cell_text(raw.get(header)))
     ]
     return rows.filter(row_number__in=given)
+
+
+def second_look_counts(batch: ImportBatch) -> dict[str, int]:
+    """Of a roster's rows that were added, how many hold a fix of the
+    importer's, and how many were given the whole-file (or default) status or
+    rank because the file gave none."""
+    added = batch.rows.filter(outcome=ImportRow.Outcome.READY)
+    return {
+        "corrected": added.exclude(correction={}).count(),
+        "given_status": rows_given_a_value(batch, added, "status").count(),
+        "given_rank": rows_given_a_value(batch, added, "current_rank").count(),
+    }
 
 
 def _student_model_issues(
@@ -1567,6 +1633,8 @@ class RankMappingSuggestion:
     # what was written, not something known.
     doubtful: bool = False
     rows: int = 0
+    # The rank the importer chose for this spelling, if any.
+    chosen_rank_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1669,6 +1737,9 @@ def preview_legacy_grading_import(
                 suggested_rank_code=suggested.code if suggested else None,
                 doubtful=doubtful,
                 rows=uses.get(text.lower(), 0),
+                chosen_rank_code=locked.configuration.rank_mappings.get(
+                    text.lower(),
+                ),
             ),
         )
 

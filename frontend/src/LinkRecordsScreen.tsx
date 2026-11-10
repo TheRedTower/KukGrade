@@ -18,7 +18,7 @@ import { type Chosen, recordsToLink } from "./linkRecords";
 import { useSiteSettingsQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { useLeftNames } from "./useLeftNames";
-import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
+import { useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
 import { Button } from "./Button";
 
@@ -74,14 +74,6 @@ export function LinkRecordsScreen() {
     queryKey: ["legacyPeople", "summary", batchId],
     queryFn: () => getLegacyPeopleSummary({ batch: batchId, set_aside: "exclude" }),
   });
-  const leftCount = useQuery({
-    queryKey: ["legacyPeople", "count", "left", batchId],
-    queryFn: () => getLegacyPeople({ batch: batchId, linked: false, set_aside: "only", page_size: 1 }),
-  });
-  const linkedCount = useQuery({
-    queryKey: ["legacyPeople", "count", "linked", batchId],
-    queryFn: () => getLegacyPeople({ batch: batchId, linked: true, page_size: 1 }),
-  });
   const people = useQuery({
     queryKey: ["legacyPeople", "list", view, batchId, debouncedSearch, page],
     placeholderData: keepPreviousData,
@@ -102,8 +94,8 @@ export function LinkRecordsScreen() {
     clear: summary.data?.clear,
     choose: summary.data?.choose,
     none: summary.data?.none,
-    left: leftCount.data?.count,
-    done: linkedCount.data?.count,
+    left: summary.data?.set_aside,
+    done: summary.data?.with_a_link,
   };
   // Disjoint, so a name partly linked counts once, as still to link.
   const linkedNames = summary.data?.linked ?? 0;
@@ -276,7 +268,7 @@ export function LinkRecordsScreen() {
       ) : null}
       {undo.isError ? (
         <ErrorText>
-          {undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "That link could not be undone.")}
+          {errorMessage(undo.error, "That link could not be undone.")}
         </ErrorText>
       ) : null}
 

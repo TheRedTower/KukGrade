@@ -215,7 +215,7 @@ def test_choosing_another_sheet_reads_it_and_forgets_the_old_matches() -> None:
     assert body["sheet"] == "Roster"
     assert body["detected_headers"] == HEADERS
     assert body["column_mapping"] == {}
-    assert body["next_step"] == "MATCH_COLUMNS"
+    assert body["next_step"] == "MATCH"
     assert body["row_counts"]["total"] == 2
     save_import_mapping(batch, column_mapping=STANDARD_MAPPING)
     commit_student_import(batch, actor=admin)

@@ -20,7 +20,7 @@ from accounts.password_policy import policy as password_policy
 from data_imports.mappings import STANDARD_TEMPLATE_HEADERS
 from data_imports.models import COMMITTED_ROWS_KEPT_FOR, ImportBatch
 from data_imports.parsers import FILE_TYPE_NAMES, MAX_ROWS
-from data_imports.services import ALLOWED_SUFFIXES
+from data_imports.services import ALLOWED_SUFFIXES, IMPORT_STEP_NAMES, ImportStep
 from gradings.serializers import BULK_LINK_LIMIT
 from kukgrade.serializers import ChoiceSerializer
 from students import wksa_ids
@@ -97,11 +97,19 @@ class DemoSerializer(serializers.Serializer):
     )
 
 
-class ImportFileTypesSerializer(serializers.Serializer):
+class ImportStepSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=ImportStep.choices)
+
+
+class ImportKindSerializer(serializers.Serializer):
     kind = serializers.ChoiceField(choices=ImportBatch.Kind.choices)
-    types = ChoiceSerializer(
+    file_types = ChoiceSerializer(
         many=True,
         help_text="The file types this kind of import reads: a suffix and its name.",
+    )
+    steps = ImportStepSerializer(
+        many=True,
+        help_text="The steps this kind of import runs through, in order, named.",
     )
 
 
@@ -116,9 +124,9 @@ class ImportSettingsSerializer(serializers.Serializer):
         help_text="How long a finished import's row-by-row list is kept.",
     )
     bulk_link_limit = serializers.IntegerField(
-        help_text="The most past records one link request takes.",
+        help_text="The most past records one link or unlink request takes.",
     )
-    file_types = ImportFileTypesSerializer(many=True)
+    kinds = ImportKindSerializer(many=True)
     template_headers = serializers.ListField(
         child=serializers.CharField(),
         help_text="The header row of the standard roster template.",
@@ -148,12 +156,16 @@ def _imports() -> dict[str, object]:
         "max_rows": MAX_ROWS,
         "rows_kept_for_days": COMMITTED_ROWS_KEPT_FOR.days,
         "bulk_link_limit": BULK_LINK_LIMIT,
-        "file_types": [
+        "kinds": [
             {
                 "kind": kind,
-                "types": [
+                "file_types": [
                     {"value": suffix, "label": FILE_TYPE_NAMES[suffix]}
                     for suffix in suffixes
+                ],
+                "steps": [
+                    {"value": step, "label": name}
+                    for step, name in IMPORT_STEP_NAMES[kind].items()
                 ],
             }
             for kind, suffixes in ALLOWED_SUFFIXES.items()

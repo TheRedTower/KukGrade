@@ -221,6 +221,59 @@ def test_a_full_grading_writes_the_expected_trail() -> None:
     assert outcome.pk is not None
 
 
+def test_each_event_says_how_it_reads_and_names_the_outcome_it_records() -> None:
+    from gradings.outcome_services import finalise_candidate_outcome
+
+    outcome, _first, _second = locked_completed_candidate_with_outcome()
+    finalise_candidate_outcome(
+        outcome,
+        CandidateOutcome.Outcome.FAIL,
+        "Forms were not ready.",
+        "",
+        master("audit-tone-master@example.com"),
+    )
+    client = APIClient()
+    client.force_authenticate(
+        user=User.objects.create_user(
+            email="audit-tone-reader@example.com",
+            role=User.Role.ADMINISTRATOR,
+        ),
+    )
+
+    response = client.get("/api/audit-events/", {"page_size": 100})
+
+    assert response.status_code == 200
+    read = {
+        event["action"]: (event["tone"], event["outcome_display"])
+        for event in response.json()["results"]
+    }
+    # A failed final decision needs a look, and says which outcome it was.
+    assert read[AuditAction.OUTCOME_FINALISED] == ("warning", "Fail")
+    assert read[AuditAction.OUTCOME_PROPOSED] == ("info", "Pass")
+    assert read[AuditAction.ASSESSMENT_STARTED] == ("info", None)
+    assert read[AuditAction.SESSION_CREATED] == ("neutral", None)
+
+
+def test_a_passing_decision_and_a_promotion_read_as_done() -> None:
+    from audit.tones import Tone, outcome_display, tone
+
+    passed = AuditEvent(
+        action=AuditAction.OUTCOME_FINALISED,
+        metadata={"final_outcome": "PASS"},
+    )
+    promoted = AuditEvent(action=AuditAction.PROMOTION_RECORDED, metadata={})
+    withdrawn = AuditEvent(action=AuditAction.CANDIDATE_WITHDRAWN, metadata={})
+    unreadable = AuditEvent(
+        action=AuditAction.OUTCOME_PROPOSED,
+        metadata={"after": "not a mapping"},
+    )
+
+    assert (tone(passed), outcome_display(passed)) == (Tone.SUCCESS, "Pass")
+    assert tone(promoted) == Tone.SUCCESS
+    assert tone(withdrawn) == Tone.WARNING
+    assert (tone(unreadable), outcome_display(unreadable)) == (Tone.INFO, None)
+
+
 def test_every_event_names_who_did_it() -> None:
     locked_completed_candidate_with_outcome()
 

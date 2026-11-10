@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from audit import tones
 from audit.models import AuditEntity, AuditEvent
 from kukgrade.serializers import ChoiceSerializer, ModelSerializer
 
@@ -33,6 +35,18 @@ class AuditEventSerializer(ModelSerializer):
             "events hold no names. Blank once the student no longer exists."
         ),
     )
+    tone = serializers.SerializerMethodField(
+        help_text=(
+            "How the event reads at a glance, from its action and the outcome "
+            "it records: success, warning, info or neutral."
+        ),
+    )
+    outcome_display = serializers.SerializerMethodField(
+        help_text=(
+            "The name of the grading outcome a proposal or final decision "
+            "records; null for every other event."
+        ),
+    )
 
     class Meta:
         model = AuditEvent
@@ -48,9 +62,19 @@ class AuditEventSerializer(ModelSerializer):
             "actor_name",
             "summary",
             "subject_name",
+            "tone",
+            "outcome_display",
             "metadata",
         )
         read_only_fields = fields
+
+    @extend_schema_field(serializers.ChoiceField(choices=tones.Tone.choices))
+    def get_tone(self, event: AuditEvent) -> str:
+        return tones.tone(event).value
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_outcome_display(self, event: AuditEvent) -> str | None:
+        return tones.outcome_display(event)
 
     def get_subject_name(self, event: AuditEvent) -> str:
         student_id = student_id_of(event)
@@ -61,15 +85,21 @@ class AuditEventSerializer(ModelSerializer):
 class AuditSubjectSerializer(serializers.Serializer):
     """GET /api/audit-events/subject/: what a history is of, named as it is now."""
 
-    kind = serializers.CharField(help_text="session, student, candidate or user.")
-    id = serializers.CharField()
+    kind = serializers.CharField(
+        allow_blank=True,
+        help_text="session, student, candidate or user; blank for a malformed subject.",
+    )
+    id = serializers.CharField(help_text="The record's id.")
+    session_id = serializers.IntegerField(
+        allow_null=True,
+        help_text="For a candidate, the grading it belongs to; null otherwise.",
+    )
     name = serializers.CharField(
         allow_blank=True,
         help_text="The record's current name; blank once it no longer exists.",
     )
-    path = serializers.CharField(
-        allow_blank=True,
-        help_text="Where to open the record in the app; blank when it is gone.",
+    exists = serializers.BooleanField(
+        help_text="Whether the record still exists, so the app can open it.",
     )
 
 

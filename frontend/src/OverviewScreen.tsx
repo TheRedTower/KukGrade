@@ -6,8 +6,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   type AuditEvent,
   type CandidateAssessment,
-  type CandidateOutcomeOutcome,
-  type Choices,
   type GradingSession,
   getCandidateAssessments,
   getGradingSessions,
@@ -22,13 +20,11 @@ import { buttonClass } from "./buttonClass";
 import { formatRecentTime, formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
-import { labelOf, useChoices } from "./choices";
 import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { PageHeader } from "./PageHeader";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Badge } from "./Badge";
-import type { BadgeTone } from "./badgeClass";
 
 function CalendarIcon() {
   return (
@@ -113,69 +109,32 @@ function AlertIcon() {
   );
 }
 
-/** A badge tone: done, needs a look, under way, or neither. */
-type ActivityStatus = Extract<BadgeTone, "success" | "warning" | "info" | "neutral">;
-
 type FormattedActivityItem = {
   id: number;
   timeDisplay: string;
   actorName: string;
   summary: string;
-  statusType: ActivityStatus;
+  statusType: AuditEvent["tone"];
   statusLabel: string;
 };
 
-
-function metadataString(event: AuditEvent, ...path: string[]): string | undefined {
-  let value: unknown = event.metadata;
-  for (const key of path) {
-    value = value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
-  }
-  return typeof value === "string" ? value : undefined;
-}
-
-/**
- * An event's status, from its action and structured outcome - never from
- * words in the prose summary, which labelled a password reset or a failed
- * grading "Approved". Unknown actions stay neutral under the
- * server's own label.
- */
-function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: string } {
-  switch (event.action) {
-    case "PROMOTION_RECORDED":
-      return { type: "success" };
-    case "OUTCOME_FINALISED": {
-      const outcome = metadataString(event, "final_outcome");
-      return { type: outcome === "PASS" ? "success" : "warning", outcome };
-    }
-    case "OUTCOME_PROPOSED":
-      return { type: "info", outcome: metadataString(event, "after", "proposed_outcome") };
-    case "ASSESSMENT_STARTED":
-      return { type: "info" };
-    case "CANDIDATE_WITHDRAWN":
-      return { type: "warning" };
-    default:
-      return { type: "neutral" };
-  }
-}
-
-function formatAuditEvent(event: AuditEvent, outcomes: Choices["outcomes"]): FormattedActivityItem {
-  const { type, outcome } = activityStatus(event);
-  const outcomeLabel = outcome ? labelOf(outcomes, outcome as CandidateOutcomeOutcome) : undefined;
+/** The server says how an event reads and which outcome it records. */
+function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
   return {
     id: event.id,
     timeDisplay: formatRecentTime(event.occurred_at),
     actorName: event.actor_name || event.actor_email || "System",
     summary: eventSummary(event),
-    statusType: type,
-    statusLabel: outcomeLabel ? `${event.action_display} · ${outcomeLabel}` : event.action_display,
+    statusType: event.tone,
+    statusLabel: event.outcome_display
+      ? `${event.action_display} · ${event.outcome_display}`
+      : event.action_display,
   };
 }
 
 export function OverviewScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const outcomes = useChoices().outcomes;
 
   const canViewAudit = Boolean(user?.can_read_audit_log);
 
@@ -255,8 +214,8 @@ export function OverviewScreen() {
 
   // Recent activity items
   const recentActivities: FormattedActivityItem[] = useMemo(() => {
-    return (auditQuery.data?.results ?? []).map((event) => formatAuditEvent(event, outcomes));
-  }, [auditQuery.data, outcomes]);
+    return (auditQuery.data?.results ?? []).map(formatAuditEvent);
+  }, [auditQuery.data]);
 
   const isInitialLoading =
     openQuery.isLoading ||

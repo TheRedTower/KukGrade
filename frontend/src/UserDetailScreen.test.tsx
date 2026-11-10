@@ -105,6 +105,8 @@ describe("UserDetailScreen", () => {
         actor_email: "admin@example.com",
         actor_name: "Admin User",
         summary: "User authority changed.",
+        tone: "neutral",
+        outcome_display: null,
         metadata: {},
       }],
     });

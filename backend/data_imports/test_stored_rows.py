@@ -225,7 +225,7 @@ def test_finishing_with_no_body_uses_what_is_stored_and_notes_what_each_became()
     assert response.status_code == 200, response.json()
     body = response.json()
     assert body["status"] == "COMMITTED"
-    assert body["next_step"] == "CLOSED"
+    assert body["next_step"] == "RESULTS"
     assert body["summary_json"]["created"] == 2
     created = {row.row_number: row.created_id for row in batch.rows.all()}
     students = dict(Student.objects.values_list("first_name", "pk"))
@@ -283,8 +283,9 @@ def test_the_list_and_detail_say_where_each_import_is_up_to() -> None:
     client = client_for(admin)
 
     listed = {row["id"]: row for row in results(client.get(BASE))}
-    assert listed[unmatched.pk]["next_step"] == "MATCH_COLUMNS"
+    assert listed[unmatched.pk]["next_step"] == "MATCH"
     assert listed[reviewing.pk]["next_step"] == "REVIEW"
+    assert listed[reviewing.pk]["review_step"] == "REVIEW"
     assert listed[reviewing.pk]["row_counts"] == {
         "total": 2,
         "ready": 1,
@@ -300,6 +301,32 @@ def test_the_list_and_detail_say_where_each_import_is_up_to() -> None:
     detail = client.get(f"{BASE}{unmatched.pk}/").json()
     assert detail["detected_headers"] == list(STANDARD_MAPPING.values())
     assert detail["row_counts"]["total"] == 1
+
+
+def test_a_sorted_roster_is_ready_to_confirm_and_a_workbook_resumes_at_its_ranks() -> (
+    None
+):
+    admin = admin_user()
+    sorted_roster = mapped(CLEAN_ROW, admin=admin)
+    workbook = upload_batch(
+        kind=ImportBatch.Kind.LEGACY_GRADINGS,
+        content=standard_workbook(
+            [["A. Example", "White Belt", "Yellow Stripe", "Pass", ""]],
+        ),
+        uploaded_by=admin,
+    )
+    client = client_for(admin)
+
+    roster_served = client.get(f"{BASE}{sorted_roster.pk}/").json()
+    assert (roster_served["next_step"], roster_served["review_step"]) == (
+        "CONFIRM",
+        "CONFIRM",
+    )
+    workbook_served = client.get(f"{BASE}{workbook.pk}/").json()
+    assert (workbook_served["next_step"], workbook_served["review_step"]) == (
+        "MATCH",
+        "CONFIRM",
+    )
 
 
 def test_a_rows_counts_are_one_rule_served_and_checked_alike() -> None:
@@ -728,10 +755,11 @@ def test_a_roster_import_serves_its_fields_and_suggested_columns() -> None:
         "whole_file": True,
     }
     assert rank["needed"] and rank["whole_file"]
-    assert served["rank_mappings"] == {}
 
 
-def test_a_historical_import_serves_the_ranks_chosen_for_its_spellings() -> None:
+def test_a_historical_imports_preview_serves_the_rank_chosen_for_each_spelling() -> (
+    None
+):
     admin = admin_user()
     batch = upload_batch(
         kind=ImportBatch.Kind.LEGACY_GRADINGS,
@@ -745,9 +773,13 @@ def test_a_historical_import_serves_the_ranks_chosen_for_its_spellings() -> None
         format="json",
     )
 
+    # Asked again without choices, it reads the stored ones.
+    preview = client.post(f"{BASE}{batch.pk}/preview/", {}, format="json").json()
     served = client.get(f"{BASE}{batch.pk}/").json()
 
-    assert served["rank_mappings"] == {"brn stripe": "BROWN_STRIPE"}
+    assert {
+        s["source_text"]: s["chosen_rank_code"] for s in preview["rank_suggestions"]
+    } == {"Brn stripe": "BROWN_STRIPE", "Brown": None}
     assert served["target_fields"] == [] and served["suggested_mapping"] == {}
 
 
@@ -891,3 +923,26 @@ def test_roster_rows_can_be_listed_by_a_value_kukgrade_gave_them() -> None:
     correct_import_row(batch, row_number=3, changes={"status": "INACTIVE"})
     assert filled("status") == []
     assert filled("first_name") == []
+
+
+def test_the_second_look_counts_what_kukgrade_filled_in_for_the_added_rows() -> None:
+    admin = admin_user()
+    no_status = ["123-4-501", "Blair", "Park", "2013-06-02", "", ""]
+    no_rank = ["123-4-502", "Casey", "Lee", "2013-06-02", "", "ACTIVE"]
+    batch = save_import_mapping(
+        roster(CLEAN_ROW, no_status, no_rank, BAD_DATE, admin=admin),
+        column_mapping=STANDARD_MAPPING,
+        defaults={"current_rank": "White"},
+    )
+    correct_import_row(batch, row_number=4, changes={"first_name": "Cassie"})
+    set_import_row_excluded(batch, row_number=5, excluded=True)
+    client = client_for(admin)
+
+    # Only the rows added count: the one left out is not among them.
+    assert client.get(f"{BASE}{batch.pk}/second-look/").json() == {
+        "corrected": 1,
+        "given_status": 1,
+        "given_rank": 2,
+    }
+    instructor = client_for(instructor_user())
+    assert instructor.get(f"{BASE}{batch.pk}/second-look/").status_code == 403

@@ -1,18 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { bulkLinkLegacyRecords, unlinkLegacyGradingRecord } from "./api";
-
-export class PartialUnlinkError extends Error {
-  constructor(readonly unlinkedIds: number[]) {
-    super(unlinkedIds.length
-      ? "Some records were unlinked. Try Undo again for the rest."
-      : "Those records could not be unlinked.");
-  }
-}
+import { bulkLinkLegacyRecords, bulkUnlinkLegacyRecords } from "./api";
 
 /**
  * Linking historical records to a student, and undoing it, as the results
- * page and the linking page both do. Either way the lists
+ * page and the linking page both do, each all or nothing. Either way the lists
  * of records and names are read again.
  */
 export function useLegacyLinking() {
@@ -30,12 +22,8 @@ export function useLegacyLinking() {
     onSuccess: refresh,
   });
   const undo = useMutation({
-    mutationFn: async (records: number[]) => {
-      const results = await Promise.allSettled(records.map((id) => unlinkLegacyGradingRecord(id)));
-      const unlinkedIds = records.filter((_, index) => results[index].status === "fulfilled");
-      if (unlinkedIds.length !== records.length) throw new PartialUnlinkError(unlinkedIds);
-      return unlinkedIds;
-    },
+    // All or nothing on the server: a refusal unlinks none of them.
+    mutationFn: (records: number[]) => bulkUnlinkLegacyRecords(records),
     onSettled: refresh,
   });
   return { link, undo, refresh };

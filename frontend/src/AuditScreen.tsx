@@ -8,6 +8,7 @@ import {
   type AuditAction,
   type AuditEntity,
   type AuditEvent,
+  type AuditSubject,
   getAuditEvents,
   getAuditLabels,
   getAuditSubject,
@@ -57,6 +58,20 @@ function eventMetadata(event: AuditEvent): string {
     return "No further details recorded.";
   }
   return JSON.stringify(event.metadata, null, 2);
+}
+
+/** Where the app opens the record a history is of: the routes are the app's own. */
+function subjectPath(subject: AuditSubject): string {
+  switch (subject.kind) {
+    case "session":
+      return `/gradings/${subject.id}`;
+    case "candidate":
+      return `/gradings/${subject.session_id}/assessments/${subject.id}/review`;
+    case "student":
+      return `/students/${subject.id}`;
+    default:
+      return `/users/${subject.id}`;
+  }
 }
 
 export function AuditScreen(): React.ReactElement {
@@ -153,11 +168,11 @@ export function AuditScreen(): React.ReactElement {
         <Alert tone="info" data-testid="audit-subject">
           {subjectQuery.isLoading ? (
             "Finding the record…"
-          ) : subjectQuery.data?.name ? (
+          ) : subjectQuery.data?.exists ? (
             <>
               <strong>History of {subjectQuery.data.name}</strong>: the record itself and everything
               that belongs to it.{" "}
-              <Link to={subjectQuery.data.path}>
+              <Link to={subjectPath(subjectQuery.data)}>
                 Open the record <span aria-hidden="true">→</span>
               </Link>
             </>

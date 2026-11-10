@@ -391,6 +391,8 @@ SPECTACULAR_SETTINGS = {
         "ImportBatchStatusEnum": "data_imports.models.ImportBatch.Status",
         "RoleEnum": "accounts.models.User.Role",
         "AuthorityEnum": "accounts.permissions.AUTHORITY_KEYS",
+        "ImportStepEnum": "data_imports.services.ImportStep",
+        "ReviewStepEnum": "data_imports.services.REVIEW_STEPS",
     },
 }
 

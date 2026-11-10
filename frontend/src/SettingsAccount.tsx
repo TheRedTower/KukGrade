@@ -1,3 +1,4 @@
+import { useChoices } from "./choices";
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "./Alert";
@@ -8,13 +9,6 @@ import { ChangePasswordForm } from "./ChangePasswordForm";
 import { SettingsRow } from "./SettingsRow";
 import { Button } from "./Button";
 import { EmailAddress } from "./EmailAddress";
-
-const CAPABILITIES = [
-  { key: "can_make_final_grading_decision", label: "Final grading decisions" },
-  { key: "can_promote_student", label: "Promote students" },
-  { key: "can_override_locked_session", label: "Override locked sessions" },
-  { key: "can_view_grading_audit_log", label: "View grading audit log" },
-] as const;
 
 /** Your own first and last name: the only part of your profile you edit. */
 function NameRow() {
@@ -138,6 +132,7 @@ function PasswordRow() {
 
 export function SettingsAccount() {
   const { user } = useAuth();
+  const authorities = useChoices().authorities;
   if (!user) return null;
 
   return (
@@ -151,10 +146,10 @@ export function SettingsAccount() {
         below={
           <>
             <ul className="st-capabilities">
-              {CAPABILITIES.map((capability) => {
-                const granted = Boolean(user[capability.key]);
+              {authorities.map((capability) => {
+                const granted = Boolean(user[capability.value]);
                 return (
-                  <li key={capability.key}>
+                  <li key={capability.value}>
                     <span>{capability.label}</span>
                     <Badge tone={granted ? "success" : "neutral"}>{granted ? "Granted" : "Not granted"}</Badge>
                   </li>

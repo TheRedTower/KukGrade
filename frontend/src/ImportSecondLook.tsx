@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { labelOf, useChoices } from "./choices";
 import { type DataImportBatch, getDataImportRows } from "./api";
 import { counted } from "./importSteps";
 import { Button } from "./Button";
@@ -19,6 +20,7 @@ function useAddedCount(batch: DataImportBatch, filter: "corrected" | "status" | 
 
 /** Students: what KukGrade filled in, for a second look. */
 export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: (filter: RowFilter) => void }) {
+  const statuses = useChoices().student_statuses;
   const fixed = useAddedCount(batch, "corrected") ?? 0;
   const givenStatus = useAddedCount(batch, "status") ?? 0;
   const givenRank = useAddedCount(batch, "current_rank") ?? 0;
@@ -26,10 +28,10 @@ export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: 
   if (givenStatus) {
     const status = batch.defaults.status ?? "ACTIVE";
     items.push({
-      title: `${counted(givenStatus, "student", "students")} given the status ${status.charAt(0)}${status.slice(1).toLowerCase()}`,
+      title: `${counted(givenStatus, "student", "students")} given the status ${labelOf(statuses, status)}`,
       body: batch.defaults.status
         ? "The file gave them no status, so the status you set for the whole file was used."
-        : "The file gave them no status, so KukGrade used Active.",
+        : `The file gave them no status, so KukGrade used ${labelOf(statuses, status)}.`,
       show: "status",
       count: givenStatus,
     });

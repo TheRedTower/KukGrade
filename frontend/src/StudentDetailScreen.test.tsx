@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StudentDetailScreen } from "./StudentDetailScreen";
 import { ApiError } from "./api";
+import { CHOICES } from "./appTestSupport";
 import type {
   AuthUser,
   StudentDetail,
@@ -27,6 +28,7 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
+    getChoices: async () => CHOICES,
     getStudent: (...args: unknown[]) => mockGetStudent(...args),
     getStudentRankHistory: (...args: unknown[]) =>
       mockGetStudentRankHistory(...args),

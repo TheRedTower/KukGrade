@@ -13,6 +13,7 @@ import {
   emptyResponse,
   authRequiredResponse,
   signedOutResponse,
+  CHOICES,
 } from "./appTestSupport";
 
 /**
@@ -87,6 +88,7 @@ describe("App authentication", () => {
           signedIn = true;
           return jsonResponse(200, authUser);
         }
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
         if (url.includes("/api/site/")) return jsonResponse(200, {});
         if (url.includes("/api/students/") || url.includes("/api/ranks/")) {
@@ -117,6 +119,7 @@ describe("App authentication", () => {
           signedIn = true;
           return jsonResponse(200, authUser);
         }
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
         if (url.includes("/api/site/")) return jsonResponse(200, {});
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -151,6 +154,7 @@ describe("App authentication", () => {
   it("logs in with a CSRF-protected session request", async () => {
     let signedIn = false;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
@@ -256,6 +260,7 @@ describe("App authentication", () => {
   it("logs out and returns to the login route", async () => {
     let signedIn = true;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
@@ -338,6 +343,7 @@ describe("App authentication", () => {
     let signedInAs: AuthUser | null = authUser;
     let rosterRequests = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedInAs ? jsonResponse(200, signedInAs) : signedOutResponse(url);
       }
@@ -349,6 +355,7 @@ describe("App authentication", () => {
         signedInAs = dana;
         return jsonResponse(200, dana);
       }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/students/")) {
         rosterRequests += 1;
         return rosterRequests === 1 ? caseyRosterInFlight : rosterOf("Dana-Only");
@@ -470,6 +477,7 @@ describe("Connection failures are not sign-outs", () => {
     async (_outcome, recheckResponse) => {
       let meCalls = 0;
       const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
           meCalls += 1;
           if (meCalls === 1) return jsonResponse(200, authUser);
@@ -506,6 +514,7 @@ describe("Connection failures are not sign-outs", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
           meCalls += 1;
           return meCalls === 1 ? jsonResponse(200, authUser) : signedOutResponse(url);
@@ -537,6 +546,7 @@ describe("Connection failures are not sign-outs", () => {
 
   it("keeps the viewer signed in when sign-out fails", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -588,6 +598,7 @@ describe("First-time login copy", () => {
   it("says 'Welcome back' once this browser has signed in before", async () => {
     let signedIn = false;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
@@ -778,6 +789,7 @@ describe("Mandatory password change", () => {
 
   it("submits change password, refetches user, and unlocks navigation on success", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, forcedUser);
       }
@@ -818,6 +830,7 @@ describe("Mandatory password change", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
           return jsonResponse(200, forcedUser);
         }
@@ -851,6 +864,7 @@ describe("Mandatory password change", () => {
 
   it("allows user to sign out from the mandatory password change view", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, forcedUser);
       }
@@ -942,6 +956,7 @@ describe("App demo", () => {
         });
         return jsonResponse(200, authUser);
       }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
       }

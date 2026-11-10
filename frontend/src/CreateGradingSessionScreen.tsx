@@ -10,6 +10,7 @@ import { createGradingSession } from "./api";
 import { useServerForm } from "./forms";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { SessionStatusBadge } from "./StatusBadge";
+import { labelOf, useChoices } from "./choices";
 import "./GradingSessions.css";
 import { currentYear, formatSessionDate } from "./dates";
 import { Button } from "./Button";
@@ -53,6 +54,7 @@ function formatPreviewDate(year: string, month: string, day: string): string {
 export function CreateGradingSessionScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const sessionStatuses = useChoices().session_statuses;
 
   // Form State
   const [title, setTitle] = useState("");
@@ -312,7 +314,7 @@ export function CreateGradingSessionScreen() {
                 },
                 { key: "date", header: "Date", render: () => previewFormattedDate },
                 { key: "location", header: "Location", render: () => location.trim() || "—" },
-                { key: "status", header: "Status", render: () => <SessionStatusBadge status="DRAFT" /> },
+                { key: "status", header: "Status", render: () => <SessionStatusBadge status="DRAFT" label={labelOf(sessionStatuses, "DRAFT")} /> },
                 { key: "candidates", header: "Candidates", align: "end", render: () => "0" },
               ]}
             />

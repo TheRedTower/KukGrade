@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useChoices } from "./choices";
 import { keys } from "./queryKeys";
 import { splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
@@ -43,6 +44,7 @@ function AccountForm({
   const [lastName, setLastName] = useState(user.last_name ?? "");
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<UserRole>(user.role ?? "instructor");
+  const roles = useChoices().roles;
   const [isActive, setIsActive] = useState(user.is_active ?? true);
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -95,8 +97,9 @@ function AccountForm({
         <label className="field">
           <span>Role</span>
           <select value={role} disabled={isSelf} onChange={(event) => setRole(event.target.value as UserRole)}>
-            <option value="instructor">Instructor</option>
-            <option value="administrator">Administrator</option>
+            {roles.map((choice) => (
+              <option key={choice.value} value={choice.value}>{choice.label}</option>
+            ))}
           </select>
         </label>
         <label className="field">
@@ -146,35 +149,11 @@ function AuthorityForm({
     },
   });
 
-  const options: {
-    key: keyof UserAuthorityPayload;
-    label: string;
-    description: string;
-    disabled?: boolean;
-  }[] = [
-    {
-      key: "can_make_final_grading_decision",
-      label: "Make final grading decisions",
-      description: "Allow this user to make final decisions on student gradings.",
-      disabled: targetIsAdministrator,
-    },
-    {
-      key: "can_promote_student",
-      label: "Promote students",
-      description: "Allow this user to promote students to the next rank.",
-    },
-    {
-      key: "can_override_locked_session",
-      label: "Override locked sessions",
-      description: "Allow this user to make authorised corrections after locking.",
-    },
-    {
-      key: "can_view_grading_audit_log",
-      label: "View grading audit log",
-      description:
-        "Allow this user to see grading, syllabus and assessment audit events (not user management).",
-    },
-  ];
+  // Administrators cannot hold final-decision authority.
+  const options = useChoices().authorities.map((option) => ({
+    ...option,
+    disabled: option.value === "can_make_final_grading_decision" && targetIsAdministrator,
+  }));
 
   return (
     <form
@@ -185,15 +164,15 @@ function AuthorityForm({
     >
       <div className="user-authority-options">
         {options.map((option) => (
-          <label key={option.key}>
+          <label key={option.value}>
             <span><strong>{option.label}</strong><small>{option.description}</small></span>
             <input
               type="checkbox"
-              checked={authority[option.key] ?? false}
+              checked={authority[option.value] ?? false}
               disabled={isSelf || option.disabled}
               onChange={(event) => setAuthority((current) => ({
                 ...current,
-                [option.key]: event.target.checked,
+                [option.value]: event.target.checked,
               }))}
             />
           </label>

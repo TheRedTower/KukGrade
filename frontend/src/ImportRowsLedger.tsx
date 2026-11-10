@@ -1,3 +1,5 @@
+import { useSiteSettingsQuery } from "./queries";
+import { labelOf, useChoices } from "./choices";
 import { useState } from "react";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { ChoiceGroup } from "./ChoiceGroup";
@@ -31,8 +33,7 @@ function rowDetail(row: DataImportRow, batch: DataImportBatch): string {
 }
 
 function rowState(row: DataImportRow, roster: boolean): { label: string; tone: BadgeTone } {
-  if (row.outcome === "EXCLUDED") return { label: "Left out", tone: "neutral" };
-  if (row.outcome === "SKIP_EXISTING") return { label: "Already in KukGrade", tone: "neutral" };
+  if (row.outcome === "EXCLUDED" || row.outcome === "SKIP_EXISTING") return { label: row.outcome_display, tone: "neutral" };
   if (!roster) return { label: "Imported", tone: "success" };
   return { label: row.corrected_fields.length ? "Added, your fix" : "Added", tone: "success" };
 }
@@ -49,6 +50,8 @@ export function RowsLedger({
   onFilter: (filter: RowFilter) => void;
 }) {
   const roster = batch.kind === "STUDENT_ROSTER";
+  const outcomes = useChoices().import_row_outcomes;
+  const keptForDays = useSiteSettingsQuery().data?.imports.rows_kept_for_days;
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search.trim());
   const rows = usePagedRows(
@@ -66,14 +69,14 @@ export function RowsLedger({
     ? [
         { key: "all", label: "All rows", count: summary.total },
         { key: "READY", label: "Added", count: summary.created },
-        { key: "SKIP_EXISTING", label: "Already in KukGrade", count: summary.skipped_existing },
-        { key: "EXCLUDED", label: "Left out", count: summary.excluded },
+        { key: "SKIP_EXISTING", label: labelOf(outcomes, "SKIP_EXISTING"), count: summary.skipped_existing },
+        { key: "EXCLUDED", label: labelOf(outcomes, "EXCLUDED"), count: summary.excluded },
         { key: "corrected", label: "Your fixes" },
       ]
     : [
         { key: "all", label: "All records" },
         { key: "READY", label: "Imported", count: summary.total },
-        { key: "EXCLUDED", label: "Left out", count: summary.excluded },
+        { key: "EXCLUDED", label: labelOf(outcomes, "EXCLUDED"), count: summary.excluded },
       ];
   // A second-look filter shows as a chip of its own while it is in use.
   if (filter === "status") tabs.push({ key: "status", label: "Given a status" });
@@ -111,7 +114,7 @@ export function RowsLedger({
         </ErrorText>
       ) : cleared ? (
         <p className="ix-row subtext">
-          The row-by-row list is kept for 30 days after an import, and this one’s has been
+          The row-by-row list is kept {keptForDays === undefined ? "for a time" : `for ${keptForDays} days`} after an import, and this one’s has been
           cleared. The counts above stay for good.
         </p>
       ) : list.length === 0 && !rows.query.isPending ? (

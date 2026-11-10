@@ -306,6 +306,23 @@ def test_sessions_can_be_filtered_to_those_still_taking_candidates() -> None:
     assert listed("false") == closed
 
 
+def test_sessions_can_be_filtered_to_one_year() -> None:
+    first = grading_session(title="New year", grading_date=date(2027, 1, 1))
+    last = grading_session(title="Year end", grading_date=date(2027, 12, 31))
+    grading_session(title="Before", grading_date=date(2026, 12, 31))
+    grading_session(title="After", grading_date=date(2028, 1, 1))
+    client = auth_client("session-year@example.com")
+
+    def listed(value: str) -> set[int]:
+        response = client.get(f"/api/gradings/sessions/?year={value}")
+        assert response.status_code == 200
+        return {item["id"] for item in results(response)}
+
+    assert listed("2027") == {first.pk, last.pk}
+    assert listed("27") == set()
+    assert listed("this year") == set()
+
+
 def test_session_api_status_takes_several_values_and_orders_either_way() -> None:
     early = grading_session(title="Early", grading_date=date(2027, 4, 1))
     opened = grading_session(

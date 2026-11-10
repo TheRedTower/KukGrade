@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
 from data_imports.mappings import STUDENT_WHOLE_FILE_FIELDS
-from data_imports.models import ImportBatch, ImportRow
+from data_imports.models import FINISHED_IMPORT_STATUSES, ImportBatch, ImportRow
 from data_imports.serializers import (
     ImportBatchCreatedSerializer,
     ImportBatchCreateSerializer,
@@ -110,6 +110,12 @@ class ImportBatchViewSet(
     query_filters = (
         choices_in("status", "status", ImportBatch.Status.values),
         choice("kind", "kind", ImportBatch.Kind.values),
+        boolean(
+            "finished",
+            Q(status__in=FINISHED_IMPORT_STATUSES),
+            "Only finished imports (imported, cancelled or expired), or only "
+            "those still open.",
+        ),
     )
 
     def get_queryset(self) -> QuerySet[ImportBatch]:

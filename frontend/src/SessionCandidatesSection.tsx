@@ -1,3 +1,4 @@
+import { labelOf, useChoices } from "./choices";
 import { Link } from "react-router-dom";
 
 import type { GradingSession } from "./api";
@@ -48,6 +49,7 @@ export function SessionCandidatesSection({
   nextActionFor,
   onConfirmAttendance,
 }: SessionCandidatesSectionProps) {
+  const choices = useChoices();
   const { bulkPrepare, bulkStart } = work;
 
   return (
@@ -96,10 +98,10 @@ export function SessionCandidatesSection({
             data-testid="gsd-status-filter"
           >
             <option value="ALL">Any status</option>
-            <option value="NOT_STARTED">Not started</option>
-            <option value="IN_PROGRESS">In progress</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="WITHDRAWN">Withdrawn</option>
+            {choices.assessment_statuses.map((choice) => (
+              <option key={choice.value} value={choice.value}>{choice.label}</option>
+            ))}
+            <option value="WITHDRAWN">{labelOf(choices.candidate_statuses, "WITHDRAWN")}</option>
           </select>
         </label>
         <p className="filter-bar__count">

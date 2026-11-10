@@ -24,6 +24,21 @@ class StudentStatus(models.TextChoices):
     LEFT = "LEFT", "Left"
 
 
+# What each status means, as the status choice explains it.
+STUDENT_STATUS_MEANINGS: dict[str, str] = {
+    StudentStatus.ACTIVE: (
+        "In regular training. Can be registered for gradings, one at a time."
+    ),
+    StudentStatus.INACTIVE: (
+        "On a temporary break, such as medical leave. Inactive blocks nothing: "
+        "the student can still be registered, and all history is kept."
+    ),
+    StudentStatus.LEFT: (
+        "Has left. Cannot be registered for gradings; all history is kept."
+    ),
+}
+
+
 class Student(models.Model):
     if TYPE_CHECKING:
         from gradings.models import Promotion

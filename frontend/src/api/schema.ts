@@ -219,6 +219,23 @@ export interface paths {
         patch: operations["auth_me_partial_update"];
         trace?: never;
     };
+    "/api/choices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every list of choices the screens offer, each value with its name. */
+        get: operations["choices_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/data-imports/batches/": {
         parameters: {
             query?: never;
@@ -1604,13 +1621,23 @@ export interface components {
             /** @description Its place in the item's history, from 1. */
             readonly sequence: number;
             readonly from_result: components["schemas"]["ResultEnum"];
+            readonly from_result_display: string;
             readonly to_result: components["schemas"]["ResultEnum"];
+            readonly to_result_display: string;
             readonly changed_by_name: string;
             /** Format: date-time */
             readonly changed_at: string;
             readonly reason: string;
             /** @description Made after the session was locked. */
             readonly after_lock: boolean;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        AssessmentStatusChoice: {
+            value: components["schemas"]["CandidateAssessmentStatusEnum"];
+            label: string;
         };
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
@@ -1687,6 +1714,23 @@ export interface components {
             /** @description Where to open the record in the app; blank when it is gone. */
             path: string;
         };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        AuthorityChoice: {
+            value: components["schemas"]["AuthorityEnum"];
+            label: string;
+            description: string;
+        };
+        /**
+         * @description * `can_make_final_grading_decision` - can_make_final_grading_decision
+         *     * `can_promote_student` - can_promote_student
+         *     * `can_override_locked_session` - can_override_locked_session
+         *     * `can_view_grading_audit_log` - can_view_grading_audit_log
+         * @enum {string}
+         */
+        AuthorityEnum: "can_make_final_grading_decision" | "can_promote_student" | "can_override_locked_session" | "can_view_grading_audit_log";
         /**
          * @description * `WHITE` - White
          *     * `YELLOW` - Yellow
@@ -1869,14 +1913,16 @@ export interface components {
             readonly id: number;
             readonly candidate: number;
             readonly status: components["schemas"]["CandidateOutcomeStatusEnum"];
+            readonly status_display: string;
             readonly proposed_outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
-            readonly proposed_outcome_display: string;
+            readonly proposed_outcome_display: string | null;
             readonly proposed_by_name: string;
             /** Format: date-time */
             readonly proposed_at: string | null;
             readonly proposal_notes: string;
             readonly final_outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
-            readonly final_outcome_display: string;
+            /** @description Null until the final decision is recorded. */
+            readonly final_outcome_display: string | null;
             readonly decided_by_name: string;
             /** Format: date-time */
             readonly decided_at: string | null;
@@ -1891,11 +1937,11 @@ export interface components {
         };
         /**
          * @description * `PASS` - Pass
-         *     * `FAIL` - Fail
          *     * `CONDITIONAL` - Conditional
+         *     * `FAIL` - Fail
          * @enum {string}
          */
-        CandidateOutcomeOutcomeEnum: "PASS" | "FAIL" | "CONDITIONAL";
+        CandidateOutcomeOutcomeEnum: "PASS" | "CONDITIONAL" | "FAIL";
         CandidateOutcomeProposalRequest: {
             proposed_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             proposal_notes?: string;
@@ -1908,6 +1954,14 @@ export interface components {
         CandidateOutcomeStatusEnum: "PROPOSED" | "FINALISED";
         CandidatePromotionRequest: {
             notes?: string;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        CandidateStatusChoice: {
+            value: components["schemas"]["GradingCandidateStatusEnum"];
+            label: string;
         };
         /**
          * @description POST /api/auth/change-password/.
@@ -1930,6 +1984,22 @@ export interface components {
         Choice: {
             value: string;
             label: string;
+        };
+        Choices: {
+            session_statuses: components["schemas"]["SessionStatusChoice"][];
+            student_statuses: components["schemas"]["StudentStatusChoice"][];
+            candidate_statuses: components["schemas"]["CandidateStatusChoice"][];
+            assessment_statuses: components["schemas"]["AssessmentStatusChoice"][];
+            item_results: components["schemas"]["ItemResultChoice"][];
+            /** @description The grading outcomes, in the order the outcome controls offer them. */
+            outcomes: components["schemas"]["OutcomeChoice"][];
+            import_kinds: components["schemas"]["ImportKindChoice"][];
+            /** @description The states an import ends in; the one open state is left out. */
+            finished_import_statuses: components["schemas"]["ImportStatusChoice"][];
+            import_row_outcomes: components["schemas"]["ImportRowOutcomeChoice"][];
+            roles: components["schemas"]["RoleChoice"][];
+            /** @description The per-user authorities, keyed as the user record spells them. */
+            authorities: components["schemas"]["AuthorityChoice"][];
         };
         Credit: {
             name: string;
@@ -2293,6 +2363,19 @@ export interface components {
             /** @description It can be given once for the whole file. */
             whole_file: boolean;
         };
+        ImportFileTypes: {
+            kind: components["schemas"]["KindEnum"];
+            /** @description The file types this kind of import reads: a suffix and its name. */
+            types: components["schemas"]["Choice"][];
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ImportKindChoice: {
+            value: components["schemas"]["KindEnum"];
+            label: string;
+        };
         /**
          * @description POST /{id}/mapping/: how a roster maps onto KukGrade.
          *
@@ -2364,9 +2447,38 @@ export interface components {
             /** @description True leaves the row out of the import; false brings it back. */
             excluded: boolean;
         };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ImportRowOutcomeChoice: {
+            value: components["schemas"]["StudentImportRowOutcomeEnum"];
+            label: string;
+        };
+        ImportSettings: {
+            /** @description The maximum import file size enforced by this deployment, in bytes. */
+            max_bytes: number;
+            /** @description The most rows a roster file may have, blank rows included. */
+            max_rows: number;
+            /** @description How long a finished import's row-by-row list is kept. */
+            rows_kept_for_days: number;
+            /** @description The most past records one link request takes. */
+            bulk_link_limit: number;
+            file_types: components["schemas"]["ImportFileTypes"][];
+            /** @description The header row of the standard roster template. */
+            template_headers: string[];
+        };
         /** @description POST /{id}/sheet/: read a roster from another sheet of its workbook. */
         ImportSheetRequest: {
             sheet: string;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ImportStatusChoice: {
+            value: components["schemas"]["ImportBatchStatusEnum"];
+            label: string;
         };
         /**
          * @description The account, with the temporary password just issued for it.
@@ -2402,8 +2514,16 @@ export interface components {
             readonly temporary_password: string;
         };
         /**
-         * @description * `STUDENT_ROSTER` - Student roster
-         *     * `LEGACY_GRADINGS` - Historical grading records
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ItemResultChoice: {
+            value: components["schemas"]["ResultEnum"];
+            label: string;
+        };
+        /**
+         * @description * `STUDENT_ROSTER` - Students
+         *     * `LEGACY_GRADINGS` - Past gradings
          * @enum {string}
          */
         KindEnum: "STUDENT_ROSTER" | "LEGACY_GRADINGS";
@@ -2417,6 +2537,7 @@ export interface components {
             readonly student: number | null;
             readonly student_display_name: string | null;
             readonly record_kind: components["schemas"]["RecordKindEnum"];
+            readonly record_kind_display: string;
             readonly cycle_year: number;
             readonly cycle_month: number;
             readonly source_batch: number;
@@ -2556,6 +2677,14 @@ export interface components {
         NextStepEnum: "MATCH_COLUMNS" | "REVIEW" | "CLOSED";
         /** @enum {unknown} */
         NullEnum: null;
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        OutcomeChoice: {
+            value: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            label: string;
+        };
         PaginatedAgeBandList: {
             /** @example 123 */
             count: number;
@@ -2979,6 +3108,14 @@ export interface components {
          */
         ResultEnum: "NOT_ASSESSED" | "MET" | "NOT_MET";
         /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        RoleChoice: {
+            value: components["schemas"]["RoleEnum"];
+            label: string;
+        };
+        /**
          * @description * `instructor` - Instructor
          *     * `administrator` - Administrator
          * @enum {string}
@@ -2988,6 +3125,14 @@ export interface components {
             club_name: string;
             /** @description The school's own prefix in student IDs, such as 123-4. */
             school_id_prefix: string;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        SessionStatusChoice: {
+            value: components["schemas"]["GradingSessionStatusEnum"];
+            label: string;
         };
         /** @description Names put aside on the linking page, as group keys. */
         SetAsideNames: {
@@ -3019,8 +3164,7 @@ export interface components {
             club_name: string;
             /** @description The club's time zone (an IANA name). Times are shown in it, and 'today' is today there. */
             time_zone: string;
-            /** @description The maximum import file size enforced by this deployment, in bytes. */
-            import_upload_max_bytes: number;
+            imports: components["schemas"]["ImportSettings"];
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
             /** @description Present only on the public demo: its accounts and when it resets. */
@@ -3163,6 +3307,16 @@ export interface components {
             date_of_birth: string;
             current_rank: number;
             status?: components["schemas"]["StudentStatusEnum"];
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        StudentStatusChoice: {
+            value: components["schemas"]["StudentStatusEnum"];
+            label: string;
+            /** @description What the status means. */
+            description: string;
         };
         /**
          * @description * `ACTIVE` - Active
@@ -3594,9 +3748,30 @@ export interface operations {
             };
         };
     };
+    choices_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Choices"];
+                };
+            };
+        };
+    };
     data_imports_batches_list: {
         parameters: {
             query?: {
+                /** @description Only finished imports (imported, cancelled or expired), or only those still open. */
+                finished?: boolean;
                 kind?: "LEGACY_GRADINGS" | "STUDENT_ROSTER";
                 /** @description A page number within the paginated result set. */
                 page?: number;
@@ -4888,6 +5063,8 @@ export interface operations {
                 search?: string;
                 /** @description Comma-separated; one of CANCELLED, COMPLETED, DRAFT, LOCKED, OPEN. */
                 status?: string;
+                /** @description Only sessions held in this year. */
+                year?: number;
             };
             header?: never;
             path?: never;

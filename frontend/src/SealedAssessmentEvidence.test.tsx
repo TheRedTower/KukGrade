@@ -112,8 +112,8 @@ describe("SealedAssessmentEvidence", () => {
           result: "NOT_MET",
           result_display: "Not met",
           changes: [
-            { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
-            { sequence: 2, from_result: "MET", to_result: "NOT_MET", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on review.", after_lock: true },
+            { sequence: 1, from_result: "NOT_ASSESSED", from_result_display: "Not assessed", to_result: "MET", to_result_display: "Met", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
+            { sequence: 2, from_result: "MET", from_result_display: "Met", to_result: "NOT_MET", to_result_display: "Not met", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on review.", after_lock: true },
           ],
         }),
       ],
@@ -138,7 +138,7 @@ describe("SealedAssessmentEvidence", () => {
         item({
           id: 6,
           changes: [
-            { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Seen on the recording.", after_lock: true },
+            { sequence: 1, from_result: "NOT_ASSESSED", from_result_display: "Not assessed", to_result: "MET", to_result_display: "Met", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Seen on the recording.", after_lock: true },
           ],
         }),
       ],

@@ -151,6 +151,17 @@ def on_date(name: str, lookup: str, description: str = "") -> QueryFilter:
     return QueryFilter(name, apply, {"type": "string", "format": "date"}, description)
 
 
+def in_year(name: str, date_field: str, description: str = "") -> QueryFilter:
+    """A calendar year (`2026`), matching dates on any day of it."""
+
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        if not (value.isdecimal() and len(value) == 4):
+            return queryset.none()
+        return queryset.filter(**{f"{date_field}__year": int(value)})
+
+    return QueryFilter(name, apply, {"type": "integer"}, description)
+
+
 def boolean(name: str, condition: Q, description: str = "") -> QueryFilter:
     """`true` keeps the rows `condition` holds for, `false` the others."""
 

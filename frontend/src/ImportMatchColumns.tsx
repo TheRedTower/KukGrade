@@ -66,11 +66,15 @@ function readChoices(choices: Choices) {
   return { columnFor, clashes };
 }
 
+const ROW_TONES: Record<DataImportRow["outcome"], BadgeTone> = {
+  READY: "success",
+  SKIP_EXISTING: "neutral",
+  EXCLUDED: "neutral",
+  REVIEW_REQUIRED: "warning",
+};
+
 function rowState(row: DataImportRow): { label: string; tone: BadgeTone } {
-  if (row.outcome === "READY") return { label: "Ready", tone: "success" };
-  if (row.outcome === "SKIP_EXISTING") return { label: "Already in KukGrade", tone: "neutral" };
-  if (row.outcome === "EXCLUDED") return { label: "Left out", tone: "neutral" };
-  return { label: "Needs attention", tone: "warning" };
+  return { label: row.outcome_display, tone: ROW_TONES[row.outcome] };
 }
 
 /**

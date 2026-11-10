@@ -14,7 +14,7 @@ import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { formatTime } from "./dates";
 import { ItemRemarks } from "./ItemRemarks";
-import { hasRemarks } from "./resultWords";
+import { hasRemarks } from "./remarks";
 import { ErrorText } from "./ErrorText";
 import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";

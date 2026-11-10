@@ -489,9 +489,10 @@ class CandidateOutcomeStatus(models.TextChoices):
 
 
 class GradingOutcome(models.TextChoices):
+    # In the order every outcome control offers them.
     PASS = "PASS", "Pass"
-    FAIL = "FAIL", "Fail"
     CONDITIONAL = "CONDITIONAL", "Conditional"
+    FAIL = "FAIL", "Fail"
 
 
 class CandidateOutcome(KeptModel):

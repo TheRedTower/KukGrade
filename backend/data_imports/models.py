@@ -79,8 +79,8 @@ class ImportConfiguration:
 
 class ImportBatch(models.Model):
     class Kind(models.TextChoices):
-        STUDENT_ROSTER = "STUDENT_ROSTER", "Student roster"
-        LEGACY_GRADINGS = "LEGACY_GRADINGS", "Historical grading records"
+        STUDENT_ROSTER = "STUDENT_ROSTER", "Students"
+        LEGACY_GRADINGS = "LEGACY_GRADINGS", "Past gradings"
 
     class Status(models.TextChoices):
         # The one open state; the other three are final.
@@ -181,6 +181,12 @@ class ImportBatch(models.Model):
     def configuration(self) -> ImportConfiguration:
         return ImportConfiguration(self.configuration_json)
 
+
+# The states an import ends in: every one but the one open state. The one
+# statement, for a filter and for the choices a screen offers.
+FINISHED_IMPORT_STATUSES: tuple[str, ...] = tuple(
+    status for status in ImportBatch.Status if status != ImportBatch.Status.UPLOADED
+)
 
 # How long a finished import's rows stay for its results page.
 COMMITTED_ROWS_KEPT_FOR = timedelta(days=30)

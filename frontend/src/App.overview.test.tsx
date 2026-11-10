@@ -16,6 +16,7 @@ import {
   assessmentSummaryFor,
   sessionsResponse,
   sessionServed,
+  CHOICES,
 } from "./appTestSupport";
 
 describe("Overview screen (Operational Ledger)", () => {
@@ -32,6 +33,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
   it("renders authentic empty states when no active sessions or events exist", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -81,6 +83,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
   it("shows an audit reader that there is no recent activity", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, { ...authUser, can_read_audit_log: true });
       }
@@ -136,6 +139,7 @@ describe("Overview screen (Operational Ledger)", () => {
       "fetch",
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/me/")) return jsonResponse(200, { ...authUser, can_read_audit_log: true });
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/gradings/sessions/")) {
           return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
         }
@@ -265,6 +269,7 @@ describe("Overview screen (Operational Ledger)", () => {
     ] satisfies AuditEvent[];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, { ...authUser, ...ADMINISTRATOR_CAPABILITIES });
       }
@@ -342,6 +347,7 @@ describe("Overview screen (Operational Ledger)", () => {
   it("offers the audit feed by audit-log grant, not by staff flags", async () => {
     async function auditRequested(user: AuthUser): Promise<boolean> {
       const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
           return jsonResponse(200, user);
         }
@@ -379,6 +385,7 @@ describe("Overview screen (Operational Ledger)", () => {
     } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, { ...authUser, ...ADMINISTRATOR_CAPABILITIES });
       }

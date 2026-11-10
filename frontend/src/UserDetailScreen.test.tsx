@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserDetailScreen } from "./UserDetailScreen";
 import { NETWORK_ERROR, type AuthUser, type ManagedUser } from "./api";
+import { CHOICES } from "./appTestSupport";
 
 let currentUser: AuthUser;
 const mockGetManagedUser = vi.fn();
@@ -22,6 +23,7 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
+    getChoices: async () => CHOICES,
     getManagedUser: (...args: unknown[]) => mockGetManagedUser(...args),
     getAuditEvents: (...args: unknown[]) => mockGetAuditEvents(...args),
     updateManagedUser: (...args: unknown[]) => mockUpdateManagedUser(...args),
@@ -153,7 +155,7 @@ describe("UserDetailScreen", () => {
     renderScreen();
     await screen.findByRole("heading", { name: "Riley Khan" });
 
-    await user.click(screen.getByRole("checkbox", { name: /Promote students/ }));
+    await user.click(await screen.findByRole("checkbox", { name: /Promote students/ }));
     await user.click(screen.getByRole("button", { name: "Save authority" }));
 
     await waitFor(() => {
@@ -265,7 +267,7 @@ describe("UserDetailScreen", () => {
 
     expect(screen.getByLabelText("Role")).toBeDisabled();
     expect(screen.getByLabelText("Account status")).toBeDisabled();
-    expect(screen.getByRole("checkbox", { name: /Make final grading decisions/ })).toBeDisabled();
+    expect(await screen.findByRole("checkbox", { name: /Make final grading decisions/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save authority" })).toBeDisabled();
     expect(screen.getByText("You cannot change your own authority.")).toBeInTheDocument();
     // Your own password is changed in Settings, behind the current

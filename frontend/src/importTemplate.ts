@@ -1,16 +1,7 @@
-// The client-side roster template download. Every header must be one that
-// data_imports/mappings.py's suggest_column_mapping recognises.
-const STANDARD_TEMPLATE_HEADERS = [
-  "WKSA ID",
-  "First Name",
-  "Last Name",
-  "Date of Birth",
-  "Current Rank",
-  "Status",
-];
+import { useSiteSettingsQuery } from "./queries";
 
-export function downloadStandardTemplate() {
-  const csv = `${STANDARD_TEMPLATE_HEADERS.join(",")}\n`;
+function downloadCsv(headers: string[]) {
+  const csv = `${headers.join(",")}\n`;
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -20,4 +11,18 @@ export function downloadStandardTemplate() {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+/**
+ * The roster template download: the header row the server serves
+ * (site settings, imports.template_headers). Not ready until the settings arrive.
+ */
+export function useTemplateDownload(): { ready: boolean; download: () => void } {
+  const headers = useSiteSettingsQuery().data?.imports.template_headers;
+  return {
+    ready: headers !== undefined,
+    download: () => {
+      if (headers) downloadCsv(headers);
+    },
+  };
 }

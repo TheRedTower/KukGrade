@@ -32,6 +32,17 @@ STUDENT_FIELD_LABELS: dict[str, str] = {
 }
 STUDENT_OPTIONAL_FIELDS: frozenset[str] = frozenset({"status"})
 
+# The header row of the standard roster template the import screen offers.
+# Each is one suggest_column_mapping recognises (data_imports/tests.py).
+STANDARD_TEMPLATE_HEADERS: dict[str, str] = {
+    "wksa_id": "WKSA ID",
+    "first_name": "First Name",
+    "last_name": "Last Name",
+    "date_of_birth": "Date of Birth",
+    "current_rank": "Current Rank",
+    "status": "Status",
+}
+
 # Fields one value can be given for the whole file, used where a row has
 # none (no column, or a blank cell). Never a field that is each person's own -
 # an ID, a name or a date of birth given for everyone would be invented.

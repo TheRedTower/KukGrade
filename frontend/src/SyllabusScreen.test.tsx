@@ -16,6 +16,12 @@ function renderScreen() {
   );
 }
 
+/** The screen opens on Yellow Stripe, the first rank with a syllabus; these tests read Yellow. */
+async function renderOnYellow() {
+  renderScreen();
+  await userEvent.setup().click(await screen.findByRole("button", { name: "Yellow" }));
+}
+
 const mockAgeBands: AgeBand[] = [
   { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
   { code: "AGE_9_TO_12", name: "9-12", description: "Junior ages 9-12", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
@@ -300,7 +306,7 @@ describe("SyllabusScreen", () => {
       ],
     });
 
-    renderScreen();
+    await renderOnYellow();
 
     const coreHeading = await screen.findByRole("heading", { name: "Core grading areas" });
     const coreStrip = coreHeading.closest("section, div") as HTMLElement;
@@ -311,7 +317,7 @@ describe("SyllabusScreen", () => {
   it("renders header, filters, belt rail, core areas and a cumulative ledger per category", async () => {
     stubFetch({ YELLOW: mockYellowEffective });
 
-    renderScreen();
+    await renderOnYellow();
 
     // Header
     expect(await screen.findByRole("heading", { name: "Syllabus" })).toBeVisible();
@@ -451,7 +457,7 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
-    renderScreen();
+    await renderOnYellow();
 
     const nextRankBtn = await screen.findByRole("button", {
       name: "Next rank: Blue Stripe →",
@@ -460,6 +466,16 @@ describe("SyllabusScreen", () => {
 
     expect(await screen.findByRole("heading", { name: "Blue Stripe", level: 2 })).toBeVisible();
     expect(screen.getByLabelText("Testing for")).toHaveValue("BLUE_STRIPE");
+  });
+
+  it("opens on the first served rank that has a syllabus, and the first served age band", async () => {
+    stubFetch({});
+
+    renderScreen();
+
+    await waitFor(() => expect(screen.getByLabelText("Testing for")).toHaveValue("YELLOW_STRIPE"));
+    expect(screen.getByLabelText("Age group")).toHaveValue("AGE_8_AND_UNDER");
+    expect(screen.getByLabelText("Curriculum")).toHaveValue("JUNIOR");
   });
 
   it("synchronizes curriculum track and age band selections", async () => {
@@ -518,7 +534,7 @@ describe("SyllabusScreen", () => {
 
     expect(
       await screen.findByText(
-        "No syllabus is recorded for Yellow in this age group yet, so nobody can be assessed for it.",
+        "No syllabus is recorded for Yellow Stripe in this age group yet, so nobody can be assessed for it.",
       ),
     ).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Core grading areas" })).not.toBeInTheDocument();

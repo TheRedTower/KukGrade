@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useChoices } from "./choices";
 import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ export function StudentsScreen() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StudentStatus | "ALL">("ALL");
+  const studentStatuses = useChoices().student_statuses;
   const [rankFilter, setRankFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
   // Set by an import's results ("See the new students"); cleared by "Show every student".
@@ -115,9 +117,9 @@ export function StudentsScreen() {
             }}
           >
             <option value="ALL">All statuses</option>
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-            <option value="LEFT">Left</option>
+            {studentStatuses.map((choice) => (
+              <option key={choice.value} value={choice.value}>{choice.label}</option>
+            ))}
           </select>
         </div>
 

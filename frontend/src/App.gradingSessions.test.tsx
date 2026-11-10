@@ -10,6 +10,7 @@ import type {
 import {
   authUser,
   ADMINISTRATOR_CAPABILITIES,
+  CHOICES,
   jsonResponse,
   sessionsResponse,
   sessionServed,
@@ -67,6 +68,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   function makeFetch(sessions: GradingSession[] = testSessions) {
     return vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -212,6 +214,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   it("renders authentic empty state when no sessions exist", async () => {
     const emptyFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -239,6 +242,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       role_display: "Administrator",
     } satisfies AuthUser;
     const emptyAdminFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -269,6 +273,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   it("allows an instructor to create a grading session", async () => {
     const emptyFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -305,6 +310,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     const filterFetch = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/gradings/sessions/")) {
         return sessionsResponse(url, [...testSessions, cancelledSession]);
       }
@@ -349,6 +355,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     } satisfies GradingSession;
 
     const deleteFetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE") {
         return new Response(null, { status: 204 });
@@ -401,6 +408,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/")) {
         return sessionsResponse(url, [cancelledSession]);
@@ -453,6 +461,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     });
 
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE") {
         await deletePending;
@@ -523,6 +532,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
   it("renders the creation form for an instructor", async () => {
     const instructorUser = { ...authUser, email: "instructor@example.com" } satisfies AuthUser;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, instructorUser);
       return jsonResponse(404, {});
     });
@@ -536,6 +546,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("renders create grading session form with breadcrumbs, inputs, and preview card", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
@@ -559,6 +570,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("updates session preview card live as the user enters title, date, and location", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
@@ -595,6 +607,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("blocks submission and shows client validation errors when required fields are empty", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
@@ -618,6 +631,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("says what the server said when it has no field to put it against", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/") && options?.method === "POST") {
         return jsonResponse(400, {
@@ -662,6 +676,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
     let postBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/") && init?.method === "POST") {
         postBody = JSON.parse(init.body as string);
@@ -708,6 +723,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("navigates back to /gradings when Cancel or the breadcrumb link is clicked", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -735,6 +751,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("surfaces server validation error messages on submission failure", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/") && init?.method === "POST") {
         return jsonResponse(400, {

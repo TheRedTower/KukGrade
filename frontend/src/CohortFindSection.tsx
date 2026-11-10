@@ -4,6 +4,7 @@ import type { AgeBand, Rank, StudentListItem } from "./api";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { RankFlow } from "./CohortRank";
+import { labelOf, useChoices } from "./choices";
 import { destinationOf } from "./cohortBuilder";
 import { EmptyState } from "./EmptyState";
 import { ResponsiveTable } from "./ResponsiveTable";
@@ -37,6 +38,9 @@ export function CohortFindSection({
   search, onSearch, rankFilter, onRankFilter, ageFilter, onAgeFilter, statusFilter, onStatusFilter,
   ranks, rankMap, ageBands, students, updating, inCohort, onAdd, onRemove, onAddAll,
 }: CohortFindSectionProps) {
+  const statuses = useChoices().student_statuses;
+  const active = labelOf(statuses, "ACTIVE");
+  const inactive = labelOf(statuses, "INACTIVE");
   return (
           <section className="bgc-section" aria-labelledby="bgc-find-heading">
             <h2 id="bgc-find-heading" className="section-title">
@@ -101,9 +105,9 @@ export function CohortFindSection({
                   value={statusFilter}
                   onChange={(e) => onStatusFilter(e.target.value as StatusFilter)}
                 >
-                  <option value="ACTIVE_INACTIVE">Active + Inactive</option>
-                  <option value="ACTIVE">Active only</option>
-                  <option value="INACTIVE">Inactive only</option>
+                  <option value="ACTIVE_INACTIVE">{active} + {inactive}</option>
+                  <option value="ACTIVE">{active} only</option>
+                  <option value="INACTIVE">{inactive} only</option>
                 </select>
               </div>
             </div>

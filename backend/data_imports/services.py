@@ -50,8 +50,8 @@ from data_imports.models import (
     ImportRow,
 )
 from data_imports.parsers import (
+    CSV_SUFFIX,
     NO_SUCH_SHEET,
-    SUPPORTED_SUFFIXES,
     WORKBOOK_SUFFIX,
     TabularData,
     UnsupportedImportFileError,
@@ -74,9 +74,10 @@ from students.services import NewStudent, create_students
 
 logger = logging.getLogger(__name__)
 
-_ALLOWED_EXTENSIONS: dict[str, frozenset[str]] = {
-    ImportBatch.Kind.STUDENT_ROSTER: SUPPORTED_SUFFIXES,
-    ImportBatch.Kind.LEGACY_GRADINGS: frozenset({WORKBOOK_SUFFIX}),
+# The file types each kind of import reads, in the order they are offered.
+ALLOWED_SUFFIXES: dict[str, tuple[str, ...]] = {
+    ImportBatch.Kind.STUDENT_ROSTER: (WORKBOOK_SUFFIX, CSV_SUFFIX),
+    ImportBatch.Kind.LEGACY_GRADINGS: (WORKBOOK_SUFFIX,),
 }
 
 STALE_BATCH_AGE = timedelta(hours=24)
@@ -172,7 +173,7 @@ def _create_import_batch(
     uploaded_by: User,
     sheet: str | None = None,
 ) -> CreateImportBatchResult:
-    allowed = _ALLOWED_EXTENSIONS.get(kind)
+    allowed = ALLOWED_SUFFIXES.get(kind)
     if allowed is None:
         raise DjangoValidationError({"kind": [f"Unknown import kind {kind!r}."]})
 

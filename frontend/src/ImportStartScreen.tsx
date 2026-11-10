@@ -9,6 +9,7 @@ import {
   type CreateDataImportBatchResponse,
   type DataImportBatch,
   type DataImportKind,
+  type SiteSettings,
   cancelDataImportBatch,
   chooseDataImportSheet,
   createDataImportBatch,
@@ -19,7 +20,7 @@ import { Alert } from "./Alert";
 import { ErrorText } from "./ErrorText";
 import { ImportStepBar } from "./ImportStepBar";
 import { counted, importKindTitle } from "./importSteps";
-import { downloadStandardTemplate } from "./importTemplate";
+import { useTemplateDownload } from "./importTemplate";
 import { useSiteSettingsQuery } from "./queries";
 import "./Imports.css";
 import { Button } from "./Button";
@@ -59,10 +60,6 @@ function parseKind(value: string | null): DataImportKind {
   return value === "LEGACY_GRADINGS" ? "LEGACY_GRADINGS" : "STUDENT_ROSTER";
 }
 
-function allowedSuffixes(kind: DataImportKind): string[] {
-  return kind === "STUDENT_ROSTER" ? ["xlsx", "csv"] : ["xlsx"];
-}
-
 function suffixOf(name: string): string {
   return name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
 }
@@ -77,11 +74,18 @@ function sizeLimit(bytes: number): string {
 }
 
 /** Why the browser can refuse a file before sending it, or null. */
-function clientRefusal(file: File, kind: DataImportKind, maxBytes: number | undefined): string | null {
-  if (!allowedSuffixes(kind).includes(suffixOf(file.name))) {
+type FileTypes = SiteSettings["imports"]["file_types"][number]["types"];
+
+/** The file types in a phrase: "Excel (.xlsx) or CSV (.csv)". */
+function typeWords(types: FileTypes): string {
+  return types.map((type) => `${type.label} (.${type.value})`).join(" or ");
+}
+
+function clientRefusal(file: File, kind: DataImportKind, types: FileTypes, maxBytes: number | undefined): string | null {
+  if (types.length && !types.some((type) => type.value === suffixOf(file.name))) {
     return kind === "STUDENT_ROSTER"
-      ? "Choose an Excel (.xlsx) or CSV (.csv) file."
-      : "Choose the workbook as an Excel (.xlsx) file.";
+      ? `Choose a file saved as ${typeWords(types)}.`
+      : `Choose the workbook saved as ${typeWords(types)}.`;
   }
   if (maxBytes !== undefined && file.size > maxBytes) {
     return `The file is larger than ${sizeLimit(maxBytes)}.`;
@@ -232,7 +236,10 @@ export function ImportStartScreen() {
   const kind = parseKind(searchParams.get("kind"));
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const maxBytes = useSiteSettingsQuery().data?.import_upload_max_bytes;
+  const imports = useSiteSettingsQuery().data?.imports;
+  const template = useTemplateDownload();
+  const maxBytes = imports?.max_bytes;
+  const types = imports?.file_types.find((served) => served.kind === kind)?.types ?? [];
   const limit = maxBytes === undefined ? undefined : sizeLimit(maxBytes);
   const inputRef = useRef<HTMLInputElement>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -264,7 +271,7 @@ export function ImportStartScreen() {
 
   function take(file: File | undefined) {
     if (!file || upload.isPending) return;
-    const reason = clientRefusal(file, kind, maxBytes);
+    const reason = clientRefusal(file, kind, types, maxBytes);
     setRefusal(reason);
     upload.reset();
     if (!reason) upload.mutate(file);
@@ -301,7 +308,7 @@ export function ImportStartScreen() {
       : batch.isError
         ? errorMessage(batch.error, "The file was read, but could not be shown. Try again in a moment.")
         : null);
-  const accept = kind === "STUDENT_ROSTER" ? ".xlsx,.csv" : ".xlsx";
+  const accept = types.map((type) => `.${type.value}`).join(",");
   const nextName = kind === "STUDENT_ROSTER" ? "Continue to match columns" : "Continue to match ranks";
 
   return (
@@ -418,9 +425,9 @@ export function ImportStartScreen() {
                 {upload.isPending || (created !== null && batch.isPending) ? "Reading your file…" : "Choose a file"}
               </Button>
               <p className="subtext">
-                {kind === "STUDENT_ROSTER"
-                  ? `Excel (.xlsx) or CSV, ${limit ? `up to ${limit}` : "size checked when uploaded"} and 1,000 rows`
-                  : `Excel (.xlsx), ${limit ? `up to ${limit}` : "size checked when uploaded"}`}
+                {types.length ? `${typeWords(types)}, ` : null}
+                {limit ? `up to ${limit}` : "size checked when uploaded"}
+                {kind === "STUDENT_ROSTER" && imports ? ` and ${imports.max_rows.toLocaleString("en-GB")} rows` : null}
               </p>
             </div>
             {fileError ? (
@@ -435,7 +442,7 @@ export function ImportStartScreen() {
             </h2>
             <GuideList kind={kind} />
             {kind === "STUDENT_ROSTER" ? (
-              <Button variant="secondary" className="ix-start" onClick={downloadStandardTemplate}>
+              <Button variant="secondary" className="ix-start" disabled={!template.ready} onClick={template.download}>
                 Download the template
               </Button>
             ) : null}

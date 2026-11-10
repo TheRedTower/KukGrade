@@ -8,7 +8,7 @@ import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { formatSessionDate } from "./dates";
-import { SESSION_STATUS_LABELS } from "./sessionStatus";
+import { labelOf, useChoices } from "./choices";
 import { AssessmentBadge, OutcomeBadge } from "./StatusBadge";
 
 /** A session's candidate with their assessment and outcome, as the session page shows them. */
@@ -39,6 +39,7 @@ const STAGES = ["DRAFT", "OPEN", "LOCKED", "COMPLETED"] as const;
 
 /** The four stages a session moves through, with the one it is at. A cancelled session is at none. */
 export function SessionLifecycle({ status = "DRAFT" }: { status?: GradingSessionStatus }) {
+  const statuses = useChoices().session_statuses;
   const currentIndex = STAGES.indexOf(status as (typeof STAGES)[number]);
   return (
     <section className="gsd-lifecycle-section" aria-label="Session progress">
@@ -51,7 +52,7 @@ export function SessionLifecycle({ status = "DRAFT" }: { status?: GradingSession
                 {state === "completed" && "✓"}
               </div>
               <div className="gsd-step-content">
-                <span className="item-title">{SESSION_STATUS_LABELS[key]}</span>
+                <span className="item-title">{labelOf(statuses, key)}</span>
                 <span className="meta">
                   {state === "completed" ? "Completed" : state === "current" ? "Current" : "Upcoming"}
                 </span>

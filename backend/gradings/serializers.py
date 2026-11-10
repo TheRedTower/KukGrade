@@ -495,6 +495,14 @@ REASON_MAX_LENGTH = 2000
 
 
 class AssessmentItemResultChangeSerializer(ModelSerializer):
+    from_result_display = serializers.CharField(
+        source="get_from_result_display",
+        read_only=True,
+    )
+    to_result_display = serializers.CharField(
+        source="get_to_result_display",
+        read_only=True,
+    )
     changed_by_name = serializers.CharField(
         source="changed_by.get_full_name",
         read_only=True,
@@ -505,7 +513,9 @@ class AssessmentItemResultChangeSerializer(ModelSerializer):
         fields = (
             "sequence",
             "from_result",
+            "from_result_display",
             "to_result",
+            "to_result_display",
             "changed_by_name",
             "changed_at",
             "reason",
@@ -650,13 +660,17 @@ class CandidateAssessmentItemSavedSerializer(CandidateAssessmentItemSerializer):
 
 
 class CandidateOutcomeSerializer(ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
     proposed_outcome_display = serializers.CharField(
         source="get_proposed_outcome_display",
         read_only=True,
+        allow_null=True,
     )
     final_outcome_display = serializers.CharField(
         source="get_final_outcome_display",
         read_only=True,
+        allow_null=True,
+        help_text="Null until the final decision is recorded.",
     )
     proposed_by_name = serializers.CharField(
         source="proposed_by.get_full_name",
@@ -673,6 +687,7 @@ class CandidateOutcomeSerializer(ModelSerializer):
             "id",
             "candidate",
             "status",
+            "status_display",
             "proposed_outcome",
             "proposed_outcome_display",
             "proposed_by_name",
@@ -968,6 +983,10 @@ class LegacyGradingRecordSerializer(ModelSerializer):
         source="get_attendance_status_display",
         read_only=True,
     )
+    record_kind_display = serializers.CharField(
+        source="get_record_kind_display",
+        read_only=True,
+    )
     student_display_name = serializers.CharField(
         source="student",
         read_only=True,
@@ -1021,6 +1040,7 @@ class LegacyGradingRecordSerializer(ModelSerializer):
             "student",
             "student_display_name",
             "record_kind",
+            "record_kind_display",
             "cycle_year",
             "cycle_month",
             "source_batch",

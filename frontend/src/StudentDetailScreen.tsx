@@ -26,6 +26,7 @@ import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
 import { badgeClass } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { useChoices } from "./choices";
 import { StudentStatusBadge } from "./StatusBadge";
 import "./StudentScreens.css";
 import { formatLongDate, formatMonthYear, formatShortDate } from "./dates";
@@ -129,6 +130,7 @@ export function StudentDetailScreen() {
   });
 
   const student = studentQuery.data;
+  const statusMeaning = useChoices().student_statuses.find((choice) => choice.value === student?.status)?.description;
   const rankHistory = rankHistoryQuery.data;
 
   function handleDeleteStudent() {
@@ -420,11 +422,8 @@ export function StudentDetailScreen() {
                 </div>
 
                 <p className="readiness-guidance subtext">
-                  {student.status === "ACTIVE"
-                    ? "Active students can be added to a grading cohort, one grading at a time. KukGrade does not track training time or attendance, so readiness is the instructor's judgement."
-                    : student.status === "INACTIVE"
-                    ? "On a temporary break. Inactive blocks nothing: the student can still be added to a grading cohort."
-                    : "Student has left. Left status blocks grading registration while preserving complete historical records."}
+                  {statusMeaning}{" "}
+                  KukGrade does not track training time or attendance, so readiness is the instructor's judgement.
                 </p>
               </div>
             </div>

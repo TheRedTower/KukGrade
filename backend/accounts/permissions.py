@@ -43,6 +43,30 @@ AUTHORITY_PERMISSIONS: dict[str, str] = {
     "can_view_grading_audit_log": GRADING_AUDIT_LOG_PERMISSION,
 }
 
+# The authorities' keys, as a choice set the contract can name.
+AUTHORITY_KEYS: tuple[str, ...] = tuple(AUTHORITY_PERMISSIONS)
+
+# What each authority is called and does, as every screen words it.
+AUTHORITY_WORDS: dict[str, tuple[str, str]] = {
+    "can_make_final_grading_decision": (
+        "Make final grading decisions",
+        "Allow this user to make final decisions on student gradings.",
+    ),
+    "can_promote_student": (
+        "Promote students",
+        "Allow this user to promote students to the next rank.",
+    ),
+    "can_override_locked_session": (
+        "Override locked sessions",
+        "Allow this user to make authorised corrections after locking.",
+    ),
+    "can_view_grading_audit_log": (
+        "View grading audit log",
+        "Allow this user to see grading, syllabus and assessment audit events "
+        "(not user management).",
+    ),
+}
+
 
 def prime_permission_cache(users: Iterable[User]) -> None:
     """Load the listed users' permissions in two queries, not two each.

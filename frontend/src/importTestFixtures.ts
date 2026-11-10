@@ -100,6 +100,7 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
     student: null,
     student_display_name: null,
     record_kind: "GRADING_RESULT",
+    record_kind_display: "Grading result",
     cycle_year: 2025,
     cycle_month: 3,
     source_batch: 7,

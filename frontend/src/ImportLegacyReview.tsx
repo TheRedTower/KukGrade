@@ -1,3 +1,4 @@
+import { labelOf, useChoices } from "./choices";
 import { useState } from "react";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { type DataImportBatch, type LegacyImportPreview } from "./api";
@@ -44,6 +45,7 @@ export function LegacyReview({
   );
   const exclusion = useRowExclusion(batch, onRefresh, announce);
 
+  const leftOut = labelOf(useChoices().import_row_outcomes, "EXCLUDED");
   const tiles: Tile<LegacyView>[] = [
     { key: "results", label: "Grading results", count: preview?.grading_result ?? 0, tone: "ix-success-text", mark: "✓" },
     { key: "attention", label: "Worth a look", count: preview?.worth_a_look ?? 0, tone: "ix-warning-text", mark: "!" },
@@ -54,7 +56,7 @@ export function LegacyReview({
       tone: "",
       mark: "i",
     },
-    { key: "EXCLUDED", label: "Left out", count: batch.row_counts.excluded, tone: "subtext", mark: "–" },
+    { key: "EXCLUDED", label: leftOut, count: batch.row_counts.excluded, tone: "subtext", mark: "–" },
   ];
   const heads: Record<LegacyView, [string, string]> = {
     attention: [
@@ -63,7 +65,7 @@ export function LegacyReview({
     ],
     results: ["Grading results", "One per student per grading, with the comments kept in full as the grading report."],
     others: ["Did not attend and notes", "Kept as they are: who did not attend, and notes written beside the tables."],
-    EXCLUDED: ["Left out", "These records will not be imported. Bring one back any time before you confirm."],
+    EXCLUDED: [leftOut, "These records will not be imported. Bring one back any time before you confirm."],
     check: [
       `${counted(ready, "record", "records")} will be imported`,
       "In workbook order, exactly as written, with the comments in full. Records you left out are not in this list.",

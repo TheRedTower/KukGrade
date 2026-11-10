@@ -1,3 +1,4 @@
+import { useChoices } from "./choices";
 import { useRef, useState } from "react";
 import { splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
@@ -7,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
+  type Choices,
   createManagedUser,
   getManagedUsers,
   type ManagedUser,
@@ -28,14 +30,9 @@ import { EmailAddress } from "./EmailAddress";
 
 const PAGE_SIZE = 10;
 
-function authoritySummary(user: ManagedUser): string {
-  const authorities = [
-    user.can_make_final_grading_decision ? "Final decisions" : null,
-    user.can_promote_student ? "Promotions" : null,
-    user.can_override_locked_session ? "Locked-session override" : null,
-    user.can_view_grading_audit_log ? "Audit log" : null,
-  ].filter(Boolean);
-  return authorities.length ? authorities.join(" · ") : "None";
+function authoritySummary(user: ManagedUser, authorities: Choices["authorities"]): string {
+  const held = authorities.filter((authority) => user[authority.value]).map((authority) => authority.label);
+  return held.length ? held.join(" · ") : "None";
 }
 
 function CreateUserDialog({
@@ -46,6 +43,7 @@ function CreateUserDialog({
   onCreated: (user: ManagedUser) => void;
 }): React.ReactElement {
   const queryClient = useQueryClient();
+  const roles = useChoices().roles;
   // gcTime 0: the response carries the temporary password, which should
   // leave memory with this dialog rather than linger in the mutation cache.
   const mutation = useMutation({
@@ -112,8 +110,9 @@ function CreateUserDialog({
               <label className="field users-form-wide">
                 <span>Role</span>
                 <select name="role" defaultValue="instructor">
-                  <option value="instructor">Instructor</option>
-                  <option value="administrator">Administrator</option>
+                  {roles.map((choice) => (
+                    <option key={choice.value} value={choice.value}>{choice.label}</option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -147,6 +146,7 @@ export function UsersScreen(): React.ReactElement {
   const search = searchParams.get("search") ?? "";
   const role = (searchParams.get("role") ?? "") as UserRole | "";
   const status = searchParams.get("status") ?? "";
+  const { roles, authorities } = useChoices();
 
   const updateFilters = (updates: Record<string, string>, preservePage = false) => {
     const next = new URLSearchParams(searchParams);
@@ -219,8 +219,9 @@ export function UsersScreen(): React.ReactElement {
           <span>Role</span>
           <select value={role} onChange={(event) => updateFilters({ role: event.target.value })}>
             <option value="">All roles</option>
-            <option value="instructor">Instructor</option>
-            <option value="administrator">Administrator</option>
+            {roles.map((choice) => (
+              <option key={choice.value} value={choice.value}>{choice.label}</option>
+            ))}
           </select>
         </label>
         <label className="field">
@@ -278,7 +279,7 @@ export function UsersScreen(): React.ReactElement {
                 {
                   key: "authority",
                   header: "Master authority",
-                  render: (user) => <span className="users-authority-summary">{authoritySummary(user)}</span>,
+                  render: (user) => <span className="users-authority-summary">{authoritySummary(user, authorities)}</span>,
                 },
                 {
                   key: "status",

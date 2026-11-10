@@ -5,12 +5,7 @@ import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { StudentStatusBadge } from "./StatusBadge";
-
-const CHOICES: { status: StudentStatus; description: string }[] = [
-  { status: "ACTIVE", description: "Active student in regular training. Can be registered for gradings." },
-  { status: "INACTIVE", description: "Temporary break or medical leave. Blocks nothing, and keeps all history." },
-  { status: "LEFT", description: "Has left. Cannot be registered for gradings; all history is kept." },
-];
+import { useChoices } from "./choices";
 
 /** Choosing a student's status: each with what it means, the current one chosen to start with. */
 export function StudentStatusDialog({
@@ -29,6 +24,7 @@ export function StudentStatusDialog({
   onClose: () => void;
 }) {
   const [selected, setSelected] = useState(status);
+  const choices = useChoices().student_statuses;
 
   function save(event: FormEvent) {
     event.preventDefault();
@@ -46,19 +42,19 @@ export function StudentStatusDialog({
           </p>
 
           <div className="status-radio-options" role="radiogroup" aria-label="Student status options">
-            {CHOICES.map((choice) => (
-              <label className={`status-radio-card ${selected === choice.status ? "selected" : ""}`} key={choice.status}>
+            {choices.map((choice) => (
+              <label className={`status-radio-card ${selected === choice.value ? "selected" : ""}`} key={choice.value}>
                 <input
                   type="radio"
                   name="status"
-                  value={choice.status}
-                  checked={selected === choice.status}
-                  onChange={() => setSelected(choice.status)}
-                  data-dialog-autofocus={selected === choice.status ? true : undefined}
+                  value={choice.value}
+                  checked={selected === choice.value}
+                  onChange={() => setSelected(choice.value)}
+                  data-dialog-autofocus={selected === choice.value ? true : undefined}
                 />
                 <div className="status-radio-content">
                   <div>
-                    <StudentStatusBadge status={choice.status} />
+                    <StudentStatusBadge status={choice.value} label={choice.label} />
                   </div>
                   <p className="status-radio-desc meta">{choice.description}</p>
                 </div>

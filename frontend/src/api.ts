@@ -201,6 +201,11 @@ function withQuery(path: string, params: object = {}): string {
   return query ? `${path}?${query}` : path;
 }
 
+// The largest page a list serves (DefaultPagination.max_page_size). Asking for
+// it keeps a read of every page to as few requests as it can be; a smaller
+// server limit costs requests, never rows, as the pages are followed to the end.
+export const LARGEST_PAGE = 200;
+
 async function collectAllPages<T>(
   loadPage: (page: number) => Promise<PaginatedResponse<T>>,
 ): Promise<PaginatedResponse<T>> {
@@ -221,6 +226,12 @@ export type SiteSettings = Schemas["SiteSettings"];
 
 export async function getSiteSettings(): Promise<SiteSettings> {
   return apiRequest<SiteSettings>("/api/site/");
+}
+
+export type Choices = Schemas["Choices"];
+
+export async function getChoices(): Promise<Choices> {
+  return apiRequest<Choices>("/api/choices/");
 }
 
 export type About = Schemas["About"];
@@ -376,7 +387,7 @@ export async function getAllGradingSessions(
   params: Omit<ListQuery<"gradings_sessions_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<GradingSession>> {
   return collectAllPages((page) =>
-    getGradingSessions({ ...params, page, page_size: 200 }),
+    getGradingSessions({ ...params, page, page_size: LARGEST_PAGE }),
   );
 }
 
@@ -446,7 +457,7 @@ export async function getAllGradingCandidates(
   params: Omit<ListQuery<"gradings_candidates_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<GradingCandidateRoster>> {
   return collectAllPages((page) =>
-    getGradingCandidates({ ...params, page, page_size: 200 }),
+    getGradingCandidates({ ...params, page, page_size: LARGEST_PAGE }),
   );
 }
 
@@ -578,7 +589,7 @@ export async function getAllCandidateAssessmentItems(
   params: Omit<ListQuery<"gradings_assessment_items_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
   return collectAllPages((page) =>
-    getCandidateAssessmentItems({ ...params, page, page_size: 200 }),
+    getCandidateAssessmentItems({ ...params, page, page_size: LARGEST_PAGE }),
   );
 }
 
@@ -696,7 +707,7 @@ export async function getStudents(params?: ListQuery<"students_list">): Promise<
 export async function getAllStudents(
   params: Omit<NonNullable<Parameters<typeof getStudents>[0]>, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<StudentListItem>> {
-  return collectAllPages((page) => getStudents({ ...params, page, page_size: 200 }));
+  return collectAllPages((page) => getStudents({ ...params, page, page_size: LARGEST_PAGE }));
 }
 
 export async function getRanks(params?: ListQuery<"ranks_list">): Promise<PaginatedResponse<Rank>> {
@@ -722,7 +733,7 @@ export async function getAllEffectiveSyllabusRequirements(
   params: Omit<Parameters<typeof getEffectiveSyllabusRequirements>[0], "page" | "page_size">,
 ): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
   return collectAllPages((page) =>
-    getEffectiveSyllabusRequirements({ ...params, page, page_size: 200 }),
+    getEffectiveSyllabusRequirements({ ...params, page, page_size: LARGEST_PAGE }),
   );
 }
 
@@ -820,7 +831,7 @@ export async function getDataImportBatches(
 export async function getAllDataImportBatches(
   params: Omit<ListQuery<"data_imports_batches_list">, "page" | "page_size">,
 ): Promise<PaginatedResponse<DataImportBatch>> {
-  return collectAllPages((page) => getDataImportBatches({ ...params, page, page_size: 200 }));
+  return collectAllPages((page) => getDataImportBatches({ ...params, page, page_size: LARGEST_PAGE }));
 }
 
 export async function getDataImportBatch(batchId: number): Promise<DataImportBatch> {
@@ -957,7 +968,7 @@ export async function linkLegacyGradingRecord(id: number, student: number, repla
 export async function getAllLegacyGradingRecords(
   params: Omit<ListQuery<"gradings_legacy_records_list">, "page" | "page_size">,
 ): Promise<PaginatedResponse<LegacyGradingRecord>> {
-  return collectAllPages((page) => getLegacyGradingRecords({ ...params, page, page_size: 200 }));
+  return collectAllPages((page) => getLegacyGradingRecords({ ...params, page, page_size: LARGEST_PAGE }));
 }
 
 export type LegacyPerson = Schemas["LegacyPerson"];

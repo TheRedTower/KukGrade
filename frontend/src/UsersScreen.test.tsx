@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UsersScreen } from "./UsersScreen";
 import { ApiError, NETWORK_ERROR, type ManagedUser } from "./api";
+import { CHOICES } from "./appTestSupport";
 
 const mockGetManagedUsers = vi.fn();
 const mockCreateManagedUser = vi.fn();
@@ -14,6 +15,7 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
+    getChoices: async () => CHOICES,
     getManagedUsers: (...args: unknown[]) => mockGetManagedUsers(...args),
     createManagedUser: (...args: unknown[]) => mockCreateManagedUser(...args),
   };
@@ -70,7 +72,7 @@ describe("UsersScreen", () => {
 
     expect(await screen.findByText("Riley Khan")).toBeInTheDocument();
     expect(screen.getByText("riley.khan@example.com")).toBeInTheDocument();
-    expect(screen.getByText("Locked-session override")).toBeInTheDocument();
+    expect(await screen.findByText("Override locked sessions")).toBeInTheDocument();
     const row = screen.getByRole("row", { name: /Riley Khan/ });
     expect(within(row).getByText("Active")).toBeInTheDocument();
     // `last_login` is a real timestamp, so it correctly renders in the

@@ -8,7 +8,7 @@
  */
 import type { CandidateAssessmentItem } from "./api";
 import { formatShortDateTime } from "./dates";
-import { isReasonedChange, RESULT_WORDS } from "./resultWords";
+import { isReasonedChange } from "./remarks";
 
 type Remarked = Pick<CandidateAssessmentItem, "id" | "comments" | "changes">;
 
@@ -31,7 +31,7 @@ export function ItemRemarks({ item }: { item: Remarked }) {
           className="remarks__item remarks__item--change"
           data-testid={`remark-change-${item.id}-${change.sequence}`}
         >
-          Changed from {RESULT_WORDS[change.from_result]} to {RESULT_WORDS[change.to_result]}
+          Changed from {change.from_result_display} to {change.to_result_display}
           {`: “${change.reason}”`}
           <ByLine name={change.changed_by_name} at={change.changed_at} afterLock={change.after_lock} />
         </li>

@@ -3,7 +3,8 @@ import { ErrorText } from "./ErrorText";
 import { type BoardRow, type StagedDecision } from "./adjudicationBoard";
 import { outcomeTone } from "./badgeClass";
 import { CheckIcon } from "./Icons";
-import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { useChoices } from "./choices";
+import "./OutcomeControls.css";
 import { ResponsiveTable } from "./ResponsiveTable";
 import type { CandidateOutcomeOutcome } from "./api";
 
@@ -21,6 +22,7 @@ interface CohortDecisionQueueProps {
 
 /** The cohort as a decision queue: evidence, proposal, and an inline Pass / Conditional / Fail. */
 export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide, canStage, onFocus, onStage }: CohortDecisionQueueProps) {
+  const outcomes = useChoices().outcomes;
   return (
             <ResponsiveTable
               label="Final decisions"
@@ -100,7 +102,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                             role="group"
                             aria-label={`Final outcome for ${row.candidate.student_display_name}`}
                           >
-                            {OUTCOME_CHOICES.map((option) => (
+                            {outcomes.map((option) => (
                               <button
                                 key={option.value}
                                 type="button"

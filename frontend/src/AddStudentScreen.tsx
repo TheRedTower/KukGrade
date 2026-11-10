@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { useChoices } from "./choices";
 import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +32,7 @@ export function AddStudentScreen() {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [currentRank, setCurrentRank] = useState<number | null>(null);
   const [status, setStatus] = useState<StudentStatus>("ACTIVE");
+  const studentStatuses = useChoices().student_statuses;
 
   // What the server and the browser's own checks say about the form.
   const form = useServerForm(["first_name", "last_name", "wksa_id", "date_of_birth", "current_rank"]);
@@ -252,9 +254,9 @@ export function AddStudentScreen() {
                 disabled={isSubmitting}
                 aria-required="true"
               >
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-                <option value="LEFT">Left</option>
+                {studentStatuses.map((choice) => (
+                  <option key={choice.value} value={choice.value}>{choice.label}</option>
+                ))}
               </select>
             </div>
           </div>

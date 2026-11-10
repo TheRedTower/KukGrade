@@ -14,7 +14,8 @@ import { ErrorText } from "./ErrorText";
 import { ImportPager } from "./ImportPager";
 import { counted } from "./importSteps";
 import { type NameItem, type NameView, NamesTable } from "./LinkNameRow";
-import { BULK_LINK_LIMIT, type Chosen, recordsToLink } from "./linkRecords";
+import { type Chosen, recordsToLink } from "./linkRecords";
+import { useSiteSettingsQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { useLeftNames } from "./useLeftNames";
 import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
@@ -46,6 +47,8 @@ function chosenFor(person: LegacyPerson, picks: Record<string, Chosen>): Chosen 
  */
 export function LinkRecordsScreen() {
   const { link, undo } = useLegacyLinking();
+  // The most records one link request takes, as the server serves it.
+  const linkLimit = useSiteSettingsQuery().data?.imports.bulk_link_limit;
   const { leave, putBack, error: leftError, reset: resetLeft } = useLeftNames();
   const [view, setView] = useState<NameView>("todo");
   const [batch, setBatch] = useState("");
@@ -113,7 +116,7 @@ export function LinkRecordsScreen() {
     (person) => selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
   );
   const selectedRecords = pageSelected.reduce((total, person) => total + recordsToLink(person, unticked).length, 0);
-  const tooMany = selectedRecords > BULK_LINK_LIMIT;
+  const tooMany = linkLimit !== undefined && selectedRecords > linkLimit;
   const clearOnPage = rows.filter((person) => view !== "done" && person.suggestion === "clear");
 
   // Selection and an open row belong to the rows on screen.
@@ -255,7 +258,7 @@ export function LinkRecordsScreen() {
 
       {tooMany ? (
         <p className="ix-warning-text item-title ix-flush" role="status">
-          {`${selectedRecords} records are selected; link at most ${BULK_LINK_LIMIT} at a time. Untick some names.`}
+          {`${selectedRecords} records are selected; link at most ${linkLimit} at a time. Untick some names.`}
         </p>
       ) : null}
       {notice ? (

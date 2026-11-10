@@ -6,7 +6,7 @@ import { type BoardRow, type StagedDecision, missingRequirements } from "./adjud
 import { outcomeTone } from "./badgeClass";
 import { RankBelt } from "./Belt";
 import { formatTime } from "./dates";
-import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { labelOf, useChoices } from "./choices";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 
 interface CohortFocusPaneProps {
@@ -24,6 +24,7 @@ interface CohortFocusPaneProps {
 
 /** The candidate in focus: their evidence, the proposal, the final decision, and what is staged. */
 export function CohortFocusPane({ row, sessionId, decision, canStage, recording, evidenceLoaded, headingRef, onUpdate, onRecord }: CohortFocusPaneProps) {
+  const outcomes = useChoices().outcomes;
   return (
           <aside className="cab-detail split__aside" aria-labelledby="cab-focus-title" data-testid="cab-detail">
             <p className="outcome-eyebrow eyebrow--muted">In focus</p>
@@ -82,7 +83,7 @@ export function CohortFocusPane({ row, sessionId, decision, canStage, recording,
 
             {decision && row.outcome && (
               <section className="cab-detail-section" aria-labelledby="cab-staged-title">
-                <h3 id="cab-staged-title">Staged: {OUTCOME_CHOICES.find((d) => d.value === decision.outcome)?.label}</h3>
+                <h3 id="cab-staged-title">Staged: {labelOf(outcomes, decision.outcome)}</h3>
                 {decision.outcome === "CONDITIONAL" && (
                   <label className="field field--sentence">
                     <span>Re-test requirements (required)</span>

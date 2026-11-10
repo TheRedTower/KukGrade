@@ -16,6 +16,7 @@ import {
   ADMINISTRATOR_CAPABILITIES,
   jsonResponse,
   sessionServed,
+  CHOICES,
 } from "./appTestSupport";
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -233,6 +234,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     bulkRegisterHandler?: (body: unknown) => Response;
   }) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/candidates/bulk-register/") && init?.method === "POST") {
         if (options?.bulkRegisterHandler) {

@@ -15,7 +15,7 @@ import { Alert } from "./Alert";
 import { AuthProvider, useAuth } from "./auth";
 import { DemoBanner } from "./DemoSignIn";
 import { NavigationRail } from "./NavigationRail";
-import { useSiteSettingsQuery } from "./queries";
+import { useChoicesQuery, useSiteSettingsQuery } from "./queries";
 import { SidebarProvider } from "./useSidebar";
 import { OverviewScreen } from "./OverviewScreen";
 import { StudentsScreen } from "./StudentsScreen";
@@ -74,8 +74,10 @@ function ApplicationShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   // Every signed-in route uses the club's clock, including when the sidebar
-  // is collapsed. Load it before mounting screens that format dates.
+  // is collapsed. Load it before mounting screens that format dates, and the
+  // served choices before screens that offer them.
   const site = useSiteSettingsQuery();
+  const choices = useChoicesQuery();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
@@ -83,7 +85,7 @@ function ApplicationShell() {
     return null;
   }
 
-  if (site.isPending) {
+  if (site.isPending || choices.isPending) {
     return <LoadingPage />;
   }
 

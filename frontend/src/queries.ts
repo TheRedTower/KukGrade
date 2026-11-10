@@ -8,14 +8,16 @@ import {
   getAgeBands,
   getAllCandidateAssessmentItems,
   getAssessmentSummary,
+  getChoices,
   getCredits,
   getPledge,
   getRanks,
   getSiteSettings,
+  LARGEST_PAGE,
 } from "./api";
 
 export function useRanksQuery() {
-  return useQuery({ queryKey: ["ranks"], queryFn: () => getRanks({ page_size: 100 }) });
+  return useQuery({ queryKey: ["ranks"], queryFn: () => getRanks({ page_size: LARGEST_PAGE }) });
 }
 
 // The club's time zone is applied as the settings arrive, before anything
@@ -32,6 +34,14 @@ export function useSiteSettingsQuery() {
       return site;
     },
   });
+}
+
+// Every list of choices the screens offer, with their names. They change only
+// with a release, so one read serves the whole visit. The shell waits for it
+// (App.tsx); a failed read leaves the lists empty, and mounting another
+// consumer must not restart it, or the shell would fall back to loading.
+export function useChoicesQuery() {
+  return useQuery({ queryKey: ["choices"], queryFn: getChoices, staleTime: Infinity, retryOnMount: false });
 }
 
 export function useAboutQuery() {

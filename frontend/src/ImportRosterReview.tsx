@@ -10,7 +10,8 @@ import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { CountTiles, ExclusionButton, LastLook, ListHead, RowsList } from "./ImportReviewParts";
-import { Exclusion, PAGE_SIZE, RowParams, STATUSES, Tile, useRowExclusion } from "./importReviewRows";
+import { Exclusion, PAGE_SIZE, RowParams, Tile, useRowExclusion } from "./importReviewRows";
+import { labelOf, useChoices } from "./choices";
 
 /** The same source-preserving correction controls in every roster review view. */
 function RosterRowEditor({
@@ -27,6 +28,7 @@ function RosterRowEditor({
   onEditStateChange: (key: string, dirty: boolean) => void;
 }) {
   const ranks = useRanksQuery().data?.results ?? [];
+  const statuses = useChoices().student_statuses;
   const fix = useMutation({
     mutationFn: ({ field, value }: { field: string; value: string | null }) =>
       correctDataImportRow(batch.id, row.row_number, { [field]: value }),
@@ -72,7 +74,7 @@ function RosterRowEditor({
           let control;
           if (field.field === "current_rank" || field.field === "status") {
             const options =
-              field.field === "current_rank" ? ranks.map((rank) => ({ value: rank.name, label: rank.name })) : STATUSES;
+              field.field === "current_rank" ? ranks.map((rank) => ({ value: rank.name, label: rank.name })) : statuses;
             const known = options.find((option) => option.value.toLowerCase() === value.toLowerCase());
             control = (
               <select
@@ -171,11 +173,14 @@ export function RosterReview({
     await onRefresh();
   }
 
+  const outcomes = useChoices().import_row_outcomes;
+  const skipped = labelOf(outcomes, "SKIP_EXISTING");
+  const leftOut = labelOf(outcomes, "EXCLUDED");
   const tiles: Tile<RosterView>[] = [
     { key: "READY", label: "Ready to add", count: counts.ready, tone: "ix-success-text", mark: "✓" },
     { key: "attention", label: "Need attention", count: counts.review_required, tone: "ix-warning-text", mark: "!" },
-    { key: "SKIP_EXISTING", label: "Already in KukGrade", count: counts.skip_existing, tone: "", mark: "↷" },
-    { key: "EXCLUDED", label: "Left out", count: counts.excluded, tone: "subtext", mark: "–" },
+    { key: "SKIP_EXISTING", label: skipped, count: counts.skip_existing, tone: "", mark: "↷" },
+    { key: "EXCLUDED", label: leftOut, count: counts.excluded, tone: "subtext", mark: "–" },
   ];
   const heads: Record<RosterView, [string, string]> = {
     attention: [
@@ -184,10 +189,10 @@ export function RosterReview({
     ],
     READY: ["Ready to add", "These rows will be added as new students."],
     SKIP_EXISTING: [
-      "Already in KukGrade",
+      skipped,
       "A student with the same WKSA ID is already here, so the row is skipped. Nothing about that student changes.",
     ],
-    EXCLUDED: ["Left out", "These rows will not be imported. Bring one back any time before you confirm."],
+    EXCLUDED: [leftOut, "These rows will not be imported. Bring one back any time before you confirm."],
     check: [
       `${counted(counts.ready, "student", "students")} will be added`,
       "In file order, as KukGrade will save them. A fix of yours is marked. Rows already in KukGrade, left out or still needing attention are not in this list.",

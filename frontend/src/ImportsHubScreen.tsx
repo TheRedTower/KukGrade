@@ -10,6 +10,7 @@ import {
   cancelDataImportBatch,
   errorMessage,
   getDataImportBatches,
+  LARGEST_PAGE,
   getLegacyGradingRecords,
 } from "./api";
 import { ErrorText } from "./ErrorText";
@@ -18,14 +19,14 @@ import { formatShortDateTime } from "./dates";
 import { ImportDialog } from "./ImportDialog";
 import { ImportPager } from "./ImportPager";
 import { counted, importKindLabel, importStepIndex, importStepNames } from "./importSteps";
-import { downloadStandardTemplate } from "./importTemplate";
+import { useTemplateDownload } from "./importTemplate";
 import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { useChoices } from "./choices";
 
 const PAST_PAGE_SIZE = 10;
-const FINISHED = "COMMITTED,CANCELLED,EXPIRED";
 
 /** What an unfinished import's rows look like so far, in a line. */
 function unfinishedCounts(batch: DataImportBatch): string {
@@ -130,6 +131,7 @@ function UnfinishedImports({
 }
 
 function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefined; canLink: boolean }) {
+  const template = useTemplateDownload();
   return (
     <section aria-labelledby="ix-start" className="ix-section">
       <h2 className="section-title" id="ix-start">
@@ -146,7 +148,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
               <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=STUDENT_ROSTER">
                 Import students
               </Link>
-              <Button variant="link" onClick={downloadStandardTemplate}>
+              <Button variant="link" disabled={!template.ready} onClick={template.download}>
                 Download the template
               </Button>
             </div>
@@ -192,6 +194,7 @@ function PastImports() {
   const kind = (searchParams.get("kind") ?? "") as DataImportKind | "";
   const state = searchParams.get("state") ?? "";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const choices = useChoices();
 
   const past = useQuery({
     queryKey: ["imports", "past", kind, state, page],
@@ -199,7 +202,8 @@ function PastImports() {
     queryFn: () =>
       getDataImportBatches({
         kind: kind || undefined,
-        status: state || FINISHED,
+        status: state || undefined,
+        finished: true,
         page,
         page_size: PAST_PAGE_SIZE,
       }),
@@ -230,17 +234,18 @@ function PastImports() {
           <span>What</span>
           <select value={kind} onChange={(event) => setFilter("kind", event.target.value)}>
             <option value="">Everything</option>
-            <option value="STUDENT_ROSTER">Students</option>
-            <option value="LEGACY_GRADINGS">Past gradings</option>
+            {choices.import_kinds.map((choice) => (
+              <option key={choice.value} value={choice.value}>{choice.label}</option>
+            ))}
           </select>
         </label>
         <label className="field">
           <span>State</span>
           <select value={state} onChange={(event) => setFilter("state", event.target.value)}>
             <option value="">Any</option>
-            <option value="COMMITTED">Imported</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="EXPIRED">Expired</option>
+            {choices.finished_import_statuses.map((choice) => (
+              <option key={choice.value} value={choice.value}>{choice.label}</option>
+            ))}
           </select>
         </label>
       </div>
@@ -316,7 +321,7 @@ export function ImportsHubScreen() {
 
   const unfinished = useQuery({
     queryKey: ["imports", "unfinished"],
-    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: 50 }),
+    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: LARGEST_PAGE }),
   });
   const awaitingLink = useQuery({
     queryKey: ["legacyRecords", "awaitingLinkCount"],

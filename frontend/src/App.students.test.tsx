@@ -12,6 +12,7 @@ import type {
 import {
   authUser,
   jsonResponse,
+  CHOICES,
 } from "./appTestSupport";
 
 describe("Students registry screen (/students)", () => {
@@ -28,6 +29,7 @@ describe("Students registry screen (/students)", () => {
 
   it("renders authentic empty state when no students exist in database", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -55,6 +57,7 @@ describe("Students registry screen (/students)", () => {
   it("shows only one import's students when an import's results link here", async () => {
     window.history.replaceState({}, "", "/students?source_import=7");
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/ranks/") || url.includes("/api/students/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -143,6 +146,7 @@ describe("Students registry screen (/students)", () => {
     ] satisfies StudentListItem[];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -222,6 +226,7 @@ describe("Students registry screen (/students)", () => {
 
   it("handles filter changes and clears filters back to initial state", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -311,6 +316,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("renders the add student form with breadcrumbs, inputs, ranks, and privacy notice", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -360,6 +366,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("blocks submission and shows client-side validation errors when required fields are empty", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -402,6 +409,7 @@ describe("Add student screen (/students/new)", () => {
   it("successfully creates a student and navigates to the student detail page", async () => {
     let createdPayload: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -514,6 +522,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("surfaces server validation errors (e.g. duplicate WKSA ID)", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -563,6 +572,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("says what the server said when it has no field to put it against", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
@@ -590,6 +600,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("returns to sign-in when the session ends while the student is being saved", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
@@ -612,6 +623,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("navigates back to /students when Cancel or breadcrumb is clicked", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -688,6 +700,7 @@ describe("Student detail screen (/students/:id)", () => {
 
   it("renders student profile with personal details, age band, readiness, and empty history", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -758,6 +771,7 @@ describe("Student detail screen (/students/:id)", () => {
   describe("the history link", () => {
     function studentMock(viewer: Record<string, unknown>) {
       return vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, viewer);
         if (url.includes("/grading-history/")) {
           return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -794,6 +808,7 @@ describe("Student detail screen (/students/:id)", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/ranks/")) {
           return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
@@ -836,6 +851,7 @@ describe("Student detail screen (/students/:id)", () => {
     ] satisfies StudentRankHistory["promotions"];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -927,6 +943,7 @@ describe("Student detail screen (/students/:id)", () => {
     let currentStatus = "ACTIVE";
 
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -998,6 +1015,7 @@ describe("Student detail screen (/students/:id)", () => {
     let patchPayload: unknown = null;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1072,6 +1090,7 @@ describe("Student detail screen (/students/:id)", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/ranks/")) {
           return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
@@ -1118,6 +1137,7 @@ describe("Student detail screen (/students/:id)", () => {
 
   it("announces edit-student field errors and associates them with their input", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1161,6 +1181,7 @@ describe("Student detail screen (/students/:id)", () => {
 
   it("navigates back to /students when clicking breadcrumb", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }

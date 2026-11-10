@@ -32,7 +32,9 @@ MAX_XLSX_ARCHIVE_MEMBERS = 2000
 # The file types read: a workbook, and a CSV (a roster only).
 WORKBOOK_SUFFIX = "xlsx"
 CSV_SUFFIX = "csv"
-SUPPORTED_SUFFIXES = frozenset({WORKBOOK_SUFFIX, CSV_SUFFIX})
+# What each file type is called on screen.
+FILE_TYPE_NAMES: dict[str, str] = {WORKBOOK_SUFFIX: "Excel", CSV_SUFFIX: "CSV"}
+SUPPORTED_SUFFIXES = frozenset(FILE_TYPE_NAMES)
 
 
 class UnsupportedImportFileError(Exception):

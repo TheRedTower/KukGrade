@@ -8,7 +8,8 @@ import { CheckIcon, CrossIcon } from "./Icons";
 import { Button } from "./Button";
 import { ItemDraftBox } from "./ItemDraftBox";
 import { ItemRemarks } from "./ItemRemarks";
-import { hasRemarks, RESULT_WORDS } from "./resultWords";
+import { labelOf, useChoices } from "./choices";
+import { hasRemarks } from "./remarks";
 import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
 
@@ -136,6 +137,7 @@ export function AssessmentItemRow({
     hides body overflow and traps Tab. This prompt is inline in a scrolling
     list and must not do either.
   */
+  const results = useChoices().item_results;
   const isAsking = pendingResult !== null;
   useEffect(() => {
     if (isAsking) {
@@ -232,17 +234,17 @@ export function AssessmentItemRow({
                 </>
               ) : isScored ? (
                 <>
-                  Changing {RESULT_WORDS[item.result ?? "NOT_ASSESSED"]} to {RESULT_WORDS[pendingResult]}. Why is the mark
+                  Changing {item.result_display} to {labelOf(results, pendingResult)}. Why is the mark
                   changing? The change and your reason are kept.
                 </>
               ) : hasHistory ? (
                 <>
-                  Marking this item {RESULT_WORDS[pendingResult]} again, after it was cleared. Why is the mark
+                  Marking this item {labelOf(results, pendingResult)} again, after it was cleared. Why is the mark
                   changing? The change and your reason are kept.
                 </>
               ) : (
                 <>
-                  Marking this item {RESULT_WORDS[pendingResult]}, after the session was locked. Why is the mark
+                  Marking this item {labelOf(results, pendingResult)}, after the session was locked. Why is the mark
                   being made? The change and your reason are kept.
                 </>
               )}

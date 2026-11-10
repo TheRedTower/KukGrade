@@ -43,7 +43,7 @@ import {
 } from "./candidateAssessmentData";
 import { formatShortDate, formatTime } from "./dates";
 import { ItemRemarks } from "./ItemRemarks";
-import { hasRemarks } from "./resultWords";
+import { hasRemarks } from "./remarks";
 import "./CandidateAssessment.css";
 import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";

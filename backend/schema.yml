@@ -351,6 +351,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/choices/:
+    get:
+      operationId: choices_retrieve
+      description: Every list of choices the screens offer, each value with its name.
+      tags:
+      - choices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Choices'
+          description: ''
   /api/data-imports/batches/:
     get:
       operationId: data_imports_batches_list
@@ -360,6 +375,13 @@ paths:
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
         `accounts.groups._DATA_IMPORT_PERMISSIONS`.
       parameters:
+      - name: finished
+        required: false
+        in: query
+        description: Only finished imports (imported, cancelled or expired), or only
+          those still open.
+        schema:
+          type: boolean
       - name: kind
         required: false
         in: query
@@ -2076,6 +2098,12 @@ paths:
           OPEN.
         schema:
           type: string
+      - name: year
+        required: false
+        in: query
+        description: Only sessions held in this year.
+        schema:
+          type: integer
       tags:
       - gradings
       security:
@@ -3206,9 +3234,15 @@ components:
           allOf:
           - $ref: '#/components/schemas/ResultEnum'
           readOnly: true
+        from_result_display:
+          type: string
+          readOnly: true
         to_result:
           allOf:
           - $ref: '#/components/schemas/ResultEnum'
+          readOnly: true
+        to_result_display:
+          type: string
           readOnly: true
         changed_by_name:
           type: string
@@ -3229,9 +3263,24 @@ components:
       - changed_at
       - changed_by_name
       - from_result
+      - from_result_display
       - reason
       - sequence
       - to_result
+      - to_result_display
+    AssessmentStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     AssessmentSummaryCounts:
       type: object
       description: |-
@@ -3406,6 +3455,34 @@ components:
       - kind
       - name
       - path
+    AuthorityChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/AuthorityEnum'
+        label:
+          type: string
+        description:
+          type: string
+      required:
+      - description
+      - label
+      - value
+    AuthorityEnum:
+      enum:
+      - can_make_final_grading_decision
+      - can_promote_student
+      - can_override_locked_session
+      - can_view_grading_audit_log
+      type: string
+      description: |-
+        * `can_make_final_grading_decision` - can_make_final_grading_decision
+        * `can_promote_student` - can_promote_student
+        * `can_override_locked_session` - can_override_locked_session
+        * `can_view_grading_audit_log` - can_view_grading_audit_log
     BeltColourEnum:
       enum:
       - WHITE
@@ -3920,6 +3997,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/CandidateOutcomeStatusEnum'
           readOnly: true
+        status_display:
+          type: string
+          readOnly: true
         proposed_outcome:
           readOnly: true
           nullable: true
@@ -3929,6 +4009,7 @@ components:
         proposed_outcome_display:
           type: string
           readOnly: true
+          nullable: true
         proposed_by_name:
           type: string
           readOnly: true
@@ -3949,6 +4030,8 @@ components:
         final_outcome_display:
           type: string
           readOnly: true
+          nullable: true
+          description: Null until the final decision is recorded.
         decided_by_name:
           type: string
           readOnly: true
@@ -3978,6 +4061,7 @@ components:
       - proposed_outcome
       - proposed_outcome_display
       - status
+      - status_display
     CandidateOutcomeFinaliseRequest:
       type: object
       description: 'The final decision. It is always given whole: final_outcome is
@@ -3994,13 +4078,13 @@ components:
     CandidateOutcomeOutcomeEnum:
       enum:
       - PASS
-      - FAIL
       - CONDITIONAL
+      - FAIL
       type: string
       description: |-
         * `PASS` - Pass
-        * `FAIL` - Fail
         * `CONDITIONAL` - Conditional
+        * `FAIL` - Fail
     CandidateOutcomeProposalRequest:
       type: object
       properties:
@@ -4023,6 +4107,19 @@ components:
       properties:
         notes:
           type: string
+    CandidateStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/GradingCandidateStatusEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     ChangePasswordRequest:
       type: object
       description: |-
@@ -4059,6 +4156,69 @@ components:
       required:
       - label
       - value
+    Choices:
+      type: object
+      properties:
+        session_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionStatusChoice'
+        student_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentStatusChoice'
+        candidate_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateStatusChoice'
+        assessment_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentStatusChoice'
+        item_results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemResultChoice'
+        outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutcomeChoice'
+          description: The grading outcomes, in the order the outcome controls offer
+            them.
+        import_kinds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportKindChoice'
+        finished_import_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportStatusChoice'
+          description: The states an import ends in; the one open state is left out.
+        import_row_outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRowOutcomeChoice'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleChoice'
+        authorities:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorityChoice'
+          description: The per-user authorities, keyed as the user record spells them.
+      required:
+      - assessment_statuses
+      - authorities
+      - candidate_statuses
+      - finished_import_statuses
+      - import_kinds
+      - import_row_outcomes
+      - item_results
+      - outcomes
+      - roles
+      - session_statuses
+      - student_statuses
     Credit:
       type: object
       properties:
@@ -4980,6 +5140,33 @@ components:
       - name
       - needed
       - whole_file
+    ImportFileTypes:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        types:
+          type: array
+          items:
+            $ref: '#/components/schemas/Choice'
+          description: 'The file types this kind of import reads: a suffix and its
+            name.'
+      required:
+      - kind
+      - types
+    ImportKindChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/KindEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     ImportMappingRequest:
       type: object
       description: |-
@@ -5136,6 +5323,51 @@ components:
           description: True leaves the row out of the import; false brings it back.
       required:
       - excluded
+    ImportRowOutcomeChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/StudentImportRowOutcomeEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
+    ImportSettings:
+      type: object
+      properties:
+        max_bytes:
+          type: integer
+          description: The maximum import file size enforced by this deployment, in
+            bytes.
+        max_rows:
+          type: integer
+          description: The most rows a roster file may have, blank rows included.
+        rows_kept_for_days:
+          type: integer
+          description: How long a finished import's row-by-row list is kept.
+        bulk_link_limit:
+          type: integer
+          description: The most past records one link request takes.
+        file_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportFileTypes'
+        template_headers:
+          type: array
+          items:
+            type: string
+          description: The header row of the standard roster template.
+      required:
+      - bulk_link_limit
+      - file_types
+      - max_bytes
+      - max_rows
+      - rows_kept_for_days
+      - template_headers
     ImportSheetRequest:
       type: object
       description: 'POST /{id}/sheet/: read a roster from another sheet of its workbook.'
@@ -5145,6 +5377,19 @@ components:
           minLength: 1
       required:
       - sheet
+    ImportStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/ImportBatchStatusEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     IssuedTemporaryPassword:
       type: object
       description: |-
@@ -5230,14 +5475,27 @@ components:
       - role_display
       - temporary_password
       - temporary_password_expires_at
+    ItemResultChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/ResultEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     KindEnum:
       enum:
       - STUDENT_ROSTER
       - LEGACY_GRADINGS
       type: string
       description: |-
-        * `STUDENT_ROSTER` - Student roster
-        * `LEGACY_GRADINGS` - Historical grading records
+        * `STUDENT_ROSTER` - Students
+        * `LEGACY_GRADINGS` - Past gradings
     LegacyGradingRecord:
       type: object
       description: |-
@@ -5259,6 +5517,9 @@ components:
         record_kind:
           allOf:
           - $ref: '#/components/schemas/RecordKindEnum'
+          readOnly: true
+        record_kind_display:
+          type: string
           readOnly: true
         cycle_year:
           type: integer
@@ -5343,6 +5604,7 @@ components:
       - note
       - outcome_display
       - record_kind
+      - record_kind_display
       - report
       - source_batch
       - source_current_rank_text
@@ -5596,6 +5858,19 @@ components:
     NullEnum:
       enum:
       - null
+    OutcomeChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     PaginatedAgeBandList:
       type: object
       required:
@@ -6361,6 +6636,19 @@ components:
         * `NOT_ASSESSED` - Not assessed
         * `MET` - Met
         * `NOT_MET` - Not met
+    RoleChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/RoleEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     RoleEnum:
       enum:
       - instructor
@@ -6380,6 +6668,19 @@ components:
       required:
       - club_name
       - school_id_prefix
+    SessionStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/GradingSessionStatusEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     SetAsideNames:
       type: object
       description: Names put aside on the linking page, as group keys.
@@ -6457,10 +6758,8 @@ components:
           type: string
           description: The club's time zone (an IANA name). Times are shown in it,
             and 'today' is today there.
-        import_upload_max_bytes:
-          type: integer
-          description: The maximum import file size enforced by this deployment, in
-            bytes.
+        imports:
+          $ref: '#/components/schemas/ImportSettings'
         password_policy:
           $ref: '#/components/schemas/PasswordPolicy'
         wksa_id:
@@ -6472,7 +6771,7 @@ components:
             resets.'
       required:
       - club_name
-      - import_upload_max_bytes
+      - imports
       - password_policy
       - time_zone
       - wksa_id
@@ -6800,6 +7099,23 @@ components:
       - first_name
       - last_name
       - wksa_id
+    StudentStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/StudentStatusEnum'
+        label:
+          type: string
+        description:
+          type: string
+          description: What the status means.
+      required:
+      - description
+      - label
+      - value
     StudentStatusEnum:
       enum:
       - ACTIVE

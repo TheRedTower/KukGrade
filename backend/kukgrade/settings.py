@@ -387,6 +387,10 @@ SPECTACULAR_SETTINGS = {
         "LegacyRankFieldEnum": "gradings.models.LegacyRankField",
         "AuditEntityEnum": "audit.models.AuditEntity",
         "StudentImportRowOutcomeEnum": "data_imports.models.ImportRowOutcome",
+        "KindEnum": "data_imports.models.ImportBatch.Kind",
+        "ImportBatchStatusEnum": "data_imports.models.ImportBatch.Status",
+        "RoleEnum": "accounts.models.User.Role",
+        "AuthorityEnum": "accounts.permissions.AUTHORITY_KEYS",
     },
 }
 

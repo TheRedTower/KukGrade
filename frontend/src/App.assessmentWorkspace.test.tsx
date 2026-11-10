@@ -19,6 +19,7 @@ import {
   itemSaved,
   itemServed,
   sessionServed,
+  CHOICES,
 } from "./appTestSupport";
 
 // Candidate Assessment Workspace Screen (/gradings/:sessionId/assessments/:candidateId)
@@ -172,6 +173,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders the single column run with band headers, rows and the mat bar", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -250,6 +252,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       "fetch",
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -280,6 +283,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("shows the rank held at registration without searching for the student", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -333,6 +337,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -404,6 +409,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -446,8 +452,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       ...mockItem1,
       comments: [{ id: 3, author_name: "Master Park", body: "Confirmed on the recording.", created_at: "2026-09-19T09:00:00Z", after_lock: true }],
       changes: [
-        { sequence: 1, from_result: "NOT_ASSESSED", to_result: "NOT_MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
-        { sequence: 2, from_result: "NOT_MET", to_result: "MET", changed_by_name: "Morgan Reed", changed_at: "2026-09-18T10:30:00Z", reason: "Repeated cleanly on the second attempt.", after_lock: false },
+        { sequence: 1, from_result: "NOT_ASSESSED", from_result_display: "Not assessed", to_result: "NOT_MET", to_result_display: "Not met", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
+        { sequence: 2, from_result: "NOT_MET", from_result_display: "Not met", to_result: "MET", to_result_display: "Met", changed_by_name: "Morgan Reed", changed_at: "2026-09-18T10:30:00Z", reason: "Repeated cleanly on the second attempt.", after_lock: false },
       ],
     };
     const assessedItem3: CandidateAssessmentItem = {
@@ -460,6 +466,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -515,6 +522,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -561,6 +569,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/site/")) return jsonResponse(200, { club_name: "Kuk Sool Won Testville", time_zone: "Europe/London" });
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
@@ -610,6 +619,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     function sealedRecordFetch(sessionStatus: GradingSession["status"]) {
       return vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/gradings/sessions/10/")) {
           return jsonResponse(200, { ...mockSession, status: sessionStatus });
@@ -658,6 +668,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
       return vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, viewer);
         if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, { ...mockSession, status: "LOCKED", ...sessionServed("LOCKED") });
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
@@ -744,6 +755,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -785,6 +797,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("reports a failed rollup instead of rendering zero counts", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -828,6 +841,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           resolvePatch = resolve;
         });
       }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -869,6 +883,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       const posts: string[] = [];
       const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
@@ -915,6 +930,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
               posts.push(body);
               return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
             }
+            if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
             if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
             if (url.includes("/api/gradings/sessions/10/")) {
               return jsonResponse(200, { ...mockSession, ...options.session });
@@ -984,6 +1000,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
                 release = resolve;
               });
             }
+            if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
             if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
             if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
             if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
@@ -1153,6 +1170,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             const body = JSON.parse(String(init.body)).body as string;
             return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
           }
+          if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
           if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
@@ -1226,6 +1244,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           if (failures-- > 0) return jsonResponse(500, { error: { code: "server_error", message: "Something went wrong." } });
           return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
         }
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
@@ -1276,6 +1295,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders served counts rather than recounting the item rows", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1336,6 +1356,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("refuses the completion review route while required items remain unassessed", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1420,6 +1441,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         });
       }
       if (url.includes("/api/auth/me/")) return Promise.resolve(jsonResponse(200, authUser));
+      if (url.includes("/api/choices/")) return Promise.resolve(jsonResponse(200, CHOICES));
       if (url.includes("/api/gradings/sessions/10/")) return Promise.resolve(jsonResponse(200, mockSession));
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
         return Promise.resolve(jsonResponse(200, mockCandidate));
@@ -1534,8 +1556,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       const cleared: CandidateAssessmentItem = itemServed({
         ...mockItem3,
         changes: [
-          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
-          { sequence: 2, from_result: "MET", to_result: "NOT_ASSESSED", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:05:00Z", reason: "Wrong item.", after_lock: false },
+          { sequence: 1, from_result: "NOT_ASSESSED", from_result_display: "Not assessed", to_result: "MET", to_result_display: "Met", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
+          { sequence: 2, from_result: "MET", from_result_display: "Met", to_result: "NOT_ASSESSED", to_result_display: "Not assessed", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:05:00Z", reason: "Wrong item.", after_lock: false },
         ],
       });
       const server = scoringServer([mockItem1, mockItem2, cleared]);
@@ -1574,8 +1596,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       const changed: CandidateAssessmentItem = {
         ...mockItem2,
         changes: [
-          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
-          { sequence: 2, from_result: "MET", to_result: "NOT_MET", changed_by_name: "Lee Coach", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on the replay.", after_lock: false },
+          { sequence: 1, from_result: "NOT_ASSESSED", from_result_display: "Not assessed", to_result: "MET", to_result_display: "Met", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
+          { sequence: 2, from_result: "MET", from_result_display: "Met", to_result: "NOT_MET", to_result_display: "Not met", changed_by_name: "Lee Coach", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on the replay.", after_lock: false },
         ],
       };
       const server = scoringServer([mockItem1, changed, mockItem3]);
@@ -1601,6 +1623,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           if (init?.method === "PATCH") {
             return jsonResponse(400, { error: { code: "validation_error", message: "Say why the mark is changing." } });
           }
+          if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
           if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
@@ -1658,6 +1681,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             patches.push(JSON.parse(String(init.body)));
             return jsonResponse(200, { ...mockItem1, result: "NOT_MET" });
           }
+          if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
           if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
@@ -1700,6 +1724,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             patches.push(JSON.parse(String(init.body)));
             return jsonResponse(200, { ...mockItem1, result: "NOT_MET" });
           }
+          if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) {
             return jsonResponse(200, { ...mockSession, status: "LOCKED", status_display: "Locked", ...sessionServed("LOCKED") });
@@ -1925,6 +1950,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1992,6 +2018,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         patches.push(JSON.parse(String(init.body)));
         return jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" });
       }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2054,6 +2081,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2090,6 +2118,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders assessor attribution on met rows, not only on failures", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2129,6 +2158,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2164,6 +2194,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders every category in one continuous run, not behind a rail", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2224,6 +2255,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2323,6 +2355,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -2392,6 +2425,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2476,6 +2510,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, draftSession);
       if (

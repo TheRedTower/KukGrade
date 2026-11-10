@@ -130,6 +130,7 @@ from kukgrade.filtering import (
     by_id,
     choices_in,
     exact,
+    in_year,
     on_date,
     ordered_by,
     read_by_view,
@@ -266,6 +267,7 @@ class GradingSessionViewSet(
         ),
         on_date("grading_date_from", "grading_date__gte"),
         on_date("grading_date_to", "grading_date__lte"),
+        in_year("year", "grading_date", "Only sessions held in this year."),
         search(
             "search",
             (

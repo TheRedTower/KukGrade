@@ -118,17 +118,13 @@ export function SyllabusScreen() {
   );
   const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
 
-  // Until the viewer picks, the screen opens on the first rank that has a
-  // syllabus of its own (Yellow, or the first served rank if Yellow is
-  // absent) and the first age band the server lists.
+  // Until the viewer picks, the screen opens on the first served rank that
+  // has a syllabus of its own and the first age band the server lists.
   const [chosenRankCode, setChosenRankCode] = useState<string | null>(null);
   const [chosenAgeBand, setChosenAgeBand] = useState<AgeBandEnum | null>(null);
-  const selectedRankCode =
-    chosenRankCode ??
-    (ranks.some((r) => r.code === "YELLOW") ? "YELLOW" : (ranks[0]?.code ?? ""));
+  const selectedRankCode = chosenRankCode ?? ranks[0]?.code ?? "";
   const selectedAgeBand = chosenAgeBand ?? ageBands[0]?.code ?? null;
-  const programme: Programme =
-    ageBands.find((band) => band.code === selectedAgeBand)?.programme ?? "JUNIOR";
+  const programme = ageBands.find((band) => band.code === selectedAgeBand)?.programme;
 
   // Everything a grading for this rank and age band assesses, in syllabus
   // order - the same rows assessment generation snapshots.
@@ -190,7 +186,7 @@ export function SyllabusScreen() {
           <label htmlFor="syl-curriculum-select">Curriculum</label>
           <select
             id="syl-curriculum-select"
-            value={programme}
+            value={programme ?? ""}
             onChange={(e) => handleProgrammeChange(e.target.value as Programme)}
           >
             {programmes.map((band) => (

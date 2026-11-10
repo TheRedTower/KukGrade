@@ -21,7 +21,8 @@ import { Dialog } from "./Dialog";
 import { ErrorText } from "./ErrorText";
 import { RankBelt } from "./Belt";
 import { CheckIcon } from "./Icons";
-import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { useChoices } from "./choices";
+import "./OutcomeControls.css";
 import { useSealedEvidenceLoaded } from "./queries";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 import "./OutcomeProposalDialog.css";
@@ -43,6 +44,7 @@ export function OutcomeProposalDialog({
   const [selectedOutcome, setSelectedOutcome] = useState<CandidateOutcomeOutcome>(
     existingOutcome?.proposed_outcome ?? "PASS",
   );
+  const outcomes = useChoices().outcomes;
   const [proposalNotes, setProposalNotes] = useState(existingOutcome?.proposal_notes ?? "");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -95,7 +97,7 @@ export function OutcomeProposalDialog({
         <fieldset className="opd-section opd-fieldset">
           <legend>Proposed outcome</legend>
           <div className="outcome-segments">
-            {OUTCOME_CHOICES.map((option) => (
+            {outcomes.map((option) => (
               <label
                 key={option.value}
                 className={`outcome-segment outcome-segment-${option.value.toLowerCase()}`}

@@ -7,6 +7,7 @@ import {
   type AuditEvent,
   type CandidateAssessment,
   type CandidateOutcomeOutcome,
+  type Choices,
   type GradingSession,
   getCandidateAssessments,
   getGradingSessions,
@@ -21,7 +22,7 @@ import { buttonClass } from "./buttonClass";
 import { formatRecentTime, formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
-import { OUTCOME_LABELS } from "./OutcomeControls";
+import { labelOf, useChoices } from "./choices";
 import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { PageHeader } from "./PageHeader";
@@ -158,9 +159,9 @@ function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: st
   }
 }
 
-function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
+function formatAuditEvent(event: AuditEvent, outcomes: Choices["outcomes"]): FormattedActivityItem {
   const { type, outcome } = activityStatus(event);
-  const outcomeLabel = outcome ? OUTCOME_LABELS[outcome as CandidateOutcomeOutcome] : undefined;
+  const outcomeLabel = outcome ? labelOf(outcomes, outcome as CandidateOutcomeOutcome) : undefined;
   return {
     id: event.id,
     timeDisplay: formatRecentTime(event.occurred_at),
@@ -174,6 +175,7 @@ function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
 export function OverviewScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const outcomes = useChoices().outcomes;
 
   const canViewAudit = Boolean(user?.can_read_audit_log);
 
@@ -253,8 +255,8 @@ export function OverviewScreen() {
 
   // Recent activity items
   const recentActivities: FormattedActivityItem[] = useMemo(() => {
-    return (auditQuery.data?.results ?? []).map(formatAuditEvent);
-  }, [auditQuery.data]);
+    return (auditQuery.data?.results ?? []).map((event) => formatAuditEvent(event, outcomes));
+  }, [auditQuery.data, outcomes]);
 
   const isInitialLoading =
     openQuery.isLoading ||

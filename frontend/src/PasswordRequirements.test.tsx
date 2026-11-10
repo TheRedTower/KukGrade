@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SiteSettings } from "./api";
-import { jsonResponse } from "./appTestSupport";
+import { jsonResponse, SITE } from "./appTestSupport";
 import { PasswordRequirements } from "./PasswordRequirements";
 
 // Deliberately not the real policy: the checklist must follow whatever the
@@ -11,7 +11,7 @@ import { PasswordRequirements } from "./PasswordRequirements";
 const served: SiteSettings = {
   club_name: "Test Club",
   time_zone: "Europe/London",
-  import_upload_max_bytes: 5 * 1024 * 1024,
+  imports: SITE.imports,
   password_policy: {
     min_length: 5,
     max_length: 6,

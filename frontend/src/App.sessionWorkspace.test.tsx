@@ -19,6 +19,7 @@ import {
   jsonResponse,
   assessmentSummaryFor,
   sessionServed,
+  CHOICES,
 } from "./appTestSupport";
 
 describe("Grading Session Workspace Screen (/gradings/:id)", () => {
@@ -184,13 +185,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       id: 302,
       candidate: 102,
       status: "PROPOSED" as const,
+      status_display: "Proposed",
       proposed_outcome: "PASS" as const,
       proposed_outcome_display: "Pass",
       proposed_by_name: "Alex Admin",
       proposed_at: "2026-09-15T10:05:00Z",
       proposal_notes: "Strong stances throughout.",
       final_outcome: null,
-      final_outcome_display: "",
+      final_outcome_display: null,
       decided_by_name: "",
       decided_at: null,
       decision_notes: "",
@@ -335,6 +337,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const candidates = candidateRows ?? (locked ? lockedCandidates : testCandidates);
     const outcomes: CandidateOutcome[] = locked ? testOutcomes : [];
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
       if (url.includes("/api/gradings/withdrawal-reasons/")) {
         return jsonResponse(200, {
@@ -832,6 +835,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("allows instructors to view and edit session notes with authentic PATCH call", async () => {
     let patchBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         patchBody = JSON.parse(init.body as string);
@@ -882,6 +886,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("handles session transition to LOCKED via Session actions dropdown", async () => {
     let patchBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         patchBody = JSON.parse(init.body as string);
@@ -930,6 +935,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("handles session transition to CANCELLED via Session actions dropdown with cancellation reason", async () => {
     let patchBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         patchBody = JSON.parse(init.body as string);
@@ -984,6 +990,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("renders clean zero-candidate empty state when session has no registered candidates", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
       if (url.includes("/api/gradings/candidates/")) {
@@ -1067,6 +1074,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     let status: GradingSession["status"] = "OPEN";
     const candidateRows = () => rosterRows(lockedCandidates, completedAssessments, [], status, false);
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         status = "LOCKED";
@@ -1168,6 +1176,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     const fetchMock = setupStandardMock();
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         await patchPending;
@@ -1224,6 +1233,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "NOT_STARTED" as const,
     }));
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "DELETE") {
         return new Response(null, { status: 204 });
@@ -1361,6 +1371,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("offers no proposal while the session is open, only the completed record", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
       if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "OPEN", false) });
@@ -1383,6 +1394,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("opens the proposal drawer with the sealed assessment evidence and submits a proposal", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, {
           ...adminUser,
@@ -1452,6 +1464,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           ...testOutcomes[0],
           id: 401,
           status: "PROPOSED",
+          status_display: "Proposed",
           proposed_outcome: body.proposed_outcome,
           proposal_notes: body.proposal_notes || "",
         });
@@ -1534,6 +1547,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("dismisses the proposal drawer on Cancel and Escape", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
@@ -1577,6 +1591,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("keeps the proposal drawer open with the server's reason when a proposal is refused", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
@@ -1609,6 +1624,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     let proposeAttempts = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
@@ -1646,6 +1662,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("will not submit a proposal while its evidence failed to load", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });

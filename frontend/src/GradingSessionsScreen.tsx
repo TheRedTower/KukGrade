@@ -18,7 +18,7 @@ import { Alert } from "./Alert";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 import { Dialog } from "./Dialog";
-import { SESSION_STATUS_LABELS } from "./sessionStatus";
+import { useChoices } from "./choices";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
@@ -48,8 +48,6 @@ function ArrowRightIcon() {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
-
-const STATUS_ORDER: GradingSessionStatus[] = ["OPEN", "DRAFT", "LOCKED", "COMPLETED", "CANCELLED"];
 
 // ─── Current Session Spotlight ────────────────────────────────────────────────
 
@@ -107,6 +105,7 @@ export function GradingSessionsScreen() {
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<GradingSessionStatus | "ALL">("ALL");
   const [yearFilter, setYearFilter] = useState<string>("ALL");
+  const sessionStatuses = useChoices().session_statuses;
   const [archivedOnly, setArchivedOnly] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -145,8 +144,6 @@ export function GradingSessionsScreen() {
   // Paginated sessions filtered by status on the server
   const serverStatus = statusFilter !== "ALL" ? statusFilter : undefined;
   const selectedYear = yearFilter !== "ALL" ? Number(yearFilter) : undefined;
-  const gradingDateFrom = selectedYear ? `${selectedYear}-01-01` : undefined;
-  const gradingDateTo = selectedYear ? `${selectedYear}-12-31` : undefined;
   // Waits for a pause in typing; the last page stays while the next loads.
   const serverSearch = useDebouncedValue(searchText.trim()) || undefined;
 
@@ -159,8 +156,7 @@ export function GradingSessionsScreen() {
         page_size: PAGE_SIZE,
         status: serverStatus,
         search: serverSearch,
-        grading_date_from: gradingDateFrom,
-        grading_date_to: gradingDateTo,
+        year: selectedYear,
         archived: archivedOnly ? "only" : undefined,
       }),
   });
@@ -214,7 +210,7 @@ export function GradingSessionsScreen() {
           <label htmlFor="gs-status-filter">Status</label>
           <select id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
             <option value="ALL">All statuses</option>
-            {STATUS_ORDER.map((s) => <option key={s} value={s}>{SESSION_STATUS_LABELS[s]}</option>)}
+            {sessionStatuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
         <div className="field">

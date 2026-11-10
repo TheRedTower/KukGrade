@@ -4,9 +4,97 @@ import type {
   AuthUser,
   CandidateAssessmentItem,
   CandidateAssessmentSummary,
+  Choices,
   GradingSession,
   GradingSessionStatus,
+  SiteSettings,
 } from "./api";
+
+/** /api/choices/ as the server serves it. */
+export const CHOICES: Choices = {
+  session_statuses: [
+    { value: "DRAFT", label: "Draft" },
+    { value: "OPEN", label: "Open" },
+    { value: "LOCKED", label: "Locked" },
+    { value: "COMPLETED", label: "Completed" },
+    { value: "CANCELLED", label: "Cancelled" },
+  ],
+  student_statuses: [
+    { value: "ACTIVE", label: "Active", description: "In regular training. Can be registered for gradings, one at a time." },
+    { value: "INACTIVE", label: "Inactive", description: "On a temporary break, such as medical leave. Inactive blocks nothing: the student can still be registered, and all history is kept." },
+    { value: "LEFT", label: "Left", description: "Has left. Cannot be registered for gradings; all history is kept." },
+  ],
+  candidate_statuses: [
+    { value: "REGISTERED", label: "Registered" },
+    { value: "WITHDRAWN", label: "Withdrawn" },
+    { value: "COMPLETED", label: "Completed" },
+  ],
+  assessment_statuses: [
+    { value: "NOT_STARTED", label: "Not started" },
+    { value: "IN_PROGRESS", label: "In progress" },
+    { value: "COMPLETED", label: "Completed" },
+  ],
+  item_results: [
+    { value: "NOT_ASSESSED", label: "Not assessed" },
+    { value: "MET", label: "Met" },
+    { value: "NOT_MET", label: "Not met" },
+  ],
+  outcomes: [
+    { value: "PASS", label: "Pass" },
+    { value: "CONDITIONAL", label: "Conditional" },
+    { value: "FAIL", label: "Fail" },
+  ],
+  import_kinds: [
+    { value: "STUDENT_ROSTER", label: "Students" },
+    { value: "LEGACY_GRADINGS", label: "Past gradings" },
+  ],
+  finished_import_statuses: [
+    { value: "COMMITTED", label: "Imported" },
+    { value: "CANCELLED", label: "Cancelled" },
+    { value: "EXPIRED", label: "Expired" },
+  ],
+  import_row_outcomes: [
+    { value: "READY", label: "Ready" },
+    { value: "REVIEW_REQUIRED", label: "Needs attention" },
+    { value: "SKIP_EXISTING", label: "Already in KukGrade" },
+    { value: "EXCLUDED", label: "Left out" },
+  ],
+  roles: [
+    { value: "instructor", label: "Instructor" },
+    { value: "administrator", label: "Administrator" },
+  ],
+  authorities: [
+    { value: "can_make_final_grading_decision", label: "Make final grading decisions", description: "Allow this user to make final decisions on student gradings." },
+    { value: "can_promote_student", label: "Promote students", description: "Allow this user to promote students to the next rank." },
+    { value: "can_override_locked_session", label: "Override locked sessions", description: "Allow this user to make authorised corrections after locking." },
+    { value: "can_view_grading_audit_log", label: "View grading audit log", description: "Allow this user to see grading, syllabus and assessment audit events (not user management)." },
+  ],
+};
+
+/** /api/site/ as the server serves it, with a made-up club. */
+export const SITE: SiteSettings = {
+  club_name: "Kuk Sool Won Testville",
+  time_zone: "Europe/London",
+  imports: {
+    max_bytes: 5 * 1024 * 1024,
+    max_rows: 1000,
+    rows_kept_for_days: 30,
+    bulk_link_limit: 500,
+    file_types: [
+      {
+        kind: "STUDENT_ROSTER",
+        types: [
+          { value: "xlsx", label: "Excel" },
+          { value: "csv", label: "CSV" },
+        ],
+      },
+      { kind: "LEGACY_GRADINGS", types: [{ value: "xlsx", label: "Excel" }] },
+    ],
+    template_headers: ["WKSA ID", "First Name", "Last Name", "Date of Birth", "Current Rank", "Status"],
+  },
+  password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
+  wksa_id: { hint: "", forms: [] },
+};
 
 export const authUser = {
   id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
@@ -220,9 +308,11 @@ export const ABOUT_CREDITS = {
   ],
 };
 
-/** What every endpoint but /api/auth/me/ answers for a signed-in user: an empty page. */
+/** What every endpoint answers for a signed-in user: their account, the served choices and settings, the About pages, and otherwise an empty page. */
 export function signedInResponse(url: string, user: AuthUser): Response {
   if (url.includes("/api/auth/me/")) return jsonResponse(200, user);
+  if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+  if (url.includes("/api/site/")) return jsonResponse(200, SITE);
   if (url.includes("/api/about/documents/")) {
     const slug = url.split("/documents/")[1].replace(/\/$/, "");
     return jsonResponse(200, ABOUT_DOCUMENTS[slug]);
@@ -253,10 +343,12 @@ export function sessionsResponse(url: string, sessions: GradingSession[]): Respo
   }
   const statuses = query.searchParams.get("status")?.split(",");
   const from = query.searchParams.get("grading_date_from");
+  const year = query.searchParams.get("year");
   const size = Number(query.searchParams.get("page_size") ?? sessions.length);
   const rows = sessions
     .filter((s) => !statuses || statuses.includes(s.status ?? ""))
     .filter((s) => !from || s.grading_date >= from)
+    .filter((s) => !year || s.grading_date.startsWith(`${year}-`))
     .sort((a, b) =>
       query.searchParams.get("ordering") === "grading_date"
         ? a.grading_date.localeCompare(b.grading_date)

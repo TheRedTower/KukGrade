@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AuthUser, type DataImportBatch, type DataImportRow } from "./api";
-import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
+import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, SITE } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
 import { ImportReview } from "./ImportReview";
 import { batch, legacyRecord as record, page, person, RANKS, row } from "./importTestFixtures";
@@ -34,6 +34,8 @@ const api = vi.hoisted(() => ({
   voidLegacyGradingRecord: vi.fn(),
   setAsideNames: vi.fn(),
   putBackSetAsideName: vi.fn(),
+  getChoices: vi.fn(),
+  getSiteSettings: vi.fn(),
 }));
 
 vi.mock("./api", async () => {
@@ -84,6 +86,8 @@ beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   auth.user = { ...authUser, ...ADMINISTRATOR_CAPABILITIES };
   api.getRanks.mockResolvedValue(page(RANKS));
+  api.getChoices.mockResolvedValue(CHOICES);
+  api.getSiteSettings.mockResolvedValue(SITE);
 });
 
 describe("Matching a roster's columns", () => {
@@ -96,6 +100,7 @@ describe("Matching a roster's columns", () => {
       values: { wksa_id: "104-2-311", first_name: "Mia", last_name: "Reynolds", date_of_birth: "14/03/2015", current_rank: "", status: "ACTIVE" },
       file_values: { date_of_birth: "14/03/2015" },
       outcome: "REVIEW_REQUIRED",
+      outcome_display: "Needs attention",
       issues: ["Current rank is required."],
       issue_fields: ["current_rank"],
     }),
@@ -105,6 +110,7 @@ describe("Matching a roster's columns", () => {
       values: { wksa_id: "104-2-318", first_name: "Priya", last_name: "Shah", date_of_birth: "31/02/2010", current_rank: "", status: "ACTIVE" },
       file_values: { date_of_birth: "31/02/2010" },
       outcome: "REVIEW_REQUIRED",
+      outcome_display: "Needs attention",
       issues: ["Date of birth '31/02/2010' could not be parsed."],
       issue_fields: ["date_of_birth", "current_rank"],
     }),
@@ -375,6 +381,7 @@ describe("Reviewing and confirming a roster", () => {
   const attention = row({
     row_number: 6,
     outcome: "REVIEW_REQUIRED",
+    outcome_display: "Needs attention",
     values: { wksa_id: "", first_name: "Ella", last_name: "Moss", date_of_birth: "30/05/2016", current_rank: "Purple", status: "ACTIVE" },
     issues: ["WKSA ID: This field cannot be blank.", "Rank 'Purple' is not a rank KukGrade recognises."],
     issue_fields: ["current_rank", "wksa_id"],
@@ -408,7 +415,7 @@ describe("Reviewing and confirming a roster", () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(needing);
     api.getDataImportRows.mockResolvedValue(page([attention]));
-    api.setDataImportRowExcluded.mockResolvedValue({ ...attention, outcome: "EXCLUDED" });
+    api.setDataImportRowExcluded.mockResolvedValue({ ...attention, outcome: "EXCLUDED", outcome_display: "Left out" });
     api.leaveOutDataImportRowsNeedingAttention.mockResolvedValue(sorted);
 
     renderAt("/imports/7");
@@ -634,7 +641,7 @@ describe("Reviewing and confirming a roster", () => {
     });
     api.getDataImportBatch.mockResolvedValue(gradings);
     api.getDataImportRows.mockResolvedValue(page([theo]));
-    api.setDataImportRowExcluded.mockResolvedValue({ ...theo, excluded: true, outcome: "EXCLUDED" });
+    api.setDataImportRowExcluded.mockResolvedValue({ ...theo, excluded: true, outcome: "EXCLUDED", outcome_display: "Left out" });
     api.previewLegacyGradingImport.mockResolvedValue({ total: 231, grading_result: 196, auxiliary_note: 4, did_not_attend: 31, unresolved_current_rank: 0, unresolved_testing_for_rank: 0, unresolved_outcome: 0, excluded: 0, worth_a_look: 1, warnings: [], rank_suggestions: [] });
 
     renderAt("/imports/7?step=review");

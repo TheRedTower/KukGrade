@@ -97,7 +97,7 @@ export function HistoricalRecordsScreen() {
           ) : (
             <div className="card ix-section" key={record.id}>
               <h2 className="ix-title ix-flush">“{record.source_name}” · {formatMonthYear(record.cycle_year, record.cycle_month)}</h2>
-              <p className="subtext">{record.record_kind.replaceAll("_", " ")} · {record.source_section} · {record.outcome_display || record.attendance_status_display}</p>
+              <p className="subtext">{record.record_kind_display} · {record.source_section} · {record.outcome_display || record.attendance_status_display}</p>
               {record.report ? <p>Report as written: {record.report}</p> : null}
               {record.note ? <p>Other workbook notes: {record.note}</p> : null}
               {record.is_void ? (

@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AuthUser, type CreateDataImportBatchResponse, type SiteSettings } from "./api";
-import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
+import { ApiError, type AuthUser, type CreateDataImportBatchResponse } from "./api";
+import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, SITE } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
 import { batch, page, person, row } from "./importTestFixtures";
 import { ImportStartScreen } from "./ImportStartScreen";
@@ -22,6 +22,7 @@ const api = vi.hoisted(() => ({
   getLegacyGradingRecords: vi.fn(),
   getLegacyPeople: vi.fn(),
   getSiteSettings: vi.fn(),
+  getChoices: vi.fn(),
   bulkLinkLegacyRecords: vi.fn(),
   unlinkLegacyGradingRecord: vi.fn(),
 }));
@@ -41,14 +42,6 @@ const auth = vi.hoisted(() => ({ user: null as AuthUser | null }));
 vi.mock("./auth", () => ({
   useAuth: () => ({ user: auth.user, status: "authenticated" }),
 }));
-
-const servedSite = {
-  club_name: "Test club",
-  time_zone: "Europe/London",
-  import_upload_max_bytes: 5 * 1024 * 1024,
-  password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
-  wksa_id: { hint: "", forms: [] },
-} satisfies SiteSettings;
 
 function Where() {
   const location = useLocation();
@@ -78,7 +71,8 @@ beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   auth.user = { ...authUser, ...ADMINISTRATOR_CAPABILITIES };
   api.getLegacyGradingRecords.mockResolvedValue(page([], 0));
-  api.getSiteSettings.mockResolvedValue(servedSite);
+  api.getSiteSettings.mockResolvedValue(SITE);
+  api.getChoices.mockResolvedValue(CHOICES);
 });
 
 describe("Imports hub", () => {
@@ -149,7 +143,7 @@ describe("Imports hub", () => {
 
     expect(await screen.findByText("186 students added · 4 already here")).toBeInTheDocument();
     expect(api.getDataImportBatches).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "COMMITTED,CANCELLED,EXPIRED", page: 1 }),
+      expect.objectContaining({ finished: true, page: 1 }),
     );
     await user.selectOptions(screen.getByLabelText("What"), "LEGACY_GRADINGS");
     await user.selectOptions(screen.getByLabelText("State"), "CANCELLED");
@@ -220,7 +214,7 @@ describe("Choosing the file", () => {
 
     await user.upload(screen.getByLabelText("Choose a file"), xlsx("record.csv"));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Choose the workbook as an Excel (.xlsx) file.",
+      "Choose the workbook saved as Excel (.xlsx).",
     );
     await user.upload(screen.getByLabelText("Choose a file"), xlsx("record.xlsx", 6 * 1024 * 1024));
     expect(screen.getByRole("alert")).toHaveTextContent("The file is larger than 5 MB.");
@@ -229,7 +223,7 @@ describe("Choosing the file", () => {
 
   it("uses the server's configured upload limit rather than a browser copy", async () => {
     const user = userEvent.setup();
-    api.getSiteSettings.mockResolvedValue({ ...servedSite, import_upload_max_bytes: 10 * 1024 * 1024 });
+    api.getSiteSettings.mockResolvedValue({ ...SITE, imports: { ...SITE.imports, max_bytes: 10 * 1024 * 1024 } });
     api.createDataImportBatch.mockResolvedValue(created);
     api.getDataImportBatch.mockResolvedValue(batch());
 
@@ -243,7 +237,7 @@ describe("Choosing the file", () => {
 
   it("refuses files above a smaller server limit", async () => {
     const user = userEvent.setup();
-    api.getSiteSettings.mockResolvedValue({ ...servedSite, import_upload_max_bytes: 2 * 1024 * 1024 });
+    api.getSiteSettings.mockResolvedValue({ ...SITE, imports: { ...SITE.imports, max_bytes: 2 * 1024 * 1024 } });
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
     expect(await screen.findByText(/up to 2 MB and 1,000 rows/)).toBeInTheDocument();
@@ -355,7 +349,7 @@ describe("An import's results", () => {
       Promise.resolve(
         params.corrected
           ? page([row({ row_number: 4, corrected_fields: ["date_of_birth"] })], 5)
-          : page([row(), row({ row_number: 12, outcome: "SKIP_EXISTING", created_id: "" })]),
+          : page([row(), row({ row_number: 12, outcome: "SKIP_EXISTING", outcome_display: "Already in KukGrade", created_id: "" })]),
       ),
     );
 

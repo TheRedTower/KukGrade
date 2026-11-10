@@ -292,7 +292,7 @@ def test_the_list_and_detail_say_where_each_import_is_up_to() -> None:
         "skip_existing": 0,
         "excluded": 0,
     }
-    assert listed[reviewing.pk]["kind_display"] == "Student roster"
+    assert listed[reviewing.pk]["kind_display"] == "Students"
     assert listed[reviewing.pk]["status_display"] == "Uploaded"
     assert listed[reviewing.pk]["column_mapping"] == STANDARD_MAPPING
     assert listed[reviewing.pk]["uploaded_by_name"] == admin.email
@@ -687,6 +687,21 @@ def test_the_import_list_takes_several_statuses() -> None:
 
     assert [batch["id"] for batch in listed] == [finished.pk]
     assert open_one.pk not in [batch["id"] for batch in listed]
+
+
+def test_the_import_list_takes_the_finished_ones_by_name() -> None:
+    admin = admin_user()
+    open_one = roster(CLEAN_ROW, admin=admin)
+    finished = mapped(CLEAN_ROW, admin=admin)
+    commit_student_import(finished, actor=admin)
+    client = client_for(admin)
+
+    assert [b["id"] for b in results(client.get(BASE, {"finished": "true"}))] == [
+        finished.pk,
+    ]
+    assert [b["id"] for b in results(client.get(BASE, {"finished": "false"}))] == [
+        open_one.pk,
+    ]
 
 
 # --- what the matching and review screens need --------------------------------

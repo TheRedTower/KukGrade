@@ -15,7 +15,7 @@ import type {
 } from "./api";
 import { ApiError } from "./api";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
-import { sessionServed } from "./appTestSupport";
+import { CHOICES, sessionServed } from "./appTestSupport";
 
 const masterUser: AuthUser = {
   id: "uuid-master",
@@ -57,6 +57,7 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
+    getChoices: async () => CHOICES,
     getGradingSession: (...args: unknown[]) => mockGetGradingSession(...args),
     getAllGradingCandidates: (...args: unknown[]) => mockGetCandidates(...args),
     getAssessmentSummary: (...args: unknown[]) => mockGetSummary(...args),
@@ -139,13 +140,14 @@ function outcome(id: number, candidateId: number, overrides: Partial<CandidateOu
     id,
     candidate: candidateId,
     status: "PROPOSED",
+    status_display: "Proposed",
     proposed_outcome: "PASS",
     proposed_outcome_display: "Pass",
     proposed_by_name: "Morgan Reed",
     proposed_at: "2026-11-12T15:00:00Z",
     proposal_notes: "Clean grading throughout.",
     final_outcome: null,
-    final_outcome_display: "",
+    final_outcome_display: null,
     decided_by_name: "",
     decided_at: null,
     decision_notes: "",
@@ -211,6 +213,7 @@ const outcomes = [
   }),
   outcome(13, 3, {
     status: "FINALISED",
+    status_display: "Finalised",
     final_outcome: "FAIL",
     final_outcome_display: "Fail",
     decided_by_name: "Lee Tan",
@@ -286,6 +289,7 @@ describe("CohortAdjudicationScreen", () => {
     mockFinalise.mockImplementation(async (outcomeId: number) => ({
       ...outcomes.find((o) => o.id === outcomeId)!,
       status: "FINALISED",
+      status_display: "Finalised",
     }));
     mockGetStaged.mockResolvedValue([]);
     mockStage.mockImplementation(async (outcomeId: number) => ({ outcome: outcomeId }));
@@ -322,7 +326,7 @@ describe("CohortAdjudicationScreen", () => {
     renderBoard();
 
     const mia = await screen.findByTestId("cab-row-1");
-    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
     await waitFor(() =>
       expect(mockStage).toHaveBeenCalledWith(11, {
         final_outcome: "PASS",
@@ -341,7 +345,7 @@ describe("CohortAdjudicationScreen", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
     await user.click(screen.getByTestId("cab-record-staged"));
 
@@ -359,7 +363,7 @@ describe("CohortAdjudicationScreen", () => {
           recorded && row.id === 1
             ? {
                 ...row,
-                outcome: { ...row.outcome!, status: "FINALISED" as const, final_outcome: "PASS" as const },
+                outcome: { ...row.outcome!, status: "FINALISED" as const, status_display: "Finalised", final_outcome: "PASS" as const, final_outcome_display: "Pass" },
                 can_be_finalised: false,
               }
             : row,
@@ -368,11 +372,11 @@ describe("CohortAdjudicationScreen", () => {
     );
     mockFinalise.mockImplementation(async (outcomeId: number) => {
       recorded = true;
-      return { ...outcomes.find((o) => o.id === outcomeId)!, status: "FINALISED" };
+      return { ...outcomes.find((o) => o.id === outcomeId)!, status: "FINALISED", status_display: "Finalised" };
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     await user.click(screen.getByTestId("cab-record-staged"));
 
     expect(await screen.findByText("1 decision recorded.")).toBeVisible();
@@ -426,7 +430,7 @@ describe("CohortAdjudicationScreen", () => {
     renderBoard();
 
     const mia = await screen.findByTestId("cab-row-1");
-    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
     await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
     await user.click(within(mia).getByRole("button", { name: "Fail" }));
     await passTypingPause();
@@ -447,7 +451,7 @@ describe("CohortAdjudicationScreen", () => {
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     expect(await screen.findByText(/Could not save Mia\./)).toBeVisible();
     await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
     await waitFor(() => expect(mockStage).toHaveBeenCalledWith(12, expect.anything()));
@@ -460,7 +464,7 @@ describe("CohortAdjudicationScreen", () => {
     mockStage.mockRejectedValue(new ApiError("This candidate's decision can no longer be staged.", 400));
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
 
     expect(
       await screen.findByText(/This candidate's decision can no longer be staged. That decision is still/),
@@ -491,11 +495,11 @@ describe("CohortAdjudicationScreen", () => {
     renderBoard();
 
     const mia = await screen.findByTestId("cab-row-1");
-    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
     // Named by the first name the server serves.
     expect(screen.getByRole("button", { name: "Record decision for Mia" })).toBeVisible();
     const alex = screen.getByTestId("cab-row-2");
-    await user.click(within(alex).getByRole("button", { name: "Conditional" }));
+    await user.click(await within(alex).findByRole("button", { name: "Conditional" }));
 
     // A Conditional decision cannot be recorded without re-test requirements.
     const recordAll = screen.getByTestId("cab-record-staged");
@@ -527,11 +531,11 @@ describe("CohortAdjudicationScreen", () => {
     const user = userEvent.setup();
     mockFinalise.mockImplementation(async (outcomeId: number) => {
       if (outcomeId === 12) throw new ApiError("Session changed.", 400);
-      return { ...outcomes[0], status: "FINALISED" };
+      return { ...outcomes[0], status: "FINALISED", status_display: "Finalised" };
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
     await user.click(screen.getByTestId("cab-record-staged"));
 
@@ -550,11 +554,11 @@ describe("CohortAdjudicationScreen", () => {
       if (outcomeId === 11) {
         throw new ApiError("Authentication credentials were not provided.", 403, "authentication_required");
       }
-      return { ...outcomes[0], status: "FINALISED" };
+      return { ...outcomes[0], status: "FINALISED", status_display: "Finalised" };
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
     await user.click(screen.getByTestId("cab-record-staged"));
 
@@ -609,7 +613,7 @@ describe("CohortAdjudicationScreen", () => {
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-2")).getByRole("button", { name: "Alex Carter" }));
+    await user.click(await within(await screen.findByTestId("cab-row-2")).findByRole("button", { name: "Alex Carter" }));
 
     await waitFor(() =>
       expect(within(screen.getByTestId("cab-detail")).getByRole("heading", { name: "Alex Carter" })).toHaveFocus(),
@@ -621,7 +625,7 @@ describe("CohortAdjudicationScreen", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const name = within(await screen.findByTestId("cab-row-2")).getByRole("button", { name: "Alex Carter" });
+    const name = await within(await screen.findByTestId("cab-row-2")).findByRole("button", { name: "Alex Carter" });
     await user.click(name);
 
     expect(within(screen.getByTestId("cab-detail")).getByRole("heading", { name: "Alex Carter" })).toBeVisible();

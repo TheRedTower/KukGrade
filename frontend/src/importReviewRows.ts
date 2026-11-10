@@ -5,12 +5,6 @@ import { importRowName } from "./importSteps";
 
 export const PAGE_SIZE = 20;
 
-export const STATUSES = [
-  { value: "ACTIVE", label: "Active" },
-  { value: "INACTIVE", label: "Inactive" },
-  { value: "LEFT", label: "Left" },
-];
-
 export type RowParams = Parameters<typeof usePagedRows>[1];
 
 export type Tile<View extends string> = { key: View; label: string; count: number; tone: string; mark: string };

@@ -167,6 +167,29 @@ def test_only_rank_and_status_can_be_given_for_everyone(
     assert message in str(response.json()["error"]["fields"]["defaults"])
 
 
+def test_a_mapping_to_a_field_kukgrade_lacks_is_refused_where_it_is_saved() -> None:
+    # Every rule of a mapping lives in the service that saves it, so the
+    # endpoint and a direct call refuse it alike.
+    admin = admin_user()
+    batch = club_file(row("123-4-001"), admin=admin)
+
+    response = client_for(admin).post(
+        f"{BASE}{batch.pk}/mapping/",
+        {"column_mapping": {**MAPPING, "nickname": "Notes"}},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["fields"]["column_mapping"] == [
+        "Unknown field(s): nickname.",
+    ]
+    with pytest.raises(ValidationError) as refused:
+        save_import_mapping(batch, column_mapping={**MAPPING, "nickname": "Notes"})
+    assert "column_mapping" in refused.value.message_dict
+    batch.refresh_from_db()
+    assert not batch.configuration.column_mapping
+
+
 def test_a_whole_file_rank_must_be_a_rank_kukgrade_knows() -> None:
     batch = club_file(row("123-4-001"))
 
@@ -347,7 +370,7 @@ def test_the_current_screens_check_keeps_the_whole_file_values() -> None:
 
     preview: Any = check_roster(batch, column_mapping=MAPPING)
 
-    assert preview.ready == 1
+    assert preview.counts["ready"] == 1
 
 
 @pytest.mark.parametrize(

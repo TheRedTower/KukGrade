@@ -268,7 +268,7 @@ def test_a_roster_row_quoting_a_deleted_students_id_needs_review() -> None:
 
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
 
-    assert (preview.ready, preview.review_required) == (0, 1)
+    assert (preview.counts["ready"], preview.counts["review_required"]) == (0, 1)
     assert "was deleted" in " ".join(preview.rows[0].issues)
 
 
@@ -286,7 +286,11 @@ def test_a_roster_row_quoting_an_old_id_is_an_existing_student() -> None:
 
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
 
-    assert (preview.ready, preview.skip_existing, preview.review_required) == (0, 1, 0)
+    assert (
+        preview.counts["ready"],
+        preview.counts["skip_existing"],
+        preview.counts["review_required"],
+    ) == (0, 1, 0)
     assert f"now holds {NEW}" in " ".join(preview.rows[0].issues)
 
 

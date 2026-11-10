@@ -21,9 +21,7 @@ from data_imports.services import (
     next_step,
     roster_cells,
     roster_file_values,
-    row_counts,
 )
-from students.models import Student
 
 
 class ImportRowCountsSerializer(serializers.Serializer):
@@ -148,25 +146,25 @@ class ImportBatchSerializer(serializers.ModelSerializer):
         return next_step(batch)
 
     def get_detected_headers(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("detected_headers", []))
+        return batch.configuration.detected_headers
 
     def get_column_mapping(self, batch: ImportBatch) -> dict[str, str]:
-        return dict(batch.configuration_json.get("column_mapping", {}))
+        return batch.configuration.column_mapping
 
     def get_defaults(self, batch: ImportBatch) -> dict[str, str]:
-        return dict(batch.configuration_json.get("defaults", {}))
+        return batch.configuration.defaults
 
     def get_extra_columns(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("extra_columns", []))
+        return batch.configuration.extra_columns
 
     def get_sheet(self, batch: ImportBatch) -> str:
-        return str(batch.configuration_json.get("sheet", ""))
+        return batch.configuration.sheet
 
     def get_sheet_names(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("sheet_names", []))
+        return batch.configuration.sheet_names
 
     def get_sheet_error(self, batch: ImportBatch) -> str:
-        return str(batch.configuration_json.get("sheet_error", ""))
+        return batch.configuration.sheet_error
 
     def get_suggested_mapping(self, batch: ImportBatch) -> dict[str, str]:
         if batch.kind != ImportBatch.Kind.STUDENT_ROSTER:
@@ -188,22 +186,19 @@ class ImportBatchSerializer(serializers.ModelSerializer):
         ]
 
     def get_rank_mappings(self, batch: ImportBatch) -> dict[str, str]:
-        return dict(batch.configuration_json.get("rank_mappings", {}))
+        return batch.configuration.rank_mappings
 
     def get_grading_sheets(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("grading_sheets", []))
+        return batch.configuration.grading_sheets
 
     def get_warnings(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("warnings", []))
+        return batch.configuration.warnings
 
     @extend_schema_field(ImportRowCountsSerializer)
     def get_row_counts(self, batch: ImportBatch) -> dict[str, int]:
-        # Annotated by the batch list and detail (ImportBatchViewSet), so a
-        # page of imports is counted in its one query.
-        annotated = getattr(batch, "row_counts_annotated", None)
-        if annotated is not None:
-            return {name: getattr(batch, f"rows_{name}") for name in ROW_COUNT_NAMES}
-        return row_counts(batch)
+        # Every batch served is read through ImportBatchViewSet's queryset,
+        # which counts them (services.with_row_counts).
+        return {name: getattr(batch, f"rows_{name}") for name in ROW_COUNT_NAMES}
 
 
 class ImportRowSerializer(serializers.ModelSerializer):
@@ -295,6 +290,8 @@ class ImportMappingSerializer(serializers.Serializer):
     A column for each field, a whole-file value for a field the file lacks
     (current_rank or status only), and the columns to keep as extra
     information. A needed field with neither is typed into each row as a fix.
+    A refusal names the part it is about: column_mapping, defaults or
+    extra_columns.
     """
 
     column_mapping = serializers.DictField(
@@ -312,28 +309,6 @@ class ImportMappingSerializer(serializers.Serializer):
         default=list,
         help_text="The file's columns to keep as each student's extra information.",
     )
-
-    def validate_defaults(self, value: dict[str, str]) -> dict[str, str]:
-        if set(value) - set(STUDENT_WHOLE_FILE_FIELDS):
-            raise serializers.ValidationError(
-                "Only current rank and status can be given for the whole file.",
-            )
-        status = value.get("status", "").strip().upper()
-        if status and status not in Student.Status.values:
-            raise serializers.ValidationError(f"Status {status!r} is not recognised.")
-        return value
-
-    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        mapping = attrs["column_mapping"]
-        unknown = sorted(set(mapping) - set(STUDENT_TARGET_FIELDS))
-        if unknown:
-            raise serializers.ValidationError(
-                {"column_mapping": [f"Unknown field(s): {', '.join(unknown)}."]},
-            )
-        # A needed field may have no column: each row's value is then typed in
-        # as a fix, and the row needs attention until it is (owner,
-        # 2026-10-20). Commit refuses while any row does.
-        return attrs
 
 
 class ImportRowExclusionSerializer(serializers.Serializer):

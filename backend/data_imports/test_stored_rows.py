@@ -22,15 +22,17 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from data_imports.models import COMMITTED_ROWS_KEPT_FOR, ImportBatch, ImportRow
 from data_imports.services import (
+    ROW_COUNT_NAMES,
     cancel_import_batch,
     commit_legacy_grading_import,
     commit_student_import,
     correct_import_row,
     expire_import_batch,
+    row_counts,
     save_import_mapping,
     set_import_row_excluded,
 )
-from data_imports.testing import standard_workbook
+from data_imports.testing import check_roster, standard_workbook
 from data_imports.tests import (
     CLEAN_ROW,
     STANDARD_MAPPING,
@@ -298,6 +300,51 @@ def test_the_list_and_detail_say_where_each_import_is_up_to() -> None:
     detail = client.get(f"{BASE}{unmatched.pk}/").json()
     assert detail["detected_headers"] == list(STANDARD_MAPPING.values())
     assert detail["row_counts"]["total"] == 1
+
+
+def test_a_rows_counts_are_one_rule_served_and_checked_alike() -> None:
+    # One count of each outcome, and the total: the list's annotation and
+    # the check's count are the one statement (services._row_counted).
+    assert ROW_COUNT_NAMES == (
+        "total",
+        *(outcome.lower() for outcome in ImportRow.Outcome.values),
+    )
+    admin = admin_user()
+    batch = mapped(CLEAN_ROW, BAD_DATE, admin=admin)
+    set_import_row_excluded(batch, row_number=3, excluded=True)
+
+    checked = check_roster(batch, column_mapping=STANDARD_MAPPING).counts
+    served = client_for(admin).get(f"{BASE}{batch.pk}/").json()["row_counts"]
+
+    assert checked == {
+        "total": 2,
+        "ready": 1,
+        "review_required": 0,
+        "skip_existing": 0,
+        "excluded": 1,
+    }
+    assert served == checked
+    assert row_counts(batch.rows.all()) == checked
+
+
+def test_an_imports_configuration_is_read_by_name_with_its_empty_value() -> None:
+    batch = roster(CLEAN_ROW)
+    configuration = batch.configuration
+
+    # Not stored yet: read as empty, and reading writes nothing.
+    assert configuration.column_mapping == {}
+    assert configuration.sheet_error == ""
+    assert "column_mapping" not in batch.configuration_json
+
+    configuration.column_mapping = STANDARD_MAPPING
+    configuration.sheet_error = "Unreadable."
+    del configuration.sheet_error
+    batch.save(update_fields=["configuration_json", "updated_at"])
+
+    stored = ImportBatch.objects.get(pk=batch.pk)
+    assert stored.configuration_json["column_mapping"] == STANDARD_MAPPING
+    assert "sheet_error" not in stored.configuration_json
+    assert stored.configuration.column_mapping == STANDARD_MAPPING
 
 
 def test_the_list_filters_by_status_and_kind_and_refuses_anything_else() -> None:

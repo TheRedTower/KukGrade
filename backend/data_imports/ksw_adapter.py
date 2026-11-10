@@ -35,7 +35,9 @@ from openpyxl.utils import get_column_letter
 from data_imports.parsers import (
     MAX_COLUMNS,
     UnsupportedImportFileError,
+    cell_text,
     is_blank,
+    normalised_text,
     open_workbook,
     worksheet_rows,
 )
@@ -130,23 +132,13 @@ class WorkbookParseResult:
     sheets: list[str] = field(default_factory=list)
 
 
-def _clean(value: Any) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
-
-
-def _normalise(value: Any) -> str:
-    return " ".join(_clean(value).lower().split())
-
-
 def _classify_outcome(source_outcome_text: str) -> tuple[str, str | None, str]:
     """Returns (record_kind, outcome, attendance_status).
 
     A full stop or other closing punctuation ("Pass.", as the workbook has
     it) does not hide the word; the source text itself is kept as written.
     """
-    normalised = _normalise(source_outcome_text).rstrip(".!")
+    normalised = normalised_text(source_outcome_text).rstrip(".!")
     if not normalised:
         return LegacyRecordKind.GRADING_RESULT, None, LegacyAttendance.UNKNOWN
     if normalised in _DNA_VALUES:
@@ -168,7 +160,7 @@ def _find_header_row(
 ) -> tuple[int, dict[str, int]] | None:
     """Defensive header detection - by content, not position."""
     for row_index, row in enumerate(rows):
-        normalised_cells = [_normalise(cell) for cell in row]
+        normalised_cells = [normalised_text(cell) for cell in row]
         matches = {
             column: normalised_cells.index(column)
             for column in _MAIN_TABLE_COLUMNS
@@ -180,7 +172,7 @@ def _find_header_row(
 
 
 def _auxiliary_section_name(cells: tuple[Any, ...]) -> str | None:
-    first_cell = _normalise(cells[0]) if cells else ""
+    first_cell = normalised_text(cells[0]) if cells else ""
     return first_cell if first_cell in _AUXILIARY_SECTION_DISPLAY_NAMES else None
 
 
@@ -197,7 +189,7 @@ def _parse_main_table_row(
         index = columns.get(column)
         if index is None or index >= len(row):
             return ""
-        return _clean(row[index])
+        return cell_text(row[index])
 
     name = cell("name")
     if not name:
@@ -232,7 +224,7 @@ def _parse_auxiliary_row(
     cycle_year: int,
     cycle_month: int,
 ) -> CanonicalLegacyRow | None:
-    cells = [_clean(cell) for cell in row]
+    cells = [cell_text(cell) for cell in row]
     name = cells[0] if cells else ""
     if not name:
         return None
@@ -306,14 +298,14 @@ def _sheet_layout(header_row: tuple[Any, ...], main: dict[str, int]) -> _SheetLa
     and the unheaded columns after them, which hold its notes. Any other
     heading after the main table is a column of notes.
     """
-    headings = [_clean(cell) for cell in header_row]
+    headings = [cell_text(cell) for cell in header_row]
     main_end = max(main.values())
     extra: dict[int, str] = {}
     ignored: set[int] = set()
     for index in range(main_end + 1):
         if index in main.values():
             continue
-        if _normalise(headings[index]) in main:
+        if normalised_text(headings[index]) in main:
             ignored.add(index)
         elif headings[index]:
             extra[index] = headings[index]
@@ -322,7 +314,7 @@ def _sheet_layout(header_row: tuple[Any, ...], main: dict[str, int]) -> _SheetLa
     note_headings: dict[int, str] = {}
     current: _SideTable | None = None
     for index in range(main_end + 1, len(headings)):
-        heading = _normalise(headings[index])
+        heading = normalised_text(headings[index])
         if heading in _SIDE_TABLE_KINDS:
             current = _SideTable(kind=heading, name_column=index)
             side_tables.append(current)
@@ -350,7 +342,7 @@ def _parse_side_row(
     cycle_month: int,
 ) -> CanonicalLegacyRow | None:
     def cell(index: int | None) -> str:
-        return _clean(row[index]) if index is not None and index < len(row) else ""
+        return cell_text(row[index]) if index is not None and index < len(row) else ""
 
     name = cell(table.name_column)
     if not name:
@@ -480,7 +472,7 @@ def _parse_cycle_sheet(
         column's heading unless `heading` names them all."""
         return [
             _sheet_note(
-                _clean(row[index]),
+                cell_text(row[index]),
                 heading=layout.headings[index]
                 if heading is None and index < len(layout.headings)
                 else heading or "",
@@ -488,7 +480,7 @@ def _parse_cycle_sheet(
                 **place,
             )
             for index in indexes
-            if index < len(row) and _clean(row[index])
+            if index < len(row) and cell_text(row[index])
         ]
 
     # Anything written above the table - a title, a date - is kept too.
@@ -534,9 +526,9 @@ def _parse_cycle_sheet(
         parsed = _parse_main_table_row(row, columns, **place)
         if parsed is not None:
             extra = [
-                f"{heading}: {_clean(row[index])}"
+                f"{heading}: {cell_text(row[index])}"
                 for index, heading in layout.extra.items()
-                if index < len(row) and _clean(row[index])
+                if index < len(row) and cell_text(row[index])
             ]
             canonical_rows.append(_with_extra(parsed, extra))
         else:
@@ -554,7 +546,7 @@ def _parse_cycle_sheet(
             if side is not None:
                 canonical_rows.append(side)
         for index in range(len(row)):
-            text = _clean(row[index])
+            text = cell_text(row[index])
             if not text or index in claimed:
                 continue
             canonical_rows.append(

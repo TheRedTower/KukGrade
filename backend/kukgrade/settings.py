@@ -386,9 +386,7 @@ SPECTACULAR_SETTINGS = {
         "GradingStageEnum": "gradings.read_models.GradingStage",
         "LegacyRankFieldEnum": "gradings.models.LegacyRankField",
         "AuditEntityEnum": "audit.models.AuditEntity",
-        "StudentImportRowOutcomeEnum": (
-            "data_imports.services.StudentImportRowOutcome"
-        ),
+        "StudentImportRowOutcomeEnum": "data_imports.models.ImportRowOutcome",
     },
 }
 

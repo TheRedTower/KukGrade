@@ -15,7 +15,9 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 
+from data_imports.models import COMMITTED_ROWS_KEPT_FOR
 from data_imports.services import (
+    STALE_BATCH_AGE,
     expire_stale_import_batches,
     prune_finished_import_rows,
     remove_orphaned_uploads,
@@ -34,11 +36,15 @@ class Command(BaseCommand):
     help = (
         "Expire uncommitted import batches older than --hours, delete stored "
         "source files no batch names, and delete the rows of imports finished "
-        "more than 30 days ago."
+        f"more than {COMMITTED_ROWS_KEPT_FOR.days} days ago."
     )
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--hours", type=_positive_hours, default=24)
+        parser.add_argument(
+            "--hours",
+            type=_positive_hours,
+            default=STALE_BATCH_AGE // timedelta(hours=1),
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         max_age = timedelta(hours=options["hours"])

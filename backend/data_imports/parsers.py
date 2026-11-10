@@ -29,7 +29,10 @@ MAX_COLUMNS = 50
 MAX_XLSX_EXPANDED_BYTES = 50 * 1024 * 1024
 MAX_XLSX_ARCHIVE_MEMBERS = 2000
 
-_SUPPORTED_SUFFIXES = frozenset({"xlsx", "csv"})
+# The file types read: a workbook, and a CSV (a roster only).
+WORKBOOK_SUFFIX = "xlsx"
+CSV_SUFFIX = "csv"
+SUPPORTED_SUFFIXES = frozenset({WORKBOOK_SUFFIX, CSV_SUFFIX})
 
 
 class UnsupportedImportFileError(Exception):
@@ -37,6 +40,7 @@ class UnsupportedImportFileError(Exception):
 
 
 _UNREADABLE_XLSX = "The file could not be read as a valid Excel workbook."
+NO_SUCH_SHEET = "The workbook has no sheet named {sheet!r}."
 _UNREADABLE_CSV = "The file could not be read as a valid CSV file."
 
 
@@ -56,8 +60,19 @@ def file_suffix(filename: str) -> str:
     return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
 
+def cell_text(value: Any) -> str:
+    """A cell as the file shows it, trimmed; blank for an empty cell. The one
+    reading of a cell's text, for every kind of import."""
+    return "" if value is None else str(value).strip()
+
+
+def normalised_text(value: Any) -> str:
+    """A cell's text for matching: lower-cased, its spaces collapsed."""
+    return " ".join(cell_text(value).lower().split())
+
+
 def is_blank(cells: Sequence[Any]) -> bool:
-    return all(cell is None or str(cell).strip() == "" for cell in cells)
+    return not any(cell_text(cell) for cell in cells)
 
 
 def _check_xlsx_archive(content: bytes) -> None:
@@ -119,7 +134,7 @@ def worksheet_rows(worksheet: Any, *, max_col: int) -> Iterator[tuple[Any, ...]]
 def _last_filled(cells: Sequence[Any]) -> int:
     """How many cells reach the last non-blank one."""
     for index in range(len(cells) - 1, -1, -1):
-        if cells[index] is not None and str(cells[index]).strip():
+        if cell_text(cells[index]):
             return index + 1
     return 0
 
@@ -150,9 +165,7 @@ def _read(rows: Iterator[Sequence[Any]]) -> TabularData:
         raise UnsupportedImportFileError(msg)
 
     headers = [
-        ""
-        if index >= len(header_cells) or header_cells[index] is None
-        else str(header_cells[index]).strip()
+        cell_text(header_cells[index]) if index < len(header_cells) else ""
         for index in range(width)
     ]
     headers = [
@@ -193,10 +206,10 @@ def load_tabular_dataset(
     none is named - so a roster on another tab is never silently missed: the
     sheet read and every sheet's name come back with the rows."""
     suffix = file_suffix(filename)
-    if suffix not in _SUPPORTED_SUFFIXES:
+    if suffix not in SUPPORTED_SUFFIXES:
         msg = f"Unsupported file type: .{suffix or '?'}"
         raise UnsupportedImportFileError(msg)
-    if suffix == "csv":
+    if suffix == CSV_SUFFIX:
         return _read(_csv_rows(content))
     with open_workbook(content) as workbook:
         names = tuple(workbook.sheetnames)
@@ -205,7 +218,7 @@ def load_tabular_dataset(
         elif sheet in names:
             worksheet = workbook[sheet]
         else:
-            msg = f"The workbook has no sheet named {sheet!r}."
+            msg = NO_SUCH_SHEET.format(sheet=sheet)
             raise UnsupportedImportFileError(msg)
         # One column past the limit is read, so an over-wide header is seen.
         data = _read(worksheet_rows(worksheet, max_col=MAX_COLUMNS + 1))

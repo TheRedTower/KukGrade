@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from data_imports.parsers import normalised_text
+
 STUDENT_TARGET_FIELDS: tuple[str, ...] = (
     "wksa_id",
     "first_name",
@@ -48,13 +50,9 @@ _HEADER_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 
-def _normalise_header(header: str) -> str:
-    return " ".join(str(header).strip().lower().split())
-
-
 def suggest_column_mapping(headers: Sequence[str]) -> dict[str, str]:
     """Best-effort target field -> source header mapping, for pre-filling the UI."""
-    normalised = {header: _normalise_header(header) for header in headers}
+    normalised = {header: normalised_text(header) for header in headers}
     mapping: dict[str, str] = {}
     for field, aliases in _HEADER_ALIASES.items():
         for header, norm in normalised.items():

@@ -211,8 +211,8 @@ def test_create_import_batch_flags_identical_already_committed_hash() -> None:
 def test_preview_classifies_clean_row_as_ready() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
-    assert preview.total == 1
-    assert preview.ready == 1
+    assert preview.counts["total"] == 1
+    assert preview.counts["ready"] == 1
     assert preview.rows[0].outcome == "READY"
     assert preview.rows[0].current_rank_code == "WHITE"
 
@@ -273,7 +273,7 @@ def test_preview_flags_missing_required_field_as_review_required() -> None:
     row = ["123-4-524", "", "Kim", "2012-05-01", "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
-    assert preview.review_required == 1
+    assert preview.counts["review_required"] == 1
     assert "First name is required." in preview.rows[0].issues
 
 
@@ -282,7 +282,7 @@ def test_preview_flags_future_dob_as_review_required() -> None:
     row = ["123-4-525", "Alex", "Kim", future, "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
-    assert preview.review_required == 1
+    assert preview.counts["review_required"] == 1
     assert "cannot be in the future" in preview.rows[0].issues[0]
 
 
@@ -290,7 +290,7 @@ def test_preview_flags_unresolved_rank_as_review_required() -> None:
     row = ["123-4-526", "Alex", "Kim", "2012-05-01", "Not A Rank", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
-    assert preview.review_required == 1
+    assert preview.counts["review_required"] == 1
     assert "is not a rank KukGrade recognises" in preview.rows[0].issues[0]
 
 
@@ -304,7 +304,7 @@ def test_preview_flags_existing_wksa_id_as_skip_existing_and_never_updates() -> 
     )
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
-    assert preview.skip_existing == 1
+    assert preview.counts["skip_existing"] == 1
     row = preview.rows[0]
     assert row.outcome == "SKIP_EXISTING"
 
@@ -312,8 +312,8 @@ def test_preview_flags_existing_wksa_id_as_skip_existing_and_never_updates() -> 
 def test_preview_flags_duplicate_wksa_id_within_file() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW, CLEAN_ROW]))
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
-    assert preview.review_required == 1
-    assert preview.ready == 1
+    assert preview.counts["review_required"] == 1
+    assert preview.counts["ready"] == 1
     duplicate_row = next(r for r in preview.rows if r.outcome == "REVIEW_REQUIRED")
     assert "Duplicate WKSA ID within this file." in duplicate_row.issues
 
@@ -326,7 +326,7 @@ def test_preview_applies_row_correction() -> None:
         column_mapping=STANDARD_MAPPING,
         corrections={"2": {"first_name": "Alex"}},
     )
-    assert preview.ready == 1
+    assert preview.counts["ready"] == 1
     assert preview.rows[0].first_name == "Alex"
 
 
@@ -874,7 +874,7 @@ def test_a_check_reads_the_stored_rows_not_the_file() -> None:
 
     preview = check_roster(batch, column_mapping=STANDARD_MAPPING)
 
-    assert preview.ready == 1
+    assert preview.counts["ready"] == 1
 
 
 def test_cancel_a_committed_batch_is_refused() -> None:

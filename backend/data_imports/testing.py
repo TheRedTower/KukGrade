@@ -77,12 +77,12 @@ def check_roster(
     do (save_import_mapping, then correct_import_row for each row, keyed by
     row number), and return what checking every row found. Whole-file values
     and kept columns already saved stay as they are."""
-    saved = ImportBatch.objects.get(pk=batch.pk).configuration_json
+    saved = ImportBatch.objects.get(pk=batch.pk).configuration
     save_import_mapping(
         batch,
         column_mapping=column_mapping,
-        defaults=saved.get("defaults"),
-        extra_columns=saved.get("extra_columns"),
+        defaults=saved.defaults,
+        extra_columns=saved.extra_columns,
     )
     for row_number, changes in (corrections or {}).items():
         correct_import_row(batch, row_number=int(row_number), changes=dict(changes))

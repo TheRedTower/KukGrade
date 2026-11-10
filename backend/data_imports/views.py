@@ -284,11 +284,11 @@ class ImportBatchViewSet(
         )
 
     def _row_context(self, batch: ImportBatch) -> dict[str, Any]:
-        configuration = batch.configuration_json
+        configuration = batch.configuration
         return {
             "kind": batch.kind,
-            "extra_columns": configuration.get("extra_columns", []),
-            "column_mapping": configuration.get("column_mapping", {}),
+            "extra_columns": configuration.extra_columns,
+            "column_mapping": configuration.column_mapping,
         }
 
     @extend_schema(request=ImportRowCorrectionSerializer, responses=ImportRowSerializer)

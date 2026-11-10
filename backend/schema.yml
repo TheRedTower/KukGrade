@@ -4846,6 +4846,8 @@ components:
         A column for each field, a whole-file value for a field the file lacks
         (current_rank or status only), and the columns to keep as extra
         information. A needed field with neither is typed into each row as a fix.
+        A refusal names the part it is about: column_mapping, defaults or
+        extra_columns.
       properties:
         column_mapping:
           type: object

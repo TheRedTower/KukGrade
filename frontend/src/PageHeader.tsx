@@ -1,7 +1,6 @@
 import type { ReactNode, Ref } from "react";
 
 import { BackLink } from "./BackLink";
-import { Breadcrumbs, type Crumb } from "./Breadcrumbs";
 
 interface PageHeaderProps {
   title: ReactNode;
@@ -15,8 +14,6 @@ interface PageHeaderProps {
   tag?: ReactNode;
   /** The page above this one, as a link back. */
   back?: { to: string; label: string };
-  /** The trail above the title, for a page deeper than one level. */
-  crumbs?: Crumb[];
   /** The page's own buttons, at the end of the title row. */
   actions?: ReactNode;
   /** For a page that moves focus to its title. */
@@ -29,11 +26,10 @@ interface PageHeaderProps {
  * Every page's title area (see .page-header in layout.css): one title size,
  * one subtitle style, one place for a way back and for the page's buttons.
  */
-export function PageHeader({ title, titleId, subtitle, eyebrow, tag, back, crumbs, actions, titleRef, children }: PageHeaderProps) {
+export function PageHeader({ title, titleId, subtitle, eyebrow, tag, back, actions, titleRef, children }: PageHeaderProps) {
   return (
     <header className="page-header">
       {back ? <BackLink to={back.to}>{back.label}</BackLink> : null}
-      {crumbs ? <Breadcrumbs items={crumbs} /> : null}
       <div className="page-header__row">
         <div className="page-header__text">
           {eyebrow ? <p className="page-header__eyebrow">{eyebrow}</p> : null}

@@ -22,6 +22,7 @@ import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { keys } from "./queryKeys";
 
 type Filter = "all" | "unlinked" | "linked" | "voided";
 
@@ -40,11 +41,11 @@ export function HistoricalRecordsScreen() {
   const { refresh } = useLegacyLinking();
 
   const imports = useQuery({
-    queryKey: ["imports", "historical"],
+    queryKey: keys.imports.historical(),
     queryFn: () => getAllDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED" }),
   });
   const records = useQuery({
-    queryKey: ["legacyRecords", "browse", filter, page, batch, searched],
+    queryKey: keys.legacyRecords.browse(filter, page, batch, searched),
     queryFn: () => getLegacyGradingRecords({
       page,
       page_size: 50,
@@ -55,7 +56,7 @@ export function HistoricalRecordsScreen() {
     }),
   });
   const detail = useQuery({
-    queryKey: ["legacyRecords", "detail", id],
+    queryKey: keys.legacyRecords.detail(id),
     queryFn: () => getLegacyGradingRecord(Number(id)),
     enabled: Boolean(id),
   });

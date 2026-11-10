@@ -56,8 +56,8 @@ function AccountForm({
       is_active: isActive,
     }),
     onSuccess: (updated) => {
-      queryClient.setQueryData(["managedUser", user.id], updated);
-      void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      queryClient.setQueryData(keys.managedUser(user.id), updated);
+      void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
       // The change is audited: the page's own activity list shows it.
       void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
       onSaved("Account details saved.");
@@ -142,8 +142,8 @@ function AuthorityForm({
   const mutation = useMutation({
     mutationFn: () => updateManagedUserAuthority(user.id, authority),
     onSuccess: (updated) => {
-      queryClient.setQueryData(["managedUser", user.id], updated);
-      void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      queryClient.setQueryData(keys.managedUser(user.id), updated);
+      void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
       void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
       onSaved("Master authority saved.");
     },
@@ -212,8 +212,8 @@ function PasswordResetDialog({
       // Refetched rather than set from the response, which would keep the
       // password in the query cache: "Next sign-in" and the activity list
       // show the reset.
-      void queryClient.invalidateQueries({ queryKey: ["managedUser", user.id] });
-      void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      void queryClient.invalidateQueries({ queryKey: keys.managedUser(user.id) });
+      void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
       void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
     },
   });
@@ -268,7 +268,7 @@ function DeleteUserDialog({
   const mutation = useMutation({
     mutationFn: () => deleteManagedUser(user.id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
       navigate("/users");
     },
   });
@@ -318,7 +318,7 @@ export function UserDetailScreen(): React.ReactElement {
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
 
   const query = useQuery({
-    queryKey: ["managedUser", id],
+    queryKey: keys.managedUser(id),
     queryFn: () => getManagedUser(id),
     enabled: Boolean(id),
   });

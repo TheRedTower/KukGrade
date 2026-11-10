@@ -5,6 +5,7 @@ import { Alert } from "./Alert";
 import { errorMessage } from "./api";
 import { useAboutDocumentQuery, useAboutQuery, usePledgeQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
+import { mediaMatches } from "./useMediaQuery";
 
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -97,7 +98,7 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
   function jump(id: string) {
     const heading = document.getElementById(id);
     if (!heading) return;
-    const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const calm = mediaMatches("(prefers-reduced-motion: reduce)");
     heading.scrollIntoView({ behavior: calm ? "auto" : "smooth" });
     // So the next Tab carries on from the section that was jumped to.
     heading.focus({ preventScroll: true });

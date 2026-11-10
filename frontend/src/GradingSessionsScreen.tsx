@@ -24,26 +24,9 @@ import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
+import { ArrowRightIcon, PlusIcon } from "./Icons";
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
 
-function PlusIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="18">
-      <line x1="12" x2="12" y1="5" y2="19" />
-      <line x1="5" x2="19" y1="12" y2="12" />
-    </svg>
-  );
-}
-
-function ArrowRightIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="16">
-      <line x1="5" x2="19" y1="12" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  );
-}
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -189,7 +172,7 @@ export function GradingSessionsScreen() {
         subtitle="Plan and manage grading sessions"
         actions={
           <Button variant="primary" id="create-grading-btn" onClick={() => navigate("/gradings/new")}>
-            <PlusIcon /> Create grading
+            <PlusIcon size={18} /> Create grading
           </Button>
         }
       />
@@ -311,7 +294,7 @@ export function GradingSessionsScreen() {
                 framed
                 action={
                   <Button variant="primary" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")}>
-                    <PlusIcon /> Create grading
+                    <PlusIcon size={18} /> Create grading
                   </Button>
                 }
               >

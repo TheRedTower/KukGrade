@@ -7,8 +7,10 @@ import { buttonClass } from "./buttonClass";
 import { Alert } from "./Alert";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
-import { type EnrichedCandidate, type NextAction, SessionCandidateTable } from "./SessionParts";
+import { type NextAction, SessionCandidateTable } from "./SessionParts";
+import type { EnrichedCandidate } from "./sessionDetail";
 import type { useCandidateWork } from "./useCandidateWork";
+import { counted } from "./plural";
 
 interface SessionCandidatesSectionProps {
   session: GradingSession;
@@ -105,7 +107,7 @@ export function SessionCandidatesSection({
           </select>
         </label>
         <p className="filter-bar__count">
-          {shown.length} candidate{shown.length === 1 ? "" : "s"}
+          {counted(shown.length, "candidate", "candidates")}
         </p>
       </div>
 

@@ -28,6 +28,7 @@ import { Dialog } from "./Dialog";
 import "./PromotionLedger.css";
 import { formatShortDate } from "./dates";
 import { Button } from "./Button";
+import { counted } from "./plural";
 
 type PromotionRowItem = {
   candidate: GradingCandidate;
@@ -204,11 +205,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
   return (
     <section aria-labelledby="pl-title" className="page" data-testid="promotion-ledger-screen">
       <PageHeader
-        crumbs={[
-          { label: "Gradings", to: "/gradings" },
-          { label: session?.title || "Session", to: `/gradings/${sessionId}` },
-          { label: "Promotion Ledger" },
-        ]}
+        back={{ to: `/gradings/${sessionId}`, label: session?.title || "Session" }}
         title={session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
         titleId="pl-title"
         subtitle="Review the candidates who passed, check their new ranks, and promote them. Every promotion is dated the grading day."
@@ -227,7 +224,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       <section className="action-row pl-summary-card" aria-label="Cohort Promotion Summary">
         <div className="pl-summary-info">
           <span className="pl-summary-count item-title">
-            {eligibleCohort.length} {eligibleCohort.length === 1 ? "Candidate" : "Candidates"} Finalised with Pass · Eligible for Promotion
+            {counted(eligibleCohort.length, "Candidate", "Candidates")} Finalised with Pass · Eligible for Promotion
           </span>
           {eligibleCohort.length === 0 && rows.some((r) => r.isPromoted) && (
             <span className="meta">

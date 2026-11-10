@@ -17,6 +17,7 @@ import { DemoBanner } from "./DemoSignIn";
 import { NavigationRail } from "./NavigationRail";
 import { useChoicesQuery, useSiteSettingsQuery } from "./queries";
 import { SidebarProvider } from "./useSidebar";
+import { ThemeProvider } from "./useTheme";
 import { OverviewScreen } from "./OverviewScreen";
 import { StudentsScreen } from "./StudentsScreen";
 import { AddStudentScreen } from "./AddStudentScreen";
@@ -147,6 +148,7 @@ function App() {
   const [queryClient] = useState(createQueryClient);
 
   return (
+    <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
@@ -273,6 +275,7 @@ function App() {
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

@@ -18,7 +18,8 @@ import {
 } from "./Icons";
 import { KukGradeLogo } from "./KukGradeLogo";
 import { useAboutQuery } from "./queries";
-import { useNarrowScreen } from "./useNarrowScreen";
+import { useMediaQuery } from "./useMediaQuery";
+import { BREAKPOINTS_REM, maxWidthQuery } from "./layout";
 import { useSidebar } from "./useSidebar";
 import "./NavigationRail.css";
 
@@ -85,7 +86,8 @@ export function NavigationRail({
   isLoggingOut: boolean;
 }) {
   const { collapsed, setCollapsed } = useSidebar();
-  const narrow = useNarrowScreen();
+  // Phone-sized, where the sidebar becomes a menu.
+  const narrow = useMediaQuery(maxWidthQuery(BREAKPOINTS_REM.wide));
   // On a phone the sidebar is always the full menu; the strip is for desktops.
   const strip = collapsed && !narrow;
   const [menuOpen, setMenuOpen] = useState(false);

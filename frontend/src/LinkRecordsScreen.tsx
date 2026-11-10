@@ -12,7 +12,6 @@ import {
 } from "./api";
 import { ErrorText } from "./ErrorText";
 import { ImportPager } from "./ImportPager";
-import { counted } from "./importSteps";
 import { type NameItem, type NameView, NamesTable } from "./LinkNameRow";
 import { type Chosen, recordsToLink } from "./linkRecords";
 import { useSiteSettingsQuery } from "./queries";
@@ -21,6 +20,8 @@ import { useLeftNames } from "./useLeftNames";
 import { useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
 import { Button } from "./Button";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
 
 const PAGE_SIZE = 50;
 
@@ -67,15 +68,15 @@ export function LinkRecordsScreen() {
   const batchId = batch ? Number(batch) : undefined;
 
   const imports = useQuery({
-    queryKey: ["imports", "historical"],
+    queryKey: keys.imports.historical(),
     queryFn: () => getAllDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED" }),
   });
   const summary = useQuery({
-    queryKey: ["legacyPeople", "summary", batchId],
+    queryKey: keys.legacyPeople.summary(batchId),
     queryFn: () => getLegacyPeopleSummary({ batch: batchId, set_aside: "exclude" }),
   });
   const people = useQuery({
-    queryKey: ["legacyPeople", "list", view, batchId, debouncedSearch, page],
+    queryKey: keys.legacyPeople.list(view, batchId, debouncedSearch, page),
     placeholderData: keepPreviousData,
     queryFn: () =>
       getLegacyPeople({
@@ -236,7 +237,7 @@ export function LinkRecordsScreen() {
               disabled={clearOnPage.length === 0}
               onClick={() => setSelected([...new Set([...selected, ...clearOnPage.map((person) => person.group_key)])])}
             >
-              Select the {clearOnPage.length} clear {clearOnPage.length === 1 ? "suggestion" : "suggestions"}
+              Select the {clearOnPage.length} clear {agreeing(clearOnPage.length, "suggestion", "suggestions")}
             </Button>
             <Button variant="ghost" disabled={pageSelected.length === 0} onClick={() => setSelected([])}>
               Clear selection

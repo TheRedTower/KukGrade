@@ -3,14 +3,10 @@ import { useState } from "react";
 import { Alert } from "./Alert";
 import type { LockedCandidateWithdrawal, WithdrawalReason } from "./api";
 import { Dialog } from "./Dialog";
+import type { AttendanceCandidate } from "./sessionDetail";
 import "./GradingAttendance.css";
 import { Button } from "./Button";
-
-export type AttendanceCandidate = {
-  id: number;
-  name: string;
-  wksaId: string;
-};
+import { counted } from "./plural";
 
 type NoShowDialogProps = {
   candidates: AttendanceCandidate[];
@@ -66,7 +62,7 @@ export function NoShowDialog({
       <div className="attendance-dialog-summary subtext" aria-live="polite">
         {selected.length === 0
           ? "No no-shows selected"
-          : `${selected.length} no-show${selected.length === 1 ? "" : "s"} selected`}
+          : `${counted(selected.length, "no-show", "no-shows")} selected`}
       </div>
       {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
       <div className="attendance-dialog-actions">

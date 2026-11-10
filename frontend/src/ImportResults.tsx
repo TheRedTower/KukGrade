@@ -5,13 +5,13 @@ import { Link } from "react-router-dom";
 import { type DataImportBatch } from "./api";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
-import { counted } from "./importSteps";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { LinkPanel } from "./ImportLinkPanel";
 import { type RowFilter, RowsLedger } from "./ImportRowsLedger";
 import { SecondLook } from "./ImportSecondLook";
 import { VoidDialog } from "./ImportVoidDialog";
+import { agreeing, counted } from "./plural";
 
 /** One more thing to do from the results page, in the side panel. */
 function AlsoItem({ title, body, children }: { title: string; body: string; children: ReactNode }) {
@@ -41,15 +41,15 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
     roster
       ? [
           summary.skipped_existing
-            ? `${counted(summary.skipped_existing, "student", "students")} already in KukGrade ${summary.skipped_existing === 1 ? "was" : "were"} skipped and not changed.`
+            ? `${counted(summary.skipped_existing, "student", "students")} already in KukGrade ${agreeing(summary.skipped_existing, "was", "were")} skipped and not changed.`
             : null,
           summary.excluded
-            ? `${counted(summary.excluded, "row", "rows")} you left out ${summary.excluded === 1 ? "was" : "were"} not imported.`
+            ? `${counted(summary.excluded, "row", "rows")} you left out ${agreeing(summary.excluded, "was", "were")} not imported.`
             : null,
         ]
       : [
           summary.excluded
-            ? `${counted(summary.excluded, "record", "records")} you left out ${summary.excluded === 1 ? "was" : "were"} not imported.`
+            ? `${counted(summary.excluded, "record", "records")} you left out ${agreeing(summary.excluded, "was", "were")} not imported.`
             : null,
         ]
   ).filter(Boolean);

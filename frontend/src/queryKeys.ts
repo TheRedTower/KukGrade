@@ -4,10 +4,10 @@ import type { QueryClient } from "@tanstack/react-query";
 type Id = number | undefined;
 
 /**
- * The name of every grading, student and audit list the app keeps, in one
- * place, so a screen that reads a list and one that changes it agree on what
- * it is called. Each name starts with its family, so refreshing the family
- * (`all()`) refreshes every list in it.
+ * The name of everything the app reads and keeps, in one place, so a screen
+ * that reads a list and one that changes it agree on what it is called. Each
+ * name starts with its family, so refreshing the family (`all()`) refreshes
+ * every list in it. A lint rule refuses a key written anywhere else.
  */
 export const keys = {
   gradingSessions: {
@@ -22,6 +22,8 @@ export const keys = {
   gradingCandidates: {
     all: () => ["gradingCandidates"] as const,
     session: (sessionId: Id) => ["gradingCandidates", sessionId] as const,
+    board: (sessionId: Id) => ["gradingCandidates", sessionId, "board"] as const,
+    search: (sessionId: Id, term: string) => ["gradingCandidates", sessionId, "search", term] as const,
     detail: (candidateId: Id) => ["gradingCandidates", "detail", candidateId] as const,
   },
   candidateAssessments: {
@@ -31,6 +33,10 @@ export const keys = {
   },
   candidateAssessmentSummary: (assessmentId: Id) => ["candidateAssessmentSummary", assessmentId] as const,
   candidateAssessmentItems: (assessmentId: Id) => ["candidateAssessmentItems", assessmentId] as const,
+  /** The writes of one assessment's marks, counted while any is in flight. */
+  assessmentItemWrite: (assessmentId: Id) => ["assessmentItemWrite", assessmentId] as const,
+  assessmentNotesDrafts: () => ["assessmentNotesDraft"] as const,
+  assessmentNotesDraft: (assessmentId: Id) => ["assessmentNotesDraft", assessmentId] as const,
   stagedDecisions: (sessionId: Id) => ["stagedDecisions", sessionId] as const,
   promotionEligibility: (sessionId: Id) => ["promotionEligibility", sessionId] as const,
   withdrawalReasons: () => ["withdrawalReasons"] as const,
@@ -47,7 +53,55 @@ export const keys = {
     all: () => ["auditEvents"] as const,
     recent: () => ["auditEvents", "recent"] as const,
     user: (id: Id | string) => ["auditEvents", "user", id] as const,
+    log: (...filters: unknown[]) => ["auditEvents", "log", ...filters] as const,
   },
+  auditLabels: () => ["auditLabels"] as const,
+  auditSubject: (subject: string) => ["auditSubject", subject] as const,
+  imports: {
+    all: () => ["imports"] as const,
+    batch: (batchId: Id) => ["imports", "batch", batchId] as const,
+    unfinished: () => ["imports", "unfinished"] as const,
+    past: (...filters: unknown[]) => ["imports", "past", ...filters] as const,
+    /** Every finished historical import, for the record screens' import filter. */
+    historical: () => ["imports", "historical"] as const,
+    legacyPreview: (batchId: Id) => ["imports", "legacyPreview", batchId] as const,
+    rows: (batchId: Id) => ["imports", "rows", batchId] as const,
+    rowsPage: (batchId: Id, ...filters: unknown[]) => ["imports", "rows", batchId, ...filters] as const,
+    rowsPreview: (batchId: Id) => ["imports", "rows", batchId, "preview"] as const,
+    rowsWithRank: (batchId: Id, text: string | undefined) => ["imports", "rows", batchId, "rank", text] as const,
+    secondLook: (batchId: Id) => ["imports", "rows", batchId, "secondLook"] as const,
+  },
+  legacyRecords: {
+    all: () => ["legacyRecords"] as const,
+    browse: (...filters: unknown[]) => ["legacyRecords", "browse", ...filters] as const,
+    detail: (id: Id | string) => ["legacyRecords", "detail", id] as const,
+    group: (groupKey: string, batch: Id) => ["legacyRecords", "group", groupKey, batch] as const,
+    /** How many still await a student: every import, or one. */
+    awaitingLinkCount: (...batch: number[]) => ["legacyRecords", "awaitingLinkCount", ...batch] as const,
+  },
+  legacyPeople: {
+    all: () => ["legacyPeople"] as const,
+    summary: (batchId: Id) => ["legacyPeople", "summary", batchId] as const,
+    list: (...filters: unknown[]) => ["legacyPeople", "list", ...filters] as const,
+    unlinked: (batchId: Id) => ["legacyPeople", batchId, "unlinked"] as const,
+  },
+  managedUsers: {
+    all: () => ["managedUsers"] as const,
+    page: (...filters: unknown[]) => ["managedUsers", ...filters] as const,
+  },
+  /** One account: its own family, so refreshing the list leaves it as just saved. */
+  managedUser: (id: Id | string) => ["managedUser", id] as const,
+  currentUser: () => ["currentUser"] as const,
+  setupStatus: () => ["setupStatus"] as const,
+  ranks: () => ["ranks"] as const,
+  ageBands: () => ["ageBands"] as const,
+  effectiveSyllabus: (rankCode: string, ageBand: string | null) => ["effectiveSyllabus", rankCode, ageBand] as const,
+  siteSettings: () => ["siteSettings"] as const,
+  choices: () => ["choices"] as const,
+  about: () => ["about"] as const,
+  aboutDocument: (slug: string) => ["aboutDocument", slug] as const,
+  pledge: () => ["pledge"] as const,
+  credits: () => ["credits"] as const,
 };
 
 /**

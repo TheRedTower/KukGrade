@@ -4,11 +4,12 @@ import { Link } from "react-router-dom";
 import { type DataImportBatch, type LegacyPerson, errorMessage, getLegacyPeople, getLegacyRecordCounts } from "./api";
 import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
-import { counted } from "./importSteps";
 import { periodRange } from "./linkRecords";
 import { useLegacyLinking } from "./useLegacyLinking";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
 
 const LINK_GROUPS_SHOWN = 4;
 
@@ -22,11 +23,11 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
   const [linked, setLinked] = useState<Record<string, { person: LegacyPerson; name: string }>>({});
 
   const awaiting = useQuery({
-    queryKey: ["legacyRecords", "awaitingLinkCount", batch.id],
+    queryKey: keys.legacyRecords.awaitingLinkCount(batch.id),
     queryFn: () => getLegacyRecordCounts({ batch: batch.id }),
   });
   const people = useQuery({
-    queryKey: ["legacyPeople", batch.id, "unlinked"],
+    queryKey: keys.legacyPeople.unlinked(batch.id),
     queryFn: () => getLegacyPeople({ batch: batch.id, linked: false, page_size: LINK_GROUPS_SHOWN }),
     enabled: canLink,
   });
@@ -144,12 +145,12 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
                       {best.reasons.length ? <span className="subtext">{best.reasons.join(" · ")}</span> : null}
                     </span>
                     <Button
-                      aria-label={`${person.records === 1 ? "Link it" : `Link all ${person.records}`}: “${person.source_name}” to ${best.full_name}`}
+                      aria-label={`${agreeing(person.records, "Link it", `Link all ${person.records}`)}: “${person.source_name}” to ${best.full_name}`}
                       variant="primary"
                       disabled={busy}
                       onClick={() => linkAll(person, best.student, best.full_name)}
                     >
-                      {person.records === 1 ? "Link it" : `Link all ${person.records}`}
+                      {agreeing(person.records, "Link it", `Link all ${person.records}`)}
                     </Button>
                     <Link className={buttonClass({ variant: "ghost" })} to="/imports/records">
                       Someone else

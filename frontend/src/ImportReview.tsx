@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type DataImportBatch, commitDataImport, errorMessage, previewLegacyGradingImport } from "./api";
 import { Alert } from "./Alert";
 import { ImportDialog } from "./ImportDialog";
-import { counted } from "./importSteps";
 import { Button } from "./Button";
 import { LegacyReview } from "./ImportLegacyReview";
 import { RosterReview } from "./ImportRosterReview";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
 
 /** The seal: once every row is sorted, the summary and the import itself. */
 function Seal({
@@ -29,7 +30,7 @@ function Seal({
   const action = roster ? `Add ${counted(count, "student", "students")}` : `Import ${counted(count, "record", "records")}`;
   const line = roster
     ? [
-        counts.skip_existing ? `${counts.skip_existing} already in KukGrade ${counts.skip_existing === 1 ? "is" : "are"} skipped` : null,
+        counts.skip_existing ? `${counts.skip_existing} already in KukGrade ${agreeing(counts.skip_existing, "is", "are")} skipped` : null,
         counts.excluded ? `${counts.excluded} you left out` : null,
         batch.extra_columns.length ? `${batch.extra_columns.map((column) => `“${column}”`).join(", ")} kept as extra information` : null,
         "all are added together, or none are",
@@ -103,16 +104,16 @@ export function ImportReview({
   // A refused import shows the review again from the top, as it now stands.
   const [refusals, setRefusals] = useState(0);
   const preview = useQuery({
-    queryKey: ["imports", "legacyPreview", batch.id],
+    queryKey: keys.imports.legacyPreview(batch.id),
     queryFn: () => previewLegacyGradingImport(batch.id, {}),
     enabled: !roster,
   });
 
   async function refresh() {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["imports", "batch", batch.id] }),
-      queryClient.invalidateQueries({ queryKey: ["imports", "rows", batch.id] }),
-      queryClient.invalidateQueries({ queryKey: ["imports", "legacyPreview", batch.id] }),
+      queryClient.invalidateQueries({ queryKey: keys.imports.batch(batch.id) }),
+      queryClient.invalidateQueries({ queryKey: keys.imports.rows(batch.id) }),
+      queryClient.invalidateQueries({ queryKey: keys.imports.legacyPreview(batch.id) }),
     ]);
   }
 
@@ -120,11 +121,11 @@ export function ImportReview({
     mutationFn: () => commitDataImport(batch.id),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["imports", "batch", batch.id] }),
-        queryClient.invalidateQueries({ queryKey: ["imports", "rows", batch.id] }),
-        queryClient.invalidateQueries({ queryKey: ["imports", "unfinished"] }),
-        queryClient.invalidateQueries({ queryKey: ["imports", "past"] }),
-        queryClient.invalidateQueries({ queryKey: ["imports", "historical"] }),
+        queryClient.invalidateQueries({ queryKey: keys.imports.batch(batch.id) }),
+        queryClient.invalidateQueries({ queryKey: keys.imports.rows(batch.id) }),
+        queryClient.invalidateQueries({ queryKey: keys.imports.unfinished() }),
+        queryClient.invalidateQueries({ queryKey: keys.imports.past() }),
+        queryClient.invalidateQueries({ queryKey: keys.imports.historical() }),
       ]);
       onCommitted();
     },

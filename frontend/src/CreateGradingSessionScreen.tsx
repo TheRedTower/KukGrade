@@ -135,7 +135,7 @@ export function CreateGradingSessionScreen() {
   return (
     <section aria-labelledby="create-session-heading" className="page">
       <PageHeader
-        crumbs={[{ label: "Gradings", to: "/gradings" }, { label: "New session" }]}
+        back={{ to: "/gradings", label: "Gradings" }}
         title="Create grading session"
         titleId="create-session-heading"
         subtitle="Set the details, then add candidates."

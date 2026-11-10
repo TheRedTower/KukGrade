@@ -106,7 +106,7 @@ export function AddStudentScreen() {
   return (
     <section aria-labelledby="add-student-title" className="page">
       <PageHeader
-        crumbs={[{ label: "Students", to: "/students" }, { label: "Add student" }]}
+        back={{ to: "/students", label: "Students" }}
         title="Add student"
         titleId="add-student-title"
         subtitle="Create a staff-only student record"

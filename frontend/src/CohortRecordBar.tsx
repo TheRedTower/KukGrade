@@ -2,6 +2,7 @@ import type { Ref } from "react";
 
 import { Button } from "./Button";
 import { ErrorText } from "./ErrorText";
+import { agreeing } from "./plural";
 
 interface CohortRecordBarProps {
   stagedIds: number[];
@@ -24,7 +25,7 @@ export function CohortRecordBar({ stagedIds, failedIds, incomplete, keepFailures
           </p>
           {Object.keys(keepFailures).length > 0 && (
             <ErrorText field>
-              {Object.values(keepFailures)[0]} {Object.keys(keepFailures).length === 1 ? "That decision is" : "Those decisions are"} still
+              {Object.values(keepFailures)[0]} {agreeing(Object.keys(keepFailures).length, "That decision is", "Those decisions are")} still
               here, but will be lost if you leave this page.
             </ErrorText>
           )}
@@ -57,7 +58,7 @@ export function CohortRecordBar({ stagedIds, failedIds, incomplete, keepFailures
               ? "Recording…"
               : stagedIds.length === 0
                 ? "No decisions staged"
-                : `Record ${stagedIds.length} staged ${stagedIds.length === 1 ? "decision" : "decisions"}`}
+                : `Record ${stagedIds.length} staged ${agreeing(stagedIds.length, "decision", "decisions")}`}
           </Button>
         </footer>
   );

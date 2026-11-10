@@ -24,6 +24,8 @@ import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./AuditScreen.css";
 import { calendarDaysAgo, currentYear, formatApiDate, formatDateTime, formatTime } from "./dates";
+import { keys } from "./queryKeys";
+import { counted } from "./plural";
 
 const PAGE_SIZE = 10;
 
@@ -84,7 +86,7 @@ export function AuditScreen(): React.ReactElement {
   const action = (searchParams.get("action") ?? "") as AuditAction | "";
   const entityType = (searchParams.get("entity_type") ?? "") as AuditEntity | "";
   // The names come from the server, which owns the list (audit/models.py).
-  const labels = useQuery({ queryKey: ["auditLabels"], queryFn: getAuditLabels });
+  const labels = useQuery({ queryKey: keys.auditLabels(), queryFn: getAuditLabels });
   const entityLabel = labels.data?.entities.find((option) => option.value === entityType)?.label;
   const occurredFrom = searchParams.get("occurred_from") ?? "";
   const occurredTo = searchParams.get("occurred_to") ?? "";
@@ -95,7 +97,7 @@ export function AuditScreen(): React.ReactElement {
   // ("session:3", "student:5", "candidate:9", "user:<id>"), from a link on that record.
   const subject = searchParams.get("subject") ?? "";
   const subjectQuery = useQuery({
-    queryKey: ["auditSubject", subject],
+    queryKey: keys.auditSubject(subject),
     queryFn: () => getAuditSubject(subject),
     enabled: subject !== "",
   });
@@ -112,8 +114,7 @@ export function AuditScreen(): React.ReactElement {
   };
 
   const query = useQuery({
-    queryKey: [
-      "auditEvents",
+    queryKey: keys.auditEvents.log(
       page,
       action,
       entityType,
@@ -122,7 +123,7 @@ export function AuditScreen(): React.ReactElement {
       occurredFrom,
       occurredTo,
       appliedSearch,
-    ],
+    ),
     queryFn: () =>
       getAuditEvents({
         page,
@@ -255,7 +256,7 @@ export function AuditScreen(): React.ReactElement {
 
         <div className="action-row filter-bar__full audit-filter-summary meta">
           <span>
-            {totalCount} event{totalCount === 1 ? "" : "s"}
+            {counted(totalCount, "event", "events")}
             {entityId && (
               <>
                 {" "}

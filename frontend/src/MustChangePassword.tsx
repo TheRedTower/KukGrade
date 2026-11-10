@@ -5,6 +5,7 @@ import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { KukGradeLogo } from "./KukGradeLogo";
 import { Button } from "./Button";
+import { LockIcon } from "./Icons";
 
 type MustChangePasswordProps = {
   themeToggle?: ReactNode;
@@ -38,19 +39,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
 
       <main className="must-change-password-card">
         <div className="security-icon-badge" aria-hidden="true">
-          <svg
-            fill="none"
-            height="28"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            width="28"
-          >
-            <rect height="11" rx="2" ry="2" width="18" x="3" y="11" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
+          <LockIcon size={28} />
         </div>
 
         <h1 id="change-password-title">Choose a new password</h1>

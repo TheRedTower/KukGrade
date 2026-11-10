@@ -9,7 +9,7 @@
       // Applied before first paint, so the page never flashes the other
       // theme first. The resolved theme - the stored choice, else the
       // system preference - is always set, because component overrides are
-      // written as [data-theme="dark"] .x; src/useTheme.ts keeps it current
+      // written as [data-theme="dark"] .x; ThemeProvider (src/useTheme.tsx) keeps it current
       // and reads and writes the same "kukgrade-theme" key.
       (function () {
         var theme = null;

@@ -1,6 +1,19 @@
-import type { GradingCandidateRoster, GradingSession } from "./api";
-import type { AttendanceCandidate } from "./GradingAttendanceDialogs";
-import type { EnrichedCandidate } from "./SessionParts";
+import type { CandidateAssessment, CandidateOutcome, GradingCandidateRoster, GradingSession } from "./api";
+import { counted } from "./plural";
+
+/** A candidate on the session screen, with what the roster carries about them. */
+export interface EnrichedCandidate {
+  candidate: GradingCandidateRoster;
+  assessment?: CandidateAssessment;
+  outcome?: CandidateOutcome;
+}
+
+/** A candidate as the attendance dialogs name them. */
+export type AttendanceCandidate = {
+  id: number;
+  name: string;
+  wksaId: string;
+};
 
 export type SessionAction = "LOCK" | "COMPLETE" | "CANCEL" | "DELETE" | "OPEN" | "ARCHIVE" | "RESTORE";
 
@@ -116,7 +129,7 @@ export function confirmDetails(action: SessionAction, session: GradingSession, r
         message: `Opening starts the grading and cannot be undone: an open session does not go back to draft. ${
           registeredCount === 0
             ? "No candidates are registered."
-            : `${registeredCount} candidate${registeredCount === 1 ? " is" : "s are"} registered.`
+            : `${counted(registeredCount, "candidate is", "candidates are")} registered.`
         } Check the roster first. Once open, a candidate who already has an assessment can no longer be moved or removed; one who cannot attend can still be marked as a no-show.`,
       };
   }

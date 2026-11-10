@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type DataImportBatch, errorMessage, voidDataImportRecords } from "./api";
 import { ImportDialog } from "./ImportDialog";
+import { keys } from "./queryKeys";
 
 export function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -10,8 +11,8 @@ export function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose
     mutationFn: () => voidDataImportRecords(batch.id, reason.trim()),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["legacyRecords"] }),
-        queryClient.invalidateQueries({ queryKey: ["legacyPeople"] }),
+        queryClient.invalidateQueries({ queryKey: keys.legacyRecords.all() }),
+        queryClient.invalidateQueries({ queryKey: keys.legacyPeople.all() }),
       ]);
       onClose();
     },

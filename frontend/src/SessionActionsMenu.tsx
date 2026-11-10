@@ -22,7 +22,7 @@ function MenuItem({ danger, onClick, children }: { danger?: boolean; onClick: ()
 
 /** What this viewer may still do to the session, as a menu under one button. */
 export function SessionActionsMenu({ session, user, menu, onAction }: SessionActionsMenuProps) {
-  const { open, setOpen, menuRef, buttonRef, onMenuKeyDown } = menu;
+  const { open, setOpen, menuRef, buttonRef, panelRef, onMenuKeyDown } = menu;
 
   return (
     <div className="gsd-dropdown-wrap" ref={menuRef} data-clip-ok>
@@ -38,7 +38,7 @@ export function SessionActionsMenu({ session, user, menu, onAction }: SessionAct
       </Button>
 
       {open && (
-        <div className="gsd-dropdown-menu menu-panel" role="menu" onKeyDown={onMenuKeyDown}>
+        <div className="gsd-dropdown-menu menu-panel" ref={panelRef} role="menu" onKeyDown={onMenuKeyDown}>
           {/* The server decides, for this user, what may be done now. */}
           {session.can_open && <MenuItem onClick={() => onAction("OPEN")}>Open session</MenuItem>}
           {session.can_lock && <MenuItem onClick={() => onAction("LOCK")}>Lock session</MenuItem>}

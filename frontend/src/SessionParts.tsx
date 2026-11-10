@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
-import type { CandidateAssessment, CandidateOutcome, GradingCandidateRoster, GradingSession, GradingSessionStatus } from "./api";
+import type { GradingSession, GradingSessionStatus } from "./api";
+import type { EnrichedCandidate } from "./sessionDetail";
 import { Badge } from "./Badge";
 import { RankBelt } from "./Belt";
 import { Button } from "./Button";
@@ -12,12 +13,6 @@ import { labelOf, useChoices } from "./choices";
 import { AssessmentBadge, OutcomeBadge } from "./StatusBadge";
 
 /** A session's candidate with their assessment and outcome, as the session page shows them. */
-export interface EnrichedCandidate {
-  candidate: GradingCandidateRoster;
-  assessment?: CandidateAssessment;
-  outcome?: CandidateOutcome;
-}
-
 /** What a candidate's row offers next: a link, the proposal drawer, or nothing (no url). */
 export interface NextAction {
   label: string;

@@ -417,7 +417,7 @@ describe("PromotionLedgerScreen", () => {
     ]);
   });
 
-  it("renders screen header, breadcrumbs, candidate rows, and summary banner", async () => {
+  it("renders screen header, the way back, candidate rows, and summary banner", async () => {
     renderScreen(1);
 
     await waitFor(() => {
@@ -426,16 +426,11 @@ describe("PromotionLedgerScreen", () => {
       ).toBeInTheDocument();
     });
 
-    // Breadcrumb navigation
-    expect(screen.getByRole("link", { name: "Gradings" })).toHaveAttribute(
-      "href",
-      "/gradings",
-    );
+    // Back to the session the ledger belongs to.
     expect(screen.getByRole("link", { name: "Autumn 2026 Grading" })).toHaveAttribute(
       "href",
       "/gradings/1",
     );
-    expect(screen.getByText("Promotion Ledger", { selector: "[aria-current=\"page\"]" })).toBeInTheDocument();
 
     // Summary banner (Alex and Beth are eligible, Carlos is already promoted)
     expect(

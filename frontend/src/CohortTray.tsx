@@ -5,6 +5,7 @@ import { buttonClass } from "./buttonClass";
 import type { cohortBreakdown } from "./cohortBuilder";
 import { RankFlow } from "./CohortRank";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { counted } from "./plural";
 
 interface CohortTrayProps {
   sessionId: number;
@@ -25,7 +26,7 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
             <div className="action-row">
               <h2 id="bgc-tray-heading" className="section-title">Cohort to register</h2>
               <span className="bgc-cohort-count item-title" data-testid="bgc-cohort-count">
-                {count} candidate{count === 1 ? "" : "s"} selected
+                {counted(count, "candidate", "candidates")} selected
               </span>
             </div>
             <p className="bgc-section-subtext">
@@ -117,7 +118,7 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
                   disabled={submitting || count === 0}
                   data-testid="bgc-register-candidates-btn"
                 >
-                  {submitting ? "Registering..." : `Register ${count} candidate${count === 1 ? "" : "s"}`}
+                  {submitting ? "Registering..." : `Register ${counted(count, "candidate", "candidates")}`}
                 </Button>
               </div>
             </div>

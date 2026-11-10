@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { putBackSetAsideName, setAsideNames } from "./api";
+import { keys } from "./queryKeys";
 
 /**
  * Names on the linking page put aside for now: the viewer's own note of what
@@ -12,7 +13,7 @@ export function useLeftNames() {
 
   // The server filters the lists by what is aside, so they are asked for again.
   function changed() {
-    void queryClient.invalidateQueries({ queryKey: ["legacyPeople"] });
+    void queryClient.invalidateQueries({ queryKey: keys.legacyPeople.all() });
   }
 
   const leave = useMutation({ mutationFn: (key: string) => setAsideNames([key]), onSuccess: changed });

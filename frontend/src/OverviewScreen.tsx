@@ -19,95 +19,16 @@ import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { formatRecentTime, formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
-import { CheckIcon } from "./Icons";
+import { AlertCircleIcon, CalendarIcon, CheckCircleIcon, CheckIcon, ClockIcon } from "./Icons";
 import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { PageHeader } from "./PageHeader";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Badge } from "./Badge";
 
-function CalendarIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="20"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="20"
-    >
-      <rect height="18" rx="2" ry="2" width="18" x="3" y="4" />
-      <line x1="16" x2="16" y1="2" y2="6" />
-      <line x1="8" x2="8" y1="2" y2="6" />
-      <line x1="3" x2="21" y1="10" y2="10" />
-    </svg>
-  );
-}
 
-function CheckCircleIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="20"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="20"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="9 12 11 14 15 10" />
-    </svg>
-  );
-}
 
-function ClockIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
 
-function AlertIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" x2="12" y1="8" y2="12" />
-      <line x1="12" x2="12.01" y1="16" y2="16" />
-    </svg>
-  );
-}
 
 type FormattedActivityItem = {
   id: number;
@@ -326,7 +247,7 @@ export function OverviewScreen() {
               ))}
             </div>
           ) : (
-            <EmptyState fill icon={<span className="all-clear-icon"><CheckCircleIcon /></span>} title="All clear">
+            <EmptyState fill icon={<span className="all-clear-icon"><CheckCircleIcon className="overview-icon" size={20} /></span>} title="All clear">
               No candidate assessments currently requiring review.
             </EmptyState>
           )}
@@ -339,7 +260,7 @@ export function OverviewScreen() {
           {upcomingSession ? (
             <Link className="upcoming-session-row" to={`/gradings/${upcomingSession.id}`}>
               <div aria-hidden="true" className="calendar-icon-box">
-                <CalendarIcon />
+                <CalendarIcon className="overview-icon" size={20} />
               </div>
               <div className="upcoming-session-info">
                 <strong className="item-title">
@@ -403,9 +324,9 @@ export function OverviewScreen() {
                       activity.statusType === "success" ? (
                         <CheckIcon size={14} />
                       ) : activity.statusType === "warning" ? (
-                        <AlertIcon />
+                        <AlertCircleIcon className="overview-icon" size={14} />
                       ) : activity.statusType === "info" ? (
-                        <ClockIcon />
+                        <ClockIcon className="overview-icon" size={14} />
                       ) : null
                     }
                   >

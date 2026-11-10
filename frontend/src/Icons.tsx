@@ -1,8 +1,7 @@
 /**
- * Inline icons, so each glyph is drawn once with the same stroke props:
- * shared glyphs, the navigation rail's and the theme
- * toggle's. Screen-specific icons stay beside their screen. Every icon is
- * aria-hidden; the control around it supplies the accessible name.
+ * Every icon in the app, inline, so each glyph is drawn once with the same
+ * stroke props. Every icon is aria-hidden; the control around it supplies
+ * the accessible name.
  */
 
 type IconProps = { size?: number; className?: string };
@@ -71,6 +70,95 @@ export function XCircleIcon(props: IconProps) {
     <svg {...iconProps(props, 2.5)}>
       <circle cx="12" cy="12" r="10" />
       <path d="M15 9 9 15M9 9l6 6" />
+    </svg>
+  );
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+/** Forward, to the next page or rank; ArrowLeftIcon is its mirror. */
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 12h15M14 7l5 5-5 5" />
+    </svg>
+  );
+}
+
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M20 12H5M10 7l-5 5 5 5" />
+    </svg>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 1.5)}>
+      <path d="M12 15V4" />
+      <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
+      <path d="M3 15v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-3" />
+    </svg>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect height="18" rx="2" ry="2" width="18" x="3" y="4" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+}
+
+export function CheckCircleIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+export function ClockIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+export function AlertCircleIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 8v4M12 16h.01" />
+    </svg>
+  );
+}
+
+/** Who assessed: one person. */
+export function PersonIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="8" r="3.4" />
+      <path d="M5 20c0-3.6 3.1-5.8 7-5.8s7 2.2 7 5.8" />
     </svg>
   );
 }

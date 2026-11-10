@@ -13,6 +13,7 @@ import {
 } from "./api";
 import { type BoardRow, type StagedDecision, fromServer, missingRequirements, without } from "./adjudicationBoard";
 import { keys, refresh } from "./queryKeys";
+import { agreeing, counted } from "./plural";
 
 // How long typing settles before a staged decision is kept on the server.
 const KEEP_DELAY_MS = 600;
@@ -214,8 +215,8 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     const kept = outcomeIds.length - recorded.size;
     setLastResult(
       kept === 0
-        ? `${recorded.size} ${recorded.size === 1 ? "decision" : "decisions"} recorded.`
-        : `${recorded.size} recorded, ${kept} could not be recorded and ${kept === 1 ? "remains" : "remain"} staged.`,
+        ? `${counted(recorded.size, "decision", "decisions")} recorded.`
+        : `${recorded.size} recorded, ${kept} could not be recorded and ${agreeing(kept, "remains", "remain")} staged.`,
     );
     setIsRecording(false);
     // The roster carries each outcome, so recording reads it (and the lists that still hold outcomes) again.

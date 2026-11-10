@@ -5,12 +5,13 @@ import { Link } from "react-router-dom";
 
 import { ErrorText } from "./ErrorText";
 import { type LegacyGradingRecord, type LegacyPerson, errorMessage, getAllLegacyGradingRecords } from "./api";
-import { counted } from "./importSteps";
 import { type Chosen, periodRange, recordMonth, recordsToLink } from "./linkRecords";
 import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
 import { useLegacyLinking } from "./useLegacyLinking";
 import { Button } from "./Button";
 import { type Column, ResponsiveTable } from "./ResponsiveTable";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
 
 export type NameView = "todo" | "clear" | "choose" | "none" | "left" | "done";
 
@@ -55,13 +56,13 @@ function NameDetails({
   const { refresh } = useLegacyLinking();
   const [voiding, setVoiding] = useState<LegacyGradingRecord | null>(null);
   const records = useQuery({
-    queryKey: ["legacyRecords", "group", person.group_key, batch],
+    queryKey: keys.legacyRecords.group(person.group_key, batch),
     queryFn: () => getAllLegacyGradingRecords({ group_key: person.group_key, batch, linked: false, voided: false }),
   });
   const ticked = recordsToLink(person, unticked).length;
   const everyRecord = ticked === person.record_ids.length;
   const linkLabel = chosen
-    ? `Link ${everyRecord ? (ticked === 1 ? "it" : `all ${ticked}`) : `${ticked} of ${person.record_ids.length}`} to ${chosen.name}`
+    ? `Link ${everyRecord ? agreeing(ticked, "it", `all ${ticked}`) : `${ticked} of ${person.record_ids.length}`} to ${chosen.name}`
     : "Choose a student first";
 
   return (

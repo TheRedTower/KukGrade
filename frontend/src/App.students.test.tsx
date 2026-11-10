@@ -314,7 +314,7 @@ describe("Add student screen (/students/new)", () => {
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
 
-  it("renders the add student form with breadcrumbs, inputs, ranks, and privacy notice", async () => {
+  it("renders the add student form with the way back, inputs, ranks, and privacy notice", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
@@ -329,11 +329,10 @@ describe("Add student screen (/students/new)", () => {
 
     render(<App />);
 
-    // Header & breadcrumbs
+    // Header and the way back
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
     expect(screen.getByText("Create a staff-only student record")).toBeVisible();
-    expect(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Students" })).toBeVisible();
-    expect(screen.getByText("Add student", { selector: "[aria-current=\"page\"]" })).toBeVisible();
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Students" })).toBeVisible();
 
     // Section 1: Identity
     expect(screen.getByRole("heading", { name: "Identity" })).toBeVisible();
@@ -621,7 +620,7 @@ describe("Add student screen (/students/new)", () => {
     expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
   });
 
-  it("navigates back to /students when Cancel or breadcrumb is clicked", async () => {
+  it("navigates back to /students when Cancel or the back link is clicked", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
@@ -648,11 +647,11 @@ describe("Add student screen (/students/new)", () => {
 
     expect(window.location.pathname).toBe("/students");
 
-    // And the breadcrumb, from the form again
+    // And the back link, from the form again
     window.history.pushState({}, "", "/students/new");
     window.dispatchEvent(new PopStateEvent("popstate"));
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
-    await user.click(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Students" }));
+    await user.click(within(screen.getByRole("main")).getByRole("link", { name: "Students" }));
     expect(window.location.pathname).toBe("/students");
   });
 });
@@ -732,9 +731,8 @@ describe("Student detail screen (/students/:id)", () => {
     expect(screen.getByText("UK-5001")).toBeVisible();
     expect(screen.getByRole("button", { name: "Edit student" })).toBeVisible();
 
-    // Breadcrumb
-    expect(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Students" })).toBeVisible();
-    expect(screen.getByText("Alex Carter", { selector: "[aria-current=\"page\"]" })).toBeVisible();
+    // The way back
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Students" })).toBeVisible();
 
     // Student details card
     expect(screen.getByRole("heading", { name: "Student details" })).toBeVisible();
@@ -1179,7 +1177,7 @@ describe("Student detail screen (/students/:id)", () => {
     expect(firstNameInput).toHaveAttribute("aria-invalid", "true");
   });
 
-  it("navigates back to /students when clicking breadcrumb", async () => {
+  it("navigates back to /students when clicking the back link", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
@@ -1214,8 +1212,8 @@ describe("Student detail screen (/students/:id)", () => {
 
     expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
 
-    const breadcrumbBtn = within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Students" });
-    await user.click(breadcrumbBtn);
+    const backLink = within(screen.getByRole("main")).getByRole("link", { name: "Students" });
+    await user.click(backLink);
 
     expect(window.location.pathname).toBe("/students");
   });

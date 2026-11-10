@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { labelOf, useChoices } from "./choices";
 import { type DataImportBatch, getDataImportSecondLook } from "./api";
-import { counted } from "./importSteps";
 import { Button } from "./Button";
 import type { RowFilter } from "./ImportRowsLedger";
+import { keys } from "./queryKeys";
+import { counted } from "./plural";
 
 /** Students: what KukGrade filled in, for a second look. */
 export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: (filter: RowFilter) => void }) {
   const statuses = useChoices().student_statuses;
   const counts = useQuery({
-    queryKey: ["imports", "rows", batch.id, "secondLook"],
+    queryKey: keys.imports.secondLook(batch.id),
     queryFn: () => getDataImportSecondLook(batch.id),
   }).data;
   const fixed = counts?.corrected ?? 0;

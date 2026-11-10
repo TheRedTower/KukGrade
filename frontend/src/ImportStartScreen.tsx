@@ -19,11 +19,14 @@ import {
 import { Alert } from "./Alert";
 import { ErrorText } from "./ErrorText";
 import { ImportStepBar } from "./ImportStepBar";
-import { counted, importKindTitle } from "./importSteps";
+import { importKindTitle } from "./importSteps";
 import { useTemplateDownload } from "./importTemplate";
 import { useSiteSettingsQuery } from "./queries";
 import "./Imports.css";
 import { Button } from "./Button";
+import { keys } from "./queryKeys";
+import { ChevronRightIcon, UploadIcon } from "./Icons";
+import { counted } from "./plural";
 
 type Guide = { lead: string; fields: { name: string; hint: string; needed: boolean }[]; foot: string };
 
@@ -101,23 +104,7 @@ function uploadFailure(error: unknown): string {
   return errorMessage(error, "The file could not be read. Try again in a moment.");
 }
 
-function ChevronIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="16">
-      <path d="m9 18 6-6-6-6" />
-    </svg>
-  );
-}
 
-function UploadIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="40" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="40">
-      <path d="M12 15V4" />
-      <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
-      <path d="M3 15v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-3" />
-    </svg>
-  );
-}
 
 function GuideList({ kind }: { kind: DataImportKind }) {
   const guide = GUIDES[kind];
@@ -251,22 +238,22 @@ export function ImportStartScreen() {
     mutationFn: (file: File) => createDataImportBatch(file, kind),
     onSuccess: (response) => {
       setCreated(response);
-      void queryClient.invalidateQueries({ queryKey: ["imports"] });
+      void queryClient.invalidateQueries({ queryKey: keys.imports.all() });
     },
   });
   const batchId = created?.id;
   const batch = useQuery({
-    queryKey: ["imports", "batch", batchId],
+    queryKey: keys.imports.batch(batchId),
     queryFn: () => getDataImportBatch(batchId!),
     enabled: batchId !== undefined,
   });
   const sheet = useMutation({
     mutationFn: (name: string) => chooseDataImportSheet(batchId!, name),
-    onSuccess: (updated) => queryClient.setQueryData(["imports", "batch", batchId], updated),
+    onSuccess: (updated) => queryClient.setQueryData(keys.imports.batch(batchId), updated),
   });
   const discard = useMutation({
     mutationFn: (id: number) => cancelDataImportBatch(id),
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: ["imports"] }),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: keys.imports.all() }),
   });
 
   function take(file: File | undefined) {
@@ -371,7 +358,7 @@ export function ImportStartScreen() {
               type="button"
               onClick={() => setGuideOpen((open) => !open)}
             >
-              <ChevronIcon />
+              <ChevronRightIcon />
               What KukGrade looks for
             </button>
             {guideOpen ? (
@@ -404,7 +391,7 @@ export function ImportStartScreen() {
               onDrop={onDrop}
             >
               <span className="subtext">
-                <UploadIcon />
+                <UploadIcon size={40} />
               </span>
               <p className="item-title">Drag your file here</p>
               <p className="subtext">or</p>

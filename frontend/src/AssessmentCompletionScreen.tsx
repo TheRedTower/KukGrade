@@ -45,11 +45,12 @@ import { formatShortDate, formatTime } from "./dates";
 import { ItemRemarks } from "./ItemRemarks";
 import { hasRemarks } from "./remarks";
 import "./CandidateAssessment.css";
-import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
+import { ArrowRightIcon, CheckIcon, CrossIcon, LockIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { CoreAreaMark, LedgerTable, ResultMark, SealIcon } from "./AssessmentRecordParts";
+import { CoreAreaMark, LedgerTable, ResultMark } from "./AssessmentRecordParts";
 import { EmailAddress, EmailList } from "./EmailAddress";
+import { agreeing } from "./plural";
 
 export function AssessmentCompletionScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -146,9 +147,11 @@ export function AssessmentCompletionScreen() {
           </Link>}>
           {!assessment
               ? "This candidate has no assessment form yet, so there is nothing to review."
-              : `${stats.remainingRequired} required ${
-                  stats.remainingRequired === 1 ? "item remains" : "items remain"
-                } unassessed. Finish scoring before completing the assessment.`}
+              : `${stats.remainingRequired} required ${agreeing(
+                  stats.remainingRequired,
+                  "item remains",
+                  "items remain",
+                )} unassessed. Finish scoring before completing the assessment.`}
         </Alert>
       </section>
     );
@@ -235,9 +238,7 @@ export function AssessmentCompletionScreen() {
                   <RankBelt rankId={candidate.from_rank} />
                   <span>{candidate.from_rank_name}</span>
                 </span>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
-                  <path d="M4 12h15M14 7l5 5-5 5" />
-                </svg>
+                <ArrowRightIcon className="caw-rank-arrow" size={15} />
                 <span className="acp-rank item-title">
                   <RankBelt rankId={candidate.testing_for_rank} />
                   <span>{candidate.testing_for_rank_name}</span>
@@ -406,9 +407,11 @@ export function AssessmentCompletionScreen() {
             </div>
             {stats.notAssessedCount > 0 && (
               <p className="acp-count-optional meta">
-                {`${stats.notAssessedCount} optional ${
-                  stats.notAssessedCount === 1 ? "requirement was" : "requirements were"
-                } left unassessed.`}
+                {`${stats.notAssessedCount} optional ${agreeing(
+                  stats.notAssessedCount,
+                  "requirement was",
+                  "requirements were",
+                )} left unassessed.`}
               </p>
             )}
           </div>
@@ -416,7 +419,7 @@ export function AssessmentCompletionScreen() {
           {isSealed ? (
             <div className="acp-card acp-card-sealed" data-testid="acp-sealed-panel">
               <div className="acp-notice-row">
-                <SealIcon />
+                <LockIcon size={18} />
                 <p>
                   {session.marking_open
                     ? "This record is sealed. While the session is open a mark can still be corrected, with a reason that is kept; once the session locks it is permanent."
@@ -439,7 +442,7 @@ export function AssessmentCompletionScreen() {
             <>
               <div className="acp-card acp-card-notice">
                 <div className="acp-notice-row">
-                  <SealIcon />
+                  <LockIcon size={18} />
                   <p>
                     Sealing completes this record. While the session is open a mark can still
                     be corrected, with a reason that is kept; it becomes permanent when the

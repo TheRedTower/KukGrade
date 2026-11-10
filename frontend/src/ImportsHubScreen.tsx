@@ -18,13 +18,15 @@ import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
 import { ImportDialog } from "./ImportDialog";
 import { ImportPager } from "./ImportPager";
-import { counted, useImportSteps } from "./importSteps";
+import { useImportSteps } from "./importSteps";
 import { useTemplateDownload } from "./importTemplate";
 import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useChoices } from "./choices";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
 
 const PAST_PAGE_SIZE = 10;
 
@@ -176,7 +178,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
                 <strong className="ix-warning-text">
                   {counted(awaitingLink, "imported record", "imported records")}
                 </strong>{" "}
-                {awaitingLink === 1 ? "is" : "are"} not linked to a student yet.
+                {agreeing(awaitingLink, "is", "are")} not linked to a student yet.
               </p>
               {canLink ? (
                 <Link className={buttonClass({ variant: "link" })} to="/imports/records">
@@ -199,7 +201,7 @@ function PastImports() {
   const choices = useChoices();
 
   const past = useQuery({
-    queryKey: ["imports", "past", kind, state, page],
+    queryKey: keys.imports.past(kind, state, page),
     placeholderData: keepPreviousData,
     queryFn: () =>
       getDataImportBatches({
@@ -322,11 +324,11 @@ export function ImportsHubScreen() {
   const [cancelling, setCancelling] = useState<DataImportBatch | null>(null);
 
   const unfinished = useQuery({
-    queryKey: ["imports", "unfinished"],
+    queryKey: keys.imports.unfinished(),
     queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: LARGEST_PAGE }),
   });
   const awaitingLink = useQuery({
-    queryKey: ["legacyRecords", "awaitingLinkCount"],
+    queryKey: keys.legacyRecords.awaitingLinkCount(),
     queryFn: () => getLegacyRecordCounts(),
   });
 
@@ -334,7 +336,7 @@ export function ImportsHubScreen() {
     mutationFn: (batch: DataImportBatch) => cancelDataImportBatch(batch.id),
     onSuccess: async () => {
       setCancelling(null);
-      await queryClient.invalidateQueries({ queryKey: ["imports"] });
+      await queryClient.invalidateQueries({ queryKey: keys.imports.all() });
     },
   });
 

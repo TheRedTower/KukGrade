@@ -9,6 +9,7 @@ import { destinationOf } from "./cohortBuilder";
 import { EmptyState } from "./EmptyState";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
+import { counted } from "./plural";
 
 export type StatusFilter = "ACTIVE_INACTIVE" | "ACTIVE" | "INACTIVE";
 
@@ -122,9 +123,7 @@ export function CohortFindSection({
               </div>
               <div className="action-row">
                 <span className="item-title">
-                  {students.length === 1
-                    ? "1 student matches"
-                    : `${students.length} students match`}
+                  {counted(students.length, "student matches", "students match")}
                 </span>
                 <Button
                   variant="primary" small

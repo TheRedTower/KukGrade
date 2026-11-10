@@ -3,10 +3,9 @@ import {
   MoveRegistrationDialog,
   NoShowDialog,
   RemoveRegistrationDialog,
-  type AttendanceCandidate,
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDialog } from "./OutcomeProposalDialog";
-import { toAttendanceCandidate } from "./sessionDetail";
+import { type AttendanceCandidate, toAttendanceCandidate } from "./sessionDetail";
 import type { useCandidateWork } from "./useCandidateWork";
 
 interface CandidateDialogsProps {

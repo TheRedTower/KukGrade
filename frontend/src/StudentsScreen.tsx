@@ -21,6 +21,7 @@ import "./StudentScreens.css";
 import { UserPlusIcon } from "./Icons";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
+import { counted } from "./plural";
 
 const PAGE_SIZE = 15;
 
@@ -160,7 +161,7 @@ export function StudentsScreen() {
             </>
           ) : null}
           <span className="filter-bar__count">
-            {studentsQuery.isLoading ? "Loading..." : `${totalCount} ${totalCount === 1 ? "student" : "students"}`}
+            {studentsQuery.isLoading ? "Loading..." : counted(totalCount, "student", "students")}
           </span>
         </div>
       </div>

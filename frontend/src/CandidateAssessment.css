@@ -59,7 +59,7 @@
   padding-block-end: 0;
 }
 
-.caw-run > .crumbs {
+.caw-run > .back-link {
   padding: var(--space-1) var(--space-5) 0;
 }
 
@@ -390,7 +390,7 @@
     height: auto;
   }
 
-  .caw-run > .crumbs,
+  .caw-run > .back-link,
   .caw-identity,
   .caw-band-header,
   .caw-row,

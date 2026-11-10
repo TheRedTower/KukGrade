@@ -3,14 +3,6 @@ import type { CategoryGroup } from "./candidateAssessmentData";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { RequirementBadge } from "./StatusBadge";
 
-export function SealIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
-      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
-    </svg>
-  );
-}
 
 /** The mark shown against a requirement or core area on the proof. */
 export function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {

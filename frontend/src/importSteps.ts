@@ -27,8 +27,3 @@ export function importRowName(row: DataImportRow, kind: DataImportKind): string 
       : row.values.name;
   return name || "(no name)";
 }
-
-/** "1 row", "3 rows". */
-export function counted(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}

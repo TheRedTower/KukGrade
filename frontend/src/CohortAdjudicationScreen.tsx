@@ -36,6 +36,7 @@ import { CohortFocusPane } from "./CohortFocusPane";
 import { CohortRecordBar } from "./CohortRecordBar";
 import { useSealedEvidenceLoaded } from "./queries";
 import { useStagedDecisions } from "./useStagedDecisions";
+import { agreeing } from "./plural";
 
 export function CohortAdjudicationScreen() {
   const { id } = useParams<{ id: string }>();
@@ -58,7 +59,7 @@ export function CohortAdjudicationScreen() {
   });
   const candidatesQuery = useQuery({
     // Withdrawn candidates are not decided: the server leaves them out.
-    queryKey: [...keys.gradingCandidates.session(sessionId), "board"],
+    queryKey: keys.gradingCandidates.board(sessionId),
     queryFn: () => getAllGradingCandidates({ session: sessionId, withdrawn: false }),
     enabled,
   });
@@ -125,7 +126,7 @@ export function CohortAdjudicationScreen() {
   return (
     <section aria-labelledby="cab-title" className="page">
       <PageHeader
-        back={{ to: `/gradings/${session.id}`, label: "Back to session" }}
+        back={{ to: `/gradings/${session.id}`, label: session.title }}
         title={`Final decisions · ${session.title}`}
         titleId="cab-title"
         subtitle={`${session.status_display} · ${formatSessionDate(session.grading_date)}${session.location ? ` · ${session.location}` : ""}`}
@@ -161,7 +162,7 @@ export function CohortAdjudicationScreen() {
       )}
       {withdrawnCount > 0 && (
         <p className="subtext">
-          {withdrawnCount} withdrawn {withdrawnCount === 1 ? "candidate is" : "candidates are"} not shown.
+          {withdrawnCount} withdrawn {agreeing(withdrawnCount, "candidate is", "candidates are")} not shown.
         </p>
       )}
 

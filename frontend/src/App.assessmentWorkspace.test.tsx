@@ -207,6 +207,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
     expect(screen.getByText("KG-0264")).toBeVisible();
     expect(screen.getByText("Junior (9–12)")).toBeVisible();
+    // The one way back: to the grading the candidate is in.
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Autumn Grading" })).toHaveAttribute(
+      "href",
+      "/gradings/10",
+    );
     // The status pill also carries the start time, so match on the pill.
     expect(screen.getByTestId("caw-status-pill")).toHaveTextContent("In progress");
 

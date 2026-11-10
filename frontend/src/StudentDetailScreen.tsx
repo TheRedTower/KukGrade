@@ -175,7 +175,7 @@ export function StudentDetailScreen() {
   return (
     <section aria-labelledby="student-heading" className="page">
       <PageHeader
-        crumbs={[{ label: "Students", to: "/students" }, { label: `${student.first_name} ${student.last_name}` }]}
+        back={{ to: "/students", label: "Students" }}
         title={`${student.first_name} ${student.last_name}`}
         titleId="student-heading"
         tag={<StudentStatusBadge status={student.status} label={student.status_display} />}

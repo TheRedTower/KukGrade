@@ -16,6 +16,8 @@ import { ErrorText } from "./ErrorText";
 import { ImportCellInput } from "./ImportCellInput";
 import { useRanksQuery } from "./queries";
 import { Button } from "./Button";
+import { keys } from "./queryKeys";
+import { agreeing } from "./plural";
 
 const PREVIEW_ROWS = 5;
 const EXTRA = "extra";
@@ -107,15 +109,15 @@ export function ImportMatchColumns({
   const dirty = mappingKey(draftPayload) !== acknowledged;
 
   const rows = useQuery({
-    queryKey: ["imports", "rows", batch.id, "preview"],
+    queryKey: keys.imports.rowsPreview(batch.id),
     queryFn: () => getDataImportRows(batch.id, { page_size: PREVIEW_ROWS }),
     enabled: saved,
   });
 
   async function refresh(updated?: DataImportBatch) {
-    if (updated) queryClient.setQueryData(["imports", "batch", batch.id], updated);
-    await queryClient.invalidateQueries({ queryKey: ["imports", "rows", batch.id] });
-    if (!updated) await queryClient.invalidateQueries({ queryKey: ["imports", "batch", batch.id] });
+    if (updated) queryClient.setQueryData(keys.imports.batch(batch.id), updated);
+    await queryClient.invalidateQueries({ queryKey: keys.imports.rows(batch.id) });
+    if (!updated) await queryClient.invalidateQueries({ queryKey: keys.imports.batch(batch.id) });
   }
 
   const save = useMutation({
@@ -168,7 +170,7 @@ export function ImportMatchColumns({
   const noColumn = Object.keys(columnFor).length === 0;
   const blockedWhy =
     clashes.size > 0
-      ? `${[...clashes].map(fieldName).join(", ")} ${clashes.size === 1 ? "is" : "are"} chosen for two columns.`
+      ? `${[...clashes].map(fieldName).join(", ")} ${agreeing(clashes.size, "is", "are")} chosen for two columns.`
       : noColumn
         ? "Match at least one column."
         : null;

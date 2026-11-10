@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { Button } from "./Button";
+import { mediaMatches } from "./useMediaQuery";
 
 /**
  * A box to write something that is kept as written: a comment on an item, or
@@ -74,7 +75,7 @@ export function ItemDraftBox({
             e.key === "Enter" &&
             !e.shiftKey &&
             !e.nativeEvent.isComposing &&
-            !window.matchMedia("(pointer: coarse)").matches
+            !mediaMatches("(pointer: coarse)")
           ) {
             e.preventDefault();
             void submit();

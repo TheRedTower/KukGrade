@@ -7,12 +7,14 @@ const MENU_EDGE_PX = 8;
  * An actions menu opened from a button: it closes on a click outside, on Escape (focus
  * returns to the button) and on Tab; it takes focus when it opens; arrow keys, Home and
  * End move within it; and where it would run off the left of the screen it opens from
- * the other edge. Put `menuRef` on the element that holds the button and the menu.
+ * the other edge. Put `menuRef` on the element that holds the button and the menu,
+ * `buttonRef` on the button and `panelRef` on the menu itself.
  */
 export function useActionsMenu() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -35,14 +37,14 @@ export function useActionsMenu() {
   }, [open]);
 
   useEffect(() => {
-    if (open) menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    if (open) panelRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
   }, [open]);
 
   // The menu opens from the button's right edge; where that would push it off the
   // left of the screen (the button is near the left on a phone), open from the
   // left edge instead.
   useLayoutEffect(() => {
-    const menu = menuRef.current?.querySelector<HTMLElement>(".gsd-dropdown-menu");
+    const menu = panelRef.current;
     if (!open || !menu) return;
     const place = () => {
       delete menu.dataset.align;
@@ -74,5 +76,5 @@ export function useActionsMenu() {
     items[next]?.focus();
   }
 
-  return { open, setOpen, menuRef, buttonRef, onMenuKeyDown };
+  return { open, setOpen, menuRef, buttonRef, panelRef, onMenuKeyDown };
 }

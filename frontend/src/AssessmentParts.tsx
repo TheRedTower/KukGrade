@@ -4,7 +4,7 @@ import { CandidateAssessmentItem, CandidateAssessmentItemResult } from "./api";
 import { CategoryGroup } from "./candidateAssessmentData";
 import { Dialog } from "./Dialog";
 import { formatTime } from "./dates";
-import { CheckIcon, CrossIcon } from "./Icons";
+import { CheckIcon, CrossIcon, PersonIcon } from "./Icons";
 import { Button } from "./Button";
 import { ItemDraftBox } from "./ItemDraftBox";
 import { ItemRemarks } from "./ItemRemarks";
@@ -13,14 +13,6 @@ import { hasRemarks } from "./remarks";
 import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
 
-function AssessorIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <circle cx="12" cy="8" r="3.4" />
-      <path d="M5 20c0-3.6 3.1-5.8 7-5.8s7 2.2 7 5.8" />
-    </svg>
-  );
-}
 
 /**
  * Sticky band header. It carries the category's own progress: the instructor
@@ -198,7 +190,7 @@ export function AssessmentItemRow({
           <div className="caw-row-meta">
             {attribution && (
               <span>
-                <AssessorIcon />
+                <PersonIcon size={12} />
                 {attribution}
               </span>
             )}

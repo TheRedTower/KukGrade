@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { keys } from "./queryKeys";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { BackLink } from "./BackLink";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
@@ -10,7 +10,7 @@ import { addAssessmentItemComment, CandidateAssessmentItem, CandidateAssessmentI
 import { RankBelt } from "./Belt";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
 import { formatDayMonth, formatTime } from "./dates";
-import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
+import { ArrowRightIcon, CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { Meter } from "./Meter";
@@ -19,6 +19,7 @@ import { assessmentTone } from "./badgeClass";
 import { AssessmentItemRow, CategoryHeader, DeleteAssessmentDialog } from "./AssessmentParts";
 import "./CandidateAssessment.css";
 import { EmailAddress } from "./EmailAddress";
+import { counted } from "./plural";
 
 export function CandidateAssessmentScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -80,7 +81,7 @@ export function CandidateAssessmentScreen() {
   // the item list and rollup are refetched once, when every write has landed,
   // because a refetch between writes would overwrite those still in flight.
   const itemsKey = keys.candidateAssessmentItems(assessment?.id);
-  const itemWriteKey = ["assessmentItemWrite", assessment?.id];
+  const itemWriteKey = keys.assessmentItemWrite(assessment?.id);
   const pendingItemWrites = useIsMutating({ mutationKey: itemWriteKey });
   const itemWriteChains = useRef(new Map<number, Promise<unknown>>());
   const itemWriteSeq = useRef(new Map<number, number>());
@@ -281,13 +282,7 @@ export function CandidateAssessmentScreen() {
 
   return (
     <section aria-labelledby="caw-title" className="page caw-run" data-testid="caw-workspace">
-      <Breadcrumbs
-        items={[
-          { label: "Gradings", to: "/gradings" },
-          { label: session.title, to: `/gradings/${session.id}` },
-          { label: candidate.student_display_name },
-        ]}
-      />
+      <BackLink to={`/gradings/${session.id}`}>{session.title}</BackLink>
 
       <header className="caw-identity">
         <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>
@@ -299,9 +294,7 @@ export function CandidateAssessmentScreen() {
           <RankBelt rankId={candidate.from_rank} />
           <span>{candidate.from_rank_name}</span>
         </Badge>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
-          <path d="M4 12h15M14 7l5 5-5 5" />
-        </svg>
+        <ArrowRightIcon className="caw-rank-arrow" size={15} />
         <Badge tone="neutral">
           <RankBelt rankId={candidate.testing_for_rank} />
           <span>{candidate.testing_for_rank_name}</span>
@@ -445,8 +438,7 @@ export function CandidateAssessmentScreen() {
 
         {categoryGroups.length > 0 && (
           <p className="caw-run-end meta">
-            End of assessment form · {categoryGroups.length}{" "}
-            {categoryGroups.length === 1 ? "category" : "categories"}
+            End of assessment form · {counted(categoryGroups.length, "category", "categories")}
             {assessment?.generated_at && ` · prepared ${formatDayMonth(assessment.generated_at)}`} from{" "}
             {candidate.age_band_display}
           </p>

@@ -14,6 +14,8 @@ import {
 import { ErrorText } from "./ErrorText";
 import { useRanksQuery } from "./queries";
 import { Button } from "./Button";
+import { keys } from "./queryKeys";
+import { counted } from "./plural";
 
 const EXAMPLES = 5;
 
@@ -38,14 +40,14 @@ export function ImportMatchRanks({
 
   // Asked without choices, so it reads the stored ones and changes nothing.
   const preview = useQuery({
-    queryKey: ["imports", "legacyPreview", batch.id],
+    queryKey: keys.imports.legacyPreview(batch.id),
     queryFn: () => previewLegacyGradingImport(batch.id, {}),
   });
   const spellings = preview.data?.rank_suggestions ?? [];
   const current = spellings.find((spelling) => spelling.source_text === picked) ?? spellings.find((spelling) => !spelling.chosen_rank_code) ?? spellings[0];
 
   const examples = useQuery({
-    queryKey: ["imports", "rows", batch.id, "rank", current?.source_text],
+    queryKey: keys.imports.rowsWithRank(batch.id, current?.source_text),
     queryFn: () => getDataImportRows(batch.id, { rank_text: current!.source_text, page_size: EXAMPLES }),
     enabled: current !== undefined,
   });
@@ -59,8 +61,8 @@ export function ImportMatchRanks({
       return previewLegacyGradingImport(batch.id, { rank_mappings: { ...all, ...changes } });
     },
     onSuccess: async (result: LegacyImportPreview) => {
-      queryClient.setQueryData(["imports", "legacyPreview", batch.id], result);
-      await queryClient.invalidateQueries({ queryKey: ["imports", "batch", batch.id] });
+      queryClient.setQueryData(keys.imports.legacyPreview(batch.id), result);
+      await queryClient.invalidateQueries({ queryKey: keys.imports.batch(batch.id) });
     },
   });
 
@@ -181,7 +183,7 @@ export function ImportMatchRanks({
                         <span className="ix-queue-text">
                           <span className="ix-queue-name item-title">“{spelling.source_text}”</span>
                           <span className="subtext">
-                            {spelling.rows} {spelling.rows === 1 ? "record" : "records"}
+                            {counted(spelling.rows, "record", "records")}
                           </span>
                         </span>
                         <Badge dot tone={tone}>

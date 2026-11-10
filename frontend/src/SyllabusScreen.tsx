@@ -19,6 +19,7 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import { ScrollRail } from "./ScrollRail";
 import { RequirementBadge } from "./StatusBadge";
 import "./Syllabus.css";
+import { keys } from "./queryKeys";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -129,7 +130,7 @@ export function SyllabusScreen() {
   // Everything a grading for this rank and age band assesses, in syllabus
   // order - the same rows assessment generation snapshots.
   const requirementsQuery = useQuery({
-    queryKey: ["effectiveSyllabus", selectedRankCode, selectedAgeBand],
+    queryKey: keys.effectiveSyllabus(selectedRankCode, selectedAgeBand),
     queryFn: () =>
       getAllEffectiveSyllabusRequirements({
         rank_code: selectedRankCode,

@@ -14,6 +14,7 @@ import { ImportStepBar } from "./ImportStepBar";
 import { importKindTitle } from "./importSteps";
 import "./Imports.css";
 import { buttonClass } from "./buttonClass";
+import { keys } from "./queryKeys";
 
 /** One import, opened at the step it is up to - so it survives a reload. */
 export function ImportScreen() {
@@ -22,7 +23,7 @@ export function ImportScreen() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const batch = useQuery({
-    queryKey: ["imports", "batch", batchId],
+    queryKey: keys.imports.batch(batchId),
     queryFn: () => getDataImportBatch(batchId),
     enabled: Number.isInteger(batchId) && batchId > 0,
   });

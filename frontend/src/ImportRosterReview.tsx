@@ -4,7 +4,7 @@ import { type DataImportBatch, type DataImportRow, correctDataImportRow, errorMe
 import { ErrorText } from "./ErrorText";
 import { ImportCellInput } from "./ImportCellInput";
 import { usePagedRows } from "./useImportRows";
-import { counted, importRowName } from "./importSteps";
+import { importRowName } from "./importSteps";
 import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
@@ -12,6 +12,7 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import { CountTiles, ExclusionButton, LastLook, ListHead, RowsList } from "./ImportReviewParts";
 import { Exclusion, PAGE_SIZE, RowParams, Tile, useRowExclusion } from "./importReviewRows";
 import { labelOf, useChoices } from "./choices";
+import { counted } from "./plural";
 
 /** The same source-preserving correction controls in every roster review view. */
 function RosterRowEditor({

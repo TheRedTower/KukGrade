@@ -37,6 +37,7 @@ import {
 } from "./sessionDetail";
 import { useActionsMenu } from "./useActionsMenu";
 import { useCandidateWork } from "./useCandidateWork";
+import { counted } from "./plural";
 
 export function GradingSessionDetailScreen(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -153,7 +154,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // counts and actions need every row), and the search says which of them fit.
   const searchTerm = useDebouncedValue(search.trim());
   const searchQuery = useQuery({
-    queryKey: [...keys.gradingCandidates.session(sessionId), "search", searchTerm],
+    queryKey: keys.gradingCandidates.search(sessionId, searchTerm),
     queryFn: () => getAllGradingCandidates({ session: sessionId, search: searchTerm }),
     // No carrying of an earlier term's answer over to the next: until the
     // server has answered this one, the screen says it is searching.
@@ -251,7 +252,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   return (
     <section aria-labelledby="gsd-title" className="page" data-testid="gsd-page">
       <PageHeader
-        crumbs={[{ label: "Gradings", to: "/gradings" }, { label: session.title }]}
+        back={{ to: "/gradings", label: "Gradings" }}
         title={session.title}
         titleId="gsd-title"
         titleRef={headingRef}
@@ -307,7 +308,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             </Link>
           }
         >
-          {awaitingDecisionCount} candidate{awaitingDecisionCount === 1 ? "" : "s"} awaiting final decision
+          {counted(awaitingDecisionCount, "candidate", "candidates")} awaiting final decision
         </Alert>
       )}
 

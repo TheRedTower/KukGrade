@@ -11,6 +11,7 @@ import { DemoSignIn } from "./DemoSignIn";
 import { MustChangePassword } from "./MustChangePassword";
 import { SetupPage } from "./SetupPage";
 import { Button } from "./Button";
+import { keys } from "./queryKeys";
 
 /**
  * Where sign-in leads: the page that sent the viewer to it (a session that
@@ -207,7 +208,7 @@ export function SetupGate({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const anonymous = status === "anonymous";
   const setup = useQuery({
-    queryKey: ["setupStatus"],
+    queryKey: keys.setupStatus(),
     queryFn: getSetupStatus,
     enabled: anonymous,
   });

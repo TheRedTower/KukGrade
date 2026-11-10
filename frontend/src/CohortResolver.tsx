@@ -11,6 +11,7 @@ import { CheckIcon, WarningIcon } from "./Icons";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
+import { counted } from "./plural";
 
 /** A student the registration refused, with why, as the resolver lists them. */
 export interface FlaggedCandidateItem {
@@ -53,11 +54,7 @@ export function CohortResolver({
   return (
     <section aria-labelledby="bgc-resolver-title" className="page" data-testid="bgc-page">
       <PageHeader
-        crumbs={[
-          { label: "Gradings", to: "/gradings" },
-          { label: session.title, to: `/gradings/${session.id}` },
-          { label: "Resolve flagged candidates" },
-        ]}
+        back={{ to: `/gradings/${session.id}`, label: session.title }}
         title="Resolve flagged candidates"
         titleId="bgc-resolver-title"
         subtitle="Successful registrations are already saved."
@@ -86,7 +83,7 @@ export function CohortResolver({
         <div className="bgc-section-header">
           <div>
             <h2 className="section-title">
-              {flaggedCount === 1 ? "1 candidate needs attention" : `${flaggedCount} candidates need attention`}
+              {counted(flaggedCount, "candidate needs", "candidates need")} attention
             </h2>
             <p className="bgc-section-subtext">
               These candidates could not be registered. Resolve the issues below, then retry only the flagged candidates.
@@ -169,7 +166,7 @@ export function CohortResolver({
             <span className="bgc-accordion-chevron" aria-hidden="true">
               {showSuccessfulList ? "▾" : "▸"}
             </span>
-            <span>View {createdCount} successful registration{createdCount === 1 ? "" : "s"}</span>
+            <span>View {counted(createdCount, "successful registration", "successful registrations")}</span>
             <span className="bgc-accordion-count meta">
               {createdCount} registered · {flaggedCount} flagged
             </span>

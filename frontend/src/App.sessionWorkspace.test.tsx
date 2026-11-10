@@ -428,7 +428,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     });
   }
 
-  it("renders session header, breadcrumbs, status pill, and lifecycle stepper track", async () => {
+  it("renders session header, the way back, status pill, and lifecycle stepper track", async () => {
     const fetchMock = setupStandardMock();
     vi.stubGlobal("fetch", fetchMock);
 

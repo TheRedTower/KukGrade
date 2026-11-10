@@ -198,7 +198,7 @@ export function useCandidateAssessmentData(
 export function useAssessmentNotesDraft(assessmentId: number | undefined) {
   const queryClient = useQueryClient();
   const readDraft = useCallback(
-    () => queryClient.getQueryData<string>(["assessmentNotesDraft", assessmentId]) ?? null,
+    () => queryClient.getQueryData<string>(keys.assessmentNotesDraft(assessmentId)) ?? null,
     [queryClient, assessmentId],
   );
   const [local, setLocal] = useState(() => ({ assessmentId, draft: readDraft() }));
@@ -210,15 +210,15 @@ export function useAssessmentNotesDraft(assessmentId: number | undefined) {
       // Nothing observes this entry while the scoring screen is open, so the
       // default five-minute garbage collection would silently discard the
       // draft during a longer correction. It lives until cleared instead.
-      queryClient.setQueryDefaults(["assessmentNotesDraft"], { gcTime: Infinity });
-      queryClient.setQueryData(["assessmentNotesDraft", assessmentId], value);
+      queryClient.setQueryDefaults(keys.assessmentNotesDrafts(), { gcTime: Infinity });
+      queryClient.setQueryData(keys.assessmentNotesDraft(assessmentId), value);
     },
     [queryClient, assessmentId],
   );
 
   const clearDraft = useCallback(() => {
     setLocal({ assessmentId, draft: null });
-    queryClient.removeQueries({ queryKey: ["assessmentNotesDraft", assessmentId] });
+    queryClient.removeQueries({ queryKey: keys.assessmentNotesDraft(assessmentId) });
   }, [queryClient, assessmentId]);
 
   return { draft, setDraft, clearDraft };
@@ -238,7 +238,7 @@ export function forgetDeletedAssessment(
     keys.candidateAssessments.byCandidate(candidateId),
     keys.candidateAssessmentItems(assessmentId),
     keys.candidateAssessmentSummary(assessmentId),
-    ["assessmentNotesDraft", assessmentId],
+    keys.assessmentNotesDraft(assessmentId),
   ]) {
     queryClient.removeQueries({ queryKey, exact: true });
   }

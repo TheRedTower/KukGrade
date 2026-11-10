@@ -141,11 +141,7 @@ export function BuildGradingCohortScreen() {
   return (
     <section aria-labelledby="bgc-title" className="page" data-testid="bgc-page">
       <PageHeader
-        crumbs={[
-          { label: "Gradings", to: "/gradings" },
-          { label: session.title, to: `/gradings/${session.id}` },
-          { label: "Build grading cohort" },
-        ]}
+        back={{ to: `/gradings/${session.id}`, label: session.title }}
         title="Build grading cohort"
         titleId="bgc-title"
         subtitle="Add whole groups, then review any exceptions."

@@ -20,6 +20,7 @@ import {
   type SetupDetails,
   updateCurrentUser,
 } from "./api";
+import { keys } from "./queryKeys";
 
 type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
 
@@ -40,7 +41,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const CURRENT_USER_QUERY_KEY = ["currentUser"] as const;
+const CURRENT_USER_QUERY_KEY = keys.currentUser();
 
 // Per-device, not per-account: lets the login screen say "Welcome back"
 // instead of "Sign in" once this browser has ever seen a signed-in session,

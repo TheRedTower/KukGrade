@@ -881,44 +881,6 @@ select:not([multiple]):not([size]) {
 
 /* ── Page furniture ────────────────────────────────────────────────────── */
 
-/* The trail of links above a page title. */
-.crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-}
-
-.crumbs__item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.crumbs a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--target-min);
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.crumbs a:hover {
-  color: var(--color-text);
-}
-
-.crumbs__sep {
-  color: var(--color-text-muted);
-}
-
-.crumbs [aria-current="page"] {
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-}
-
 /* The way back to the page above. */
 .back-link {
   display: inline-flex;

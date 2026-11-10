@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { bulkLinkLegacyRecords, bulkUnlinkLegacyRecords } from "./api";
+import { keys } from "./queryKeys";
 
 /**
  * Linking historical records to a student, and undoing it, as the results
@@ -12,8 +13,8 @@ export function useLegacyLinking() {
 
   async function refresh() {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["legacyRecords"] }),
-      queryClient.invalidateQueries({ queryKey: ["legacyPeople"] }),
+      queryClient.invalidateQueries({ queryKey: keys.legacyRecords.all() }),
+      queryClient.invalidateQueries({ queryKey: keys.legacyPeople.all() }),
     ]);
   }
 

@@ -544,7 +544,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     expect(screen.getByRole("button", { name: "Create draft session" })).toBeEnabled();
   });
 
-  it("renders create grading session form with breadcrumbs, inputs, and preview card", async () => {
+  it("renders create grading session form with the way back, inputs, and preview card", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
@@ -556,7 +556,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
     expect(await screen.findByRole("heading", { name: "Create grading session" })).toBeVisible();
     expect(screen.getByText("Set the details, then add candidates.")).toBeVisible();
-    expect(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Gradings" })).toBeVisible();
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Gradings" })).toBeVisible();
     expect(screen.getByLabelText(/session title/i)).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Grading day" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Grading month" })).toBeVisible();
@@ -721,7 +721,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     });
   });
 
-  it("navigates back to /gradings when Cancel or the breadcrumb link is clicked", async () => {
+  it("navigates back to /gradings when Cancel or the back link is clicked", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
@@ -741,11 +741,11 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(window.location.pathname).toBe("/gradings");
 
-    // And the breadcrumb, from the form again
+    // And the back link, from the form again
     window.history.pushState({}, "", "/gradings/new");
     window.dispatchEvent(new PopStateEvent("popstate"));
     await screen.findByRole("heading", { name: "Create grading session" });
-    await user.click(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Gradings" }));
+    await user.click(within(screen.getByRole("main")).getByRole("link", { name: "Gradings" }));
     expect(window.location.pathname).toBe("/gradings");
   });
 

@@ -17,14 +17,14 @@ import {
 } from "./api";
 
 export function useRanksQuery() {
-  return useQuery({ queryKey: ["ranks"], queryFn: () => getRanks({ page_size: LARGEST_PAGE }) });
+  return useQuery({ queryKey: keys.ranks(), queryFn: () => getRanks({ page_size: LARGEST_PAGE }) });
 }
 
 // The club's time zone is applied as the settings arrive, before anything
 // that shows a time renders from them (dates.ts).
 export function useSiteSettingsQuery() {
   return useQuery({
-    queryKey: ["siteSettings"],
+    queryKey: keys.siteSettings(),
     // A failed first load falls back to the browser's clock. Mounting another
     // consumer must not repeatedly restart that failed request.
     retryOnMount: false,
@@ -41,27 +41,27 @@ export function useSiteSettingsQuery() {
 // (App.tsx); a failed read leaves the lists empty, and mounting another
 // consumer must not restart it, or the shell would fall back to loading.
 export function useChoicesQuery() {
-  return useQuery({ queryKey: ["choices"], queryFn: getChoices, staleTime: Infinity, retryOnMount: false });
+  return useQuery({ queryKey: keys.choices(), queryFn: getChoices, staleTime: Infinity, retryOnMount: false });
 }
 
 export function useAboutQuery() {
-  return useQuery({ queryKey: ["about"], queryFn: getAbout });
+  return useQuery({ queryKey: keys.about(), queryFn: getAbout });
 }
 
 export function useAboutDocumentQuery(slug: string) {
-  return useQuery({ queryKey: ["aboutDocument", slug], queryFn: () => getAboutDocument(slug) });
+  return useQuery({ queryKey: keys.aboutDocument(slug), queryFn: () => getAboutDocument(slug) });
 }
 
 export function usePledgeQuery() {
-  return useQuery({ queryKey: ["pledge"], queryFn: getPledge });
+  return useQuery({ queryKey: keys.pledge(), queryFn: getPledge });
 }
 
 export function useCreditsQuery() {
-  return useQuery({ queryKey: ["credits"], queryFn: getCredits });
+  return useQuery({ queryKey: keys.credits(), queryFn: getCredits });
 }
 
 export function useAgeBandsQuery() {
-  return useQuery({ queryKey: ["ageBands"], queryFn: getAgeBands });
+  return useQuery({ queryKey: keys.ageBands(), queryFn: getAgeBands });
 }
 
 // One key per assessment, so every screen and a scoring PATCH share the cache.

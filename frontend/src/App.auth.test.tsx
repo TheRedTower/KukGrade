@@ -667,10 +667,14 @@ describe("Login theme toggle", () => {
   it("writes a dark system preference to the page and follows it as it changes", async () => {
     window.localStorage.removeItem("kukgrade-theme");
     let listener: ((event: MediaQueryListEvent) => void) | null = null;
+    // As a browser does, the list's own `matches` changes with the system.
+    let systemDark = true;
     const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(
       (query: string) =>
         ({
-          matches: true,
+          get matches() {
+            return systemDark;
+          },
           media: query,
           addEventListener: (_: string, handler: (event: MediaQueryListEvent) => void) => {
             listener = handler;
@@ -686,7 +690,10 @@ describe("Login theme toggle", () => {
     // The theme is written by an effect, which can land after the heading.
     await waitFor(() => expect(document.documentElement.getAttribute("data-theme")).toBe("dark"));
 
-    act(() => listener?.({ matches: false } as MediaQueryListEvent));
+    act(() => {
+      systemDark = false;
+      listener?.({ matches: false } as MediaQueryListEvent);
+    });
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     matchMedia.mockRestore();
   });

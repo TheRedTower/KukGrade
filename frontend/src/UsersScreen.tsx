@@ -27,6 +27,8 @@ import "./UserManagement.css";
 import { formatShortDateTime } from "./dates";
 import { Button } from "./Button";
 import { EmailAddress } from "./EmailAddress";
+import { keys } from "./queryKeys";
+import { counted } from "./plural";
 
 const PAGE_SIZE = 10;
 
@@ -49,7 +51,7 @@ function CreateUserDialog({
   const mutation = useMutation({
     mutationFn: createManagedUser,
     gcTime: 0,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["managedUsers"] }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() }),
   });
   const issued = mutation.data;
   const close = issued ? () => onCreated(issued) : onClose;
@@ -159,7 +161,7 @@ export function UsersScreen(): React.ReactElement {
   };
 
   const query = useQuery({
-    queryKey: ["managedUsers", page, search, role, status],
+    queryKey: keys.managedUsers.page(page, search, role, status),
     queryFn: () => getManagedUsers({
       page,
       page_size: PAGE_SIZE,
@@ -232,7 +234,7 @@ export function UsersScreen(): React.ReactElement {
             <option value="inactive">Inactive</option>
           </select>
         </label>
-        <p className="filter-bar__count">{count} user{count === 1 ? "" : "s"}</p>
+        <p className="filter-bar__count">{counted(count, "user", "users")}</p>
       </form>
 
       <div className="users-info-note meta">

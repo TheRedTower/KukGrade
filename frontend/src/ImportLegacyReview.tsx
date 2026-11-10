@@ -3,11 +3,11 @@ import { useState } from "react";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { type DataImportBatch, type LegacyImportPreview } from "./api";
 import { usePagedRows } from "./useImportRows";
-import { counted } from "./importSteps";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
 import { CountTiles, ExclusionButton, LastLook, ListHead, RowLines, RowsList } from "./ImportReviewParts";
 import { PAGE_SIZE, RowParams, Tile, useRowExclusion, where } from "./importReviewRows";
+import { counted } from "./plural";
 
 type LegacyView = "attention" | "results" | "others" | "EXCLUDED" | "check";
 

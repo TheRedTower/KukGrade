@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { ApiError, getDataImportRows } from "./api";
+import { keys } from "./queryKeys";
 
 type RowParams = Omit<NonNullable<Parameters<typeof getDataImportRows>[1]>, "page" | "page_size">;
 
@@ -16,7 +17,7 @@ export function usePagedRows(batchId: number, params: RowParams, pageSize: numbe
   const page = paging.filters === filters ? paging.page : 1;
   if (paging.filters !== filters) setPaging({ filters, page: 1 });
   const query = useQuery({
-    queryKey: ["imports", "rows", batchId, filters, page],
+    queryKey: keys.imports.rowsPage(batchId, filters, page),
     // The last page stays on screen while the next loads - never another
     // filter's rows, which would show under the wrong heading.
     placeholderData: (previous, previousQuery) =>

@@ -757,7 +757,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         get: operations["gradings_legacy_records_list"];
         put?: never;
@@ -780,7 +780,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         get: operations["gradings_legacy_records_retrieve"];
         put?: never;
@@ -805,7 +805,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         post: operations["gradings_legacy_records_link_student_create"];
         delete?: never;
@@ -828,7 +828,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         post: operations["gradings_legacy_records_resolve_current_rank_create"];
         delete?: never;
@@ -851,7 +851,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         post: operations["gradings_legacy_records_resolve_testing_for_rank_create"];
         delete?: never;
@@ -874,7 +874,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         post: operations["gradings_legacy_records_unlink_student_create"];
         delete?: never;
@@ -897,7 +897,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         post: operations["gradings_legacy_records_void_create"];
         delete?: never;
@@ -2400,7 +2400,7 @@ export interface components {
         /**
          * @description Read-mostly, matching PromotionSerializer's idiom - no ordinary
          *     update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
-         *     the five reconciliation actions below.
+         *     the reconciliation actions on LegacyGradingRecordViewSet.
          */
         LegacyGradingRecord: {
             readonly id: number;

@@ -73,7 +73,7 @@ docker compose up -d
 The first run pulls the image, which takes a minute or two. There is no `latest` image
 until the first stable release, so first set the `image:` line in `deploy/compose.yml` to the
 newest release candidate under [Releases](https://github.com/TheRedTower/KukGrade/releases)
-(for example `ghcr.io/theredtower/kukgrade:0.2.0-rc.6`). Then:
+(for example `ghcr.io/theredtower/kukgrade:0.2.0-rc.10`). Then:
 
 ```sh
 docker compose logs | grep "setup code"
@@ -130,10 +130,11 @@ Pangolin: see the [installation guide](docs/installation.md). Every setting is i
 flowchart LR
     A[Create session] --> B[Register candidates]
     B --> C[Assess each requirement]
-    C --> D[Instructor proposes]
-    D --> E[Master decides]
-    E --> F[Promote]
-    F --> G[Lock and complete]
+    C --> D[Lock]
+    D --> E[Instructor proposes]
+    E --> F[Master decides]
+    F --> G[Promote]
+    G --> H[Complete]
 ```
 
 ## Documentation

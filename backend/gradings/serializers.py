@@ -924,7 +924,7 @@ class LockedCandidateWithdrawalSerializer(serializers.Serializer):
 class LegacyGradingRecordSerializer(serializers.ModelSerializer):
     """Read-mostly, matching PromotionSerializer's idiom - no ordinary
     update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
-    the five reconciliation actions below."""
+    the reconciliation actions on LegacyGradingRecordViewSet."""
 
     outcome_display = serializers.CharField(
         source="get_outcome_display",

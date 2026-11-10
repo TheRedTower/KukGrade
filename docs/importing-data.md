@@ -78,7 +78,8 @@ source.
 ## Privacy
 
 Uploaded files and stored rows contain personal data. They are deleted when an
-import is cancelled or expires (24 hours), and an import's stored rows are deleted
-30 days after it finishes. An expired upload is cleared by the next upload or the next start of the
-container; run `expire_stale_import_batches` daily for a firm limit
+import is cancelled or expires (24 hours), and an import's stored rows are deleted once it
+has been finished for 30 days. An expired upload is cleared by the next upload or the next
+start of the container; finished rows past 30 days, by the next start of the container. Run
+`expire_stale_import_batches` daily for a firm limit on both
 ([installation](installation.md#maintenance)).

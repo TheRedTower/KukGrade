@@ -1475,8 +1475,8 @@ class LegacyGradingRecord(models.Model):
     )
 
     # Nullable, PROTECT: a legacy record may be committed with no known
-    # Student match but must never silently lose that link once
-    # deleting a user is possible.
+    # Student match, but a link once made is never lost: a student with one
+    # is kept when deleted, not erased (students.services.delete_student).
     student = models.ForeignKey(
         "students.Student",
         on_delete=models.PROTECT,

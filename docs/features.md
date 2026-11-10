@@ -11,10 +11,11 @@ flowchart LR
     A[Create a<br/>grading session] --> B[Register<br/>candidates]
     B --> C[Open the session]
     C --> D[Assess each<br/>candidate]
-    D --> E[Propose an<br/>outcome]
-    E --> F[Master makes the<br/>final decision]
-    F --> G[Promote<br/>passed students]
-    G --> H[Lock and<br/>complete]
+    D --> E[Lock the<br/>session]
+    E --> F[Propose an<br/>outcome]
+    F --> G[Master makes the<br/>final decision]
+    G --> H[Promote<br/>passed students]
+    H --> I[Complete the<br/>session]
 ```
 
 1. **Create a session** with a title, date, location and notes. A session moves through **Draft → Open → Locked → Completed**, or is
@@ -33,19 +34,8 @@ flowchart LR
    edited or removed, and adding one never changes the mark;
    category results are worked out from the items. Attendance is confirmed in bulk: tick the no-shows
    and confirm.
-4. **Propose an outcome.** Instructors propose **Pass**, **Fail** or
-   **Conditional**. A conditional result must say what the candidate still has to do.
-5. **Final decision.** Only a person with *final grading decision* authority
-   (the Master) can finalise an outcome. A finalised outcome can never be edited.
-   Decisions the Master has chosen but not yet recorded ("staged") are saved on the
-   server for that Master alone, so a session that times out or a closed tab loses
-   nothing; recording a decision, or the session leaving the locked state, removes
-   them. Staging is not audited, because it decides nothing; recording is.
-6. **Promote.** A Pass is promoted in a separate, deliberate step, which updates the
-   student's rank and writes a permanent rank-history record. A whole cohort can be
-   promoted at once.
-7. **Lock and complete.** A session can only be locked when every assessment is
-   complete.
+4. **Lock.** A session can only be locked when every assessment is complete.
+   Locking ends the grading and opens the decisions.
    - *Until the lock*, a mark can be changed, including on a completed assessment, but
      every change after the first mark needs a written reason (even changing your own, even
      clearing it). The change, who made it, when and why are kept and shown on the item, and
@@ -60,6 +50,20 @@ flowchart LR
      candidate's record is fixed.
    - *Withdrawing:* after the lock, a candidate can be withdrawn with a recorded reason by
      someone with the authority.
+5. **Propose an outcome.** In the locked session, instructors propose **Pass**, **Fail** or
+   **Conditional**. A conditional result must say what the candidate still has to do.
+6. **Final decision.** Only a person with *final grading decision* authority
+   (the Master) can finalise an outcome. A finalised outcome can never be edited.
+   Decisions the Master has chosen but not yet recorded ("staged") are saved on the
+   server for that Master alone, so a session that times out or a closed tab loses
+   nothing; recording a decision, or the session leaving the locked state, removes
+   them. Staging is not audited, because it decides nothing; recording is.
+7. **Promote.** A Pass is promoted in a separate, deliberate step, which updates the
+   student's rank and writes a permanent rank-history record. A whole cohort can be
+   promoted at once. Promoting is possible while the session is locked and after it is
+   completed.
+8. **Complete.** A session can be completed when every candidate who was not withdrawn
+   has a final decision.
    - *Cancelling and deleting:* a session that has recorded a final decision can no longer be
      cancelled or deleted.
    - *Archiving:* a completed or cancelled session can be archived by an administrator. It is
@@ -211,8 +215,8 @@ Notes:
 - User-management events in the audit log are visible to administrators only.
 - Deleting never erases a recorded decision, and is itself audited.
   - *A student* is never deleted before their final decision: while any grading they are
-    in has not reached it (a Pass waits for its promotion), the student's page says which
-    grading and offers no delete. Once it has, or once they are taken out, they can be
+    in has not reached it (a Pass waits for its promotion), deleting them is refused with a
+    message that names that grading. Once it has, or once they are taken out, they can be
     deleted: they leave the student list and searches, cannot be registered, and their
     record is closed to changes, but it is kept, so every past grading, mark, decision and
     promotion still shows who it was. Only a record with no grading history at all (added

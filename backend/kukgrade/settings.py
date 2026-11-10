@@ -1,4 +1,4 @@
-"""Django settings for the KukGrade backend foundation."""
+"""Django settings for KukGrade."""
 
 from __future__ import annotations
 
@@ -411,7 +411,8 @@ except ValueError:
 ABOUT_DOCUMENTS_DIR = Path(os.environ.get("KUKGRADE_DOCUMENTS_DIR") or BASE_DIR.parent)
 CREDITS_DIR = Path(os.environ.get("KUKGRADE_CREDITS_DIR") or BASE_DIR / "credits")
 
-# The club this deployment serves, shown in the application's top bar.
+# The club this deployment serves, shown in the sidebar, on the About page and
+# on assessment records.
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"
 
 # The school's own prefix in its student IDs, such as 123-4
@@ -452,10 +453,10 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
     "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
     _SECURE_TRANSPORT,
 )
-# Preload is off by default: listing the domain in browsers' preload lists is
-# close to permanent for kukgrade.co.uk and every subdomain, and the header's
-# preload token alone lets anyone submit it. A year of HSTS plus Cloudflare's
-# HTTPS redirect covers the first visit well enough. Opt in deliberately.
+# Preload is off by default: listing a domain in browsers' preload lists is
+# close to permanent for it and every subdomain, and the header's preload
+# token alone lets anyone submit it. A year of HSTS plus the proxy's HTTPS
+# redirect covers the first visit well enough. Opt in deliberately.
 SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
 # check --deploy warns when preload is off; that is the decision above, not an
 # oversight.

@@ -261,7 +261,7 @@ The version is a single number in `backend/kukgrade/version.py`, kept equal to
    `ghcr.io/theredtower/kukgrade:0.2.0-rc.1` for amd64 and arm64 on native runners, runs
    `manage.py check --deploy` and `.github/scripts/image-smoke.sh` on each, and only then
    publishes it. It never moves `latest`, and its About page and sidebar name it by its tag
-   (`0.2.0-rc.4`, from the build argument `KUKGRADE_BUILD_PRE_RELEASE`), so a candidate is never mistaken for the final release. A production-ready build is still tried this way
+   (`0.2.0-rc.1`, from the build argument `KUKGRADE_BUILD_PRE_RELEASE`), so a candidate is never mistaken for the final release. A production-ready build is still tried this way
    first.
 3. **Try it.** Run the candidate as a real deployment (the image tag goes in the compose
    file), work through the checks that matter for the change, and fix what turns up on

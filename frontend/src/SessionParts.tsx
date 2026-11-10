@@ -89,7 +89,7 @@ export function SessionNotes({
           <div>
             <h2 id="notes-heading" className="gsd-notes-title section-title">Session notes</h2>
             <p className="gsd-notes-sub subtext">
-              Notes are only visible to authorised instructors for this session.
+              Everyone who can open this grading can read these notes.
             </p>
           </div>
           {!editing && (

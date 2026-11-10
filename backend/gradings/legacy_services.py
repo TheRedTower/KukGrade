@@ -5,7 +5,7 @@ the native grading workflow (see its docstring in gradings/models.py). Every
 function here either creates a record from already-parsed, already-validated
 data (`create_legacy_grading_records`, every record of a data_imports
 commit in one write, with no audit event of its own: the commit records one
-for the whole batch) or performs one of the five explicit corrections a record
+for the whole batch) or performs one of the explicit corrections a record
 allows - nothing here ever touches `outcome`/`comments`/other source-derived
 fields once a record exists; `LegacyGradingRecord.clean()` enforces that even
 if a caller tried.

@@ -66,11 +66,11 @@ _USER_ADMINISTRATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("accounts", "delete_user"),
 )
 
-# Hard-delete of grading records and students. Deliberately narrower than
-# _KUK_SOOL_PERMISSIONS, which both groups share: an instructor can create
-# and correct grading data, but only an administrator can make it disappear.
-# See gradings.services / students.services for the cascade/attribution
-# handling this gates.
+# Deleting grading sessions, assessments and students. Deliberately narrower
+# than _KUK_SOOL_PERMISSIONS, which both groups share: an instructor can
+# create and correct grading data, but only an administrator can delete it.
+# Deleting never erases a final decision, and a student with history is kept
+# rather than erased (gradings.services, students.services).
 _DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "delete_any_gradingsession"),
     ("gradings", "delete_candidateassessment"),

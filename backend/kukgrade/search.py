@@ -6,7 +6,7 @@ Every list's search box uses this one function, so they all behave alike:
   order ("kim alex" finds Alex Kim).
 - **Accents and case do not matter** ("jose" finds José).
 - **A part of a word is found** ("spr" finds Spring), as it is typed.
-- **A slip of the keyboard is forgiven** ("sprng", "Ayesha" for Aisha): a longer
+- **A slip of the keyboard is forgiven** ("sprng" for Spring): a longer
   word of letters also matches a similar-looking word, using PostgreSQL's trigram
   matching. A word with a digit in it (an ID, a year, a date) is matched exactly.
 - **The best matches come first**, when the list has no order the person chose.

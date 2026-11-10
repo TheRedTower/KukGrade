@@ -22,7 +22,8 @@ Want something here, or something that is missing? Open an
 - [ ] **Put the demo site online**: it is built (see [demo.md](demo.md)); what is left is to run it
       on its own machine behind a tunnel, first from a release candidate and then following
       `latest` (the newest stable release, cut from `prod`), and to link it from the repository's
-      About box.
+      About box. Until `latest` exists, `deploy/compose.demo.yml` asks for `KUKGRADE_VERSION`;
+      give it the default `latest` again with the first stable release.
 - [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check
       (`frontend/src/layout.css`, Playwright width check, `frontend/e2e/widthDebt.json` empty).
       Done when the owner has checked the demo site on a real phone and tablet.

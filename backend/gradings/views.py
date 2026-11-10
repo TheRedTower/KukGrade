@@ -939,7 +939,7 @@ class LegacyGradingRecordViewSet(
     (link/unlink/resolve-rank/void) administrator-only. No ordinary
     create/update/delete: rows are only ever created by
     data_imports.services.commit_legacy_grading_import, and only ever changed
-    through the five gradings.legacy_services functions."""
+    through gradings.legacy_services."""
 
     serializer_class = LegacyGradingRecordSerializer
     permission_classes = [HasRequiredPermissions]

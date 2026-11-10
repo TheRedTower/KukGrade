@@ -294,7 +294,7 @@ def transition_grading_session(
 
     previous_status = locked_session.status
     if previous_status == GradingSession.Status.LOCKED:
-        # Unlocked or cancelled: what was staged there can no longer be recorded.
+        # Completed or cancelled: what was staged there can no longer be recorded.
         StagedDecision.objects.filter(
             outcome__candidate__session=locked_session,
         ).delete()

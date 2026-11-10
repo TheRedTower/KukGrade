@@ -4,14 +4,15 @@ from typing import Any
 
 from rest_framework import serializers
 
-from audit.models import AuditEvent
+from audit.models import AuditEntity, AuditEvent
+from kukgrade.serializers import ChoiceSerializer
 
 
 def student_id_of(event: AuditEvent) -> int | None:
     """The student an event is about: itself, or named in its metadata by id."""
     raw: Any = (
         event.entity_id
-        if event.entity_type == "Student"
+        if event.entity_type == AuditEntity.STUDENT
         else event.metadata.get("student_id")
     )
     try:
@@ -72,15 +73,9 @@ class AuditSubjectSerializer(serializers.Serializer):
     )
 
 
-class AuditChoiceSerializer(serializers.Serializer):
-    value = serializers.CharField()
-    # As in kukgrade/views.py: DRF lifts declared fields off the class.
-    label = serializers.CharField()  # type: ignore[assignment]
-
-
 class AuditLabelsSerializer(serializers.Serializer):
     """GET /api/audit-events/labels/: the names of the event and record
     types, so the audit screen's filters keep no list of their own."""
 
-    actions = AuditChoiceSerializer(many=True)
-    entities = AuditChoiceSerializer(many=True)
+    actions = ChoiceSerializer(many=True)
+    entities = ChoiceSerializer(many=True)

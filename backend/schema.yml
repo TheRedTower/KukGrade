@@ -1519,48 +1519,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/LegacyGradingRecord'
           description: ''
-  /api/gradings/legacy-records/{id}/resolve-current-rank/:
+  /api/gradings/legacy-records/{id}/resolve-rank/:
     post:
-      operationId: gradings_legacy_records_resolve_current_rank_create
-      description: |-
-        Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only. No ordinary
-        create/update/delete: rows are only ever created by
-        data_imports.services.commit_legacy_grading_import, and only ever changed
-        through gradings.legacy_services.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this legacy grading record.
-        required: true
-      tags:
-      - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResolveLegacyRankRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ResolveLegacyRankRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ResolveLegacyRankRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LegacyGradingRecord'
-          description: ''
-  /api/gradings/legacy-records/{id}/resolve-testing-for-rank/:
-    post:
-      operationId: gradings_legacy_records_resolve_testing_for_rank_create
+      operationId: gradings_legacy_records_resolve_rank_create
       description: |-
         Historical import records - read for both roles, reconciliation
         (link/unlink/resolve-rank/void) administrator-only. No ordinary
@@ -3292,16 +3253,6 @@ components:
         * `ATTENDED` - Attended
         * `DID_NOT_ATTEND` - Did not attend
         * `UNKNOWN` - Unknown
-    AuditChoice:
-      type: object
-      properties:
-        value:
-          type: string
-        label:
-          type: string
-      required:
-      - label
-      - value
     AuditEntityEnum:
       enum:
       - GradingSession
@@ -3394,11 +3345,11 @@ components:
         actions:
           type: array
           items:
-            $ref: '#/components/schemas/AuditChoice'
+            $ref: '#/components/schemas/Choice'
         entities:
           type: array
           items:
-            $ref: '#/components/schemas/AuditChoice'
+            $ref: '#/components/schemas/Choice'
       required:
       - actions
       - entities
@@ -3537,8 +3488,8 @@ components:
             - ANOTHER_GRADING
             type: string
             description: |-
-              * `THIS_SESSION` - THIS_SESSION
-              * `ANOTHER_GRADING` - ANOTHER_GRADING
+              * `THIS_SESSION` - For this session
+              * `ANOTHER_GRADING` - For another grading not yet settled
           description: 'The keys of `errors` whose student is already registered,
             for this session or for another grading that has not settled: nothing
             to retry, unlike the other failures.'
@@ -4011,6 +3962,19 @@ components:
       required:
       - current_password
       - new_password
+    Choice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+      - label
+      - value
     Credit:
       type: object
       properties:
@@ -5134,7 +5098,7 @@ components:
       type: object
       description: |-
         Read-mostly, matching PromotionSerializer's idiom - no ordinary
-        update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
+        update/delete exists (LegacyGradingRecord is kukgrade.kept), only
         the reconciliation actions on LegacyGradingRecordViewSet.
       properties:
         id:
@@ -5351,10 +5315,8 @@ components:
           description: How many records.
         first_period:
           type: string
-          readOnly: true
         last_period:
           type: string
-          readOnly: true
         linked_student:
           type: integer
           nullable: true
@@ -5372,11 +5334,9 @@ components:
           type: array
           items:
             type: string
-          readOnly: true
           description: The ranks the records give, as written, in date order.
         needs_rank:
           type: boolean
-          readOnly: true
           description: Whether a rank is written on a record but not matched to one
             yet.
         suggestion:
@@ -5406,6 +5366,14 @@ components:
       - shared
       - source_name
       - suggestion
+    LegacyRankFieldEnum:
+      enum:
+      - current_rank
+      - testing_for_rank
+      type: string
+      description: |-
+        * `current_rank` - current rank
+        * `testing_for_rank` - testing-for rank
     LegacyRecordLinkRequest:
       type: object
       properties:
@@ -6236,12 +6204,17 @@ components:
       - candidate
     ResolveLegacyRankRequest:
       type: object
-      description: '`rank=null` explicitly leaves the mapping unresolved.'
+      description: |-
+        Which of the record's ranks to map; `rank=null` explicitly leaves it
+        unresolved.
       properties:
+        field:
+          $ref: '#/components/schemas/LegacyRankFieldEnum'
         rank:
           type: integer
           nullable: true
       required:
+      - field
       - rank
     ResultEnum:
       enum:
@@ -6374,8 +6347,8 @@ components:
       - LEGACY
       type: string
       description: |-
-        * `KUKGRADE` - KUKGRADE
-        * `LEGACY` - LEGACY
+        * `KUKGRADE` - A grading in KukGrade
+        * `LEGACY` - A historical record
     StagedDecision:
       type: object
       description: A final decision chosen but not yet recorded, seen only by whoever
@@ -6927,22 +6900,19 @@ components:
       - reason
     WithdrawalReason:
       type: object
-      description: One withdrawal reason, from its code, and whether it needs a note.
+      description: One withdrawal reason, and whether it needs a note.
       properties:
-        code:
-          allOf:
-          - $ref: '#/components/schemas/WithdrawalReasonEnum'
-          readOnly: true
-        name:
+        value:
+          $ref: '#/components/schemas/WithdrawalReasonEnum'
+        label:
           type: string
-          readOnly: true
         note_required:
           type: boolean
           readOnly: true
       required:
-      - code
-      - name
+      - label
       - note_required
+      - value
     WithdrawalReasonEnum:
       enum:
       - INJURY

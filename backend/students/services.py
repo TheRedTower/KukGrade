@@ -23,10 +23,23 @@ from audit.recording import record, record_many, student_label
 from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
 from students import wksa_ids
-from students.models import PreviousWksaId, RetiredWksaId, Student, StudentExtraInfo
+from students.models import (
+    STUDENT_DELETED_MESSAGE,
+    PreviousWksaId,
+    RetiredWksaId,
+    Student,
+    StudentExtraInfo,
+)
+from syllabus.age import resolve_age_band
 
 if TYPE_CHECKING:
     from gradings.models import GradingCandidate
+
+# Registered for another grading between reading and locking: that session
+# is not locked, and locking it now would break the order, so start again.
+REGISTERED_MEANWHILE_MESSAGE = (
+    "This student was registered for another grading while being {doing}. Try again."
+)
 
 
 def _snapshot(student: Student) -> dict[str, Any]:
@@ -257,8 +270,7 @@ def _check_registrations_still_in_session(
         raise ValidationError(
             {
                 field: [
-                    "This student was registered for another grading while "
-                    "being changed. Try again.",
+                    REGISTERED_MEANWHILE_MESSAGE.format(doing="changed"),
                 ],
             },
         )
@@ -290,7 +302,6 @@ def _registrations_to_reband(student: Student) -> list[tuple[Any, str]]:
     the band it was graded in. A band with no syllabus for the testing rank
     is refused, as at registration.
     """
-    from gradings.age import resolve_age_band
     from gradings.services import unsettled_registrations
     from syllabus.models import AgeBand
     from syllabus.services import has_recorded_syllabus
@@ -375,7 +386,7 @@ def update_student(
     if locked.deleted_at is not None:
         # Checked on the locked row: an edit that loaded the student just
         # before a deletion committed must not change the closed record.
-        raise ValidationError({"student": ["This student has been deleted."]})
+        raise ValidationError({"student": [STUDENT_DELETED_MESSAGE]})
     before = _snapshot(locked)
     if date_of_birth is not None:
         _check_registrations_still_in_session(
@@ -550,8 +561,7 @@ def delete_student(student: Student, actor: User) -> bool:
         raise ValidationError(
             {
                 "student": [
-                    "This student was registered for another grading while "
-                    "being deleted. Try again.",
+                    REGISTERED_MEANWHILE_MESSAGE.format(doing="deleted"),
                 ],
             },
         )

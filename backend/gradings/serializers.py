@@ -8,11 +8,12 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.assessment_services import (
-    assessment_holds_final_decision,
     assessment_marks_open,
+    holds_final_decision,
     update_candidate_assessment,
     update_candidate_assessment_item,
 )
+from gradings.legacy_matching import Suggestion
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
     AssessmentItemComment,
@@ -23,6 +24,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
+    LegacyRankField,
     Promotion,
     StagedDecision,
 )
@@ -41,6 +43,7 @@ from gradings.read_models import (
 )
 from gradings.services import (
     WITHDRAWAL_REASON_REQUIRED_MESSAGE,
+    AlreadyRegistered,
     apply_candidate_update,
     candidate_can_be_deleted,
     candidate_can_be_withdrawn_after_lock,
@@ -54,6 +57,7 @@ from gradings.services import (
     with_session_progress,
     withdraw_locked_candidate,
 )
+from kukgrade.serializers import ChoiceSerializer
 from ranks.models import Rank
 from students.models import Student
 from syllabus.models import CORE_CATEGORIES, SyllabusItem
@@ -417,7 +421,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
     def get_can_delete(self, obj: CandidateAssessment) -> bool:
         user = self.context["request"].user
         return user.has_perm("gradings.delete_candidateassessment") and not (
-            assessment_holds_final_decision(obj)
+            holds_final_decision(obj.candidate)
         )
 
     def update(
@@ -859,7 +863,7 @@ class RegisteredCandidateSerializer(serializers.Serializer):
 class BulkCandidateRegistrationResultSerializer(BulkResultSerializer):
     created = RegisteredCandidateSerializer(many=True)
     already_registered = serializers.DictField(
-        child=serializers.ChoiceField(choices=["THIS_SESSION", "ANOTHER_GRADING"]),
+        child=serializers.ChoiceField(choices=AlreadyRegistered.choices),
         help_text=(
             "The keys of `errors` whose student is already registered, for this "
             "session or for another grading that has not settled: nothing to "
@@ -910,7 +914,7 @@ class LockedCandidateWithdrawalSerializer(serializers.Serializer):
 
 class LegacyGradingRecordSerializer(serializers.ModelSerializer):
     """Read-mostly, matching PromotionSerializer's idiom - no ordinary
-    update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
+    update/delete exists (LegacyGradingRecord is kukgrade.kept), only
     the reconciliation actions on LegacyGradingRecordViewSet."""
 
     outcome_display = serializers.CharField(
@@ -1070,8 +1074,8 @@ class LegacyPersonSerializer(serializers.Serializer):
     group_key = serializers.CharField(source="key")
     record_ids = serializers.SerializerMethodField()
     records = serializers.SerializerMethodField(help_text="How many records.")
-    first_period = serializers.SerializerMethodField()
-    last_period = serializers.SerializerMethodField()
+    first_period = serializers.CharField()
+    last_period = serializers.CharField()
     linked_student = serializers.SerializerMethodField(
         help_text="The student every record here is linked to, if one is.",
     )
@@ -1081,18 +1085,16 @@ class LegacyPersonSerializer(serializers.Serializer):
     linked_student_name = serializers.SerializerMethodField(
         help_text="That student's name, when every record here is linked to one.",
     )
-    ranks = serializers.SerializerMethodField(
+    ranks = serializers.ListField(
+        child=serializers.CharField(),
+        source="ranks_written",
         help_text="The ranks the records give, as written, in date order.",
     )
-    needs_rank = serializers.SerializerMethodField(
+    needs_rank = serializers.BooleanField(
         help_text="Whether a rank is written on a record but not matched to one yet.",
     )
     suggestion = serializers.ChoiceField(
-        choices=[
-            ("clear", "One student fits clearly"),
-            ("choose", "Several students fit equally well"),
-            ("none", "No student fits"),
-        ],
+        choices=Suggestion.choices,
         help_text="How clear the suggested students are, from the candidates.",
     )
     candidates = SuggestedStudentSerializer(many=True)
@@ -1103,44 +1105,10 @@ class LegacyPersonSerializer(serializers.Serializer):
     def get_records(self, group: Any) -> int:
         return len(group.records)
 
-    def _periods(self, group: Any) -> list[str]:
-        return sorted(
-            f"{record.cycle_year}-{record.cycle_month:02d}" for record in group.records
-        )
-
-    def get_first_period(self, group: Any) -> str:
-        return self._periods(group)[0]
-
-    def get_last_period(self, group: Any) -> str:
-        return self._periods(group)[-1]
-
     @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_linked_student(self, group: Any) -> int | None:
         student = group.linked_student
         return student.pk if student else None
-
-    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
-    def get_ranks(self, group: Any) -> list[str]:
-        """Each distinct "held → testing for" the records write, oldest first."""
-        written = []
-        for record in sorted(
-            group.records,
-            key=lambda r: (r.cycle_year, r.cycle_month, r.pk),
-        ):
-            held = record.source_current_rank_text
-            testing = record.source_testing_for_rank_text
-            text = f"{held or '(blank)'} → {testing}" if testing else held
-            if text and text not in written:
-                written.append(text)
-        return written
-
-    def get_needs_rank(self, group: Any) -> bool:
-        # The same rule as the record list's needs_rank filter (views).
-        return any(
-            (r.source_current_rank_text and r.current_rank_id is None)
-            or (r.source_testing_for_rank_text and r.testing_for_rank_id is None)
-            for r in group.records
-        )
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_linked_student_name(self, group: Any) -> str | None:
@@ -1171,8 +1139,10 @@ class LegacyPeopleSummarySerializer(serializers.Serializer):
 
 
 class ResolveLegacyRankSerializer(serializers.Serializer):
-    """`rank=null` explicitly leaves the mapping unresolved."""
+    """Which of the record's ranks to map; `rank=null` explicitly leaves it
+    unresolved."""
 
+    field = serializers.ChoiceField(choices=LegacyRankField.choices)
     rank = serializers.PrimaryKeyRelatedField(
         queryset=Rank.objects.filter(active=True),
         allow_null=True,
@@ -1195,19 +1165,11 @@ class VoidLegacyRecordSerializer(serializers.Serializer):
         )
 
 
-class WithdrawalReasonSerializer(serializers.Serializer[str]):
-    """One withdrawal reason, from its code, and whether it needs a note."""
+class WithdrawalReasonSerializer(ChoiceSerializer):
+    """One withdrawal reason, and whether it needs a note."""
 
-    code = serializers.ChoiceField(
-        choices=GradingCandidate.WithdrawalReason.choices,
-        source="*",
-        read_only=True,
-    )
-    name = serializers.SerializerMethodField()
+    value = serializers.ChoiceField(choices=GradingCandidate.WithdrawalReason.choices)
     note_required = serializers.SerializerMethodField()
 
-    def get_name(self, code: str) -> str:
-        return str(GradingCandidate.WithdrawalReason(code).label)
-
-    def get_note_required(self, code: str) -> bool:
-        return code == GradingCandidate.WithdrawalReason.OTHER
+    def get_note_required(self, reason: dict[str, str]) -> bool:
+        return reason["value"] == GradingCandidate.WithdrawalReason.OTHER

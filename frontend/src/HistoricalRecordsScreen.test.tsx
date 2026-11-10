@@ -15,8 +15,7 @@ const api = vi.hoisted(() => ({
   getStudents: vi.fn(),
   linkLegacyGradingRecord: vi.fn(),
   unlinkLegacyGradingRecord: vi.fn(),
-  resolveLegacyCurrentRank: vi.fn(),
-  resolveLegacyTestingForRank: vi.fn(),
+  resolveLegacyRank: vi.fn(),
   voidLegacyGradingRecord: vi.fn(),
 }));
 
@@ -67,12 +66,12 @@ describe("Historical record recovery", () => {
   it("can clear a mapped rank and unlink a record from its persistent detail", async () => {
     const user = userEvent.setup();
     api.getLegacyGradingRecord.mockResolvedValue(legacyRecord({ student: 31, student_display_name: "Wrong Student" }));
-    api.resolveLegacyCurrentRank.mockResolvedValue(legacyRecord({ current_rank: null }));
+    api.resolveLegacyRank.mockResolvedValue(legacyRecord({ current_rank: null }));
     api.unlinkLegacyGradingRecord.mockResolvedValue(legacyRecord());
     renderAt("/imports/history/101");
 
     await user.selectOptions(await screen.findByLabelText(/Held rank/), "");
-    await waitFor(() => expect(api.resolveLegacyCurrentRank).toHaveBeenCalledWith(101, null));
+    await waitFor(() => expect(api.resolveLegacyRank).toHaveBeenCalledWith(101, "current_rank", null));
     await user.click(screen.getByRole("button", { name: "Unlink student…" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Unlink student" }));
     await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledWith(101));

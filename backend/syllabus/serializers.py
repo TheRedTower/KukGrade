@@ -4,11 +4,11 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from syllabus.models import (
-    AGE_BAND_DESCRIPTION,
     AGE_BAND_PROGRAMME,
     CORE_CATEGORIES,
     AgeBand,
     Programme,
+    age_band_description,
 )
 from syllabus.services import EffectiveSyllabusRequirement
 
@@ -87,7 +87,7 @@ class AgeBandSerializer(serializers.Serializer[str]):
         return AgeBand(code).label
 
     def get_description(self, code: str) -> str:
-        return AGE_BAND_DESCRIPTION[code]
+        return age_band_description(code)
 
     @extend_schema_field(serializers.ChoiceField(choices=Programme.choices))
     def get_programme(self, code: str) -> str:

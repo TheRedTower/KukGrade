@@ -323,10 +323,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           next: null,
           previous: null,
           results: [
-            { code: "INJURY", name: "Injured during grading", note_required: false },
-            { code: "WITHDREW", name: "Withdrew voluntarily", note_required: false },
-            { code: "ABSENT", name: "Did not attend", note_required: false },
-            { code: "OTHER", name: "Other", note_required: true },
+            { value: "INJURY", label: "Injured during grading", note_required: false },
+            { value: "WITHDREW", label: "Withdrew voluntarily", note_required: false },
+            { value: "ABSENT", label: "Did not attend", note_required: false },
+            { value: "OTHER", label: "Other", note_required: true },
           ],
         });
       }

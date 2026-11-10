@@ -17,11 +17,20 @@ class RankQuerySet(models.QuerySet["Rank"]):
         return self.filter(active=True, order__gt=order).order_by("order")
 
     def with_next_active_rank(self) -> RankQuerySet:
-        return self.annotate(
-            next_rank_id=Subquery(
-                Rank.objects.next_active_after(OuterRef("order")).values("pk")[:1],
+        return self.annotate(next_rank_id=_next_active_rank_id())
+
+    def next_rank_ids(self) -> dict[int, int | None]:
+        """Each rank's next active rank, by id, in one query."""
+        return dict(
+            self.annotate(next_rank_id=_next_active_rank_id()).values_list(
+                "pk",
+                "next_rank_id",
             ),
         )
+
+
+def _next_active_rank_id() -> Subquery:
+    return Subquery(Rank.objects.next_active_after(OuterRef("order")).values("pk")[:1])
 
 
 class BeltColour(models.TextChoices):
@@ -33,11 +42,14 @@ class BeltColour(models.TextChoices):
     BLACK = "BLACK", "Black"
 
 
+class RankCategory(models.TextChoices):
+    COLOURED_BELT = "COLOURED_BELT", "Coloured belt"
+    BLACK_BELT_CANDIDATE = "BLACK_BELT_CANDIDATE", "Black belt candidate"
+    BLACK_BELT = "BLACK_BELT", "Black belt"
+
+
 class Rank(models.Model):
-    class Category(models.TextChoices):
-        COLOURED_BELT = "COLOURED_BELT", "Coloured belt"
-        BLACK_BELT_CANDIDATE = "BLACK_BELT_CANDIDATE", "Black belt candidate"
-        BLACK_BELT = "BLACK_BELT", "Black belt"
+    Category = RankCategory
 
     code = models.CharField(max_length=32, unique=True)
     name = models.CharField(max_length=100, unique=True)
@@ -78,13 +90,7 @@ class Rank(models.Model):
                 name="rank_order_positive",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    category__in=[
-                        "COLOURED_BELT",
-                        "BLACK_BELT_CANDIDATE",
-                        "BLACK_BELT",
-                    ],
-                ),
+                condition=Q(category__in=RankCategory.values),
                 name="rank_category_valid",
             ),
             models.CheckConstraint(

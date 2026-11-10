@@ -38,14 +38,14 @@ def grading_context(candidate: models.Model) -> dict[str, int]:
     }
 
 
-def record(
+def _build(
     action: str,
     entity: models.Model,
     summary: str,
-    actor: User | None = None,
+    actor: User | None,
     metadata: dict[str, Any] | None = None,
 ) -> AuditEvent:
-    return AuditEvent.objects.create(
+    return AuditEvent(
         actor=actor,
         actor_email=actor.email if actor else "",
         actor_name=actor.get_full_name() if actor else "",
@@ -63,6 +63,18 @@ def record(
     )
 
 
+def record(
+    action: str,
+    entity: models.Model,
+    summary: str,
+    actor: User | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> AuditEvent:
+    event = _build(action, entity, summary, actor, metadata)
+    event.save(force_insert=True)
+    return event
+
+
 def record_many(
     action: str,
     entries: Sequence[tuple[models.Model, str]],
@@ -75,19 +87,7 @@ def record_many(
     query per event: the actor is the caller's own, and the check
     constraints (no blank type, id or summary) are the database's on insert.
     """
-    events = [
-        AuditEvent(
-            actor=actor,
-            actor_email=actor.email if actor else "",
-            actor_name=actor.get_full_name() if actor else "",
-            action=action,
-            entity_type=entity.__class__.__name__,
-            entity_id=str(entity.pk),
-            summary=summary,
-            metadata={},
-        )
-        for entity, summary in entries
-    ]
+    events = [_build(action, entity, summary, actor) for entity, summary in entries]
     for event in events:
         event.full_clean(exclude=["actor"], validate_constraints=False)
     return AuditEvent.objects.bulk_create(events, batch_size=500)

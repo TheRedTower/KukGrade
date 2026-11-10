@@ -18,12 +18,15 @@ from django.db.models import (
     When,
 )
 
+from gradings.assessment_services import holds_final_decision
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    LegacyAttendance,
+    LegacyDatePrecision,
     LegacyGradingRecord,
     Promotion,
 )
@@ -40,6 +43,13 @@ class GradingStage(models.TextChoices):
     ASSESSED = "ASSESSED", "Assessed"
     AWAITING_DECISION = "AWAITING_DECISION", "Awaiting final decision"
     AWAITING_PROMOTION = "AWAITING_PROMOTION", "Passed, awaiting promotion"
+
+
+class GradingHistorySource(models.TextChoices):
+    """Where an entry in a student's grading history comes from."""
+
+    KUKGRADE = "KUKGRADE", "A grading in KukGrade"
+    LEGACY = "LEGACY", "A historical record"
 
 
 class CandidateNextAction(models.TextChoices):
@@ -69,9 +79,7 @@ def candidate_next_action(
         return CandidateNextAction.NONE
     assessment = getattr(candidate, "assessment", None)
     outcome = getattr(candidate, "outcome", None)
-    finalised = (
-        outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED
-    )
+    finalised = holds_final_decision(candidate)
     # A cancelled or completed session moves no further: what was recorded can
     # be looked at, and nothing else is offered.
     if not finalised and candidate.session.status in {
@@ -99,7 +107,7 @@ def candidate_next_action(
         return CandidateNextAction.REVIEW_PROPOSAL
     # An outcome can only be opened once the session is locked; until then the
     # completed record can still be looked at.
-    if candidate.session.status == GradingSession.Status.LOCKED:
+    if candidate.session.is_locked:
         return CandidateNextAction.PROPOSE_OUTCOME
     return CandidateNextAction.VIEW_ASSESSMENT
 
@@ -175,12 +183,12 @@ class StudentRankTimeline(TypedDict):
 
 
 class GradingHistoryItem(TypedDict):
-    source: str  # "KUKGRADE" | "LEGACY"
+    source: GradingHistorySource
     record_id: int
     date: date | None
     cycle_year: int | None
     cycle_month: int | None
-    date_precision: str  # "DAY" | "MONTH"
+    date_precision: str  # LegacyDatePrecision
     testing_for_rank_name: str | None
     source_testing_for_rank_text: str
     outcome: str | None
@@ -237,16 +245,16 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
         session = outcome.candidate.session
         testing_for_rank = outcome.candidate.testing_for_rank
         native_item: GradingHistoryItem = {
-            "source": "KUKGRADE",
+            "source": GradingHistorySource.KUKGRADE,
             "record_id": outcome.pk,
             "date": session.grading_date,
             "cycle_year": session.grading_date.year,
             "cycle_month": session.grading_date.month,
-            "date_precision": "DAY",
+            "date_precision": LegacyDatePrecision.DAY,
             "testing_for_rank_name": testing_for_rank.name,
             "source_testing_for_rank_text": "",
             "outcome": outcome.final_outcome,
-            "attendance_status": "ATTENDED",
+            "attendance_status": LegacyAttendance.ATTENDED,
             "comments": outcome.decision_notes,
             "note": "",
             "conditional_requirements": outcome.conditional_requirements,
@@ -269,7 +277,7 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             1,
         )
         legacy_item: GradingHistoryItem = {
-            "source": "LEGACY",
+            "source": GradingHistorySource.LEGACY,
             "record_id": legacy.pk,
             "date": legacy.grading_date,
             "cycle_year": legacy.cycle_year,

@@ -604,7 +604,7 @@ def test_students_filter_by_age_band_agrees_with_the_age_band_they_are_served() 
 
 
 def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
-    from gradings.age import calculate_age_on, with_age_band_on
+    from syllabus.age import calculate_age_on, with_age_band_on
 
     Student.objects.create(
         **student_kwargs(wksa_id="123-4-529", date_of_birth=date(2016, 2, 29))

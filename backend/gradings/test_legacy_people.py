@@ -29,17 +29,20 @@ from gradings.legacy_matching import (
 from gradings.legacy_services import (
     bulk_link_legacy_records,
     link_legacy_record_to_student,
-    resolve_legacy_current_rank,
+    resolve_legacy_rank,
     unlink_legacy_record_from_student,
     void_legacy_record,
 )
-from gradings.models import LegacyGradingRecord
+from gradings.models import LegacyGradingRecord, LegacyRankField
 from kukgrade.testing import interleave, results
 from ranks.models import Rank
 from students.models import Student
 from students.services import delete_student
 
 pytestmark = pytest.mark.django_db
+
+
+CURRENT_RANK = LegacyRankField.CURRENT_RANK
 
 PEOPLE = "/api/gradings/legacy-records/people/"
 BULK = "/api/gradings/legacy-records/bulk-link/"
@@ -649,7 +652,7 @@ def test_a_voided_record_cannot_be_linked_unlinked_or_given_a_rank() -> None:
             record, student("Max", "Lee"), actor=admin()
         ),
         lambda: unlink_legacy_record_from_student(record, actor=admin()),
-        lambda: resolve_legacy_current_rank(record, rank("WHITE"), actor=admin()),
+        lambda: resolve_legacy_rank(record, CURRENT_RANK, rank("WHITE"), actor=admin()),
     )
     for change in changes:
         with pytest.raises(ValidationError, match="voided"):

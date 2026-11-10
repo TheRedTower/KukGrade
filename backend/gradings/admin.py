@@ -1,3 +1,14 @@
+"""The grading records an emergency look may need, view-only
+(kukgrade.admin_mixins.ViewOnlyAdmin): sessions, candidates, assessments and
+their items, outcomes and promotions.
+
+The other grading models are left out on purpose, as the app already shows
+each where it belongs: item comments and mark changes (an assessment's
+history), staged decisions (a Master's drafts before they are recorded),
+historical records (the imports pages) and set-aside names (one person's
+note on the linking page).
+"""
+
 from __future__ import annotations
 
 from django.contrib import admin
@@ -62,15 +73,6 @@ class CandidateAssessmentAdmin(ViewOnlyAdmin):
         "candidate__testing_for_rank",
         "generated_by",
     )
-    readonly_fields = (
-        "candidate",
-        "generated_by",
-        "generated_at",
-        "started_at",
-        "completed_at",
-        "created_at",
-        "updated_at",
-    )
 
     @admin.display(ordering="candidate__student__last_name")
     def student(self, obj: CandidateAssessment) -> object:
@@ -112,28 +114,6 @@ class CandidateAssessmentItemAdmin(ViewOnlyAdmin):
         "assessment__candidate__session",
         "assessment__candidate__student",
         "assessor",
-    )
-    readonly_fields = (
-        "assessment",
-        "source_requirement",
-        "source_item",
-        "source_rank",
-        "source_age_band",
-        "item_code",
-        "item_name",
-        "korean_name",
-        "category",
-        "requirement_sequence",
-        "position",
-        "required",
-        "start_number",
-        "end_number",
-        "requirement_notes",
-        "notation",
-        "assessor",
-        "assessed_at",
-        "created_at",
-        "updated_at",
     )
 
     @admin.display(ordering="assessment__candidate__student__last_name")
@@ -201,22 +181,6 @@ class CandidateOutcomeAdmin(ViewOnlyAdmin):
         "proposed_by",
         "decided_by",
     )
-    readonly_fields = (
-        "candidate",
-        "assessment",
-        "status",
-        "proposed_outcome",
-        "proposed_by",
-        "proposed_at",
-        "proposal_notes",
-        "final_outcome",
-        "decided_by",
-        "decided_at",
-        "decision_notes",
-        "conditional_requirements",
-        "created_at",
-        "updated_at",
-    )
 
     @admin.display(ordering="candidate__student__last_name")
     def student(self, obj: CandidateOutcome) -> object:
@@ -259,19 +223,6 @@ class PromotionAdmin(ViewOnlyAdmin):
         "from_rank",
         "to_rank",
         "promoted_by",
-    )
-    readonly_fields = (
-        "student",
-        "outcome",
-        "grading_candidate",
-        "from_rank",
-        "to_rank",
-        "promoted_by",
-        "promoted_at",
-        "effective_date",
-        "notes",
-        "created_at",
-        "updated_at",
     )
 
     @admin.display(ordering="student__wksa_id")

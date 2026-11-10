@@ -31,6 +31,7 @@ from gradings.assessment_services import (
 from gradings.legacy_matching import (
     SHEET_NOTE_NAME,
     PersonGroup,
+    Suggestion,
     group_key,
     group_records,
     suggest_for_groups,
@@ -38,8 +39,7 @@ from gradings.legacy_matching import (
 from gradings.legacy_services import (
     bulk_link_legacy_records,
     put_back_name,
-    resolve_legacy_current_rank,
-    resolve_legacy_testing_for_rank,
+    resolve_legacy_rank,
     set_aside_keys,
     set_aside_names,
     unlink_legacy_record_from_student,
@@ -104,6 +104,7 @@ from gradings.serializers import (
 from gradings.services import (
     ALREADY_IN_SESSION,
     REGISTERED_ELSEWHERE,
+    AlreadyRegistered,
     archive_grading_session,
     bulk_register_candidates,
     bulk_update_candidate_status,
@@ -144,7 +145,7 @@ _PEOPLE_PARAMETERS = frozenset(
     },
 )
 _PEOPLE_SUMMARY_PARAMETERS = frozenset({"batch", "set_aside", "format"})
-_PEOPLE_SUGGESTIONS = ("clear", "choose", "none")
+_PEOPLE_SUGGESTIONS = tuple(Suggestion.values)
 _PEOPLE_BATCH = OpenApiParameter(
     "batch", int, description="Only records from this import."
 )
@@ -177,8 +178,11 @@ class WithdrawalReasonViewSet(GenericViewSet):
 
     def list(self, request: Request) -> Response:
         # Paginated like every list endpoint, as the syllabus age bands are.
-        page: list[str] | None = self.paginate_queryset(
-            GradingCandidate.WithdrawalReason.values,  # type: ignore[arg-type]
+        page: list[dict[str, str]] | None = self.paginate_queryset(
+            [  # type: ignore[arg-type]
+                {"value": value, "label": label}
+                for value, label in GradingCandidate.WithdrawalReason.choices
+            ],
         )
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
@@ -265,21 +269,15 @@ class GradingSessionViewSet(ModelViewSet):
     @action(detail=True, methods=["post"])
     def archive(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Hide a finished session from the lists. Nothing is erased."""
-        archive_grading_session(self.get_object(), cast(User, request.user))
-        return Response(self._read(request, cast(str, kwargs["pk"])))
+        archived = archive_grading_session(self.get_object(), cast(User, request.user))
+        return Response(self.get_serializer(archived).data)
 
     @extend_schema(request=None, responses=GradingSessionSerializer)
     @action(detail=True, methods=["post"])
     def restore(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Bring an archived session back into the lists."""
-        restore_grading_session(self.get_object(), cast(User, request.user))
-        return Response(self._read(request, cast(str, kwargs["pk"])))
-
-    def _read(self, request: Request, pk: int | str) -> Any:
-        instance = with_session_progress(
-            GradingSession.objects.filter(pk=pk),
-        ).get()
-        return GradingSessionSerializer(instance, context={"request": request}).data
+        restored = restore_grading_session(self.get_object(), cast(User, request.user))
+        return Response(self.get_serializer(restored).data)
 
     @extend_schema(
         request=None,
@@ -440,9 +438,9 @@ class GradingCandidateViewSet(
                 ],
                 "errors": errors,
                 "already_registered": {
-                    index: "THIS_SESSION"
+                    index: AlreadyRegistered.THIS_SESSION
                     if ALREADY_IN_SESSION in row_codes
-                    else "ANOTHER_GRADING"
+                    else AlreadyRegistered.ANOTHER_GRADING
                     for index, row_codes in codes.items()
                     if row_codes & {ALREADY_IN_SESSION, REGISTERED_ELSEWHERE}
                 },
@@ -677,6 +675,8 @@ class CandidateAssessmentItemViewSet(
                     "comments",
                     queryset=AssessmentItemComment.objects.select_related("author"),
                 ),
+            )
+            .prefetch_related(
                 Prefetch(
                     "changes",
                     queryset=AssessmentItemResultChange.objects.select_related(
@@ -893,10 +893,7 @@ class CandidateOutcomeViewSet(GenericViewSet):
 
 
 def _needs_rank(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
-    unresolved = Q(~Q(source_current_rank_text=""), current_rank__isnull=True) | Q(
-        ~Q(source_testing_for_rank_text=""),
-        testing_for_rank__isnull=True,
-    )
+    unresolved = LegacyGradingRecord.rank_unmatched()
     if value == "true":
         return queryset.filter(unresolved)
     if value == "false":
@@ -948,8 +945,7 @@ class LegacyGradingRecordViewSet(
         "retrieve": ("gradings.view_legacygradingrecord",),
         "link_student": ("gradings.can_reconcile_imported_history",),
         "unlink_student": ("gradings.can_reconcile_imported_history",),
-        "resolve_current_rank": ("gradings.can_reconcile_imported_history",),
-        "resolve_testing_for_rank": ("gradings.can_reconcile_imported_history",),
+        "resolve_rank": ("gradings.can_reconcile_imported_history",),
         "void": ("gradings.can_reconcile_imported_history",),
         "people": ("gradings.can_reconcile_imported_history",),
         "people_summary": ("gradings.can_reconcile_imported_history",),
@@ -1019,8 +1015,8 @@ class LegacyGradingRecordViewSet(
         request=ResolveLegacyRankSerializer,
         responses=LegacyGradingRecordSerializer,
     )
-    @action(detail=True, methods=["post"], url_path="resolve-current-rank")
-    def resolve_current_rank(
+    @action(detail=True, methods=["post"], url_path="resolve-rank")
+    def resolve_rank(
         self,
         request: Request,
         *args: object,
@@ -1029,29 +1025,9 @@ class LegacyGradingRecordViewSet(
         record_ = self.get_object()
         serializer = ResolveLegacyRankSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        updated = resolve_legacy_current_rank(
+        updated = resolve_legacy_rank(
             record_,
-            serializer.validated_data["rank"],
-            actor=cast(User, request.user),
-        )
-        return Response(LegacyGradingRecordSerializer(updated).data)
-
-    @extend_schema(
-        request=ResolveLegacyRankSerializer,
-        responses=LegacyGradingRecordSerializer,
-    )
-    @action(detail=True, methods=["post"], url_path="resolve-testing-for-rank")
-    def resolve_testing_for_rank(
-        self,
-        request: Request,
-        *args: object,
-        **kwargs: object,
-    ) -> Response:
-        record_ = self.get_object()
-        serializer = ResolveLegacyRankSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        updated = resolve_legacy_testing_for_rank(
-            record_,
+            serializer.validated_data["field"],
             serializer.validated_data["rank"],
             actor=cast(User, request.user),
         )

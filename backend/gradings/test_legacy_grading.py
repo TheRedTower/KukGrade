@@ -14,8 +14,7 @@ from data_imports.testing import legacy_batch, legacy_record
 from gradings.legacy_services import (
     create_legacy_grading_records,
     link_legacy_record_to_student,
-    resolve_legacy_current_rank,
-    resolve_legacy_testing_for_rank,
+    resolve_legacy_rank,
     unlink_legacy_record_from_student,
     void_legacy_record,
 )
@@ -23,12 +22,17 @@ from gradings.models import (
     LegacyAttendance,
     LegacyGradingRecord,
     LegacyOutcome,
+    LegacyRankField,
     LegacyRecordKind,
 )
 from gradings.testing import rank, student, user
 from students.models import Student
 
 pytestmark = pytest.mark.django_db
+
+
+CURRENT_RANK = LegacyRankField.CURRENT_RANK
+TESTING_FOR_RANK = LegacyRankField.TESTING_FOR_RANK
 
 
 def test_create_legacy_grading_records_persists_source_facts() -> None:
@@ -203,12 +207,12 @@ def test_resolve_and_clear_current_rank_mapping() -> None:
     actor = user("legacy-rank-admin@example.com")
     yellow = rank("YELLOW")
 
-    resolved = resolve_legacy_current_rank(record, yellow, actor=actor)
+    resolved = resolve_legacy_rank(record, CURRENT_RANK, yellow, actor=actor)
     assert resolved.current_rank_id == yellow.pk
     # Source text is untouched by the resolution.
     assert resolved.source_current_rank_text == "Yellow Belt"
 
-    cleared = resolve_legacy_current_rank(resolved, None, actor=actor)
+    cleared = resolve_legacy_rank(resolved, CURRENT_RANK, None, actor=actor)
     assert cleared.current_rank_id is None
 
     event = AuditEvent.objects.filter(
@@ -224,12 +228,12 @@ def test_a_correction_that_changes_nothing_records_nothing() -> None:
     actor = user("legacy-noop-admin@example.com")
     linked = student(wksa_id="123-4-503")
     link_legacy_record_to_student(record, linked, actor=actor)
-    resolve_legacy_current_rank(record, rank("YELLOW"), actor=actor)
+    resolve_legacy_rank(record, CURRENT_RANK, rank("YELLOW"), actor=actor)
     events_before = AuditEvent.objects.filter(entity_id=str(record.pk)).count()
 
     link_legacy_record_to_student(record, linked, actor=actor)
-    resolve_legacy_current_rank(record, rank("YELLOW"), actor=actor)
-    resolve_legacy_testing_for_rank(record, None, actor=actor)
+    resolve_legacy_rank(record, CURRENT_RANK, rank("YELLOW"), actor=actor)
+    resolve_legacy_rank(record, TESTING_FOR_RANK, None, actor=actor)
 
     assert AuditEvent.objects.filter(entity_id=str(record.pk)).count() == events_before
 
@@ -239,7 +243,7 @@ def test_resolve_testing_for_rank_mapping() -> None:
     actor = user("legacy-testing-rank-admin@example.com")
     blue_stripe = rank("BLUE_STRIPE") if _rank_exists("BLUE_STRIPE") else rank("YELLOW")
 
-    resolved = resolve_legacy_testing_for_rank(record, blue_stripe, actor=actor)
+    resolved = resolve_legacy_rank(record, TESTING_FOR_RANK, blue_stripe, actor=actor)
     assert resolved.testing_for_rank_id == blue_stripe.pk
     event = AuditEvent.objects.get(
         action=AuditAction.LEGACY_GRADING_RANK_RESOLVED,
@@ -281,6 +285,10 @@ def test_void_records_actor_reason_and_timestamp() -> None:
         entity_id=str(record.pk),
     )
     assert event.metadata["reason"] == "Duplicate row in source workbook"
+    assert event.summary == (
+        "Historical grading record voided: Duplicate row in source workbook"
+    )
+    assert "whole_import" not in event.metadata
 
 
 def test_voiding_twice_is_refused() -> None:

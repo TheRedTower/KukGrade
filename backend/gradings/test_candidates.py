@@ -13,7 +13,6 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
-from gradings.age import resolve_age_band
 from gradings.models import (
     CandidateAssessment,
     GradingCandidate,
@@ -39,6 +38,7 @@ from gradings.testing import (
 )
 from kukgrade.testing import results
 from students.models import Student
+from syllabus.age import resolve_age_band
 from syllabus.models import AgeBand, SyllabusRequirement
 
 pytestmark = pytest.mark.django_db

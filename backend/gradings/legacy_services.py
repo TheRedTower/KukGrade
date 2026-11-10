@@ -23,9 +23,12 @@ from django.utils import timezone
 from audit.models import AuditAction
 from audit.recording import record, student_label
 from gradings.locking import lock_student, lock_students
-from gradings.models import LegacyGradingRecord, SetAsideName
+from gradings.models import LegacyGradingRecord, LegacyRankField, SetAsideName
+from students.models import STUDENT_DELETED_MESSAGE
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from accounts.models import User
     from data_imports.models import ImportBatch
     from ranks.models import Rank
@@ -91,7 +94,7 @@ def _link(
     if student.deleted_at is not None:
         # A deleted student keeps the records already theirs, but their
         # record is closed: nothing new is linked to it.
-        raise ValidationError({"student": ["This student has been deleted."]})
+        raise ValidationError({"student": [STUDENT_DELETED_MESSAGE]})
     if locked.student_id is not None and not replace:
         raise ValidationError({"student": [LINKED_ELSEWHERE_MESSAGE]})
     previous_student_id = locked.student_id
@@ -215,21 +218,18 @@ def unlink_legacy_record_from_student(
     return locked
 
 
-_RANK_FIELD_LABELS = {
-    "current_rank": "current rank",
-    "testing_for_rank": "testing-for rank",
-}
-
-
 @transaction.atomic
-def _resolve_legacy_rank(
+def resolve_legacy_rank(
     record_: LegacyGradingRecord,
-    field: str,
+    field: LegacyRankField,
     rank: Rank | None,
+    *,
     actor: User,
 ) -> LegacyGradingRecord:
-    """`rank=None` explicitly leaves the mapping unresolved - the source text
-    is never touched either way."""
+    """Map the record's current or testing-for rank (`field`) to `rank`;
+    `rank=None` explicitly leaves it unresolved. The source text is never
+    touched either way."""
+    field = LegacyRankField(field)
     locked = _locked(record_.pk)
     if getattr(locked, f"{field}_id") == (rank.pk if rank else None):
         # Already resolved that way: nothing changes, so nothing is recorded.
@@ -240,11 +240,11 @@ def _resolve_legacy_rank(
     record(
         AuditAction.LEGACY_GRADING_RANK_RESOLVED,
         locked,
-        f"Historical record {_RANK_FIELD_LABELS[field]} set to {resolved_display}.",
+        f"Historical record {field.label} set to {resolved_display}.",
         actor=actor,
         metadata={
             "legacy_record_id": locked.pk,
-            "field": field,
+            "field": field.value,
             "source_text": getattr(locked, f"source_{field}_text"),
             "resolved_rank_code": rank.code if rank else None,
             "batch_id": locked.source_batch_id,
@@ -253,22 +253,41 @@ def _resolve_legacy_rank(
     return locked
 
 
-def resolve_legacy_current_rank(
-    record_: LegacyGradingRecord,
-    rank: Rank | None,
-    *,
-    actor: User,
-) -> LegacyGradingRecord:
-    return _resolve_legacy_rank(record_, "current_rank", rank, actor)
+def _void_reason(reason: str) -> str:
+    cleaned = (reason or "").strip()
+    if not cleaned:
+        raise ValidationError(
+            {"void_reason": ["A reason is required to void a record."]}
+        )
+    return cleaned
 
 
-def resolve_legacy_testing_for_rank(
-    record_: LegacyGradingRecord,
-    rank: Rank | None,
+def _void(
+    locked: LegacyGradingRecord,
     *,
+    reason: str,
     actor: User,
-) -> LegacyGradingRecord:
-    return _resolve_legacy_rank(record_, "testing_for_rank", rank, actor)
+    at: datetime,
+    whole_import: bool = False,
+) -> None:
+    locked.is_void = True
+    locked.void_reason = reason
+    locked.voided_by = actor
+    locked.voided_at = at
+    locked.save()
+    how = " with its whole import" if whole_import else ""
+    record(
+        AuditAction.LEGACY_GRADING_VOIDED,
+        locked,
+        f"Historical grading record voided{how}: {reason}",
+        actor=actor,
+        metadata={
+            "legacy_record_id": locked.pk,
+            "reason": reason,
+            "batch_id": locked.source_batch_id,
+            **({"whole_import": True} if whole_import else {}),
+        },
+    )
 
 
 @transaction.atomic
@@ -282,30 +301,11 @@ def void_legacy_record(
     Deterministically refused a second time - no
     "unvoid" path exists, the same convention as a second import-batch
     commit."""
-    cleaned_reason = (reason or "").strip()
-    if not cleaned_reason:
-        raise ValidationError(
-            {"void_reason": ["A reason is required to void a record."]}
-        )
+    cleaned_reason = _void_reason(reason)
     locked = _locked(record_.pk, allow_void=True)
     if locked.is_void:
         raise ValidationError({"is_void": ["This record has already been voided."]})
-    locked.is_void = True
-    locked.void_reason = cleaned_reason
-    locked.voided_by = actor
-    locked.voided_at = timezone.now()
-    locked.save()
-    record(
-        AuditAction.LEGACY_GRADING_VOIDED,
-        locked,
-        f"Historical grading record voided:  {cleaned_reason}",
-        actor=actor,
-        metadata={
-            "legacy_record_id": locked.pk,
-            "reason": cleaned_reason,
-            "batch_id": locked.source_batch_id,
-        },
-    )
+    _void(locked, reason=cleaned_reason, actor=actor, at=timezone.now())
     return locked
 
 
@@ -321,11 +321,7 @@ def void_legacy_records_from(
     Each as void_legacy_record would, with its own LEGACY_GRADING_VOIDED
     event marked as part of the whole import's void; all or nothing.
     """
-    cleaned_reason = (reason or "").strip()
-    if not cleaned_reason:
-        raise ValidationError(
-            {"void_reason": ["A reason is required to void a record."]}
-        )
+    cleaned_reason = _void_reason(reason)
     records = list(
         LegacyGradingRecord.objects.select_for_update(of=("self",))
         .filter(source_batch_id=batch_id, is_void=False)
@@ -337,22 +333,12 @@ def void_legacy_records_from(
         )
     voided_at = timezone.now()
     for locked in records:
-        locked.is_void = True
-        locked.void_reason = cleaned_reason
-        locked.voided_by = actor
-        locked.voided_at = voided_at
-        locked.save()
-        record(
-            AuditAction.LEGACY_GRADING_VOIDED,
+        _void(
             locked,
-            f"Historical grading record voided with its whole import: {cleaned_reason}",
+            reason=cleaned_reason,
             actor=actor,
-            metadata={
-                "legacy_record_id": locked.pk,
-                "reason": cleaned_reason,
-                "batch_id": batch_id,
-                "whole_import": True,
-            },
+            at=voided_at,
+            whole_import=True,
         )
     return len(records)
 

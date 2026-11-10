@@ -16,7 +16,9 @@ from accounts.permissions import (
 from audit.models import AuditAction
 from audit.recording import grading_context, record, student_label
 from gradings.locking import (
-    lock_in_session,
+    lock_assessment,
+    lock_candidate,
+    lock_outcome,
     lock_sessions_of,
     lock_student,
     lock_students,
@@ -31,15 +33,10 @@ from gradings.models import (
     StagedDecision,
 )
 from gradings.service_support import each_independently, unique_violation_on
-from gradings.services import get_next_active_rank
+from gradings.services import NO_NEXT_RANK_MESSAGE, get_next_active_rank
 from ranks.models import Rank
 from students import wksa_ids
 from students.models import Student
-
-OUTCOME_CREATION_SESSION_STATUSES = {
-    GradingSession.Status.LOCKED,
-}
-
 
 PROMOTION_SESSION_STATUSES = {
     GradingSession.Status.LOCKED,
@@ -53,7 +50,8 @@ class PromotionEligibilityFacts:
 
     promoted_outcomes: frozenset[int]
     promoted_candidates: frozenset[int]
-    active_ranks: tuple[Rank, ...]
+    # Each rank's next active rank, by id (Rank.objects.next_rank_ids).
+    next_rank_ids: dict[int, int | None]
 
 
 def validate_outcome_assessment_state(outcome: CandidateOutcome) -> None:
@@ -68,7 +66,7 @@ def validate_outcome_assessment_state(outcome: CandidateOutcome) -> None:
 
 
 def validate_candidate_outcome_creation(candidate: GradingCandidate) -> None:
-    if candidate.session.status not in OUTCOME_CREATION_SESSION_STATUSES:
+    if candidate.session.status != GradingSession.Status.LOCKED:
         raise ValidationError(
             {"session": ["Candidate outcomes can only be created in locked sessions."]},
         )
@@ -108,14 +106,7 @@ def propose_for_candidate(
     by later ones, decided under the session lock so two proposals arriving
     together cannot both try to open it. A record never exists without one.
     """
-    locked_candidate = lock_in_session(
-        GradingCandidate.objects.select_related(
-            "session", "student", "testing_for_rank"
-        ),
-        candidate.pk,
-        session_path="session_id",
-        name="candidate",
-    )
+    locked_candidate = lock_candidate(candidate.pk)
     existing = CandidateOutcome.objects.filter(candidate=locked_candidate).first()
     if existing is not None:
         return propose_candidate_outcome(
@@ -201,17 +192,7 @@ def propose_candidate_outcome(
     proposal_notes: str,
     actor: User,
 ) -> CandidateOutcome:
-    locked_outcome = lock_in_session(
-        CandidateOutcome.objects.select_related(
-            "candidate__session",
-            "assessment",
-            "proposed_by",
-            "decided_by",
-        ),
-        outcome.pk,
-        session_path="candidate__session_id",
-        name="outcome",
-    )
+    locked_outcome = lock_outcome(outcome.pk)
     validate_outcome_assessment_state(locked_outcome)
     if locked_outcome.status == CandidateOutcome.Status.FINALISED:
         raise ValidationError(
@@ -219,7 +200,7 @@ def propose_candidate_outcome(
         )
     # As for the first proposal: once the session is cancelled or completed,
     # nothing about its outcomes moves.
-    if locked_outcome.candidate.session.status not in OUTCOME_CREATION_SESSION_STATUSES:
+    if locked_outcome.candidate.session.status != GradingSession.Status.LOCKED:
         raise ValidationError(
             {"session": ["Outcomes can only be proposed in locked sessions."]},
         )
@@ -298,17 +279,7 @@ def finalise_candidate_outcome(
     actor: User,
 ) -> CandidateOutcome:
     validate_final_decision_actor(actor)
-    locked_outcome = lock_in_session(
-        CandidateOutcome.objects.select_related(
-            "candidate__session",
-            "assessment",
-            "proposed_by",
-            "decided_by",
-        ),
-        outcome.pk,
-        session_path="candidate__session_id",
-        name="outcome",
-    )
+    locked_outcome = lock_outcome(outcome.pk)
     validate_outcome_can_be_finalised(locked_outcome)
     _validate_outcome_choice(final_outcome, "final_outcome")
 
@@ -365,13 +336,6 @@ def finalise_candidate_outcome(
     return locked_outcome
 
 
-def _can_still_be_decided(outcome: CandidateOutcome) -> bool:
-    return (
-        outcome.status == CandidateOutcome.Status.PROPOSED
-        and outcome.candidate.session.status == GradingSession.Status.LOCKED
-    )
-
-
 @transaction.atomic
 def stage_final_decision(
     outcome: CandidateOutcome,
@@ -386,13 +350,8 @@ def stage_final_decision(
     what is audited, by finalise_candidate_outcome.
     """
     validate_final_decision_actor(actor)
-    locked_outcome = lock_in_session(
-        CandidateOutcome.objects.select_related("candidate__session"),
-        outcome.pk,
-        session_path="candidate__session_id",
-        name="outcome",
-    )
-    if not _can_still_be_decided(locked_outcome):
+    locked_outcome = lock_outcome(outcome.pk)
+    if not outcome_can_be_finalised(locked_outcome):
         raise ValidationError(
             {"status": ["This candidate's decision can no longer be staged."]},
         )
@@ -424,8 +383,7 @@ def staged_decisions_for_session(
     return StagedDecision.objects.filter(
         author=actor,
         outcome__candidate__session_id=session_id,
-        outcome__status=CandidateOutcome.Status.PROPOSED,
-        outcome__candidate__session__status=GradingSession.Status.LOCKED,
+        outcome__in=CandidateOutcome.objects.can_be_finalised(),
     ).order_by("outcome_id")
 
 
@@ -480,17 +438,14 @@ def validate_promotion_eligibility(
         raise ValidationError(
             {"to_rank": ["Promotion target rank must differ from source rank."]},
         )
-    next_rank = (
-        next(
-            (rank for rank in facts.active_ranks if rank.order > from_rank.order),
-            None,
-        )
-        if facts is not None
-        else get_next_active_rank(from_rank)
-    )
-    if next_rank is None:
-        raise ValidationError({"to_rank": ["Student has no next active rank."]})
-    if to_rank != next_rank:
+    if facts is not None:
+        next_rank_id = facts.next_rank_ids.get(from_rank.pk)
+    else:
+        next_rank = get_next_active_rank(from_rank)
+        next_rank_id = next_rank.pk if next_rank is not None else None
+    if next_rank_id is None:
+        raise ValidationError({"to_rank": [NO_NEXT_RANK_MESSAGE]})
+    if to_rank.pk != next_rank_id:
         raise ValidationError(
             {
                 "to_rank": [
@@ -531,7 +486,7 @@ def promotion_eligibility_for_session(session_id: int) -> list[dict[str, object]
     facts = PromotionEligibilityFacts(
         promoted_outcomes=frozenset(outcome_id for outcome_id, _ in promoted),
         promoted_candidates=frozenset(candidate_id for _, candidate_id in promoted),
-        active_ranks=tuple(Rank.objects.filter(active=True).order_by("order")),
+        next_rank_ids=Rank.objects.next_rank_ids(),
     )
     answer: list[dict[str, object]] = []
     for candidate in candidates:
@@ -573,26 +528,9 @@ def promote_candidate(
     """Promote a candidate whose outcome was a finalised PASS, dated the
     grading it came from."""
     validate_promotion_actor(actor)
-    locked_outcome = lock_in_session(
-        CandidateOutcome.objects.select_related("candidate", "assessment"),
-        outcome.pk,
-        session_path="candidate__session_id",
-        name="outcome",
-    )
-    locked_candidate = lock_in_session(
-        GradingCandidate.objects.select_related(
-            "session", "student", "testing_for_rank"
-        ),
-        locked_outcome.candidate_id,
-        session_path="session_id",
-        name="candidate",
-    )
-    locked_assessment = lock_in_session(
-        CandidateAssessment.objects.all(),
-        locked_outcome.assessment_id,
-        session_path="candidate__session_id",
-        name="assessment",
-    )
+    locked_outcome = lock_outcome(outcome.pk)
+    locked_candidate = lock_candidate(locked_outcome.candidate_id)
+    locked_assessment = lock_assessment(locked_outcome.assessment_id)
     locked_student = lock_student(locked_candidate.student_id)
     candidate_effective_date = locked_candidate.session.grading_date
     from_rank, to_rank = validate_promotion_eligibility(

@@ -29,6 +29,8 @@ OVERRIDE_LOCKED_SESSION_PERMISSION = "gradings.can_override_locked_session"
 GRADING_AUDIT_LOG_PERMISSION = "gradings.can_view_grading_audit_log"
 AUDIT_LOG_PERMISSION = "audit.view_auditevent"
 DELETE_ANY_SESSION_PERMISSION = "gradings.delete_any_gradingsession"
+# Managing people: the Administrator group's own grant (accounts.groups).
+USER_ADMINISTRATION_PERMISSION = "accounts.view_user"
 
 # The per-user authority flags, keyed the way /api/auth/me/ and the users
 # API's authority sub-resource spell them. Deliberately in no role group
@@ -87,6 +89,12 @@ def can_view_audit_log(user: User) -> bool:
         or user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
         or user.has_perm(GRADING_AUDIT_LOG_PERMISSION)
     )
+
+
+def can_see_school_settings(user: User) -> bool:
+    """Whoever administers the school's accounts also sees how it is set up
+    (the About page): the Administrator group's grant, not the role label."""
+    return user.has_perm(USER_ADMINISTRATION_PERMISSION)
 
 
 def _active_user(request: Request) -> User | None:

@@ -25,6 +25,7 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from accounts.models import User
+from accounts.permissions import AUTHORITY_PERMISSIONS
 from accounts.services import set_user_authority
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -233,13 +234,14 @@ def grant_authority(accounts: dict[str, User]) -> None:
         )
         if persona.authority:
             user.user_permissions.remove(
-                *Permission.objects.filter(
-                    codename__in=[
-                        "can_make_final_grading_decision",
-                        "can_promote_student",
-                        "can_override_locked_session",
-                        "can_view_grading_audit_log",
-                    ],
+                *(
+                    Permission.objects.get(
+                        content_type__app_label=app_label,
+                        codename=codename,
+                    )
+                    for app_label, codename in (
+                        name.split(".") for name in AUTHORITY_PERMISSIONS.values()
+                    )
                 ),
             )
             accounts[persona.key] = set_user_authority(

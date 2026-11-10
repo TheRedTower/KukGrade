@@ -15,8 +15,9 @@ from accounts.models import User
 from kukgrade.testing import results
 from ranks.models import Rank
 from syllabus.models import (
-    AGE_BAND_DESCRIPTION,
+    AGE_BAND_OLDEST,
     AGE_BAND_PROGRAMME,
+    AGE_BAND_STUDENTS,
     AgeBand,
     SyllabusItem,
     SyllabusRequirement,
@@ -935,4 +936,20 @@ def test_age_bands_are_served_in_order_with_their_programme() -> None:
 
 def test_every_age_band_has_a_programme_and_description() -> None:
     assert set(AGE_BAND_PROGRAMME) == set(AgeBand.values)
-    assert set(AGE_BAND_DESCRIPTION) == set(AgeBand.values)
+    assert set(AGE_BAND_STUDENTS) == set(AgeBand.values)
+
+
+def test_each_age_band_label_says_its_boundaries() -> None:
+    youngest = 0
+    labels = []
+    for band, oldest in AGE_BAND_OLDEST.items():
+        labels.append(
+            f"{oldest} and under"
+            if youngest == 0
+            else f"{youngest}+"
+            if oldest is None
+            else f"{youngest}-{oldest}"
+        )
+        assert AgeBand(band).label == labels[-1]
+        youngest = (oldest or 0) + 1
+    assert list(AGE_BAND_OLDEST) == list(AgeBand.values)

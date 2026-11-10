@@ -1014,28 +1014,17 @@ export async function unlinkLegacyGradingRecord(id: number): Promise<LegacyGradi
   );
 }
 
-export async function resolveLegacyCurrentRank(
+export async function resolveLegacyRank(
   id: number,
+  field: Schemas["LegacyRankFieldEnum"],
   rankId: number | null,
 ): Promise<LegacyGradingRecord> {
+  const body: Schemas["ResolveLegacyRankRequest"] = { field, rank: rankId };
   return apiRequest<LegacyGradingRecord>(
-    `/api/gradings/legacy-records/${id}/resolve-current-rank/`,
+    `/api/gradings/legacy-records/${id}/resolve-rank/`,
     {
       method: "POST",
-      body: JSON.stringify({ rank: rankId }),
-    },
-  );
-}
-
-export async function resolveLegacyTestingForRank(
-  id: number,
-  rankId: number | null,
-): Promise<LegacyGradingRecord> {
-  return apiRequest<LegacyGradingRecord>(
-    `/api/gradings/legacy-records/${id}/resolve-testing-for-rank/`,
-    {
-      method: "POST",
-      body: JSON.stringify({ rank: rankId }),
+      body: JSON.stringify(body),
     },
   );
 }

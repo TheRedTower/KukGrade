@@ -24,13 +24,12 @@ from accounts.permissions import (
 )
 from audit.models import AuditAction
 from audit.recording import grading_context, record, student_label
-from gradings.age import resolve_age_band
 from gradings.assessment_services import (
     generate_candidate_assessment,
 )
 from gradings.locking import (
     STUDENT_GONE_MESSAGE,
-    lock_in_session,
+    lock_candidate,
     lock_session,
     lock_sessions_of,
     lock_student,
@@ -47,8 +46,29 @@ from gradings.models import (
 from gradings.service_support import each_independently, unique_violation_on
 from ranks.models import Rank
 from students.models import Student
+from syllabus.age import resolve_age_band
 from syllabus.models import AgeBand
 from syllabus.services import has_recorded_syllabus, rank_has_syllabus
+
+ALREADY_REGISTERED_MESSAGE = "Student is already registered for this session."
+# The codes on the two "already registered" refusals - for this session, or
+# for another that has not settled - which a cohort builder does not retry.
+ALREADY_IN_SESSION = "already_in_session"
+REGISTERED_ELSEWHERE = "registered_elsewhere"
+
+NO_NEXT_RANK_MESSAGE = "Student has no next active rank."
+COMPLETED_BY_ASSESSMENT_MESSAGE = (
+    "A candidate is completed by completing their assessment."
+)
+WITHDRAWAL_REASON_REQUIRED_MESSAGE = "A reason is required to withdraw a candidate."
+
+
+class AlreadyRegistered(models.TextChoices):
+    """Where a bulk registration row's student is already registered."""
+
+    THIS_SESSION = "THIS_SESSION", "For this session"
+    ANOTHER_GRADING = "ANOTHER_GRADING", "For another grading not yet settled"
+
 
 ALLOWED_SESSION_TRANSITIONS: dict[str, set[str]] = {
     GradingSession.Status.DRAFT: {
@@ -80,17 +100,15 @@ def ranks_open_for_grading(age_band: str) -> list[int]:
     those whose next rank has a syllabus recorded for that band. While the
     charts above Jo Kyo Nim are not in the app, a Jo Kyo Nim student has
     nothing to be graded on."""
-    ranks = list(Rank.objects.filter(active=True).order_by("order"))
     with_syllabus = set(
-        Rank.objects.filter(rank_has_syllabus(age_band)).values_list(
-            "pk",
-            flat=True,
-        ),
+        Rank.objects.filter(rank_has_syllabus(age_band)).values_list("pk", flat=True),
     )
     return [
-        current.pk
-        for current, following in zip(ranks, ranks[1:], strict=False)
-        if following.pk in with_syllabus
+        current
+        for current, following in Rank.objects.filter(active=True)
+        .next_rank_ids()
+        .items()
+        if following in with_syllabus
     ]
 
 
@@ -122,7 +140,7 @@ def validate_testing_for_rank(
     next_rank = get_next_active_rank(student.current_rank)
     if next_rank is None:
         raise ValidationError(
-            {"testing_for_rank": ["Student has no next active rank."]},
+            {"testing_for_rank": [NO_NEXT_RANK_MESSAGE]},
         )
     if testing_for_rank != next_rank:
         raise ValidationError(
@@ -485,12 +503,7 @@ def withdraw_locked_candidate(
     exactly as recorded.
     """
     validate_locked_session_override_actor(actor)
-    locked_candidate = lock_in_session(
-        GradingCandidate.objects.select_related("session", "student"),
-        candidate.pk,
-        session_path="session_id",
-        name="candidate",
-    )
+    locked_candidate = lock_candidate(candidate.pk)
 
     if locked_candidate.session.status != GradingSession.Status.LOCKED:
         raise ValidationError(
@@ -576,11 +589,7 @@ def validate_session_grading_date_change(session: GradingSession) -> None:
 
 
 def validate_session_accepts_candidates(session: GradingSession) -> None:
-    if session.status in {
-        GradingSession.Status.LOCKED,
-        GradingSession.Status.COMPLETED,
-        GradingSession.Status.CANCELLED,
-    }:
+    if not session.roster_open:
         raise ValidationError(
             {"session": ["Candidates can only be added to draft or open sessions."]},
         )
@@ -630,13 +639,17 @@ def _validate_not_in_session(
         .exclude(pk=exclude_pk)
         .exists()
     ):
-        raise ValidationError(
-            {
-                "student": [
-                    ValidationError(ALREADY_REGISTERED_MESSAGE, code=ALREADY_IN_SESSION)
-                ]
-            },
-        )
+        raise _already_registered()
+
+
+def _already_registered() -> ValidationError:
+    return ValidationError(
+        {
+            "student": [
+                ValidationError(ALREADY_REGISTERED_MESSAGE, code=ALREADY_IN_SESSION)
+            ]
+        },
+    )
 
 
 def validate_no_unsettled_registration(candidate: GradingCandidate) -> None:
@@ -729,10 +742,7 @@ def validate_session_can_be_deleted(
 
 
 def validate_candidate_can_be_changed(candidate: GradingCandidate) -> None:
-    if candidate.session.status not in {
-        GradingSession.Status.DRAFT,
-        GradingSession.Status.OPEN,
-    }:
+    if not candidate.session.roster_open:
         raise ValidationError(
             {
                 "session": [
@@ -756,7 +766,7 @@ def validate_candidate_assessment_changes(
             raise ValidationError(
                 {
                     "status": [
-                        "A candidate is completed by completing their assessment.",
+                        COMPLETED_BY_ASSESSMENT_MESSAGE,
                     ],
                 },
             )
@@ -775,7 +785,7 @@ def validate_candidate_assessment_changes(
         raise ValidationError(
             {
                 "status": [
-                    "A candidate is completed by completing their assessment.",
+                    COMPLETED_BY_ASSESSMENT_MESSAGE,
                 ],
             },
         )
@@ -799,10 +809,7 @@ def validate_candidate_can_be_deleted(candidate: GradingCandidate) -> None:
         raise ValidationError(
             {"candidate": ["Candidates with finalised outcomes cannot be deleted."]},
         )
-    if candidate.session.status not in {
-        GradingSession.Status.DRAFT,
-        GradingSession.Status.OPEN,
-    }:
+    if not candidate.session.roster_open:
         raise ValidationError(
             {
                 "session": [
@@ -868,7 +875,15 @@ def build_candidate(
     return built
 
 
-WITHDRAWAL_REASON_REQUIRED_MESSAGE = "A reason is required to withdraw a candidate."
+def _withdrawal_change(current: str, requested: str | None) -> tuple[bool, bool]:
+    """Whether moving a candidate from `current` to `requested` status
+    withdraws them, and whether it reinstates them."""
+    withdrawn = GradingCandidate.Status.WITHDRAWN
+    withdrawing = requested == withdrawn and current != withdrawn
+    reinstating = (
+        requested is not None and requested != withdrawn and current == withdrawn
+    )
+    return withdrawing, reinstating
 
 
 def update_candidate(
@@ -905,15 +920,7 @@ def update_candidate(
             exclude_pk=candidate.pk,
         )
 
-    withdrawing = (
-        status == GradingCandidate.Status.WITHDRAWN
-        and candidate.status != GradingCandidate.Status.WITHDRAWN
-    )
-    reinstating = (
-        status is not None
-        and status != GradingCandidate.Status.WITHDRAWN
-        and candidate.status == GradingCandidate.Status.WITHDRAWN
-    )
+    withdrawing, reinstating = _withdrawal_change(candidate.status, status)
     if session_changed or rank_changed or reinstating:
         # Checked on the locked student (apply_candidate_update): a deleted
         # student's kept registration never becomes active again.
@@ -1156,13 +1163,6 @@ def register_candidate(
     return candidate
 
 
-ALREADY_REGISTERED_MESSAGE = "Student is already registered for this session."
-# The codes on the two "already registered" refusals - for this session, or
-# for another that has not settled - which a cohort builder does not retry.
-ALREADY_IN_SESSION = "already_in_session"
-REGISTERED_ELSEWHERE = "registered_elsewhere"
-
-
 def _save_candidate(candidate: GradingCandidate) -> None:
     """Save, turning the one expected constraint race into a domain error.
 
@@ -1175,13 +1175,7 @@ def _save_candidate(candidate: GradingCandidate) -> None:
     except IntegrityError as exc:
         if not unique_violation_on(exc, GradingCandidate):
             raise
-        raise ValidationError(
-            {
-                "student": [
-                    ValidationError(ALREADY_REGISTERED_MESSAGE, code=ALREADY_IN_SESSION)
-                ]
-            },
-        ) from exc
+        raise _already_registered() from exc
 
 
 @transaction.atomic
@@ -1233,7 +1227,7 @@ def bulk_register_candidates(
             testing_for_rank = get_next_active_rank(row_student.current_rank)
             if testing_for_rank is None:
                 raise ValidationError(
-                    {"testing_for_rank": ["Student has no next active rank."]},
+                    {"testing_for_rank": [NO_NEXT_RANK_MESSAGE]},
                 )
         registered = register_candidate(
             session=locked_session,
@@ -1281,13 +1275,8 @@ def apply_candidate_update(
     # it, so saving it as received wrote back whatever another edit changed
     # in the meantime. The requested changes go onto the locked row,
     # and a move locks the destination session in the same ascending pass.
-    locked = lock_in_session(
-        GradingCandidate.objects.select_related(
-            "session", "student", "testing_for_rank"
-        ),
+    locked = lock_candidate(
         candidate.pk,
-        session_path="session_id",
-        name="candidate",
         also_lock=[session.pk] if session is not None else [],
     )
     moving = session is not None and session.pk != locked.session_id
@@ -1295,11 +1284,7 @@ def apply_candidate_update(
         testing_for_rank is not None
         and testing_for_rank.pk != locked.testing_for_rank_id
     )
-    reinstating = (
-        status is not None
-        and status != GradingCandidate.Status.WITHDRAWN
-        and locked.status == GradingCandidate.Status.WITHDRAWN
-    )
+    _, reinstating = _withdrawal_change(locked.status, status)
     if moving or rechoosing_rank or reinstating:
         # Each of these is checked against the student - their current rank,
         # their age on the new grading date, and (reinstating) their
@@ -1331,10 +1316,7 @@ def apply_candidate_update(
         return updated
     _save_candidate(updated)
 
-    withdrawn = (
-        before["status"] != GradingCandidate.Status.WITHDRAWN
-        and updated.status == GradingCandidate.Status.WITHDRAWN
-    )
+    withdrawn, _ = _withdrawal_change(str(before["status"]), updated.status)
     record(
         AuditAction.CANDIDATE_WITHDRAWN if withdrawn else AuditAction.CANDIDATE_UPDATED,
         updated,
@@ -1356,12 +1338,7 @@ def apply_candidate_update(
 
 @transaction.atomic
 def delete_candidate(candidate: GradingCandidate, actor: User | None = None) -> None:
-    locked = lock_in_session(
-        GradingCandidate.objects.select_related("session", "student"),
-        candidate.pk,
-        session_path="session_id",
-        name="candidate",
-    )
+    locked = lock_candidate(candidate.pk)
     validate_candidate_can_be_deleted(locked)
     record(
         AuditAction.CANDIDATE_DELETED,

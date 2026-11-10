@@ -20,16 +20,16 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
+from django.db import models
+
 from gradings.models import LegacyGradingRecord
-from ranks.matching import active_rank_lookup, rank_for_text
+from ranks.matching import RANK_TITLES, active_rank_lookup, rank_for_text
 from ranks.models import Rank
 from students.models import Student
 
 # A sheet note is a cell in no table, not a person (data_imports.ksw_adapter).
 SHEET_NOTE_NAME = "Sheet note"
 
-# A rank written before a name ("JKN Alex") is a title, not part of it.
-_RANK_PREFIXES = frozenset({"jkn", "ksn", "dbn", "psbn", "sbn", "pkjn", "dahn"})
 _CLOSE = 0.8
 _MINIMUM_SCORE = 35
 _SHOWN = 5
@@ -38,7 +38,8 @@ _SHOWN = 5
 def name_tokens(name: str) -> list[str]:
     """A name as compared: lower-cased words, punctuation and rank titles off."""
     words = re.sub(r"[^\w\s'-]", " ", name.lower()).split()
-    while words and words[0] in _RANK_PREFIXES:
+    # A rank written before a name ("JKN Alex") is a title, not part of it.
+    while words and words[0] in RANK_TITLES:
         words.pop(0)
     return words
 
@@ -49,6 +50,14 @@ def group_key(name: str) -> str:
 
 def _close(a: str, b: str) -> bool:
     return a[:1] == b[:1] and SequenceMatcher(None, a, b).ratio() >= _CLOSE
+
+
+class Suggestion(models.TextChoices):
+    """How clear the students suggested for a name are."""
+
+    CLEAR = "clear", "One student fits clearly"
+    CHOOSE = "choose", "Several students fit equally well"
+    NONE = "none", "No student fits"
 
 
 @dataclass(frozen=True)
@@ -75,11 +84,45 @@ class PersonGroup:
         return self.candidates[0].score == self.candidates[1].score
 
     @property
-    def suggestion(self) -> str:
+    def suggestion(self) -> Suggestion:
         """How clear the suggestion is: one student, a choice, or none."""
         if not self.candidates:
-            return "none"
-        return "choose" if self.shared else "clear"
+            return Suggestion.NONE
+        return Suggestion.CHOOSE if self.shared else Suggestion.CLEAR
+
+    @property
+    def needs_rank(self) -> bool:
+        """Whether a rank is written on a record but not matched to one yet."""
+        return any(record.needs_rank for record in self.records)
+
+    @property
+    def first_period(self) -> str:
+        """The earliest record's year and month, as "2025-03"."""
+        return self._periods()[0]
+
+    @property
+    def last_period(self) -> str:
+        return self._periods()[-1]
+
+    def _periods(self) -> list[str]:
+        return sorted(
+            f"{record.cycle_year}-{record.cycle_month:02d}" for record in self.records
+        )
+
+    @property
+    def ranks_written(self) -> list[str]:
+        """Each distinct "held → testing for" the records write, oldest first."""
+        written: list[str] = []
+        for record in sorted(
+            self.records,
+            key=lambda r: (r.cycle_year, r.cycle_month, r.pk),
+        ):
+            held = record.source_current_rank_text
+            testing = record.source_testing_for_rank_text
+            text = f"{held or '(blank)'} → {testing}" if testing else held
+            if text and text not in written:
+                written.append(text)
+        return written
 
     @property
     def linked_student(self) -> Student | None:

@@ -79,6 +79,8 @@ VIEW_ONLY_MODELS = [
     ("ranks", "rank"),
     ("syllabus", "syllabusitem"),
     ("syllabus", "syllabusrequirement"),
+    ("audit", "auditevent"),
+    ("data_imports", "importbatch"),
 ]
 
 
@@ -107,12 +109,17 @@ def test_grading_and_student_data_can_be_looked_at_but_not_changed_in_admin(
 
 
 def test_the_view_only_pages_render(settings: Any) -> None:
+    from audit.models import AuditAction
+    from audit.recording import record
+    from data_imports.testing import legacy_batch
     from gradings.testing import assessment, candidate
     from kukgrade.testing import render_admin_pages
 
     render_admin_pages(settings)
     built = candidate()
     prepared = assessment(candidate=built)
+    batch = legacy_batch()
+    event = record(AuditAction.STUDENT_CREATED, built.student, "Student created.")
     client = Client()
     client.force_login(
         User.objects.create_superuser(
@@ -132,6 +139,10 @@ def test_the_view_only_pages_render(settings: Any) -> None:
         "/admin/gradings/candidateassessmentitem/",
         "/admin/gradings/candidateoutcome/",
         "/admin/gradings/promotion/",
+        "/admin/audit/auditevent/",
+        f"/admin/audit/auditevent/{event.pk}/change/",
+        "/admin/data_imports/importbatch/",
+        f"/admin/data_imports/importbatch/{batch.pk}/change/",
     ]
 
     for page in pages:

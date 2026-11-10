@@ -6,8 +6,7 @@ import {
   type LegacyGradingRecord,
   errorMessage,
   getStudents,
-  resolveLegacyCurrentRank,
-  resolveLegacyTestingForRank,
+  resolveLegacyRank,
   voidLegacyGradingRecord,
 } from "./api";
 import { ErrorText } from "./ErrorText";
@@ -21,7 +20,7 @@ export function RankFix({ record, onDone, showAll = false }: { record: LegacyGra
   const ranks = useRanksQuery().data?.results ?? [];
   const fix = useMutation({
     mutationFn: ({ which, rank }: { which: "held" | "tested"; rank: number | null }) =>
-      which === "held" ? resolveLegacyCurrentRank(record.id, rank) : resolveLegacyTestingForRank(record.id, rank),
+      resolveLegacyRank(record.id, which === "held" ? "current_rank" : "testing_for_rank", rank),
     onSuccess: onDone,
   });
   const open: { which: "held" | "tested"; text: string }[] = [];

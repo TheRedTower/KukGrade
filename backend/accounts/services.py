@@ -27,6 +27,23 @@ from accounts.permissions import (
 from audit.models import AuditAction
 from audit.recording import record
 
+SUPERUSER_ONLY_MESSAGE = "Only a superuser can change this account."
+OWN_ROLE_OR_STATUS_MESSAGE = "You cannot change your own role or account status."
+DELETED_ACCOUNT_MESSAGE = "This account has been deleted and cannot be changed."
+DELETED_ACCOUNT_EMAIL_MESSAGE = (
+    "This email belonged to an account that was deleted. Its records still "
+    "carry it, so use another email."
+)
+
+
+def email_holder(email: str, *, exclude: User | None = None) -> User | None:
+    """The account holding `email`, deleted or not: a deleted account keeps
+    its email, so its records still say who acted."""
+    taken = User.objects.filter(email__iexact=User.objects.normalize_email(email))
+    if exclude is not None:
+        taken = taken.exclude(pk=exclude.pk)
+    return taken.first()
+
 
 def _lock_user(user_id: UUID) -> User:
     """The account row, locked and re-read - a fresh instance, so has_perm()
@@ -45,11 +62,6 @@ def _snapshot(user: User) -> dict[str, Any]:
         "role": user.role,
         "is_active": user.is_active,
     }
-
-
-SUPERUSER_ONLY_MESSAGE = "Only a superuser can change this account."
-OWN_ROLE_OR_STATUS_MESSAGE = "You cannot change your own role or account status."
-DELETED_ACCOUNT_MESSAGE = "This account has been deleted and cannot be changed."
 
 
 def can_manage(target: User, actor: User) -> bool:
@@ -113,18 +125,9 @@ def create_platform_user(
 ) -> TemporaryPassword:
     """A new account with a generated temporary password, which expires and
     which its owner must replace at their first sign-in."""
-    if User.objects.filter(
-        email=User.objects.normalize_email(email),
-        deleted_at__isnull=False,
-    ).exists():
-        raise ValidationError(
-            {
-                "email": [
-                    "This email belonged to an account that was deleted. Its "
-                    "records still carry it, so use another email.",
-                ],
-            },
-        )
+    holder = email_holder(email)
+    if holder is not None and holder.deleted_at is not None:
+        raise ValidationError({"email": [DELETED_ACCOUNT_EMAIL_MESSAGE]})
     expires_at = _temporary_password_expiry()
     extra: dict[str, Any] = {
         "first_name": first_name,

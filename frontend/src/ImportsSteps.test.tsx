@@ -30,8 +30,7 @@ const api = vi.hoisted(() => ({
   getLegacyPeopleSummary: vi.fn(),
   bulkLinkLegacyRecords: vi.fn(),
   unlinkLegacyGradingRecord: vi.fn(),
-  resolveLegacyCurrentRank: vi.fn(),
-  resolveLegacyTestingForRank: vi.fn(),
+  resolveLegacyRank: vi.fn(),
   voidLegacyGradingRecord: vi.fn(),
   setAsideNames: vi.fn(),
   putBackSetAsideName: vi.fn(),
@@ -919,14 +918,14 @@ describe("Linking historical records", () => {
 
   it("matches a rank still as written, and voids a record only with a reason", async () => {
     const user = userEvent.setup();
-    api.resolveLegacyTestingForRank.mockResolvedValue(record());
+    api.resolveLegacyRank.mockResolvedValue(record());
     api.voidLegacyGradingRecord.mockResolvedValue(record({ is_void: true }));
     renderAt("/imports/records");
 
     await user.click(await screen.findByRole("button", { name: "Review “Mia R”" }));
     await screen.findAllByRole("option", { name: "Brown stripe" });
     await user.selectOptions(await screen.findByLabelText(/“Brn stripe” is not matched/), "8");
-    await waitFor(() => expect(api.resolveLegacyTestingForRank).toHaveBeenCalledWith(102, 8));
+    await waitFor(() => expect(api.resolveLegacyRank).toHaveBeenCalledWith(102, "testing_for_rank", 8));
 
     await user.click(screen.getByRole("button", { name: "Void the Mar\u00a02025 record" }));
     const dialog = screen.getByRole("dialog");

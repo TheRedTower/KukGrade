@@ -14,7 +14,6 @@ from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
-from gradings.age import with_age_band_on
 from gradings.models import GradingCandidate, GradingSession
 from gradings.read_models import (
     student_rank_timeline,
@@ -37,6 +36,7 @@ from students.serializers import (
     StudentSerializer,
 )
 from students.services import delete_student
+from syllabus.age import with_age_band_on
 from syllabus.models import AgeBand
 
 
@@ -199,7 +199,7 @@ class StudentViewSet(
         """The date a list's age bands are worked out on.
 
         Registering for a session bands a student by their age on its
-        grading date (gradings.age.resolve_age_band), so a list of who could
+        grading date (syllabus.age.resolve_age_band), so a list of who could
         be registered for one says the same - near a birthday, today's band
         and the grading's differ.
         """

@@ -22,6 +22,7 @@ from about.serializers import (
     PledgeSerializer,
 )
 from accounts.models import User
+from accounts.permissions import can_see_school_settings
 from health.views import database_reachable
 from kukgrade.version import VERSION
 
@@ -62,7 +63,7 @@ def about(request: Request) -> Response:
         "copyright": project.COPYRIGHT_NOTICE,
     }
     user = request.user
-    if isinstance(user, User) and user.role == User.Role.ADMINISTRATOR:
+    if isinstance(user, User) and can_see_school_settings(user):
         data["school"] = {
             "club_name": settings.CLUB_NAME,
             "school_id_prefix": settings.SCHOOL_ID_PREFIX,

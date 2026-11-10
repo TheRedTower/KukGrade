@@ -59,6 +59,10 @@ for what did not; one refusal never blocks the others. Bulk register also return
 `already_registered`, the error keys whose student is already registered (`THIS_SESSION`
 or `ANOTHER_GRADING`), so a client tells those apart without reading message text.
 
+**Choices** a screen lists (audit event and record types, withdrawal reasons) are served
+as `{"value": …, "label": …}`, plus anything a choice needs said about it, such as
+whether a withdrawal reason needs a note.
+
 **Errors** always use one envelope, including unknown URLs and server errors:
 
 ```json

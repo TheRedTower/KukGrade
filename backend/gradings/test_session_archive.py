@@ -8,7 +8,12 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
-from gradings.models import CandidateOutcome, GradingSession, Promotion
+from gradings.models import (
+    CandidateOutcome,
+    GradingSession,
+    GradingSessionStatus,
+    Promotion,
+)
 from gradings.outcome_services import promote_candidate
 from gradings.services import (
     archive_grading_session,
@@ -79,7 +84,7 @@ def test_a_cancelled_session_can_be_archived() -> None:
     ],
 )
 def test_a_session_still_in_progress_cannot_be_archived(
-    status: GradingSession.Status,
+    status: GradingSessionStatus,
 ) -> None:
     session = grading_session(status=status)
 

@@ -9,25 +9,15 @@ from django.http import HttpRequest
 from accounts.models import User
 from accounts.permissions import can_view_audit_log
 from audit.models import AuditEvent, AuditEventQuerySet
+from kukgrade.admin_mixins import ViewOnlyAdmin
 
 
 @admin.register(AuditEvent)
-class AuditEventAdmin(admin.ModelAdmin):
+class AuditEventAdmin(ViewOnlyAdmin):
     list_display = ("occurred_at", "action", "entity_type", "entity_id", "actor_email")
     list_filter = ("action", "entity_type")
     search_fields = ("entity_id", "summary", "actor_email", "actor_name")
     ordering = ("-occurred_at", "-pk")
-    readonly_fields = (
-        "actor",
-        "actor_email",
-        "actor_name",
-        "action",
-        "entity_type",
-        "entity_id",
-        "occurred_at",
-        "summary",
-        "metadata",
-    )
 
     # The same rules as the API, from the same place: who may read the log
     # at all, and which events they may see in it.
@@ -48,20 +38,3 @@ class AuditEventAdmin(admin.ModelAdmin):
         obj: AuditEvent | None = None,
     ) -> bool:
         return self._can_view_audit_log(request)
-
-    def has_add_permission(self, request: HttpRequest) -> bool:
-        return False
-
-    def has_change_permission(
-        self,
-        request: HttpRequest,
-        obj: AuditEvent | None = None,
-    ) -> bool:
-        return False
-
-    def has_delete_permission(
-        self,
-        request: HttpRequest,
-        obj: AuditEvent | None = None,
-    ) -> bool:
-        return False

@@ -1,6 +1,9 @@
+"""A student's age band on a date, from the boundaries beside AgeBand."""
+
 from __future__ import annotations
 
 from datetime import date
+from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
 from django.db.models import (
@@ -14,16 +17,10 @@ from django.db.models import (
     When,
 )
 
-from students.models import Student
-from syllabus.models import AgeBand
+from syllabus.models import AGE_BAND_OLDEST, AgeBand
 
-# Each age band's oldest age, in ascending order. None means unbounded.
-_AGE_BAND_MAX_AGE: dict[str, int | None] = {
-    AgeBand.AGE_8_AND_UNDER: 8,
-    AgeBand.AGE_9_TO_12: 12,
-    AgeBand.AGE_13_TO_17: 17,
-    AgeBand.AGE_18_AND_OVER: None,
-}
+if TYPE_CHECKING:
+    from students.models import Student
 
 
 def calculate_age_on(date_of_birth: date, on_date: date) -> int:
@@ -41,10 +38,10 @@ def resolve_age_band(date_of_birth: date | None, grading_date: date) -> str:
     if date_of_birth is None:
         raise ValidationError({"student": ["Student date of birth is required."]})
     age = calculate_age_on(date_of_birth, grading_date)
-    for band, oldest in _AGE_BAND_MAX_AGE.items():
+    for band, oldest in AGE_BAND_OLDEST.items():
         if oldest is None or age <= oldest:
             return band
-    raise AssertionError("_AGE_BAND_MAX_AGE has no open-ended band")
+    raise AssertionError("AGE_BAND_OLDEST has no open-ended band")
 
 
 def _age_in_years_on(on_date: date) -> Func:
@@ -67,7 +64,7 @@ def with_age_band_on(students: QuerySet[Student], on_date: date) -> QuerySet[Stu
     band = Case(
         *(
             When(age_in_years__lte=oldest, then=Value(band))
-            for band, oldest in _AGE_BAND_MAX_AGE.items()
+            for band, oldest in AGE_BAND_OLDEST.items()
             if oldest is not None
         ),
         default=Value(AgeBand.AGE_18_AND_OVER),

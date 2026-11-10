@@ -812,7 +812,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/legacy-records/{id}/resolve-current-rank/": {
+    "/api/gradings/legacy-records/{id}/resolve-rank/": {
         parameters: {
             query?: never;
             header?: never;
@@ -828,30 +828,7 @@ export interface paths {
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
          *     through gradings.legacy_services.
          */
-        post: operations["gradings_legacy_records_resolve_current_rank_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/legacy-records/{id}/resolve-testing-for-rank/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
-         *     create/update/delete: rows are only ever created by
-         *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through gradings.legacy_services.
-         */
-        post: operations["gradings_legacy_records_resolve_testing_for_rank_create"];
+        post: operations["gradings_legacy_records_resolve_rank_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1666,10 +1643,6 @@ export interface components {
          * @enum {string}
          */
         AttendanceStatusEnum: "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
-        AuditChoice: {
-            value: string;
-            label: string;
-        };
         /**
          * @description * `GradingSession` - Grading session
          *     * `GradingCandidate` - Candidate
@@ -1707,8 +1680,8 @@ export interface components {
          *     types, so the audit screen's filters keep no list of their own.
          */
         AuditLabels: {
-            actions: components["schemas"]["AuditChoice"][];
-            entities: components["schemas"]["AuditChoice"][];
+            actions: components["schemas"]["Choice"][];
+            entities: components["schemas"]["Choice"][];
         };
         /** @description GET /api/audit-events/subject/: what a history is of, named as it is now. */
         AuditSubject: {
@@ -1937,6 +1910,14 @@ export interface components {
         ChangePasswordRequest: {
             current_password: string;
             new_password: string;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        Choice: {
+            value: string;
+            label: string;
         };
         Credit: {
             name: string;
@@ -2394,7 +2375,7 @@ export interface components {
         KindEnum: "STUDENT_ROSTER" | "LEGACY_GRADINGS";
         /**
          * @description Read-mostly, matching PromotionSerializer's idiom - no ordinary
-         *     update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
+         *     update/delete exists (LegacyGradingRecord is kukgrade.kept), only
          *     the reconciliation actions on LegacyGradingRecordViewSet.
          */
         LegacyGradingRecord: {
@@ -2474,8 +2455,8 @@ export interface components {
             readonly record_ids: number[];
             /** @description How many records. */
             readonly records: number;
-            readonly first_period: string;
-            readonly last_period: string;
+            first_period: string;
+            last_period: string;
             /** @description The student every record here is linked to, if one is. */
             readonly linked_student: number | null;
             /** @description Several students fit equally well: a person has to choose. */
@@ -2483,9 +2464,9 @@ export interface components {
             /** @description That student's name, when every record here is linked to one. */
             readonly linked_student_name: string | null;
             /** @description The ranks the records give, as written, in date order. */
-            readonly ranks: string[];
+            ranks: string[];
             /** @description Whether a rank is written on a record but not matched to one yet. */
-            readonly needs_rank: boolean;
+            needs_rank: boolean;
             /**
              * @description How clear the suggested students are, from the candidates.
              *
@@ -2496,6 +2477,12 @@ export interface components {
             suggestion: components["schemas"]["SuggestionEnum"];
             candidates: components["schemas"]["SuggestedStudent"][];
         };
+        /**
+         * @description * `current_rank` - current rank
+         *     * `testing_for_rank` - testing-for rank
+         * @enum {string}
+         */
+        LegacyRankFieldEnum: "current_rank" | "testing_for_rank";
         LegacyRecordLinkRequest: {
             record: number;
             student: number;
@@ -2947,8 +2934,12 @@ export interface components {
             candidate: components["schemas"]["GradingCandidate"];
             assessment: components["schemas"]["CandidateAssessment"] | null;
         };
-        /** @description `rank=null` explicitly leaves the mapping unresolved. */
+        /**
+         * @description Which of the record's ranks to map; `rank=null` explicitly leaves it
+         *     unresolved.
+         */
         ResolveLegacyRankRequest: {
+            field: components["schemas"]["LegacyRankFieldEnum"];
             rank: number | null;
         };
         /**
@@ -3007,8 +2998,8 @@ export interface components {
             demo?: components["schemas"]["Demo"];
         };
         /**
-         * @description * `KUKGRADE` - KUKGRADE
-         *     * `LEGACY` - LEGACY
+         * @description * `KUKGRADE` - A grading in KukGrade
+         *     * `LEGACY` - A historical record
          * @enum {string}
          */
         SourceEnum: "KUKGRADE" | "LEGACY";
@@ -3249,10 +3240,10 @@ export interface components {
         VoidLegacyRecordRequest: {
             reason: string;
         };
-        /** @description One withdrawal reason, from its code, and whether it needs a note. */
+        /** @description One withdrawal reason, and whether it needs a note. */
         WithdrawalReason: {
-            readonly code: components["schemas"]["WithdrawalReasonEnum"];
-            readonly name: string;
+            value: components["schemas"]["WithdrawalReasonEnum"];
+            label: string;
             readonly note_required: boolean;
         };
         /**
@@ -4458,35 +4449,7 @@ export interface operations {
             };
         };
     };
-    gradings_legacy_records_resolve_current_rank_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this legacy grading record. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResolveLegacyRankRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ResolveLegacyRankRequest"];
-                "multipart/form-data": components["schemas"]["ResolveLegacyRankRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyGradingRecord"];
-                };
-            };
-        };
-    };
-    gradings_legacy_records_resolve_testing_for_rank_create: {
+    gradings_legacy_records_resolve_rank_create: {
         parameters: {
             query?: never;
             header?: never;

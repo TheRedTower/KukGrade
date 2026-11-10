@@ -78,8 +78,9 @@ an action that is not declared is denied. Django permissions are the authority; 
 
 **History is reproducible.** Generating an assessment copies every requirement's text
 into immutable per-candidate rows, so editing the syllabus later cannot change a past
-grading. Promotions, finalised outcomes and audit events are immutable; imported
-records are voided, never deleted.
+grading. Promotions, finalised outcomes, item comments, mark changes and audit events
+are immutable, by one guard (`kukgrade/kept.py`); imported records are voided, never
+deleted.
 
 **One lock protocol.** Concurrent grading writes lock the grading session first, then
 any students in ascending id order, and validate only against rows re-read under those

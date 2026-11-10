@@ -13,6 +13,7 @@ from gradings.models import (
 )
 from gradings.read_models import (
     GradingHistoryItem,
+    GradingHistorySource,
     GradingStage,
     StudentGradingHistory,
     StudentRankTimeline,
@@ -53,7 +54,7 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
     # - same mypy collision as EffectiveSyllabusRequirementSerializer.required
     # elsewhere in this codebase, not a real conflict at runtime.
     source = serializers.ChoiceField(  # type: ignore[assignment]
-        choices=["KUKGRADE", "LEGACY"],
+        choices=GradingHistorySource.choices,
     )
     record_id = serializers.IntegerField()
     date = serializers.DateField(allow_null=True)
@@ -128,7 +129,7 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     can_be_graded = serializers.BooleanField(read_only=True)
-    # Annotated by the list view (gradings.age.with_age_band_on): on the
+    # Annotated by the list view (syllabus.age.with_age_band_on): on the
     # grading date when the list is filtered by eligible_for_session,
     # otherwise today.
     age_band = serializers.ChoiceField(

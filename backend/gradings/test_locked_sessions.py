@@ -302,10 +302,10 @@ def test_withdrawal_reasons_are_served_with_which_needs_a_note() -> None:
 
     assert response.status_code == 200
     assert results(response) == [
-        {"code": "INJURY", "name": "Injured during grading", "note_required": False},
-        {"code": "WITHDREW", "name": "Withdrew voluntarily", "note_required": False},
-        {"code": "ABSENT", "name": "Did not attend", "note_required": False},
-        {"code": "OTHER", "name": "Other", "note_required": True},
+        {"value": "INJURY", "label": "Injured during grading", "note_required": False},
+        {"value": "WITHDREW", "label": "Withdrew voluntarily", "note_required": False},
+        {"value": "ABSENT", "label": "Did not attend", "note_required": False},
+        {"value": "OTHER", "label": "Other", "note_required": True},
     ]
 
 

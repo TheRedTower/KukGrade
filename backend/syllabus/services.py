@@ -49,6 +49,23 @@ _PART_OF_RE = re.compile(r"^(\d+)/(\d+)$")
 _PART_LABEL_RE = re.compile(r"^pt\.(\d+)$", re.IGNORECASE)
 
 
+def _parse_chart_notation(notes: str) -> tuple[str, tuple[int, int | None] | None]:
+    """A `Chart notation: (...).` note's parenthesised content, and the part
+    it names: (1, 2) for `(1/2)`, (3, None) for `(pt.3)`, None for any other
+    content. ("", None) for a note that is not chart notation."""
+    match = _CHART_NOTATION_RE.match(notes.strip())
+    if not match:
+        return "", None
+    inner = match.group(1)
+    part_of = _PART_OF_RE.match(inner)
+    if part_of:
+        return inner, (int(part_of.group(1)), int(part_of.group(2)))
+    part_label = _PART_LABEL_RE.match(inner)
+    if part_label:
+        return inner, (int(part_label.group(1)), None)
+    return inner, None
+
+
 def normalize_chart_notation(notes: str) -> str:
     """Turn a seeded `Chart notation: (...).` note into display wording.
 
@@ -60,32 +77,16 @@ def normalize_chart_notation(notes: str) -> str:
     eligibility note) return an empty string - they are not a range and do
     not belong in this field.
     """
-    match = _CHART_NOTATION_RE.match(notes.strip())
-    if not match:
-        return ""
-    inner = match.group(1)
-    part_of = _PART_OF_RE.match(inner)
-    if part_of:
-        return f"Part {part_of.group(1)} of {part_of.group(2)}"
-    part_label = _PART_LABEL_RE.match(inner)
-    if part_label:
-        return f"Part {part_label.group(1)}"
-    return inner
+    inner, part = _parse_chart_notation(notes)
+    if part is None:
+        return inner
+    number, of_total = part
+    return f"Part {number} of {of_total}" if of_total is not None else f"Part {number}"
 
 
 def _part_number(notes: str) -> tuple[int, int | None] | None:
     """The part a chart note names - (1, 2) for `(1/2)`, (3, None) for `(pt.3)`."""
-    match = _CHART_NOTATION_RE.match(notes.strip())
-    if not match:
-        return None
-    inner = match.group(1)
-    part_of = _PART_OF_RE.match(inner)
-    if part_of:
-        return int(part_of.group(1)), int(part_of.group(2))
-    part_label = _PART_LABEL_RE.match(inner)
-    if part_label:
-        return int(part_label.group(1)), None
-    return None
+    return _parse_chart_notation(notes)[1]
 
 
 def _format_parts(numbers: list[int]) -> str:
@@ -159,12 +160,8 @@ def effective_syllabus_requirements(
     present it as that rank's whole curriculum.
     """
     rows = list(
-        SyllabusRequirement.objects.filter(
-            age_band=age_band,
-            active=True,
-            item__active=True,
-            rank__order__lte=rank.order,
-        )
+        _recorded()
+        .filter(age_band=age_band, rank__order__lte=rank.order)
         .select_related("rank", "item")
         .order_by("item_id", "rank__order"),
     )

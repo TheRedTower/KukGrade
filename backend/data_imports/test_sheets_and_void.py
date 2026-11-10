@@ -288,6 +288,9 @@ def test_a_wrong_import_is_voided_as_a_whole_each_record_audited() -> None:
     events = AuditEvent.objects.filter(action=AuditAction.LEGACY_GRADING_VOIDED)
     assert events.count() == 3
     assert {event.metadata["whole_import"] for event in events} == {True}
+    assert {event.summary for event in events} == {
+        "Historical grading record voided with its whole import: Wrong workbook",
+    }
 
 
 def test_a_voided_import_leaves_its_students_history() -> None:

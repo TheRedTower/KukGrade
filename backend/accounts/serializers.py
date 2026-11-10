@@ -20,8 +20,10 @@ from accounts.permissions import (
     prime_permission_cache,
 )
 from accounts.services import (
+    DELETED_ACCOUNT_EMAIL_MESSAGE,
     can_manage,
     change_own_password,
+    email_holder,
     set_user_authority,
     update_platform_user,
 )
@@ -241,18 +243,11 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
     def validate_email(self, value: str) -> str:
         # Uniqueness checked here, not by the field's own validator, so an
         # email a deleted account keeps can say why it is taken.
-        email = User.objects.normalize_email(value)
-        taken = User.objects.filter(email__iexact=email)
-        if self.instance is not None:
-            taken = taken.exclude(pk=self.instance.pk)
-        holder = taken.first()
+        holder = email_holder(value, exclude=self.instance)
         if holder is None:
-            return email
+            return User.objects.normalize_email(value)
         if holder.deleted_at is not None:
-            raise serializers.ValidationError(
-                "This email belonged to an account that was deleted. Its "
-                "records still carry it, so use another email."
-            )
+            raise serializers.ValidationError(DELETED_ACCOUNT_EMAIL_MESSAGE)
         raise serializers.ValidationError("An account with this email already exists.")
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:

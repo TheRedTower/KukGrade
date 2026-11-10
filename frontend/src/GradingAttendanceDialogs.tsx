@@ -122,23 +122,23 @@ export function LockedWithdrawalDialog({
         onSubmit={(event) => {
           event.preventDefault();
           if (!reason || noteMissing) return;
-          onConfirm({ withdrawal_reason: reason.code, withdrawal_note: note.trim() });
+          onConfirm({ withdrawal_reason: reason.value, withdrawal_note: note.trim() });
         }}
       >
         <fieldset className="attendance-candidate-list">
           <legend className="field__legend">Reason</legend>
           {reasons.map((option, index) => (
-            <label key={option.code} className="attendance-candidate-option">
+            <label key={option.value} className="attendance-candidate-option">
               <input
                 type="radio"
                 name="withdrawal-reason"
-                value={option.code}
+                value={option.value}
                 data-dialog-autofocus={index === 0 ? "true" : undefined}
-                checked={reason?.code === option.code}
+                checked={reason?.value === option.value}
                 onChange={() => setReason(option)}
               />
               <span>
-                <strong>{option.name}</strong>
+                <strong>{option.label}</strong>
               </span>
             </label>
           ))}

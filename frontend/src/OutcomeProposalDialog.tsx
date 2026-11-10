@@ -19,7 +19,6 @@ import {
 } from "./api";
 import { Dialog } from "./Dialog";
 import { ErrorText } from "./ErrorText";
-import { RankBelt } from "./Belt";
 import { CheckIcon } from "./Icons";
 import { useChoices } from "./choices";
 import "./OutcomeControls.css";
@@ -27,6 +26,7 @@ import { useSealedEvidenceLoaded } from "./queries";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 import "./OutcomeProposalDialog.css";
 import { Button } from "./Button";
+import { CandidateRanks } from "./RankTransition";
 
 export function OutcomeProposalDialog({
   candidate,
@@ -79,11 +79,7 @@ export function OutcomeProposalDialog({
     >
       <p className="outcome-rank-line subtext">
         <span className="opd-sub">{candidate.student_wksa_id}</span>
-        <RankBelt rankId={candidate.from_rank} />
-        {candidate.from_rank_name}
-        <span aria-hidden="true">→</span>
-        <RankBelt rankId={candidate.testing_for_rank} />
-        {candidate.testing_for_rank_name}
+        <CandidateRanks candidate={candidate} />
       </p>
 
       <form onSubmit={handleSubmit} className="stack">

@@ -213,10 +213,6 @@
 
 /* The change-status dialog */
 
-.modal-lead-text {
-  margin: 0 0 var(--space-4);
-}
-
 .status-radio-options {
   display: flex;
   flex-direction: column;

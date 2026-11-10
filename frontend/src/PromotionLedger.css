@@ -116,19 +116,12 @@
   border-radius: var(--radius-pill);
 }
 
-.pl-chip-num,
-.pl-chip-rank,
-.pl-chip-arrow {
+.pl-chip-num {
   color: var(--color-text-muted);
 }
 
 .pl-chip-name {
   color: var(--color-text);
-}
-
-.pl-chip-target,
-.pl-highlight-rank {
-  color: var(--color-status-locked);
 }
 
 .pl-modal-candidate-info {
@@ -151,12 +144,7 @@
   margin: 0 0 var(--space-2);
 }
 
-.pl-modal-arrow {
-  color: var(--color-text-muted);
-}
-
 .pl-modal-date-notice {
   margin: 0;
 }
-
 

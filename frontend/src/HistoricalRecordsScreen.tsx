@@ -13,7 +13,7 @@ import {
 } from "./api";
 import { ErrorText } from "./ErrorText";
 import { formatMonthYear } from "./dates";
-import { ImportDialog } from "./ImportDialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { ImportPager } from "./ImportPager";
 import { type Chosen } from "./linkRecords";
 import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
@@ -166,7 +166,8 @@ export function HistoricalRecordsScreen() {
           )}
         </div>
       </div>
-      {confirm === "replace" && record && chosen ? <ImportDialog
+      {confirm === "replace" && record && chosen ? <ConfirmDialog
+        cancelLabel="Not yet"
         title={`Move “${record.source_name}” to ${chosen.name}?`}
         confirmLabel="Replace link"
         pending={link.isPending}
@@ -174,8 +175,9 @@ export function HistoricalRecordsScreen() {
         error={link.isError ? errorMessage(link.error, "The link could not be replaced.") : null}
         onClose={() => setConfirm(null)}
         onConfirm={() => link.mutate(true)}
-      ><p>This replaces the existing link to {record.student_display_name}. The change is recorded.</p></ImportDialog> : null}
-      {confirm === "unlink" && record ? <ImportDialog
+      ><p>This replaces the existing link to {record.student_display_name}. The change is recorded.</p></ConfirmDialog> : null}
+      {confirm === "unlink" && record ? <ConfirmDialog
+        cancelLabel="Not yet"
         title={`Unlink “${record.source_name}” from ${record.student_display_name}?`}
         confirmLabel="Unlink student"
         pending={unlink.isPending}
@@ -183,7 +185,7 @@ export function HistoricalRecordsScreen() {
         error={unlink.isError ? errorMessage(unlink.error, "The link could not be removed.") : null}
         onClose={() => setConfirm(null)}
         onConfirm={() => unlink.mutate()}
-      ><p>The historical record remains and returns to the linking queue.</p></ImportDialog> : null}
+      ><p>The historical record remains and returns to the linking queue.</p></ConfirmDialog> : null}
       {confirm === "void" && record ? <VoidRecord record={record} onClose={() => setConfirm(null)} onDone={refresh} /> : null}
     </section>
   );

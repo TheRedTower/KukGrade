@@ -1,11 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Alert } from "./Alert";
 import { CandidateAssessmentItem, CandidateAssessmentItemResult } from "./api";
 import { CategoryGroup } from "./candidateAssessmentData";
-import { Dialog } from "./Dialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { formatTime } from "./dates";
 import { CheckIcon, CrossIcon, PersonIcon } from "./Icons";
-import { Button } from "./Button";
 import { ItemDraftBox } from "./ItemDraftBox";
 import { ItemRemarks } from "./ItemRemarks";
 import { labelOf, useChoices } from "./choices";
@@ -51,28 +49,21 @@ export function DeleteAssessmentDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Dialog title="Delete assessment" closeButton={false} onClose={onClose} canClose={!isPending}>
-      <p className="gsd-modal-message subtext">
+    <ConfirmDialog
+      title="Delete assessment"
+      confirmLabel="Delete assessment"
+      pendingLabel="Deleting…"
+      pending={isPending}
+      error={error}
+      danger
+      onClose={onClose}
+      onConfirm={onConfirm}
+    >
+      <p>
         Permanently delete {candidateName}&apos;s assessment? Any proposed outcome is
         deleted with it. This cannot be undone.
       </p>
-      {error && (
-        <Alert>{error}</Alert>
-      )}
-      <div className="action-row action-row--end">
-        <Button
-          variant="secondary"
-          onClick={onClose}
-          disabled={isPending}
-          data-dialog-autofocus
-        >
-          Cancel
-        </Button>
-        <Button variant="danger" onClick={onConfirm} disabled={isPending}>
-          {isPending ? "Deleting…" : "Delete assessment"}
-        </Button>
-      </div>
-    </Dialog>
+    </ConfirmDialog>
   );
 }
 

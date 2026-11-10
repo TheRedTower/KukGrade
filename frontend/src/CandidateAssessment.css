@@ -7,10 +7,6 @@
   color: var(--color-text);
 }
 
-.caw-rank-arrow {
-  color: var(--color-text-muted);
-}
-
 /* ── Not Started Prompt Banner ───────────────────────────────────────────── */
 
 .caw-run > .alert {
@@ -541,12 +537,6 @@
   flex-wrap: wrap;
 }
 
-.acp-rank {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .acp-section {
   margin: var(--space-5) 0 var(--space-2);
 }
@@ -795,20 +785,7 @@
 }
 
 .acp-proofread {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
   margin-top: var(--space-3);
-  line-height: var(--line-height-snug);
-  cursor: pointer;
-}
-
-.acp-proofread input {
-  width: 18px;
-  height: 18px;
-  margin: 1px 0 0;
-  accent-color: var(--color-gold-strong);
-  flex-shrink: 0;
 }
 
 /* ── Tablet and phone ────────────────────────────────────────────────────── */

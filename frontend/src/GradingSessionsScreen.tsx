@@ -14,10 +14,10 @@ import {
 } from "./api";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
-import { Alert } from "./Alert";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
-import { Dialog } from "./Dialog";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { confirmDetails } from "./sessionDetail";
 import { useChoices } from "./choices";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Pagination } from "./Pagination";
@@ -29,6 +29,10 @@ import { ArrowRightIcon, PlusIcon } from "./Icons";
 
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+
+function deleteDetails(session: GradingSession) {
+  return confirmDetails("DELETE", session, session.candidate_count ?? 0);
+}
 
 const PAGE_SIZE = 10;
 
@@ -320,38 +324,20 @@ export function GradingSessionsScreen() {
         </>
       )}
 
-      {/* ── Delete Confirmation Modal */}
       {deleteConfirmSession && (
-        <Dialog
-          title="Delete Grading Session"
-          closeButton={false}
+        <ConfirmDialog
+          title={deleteDetails(deleteConfirmSession).title}
+          confirmLabel="Delete session"
+          pendingLabel="Deleting…"
+          pending={deleteSessionMutation.isPending}
+          error={deleteError}
+          danger
           onClose={closeDeleteConfirm}
-          canClose={!deleteSessionMutation.isPending}
+          onConfirm={() => deleteSessionMutation.mutate(deleteConfirmSession.id)}
         >
-          <p className="gsd-modal-message subtext">
-            Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
-          </p>
-          {deleteError && (
-            <Alert>{deleteError}</Alert>
-          )}
-          <div className="action-row dialog__actions">
-            <Button
-              variant="ghost"
-              onClick={closeDeleteConfirm}
-              disabled={deleteSessionMutation.isPending}
-              data-dialog-autofocus
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => deleteSessionMutation.mutate(deleteConfirmSession.id)}
-              disabled={deleteSessionMutation.isPending}
-            >
-              {deleteSessionMutation.isPending ? "Deleting…" : "Delete"}
-            </Button>
-          </div>
-        </Dialog>
+          {/* The same words as the session's own Delete. */}
+          <p className="subtext">{deleteDetails(deleteConfirmSession).message}</p>
+        </ConfirmDialog>
       )}
     </section>
   );

@@ -22,6 +22,16 @@ import {
   CHOICES,
 } from "./appTestSupport";
 
+
+/** The open confirmation's own button: the last one in the dialog. */
+function confirmButton(): HTMLElement {
+  return within(screen.getByRole("dialog")).getAllByRole("button").at(-1)!;
+}
+
+async function confirmButtonAsync(): Promise<HTMLElement> {
+  return within(await screen.findByRole("dialog")).getAllByRole("button").at(-1)!;
+}
+
 describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   const adminUser = {
     id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
@@ -923,7 +933,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     // Confirm dialog
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
-    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
+    await user.click(confirmButton());
 
     await waitFor(() => {
       expect(patchBody).toEqual({ status: "LOCKED" });
@@ -976,7 +986,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(reasonInput).toBeInTheDocument();
 
     await user.type(reasonInput, "Hall booking unavailable due to maintenance.");
-    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
+    await user.click(confirmButton());
 
     await waitFor(() => {
       expect(patchBody).toEqual({
@@ -1154,7 +1164,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
     const cancelBtn = screen.getByRole("button", { name: "Cancel" });
-    const confirmBtn = screen.getByTestId("gsd-modal-confirm-btn");
+    const confirmBtn = confirmButton();
     expect(cancelBtn).toHaveFocus();
 
     await user.tab({ shift: true });
@@ -1202,8 +1212,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
 
-    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
-    expect(await screen.findByTestId("gsd-modal-confirm-btn")).toBeDisabled();
+    await user.click(confirmButton());
+    expect(await confirmButtonAsync()).toBeDisabled();
 
     await user.keyboard("{Escape}");
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
@@ -1275,7 +1285,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(await screen.findByText("Delete Grading Session")).toBeVisible();
 
     // Confirm delete
-    const modalConfirmBtn = screen.getByTestId("gsd-modal-confirm-btn");
+    const modalConfirmBtn = confirmButton();
     await user.click(modalConfirmBtn);
 
     // Verify DELETE call was sent
@@ -1345,7 +1355,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(screen.getByTestId("gsd-actions-btn"));
     await user.click(screen.getByRole("menuitem", { name: "Cancel session" }));
 
-    const confirm = screen.getByTestId("gsd-modal-confirm-btn");
+    const confirm = confirmButton();
     expect(screen.getByLabelText("Cancellation reason (required)")).toBeVisible();
     expect(confirm).toBeDisabled();
     await user.type(screen.getByLabelText("Cancellation reason (required)"), "Hall flooded.");
@@ -1501,7 +1511,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     // Candidate and the rank transition, from the candidate's own fields
     expect(within(drawer).getByRole("heading", { name: "Brooke Ellis" })).toBeVisible();
     expect(within(drawer).getByText("UK-1002")).toBeVisible();
-    expect(drawer).toHaveTextContent(/Blue\s*→\s*Red stripe/);
+    expect(drawer).toHaveTextContent("Blue, grading for: Red stripe");
 
     // The same served evidence the Master sees on the board - no percentage
     expect(await within(drawer).findByText("24 / 24 required met · none not met")).toBeVisible();

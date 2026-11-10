@@ -35,7 +35,6 @@ import {
 } from "./api";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
-import { RankBelt } from "./Belt";
 import { useSiteSettingsQuery } from "./queries";
 import {
   useAssessmentNotesDraft,
@@ -45,12 +44,13 @@ import { formatShortDate, formatTime } from "./dates";
 import { ItemRemarks } from "./ItemRemarks";
 import { hasRemarks } from "./remarks";
 import "./CandidateAssessment.css";
-import { ArrowRightIcon, CheckIcon, CrossIcon, LockIcon, WarningIcon } from "./Icons";
+import { CheckIcon, CrossIcon, LockIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { CoreAreaMark, LedgerTable, ResultMark } from "./AssessmentRecordParts";
 import { EmailAddress, EmailList } from "./EmailAddress";
 import { agreeing } from "./plural";
+import { CandidateRanks } from "./RankTransition";
 
 export function AssessmentCompletionScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -234,15 +234,7 @@ export function AssessmentCompletionScreen() {
             <div className="acp-identity-right">
               <div className="eyebrow--muted">Assessed for</div>
               <div className="acp-rank-line">
-                <span className="acp-rank">
-                  <RankBelt rankId={candidate.from_rank} />
-                  <span>{candidate.from_rank_name}</span>
-                </span>
-                <ArrowRightIcon className="caw-rank-arrow" size={15} />
-                <span className="acp-rank item-title">
-                  <RankBelt rankId={candidate.testing_for_rank} />
-                  <span>{candidate.testing_for_rank_name}</span>
-                </span>
+                <CandidateRanks candidate={candidate} />
               </div>
               <div className="acp-candidate-sub meta">
                 {session.title}
@@ -449,7 +441,7 @@ export function AssessmentCompletionScreen() {
                     session locks.
                   </p>
                 </div>
-                <label className="acp-proofread">
+                <label className="check acp-proofread">
                   <input
                     type="checkbox"
                     checked={hasProofread}

@@ -1,7 +1,7 @@
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import type { RankGroup } from "./cohortBuilder";
-import { RankFlow } from "./CohortRank";
+import { RankTransition, rankEnd } from "./RankTransition";
 import { ResponsiveTable } from "./ResponsiveTable";
 
 interface CohortRankGroupsSectionProps {
@@ -38,7 +38,7 @@ export function CohortRankGroupsSection({ groups, filteredCount, inCohort, onAdd
                   key: "rank",
                   header: "Rank",
                   primary: true,
-                  render: (group) => <RankFlow from={group.rank} to={group.destinationRank} />,
+                  render: (group) => <RankTransition from={{ rank: group.rank, name: group.rank.name }} to={rankEnd(group.destinationRank)} />,
                 },
                 {
                   key: "age-mix",

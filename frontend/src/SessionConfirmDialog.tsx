@@ -1,5 +1,4 @@
-import { Button } from "./Button";
-import { Dialog } from "./Dialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import type { SessionAction } from "./sessionDetail";
 
 export interface SessionConfirm {
@@ -11,7 +10,6 @@ export interface SessionConfirm {
 interface SessionConfirmDialogProps {
   confirm: SessionConfirm;
   pending: boolean;
-  deleting: boolean;
   /** Abandoning a locked session must say why (server rule). */
   reasonRequired: boolean;
   reason: string;
@@ -21,12 +19,23 @@ interface SessionConfirmDialogProps {
 }
 
 /** The question asked before a session is opened, locked, completed, cancelled, archived, restored or deleted. */
-export function SessionConfirmDialog({ confirm, pending, deleting, reasonRequired, reason, onReason, onConfirm, onClose }: SessionConfirmDialogProps) {
+export function SessionConfirmDialog({ confirm, pending, reasonRequired, reason, onReason, onConfirm, onClose }: SessionConfirmDialogProps) {
   const cancelling = confirm.action === "CANCEL";
+  const deleting = confirm.action === "DELETE";
   return (
-    <Dialog title={confirm.title} closeButton={false} onClose={onClose} canClose={!pending}>
-      <p className="gsd-modal-message subtext">{confirm.message}</p>
-
+    <ConfirmDialog
+      title={confirm.title}
+      confirmLabel={deleting ? "Delete session" : "Confirm"}
+      pendingLabel={deleting ? "Deleting…" : "Confirm"}
+      pending={pending}
+      confirmDisabled={cancelling && reasonRequired && !reason.trim()}
+      danger={cancelling || deleting}
+      // Every session move is one way, so each starts on Cancel.
+      startOnCancel
+      onConfirm={onConfirm}
+      onClose={onClose}
+    >
+      <p className="subtext">{confirm.message}</p>
       {cancelling && (
         <div className="field field--sentence">
           <label htmlFor="cancellation-reason">
@@ -41,20 +50,6 @@ export function SessionConfirmDialog({ confirm, pending, deleting, reasonRequire
           />
         </div>
       )}
-
-      <div className="action-row action-row--end">
-        <Button
-          variant={cancelling || confirm.action === "DELETE" ? "danger" : "primary"}
-          onClick={onConfirm}
-          disabled={pending || (cancelling && reasonRequired && !reason.trim())}
-          data-testid="gsd-modal-confirm-btn"
-        >
-          {confirm.action === "DELETE" ? (deleting ? "Deleting…" : "Delete session") : "Confirm"}
-        </Button>
-        <Button variant="ghost" onClick={onClose} disabled={pending} data-dialog-autofocus>
-          Cancel
-        </Button>
-      </div>
-    </Dialog>
+    </ConfirmDialog>
   );
 }

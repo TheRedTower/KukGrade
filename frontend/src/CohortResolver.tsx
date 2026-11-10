@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import type { BulkCandidateRegistrationResponse, GradingSession, Rank, StudentListItem } from "./api";
@@ -7,7 +6,8 @@ import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { SessionFacts } from "./SessionParts";
 import { Button } from "./Button";
-import { CheckIcon, WarningIcon } from "./Icons";
+import { CheckIcon, ChevronRightIcon, WarningIcon } from "./Icons";
+import { CandidateRanks } from "./RankTransition";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
@@ -46,7 +46,6 @@ export function CohortResolver({
   onRemove: (key: string) => void;
   onRetry: () => void;
 }) {
-  const [showSuccessfulList, setShowSuccessfulList] = useState(false);
   const createdCount = registrationResult.created.length;
   const flaggedCount = flaggedItems.length;
   const retryableCount = flaggedItems.filter((i) => !i.registered).length;
@@ -156,39 +155,29 @@ export function CohortResolver({
 
       {/* Collapsible successful registrations */}
       {createdCount > 0 && (
-        <section className="bgc-successful-section">
-          <button
-            type="button"
-            className="bgc-accordion-toggle item-title"
-            onClick={() => setShowSuccessfulList((prev) => !prev)}
-            aria-expanded={showSuccessfulList}
-          >
-            <span className="bgc-accordion-chevron" aria-hidden="true">
-              {showSuccessfulList ? "▾" : "▸"}
-            </span>
+        <details className="disclosure bgc-successful-section">
+          <summary>
+            <ChevronRightIcon />
             <span>View {counted(createdCount, "successful registration", "successful registrations")}</span>
             <span className="bgc-accordion-count meta">
               {createdCount} registered · {flaggedCount} flagged
             </span>
-          </button>
-
-          {showSuccessfulList && (
-            <div className="bgc-accordion-content">
-              <ul className="bgc-created-list">
-                {registrationResult.created.map((entry) => (
-                  <li key={entry.candidate.id} className="bgc-created-item">
-                    <span className="item-title">{entry.candidate.student_display_name}</span>
-                    <span className="meta">({entry.candidate.student_wksa_id})</span>
-                    <span className="bgc-created-rank item-title">➔ {entry.candidate.testing_for_rank_name}</span>
-                    {entry.assessment && (
-                      <Badge tone="info">Form created (Not started)</Badge>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
+          </summary>
+          <div className="disclosure__body bgc-accordion-content">
+            <ul className="bgc-created-list">
+              {registrationResult.created.map((entry) => (
+                <li key={entry.candidate.id} className="bgc-created-item">
+                  <span className="item-title">{entry.candidate.student_display_name}</span>
+                  <span className="meta">({entry.candidate.student_wksa_id})</span>
+                  <CandidateRanks candidate={entry.candidate} />
+                  {entry.assessment && (
+                    <Badge tone="info">Form created (Not started)</Badge>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       )}
 
       {/* Footer actions */}

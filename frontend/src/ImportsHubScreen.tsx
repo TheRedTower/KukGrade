@@ -16,8 +16,9 @@ import {
 import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
-import { ImportDialog } from "./ImportDialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { ImportPager } from "./ImportPager";
+import { importKinds } from "./importKinds";
 import { useImportSteps } from "./importSteps";
 import { useTemplateDownload } from "./importTemplate";
 import "./Imports.css";
@@ -30,35 +31,9 @@ import { agreeing, counted } from "./plural";
 
 const PAST_PAGE_SIZE = 10;
 
-/** What an unfinished import's rows look like so far, in a line. */
-function unfinishedCounts(batch: DataImportBatch): string {
-  const counts = batch.row_counts;
-  if (batch.kind === "LEGACY_GRADINGS") {
-    return `${counted(counts.total, "record", "records")} found`;
-  }
-  if (batch.next_step === "MATCH") {
-    return `${counted(counts.total, "row", "rows")} read · columns still to match`;
-  }
-  return [
-    `${counts.ready} ready`,
-    counts.review_required ? `${counts.review_required} need attention` : null,
-    counts.skip_existing ? `${counts.skip_existing} already in KukGrade` : null,
-    counts.excluded ? `${counts.excluded} left out` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
 /** What a finished import did, in a line. */
 function finishedResult(batch: DataImportBatch): string {
-  if (batch.status !== "COMMITTED") return "Nothing saved";
-  const summary = batch.summary_json;
-  if (batch.kind === "LEGACY_GRADINGS") {
-    return counted(summary.total ?? 0, "record", "records");
-  }
-  const parts = [counted(summary.created ?? 0, "student added", "students added")];
-  if (summary.skipped_existing) parts.push(`${summary.skipped_existing} already here`);
-  return parts.join(" · ");
+  return batch.status === "COMMITTED" ? importKinds[batch.kind].finished(batch.summary_json) : "Nothing saved";
 }
 
 function statePill(batch: DataImportBatch) {
@@ -108,7 +83,7 @@ function UnfinishedImports({
                     <span className={index <= step ? "ix-filled" : undefined} key={served.value} />
                   ))}
                 </div>
-                <p className="subtext">{unfinishedCounts(batch)}</p>
+                <p className="subtext">{importKinds[batch.kind].unfinished(batch)}</p>
               </div>
               <div className="ix-actions">
                 <Link
@@ -367,7 +342,8 @@ export function ImportsHubScreen() {
       <PastImports />
 
       {cancelling ? (
-        <ImportDialog
+        <ConfirmDialog
+        cancelLabel="Not yet"
           confirmLabel="Cancel the import"
           danger
           error={cancel.isError ? errorMessage(cancel.error, "The import could not be cancelled.") : null}
@@ -384,7 +360,7 @@ export function ImportsHubScreen() {
             The file and everything you did with it are removed, and nothing is imported. You can
             start again with the file at any time.
           </p>
-        </ImportDialog>
+        </ConfirmDialog>
       ) : null}
     </section>
   );

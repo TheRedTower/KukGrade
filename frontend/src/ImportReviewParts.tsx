@@ -3,9 +3,9 @@ import { type DataImportKind, type DataImportRow, errorMessage } from "./api";
 import { ErrorText } from "./ErrorText";
 import { ImportPager } from "./ImportPager";
 import { usePagedRows } from "./useImportRows";
-import { importRowName } from "./importSteps";
+import { importKinds } from "./importKinds";
 import { Button } from "./Button";
-import { Exclusion, Tile, rowCalled, rowDetail, where } from "./importReviewRows";
+import { Exclusion, Tile } from "./importReviewRows";
 
 /** Counts that double as filters. */
 export function CountTiles<View extends string>({
@@ -47,7 +47,7 @@ export function LastLook({ pressed, lead, label, onShow }: { pressed: boolean; l
 }
 
 export function ExclusionButton({ row, kind, exclusion }: { row: DataImportRow; kind: DataImportKind; exclusion: Exclusion }) {
-  const what = rowCalled(row, kind);
+  const what = importKinds[kind].called(row);
   return (
     <Button
       aria-label={row.excluded ? `Bring back ${what}` : `Leave out ${what}`}
@@ -116,10 +116,10 @@ export function RowLines({
         <div className={`ix-row${row.excluded ? " ix-row-out" : ""}`} key={row.row_number}>
           <div className="ix-row-main">
             <p className="item-title">
-              {where(row, kind)} · {importRowName(row, kind)}
+              {importKinds[kind].where(row)} · {importKinds[kind].rowName(row)}
             </p>
             {withIssues && !row.excluded ? <p className="item-title">{row.issues.join(" ")}</p> : null}
-            <p className="subtext">{row.excluded ? "Left out of the import." : rowDetail(row, kind)}</p>
+            <p className="subtext">{row.excluded ? "Left out of the import." : importKinds[kind].reviewDetail(row)}</p>
           </div>
           {exclusion ? <ExclusionButton exclusion={exclusion} kind={kind} row={row} /> : null}
         </div>

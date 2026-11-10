@@ -612,7 +612,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
 
     expect(await screen.findByText("2 registered")).toBeVisible();
     expect(screen.getByText("1 flagged")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: /View 2 successful registrations/ }));
+    await user.click(screen.getByText(/View 2 successful registrations/));
     expect(screen.getByText("Bob Jones")).toBeVisible();
     expect(screen.getByText(/Charlie/)).toBeVisible();
   });

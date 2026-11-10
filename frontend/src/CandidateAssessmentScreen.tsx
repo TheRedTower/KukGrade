@@ -7,10 +7,9 @@ import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { addAssessmentItemComment, CandidateAssessmentItem, CandidateAssessmentItemResult, deleteCandidateAssessment, generateCandidateAssessment, updateCandidateAssessment, updateCandidateAssessmentItem, errorMessage } from "./api";
-import { RankBelt } from "./Belt";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
 import { formatDayMonth, formatTime } from "./dates";
-import { ArrowRightIcon, CheckIcon, CrossIcon, WarningIcon } from "./Icons";
+import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { Meter } from "./Meter";
@@ -20,6 +19,7 @@ import { AssessmentItemRow, CategoryHeader, DeleteAssessmentDialog } from "./Ass
 import "./CandidateAssessment.css";
 import { EmailAddress } from "./EmailAddress";
 import { counted } from "./plural";
+import { CandidateRanks } from "./RankTransition";
 
 export function CandidateAssessmentScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -290,15 +290,7 @@ export function CandidateAssessmentScreen() {
           <span className="caw-candidate-wksa meta">{candidate.student_wksa_id}</span>
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
-        <Badge tone="neutral">
-          <RankBelt rankId={candidate.from_rank} />
-          <span>{candidate.from_rank_name}</span>
-        </Badge>
-        <ArrowRightIcon className="caw-rank-arrow" size={15} />
-        <Badge tone="neutral">
-          <RankBelt rankId={candidate.testing_for_rank} />
-          <span>{candidate.testing_for_rank_name}</span>
-        </Badge>
+        <CandidateRanks candidate={candidate} badges />
         <Badge tone="info">{candidate.age_band_display}</Badge>
         <Badge
           tone={assessmentTone(assessment?.status)}

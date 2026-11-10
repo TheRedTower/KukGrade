@@ -4,10 +4,10 @@ import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { type BoardRow, type StagedDecision, missingRequirements } from "./adjudicationBoard";
 import { outcomeTone } from "./badgeClass";
-import { RankBelt } from "./Belt";
 import { formatTime } from "./dates";
 import { labelOf, useChoices } from "./choices";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
+import { CandidateRanks } from "./RankTransition";
 
 interface CohortFocusPaneProps {
   row: BoardRow;
@@ -32,11 +32,7 @@ export function CohortFocusPane({ row, sessionId, decision, canStage, recording,
               {row.candidate.student_display_name}
             </h2>
             <p className="outcome-rank-line subtext">
-              <RankBelt rankId={row.candidate.from_rank} />
-              {row.candidate.from_rank_name}
-              <span aria-hidden="true">→</span>
-              <RankBelt rankId={row.candidate.testing_for_rank} />
-              {row.candidate.testing_for_rank_name}
+              <CandidateRanks candidate={row.candidate} />
             </p>
 
             <SealedAssessmentEvidence

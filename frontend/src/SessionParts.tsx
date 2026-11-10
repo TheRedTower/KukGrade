@@ -4,13 +4,13 @@ import { Link } from "react-router-dom";
 import type { GradingSession, GradingSessionStatus } from "./api";
 import type { EnrichedCandidate } from "./sessionDetail";
 import { Badge } from "./Badge";
-import { RankBelt } from "./Belt";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { formatSessionDate } from "./dates";
 import { labelOf, useChoices } from "./choices";
 import { AssessmentBadge, OutcomeBadge } from "./StatusBadge";
+import { CandidateRanks } from "./RankTransition";
 
 /** A session's candidate with their assessment and outcome, as the session page shows them. */
 /** What a candidate's row offers next: a link, the proposal drawer, or nothing (no url). */
@@ -195,19 +195,8 @@ export function SessionCandidateTable({
           key: "ranks",
           header: "Rank",
           render: (item) => (
-            <div className="gsd-rank-flow">
-              {/* The rank held at registration, not the live current rank. */}
-              <span className="gsd-rank-item">
-                <RankBelt rankId={item.candidate.from_rank} />
-                <span>{item.candidate.from_rank_name}</span>
-              </span>
-              <span aria-hidden="true">→</span>
-              <span className="visually-hidden">, grading for: </span>
-              <span className="gsd-rank-item">
-                <RankBelt rankId={item.candidate.testing_for_rank} />
-                <span>{item.candidate.testing_for_rank_name}</span>
-              </span>
-            </div>
+            // The rank held at registration, not the live current rank.
+            <CandidateRanks candidate={item.candidate} />
           ),
         },
         {

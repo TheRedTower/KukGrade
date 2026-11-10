@@ -21,7 +21,7 @@ import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
 import { useAuth } from "./auth";
-import { Dialog } from "./Dialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
 import { badgeClass } from "./badgeClass";
@@ -495,37 +495,21 @@ export function StudentDetailScreen() {
 
       {/* Delete Student Modal */}
       {isDeleteModalOpen && (
-        <Dialog title="Delete student" closeButton={false} onClose={() => setIsDeleteModalOpen(false)} canClose={!isDeletingStudent}>
-
-            {deleteError && (
-              <Alert className="form-alert">{deleteError}</Alert>
-            )}
-
-            <div>
-              <p className="modal-lead-text">
-                Delete this student? This cannot be undone. Their past gradings, marks and
-                decisions stay as recorded.
-              </p>
-            </div>
-
-            <div className="action-row action-row--end">
-              <Button
-                variant="secondary"
-                onClick={() => setIsDeleteModalOpen(false)}
-                disabled={isDeletingStudent}
-                data-dialog-autofocus
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleDeleteStudent}
-                disabled={isDeletingStudent}
-              >
-                {isDeletingStudent ? "Deleting…" : "Delete student"}
-              </Button>
-            </div>
-        </Dialog>
+        <ConfirmDialog
+          title="Delete student"
+          confirmLabel="Delete student"
+          pendingLabel="Deleting…"
+          pending={isDeletingStudent}
+          error={deleteError}
+          danger
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleDeleteStudent}
+        >
+          <p>
+            Delete this student? This cannot be undone. Their past gradings, marks and
+            decisions stay as recorded.
+          </p>
+        </ConfirmDialog>
       )}
 
       {isEditModalOpen && (

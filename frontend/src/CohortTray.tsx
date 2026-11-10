@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import type { cohortBreakdown } from "./cohortBuilder";
-import { RankFlow } from "./CohortRank";
+import { RankTransition, rankEnd } from "./RankTransition";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { counted } from "./plural";
 
@@ -46,7 +46,7 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
                     header: "Rank",
                     primary: true,
                     render: (item) => (
-                      <RankFlow from={item.currentRank} to={item.destinationRank} />
+                      <RankTransition from={{ rank: item.currentRank, name: item.currentRank?.name ?? "Unknown" }} to={rankEnd(item.destinationRank)} />
                     ),
                   },
                   { key: "count", header: "Count", render: (item) => <span className="item-title">{item.count}</span> },
@@ -83,23 +83,19 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
                 </p>
               </div>
 
-              {/* Assessment form pre-generation toggle */}
+              {/* Prepare the assessment forms with the registrations */}
               <div className="bgc-assessment-toggle-row">
-                <label className="bgc-switch-label" htmlFor="bgc-assessments-toggle">
-                  <div className="bgc-switch">
-                    <input
-                      id="bgc-assessments-toggle"
-                      type="checkbox"
-                      checked={generateAssessments}
-                      onChange={(e) => onGenerateAssessments(e.target.checked)}
-                      data-testid="bgc-assessments-toggle"
-                    />
-                    <span className="bgc-switch-slider" aria-hidden="true" />
-                  </div>
-                  <div className="bgc-switch-text">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={generateAssessments}
+                    onChange={(e) => onGenerateAssessments(e.target.checked)}
+                    data-testid="bgc-assessments-toggle"
+                  />
+                  <span className="check__text">
                     <span className="item-title">Prepare assessment forms now</span>
                     <span className="meta">Forms will be created as Not started.</span>
-                  </div>
+                  </span>
                 </label>
               </div>
 

@@ -10,7 +10,7 @@ import { type DataImportBatch, type DataImportRow, errorMessage } from "./api";
 import { ErrorText } from "./ErrorText";
 import { ImportPager } from "./ImportPager";
 import { usePagedRows } from "./useImportRows";
-import { importRowName } from "./importSteps";
+import { importKinds } from "./importKinds";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { buttonClass } from "./buttonClass";
 
@@ -18,24 +18,9 @@ const ROWS_PAGE_SIZE = 50;
 
 export type RowFilter = "all" | "READY" | "SKIP_EXISTING" | "EXCLUDED" | "corrected" | "status" | "current_rank";
 
-function rowDetail(row: DataImportRow, batch: DataImportBatch): string {
-  const values = row.values;
-  if (batch.kind === "STUDENT_ROSTER") {
-    const names = row.corrected_fields.map(
-      (field) => batch.target_fields.find((target) => target.field === field)?.name ?? field,
-    );
-    const fixes = names.length ? `your fix: ${names.join(", ")}` : "";
-    return [values.wksa_id, values.current_rank, fixes].filter(Boolean).join(" · ");
-  }
-  if (values.note && !values.current_rank && !values.testing_for_rank) return `“${values.note}”`;
-  const ranks = [values.current_rank, values.testing_for_rank].filter(Boolean).join(" → ");
-  return [ranks, values.outcome].filter(Boolean).join(" · ") || values.report || "";
-}
-
-function rowState(row: DataImportRow, roster: boolean): { label: string; tone: BadgeTone } {
+function rowState(row: DataImportRow, batch: DataImportBatch): { label: string; tone: BadgeTone } {
   if (row.outcome === "EXCLUDED" || row.outcome === "SKIP_EXISTING") return { label: row.outcome_display, tone: "neutral" };
-  if (!roster) return { label: "Imported", tone: "success" };
-  return { label: row.corrected_fields.length ? "Added, your fix" : "Added", tone: "success" };
+  return { label: importKinds[batch.kind].ledger.saved(row), tone: "success" };
 }
 
 
@@ -49,7 +34,7 @@ export function RowsLedger({
   filter: RowFilter;
   onFilter: (filter: RowFilter) => void;
 }) {
-  const roster = batch.kind === "STUDENT_ROSTER";
+  const { addsStudents, ledger, rowName } = importKinds[batch.kind];
   const outcomes = useChoices().import_row_outcomes;
   const keptForDays = useSiteSettingsQuery().data?.imports.rows_kept_for_days;
   const [search, setSearch] = useState("");
@@ -65,19 +50,7 @@ export function RowsLedger({
     ROWS_PAGE_SIZE,
   );
   const summary = batch.summary_json;
-  const tabs: { key: RowFilter; label: string; count?: number }[] = roster
-    ? [
-        { key: "all", label: "All rows", count: summary.total },
-        { key: "READY", label: "Added", count: summary.created },
-        { key: "SKIP_EXISTING", label: labelOf(outcomes, "SKIP_EXISTING"), count: summary.skipped_existing },
-        { key: "EXCLUDED", label: labelOf(outcomes, "EXCLUDED"), count: summary.excluded },
-        { key: "corrected", label: "Your fixes" },
-      ]
-    : [
-        { key: "all", label: "All records" },
-        { key: "READY", label: "Imported", count: summary.total },
-        { key: "EXCLUDED", label: labelOf(outcomes, "EXCLUDED"), count: summary.excluded },
-      ];
+  const tabs: { key: RowFilter; label: string; count?: number }[] = ledger.tabs(summary, (value) => labelOf(outcomes, value));
   // A second-look filter shows as a chip of its own while it is in use.
   if (filter === "status") tabs.push({ key: "status", label: "Given a status" });
   if (filter === "current_rank") tabs.push({ key: "current_rank", label: "Given a rank" });
@@ -88,12 +61,12 @@ export function RowsLedger({
     <section aria-labelledby="ix-rows-h" className="card card--flush">
       <div className="ix-row ix-align-end">
         <h2 className="section-title ix-grow" id="ix-rows-h">
-          {roster ? "Every row" : "Every record"}
+          {ledger.heading}
         </h2>
         <label className="field field--sentence">
           <span>Search</span>
           <input
-            placeholder={roster ? "Name or WKSA ID" : "Name or comment"}
+            placeholder={ledger.search}
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -127,18 +100,18 @@ export function RowsLedger({
             rows={list}
             rowKey={(row) => row.row_number}
             columns={[
-              { key: "name", header: "Name", primary: true, render: (row) => importRowName(row, batch.kind) },
+              { key: "name", header: "Name", primary: true, render: rowName },
               {
                 key: "where",
-                header: roster ? "Row" : "Sheet · row",
-                render: (row) => (roster ? row.row_number : row.source_locator.replaceAll("!", " · ")),
+                header: ledger.whereHeader,
+                render: ledger.place,
               },
-              { key: "details", header: "Details", render: (row) => rowDetail(row, batch) },
+              { key: "details", header: "Details", render: (row) => ledger.detail(row, batch) },
               {
                 key: "state",
-                header: roster ? "What happened" : "Now",
+                header: ledger.stateHeader,
                 render: (row) => {
-                  const state = rowState(row, roster);
+                  const state = rowState(row, batch);
                   return (
                     <Badge dot tone={state.tone}>
                       {state.label}
@@ -152,9 +125,9 @@ export function RowsLedger({
                 actions: "inline",
                 align: "end",
                 render: (row) =>
-                  roster && row.created_id ? (
+                  addsStudents && row.created_id ? (
                     <Link
-                      aria-label={`Open ${importRowName(row, batch.kind)}`}
+                      aria-label={`Open ${rowName(row)}`}
                       className={buttonClass({ variant: "link" })}
                       to={`/students/${row.created_id}`}
                     >

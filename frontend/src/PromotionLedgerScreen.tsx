@@ -24,11 +24,12 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { RankBelt } from "./Belt";
-import { Dialog } from "./Dialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import "./PromotionLedger.css";
 import { formatShortDate } from "./dates";
 import { Button } from "./Button";
 import { counted } from "./plural";
+import { CandidateRanks } from "./RankTransition";
 
 type PromotionRowItem = {
   candidate: GradingCandidate;
@@ -378,11 +379,15 @@ export function PromotionLedgerScreen(): React.ReactElement {
       )}
 
       {isBatchSummaryOpen && eligibleCohort.length > 0 && (
-        <Dialog
+        <ConfirmDialog
           title="Promotion summary"
-          closeLabel="Close the promotion summary"
+          confirmLabel="Confirm promotions"
+          pendingLabel="Promoting cohort…"
+          pending={bulkPromoteMutation.isPending}
+          confirmDisabled={!canPromote}
+          startOnCancel
           onClose={() => setIsBatchSummaryOpen(false)}
-          canClose={!bulkPromoteMutation.isPending}
+          onConfirm={handleConfirmBulkPromote}
         >
           {feedbackBanner}
           <p className="pl-batch-count meta">{eligibleCohort.length} Candidates Selected</p>
@@ -391,9 +396,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               <li key={r.candidate.id} className="pl-batch-chip">
                 <span className="pl-chip-num item-title">{i + 1}.</span>
                 <span className="pl-chip-name">{r.candidate.student_display_name}</span>
-                <span className="pl-chip-rank">({r.candidate.from_rank_name})</span>
-                <span className="pl-chip-arrow" aria-hidden="true">→</span>
-                <strong className="pl-chip-target">{r.candidate.testing_for_rank_name}</strong>
+                <CandidateRanks candidate={r.candidate} spoken="promoted to" />
               </li>
             ))}
           </ol>
@@ -409,24 +412,19 @@ export function PromotionLedgerScreen(): React.ReactElement {
               </dd>
             </div>
           </dl>
-          <div className="action-row dialog__actions">
-            <Button
-              variant="primary"
-              onClick={handleConfirmBulkPromote}
-              disabled={bulkPromoteMutation.isPending || !canPromote}
-            >
-              {bulkPromoteMutation.isPending ? "Promoting cohort…" : "Confirm promotions"}
-            </Button>
-          </div>
-        </Dialog>
+        </ConfirmDialog>
       )}
 
       {singlePromoteCandidate && (
-        <Dialog
+        <ConfirmDialog
           title="Confirm Student Promotion"
+          confirmLabel={`Promote to ${singlePromoteCandidate.candidate.testing_for_rank_name}`}
+          pendingLabel="Recording promotion…"
+          pending={singlePromoteMutation.isPending}
+          confirmDisabled={!canPromote}
+          startOnCancel
           onClose={() => setSinglePromoteCandidate(null)}
-          canClose={!singlePromoteMutation.isPending}
-          closeButton={false}
+          onConfirm={handleConfirmSinglePromote}
         >
           {feedbackBanner}
           <div className="pl-modal-candidate-info">
@@ -434,9 +432,12 @@ export function PromotionLedgerScreen(): React.ReactElement {
               {singlePromoteCandidate.candidate.student_display_name}
             </span>
             <p className="pl-modal-ranks">
-              <span>Current: <strong>{singlePromoteCandidate.candidate.from_rank_name}</strong></span>
-              <span className="pl-modal-arrow" aria-hidden="true">→</span>
-              <span>Conferring: <strong className="pl-highlight-rank">{singlePromoteCandidate.candidate.testing_for_rank_name}</strong></span>
+              <CandidateRanks
+                candidate={singlePromoteCandidate.candidate}
+                fromLabel="Current"
+                toLabel="Conferring"
+                spoken="promoted to"
+              />
             </p>
             <p className="pl-modal-date-notice meta">
               Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (the grading day).
@@ -455,26 +456,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             />
           </div>
 
-          <div className="action-row dialog__actions">
-            <Button
-              variant="ghost"
-              onClick={() => setSinglePromoteCandidate(null)}
-              disabled={singlePromoteMutation.isPending}
-              data-dialog-autofocus
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleConfirmSinglePromote}
-              disabled={singlePromoteMutation.isPending || !canPromote}
-            >
-              {singlePromoteMutation.isPending
-                ? "Recording promotion…"
-                : `Promote to ${singlePromoteCandidate.candidate.testing_for_rank_name}`}
-            </Button>
-          </div>
-        </Dialog>
+        </ConfirmDialog>
       )}
     </section>
   );

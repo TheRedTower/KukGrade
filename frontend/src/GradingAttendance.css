@@ -50,22 +50,6 @@
   margin-top: var(--space-3);
 }
 
-.attendance-form .field {
-  margin-top: var(--space-4);
-}
-
-.attendance-dialog-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-}
-
-.attendance-dialog-alert {
-  margin-top: var(--space-4);
-}
-
 .gsd-withdrawal-record {
   display: grid;
   gap: 0.2rem;

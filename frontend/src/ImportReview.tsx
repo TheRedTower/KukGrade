@@ -2,12 +2,12 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type DataImportBatch, commitDataImport, errorMessage, previewLegacyGradingImport } from "./api";
 import { Alert } from "./Alert";
-import { ImportDialog } from "./ImportDialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Button } from "./Button";
 import { LegacyReview } from "./ImportLegacyReview";
 import { RosterReview } from "./ImportRosterReview";
 import { keys } from "./queryKeys";
-import { agreeing, counted } from "./plural";
+import { importKinds } from "./importKinds";
 
 /** The seal: once every row is sorted, the summary and the import itself. */
 function Seal({
@@ -24,22 +24,10 @@ function Seal({
   onImport: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const roster = batch.kind === "STUDENT_ROSTER";
-  const counts = batch.row_counts;
-  const count = counts.ready;
-  const action = roster ? `Add ${counted(count, "student", "students")}` : `Import ${counted(count, "record", "records")}`;
-  const line = roster
-    ? [
-        counts.skip_existing ? `${counts.skip_existing} already in KukGrade ${agreeing(counts.skip_existing, "is", "are")} skipped` : null,
-        counts.excluded ? `${counts.excluded} you left out` : null,
-        batch.extra_columns.length ? `${batch.extra_columns.map((column) => `“${column}”`).join(", ")} kept as extra information` : null,
-        "all are added together, or none are",
-      ]
-    : [
-        counts.excluded ? `${counts.excluded} you left out` : null,
-        unresolvedRanks ? `${counted(unresolvedRanks, "rank", "ranks")} not matched stay as written` : null,
-        "next, KukGrade suggests who each record belongs to",
-      ];
+  const words = importKinds[batch.kind].seal;
+  const count = batch.row_counts.ready;
+  const action = words.action(count);
+  const line = words.line(batch, unresolvedRanks);
   const sentence = line.filter(Boolean).join(", ");
 
   return (
@@ -49,23 +37,22 @@ function Seal({
       </span>
       <div className="ix-seal-text">
         <h2 className="section-title" id="ix-seal-h" tabIndex={-1}>
-          {roster
-            ? `Everything is sorted · ready to add ${counted(count, "student", "students")}`
-            : `Ready to import ${counted(count, "historical record", "historical records")}`}
+          {words.title(count)}
         </h2>
         <p className="subtext">{sentence.charAt(0).toUpperCase() + sentence.slice(1)}.</p>
       </div>
       <Button variant="primary" disabled={count === 0 || pending || blocked} onClick={() => setOpen(true)}>
-        {pending ? (roster ? "Adding…" : "Importing…") : count === 0 ? "Nothing to import" : action}
+        {pending ? words.pending : count === 0 ? "Nothing to import" : action}
       </Button>
       {blocked ? <p className="ix-warning-text ">Finish saving or retry row changes before adding students.</p> : null}
       {open ? (
-        <ImportDialog
+        <ConfirmDialog
+          cancelLabel="Not yet"
           confirmLabel={action}
           confirmDisabled={blocked}
           pending={pending}
-          pendingLabel={roster ? "Adding…" : "Importing…"}
-          title={roster ? `${action} to KukGrade?` : `Import ${counted(count, "historical record", "historical records")}?`}
+          pendingLabel={words.pending}
+          title={words.confirmTitle(count)}
           onClose={() => setOpen(false)}
           onConfirm={() => {
             if (blocked) return;
@@ -73,12 +60,8 @@ function Seal({
             onImport();
           }}
         >
-          <p className="subtext">
-            {roster
-              ? "They are saved together, so either all are added or none are. You can edit or remove any of them afterwards."
-              : "They are saved together, exactly as the workbook has them. Next you link them to students."}
-          </p>
-        </ImportDialog>
+          <p className="subtext">{words.confirmBody}</p>
+        </ConfirmDialog>
       ) : null}
     </section>
   );
@@ -98,7 +81,7 @@ export function ImportReview({
   onCommitted: () => void;
 }) {
   const queryClient = useQueryClient();
-  const roster = batch.kind === "STUDENT_ROSTER";
+  const { addsStudents } = importKinds[batch.kind];
   const [announcement, setAnnouncement] = useState("");
   const [dirtyRosterCells, setDirtyRosterCells] = useState<string[]>([]);
   // A refused import shows the review again from the top, as it now stands.
@@ -106,7 +89,7 @@ export function ImportReview({
   const preview = useQuery({
     queryKey: keys.imports.legacyPreview(batch.id),
     queryFn: () => previewLegacyGradingImport(batch.id, {}),
-    enabled: !roster,
+    enabled: !addsStudents,
   });
 
   async function refresh() {
@@ -135,7 +118,7 @@ export function ImportReview({
     },
   });
 
-  const sorted = !roster || batch.row_counts.review_required === 0;
+  const sorted = !addsStudents || batch.row_counts.review_required === 0;
   function editStateChanged(key: string, dirty: boolean) {
     setDirtyRosterCells((current) => dirty ? [...new Set([...current, key])] : current.filter((item) => item !== key));
   }
@@ -151,11 +134,11 @@ export function ImportReview({
         </Alert>
       ) : null}
       {sorted ? (
-        <Seal batch={batch} blocked={roster && dirtyRosterCells.length > 0} pending={commit.isPending} unresolvedRanks={unresolvedRanks} onImport={() => {
+        <Seal batch={batch} blocked={addsStudents && dirtyRosterCells.length > 0} pending={commit.isPending} unresolvedRanks={unresolvedRanks} onImport={() => {
           if (dirtyRosterCells.length === 0) commit.mutate();
         }} />
       ) : null}
-      {roster ? (
+      {addsStudents ? (
         <RosterReview announce={setAnnouncement} batch={batch} key={refusals} onEditStateChange={editStateChanged} onMatch={onMatch} onRefresh={refresh} />
       ) : (
         <LegacyReview

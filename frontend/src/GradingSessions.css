@@ -74,7 +74,6 @@
   margin: 0;
 }
 
-
 /* ── Status Badges ───────────────────────────────────────────────────────── */
 
 /* ── View / Open Button ──────────────────────────────────────────────────── */
@@ -284,24 +283,11 @@
   margin-top: 0.15rem;
 }
 
-.gsd-rank-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 /* From one rank to the next, on a line that wraps when it must. */
-.gsd-rank-flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-}
 
 /* ── Row Action Button ───────────────────────────────────────────────────── */
 
 /* ── Session Notes Section ───────────────────────────────────────────────── */
-
 
 .gsd-notes-card {
   background: var(--color-surface);

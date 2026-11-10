@@ -343,7 +343,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         <SessionConfirmDialog
           confirm={confirm}
           pending={confirmPending}
-          deleting={deleteSessionMutation.isPending}
           reasonRequired={cancelReasonRequired}
           reason={cancellationReason}
           onReason={setCancellationReason}

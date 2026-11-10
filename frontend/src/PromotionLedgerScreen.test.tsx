@@ -781,11 +781,11 @@ describe("PromotionLedgerScreen", () => {
     // Check candidate pills
     expect(screen.getByText("1.")).toBeInTheDocument();
     expect(screen.getByText("Alex Mercer", { selector: ".pl-chip-name" })).toBeInTheDocument();
-    expect(screen.getByText("Yellow", { selector: ".pl-chip-target" })).toBeInTheDocument();
+    expect(screen.getByText("Alex Mercer", { selector: ".pl-chip-name" }).closest("li")).toHaveTextContent("promoted to: Yellow");
 
     expect(screen.getByText("2.")).toBeInTheDocument();
     expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" })).toBeInTheDocument();
-    expect(screen.getByText("Blue Stripe", { selector: ".pl-chip-target" })).toBeInTheDocument();
+    expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" }).closest("li")).toHaveTextContent("promoted to: Blue Stripe");
 
     // Metadata in right section: the session's grading date, labelled as such.
     expect(screen.getByText("15 Oct 2026", { selector: "dd" })).toBeInTheDocument();
@@ -831,10 +831,12 @@ describe("PromotionLedgerScreen", () => {
       screen.getByRole("dialog", { name: "Promotion summary" }),
     ).toBeInTheDocument();
 
-    const closeBtn = screen.getByRole("button", {
-      name: "Close the promotion summary",
+    // A promotion cannot be taken back, so the summary starts on Cancel.
+    const cancelBtn = within(screen.getByRole("dialog", { name: "Promotion summary" })).getByRole("button", {
+      name: "Cancel",
     });
-    await user.click(closeBtn);
+    expect(cancelBtn).toHaveFocus();
+    await user.click(cancelBtn);
 
     expect(
       screen.queryByRole("dialog", { name: "Promotion summary" }),

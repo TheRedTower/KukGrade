@@ -202,9 +202,8 @@ describe("Choosing the file", () => {
     expect(screen.getByText("7 columns")).toBeInTheDocument();
     expect(screen.getByText("This exact file has been imported before")).toBeInTheDocument();
     // The guide folds away once the file is read.
-    expect(screen.getByRole("button", { name: "What KukGrade looks for" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
+    expect(screen.getByText("What KukGrade looks for", { selector: "summary" }).closest("details")).not.toHaveAttribute(
+      "open",
     );
     await user.click(screen.getByRole("button", { name: "Continue to match columns" }));
     expect(screen.getByTestId("where")).toHaveTextContent("/imports/7");

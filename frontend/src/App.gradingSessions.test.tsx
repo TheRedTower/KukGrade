@@ -381,7 +381,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     expect(screen.getByText(/Are you sure you want to permanently delete/)).toBeVisible();
 
     // Confirm delete in modal
-    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    const confirmBtn = screen.getByRole("button", { name: "Delete session" });
     await user.click(confirmBtn);
 
     // Verify DELETE fetch call
@@ -425,7 +425,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     expect(await screen.findByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
     const cancelBtn = screen.getByRole("button", { name: "Cancel" });
-    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    const confirmBtn = screen.getByRole("button", { name: "Delete session" });
     expect(cancelBtn).toHaveFocus();
 
     await user.tab({ shift: true });
@@ -481,7 +481,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     await user.click(deleteBtn);
     expect(await screen.findByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete session" }));
     expect(await screen.findByRole("button", { name: "Deleting…" })).toBeDisabled();
 
     // Escape and backdrop clicks are ignored while the deletion is in flight.

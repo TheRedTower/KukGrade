@@ -839,6 +839,27 @@ select:not([multiple]):not([size]) {
   justify-content: flex-end;
 }
 
+/* A confirmation (ConfirmDialog.tsx): what it says, then its two buttons. */
+.dialog__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dialog__body p {
+  margin: 0;
+}
+
+.dialog__body textarea {
+  min-height: 6rem;
+}
+
 .dialog__header {
   display: flex;
   flex-wrap: wrap;
@@ -880,6 +901,91 @@ select:not([multiple]):not([size]) {
 }
 
 /* ── Page furniture ────────────────────────────────────────────────────── */
+
+/* From one rank to the next (RankTransition.tsx), on one line that wraps when it must. */
+.rank-transition {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.rank-transition__rank {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rank-transition__arrow {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.rank-transition__top {
+  font-style: italic;
+}
+
+/* A checkbox and what it means (`<label class="check">`): the box at the start,
+   the words beside it, a second line in .check__text if it needs one. */
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  line-height: var(--line-height-snug);
+  cursor: pointer;
+}
+
+.check input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--color-gold-strong);
+}
+
+.check__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* A part that opens on demand: <details class="disclosure"> with its <summary>,
+   whose chevron (ChevronRightIcon) turns down when it is open. */
+.disclosure > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  list-style: none;
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary svg {
+  flex-shrink: 0;
+  transition: transform var(--duration) ease;
+}
+
+.disclosure[open] > summary svg {
+  transform: rotate(90deg);
+}
+
+.disclosure__body {
+  padding-top: var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclosure > summary svg {
+    transition: none;
+  }
+}
 
 /* The way back to the page above. */
 .back-link {

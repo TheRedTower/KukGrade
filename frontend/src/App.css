@@ -575,13 +575,6 @@ h4 {
   flex-shrink: 0;
 }
 
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
 /* Feedback & Helper Text */
 
 /* ── Error Banner ────────────────────────────────────────────────────────── */

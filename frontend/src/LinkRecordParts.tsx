@@ -10,7 +10,7 @@ import {
   voidLegacyGradingRecord,
 } from "./api";
 import { ErrorText } from "./ErrorText";
-import { ImportDialog } from "./ImportDialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { type Chosen, recordMonth } from "./linkRecords";
 import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -65,7 +65,8 @@ export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingR
     },
   });
   return (
-    <ImportDialog
+    <ConfirmDialog
+        cancelLabel="Not yet"
       confirmDisabled={!reason.trim()}
       confirmLabel="Void the record"
       danger
@@ -81,7 +82,7 @@ export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingR
         <label htmlFor="ix-void-record-reason">Why</label>
         <textarea data-dialog-autofocus id="ix-void-record-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
       </div>
-    </ImportDialog>
+    </ConfirmDialog>
   );
 }
 

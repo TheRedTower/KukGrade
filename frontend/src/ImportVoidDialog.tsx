@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type DataImportBatch, errorMessage, voidDataImportRecords } from "./api";
-import { ImportDialog } from "./ImportDialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { keys } from "./queryKeys";
 
 export function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose: () => void }) {
@@ -18,7 +18,8 @@ export function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose
     },
   });
   return (
-    <ImportDialog
+    <ConfirmDialog
+        cancelLabel="Not yet"
       confirmDisabled={!reason.trim()}
       confirmLabel="Void every record"
       danger
@@ -37,6 +38,6 @@ export function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose
         <label htmlFor="ix-void-reason">Why</label>
         <textarea data-dialog-autofocus id="ix-void-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
       </div>
-    </ImportDialog>
+    </ConfirmDialog>
   );
 }

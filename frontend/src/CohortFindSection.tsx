@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import type { AgeBand, Rank, StudentListItem } from "./api";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
-import { RankFlow } from "./CohortRank";
+import { RankTransition, rankEnd } from "./RankTransition";
 import { labelOf, useChoices } from "./choices";
 import { destinationOf } from "./cohortBuilder";
 import { EmptyState } from "./EmptyState";
@@ -170,10 +170,9 @@ export function CohortFindSection({
                       key: "rank",
                       header: "Rank",
                       render: (student) => (
-                        <RankFlow
-                          from={rankMap.get(student.current_rank)}
-                          to={destinationOf(student, rankMap) ?? undefined}
-                          fromFallback={student.current_rank_name || "—"}
+                        <RankTransition
+                          from={{ rank: rankMap.get(student.current_rank), name: student.current_rank_name || "—" }}
+                          to={rankEnd(destinationOf(student, rankMap))}
                         />
                       ),
                     },

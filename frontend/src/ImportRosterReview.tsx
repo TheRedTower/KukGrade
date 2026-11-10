@@ -4,7 +4,7 @@ import { type DataImportBatch, type DataImportRow, correctDataImportRow, errorMe
 import { ErrorText } from "./ErrorText";
 import { ImportCellInput } from "./ImportCellInput";
 import { usePagedRows } from "./useImportRows";
-import { importRowName } from "./importSteps";
+import { importKinds } from "./importKinds";
 import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
@@ -48,7 +48,7 @@ function RosterRowEditor({
       <div className="ix-actions ix-actions-split ix-align-start">
         <div className="ix-row-main">
           <p className="item-title">
-            Row {row.row_number} · {importRowName(row, batch.kind)}
+            Row {row.row_number} · {importKinds[batch.kind].rowName(row)}
           </p>
           {row.issues.length ? <p className="ix-why error-text">{row.issues.join(" ")}</p> : null}
         </div>

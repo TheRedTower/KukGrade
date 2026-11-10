@@ -1,4 +1,5 @@
 import { Button } from "./Button";
+import { RankTransition, rankEnd } from "./RankTransition";
 import type { CohortItem } from "./cohortBuilder";
 import { Dialog } from "./Dialog";
 import { StudentStatusBadge } from "./StatusBadge";
@@ -28,9 +29,10 @@ export function CohortReviewDialog({ cohort, onRemove, onClose }: CohortReviewDi
                     {item.student.first_name} {item.student.last_name}
                   </span>
                   <span className="meta">{item.student.wksa_id}</span>
-                  <span className="meta">
-                    {item.currentRank?.name} ➔ {item.destinationRank?.name || "—"}
-                  </span>
+                  <RankTransition
+                    from={{ rank: item.currentRank, name: item.currentRank?.name ?? "Unknown" }}
+                    to={rankEnd(item.destinationRank)}
+                  />
                   <StudentStatusBadge status={item.student.status} label={item.student.status_display} />
                 </div>
                 <Button

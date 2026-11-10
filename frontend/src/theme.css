@@ -104,7 +104,6 @@
   /* Elevation, from a resting card to a dialog; the rings and the edge are
      focus and validation marks, not depth. */
   /* The thumb of a switch is white on either theme. */
-  --color-knob: #ffffff;
   --shadow-xs: 0 1px 3px rgb(21 19 15 / 15%);
   --shadow-sm: 0 2px 14px rgb(21 19 15 / 6%);
   --shadow-md: 0 8px 30px rgb(21 19 15 / 8%);

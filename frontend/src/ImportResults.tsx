@@ -11,7 +11,8 @@ import { LinkPanel } from "./ImportLinkPanel";
 import { type RowFilter, RowsLedger } from "./ImportRowsLedger";
 import { SecondLook } from "./ImportSecondLook";
 import { VoidDialog } from "./ImportVoidDialog";
-import { agreeing, counted } from "./plural";
+import { importKinds } from "./importKinds";
+import { counted } from "./plural";
 
 /** One more thing to do from the results page, in the side panel. */
 function AlsoItem({ title, body, children }: { title: string; body: string; children: ReactNode }) {
@@ -27,32 +28,12 @@ function AlsoItem({ title, body, children }: { title: string; body: string; chil
 /** An import's results: its own page, with the next job on top. */
 export function ImportResults({ batch }: { batch: DataImportBatch }) {
   const { user } = useAuth();
-  const roster = batch.kind === "STUDENT_ROSTER";
+  const { addsStudents, results } = importKinds[batch.kind];
   const [filter, setFilter] = useState<RowFilter>("all");
   const [voiding, setVoiding] = useState(false);
   const summary = batch.summary_json;
-  const created = summary.created ?? 0;
-  const total = summary.total ?? 0;
-
-  const headline = roster
-    ? `${counted(created, "student", "students")} added`
-    : `${counted(total, "historical record", "historical records")} imported`;
-  const banner = (
-    roster
-      ? [
-          summary.skipped_existing
-            ? `${counted(summary.skipped_existing, "student", "students")} already in KukGrade ${agreeing(summary.skipped_existing, "was", "were")} skipped and not changed.`
-            : null,
-          summary.excluded
-            ? `${counted(summary.excluded, "row", "rows")} you left out ${agreeing(summary.excluded, "was", "were")} not imported.`
-            : null,
-        ]
-      : [
-          summary.excluded
-            ? `${counted(summary.excluded, "record", "records")} you left out ${agreeing(summary.excluded, "was", "were")} not imported.`
-            : null,
-        ]
-  ).filter(Boolean);
+  const headline = results.headline(summary);
+  const banner = results.banner(summary).filter(Boolean);
   const unresolvedRanks = (summary.unresolved_current_rank ?? 0) + (summary.unresolved_testing_for_rank ?? 0);
 
   return (
@@ -75,7 +56,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
         </p>
       </div>
 
-      {roster ? <SecondLook batch={batch} onShow={setFilter} /> : <LinkPanel batch={batch} />}
+      {addsStudents ? <SecondLook batch={batch} onShow={setFilter} /> : <LinkPanel batch={batch} />}
 
       <div className="ix-two-col">
         <RowsLedger batch={batch} filter={filter} onFilter={setFilter} />
@@ -83,7 +64,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
           <h2 className="ix-minor" id="ix-also-h">
             Also
           </h2>
-          {roster ? (
+          {addsStudents ? (
             <>
               <AlsoItem body="The Students page, showing only those this import added." title="See the new students">
                 <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to={`/students?source_import=${batch.id}`}>

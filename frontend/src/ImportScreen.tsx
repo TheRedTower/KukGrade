@@ -11,7 +11,7 @@ import { ImportMatchRanks } from "./ImportMatchRanks";
 import { ImportResults } from "./ImportResults";
 import { ImportReview } from "./ImportReview";
 import { ImportStepBar } from "./ImportStepBar";
-import { importKindTitle } from "./importSteps";
+import { importKinds } from "./importKinds";
 import "./Imports.css";
 import { buttonClass } from "./buttonClass";
 import { keys } from "./queryKeys";
@@ -98,21 +98,19 @@ export function ImportScreen() {
     <section aria-labelledby="ix-step-title" className="page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
-        title={importKindTitle(loaded.kind)}
+        title={importKinds[loaded.kind].title}
         titleId="ix-step-title"
         subtitle={
           <>
             {loaded.original_filename}
             {loaded.sheet ? ` · sheet “${loaded.sheet}”` : ""} ·{" "}
-            {loaded.kind === "STUDENT_ROSTER"
-              ? `${loaded.row_counts.total} rows`
-              : `${loaded.grading_sheets.length} grading sheets, ${loaded.row_counts.total} records`}
+            {importKinds[loaded.kind].fileCounts(loaded)}
           </>
         }
       />
       <ImportStepBar current={matching ? "MATCH" : loaded.review_step} kind={loaded.kind} />
       {matching ? (
-        loaded.kind === "STUDENT_ROSTER" ? (
+        importKinds[loaded.kind].match === "columns" ? (
           <ImportMatchColumns batch={loaded} onBack={() => navigate("/imports")} onContinue={() => goTo("review")} />
         ) : (
           <ImportMatchRanks batch={loaded} onBack={() => navigate("/imports")} onContinue={() => goTo("review")} />

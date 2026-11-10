@@ -7,6 +7,7 @@ import { useChoices } from "./choices";
 import "./OutcomeControls.css";
 import { ResponsiveTable } from "./ResponsiveTable";
 import type { CandidateOutcomeOutcome } from "./api";
+import { CandidateRanks } from "./RankTransition";
 
 interface CohortDecisionQueueProps {
   rows: BoardRow[];
@@ -48,8 +49,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                         {row.candidate.student_display_name}
                       </button>
                       <span className="cab-row-sub meta">
-                        {row.candidate.student_wksa_id} · {row.candidate.from_rank_name} →{" "}
-                        {row.candidate.testing_for_rank_name}
+                        {row.candidate.student_wksa_id} · <CandidateRanks candidate={row.candidate} />
                       </span>
                     </>
                   ),

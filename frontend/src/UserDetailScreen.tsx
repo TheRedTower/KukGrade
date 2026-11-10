@@ -23,6 +23,7 @@ import {
   errorMessage,
 } from "./api";
 import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
@@ -273,37 +274,23 @@ function DeleteUserDialog({
     },
   });
   return (
-    <Dialog
+    <ConfirmDialog
       title="Delete this account"
-      closeButton={false}
       eyebrow="Irreversible action"
+      confirmLabel="Delete account"
+      pendingLabel="Deleting…"
+      pending={mutation.isPending}
+      error={mutation.error ? errorMessage(mutation.error, "The account could not be deleted.") : null}
+      danger
       onClose={onClose}
-      canClose={!mutation.isPending}
+      onConfirm={() => mutation.mutate()}
     >
       <p>
         Delete <strong>{user.full_name}</strong>&apos;s account? They can no longer sign in and
         the account leaves the staff list. Everything they recorded keeps their name, so it
         still shows who did it. This cannot be undone.
       </p>
-      {mutation.error && <Alert>{errorMessage(mutation.error, "The account could not be deleted.")}</Alert>}
-      <div className="action-row users-dialog-actions">
-        <Button
-          variant="secondary"
-          onClick={onClose}
-          disabled={mutation.isPending}
-          data-dialog-autofocus
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="danger"
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-        >
-          {mutation.isPending ? "Deleting…" : "Delete account"}
-        </Button>
-      </div>
-    </Dialog>
+    </ConfirmDialog>
   );
 }
 

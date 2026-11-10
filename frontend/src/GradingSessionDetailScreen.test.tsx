@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
 import { ApiError, type AuthUser, type GradingCandidateRoster, type GradingSession } from "./api";
+import { sessionServed } from "./appTestSupport";
 
 let currentUser: AuthUser;
 const mockGetGradingSession = vi.fn();
@@ -87,6 +88,7 @@ function lockedSession(): GradingSession {
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
+    ...sessionServed("LOCKED"),
     can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
     location: "Riverside",
     notes: "",
@@ -143,7 +145,7 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
   it("offers no Session actions button when a finished session leaves the viewer nothing to do", async () => {
     currentUser = instructorUser;
-    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed" });
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed", ...sessionServed("COMPLETED") });
     renderScreen();
 
     await screen.findByRole("heading", { name: "March 2027 Riverside Grading" });
@@ -152,7 +154,7 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
   it("moves focus to the heading when completing a session takes the menu away", async () => {
     currentUser = instructorUser;
-    const completed = { ...lockedSession(), status: "COMPLETED", status_display: "Completed" };
+    const completed = { ...lockedSession(), status: "COMPLETED", status_display: "Completed", ...sessionServed("COMPLETED") };
     mockUpdateGradingSession.mockImplementation(async () => {
       mockGetGradingSession.mockResolvedValue(completed);
       return completed;
@@ -170,7 +172,7 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
   it("keeps Session actions on a finished session for someone who can read its audit events", async () => {
     currentUser = adminUser;
-    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed" });
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed", ...sessionServed("COMPLETED") });
     renderScreen();
 
     expect(await screen.findByTestId("gsd-actions-btn")).toBeVisible();
@@ -213,6 +215,7 @@ describe("GradingSessionDetailScreen archiving", () => {
     ...lockedSession(),
     status: "COMPLETED",
     status_display: "Completed",
+    ...sessionServed("COMPLETED"),
   });
 
   beforeEach(() => {
@@ -290,7 +293,7 @@ describe("GradingSessionDetailScreen archiving", () => {
 });
 
 function openSession(overrides: Partial<GradingSession> = {}): GradingSession {
-  return { ...lockedSession(), status: "OPEN", status_display: "Open", ...overrides };
+  return { ...lockedSession(), status: "OPEN", status_display: "Open", ...sessionServed("OPEN"), ...overrides };
 }
 
 function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): GradingCandidateRoster {
@@ -299,6 +302,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     session: 7,
     student: 131,
     student_display_name: "Mia Okafor",
+    student_first_name: "Mia",
     student_wksa_id: "KG-31",
     from_rank: 1,
     from_rank_name: "White",
@@ -316,6 +320,8 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     promotion: null,
     next_action: "PREPARE_ASSESSMENT",
     can_be_withdrawn_after_lock: false,
+    can_be_marked_absent: true,
+    can_prepare_assessment: true,
     can_be_finalised: false,
     ...overrides,
   };
@@ -428,10 +434,14 @@ describe("GradingSessionDetailScreen registration actions", () => {
 });
 
 describe("GradingSessionDetailScreen opening a draft session", () => {
-  const draftSession = () => ({
+  // The roster count the confirmation states is the server's (candidate_count,
+  // which leaves withdrawn candidates out).
+  const draftSession = (candidateCount = 2) => ({
     ...lockedSession(),
     status: "DRAFT" as const,
     status_display: "Draft",
+    candidate_count: candidateCount,
+    ...sessionServed("DRAFT"),
   });
 
   beforeEach(() => {
@@ -447,7 +457,7 @@ describe("GradingSessionDetailScreen opening a draft session", () => {
     });
     mockUpdateGradingSession
       .mockReset()
-      .mockResolvedValue({ ...draftSession(), status: "OPEN", status_display: "Open" });
+      .mockResolvedValue({ ...draftSession(), status: "OPEN", status_display: "Open", ...sessionServed("OPEN") });
   });
 
   async function chooseOpenSession(user: ReturnType<typeof userEvent.setup>) {
@@ -473,6 +483,7 @@ describe("GradingSessionDetailScreen opening a draft session", () => {
   });
 
   it("does not count withdrawn candidates as registered", async () => {
+    mockGetGradingSession.mockResolvedValue({ ...draftSession(1), withdrawn_count: 1 });
     mockGetAllGradingCandidates.mockResolvedValue({
       ...emptyPage(),
       count: 2,

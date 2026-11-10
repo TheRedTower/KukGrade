@@ -5,6 +5,7 @@ import type {
   CandidateAssessmentItem,
   CandidateAssessmentSummary,
   GradingSession,
+  GradingSessionStatus,
 } from "./api";
 
 export const authUser = {
@@ -110,7 +111,47 @@ export function assessmentSummaryFor(items: CandidateAssessmentItem[]): Candidat
       ...block(items.filter((item) => item.category === category)),
     }),
   );
-  return { overall: block(items), categories };
+  const overall = block(items);
+  // As if the assessment is in progress in an open session.
+  return { overall, can_complete: overall.required_not_assessed === 0, categories };
+}
+
+// Mirrors an item's served rules (gradings.assessment_services
+// item_change_needs_reason and item_mark_can_be_cleared) for a fixture.
+export function itemServed<T extends CandidateAssessmentItem>(
+  item: T,
+  { locked = false, completed = false } = {},
+): T {
+  const scored = item.result === "MET" || item.result === "NOT_MET";
+  return {
+    ...item,
+    reason_required: scored || item.changes.length > 0 || locked,
+    can_clear: scored && !(completed && item.required),
+  };
+}
+
+// What a save answers: the item as marked, with its change now in the log,
+// so its next change says why.
+export function itemSaved<T extends CandidateAssessmentItem>(item: T, result: T["result"], options = {}): T {
+  return { ...itemServed({ ...item, result }, options), reason_required: true };
+}
+
+// Mirrors the session's served capabilities (gradings.serializers
+// GradingSessionSerializer) for an instructor, so a fixture states its status
+// once. `withOverride` is a viewer holding the locked-session override.
+export function sessionServed(status: GradingSessionStatus, { withOverride = false } = {}) {
+  const roster = status === "DRAFT" || status === "OPEN";
+  return {
+    withdrawn_count: 0,
+    roster_open: roster,
+    marking_open: status === "OPEN",
+    decisions_open: status === "LOCKED",
+    can_open: status === "DRAFT",
+    can_lock: status === "OPEN",
+    can_complete: status === "LOCKED",
+    can_cancel: roster || (status === "LOCKED" && withOverride),
+    cancel_reason_required: status === "LOCKED",
+  };
 }
 
 export const ABOUT = {

@@ -1785,6 +1785,8 @@ export interface components {
             readonly overall: components["schemas"]["AssessmentSummaryCounts"];
             /** @description Whether the viewer may change this assessment's marks, or comment on its items, now: while the session is open, or once it is locked and the viewer is the authorised Master and the candidate's final decision is not yet recorded. */
             readonly marks_open: boolean;
+            /** @description Whether the assessment can be started now: not started, its candidate not withdrawn, and the session open. */
+            readonly can_start: boolean;
             /** @description Whether the viewer may permanently delete this assessment: an administrator, while its candidate's final decision is not recorded. */
             readonly can_delete: boolean;
         };
@@ -1810,6 +1812,10 @@ export interface components {
             readonly assessed_at: string | null;
             readonly comments: components["schemas"]["AssessmentItemComment"][];
             readonly changes: components["schemas"]["AssessmentItemResultChange"][];
+            /** @description Whether the next change to this mark must say why: every change after the first does, and after the lock every one does. */
+            readonly reason_required: boolean;
+            /** @description Whether this mark may be taken away: it has one, and a completed assessment keeps every required item marked. Whether the viewer may change marks at all is the assessment's marks_open. */
+            readonly can_clear: boolean;
         };
         /**
          * @description What a mark returns: the item, and the assessment's rollup as the save
@@ -1838,6 +1844,10 @@ export interface components {
             readonly assessed_at: string | null;
             readonly comments: components["schemas"]["AssessmentItemComment"][];
             readonly changes: components["schemas"]["AssessmentItemResultChange"][];
+            /** @description Whether the next change to this mark must say why: every change after the first does, and after the lock every one does. */
+            readonly reason_required: boolean;
+            /** @description Whether this mark may be taken away: it has one, and a completed assessment keeps every required item marked. Whether the viewer may change marks at all is the assessment's marks_open. */
+            readonly can_clear: boolean;
             /** @description The assessment's overall and per-category counts after this save, the same as GET assessments/<id>/summary/. */
             readonly assessment_summary: components["schemas"]["CandidateAssessmentSummary"];
         };
@@ -1850,6 +1860,8 @@ export interface components {
         CandidateAssessmentStatusEnum: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
         /** @description Overall plus per-category rollup for one assessment. */
         CandidateAssessmentSummary: {
+            /** @description Whether the assessment can be completed now, as these counts leave it: in progress, every required item marked, the candidate not withdrawn and the session open. */
+            readonly can_complete: boolean;
             readonly overall: components["schemas"]["AssessmentSummaryCounts"];
             readonly categories: components["schemas"]["AssessmentCategorySummary"][];
         };
@@ -2024,6 +2036,7 @@ export interface components {
             session: number;
             readonly student: number;
             readonly student_display_name: string;
+            readonly student_first_name: string;
             readonly student_wksa_id: string;
             readonly from_rank: number;
             readonly from_rank_name: string;
@@ -2047,6 +2060,7 @@ export interface components {
             session: number;
             readonly student: number;
             readonly student_display_name: string;
+            readonly student_first_name: string;
             readonly student_wksa_id: string;
             readonly from_rank: number;
             readonly from_rank_name: string;
@@ -2068,6 +2082,10 @@ export interface components {
             readonly can_be_finalised: boolean;
             /** @description Whether the viewer may withdraw this candidate now: the session is locked, the candidate is not withdrawn and has no final decision, and the viewer holds the locked-session override. */
             readonly can_be_withdrawn_after_lock: boolean;
+            /** @description Whether the candidate can be withdrawn as a no-show now: registered, the session draft or open, and their assessment not started. */
+            readonly can_be_marked_absent: boolean;
+            /** @description Whether the candidate's assessment form can be prepared now: they have none, are not withdrawn, and the session is draft or open. */
+            readonly can_prepare_assessment: boolean;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -2121,6 +2139,24 @@ export interface components {
             readonly candidate_count: number;
             readonly completed_assessment_count: number;
             readonly awaiting_decision_count: number;
+            /** @description How many of its candidates have been withdrawn. */
+            readonly withdrawn_count: number;
+            /** @description Whether candidates can still be added, changed, removed and have their forms prepared: the session is draft or open. */
+            readonly roster_open: boolean;
+            /** @description Whether candidates are being graded now: assessments are started, marked and completed while the session is open. */
+            readonly marking_open: boolean;
+            /** @description Whether final decisions are being made now: the session is locked. */
+            readonly decisions_open: boolean;
+            /** @description Whether the viewer may open this session now. */
+            readonly can_open: boolean;
+            /** @description Whether the viewer may ask to lock this session now. Locking itself checks that every assessment is complete. */
+            readonly can_lock: boolean;
+            /** @description Whether the viewer may ask to complete this session now. Completing itself checks that every decision is recorded. */
+            readonly can_complete: boolean;
+            /** @description Whether the viewer may cancel this session now. */
+            readonly can_cancel: boolean;
+            /** @description Whether cancelling it now needs a written reason. */
+            readonly cancel_reason_required: boolean;
             /** @description Whether the requesting user may delete it, by the delete's own rule. */
             readonly can_be_deleted: boolean;
             /**
@@ -4113,6 +4149,8 @@ export interface operations {
                 /** @description A candidate's name, WKSA ID, ranks or status. */
                 search?: string;
                 session?: number;
+                /** @description Only withdrawn candidates, or only those still being graded. */
+                withdrawn?: boolean;
             };
             header?: never;
             path?: never;

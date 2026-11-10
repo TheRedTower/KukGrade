@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.db.models import Prefetch, Q, QuerySet
+from django.db.models import Prefetch, Q, QuerySet, prefetch_related_objects
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -375,6 +375,11 @@ class GradingCandidateViewSet(
 
     query_filters = (
         by_id("session", "session_id"),
+        boolean(
+            "withdrawn",
+            Q(status=GradingCandidate.Status.WITHDRAWN),
+            "Only withdrawn candidates, or only those still being graded.",
+        ),
         search(
             "search",
             (
@@ -694,6 +699,19 @@ class CandidateAssessmentViewSet(
         )
 
 
+def _item_remarks() -> tuple[Prefetch[Any], ...]:
+    return (
+        Prefetch(
+            "comments",
+            queryset=AssessmentItemComment.objects.select_related("author"),
+        ),
+        Prefetch(
+            "changes",
+            queryset=AssessmentItemResultChange.objects.select_related("changed_by"),
+        ),
+    )
+
+
 class CandidateAssessmentItemViewSet(
     mixins.ListModelMixin,
     mixins.UpdateModelMixin,
@@ -713,12 +731,15 @@ class CandidateAssessmentItemViewSet(
         self,
         serializer: BaseSerializer[CandidateAssessmentItem],
     ) -> None:
-        serializer.instance = update_candidate_assessment_item(
+        saved = update_candidate_assessment_item(
             cast(CandidateAssessmentItem, serializer.instance),
             result=cast(str | None, serializer.validated_data.get("result")),
             reason=str(serializer.validated_data.get("reason", "")),
             assessor=self.actor,
         )
+        # Served as the list serves it: its comments and changes read once each.
+        prefetch_related_objects([saved], *_item_remarks())
+        serializer.instance = saved
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
         # A mark returns the assessment's counts too; the list does not.
@@ -736,21 +757,13 @@ class CandidateAssessmentItemViewSet(
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
         return (
-            CandidateAssessmentItem.objects.select_related("assessor")
-            .prefetch_related(
-                Prefetch(
-                    "comments",
-                    queryset=AssessmentItemComment.objects.select_related("author"),
-                ),
+            # The assessment and its session decide whether a change needs a
+            # reason and whether a mark can be cleared (reason_required, can_clear).
+            CandidateAssessmentItem.objects.select_related(
+                "assessor",
+                "assessment__candidate__session",
             )
-            .prefetch_related(
-                Prefetch(
-                    "changes",
-                    queryset=AssessmentItemResultChange.objects.select_related(
-                        "changed_by",
-                    ),
-                ),
-            )
+            .prefetch_related(*_item_remarks())
             .order_by("assessment_id", "position")
         )
 

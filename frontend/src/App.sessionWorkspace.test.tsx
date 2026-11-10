@@ -18,6 +18,7 @@ import {
   ADMINISTRATOR_CAPABILITIES,
   jsonResponse,
   assessmentSummaryFor,
+  sessionServed,
 } from "./appTestSupport";
 
 describe("Grading Session Workspace Screen (/gradings/:id)", () => {
@@ -53,6 +54,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
+    ...sessionServed("OPEN"),
     can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
     location: "Riverside Dojang",
     notes: "Please arrive 15 minutes before the start time.",
@@ -72,6 +74,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       session: 10,
       student: 1,
       student_display_name: "Alex Carter",
+      student_first_name: "Alex",
       student_wksa_id: "UK-1001",
       from_rank: 2,
       from_rank_name: "Yellow Stripe",
@@ -90,6 +93,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       session: 10,
       student: 2,
       student_display_name: "Brooke Ellis",
+      student_first_name: "Brooke",
       student_wksa_id: "UK-1002",
       from_rank: 5,
       from_rank_name: "Blue",
@@ -108,6 +112,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       session: 10,
       student: 3,
       student_display_name: "Casey Nguyen",
+      student_first_name: "Casey",
       student_wksa_id: "UK-1003",
       from_rank: 6,
       from_rank_name: "Red stripe",
@@ -133,6 +138,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       generated_by_email: adminUser.email,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_start: false,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
@@ -148,6 +154,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       generated_by_email: adminUser.email,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_start: false,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
@@ -163,6 +170,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       generated_by_email: adminUser.email,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_start: true,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: null,
@@ -216,6 +224,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     canDecide: boolean,
     canOverride = false,
   ): GradingCandidateRoster[] {
+    const rosterOpen = sessionStatus === "DRAFT" || sessionStatus === "OPEN";
     return candidates.map((candidate) => {
       const assessment = assessments.find((item) => item.candidate === candidate.id) ?? null;
       const outcome = outcomes.find((item) => item.candidate === candidate.id) ?? null;
@@ -239,6 +248,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         next_action: nextAction,
         can_be_finalised: canBeFinalised,
         can_be_withdrawn_after_lock: canWithdraw,
+        // As the server rules them (gradings.services
+        // candidate_can_be_marked_absent, assessment_can_be_prepared).
+        can_be_marked_absent: rosterOpen && candidate.status === "REGISTERED" && (!assessment || assessment.status === "NOT_STARTED"),
+        can_prepare_assessment: rosterOpen && candidate.status !== "WITHDRAWN" && !assessment,
       };
     });
   }
@@ -377,17 +390,20 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         const patchData = JSON.parse(init.body as string);
-        return jsonResponse(200, { ...testSession, ...sessionOverrides, ...patchData });
+        const moved = { ...testSession, ...sessionOverrides, ...patchData };
+        return jsonResponse(200, { ...moved, ...sessionServed(moved.status, { withOverride: authenticatedUser.can_override_locked_session }) });
       }
       if (url.includes("/api/gradings/sessions/10/")) {
-        return jsonResponse(200, { ...testSession, ...sessionOverrides });
+        const status = sessionOverrides.status ?? testSession.status;
+        const served = sessionServed(status, { withOverride: authenticatedUser.can_override_locked_session });
+        return jsonResponse(200, { ...testSession, ...served, ...sessionOverrides });
       }
       if (url.includes("/api/gradings/candidates/")) {
         const rows = rosterRows(
           candidates,
           assessments,
           outcomes,
-          locked ? "LOCKED" : "OPEN",
+          sessionOverrides.status ?? testSession.status,
           authenticatedUser.can_make_final_grading_decision,
           authenticatedUser.can_override_locked_session,
         );
@@ -660,6 +676,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         status: "LOCKED",
         status_display: "Locked",
         awaiting_decision_count: 3,
+        ...sessionServed("LOCKED"),
       }),
     );
 
@@ -1148,7 +1165,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         await patchPending;
-        return jsonResponse(200, { ...testSession, status: "LOCKED", status_display: "Locked" });
+        return jsonResponse(200, { ...testSession, status: "LOCKED", status_display: "Locked", ...sessionServed("LOCKED") });
       }
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
       if (url.includes("/api/gradings/candidates/")) {
@@ -1406,6 +1423,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
             category: "TECHNIQUE",
             category_display: "Techniques",
             category_is_core: false,
+            reason_required: true,
+            can_clear: true,
             required: true,
             result: "MET",
             result_display: "Met",

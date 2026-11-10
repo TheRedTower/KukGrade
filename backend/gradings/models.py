@@ -157,6 +157,12 @@ class GradingSession(models.Model):
         have their forms prepared."""
         return self.status in {self.Status.DRAFT, self.Status.OPEN}
 
+    @property
+    def marking_open(self) -> bool:
+        """Open: candidates are being graded, so assessments are started,
+        marked and completed now."""
+        return self.status == self.Status.OPEN
+
 
 class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
     def delete(self) -> tuple[int, dict[str, int]]:

@@ -149,9 +149,12 @@ export function CandidateAssessmentScreen() {
       const before = queryClient
         .getQueryData<{ results: CandidateAssessmentItem[] }>(itemsKey)
         ?.results.find((item) => item.id === itemId);
+      // Shown as the server will hold it: marked, and with this change in its
+      // log, so whatever comes next is a later change that says why.
       patchItem(itemId, (item) => ({
         ...item,
         result,
+        reason_required: true,
       }));
       return { itemId, seq, before };
     },
@@ -260,17 +263,18 @@ export function CandidateAssessmentScreen() {
   const canComplete = stats.canComplete && !isSavingItems;
   const isAssessmentCompleted = assessment?.status === "COMPLETED";
   const isAssessmentMissing = assessment === null;
-  // The statuses assessment generation accepts (ASSESSMENT_GENERATION_SESSION_
-  // STATUSES); a candidate registered after opening is prepared here too.
-  const canPrepare = session.status === "DRAFT" || session.status === "OPEN";
+  // Whether the form can be prepared, the assessment started or completed is
+  // served, by the rules those writes check.
+  const canPrepare = candidate.can_prepare_assessment;
+  const canStart = Boolean(assessment?.can_start);
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
   // Whether this viewer may change marks and comment now is the server's call
   // (the session is open, or it is locked and they are the authorised Master
   // and this candidate's final decision is not yet recorded): it is served,
   // not worked out here.
   const canEdit = !!assessment?.marks_open;
-  // After the lock every correction says why, the first mark included.
-  const afterLock = session.status === "LOCKED";
+  // Marks still open once grading has ended: the Master correcting after the lock.
+  const correctingAfterLock = canEdit && !session.marking_open;
 
   const metWidth = stats.totalItems > 0 ? (stats.metCount / stats.totalItems) * 100 : 0;
   const notMetWidth = stats.totalItems > 0 ? (stats.notMetCount / stats.totalItems) * 100 : 0;
@@ -354,14 +358,14 @@ export function CandidateAssessmentScreen() {
             {generateAssessmentMutation.isPending
               ? "Preparing..."
               : !canPrepare
-              ? "Session must be draft or open to prepare"
+              ? "The form cannot be prepared now"
               : "Prepare assessment form"}
           </Button>
         </div>
       )}
 
       {/* After the lock only the authorised Master corrects a record, until their decision is made. */}
-      {afterLock && canEdit && (
+      {correctingAfterLock && (
         <Alert tone="warning" role="status" data-testid="caw-locked-correction-note">
           This session is locked. As the authorised Master you can still correct a mark or add a
           comment, with a reason, until this candidate&rsquo;s final decision is recorded. Each
@@ -382,12 +386,12 @@ export function CandidateAssessmentScreen() {
           <Button
             variant="primary"
             onClick={() => startAssessmentMutation.mutate()}
-            disabled={startAssessmentMutation.isPending || session.status !== "OPEN"}
+            disabled={startAssessmentMutation.isPending || !canStart}
             data-testid="start-assessment-btn"
           >
             {startAssessmentMutation.isPending
               ? "Starting..."
-              : session.status !== "OPEN"
+              : !canStart
               ? "Session must be Open to start"
               : "Start assessment"}
           </Button>
@@ -407,8 +411,6 @@ export function CandidateAssessmentScreen() {
                   key={item.id}
                   item={item}
                   canEdit={canEdit}
-                  reasonAlways={afterLock}
-                  assessmentCompleted={isAssessmentCompleted}
                   pendingResult={changing?.itemId === item.id ? changing.result : null}
                   isCommentOpen={openCommentId === item.id}
                   onMark={(result) => {

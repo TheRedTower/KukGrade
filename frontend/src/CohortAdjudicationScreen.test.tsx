@@ -15,6 +15,7 @@ import type {
 } from "./api";
 import { ApiError } from "./api";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
+import { sessionServed } from "./appTestSupport";
 
 const masterUser: AuthUser = {
   id: "uuid-master",
@@ -79,6 +80,8 @@ const lockedSession: GradingSession = {
   candidate_count: 0,
   completed_assessment_count: 0,
   awaiting_decision_count: 0,
+  ...sessionServed("LOCKED"),
+  withdrawn_count: 1,
   can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
   grading_date: "2026-11-12",
   location: "Riverside",
@@ -91,6 +94,7 @@ function candidate(id: number, name: string, overrides: Partial<GradingCandidate
     session: 10,
     student: id + 100,
     student_display_name: name,
+    student_first_name: name.split(" ")[0],
     student_wksa_id: `KG-${id}`,
     from_rank: 2,
     from_rank_name: "Yellow Stripe",
@@ -121,6 +125,7 @@ function assessment(
     generated_by_email: "master@example.com",
     overall,
     marks_open: true,
+    can_start: false,
     can_delete: false,
     generated_at: "2026-11-12T09:00:00Z",
     started_at: "2026-11-12T09:05:00Z",
@@ -160,7 +165,8 @@ function summary(required: number, met: number, notMet: number): CandidateAssess
     required_not_assessed: 0,
     all_required_assessed: true,
   };
-  return { overall: counts, categories: [] };
+  // Sealed: there is nothing left to complete.
+  return { overall: counts, can_complete: false, categories: [] };
 }
 
 function item(id: number, overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentItem {
@@ -171,6 +177,8 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
     category: "KICKING",
     category_display: "Kicking",
     category_is_core: true,
+    reason_required: true,
+    can_clear: true,
     position: id,
     required: true,
     display_range: "",
@@ -217,7 +225,7 @@ const assessments = [
   assessment(1002, 2, summary(24, 22, 2).overall),
   assessment(1003, 3, summary(18, 18, 0).overall),
 ];
-const roster = cohort.map((row): GradingCandidateRoster => {
+const servedRoster = cohort.map((row): GradingCandidateRoster => {
   const found = outcomes.find((o) => o.candidate === row.id) ?? null;
   return {
     ...row,
@@ -226,9 +234,13 @@ const roster = cohort.map((row): GradingCandidateRoster => {
     next_action: "REVIEW_DECISION",
     promotion: null,
     can_be_withdrawn_after_lock: false,
+    can_be_marked_absent: false,
+    can_prepare_assessment: false,
     can_be_finalised: found?.status === "PROPOSED",
   };
 });
+// The board asks for the candidates still being graded (withdrawn=false).
+const roster = servedRoster.filter((row) => row.status !== "WITHDRAWN");
 
 function renderBoard(
   path = "/gradings/10/decisions",
@@ -463,6 +475,8 @@ describe("CohortAdjudicationScreen", () => {
     expect(within(alex).getByText("2 not met")).toBeVisible();
     expect(within(alex).getByText("Conditional", { selector: ".badge--warning" })).toBeVisible();
     expect(within(screen.getByTestId("cab-row-3")).getByText("Recorded · Fail")).toBeVisible();
+    // The server leaves withdrawn candidates out, and counts them on the session.
+    expect(mockGetCandidates).toHaveBeenCalledWith({ session: 10, withdrawn: false });
     expect(screen.queryByTestId("cab-row-4")).toBeNull();
     expect(screen.getByText("1 withdrawn candidate is not shown.")).toBeVisible();
     expect(screen.getByText("finalised", { exact: false })).toHaveTextContent("1 / 3 finalised");
@@ -478,6 +492,8 @@ describe("CohortAdjudicationScreen", () => {
 
     const mia = await screen.findByTestId("cab-row-1");
     await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    // Named by the first name the server serves.
+    expect(screen.getByRole("button", { name: "Record decision for Mia" })).toBeVisible();
     const alex = screen.getByTestId("cab-row-2");
     await user.click(within(alex).getByRole("button", { name: "Conditional" }));
 
@@ -575,7 +591,9 @@ describe("CohortAdjudicationScreen", () => {
   });
 
   it("offers no decision controls until the session is locked", async () => {
-    mockGetGradingSession.mockResolvedValue({ ...lockedSession, status: "OPEN", status_display: "Open" });
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession, status: "OPEN", status_display: "Open", ...sessionServed("OPEN") });
+    // Nothing can be finalised before the lock, and the rows say so.
+    mockGetCandidates.mockResolvedValue(page(roster.map((row) => ({ ...row, can_be_finalised: false }))));
     renderBoard();
 
     await screen.findByTestId("cab-row-1");

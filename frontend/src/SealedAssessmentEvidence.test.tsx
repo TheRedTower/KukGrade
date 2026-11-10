@@ -28,7 +28,7 @@ const counts = {
   required_not_assessed: 0,
   all_required_assessed: true,
 };
-const summary: CandidateAssessmentSummary = { overall: counts, categories: [] };
+const summary: CandidateAssessmentSummary = { overall: counts, can_complete: false, categories: [] };
 
 function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentItem {
   return {
@@ -38,6 +38,8 @@ function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentI
     category: "KICKING",
     category_display: "Kicking",
     category_is_core: true,
+    reason_required: true,
+    can_clear: true,
     position: 1,
     required: true,
     display_range: "",

@@ -18,7 +18,7 @@ from django.db.models import (
     When,
 )
 
-from gradings.assessment_services import holds_final_decision
+from gradings.assessment_services import assessment_can_complete, holds_final_decision
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -176,6 +176,7 @@ class CategoryAssessmentSummary(OverallAssessmentSummary):
 class CandidateAssessmentSummary(TypedDict):
     overall: OverallAssessmentSummary
     categories: list[CategoryAssessmentSummary]
+    can_complete: bool
 
 
 class StudentRankTimeline(TypedDict):
@@ -370,12 +371,10 @@ def assessment_overall(assessment: CandidateAssessment) -> OverallAssessmentSumm
                 )
             },
         )
-    return candidate_assessment_summary(assessment)["overall"]
+    return _summary_from_tally(sum(_category_tallies(assessment).values(), Counter()))
 
 
-def candidate_assessment_summary(
-    assessment: CandidateAssessment,
-) -> CandidateAssessmentSummary:
+def _category_tallies(assessment: CandidateAssessment) -> dict[str, Counter[str]]:
     # Unordered, so a list view's prefetched items are used as they are; the
     # counts do not depend on order and the categories are sorted below.
     tallies: dict[str, Counter[str]] = {}
@@ -390,13 +389,24 @@ def candidate_assessment_summary(
             tally["not_met"] += 1
         else:
             tally["required_not_assessed"] += item.required
+    return tallies
 
+
+def candidate_assessment_summary(
+    assessment: CandidateAssessment,
+) -> CandidateAssessmentSummary:
+    tallies = _category_tallies(assessment)
     categories: list[CategoryAssessmentSummary] = [
         {**_summary_from_tally(tally), "category": category}
         for category, tally in tallies.items()
     ]
+    overall = _summary_from_tally(sum(tallies.values(), Counter()))
     return {
-        "overall": _summary_from_tally(sum(tallies.values(), Counter())),
+        "overall": overall,
+        "can_complete": assessment_can_complete(
+            assessment,
+            required_not_assessed=overall["required_not_assessed"],
+        ),
         "categories": sorted(
             categories,
             key=lambda summary: (

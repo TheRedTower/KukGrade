@@ -70,12 +70,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   const session = sessionQuery.data;
 
-  // A finished session may leave this viewer nothing to do: then there is no menu.
+  // A finished session may leave this viewer nothing to do: then there is no
+  // menu. What it offers is the server's to say (SessionActionsMenu).
   const hasSessionActions = Boolean(
     session &&
-      (session.status === "DRAFT" ||
-        session.status === "OPEN" ||
-        session.status === "LOCKED" ||
+      (session.can_open ||
+        session.can_lock ||
+        session.can_complete ||
+        session.can_cancel ||
         currentUser?.can_read_audit_log ||
         session.can_be_deleted ||
         session.can_be_archived ||
@@ -90,7 +92,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     }
     hadSessionActions.current = hasSessionActions;
   }, [hasSessionActions]);
-  const cancelReasonRequired = session?.status === "LOCKED";
+  const cancelReasonRequired = Boolean(session?.cancel_reason_required);
 
   const updateSessionMutation = useMutation({
     mutationFn: (payload: Parameters<typeof updateGradingSession>[1]) => updateGradingSession(sessionId, payload),
@@ -177,17 +179,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // with_session_progress), the same number Overview and Gradings show. A
   // decision can only be made once the session is locked, so the banner
   // waits for that.
-  const awaitingDecisionCount = session?.status === "LOCKED" ? session.awaiting_decision_count : 0;
+  const awaitingDecisionCount = session?.decisions_open ? session.awaiting_decision_count : 0;
 
-  const active = enrichedCandidates.filter((item) => item.candidate.status !== "WITHDRAWN");
-  const unpreparedIds = active.filter((item) => !item.assessment).map((item) => item.candidate.id);
-  const preparedIds = active.filter((item) => item.assessment?.status === "NOT_STARTED").map((item) => item.assessment!.id);
-  // A no-show is a candidate who never started: the server refuses to
-  // withdraw one whose assessment work has begun (that needs a locked-session
-  // withdrawal), so only those are offered.
-  const attendanceCandidates = enrichedCandidates
-    .filter((item) => item.candidate.status === "REGISTERED" && (!item.assessment || item.assessment.status === "NOT_STARTED"))
-    .map(toAttendanceCandidate);
+  // Who can be prepared, started or marked a no-show now is served on each
+  // row, by the same rules the writes check.
+  const unpreparedIds = enrichedCandidates.filter((item) => item.candidate.can_prepare_assessment).map((item) => item.candidate.id);
+  const preparedIds = enrichedCandidates.flatMap((item) => (item.assessment?.can_start ? [item.assessment.id] : []));
+  const attendanceCandidates = enrichedCandidates.filter((item) => item.candidate.can_be_marked_absent).map(toAttendanceCandidate);
 
   if (!valid) {
     return (
@@ -235,7 +233,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     // document.body as "previously focused" unless focus is moved onto the
     // still-mounted trigger button before that happens.
     menu.buttonRef.current?.focus();
-    setConfirm({ action, ...confirmDetails(action, session, active.length) });
+    setConfirm({ action, ...confirmDetails(action, session, session.candidate_count ?? 0) });
   };
 
   const handleConfirm = () => {
@@ -272,7 +270,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               </Link>
             )}
             {hasSessionActions && <SessionActionsMenu session={session} user={currentUser} menu={menu} onAction={handleAction} />}
-            {(session.status === "DRAFT" || session.status === "OPEN") && (
+            {session.roster_open && (
               <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })} data-testid="gsd-add-candidate-btn">
                 Add candidate <span aria-hidden="true">→</span>
               </Link>

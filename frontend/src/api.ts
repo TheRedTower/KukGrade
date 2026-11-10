@@ -438,8 +438,8 @@ async function getGradingCandidates(
   );
 }
 
-export async function getGradingCandidate(id: number): Promise<GradingCandidate> {
-  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`);
+export async function getGradingCandidate(id: number): Promise<GradingCandidateRoster> {
+  return apiRequest<GradingCandidateRoster>(`/api/gradings/candidates/${id}/`);
 }
 
 export async function getAllGradingCandidates(

@@ -1108,6 +1108,12 @@ paths:
         description: ''
         schema:
           type: integer
+      - name: withdrawn
+        required: false
+        in: query
+        description: Only withdrawn candidates, or only those still being graded.
+        schema:
+          type: boolean
       tags:
       - gradings
       security:
@@ -3635,6 +3641,11 @@ components:
             comment on its items, now: while the session is open, or once it is locked
             and the viewer is the authorised Master and the candidate''s final decision
             is not yet recorded.'
+        can_start:
+          type: boolean
+          readOnly: true
+          description: 'Whether the assessment can be started now: not started, its
+            candidate not withdrawn, and the session open.'
         can_delete:
           type: boolean
           readOnly: true
@@ -3642,6 +3653,7 @@ components:
             an administrator, while its candidate''s final decision is not recorded.'
       required:
       - can_delete
+      - can_start
       - candidate
       - candidate_student_name
       - completed_at
@@ -3718,9 +3730,21 @@ components:
           items:
             $ref: '#/components/schemas/AssessmentItemResultChange'
           readOnly: true
+        reason_required:
+          type: boolean
+          readOnly: true
+          description: 'Whether the next change to this mark must say why: every change
+            after the first does, and after the lock every one does.'
+        can_clear:
+          type: boolean
+          readOnly: true
+          description: 'Whether this mark may be taken away: it has one, and a completed
+            assessment keeps every required item marked. Whether the viewer may change
+            marks at all is the assessment''s marks_open.'
       required:
       - assessed_at
       - assessor_email
+      - can_clear
       - category
       - category_display
       - category_is_core
@@ -3732,6 +3756,7 @@ components:
       - korean_name
       - notation
       - position
+      - reason_required
       - required
       - requirement_notes
       - result_display
@@ -3805,6 +3830,17 @@ components:
           items:
             $ref: '#/components/schemas/AssessmentItemResultChange'
           readOnly: true
+        reason_required:
+          type: boolean
+          readOnly: true
+          description: 'Whether the next change to this mark must say why: every change
+            after the first does, and after the lock every one does.'
+        can_clear:
+          type: boolean
+          readOnly: true
+          description: 'Whether this mark may be taken away: it has one, and a completed
+            assessment keeps every required item marked. Whether the viewer may change
+            marks at all is the assessment''s marks_open.'
         assessment_summary:
           allOf:
           - $ref: '#/components/schemas/CandidateAssessmentSummary'
@@ -3815,6 +3851,7 @@ components:
       - assessed_at
       - assessment_summary
       - assessor_email
+      - can_clear
       - category
       - category_display
       - category_is_core
@@ -3826,6 +3863,7 @@ components:
       - korean_name
       - notation
       - position
+      - reason_required
       - required
       - requirement_notes
       - result_display
@@ -3843,6 +3881,12 @@ components:
       type: object
       description: Overall plus per-category rollup for one assessment.
       properties:
+        can_complete:
+          type: boolean
+          readOnly: true
+          description: 'Whether the assessment can be completed now, as these counts
+            leave it: in progress, every required item marked, the candidate not withdrawn
+            and the session open.'
         overall:
           allOf:
           - $ref: '#/components/schemas/AssessmentSummaryCounts'
@@ -3853,6 +3897,7 @@ components:
             $ref: '#/components/schemas/AssessmentCategorySummary'
           readOnly: true
       required:
+      - can_complete
       - categories
       - overall
     CandidateOutcome:
@@ -4239,6 +4284,9 @@ components:
         student_display_name:
           type: string
           readOnly: true
+        student_first_name:
+          type: string
+          readOnly: true
         student_wksa_id:
           type: string
           readOnly: true
@@ -4289,6 +4337,7 @@ components:
       - status
       - student
       - student_display_name
+      - student_first_name
       - student_wksa_id
       - testing_for_rank
       - testing_for_rank_name
@@ -4311,6 +4360,9 @@ components:
           type: integer
           readOnly: true
         student_display_name:
+          type: string
+          readOnly: true
+        student_first_name:
           type: string
           readOnly: true
         student_wksa_id:
@@ -4385,13 +4437,25 @@ components:
           description: 'Whether the viewer may withdraw this candidate now: the session
             is locked, the candidate is not withdrawn and has no final decision, and
             the viewer holds the locked-session override.'
+        can_be_marked_absent:
+          type: boolean
+          readOnly: true
+          description: 'Whether the candidate can be withdrawn as a no-show now: registered,
+            the session draft or open, and their assessment not started.'
+        can_prepare_assessment:
+          type: boolean
+          readOnly: true
+          description: 'Whether the candidate''s assessment form can be prepared now:
+            they have none, are not withdrawn, and the session is draft or open.'
       required:
       - age_band_display
       - assessment
       - can_be_finalised
+      - can_be_marked_absent
       - can_be_moved
       - can_be_removed
       - can_be_withdrawn_after_lock
+      - can_prepare_assessment
       - from_rank
       - from_rank_name
       - id
@@ -4402,6 +4466,7 @@ components:
       - status
       - student
       - student_display_name
+      - student_first_name
       - student_wksa_id
       - testing_for_rank
       - testing_for_rank_name
@@ -4533,6 +4598,47 @@ components:
         awaiting_decision_count:
           type: integer
           readOnly: true
+        withdrawn_count:
+          type: integer
+          readOnly: true
+          description: How many of its candidates have been withdrawn.
+        roster_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether candidates can still be added, changed, removed and
+            have their forms prepared: the session is draft or open.'
+        marking_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether candidates are being graded now: assessments are started,
+            marked and completed while the session is open.'
+        decisions_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether final decisions are being made now: the session is
+            locked.'
+        can_open:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may open this session now.
+        can_lock:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may ask to lock this session now. Locking
+            itself checks that every assessment is complete.
+        can_complete:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may ask to complete this session now. Completing
+            itself checks that every decision is recorded.
+        can_cancel:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may cancel this session now.
+        cancel_reason_required:
+          type: boolean
+          readOnly: true
+          description: Whether cancelling it now needs a written reason.
         can_be_deleted:
           type: boolean
           description: Whether the requesting user may delete it, by the delete's
@@ -4559,12 +4665,21 @@ components:
       - can_be_archived
       - can_be_deleted
       - can_be_restored
+      - can_cancel
+      - can_complete
+      - can_lock
+      - can_open
+      - cancel_reason_required
       - candidate_count
       - completed_assessment_count
+      - decisions_open
       - grading_date
       - id
+      - marking_open
+      - roster_open
       - status_display
       - title
+      - withdrawn_count
     GradingSessionRequest:
       type: object
       properties:

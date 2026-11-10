@@ -259,6 +259,33 @@ def validate_session_transition(
             )
 
 
+def cancelling_needs_reason(session: GradingSession) -> bool:
+    """A locked session has been assessed, so abandoning it needs the
+    locked-session override and a recorded reason."""
+    return session.is_locked
+
+
+def session_may_move_to(
+    session: GradingSession,
+    target_status: str,
+    actor: User,
+) -> bool:
+    """Whether `actor` may ask to move the session to `target_status` now: the
+    move is one its status allows, they may change sessions, and cancelling a
+    locked one takes the override. Whether the grading is ready for it (every
+    assessment complete, every decision recorded) is the move's own check,
+    which says what is missing."""
+    if target_status not in ALLOWED_SESSION_TRANSITIONS.get(session.status, set()):
+        return False
+    if not actor.has_perm("gradings.change_gradingsession"):
+        return False
+    if target_status == GradingSession.Status.CANCELLED and cancelling_needs_reason(
+        session
+    ):
+        return actor.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
+    return True
+
+
 def validate_locked_session_override_actor(actor: User | None) -> None:
     if actor is None or not actor.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION):
         raise ValidationError(
@@ -288,11 +315,9 @@ def transition_grading_session(
     )
 
     cancellation_reason = locked_session.cancellation_reason
-    abandoning_a_locked_session = (
-        locked_session.status == GradingSession.Status.LOCKED
-        and target_status == GradingSession.Status.CANCELLED
-    )
-    if abandoning_a_locked_session:
+    if target_status == GradingSession.Status.CANCELLED and cancelling_needs_reason(
+        locked_session
+    ):
         # Candidates have already been assessed here, so this needs both
         # authority and a recorded justification.
         validate_locked_session_override_actor(actor)
@@ -363,13 +388,14 @@ def with_session_progress(
     """Each session's progress, defined once for every screen.
 
     Counted in the database, so a cohort larger than a page is counted in
-    full. A withdrawn candidate counts in none of the three: they are not
-    being assessed. Awaiting a final decision means an assessment is
-    complete and its outcome, if any, is not yet finalised.
+    full. A withdrawn candidate counts in none of the first three: they are
+    not being assessed, and are counted on their own. Awaiting a final
+    decision means an assessment is complete and its outcome, if any, is not
+    yet finalised.
     """
-    active = GradingCandidate.objects.filter(session=OuterRef("pk")).exclude(
-        status=GradingCandidate.Status.WITHDRAWN,
-    )
+    registered = GradingCandidate.objects.filter(session=OuterRef("pk"))
+    withdrawn = registered.filter(status=GradingCandidate.Status.WITHDRAWN)
+    active = registered.exclude(status=GradingCandidate.Status.WITHDRAWN)
     completed = active.filter(
         assessment__status=CandidateAssessment.Status.COMPLETED,
     )
@@ -391,6 +417,7 @@ def with_session_progress(
         awaiting_decision_count=count(
             completed.exclude(outcome__status=CandidateOutcome.Status.FINALISED),
         ),
+        withdrawn_count=count(withdrawn),
     )
 
 
@@ -839,6 +866,24 @@ def validate_candidate_can_be_deleted(candidate: GradingCandidate) -> None:
 def candidate_can_be_deleted(candidate: GradingCandidate) -> bool:
     try:
         validate_candidate_can_be_deleted(candidate)
+    except ValidationError:
+        return False
+    return True
+
+
+def candidate_can_be_marked_absent(candidate: GradingCandidate) -> bool:
+    """Whether the candidate can be withdrawn as a no-show now, by the
+    withdrawal's own rules: registered, the roster still open, and their
+    assessment, if prepared, not started (that needs a locked-session
+    withdrawal instead)."""
+    if candidate.status != GradingCandidate.Status.REGISTERED:
+        return False
+    try:
+        validate_candidate_can_be_changed(candidate)
+        validate_candidate_assessment_changes(
+            candidate,
+            status=GradingCandidate.Status.WITHDRAWN,
+        )
     except ValidationError:
         return False
     return True

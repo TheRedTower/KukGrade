@@ -57,18 +57,21 @@ export function CohortAdjudicationScreen() {
     enabled,
   });
   const candidatesQuery = useQuery({
-    queryKey: keys.gradingCandidates.session(sessionId),
-    queryFn: () => getAllGradingCandidates({ session: sessionId }),
+    // Withdrawn candidates are not decided: the server leaves them out.
+    queryKey: [...keys.gradingCandidates.session(sessionId), "board"],
+    queryFn: () => getAllGradingCandidates({ session: sessionId, withdrawn: false }),
     enabled,
   });
 
   const session = sessionQuery.data;
   const rows = buildRows(candidatesQuery.data?.results ?? []);
-  const canDecide = Boolean(user?.can_make_final_grading_decision) && session?.status === "LOCKED";
+  // Each row says whether a decision can be recorded for it now; whether this
+  // viewer may record one is their own authority.
+  const canDecide = Boolean(user?.can_make_final_grading_decision) && rows.some((row) => row.decidable);
 
   const decisions = useStagedDecisions({ sessionId, enabled, canDecide, onFocus: setFocusId });
 
-  const withdrawnCount = (candidatesQuery.data?.results ?? []).length - rows.length;
+  const withdrawnCount = session?.withdrawn_count ?? 0;
   const finalisedCount = rows.filter((row) => row.outcome?.status === "FINALISED").length;
 
   const focusRow = rows.find((row) => row.candidate.id === focusId) ?? rows.find((row) => row.decidable) ?? rows[0];
@@ -133,7 +136,7 @@ export function CohortAdjudicationScreen() {
         }
       />
 
-      {session.status !== "LOCKED" && (
+      {!session.decisions_open && (
         <p className="cab-notice" role="status">
           {session.status === "COMPLETED"
             ? "This session is completed. Its decisions are the permanent record."
@@ -151,7 +154,7 @@ export function CohortAdjudicationScreen() {
           Your staged decisions could not be loaded. Staging is paused until they are, so none is overwritten.
         </Alert>
       )}
-      {session.status === "LOCKED" && !user?.can_make_final_grading_decision && (
+      {session.decisions_open && !user?.can_make_final_grading_decision && (
         <p className="cab-notice" role="status">
           Final decisions are made by an authorised Master. You can review the cohort here.
         </p>

@@ -19,7 +19,7 @@ import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-quer
 import {
   CandidateAssessmentItem,
   CategoryAssessmentSummary,
-  GradingCandidate,
+  GradingCandidateRoster,
   getGradingCandidate,
   getCandidateAssessments,
   getGradingSession,
@@ -62,7 +62,7 @@ export function useCandidateAssessmentData(
     enabled: candidateEnabled,
   });
 
-  const candidate: GradingCandidate | undefined =
+  const candidate: GradingCandidateRoster | undefined =
     candidateQuery.data?.session === numSessionId ? candidateQuery.data : undefined;
 
   // 3. The assessment itself. `null` means the form has not been generated yet,
@@ -135,10 +135,8 @@ export function useCandidateAssessmentData(
     });
   }, [items, summary]);
 
-  // Overall rollup, served. Only `required` items gate completion; optional
-  // items may legitimately be left unassessed, which is why `not_assessed`
-  // alone can never decide whether the assessment can be completed - the
-  // server's `required_not_assessed` and `all_required_assessed` can.
+  // Overall rollup, served, and whether the assessment can be completed as
+  // these counts leave it (the server's `can_complete`).
   const stats = useMemo(() => {
     const overall = summary?.overall;
     const requiredItems = overall?.required ?? 0;
@@ -153,7 +151,8 @@ export function useCandidateAssessmentData(
       metCount: overall?.met ?? 0,
       notMetCount: overall?.not_met ?? 0,
       notAssessedCount: overall?.not_assessed ?? 0,
-      canComplete: (overall?.all_required_assessed ?? false) && requiredItems > 0,
+      // The server's own rule for completing, as these counts leave it.
+      canComplete: summary?.can_complete ?? false,
     };
   }, [summary]);
 

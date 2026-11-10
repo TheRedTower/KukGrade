@@ -15,6 +15,7 @@ import type {
 import {
   ADMINISTRATOR_CAPABILITIES,
   jsonResponse,
+  sessionServed,
 } from "./appTestSupport";
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -47,6 +48,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
+    ...sessionServed("DRAFT"),
     can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
     notes: "",
   };
@@ -170,6 +172,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     session: 10,
     student: 105,
     student_display_name: "Eve Existing",
+    student_first_name: "Eve",
     student_wksa_id: "KG-0105",
     from_rank: 2,
     from_rank_name: "Yellow stripe",

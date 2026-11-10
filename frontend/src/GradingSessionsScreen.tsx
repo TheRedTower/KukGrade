@@ -280,7 +280,7 @@ export function GradingSessionsScreen() {
                     render: (session) => (
                       <>
                         <Button variant="ghost" small onClick={() => navigate(`/gradings/${session.id}`)}>
-                          {session.status === "OPEN" ? "Open grading" : "View grading"} <ArrowRightIcon />
+                          {session.marking_open ? "Open grading" : "View grading"} <ArrowRightIcon />
                         </Button>
                         {session.can_be_deleted && (
                           <Button

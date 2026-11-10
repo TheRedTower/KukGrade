@@ -16,6 +16,9 @@ import {
   authUser,
   jsonResponse,
   assessmentSummaryFor,
+  itemSaved,
+  itemServed,
+  sessionServed,
 } from "./appTestSupport";
 
 // Candidate Assessment Workspace Screen (/gradings/:sessionId/assessments/:candidateId)
@@ -30,6 +33,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
+    ...sessionServed("OPEN"),
     can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
     notes: "",
   };
@@ -39,6 +43,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     session: 10,
     student: 1,
     student_display_name: "Alex Carter",
+    student_first_name: "Alex",
     student_wksa_id: "KG-0264",
     from_rank: 1,
     from_rank_name: "Yellow stripe",
@@ -78,6 +83,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     generated_by_email: "casey@example.com",
     overall: assessmentSummaryFor([]).overall,
     marks_open: true,
+    can_start: false,
     can_delete: false,
     generated_at: "2026-09-18T10:00:00Z",
     started_at: "2026-09-18T10:05:00Z",
@@ -92,6 +98,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     category: "ETIQUETTE",
     category_display: "Etiquette",
     category_is_core: true,
+    reason_required: true,
+    can_clear: true,
     position: 1,
     required: true,
     display_range: "",
@@ -112,6 +120,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     category: "KICKING",
     category_display: "Kicking",
     category_is_core: true,
+    reason_required: true,
+    can_clear: true,
     position: 2,
     required: true,
     display_range: "",
@@ -132,6 +142,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     category: "KICKING",
     category_display: "Kicking",
     category_is_core: true,
+    reason_required: false,
+    can_clear: false,
     position: 3,
     required: true,
     display_range: "",
@@ -225,6 +237,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       category: "FORM",
       category_display: "Forms",
       category_is_core: false,
+      reason_required: false,
+      can_clear: false,
       display_range: "",
       requirement_notes: "Chart notation: (1/2).",
       notation: "Part 1 of 2",
@@ -328,6 +342,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             total: 3, required: 2, met: 2, not_met: 0, not_assessed: 1,
             required_met: 2, required_not_assessed: 0, all_required_assessed: true,
           },
+          can_complete: true,
           categories: [
             {
               category: "ETIQUETTE",
@@ -636,12 +651,13 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         status_display: "Completed",
         completed_at: "2026-09-18T11:30:00Z",
         marks_open: false,
+        can_start: false,
       };
       const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
       return vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, viewer);
-        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, { ...mockSession, status: "LOCKED" });
+        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, { ...mockSession, status: "LOCKED", ...sessionServed("LOCKED") });
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
         if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
         if (url.includes("/api/gradings/assessments/")) {
@@ -689,6 +705,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       category: "WEAPONS",
       category_display: "Weapons",
       category_is_core: false,
+      reason_required: true,
+      can_clear: true,
       position: 4,
       display_range: "1–5",
       result: "MET",
@@ -710,6 +728,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       category: "FORM",
       category_display: "Forms",
       category_is_core: false,
+      reason_required: true,
+      can_clear: true,
       position: 5,
       display_range: "",
       requirement_notes: "Chart notation: (1/2).",
@@ -1275,6 +1295,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             required_not_assessed: 1,
             all_required_assessed: false,
           },
+          can_complete: false,
           categories: [],
         } satisfies CandidateAssessmentSummary);
       }
@@ -1382,7 +1403,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             result: body.result,
             reason: body.reason,
             save: () => {
-              const saved = { ...items.get(itemId)!, result: body.result };
+              const saved = itemSaved(items.get(itemId)!, body.result);
               items.set(itemId, saved);
               respond(
                 jsonResponse(
@@ -1415,13 +1436,14 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   }
 
   // An item with no mark yet, so the first mark needs no reason.
-  const unmarked = (item: CandidateAssessmentItem): CandidateAssessmentItem => ({
-    ...item,
-    result: "NOT_ASSESSED",
-    result_display: "Not Assessed",
-    assessor_email: "",
-    assessed_at: null,
-  });
+  const unmarked = (item: CandidateAssessmentItem): CandidateAssessmentItem =>
+    itemServed({
+      ...item,
+      result: "NOT_ASSESSED",
+      result_display: "Not Assessed",
+      assessor_email: "",
+      assessed_at: null,
+    });
 
   it("rolls back only the item whose save failed", async () => {
     const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3]);
@@ -1507,13 +1529,13 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     it("asks why when an item is marked again after it was cleared", async () => {
       // 1003 was marked and then cleared: its next mark is a later change, so
       // the screen asks rather than sending a mark the server would refuse.
-      const cleared: CandidateAssessmentItem = {
+      const cleared: CandidateAssessmentItem = itemServed({
         ...mockItem3,
         changes: [
           { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
           { sequence: 2, from_result: "MET", to_result: "NOT_ASSESSED", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:05:00Z", reason: "Wrong item.", after_lock: false },
         ],
-      };
+      });
       const server = scoringServer([mockItem1, mockItem2, cleared]);
       vi.stubGlobal("fetch", server.fetchMock);
       const user = userEvent.setup();
@@ -1666,6 +1688,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         status: "COMPLETED" as const,
         status_display: "Completed",
         marks_open: marksOpen,
+        can_start: false,
       };
       vi.stubGlobal(
         "fetch",
@@ -1677,7 +1700,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           }
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) {
-            return jsonResponse(200, { ...mockSession, status: "LOCKED", status_display: "Locked" });
+            return jsonResponse(200, { ...mockSession, status: "LOCKED", status_display: "Locked", ...sessionServed("LOCKED") });
           }
           if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
           if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
@@ -1685,7 +1708,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             return jsonResponse(200, { count: 1, next: null, previous: null, results: [completed] });
           }
           if (url.includes("/api/gradings/assessment-items/")) {
-            return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+            const served = [mockItem1, mockItem2, mockItem3].map((item) => itemServed(item, { locked: true, completed: true }));
+            return jsonResponse(200, { count: 3, next: null, previous: null, results: served });
           }
           return jsonResponse(404, { detail: "Not found" });
         }),
@@ -2116,7 +2140,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
-          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+          count: 3, next: null, previous: null,
+          results: [mockItem1, mockItem2, mockItem3].map((item) => itemServed(item, { completed: true })),
         });
       }
       return jsonResponse(404, { detail: "Not found" });
@@ -2358,6 +2383,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       status: "NOT_STARTED",
       status_display: "Not started",
       started_at: null,
+      can_start: true,
     };
 
     let startPayload: Record<string, unknown> | null = null;
@@ -2434,6 +2460,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
+      ...sessionServed(sessionStatus),
       can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
     } satisfies GradingSession;
     const generatedAssessment: CandidateAssessment = {
@@ -2441,6 +2468,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       status: "NOT_STARTED",
       status_display: "Not started",
       started_at: null,
+      can_start: sessionStatus === "OPEN",
     };
     let generationRequested = false;
 
@@ -2456,7 +2484,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         return jsonResponse(201, generatedAssessment);
       }
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
-        return jsonResponse(200, mockCandidate);
+        // Served with the roster's own word on preparing a form.
+        return jsonResponse(200, { ...mockCandidate, can_prepare_assessment: true });
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });

@@ -46,12 +46,10 @@ export function missingRequirements(decision: StagedDecision): boolean {
 
 /** The board's rows: every candidate still in the session, open for decision once the server says so. */
 export function buildRows(candidates: GradingCandidateRoster[]): BoardRow[] {
-  return candidates
-    .filter((candidate) => candidate.status !== "WITHDRAWN")
-    .map((candidate) => ({
-      candidate,
-      assessment: candidate.assessment ?? undefined,
-      outcome: candidate.outcome ?? undefined,
-      decidable: candidate.can_be_finalised,
-    }));
+  return candidates.map((candidate) => ({
+    candidate,
+    assessment: candidate.assessment ?? undefined,
+    outcome: candidate.outcome ?? undefined,
+    decidable: candidate.can_be_finalised,
+  }));
 }

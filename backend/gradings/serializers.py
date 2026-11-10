@@ -7,8 +7,12 @@ from rest_framework import serializers
 
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.assessment_services import (
+    assessment_can_be_prepared,
+    assessment_can_start,
     assessment_marks_open,
     holds_final_decision,
+    item_change_needs_reason,
+    item_mark_can_be_cleared,
 )
 from gradings.legacy_matching import Suggestion
 from gradings.models import (
@@ -37,13 +41,16 @@ from gradings.read_models import (
 from gradings.services import (
     WITHDRAWAL_REASON_REQUIRED_MESSAGE,
     AlreadyRegistered,
+    cancelling_needs_reason,
     candidate_can_be_deleted,
+    candidate_can_be_marked_absent,
     candidate_can_be_withdrawn_after_lock,
     candidate_can_change_session,
     may_override_locked_session,
     session_can_be_archived,
     session_can_be_restored,
     session_deletion_blocker,
+    session_may_move_to,
     with_session_progress,
 )
 from kukgrade.serializers import ChoiceSerializer, ModelSerializer
@@ -62,6 +69,52 @@ class GradingSessionSerializer(ModelSerializer):
     candidate_count = serializers.IntegerField(read_only=True)
     completed_assessment_count = serializers.IntegerField(read_only=True)
     awaiting_decision_count = serializers.IntegerField(read_only=True)
+    withdrawn_count = serializers.IntegerField(
+        read_only=True,
+        help_text="How many of its candidates have been withdrawn.",
+    )
+    roster_open = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether candidates can still be added, changed, removed and have "
+            "their forms prepared: the session is draft or open."
+        ),
+    )
+    marking_open = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether candidates are being graded now: assessments are started, "
+            "marked and completed while the session is open."
+        ),
+    )
+    decisions_open = serializers.BooleanField(
+        source="is_locked",
+        read_only=True,
+        help_text=(
+            "Whether final decisions are being made now: the session is locked."
+        ),
+    )
+    can_open = serializers.SerializerMethodField(
+        help_text="Whether the viewer may open this session now.",
+    )
+    can_lock = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may ask to lock this session now. Locking "
+            "itself checks that every assessment is complete."
+        ),
+    )
+    can_complete = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may ask to complete this session now. "
+            "Completing itself checks that every decision is recorded."
+        ),
+    )
+    can_cancel = serializers.SerializerMethodField(
+        help_text="Whether the viewer may cancel this session now.",
+    )
+    cancel_reason_required = serializers.SerializerMethodField(
+        help_text="Whether cancelling it now needs a written reason.",
+    )
     can_be_deleted = serializers.SerializerMethodField()
     can_be_archived = serializers.SerializerMethodField(
         help_text="Whether the viewer may archive this session now.",
@@ -84,6 +137,15 @@ class GradingSessionSerializer(ModelSerializer):
             "candidate_count",
             "completed_assessment_count",
             "awaiting_decision_count",
+            "withdrawn_count",
+            "roster_open",
+            "marking_open",
+            "decisions_open",
+            "can_open",
+            "can_lock",
+            "can_complete",
+            "can_cancel",
+            "cancel_reason_required",
             "can_be_deleted",
             "archived_at",
             "can_be_archived",
@@ -112,6 +174,24 @@ class GradingSessionSerializer(ModelSerializer):
             is None
         )
 
+    def _may_move(self, obj: GradingSession, target: str) -> bool:
+        return session_may_move_to(obj, target, self.context["request"].user)
+
+    def get_can_open(self, obj: GradingSession) -> bool:
+        return self._may_move(obj, GradingSession.Status.OPEN)
+
+    def get_can_lock(self, obj: GradingSession) -> bool:
+        return self._may_move(obj, GradingSession.Status.LOCKED)
+
+    def get_can_complete(self, obj: GradingSession) -> bool:
+        return self._may_move(obj, GradingSession.Status.COMPLETED)
+
+    def get_can_cancel(self, obj: GradingSession) -> bool:
+        return self._may_move(obj, GradingSession.Status.CANCELLED)
+
+    def get_cancel_reason_required(self, obj: GradingSession) -> bool:
+        return cancelling_needs_reason(obj)
+
     def get_can_be_archived(self, obj: GradingSession) -> bool:
         return session_can_be_archived(obj, self.context["request"].user)
 
@@ -139,6 +219,10 @@ class GradingCandidateSerializer(ModelSerializer):
         read_only=True,
     )
     student_display_name = serializers.SerializerMethodField()
+    student_first_name = serializers.CharField(
+        source="student.first_name",
+        read_only=True,
+    )
     student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
     from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
     testing_for_rank_name = serializers.CharField(
@@ -170,6 +254,7 @@ class GradingCandidateSerializer(ModelSerializer):
             "session",
             "student",
             "student_display_name",
+            "student_first_name",
             "student_wksa_id",
             "from_rank",
             "from_rank_name",
@@ -302,6 +387,15 @@ class AssessmentCategorySummarySerializer(AssessmentSummaryCountsSerializer):
 class CandidateAssessmentSummarySerializer(serializers.Serializer):
     """Overall plus per-category rollup for one assessment."""
 
+    can_complete = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether the assessment can be completed now, as these counts leave "
+            "it: in progress, every required item marked, the candidate not "
+            "withdrawn and the session open."
+        ),
+    )
+
     overall = AssessmentSummaryCountsSerializer(read_only=True)
     categories = AssessmentCategorySummarySerializer(many=True, read_only=True)
 
@@ -328,6 +422,12 @@ class CandidateAssessmentSerializer(ModelSerializer):
         ),
     )
 
+    can_start = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the assessment can be started now: not started, its "
+            "candidate not withdrawn, and the session open."
+        ),
+    )
     can_delete = serializers.SerializerMethodField(
         help_text=(
             "Whether the viewer may permanently delete this assessment: an "
@@ -350,6 +450,7 @@ class CandidateAssessmentSerializer(ModelSerializer):
             "notes",
             "overall",
             "marks_open",
+            "can_start",
             "can_delete",
         )
         read_only_fields = (
@@ -369,6 +470,9 @@ class CandidateAssessmentSerializer(ModelSerializer):
 
     def get_marks_open(self, obj: CandidateAssessment) -> bool:
         return assessment_marks_open(obj, self.context["request"].user)
+
+    def get_can_start(self, obj: CandidateAssessment) -> bool:
+        return assessment_can_start(obj)
 
     def get_can_delete(self, obj: CandidateAssessment) -> bool:
         user = self.context["request"].user
@@ -454,6 +558,19 @@ class CandidateAssessmentItemSerializer(ModelSerializer):
             "rank shares, rather than rank-specific content."
         ),
     )
+    reason_required = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the next change to this mark must say why: every change "
+            "after the first does, and after the lock every one does."
+        ),
+    )
+    can_clear = serializers.SerializerMethodField(
+        help_text=(
+            "Whether this mark may be taken away: it has one, and a completed "
+            "assessment keeps every required item marked. Whether the viewer "
+            "may change marks at all is the assessment's marks_open."
+        ),
+    )
 
     class Meta:
         model = CandidateAssessmentItem
@@ -476,6 +593,8 @@ class CandidateAssessmentItemSerializer(ModelSerializer):
             "comments",
             "changes",
             "reason",
+            "reason_required",
+            "can_clear",
         )
         read_only_fields = (
             "id",
@@ -496,6 +615,13 @@ class CandidateAssessmentItemSerializer(ModelSerializer):
 
     def get_category_is_core(self, obj: CandidateAssessmentItem) -> bool:
         return obj.category in CORE_CATEGORIES
+
+    def get_reason_required(self, obj: CandidateAssessmentItem) -> bool:
+        # The served log, so a list of items asks nothing more of the database.
+        return item_change_needs_reason(obj, has_changes=bool(obj.changes.all()))
+
+    def get_can_clear(self, obj: CandidateAssessmentItem) -> bool:
+        return item_mark_can_be_cleared(obj)
 
 
 class CandidateAssessmentItemSavedSerializer(CandidateAssessmentItemSerializer):
@@ -599,6 +725,18 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "may make it is their own authority."
         ),
     )
+    can_be_marked_absent = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the candidate can be withdrawn as a no-show now: registered, "
+            "the session draft or open, and their assessment not started."
+        ),
+    )
+    can_prepare_assessment = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the candidate's assessment form can be prepared now: they "
+            "have none, are not withdrawn, and the session is draft or open."
+        ),
+    )
     can_be_withdrawn_after_lock = serializers.SerializerMethodField(
         help_text=(
             "Whether the viewer may withdraw this candidate now: the session is "
@@ -616,6 +754,8 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "next_action",
             "can_be_finalised",
             "can_be_withdrawn_after_lock",
+            "can_be_marked_absent",
+            "can_prepare_assessment",
         )
 
     @extend_schema_field(PromotionSerializer(allow_null=True))
@@ -629,6 +769,12 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
     def get_can_be_finalised(self, instance: GradingCandidate) -> bool:
         outcome = getattr(instance, "outcome", None)
         return outcome is not None and outcome_can_be_finalised(outcome)
+
+    def get_can_be_marked_absent(self, instance: GradingCandidate) -> bool:
+        return candidate_can_be_marked_absent(instance)
+
+    def get_can_prepare_assessment(self, instance: GradingCandidate) -> bool:
+        return assessment_can_be_prepared(instance)
 
     def get_can_be_withdrawn_after_lock(self, instance: GradingCandidate) -> bool:
         # Asked once for the whole list: the context is shared by every row.

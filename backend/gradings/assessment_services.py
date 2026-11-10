@@ -25,7 +25,6 @@ from gradings.models import (
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
-    GradingSession,
 )
 from gradings.service_support import each_independently, unique_violation_on
 from syllabus.models import AgeBand
@@ -123,6 +122,18 @@ def validate_assessment_generation_candidate(candidate: GradingCandidate) -> Non
         raise ValidationError(
             {"candidate": ["Cannot generate an assessment for a withdrawn candidate."]},
         )
+
+
+def assessment_can_be_prepared(candidate: GradingCandidate) -> bool:
+    """Whether this candidate's assessment form can be prepared now: they
+    have none yet, and the generation's own rule allows it."""
+    if getattr(candidate, "assessment", None) is not None:
+        return False
+    try:
+        validate_assessment_generation_candidate(candidate)
+    except ValidationError:
+        return False
+    return True
 
 
 def _snapshot_item(
@@ -251,7 +262,7 @@ def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
         raise ValidationError(
             {"status": ["Only not-started assessments can be started."]},
         )
-    if assessment.candidate.session.status != GradingSession.Status.OPEN:
+    if not assessment.candidate.session.marking_open:
         raise ValidationError(
             {"session": ["Assessments can only be started in open sessions."]},
         )
@@ -261,12 +272,26 @@ def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
         )
 
 
-def validate_assessment_can_complete(assessment: CandidateAssessment) -> None:
+def assessment_can_start(assessment: CandidateAssessment) -> bool:
+    try:
+        validate_assessment_can_start(assessment)
+    except ValidationError:
+        return False
+    return True
+
+
+def validate_assessment_can_complete(
+    assessment: CandidateAssessment,
+    *,
+    required_not_assessed: int | None = None,
+) -> None:
+    """Whether the assessment may be completed now. `required_not_assessed`
+    is the count when the caller already holds it (the served summary)."""
     if assessment.status != CandidateAssessment.Status.IN_PROGRESS:
         raise ValidationError(
             {"status": ["Only in-progress assessments can be completed."]},
         )
-    if assessment.candidate.session.status != GradingSession.Status.OPEN:
+    if not assessment.candidate.session.marking_open:
         raise ValidationError(
             {"session": ["Assessments can only be completed in an open session."]},
         )
@@ -274,10 +299,14 @@ def validate_assessment_can_complete(assessment: CandidateAssessment) -> None:
         raise ValidationError(
             {"candidate": ["Withdrawn candidates cannot be completed."]},
         )
-    missing_required_result = assessment.items.filter(
-        required=True,
-        result=CandidateAssessmentItem.Result.NOT_ASSESSED,
-    ).exists()
+    missing_required_result = (
+        assessment.items.filter(
+            required=True,
+            result=CandidateAssessmentItem.Result.NOT_ASSESSED,
+        ).exists()
+        if required_not_assessed is None
+        else required_not_assessed > 0
+    )
     if missing_required_result:
         raise ValidationError(
             {
@@ -287,6 +316,21 @@ def validate_assessment_can_complete(assessment: CandidateAssessment) -> None:
                 ],
             },
         )
+
+
+def assessment_can_complete(
+    assessment: CandidateAssessment,
+    *,
+    required_not_assessed: int,
+) -> bool:
+    try:
+        validate_assessment_can_complete(
+            assessment,
+            required_not_assessed=required_not_assessed,
+        )
+    except ValidationError:
+        return False
+    return True
 
 
 @transaction.atomic
@@ -446,7 +490,7 @@ def _validate_assessment_open_for_item_work(
                     ],
                 },
             )
-    elif session.status != GradingSession.Status.OPEN:
+    elif not session.marking_open:
         raise ValidationError({"session": [closed_message]})
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
@@ -484,6 +528,40 @@ def assessment_marks_open(assessment: CandidateAssessment, actor: User) -> bool:
     return True
 
 
+def _is_later_change(
+    item: CandidateAssessmentItem,
+    *,
+    has_changes: bool | None,
+) -> bool:
+    """Not the item's first change: it is marked, or has been and was cleared.
+    `has_changes` is given when the caller already holds the item's log."""
+    if item.result != CandidateAssessmentItem.Result.NOT_ASSESSED:
+        return True
+    return item.changes.exists() if has_changes is None else has_changes
+
+
+def item_change_needs_reason(
+    item: CandidateAssessmentItem,
+    *,
+    has_changes: bool | None = None,
+) -> bool:
+    """Whether the next change to this item's mark must say why: every change
+    after the first does, and after the lock every one does, the first mark
+    included."""
+    return (
+        _is_later_change(item, has_changes=has_changes)
+        or item.assessment.candidate.session.is_locked
+    )
+
+
+def item_mark_can_be_cleared(item: CandidateAssessmentItem) -> bool:
+    """Whether the item's mark may be taken away: it has one, and a completed
+    assessment keeps every required item marked - changed, not emptied."""
+    return item.result != CandidateAssessmentItem.Result.NOT_ASSESSED and not (
+        item.required and item.assessment.status == CandidateAssessment.Status.COMPLETED
+    )
+
+
 @transaction.atomic
 def update_candidate_assessment_item(
     item: CandidateAssessmentItem,
@@ -509,17 +587,13 @@ def update_candidate_assessment_item(
     if result not in CandidateAssessmentItem.Result.values:
         raise ValidationError({"result": ["That is not a valid result."]})
     reason = (reason or "").strip()
-    already_marked = previous_result != CandidateAssessmentItem.Result.NOT_ASSESSED
-    # Not the item's first change: it is marked, or has been and was cleared.
-    is_later_change = already_marked or locked_item.changes.exists()
-    # After the lock every correction says why, the first mark included.
+    is_later_change = _is_later_change(locked_item, has_changes=None)
     after_lock = locked_item.assessment.candidate.session.is_locked
-    if (is_later_change or after_lock) and not reason:
+    if item_change_needs_reason(locked_item) and not reason:
         raise ValidationError({"reason": ["Say why the mark is changing."]})
     if (
         result == CandidateAssessmentItem.Result.NOT_ASSESSED
-        and locked_item.required
-        and locked_item.assessment.status == CandidateAssessment.Status.COMPLETED
+        and not item_mark_can_be_cleared(locked_item)
     ):
         raise ValidationError(
             {

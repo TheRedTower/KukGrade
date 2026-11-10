@@ -192,7 +192,7 @@ export function AssessmentCompletionScreen() {
         <span className="meta">
           {isSealed
             ? assessment?.marks_open
-              ? session.status === "OPEN"
+              ? session.marking_open
                 ? "This record is sealed; a mark can still be corrected until the session locks"
                 : "This record is sealed; as the Master you can still correct it until the decision is recorded"
               : "This record is sealed and cannot be changed"
@@ -418,7 +418,7 @@ export function AssessmentCompletionScreen() {
               <div className="acp-notice-row">
                 <SealIcon />
                 <p>
-                  {session.status === "OPEN"
+                  {session.marking_open
                     ? "This record is sealed. While the session is open a mark can still be corrected, with a reason that is kept; once the session locks it is permanent."
                     : assessment?.marks_open
                       ? "This record is sealed. As the authorised Master you can still correct a mark, with a reason that is kept, until this candidate's final decision is recorded; after that it is permanent."

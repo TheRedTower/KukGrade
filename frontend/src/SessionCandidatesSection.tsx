@@ -48,7 +48,6 @@ export function SessionCandidatesSection({
   nextActionFor,
   onConfirmAttendance,
 }: SessionCandidatesSectionProps) {
-  const editable = session.status === "DRAFT" || session.status === "OPEN";
   const { bulkPrepare, bulkStart } = work;
 
   return (
@@ -59,17 +58,17 @@ export function SessionCandidatesSection({
         </h2>
 
         <div className="action-row">
-          {editable && attendanceCount > 0 && (
+          {attendanceCount > 0 && (
             <Button variant="secondary" onClick={onConfirmAttendance}>
               Confirm attendance
             </Button>
           )}
-          {editable && unpreparedIds.length > 0 && (
+          {unpreparedIds.length > 0 && (
             <Button variant="secondary" onClick={() => bulkPrepare.mutate(unpreparedIds)} disabled={bulkPrepare.isPending}>
               {bulkPrepare.isPending ? "Preparing…" : `Prepare all (${unpreparedIds.length})`}
             </Button>
           )}
-          {session.status === "OPEN" && preparedIds.length > 0 && (
+          {preparedIds.length > 0 && (
             <Button variant="primary" onClick={() => bulkStart.mutate(preparedIds)} disabled={bulkStart.isPending}>
               {bulkStart.isPending ? "Starting…" : `Start all prepared (${preparedIds.length})`}
             </Button>
@@ -114,9 +113,11 @@ export function SessionCandidatesSection({
           data-testid="gsd-empty-roster"
           title="No candidates registered in this grading session yet."
           action={
-            <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })}>
-              Add candidate <span aria-hidden="true">→</span>
-            </Link>
+            session.roster_open ? (
+              <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })}>
+                Add candidate <span aria-hidden="true">→</span>
+              </Link>
+            ) : undefined
           }
         >
           Add students to begin curriculum assessment and outcome tracking.

@@ -15,6 +15,7 @@ import {
   jsonResponse,
   assessmentSummaryFor,
   sessionsResponse,
+  sessionServed,
 } from "./appTestSupport";
 
 describe("Overview screen (Operational Ledger)", () => {
@@ -180,6 +181,7 @@ describe("Overview screen (Operational Ledger)", () => {
       candidate_count: 2,
       completed_assessment_count: 1,
       awaiting_decision_count: 0,
+      ...sessionServed("OPEN"),
       can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
     } satisfies GradingSession;
@@ -193,6 +195,7 @@ describe("Overview screen (Operational Ledger)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
+      ...sessionServed("DRAFT"),
       can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Ipswich Central",
     } satisfies GradingSession;
@@ -207,6 +210,7 @@ describe("Overview screen (Operational Ledger)", () => {
         generated_by_email: authUser.email,
         overall: assessmentSummaryFor([]).overall,
         marks_open: true,
+        can_start: false,
         can_delete: false,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:00:00Z",
@@ -221,6 +225,7 @@ describe("Overview screen (Operational Ledger)", () => {
         generated_by_email: authUser.email,
         overall: assessmentSummaryFor([]).overall,
         marks_open: true,
+        can_start: false,
         can_delete: false,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:30:00Z",
@@ -368,6 +373,7 @@ describe("Overview screen (Operational Ledger)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
+      ...sessionServed("OPEN"),
       can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
       location: "Riverside Dojang",
     } satisfies GradingSession;

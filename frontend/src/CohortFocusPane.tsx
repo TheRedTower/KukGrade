@@ -112,7 +112,7 @@ export function CohortFocusPane({ row, sessionId, decision, canStage, recording,
                   }
                   onClick={() => onRecord([row.outcome!.id])}
                 >
-                  Record decision for {row.candidate.student_display_name.split(" ")[0]}
+                  Record decision for {row.candidate.student_first_name}
                 </Button>
               </section>
             )}

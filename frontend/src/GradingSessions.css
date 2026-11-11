@@ -16,10 +16,6 @@
 .gs-current-tag {
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
   padding: var(--space-1) var(--space-4);
 }
 
@@ -227,12 +223,6 @@
 .gsd-step-circle {
   width: 26px;
   height: 26px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-title);
   border: 2px solid var(--color-text-muted);
   color: transparent;
   transition: border-color var(--duration) ease, background var(--duration) ease, color var(--duration) ease;

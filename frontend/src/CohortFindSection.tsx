@@ -116,7 +116,7 @@ export function CohortFindSection({
             {/* Filter matching summary banner */}
             <div className="action-row bgc-filter-summary-card">
               <div className="bgc-summary-info subtext">
-                <span className="bgc-info-icon" aria-hidden="true">ℹ</span>
+                <span className="item-title bgc-info-icon" aria-hidden="true">ℹ</span>
                 <span>
                   Students who have left, or are still registered for another grading that has not reached its result, are not listed.
                 </span>

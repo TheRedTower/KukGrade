@@ -36,8 +36,6 @@
 }
 
 .bgc-info-icon {
-  font-weight: var(--font-weight-strong);
-  font-size: var(--font-size-md);
   color: var(--color-accent-text);
 }
 

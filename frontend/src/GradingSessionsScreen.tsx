@@ -51,7 +51,7 @@ interface CurrentSessionCardProps {
 function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awaitingDecision, onOpen }: CurrentSessionCardProps) {
   return (
     <section className="gs-current-card" aria-label="Current grading session">
-      <div className="gs-current-tag">Current</div>
+      <div className="eyebrow gs-current-tag">Current</div>
       <div className="gs-current-body">
         <div className="gs-current-info">
           <h2 className="gs-current-title">{session.title}</h2>

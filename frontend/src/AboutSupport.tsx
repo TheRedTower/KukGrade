@@ -30,7 +30,7 @@ export function AboutSupport() {
             <h2 id="ab-steps">Asking for help</h2>
             <ol className="ab-steps">
               <li>
-                <span aria-hidden="true" className="ab-number">
+                <span aria-hidden="true" className="mark mark--small ab-number">
                   1
                 </span>
                 <p>
@@ -43,7 +43,7 @@ export function AboutSupport() {
                 </p>
               </li>
               <li>
-                <span aria-hidden="true" className="ab-number">
+                <span aria-hidden="true" className="mark mark--small ab-number">
                   2
                 </span>
                 <p>
@@ -56,7 +56,7 @@ export function AboutSupport() {
                 </p>
               </li>
               <li>
-                <span aria-hidden="true" className="ab-number">
+                <span aria-hidden="true" className="mark mark--small ab-number">
                   3
                 </span>
                 <p>

@@ -43,7 +43,7 @@ export function SessionLifecycle({ status = "DRAFT" }: { status?: GradingSession
           const state = currentIndex > index ? "completed" : currentIndex === index ? "current" : "upcoming";
           return (
             <div key={key} className={`gsd-lifecycle-step gsd-step-${state}`}>
-              <div className="gsd-step-circle" aria-hidden="true">
+              <div className="mark mark--small gsd-step-circle" aria-hidden="true">
                 {state === "completed" && "✓"}
               </div>
               <div className="gsd-step-content">

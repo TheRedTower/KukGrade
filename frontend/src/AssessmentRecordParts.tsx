@@ -8,7 +8,7 @@ import { RequirementBadge } from "./StatusBadge";
 export function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {
   if (result === "MET") {
     return (
-      <span className="acp-result acp-result-met">
+      <span className="meta acp-result acp-result-met">
         <CheckIcon size={13} />
         Met
       </span>
@@ -16,13 +16,13 @@ export function ResultMark({ result }: { result: CandidateAssessmentItem["result
   }
   if (result === "NOT_MET") {
     return (
-      <span className="acp-result acp-result-not-met">
+      <span className="meta acp-result acp-result-not-met">
         <CrossIcon size={13} />
         Not met
       </span>
     );
   }
-  return <span className="acp-result acp-result-none">Not assessed</span>;
+  return <span className="meta acp-result acp-result-none">Not assessed</span>;
 }
 
 /** Core areas carry a mark rather than a full ledger row. */

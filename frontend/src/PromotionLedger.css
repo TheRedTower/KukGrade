@@ -39,15 +39,8 @@
 .pl-candidate-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
   background: var(--color-warning-surface);
   color: var(--color-warning);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--font-weight-strong);
-  font-size: var(--font-size-base);
-  flex-shrink: 0;
   border: 1px solid var(--color-warning);
 }
 

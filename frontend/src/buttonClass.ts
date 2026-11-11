@@ -8,9 +8,11 @@ export interface ButtonStyle {
   small?: boolean;
   /** As wide as the box it is in. */
   block?: boolean;
+  /** Only an icon, named by its aria-label: a square target. */
+  icon?: boolean;
 }
 
 /** The classes of a button, for something that is not a <button> (a link that looks like one). */
-export function buttonClass({ variant = "secondary", small, block }: ButtonStyle, extra?: string): string {
-  return cx("btn", `btn--${variant}`, small && "btn--sm", block && "btn--block", extra);
+export function buttonClass({ variant = "secondary", small, block, icon }: ButtonStyle, extra?: string): string {
+  return cx("btn", `btn--${variant}`, small && "btn--sm", block && "btn--block", icon && "btn--icon", extra);
 }

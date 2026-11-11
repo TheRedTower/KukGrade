@@ -306,7 +306,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               primary: true,
               render: (row) => (
                 <div className="pl-candidate-cell">
-                  <span className="pl-candidate-avatar" aria-hidden="true">
+                  <span className="mark pl-candidate-avatar" aria-hidden="true">
                     {row.candidate.student_display_name.charAt(0)}
                   </span>
                   <div className="pl-candidate-meta">

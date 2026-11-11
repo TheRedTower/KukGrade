@@ -1,4 +1,5 @@
 import { Badge } from "./Badge";
+import { buttonClass } from "./buttonClass";
 import { ErrorText } from "./ErrorText";
 import { type BoardRow, type StagedDecision } from "./adjudicationBoard";
 import { outcomeTone } from "./badgeClass";
@@ -106,7 +107,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                               <button
                                 key={option.value}
                                 type="button"
-                                className={`outcome-segment outcome-segment-${option.value.toLowerCase()}`}
+                                className={buttonClass({ small: true }, `outcome-segment outcome-segment-${option.value.toLowerCase()}`)}
                                 aria-pressed={decision?.outcome === option.value}
                                 disabled={!canStage}
                                 onClick={() => onStage(row, option.value)}

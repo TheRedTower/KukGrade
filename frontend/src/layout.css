@@ -38,7 +38,6 @@
   /* How long a colour, edge or position takes to change. */
   --duration: 160ms;
   --font-weight-normal: 400;
-  --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-strong: 700;
   --font-weight-title: 800;
@@ -142,14 +141,66 @@
   background: var(--color-surface);
 }
 
-/* Type roles. A line of text is a heading element (App.css), one of these, or
+/* The headings: each level has one size, everywhere. */
+h1 {
+  margin-bottom: var(--space-4);
+  color: var(--color-text);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-title);
+  letter-spacing: var(--tracking-tight);
+}
+
+h2 {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xl);
+}
+
+/* Every heading below a section's title: a card's or a row's own heading. */
+h3 {
+  font-size: var(--font-size-lg);
+}
+
+h4 {
+  font-size: var(--font-size-base);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+  /* Every letter carries a little space before it, about 0.05em in this
+     font, which at heading sizes shows: a heading above a box looked set in
+     from the box's border. Pulling the first line back puts the letters
+     themselves on the edge. */
+  text-indent: -0.05em;
+}
+
+/* text-indent is inherited; a badge or button inside a heading keeps its own. */
+:is(h1, h2, h3, h4) * {
+  text-indent: 0;
+}
+
+/* Inline code: something to type exactly, such as a password. */
+code {
+  padding: 0.05rem var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+/* Type roles. A line of text is a heading element (above), one of these, or
    a shared piece's own part; a screen does not set its own size, weight or
    colour for text.
    - .eyebrow: the small capitals above a title or naming a group;
      .eyebrow--muted (on its own) when it only labels.
    - .item-title: the name a row, tile or card is about.
    - .subtext: a sentence under a heading or beside a control.
-   - .meta: a detail on a line, such as a time, a count or who did it. */
+   - .meta: a detail on a line, such as a time, a count or who did it.
+   - .menu-link: a place to go in a menu, a rail or a row of tabs, the size
+     of a button's words; `.active` (NavLink) marks where you are. */
 .eyebrow,
 .eyebrow--muted,
 .page-header__eyebrow,
@@ -187,6 +238,17 @@
   margin-bottom: var(--space-1);
 }
 
+.menu-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
 /* The title of a section or a card. `--ruled` draws a line under it, for the
    head of a card whose body is a form or a list. */
 .section-title {
@@ -194,6 +256,12 @@
   color: var(--color-text);
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-strong);
+}
+
+/* The one title that is a display, not a section: the About page's name. */
+.section-title--display {
+  font-size: var(--font-size-3xl);
+  letter-spacing: var(--tracking-tight);
 }
 
 .section-title--ruled {

@@ -2,13 +2,12 @@
  * Design tokens for the "Quiet Command" visual direction: warm charcoal and
  * gold, with light and dark themes.
  *
- * Colour is meant to come through these custom properties. Some component
- * stylesheets still carry literal colours with a `[data-theme="dark"] .x`
- * override; those apply because `<html data-theme>` always holds the
- * resolved theme - the Light/Dark/System toggle's choice, or the system
- * preference under System (index.html sets it before first paint and
- * ThemeProvider in useTheme.tsx keeps it current), so the dark tokens are
- * written once, under `[data-theme="dark"]`.
+ * Colour comes only through these custom properties: no other stylesheet
+ * holds a colour or mentions the theme (tokenRules.test.ts). `<html
+ * data-theme>` always holds the resolved theme - the Light/Dark/System
+ * toggle's choice, or the system preference under System (index.html sets
+ * it before first paint and ThemeProvider in useTheme.tsx keeps it
+ * current), so the dark tokens are written once, under `[data-theme="dark"]`.
  */
 
 :root {
@@ -121,6 +120,7 @@
    panels, neon glow or large gold fills. Surfaces sit one step
    lighter than the page so cards still read as distinct objects. */
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --color-page-bg: #16130f;
   --color-surface: #221e18;
   --color-surface-sunken: #1c1914;

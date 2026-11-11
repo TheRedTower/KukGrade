@@ -24,6 +24,11 @@ import { useSidebar } from "./useSidebar";
 import "./NavigationRail.css";
 import { cx } from "./cx";
 import { ExternalLink } from "./ExternalLink";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
+
+/** A link in the rail's tools that looks like its icon buttons. */
+const TOOL = buttonClass({ variant: "ghost", icon: true }, "nav-tool");
 
 function initialsOf(user: AuthUser): string {
   if (user.first_name && user.last_name) {
@@ -49,7 +54,7 @@ function RailLink({
 }) {
   return (
     <NavLink
-      className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+      className={({ isActive }) => cx("menu-link nav-link", isActive && "active")}
       end={end}
       title={strip ? label : undefined}
       to={to}
@@ -64,8 +69,8 @@ function RailLink({
 function ClubCard({ name }: { name: string | undefined }) {
   return (
     <div className="nav-club-card">
-      <p className="nav-eyebrow">Your club</p>
-      <p className="nav-club-name">{name}</p>
+      <p className="eyebrow nav-eyebrow">Your club</p>
+      <p className="item-title nav-club-name">{name}</p>
     </div>
   );
 }
@@ -119,23 +124,23 @@ export function NavigationRail({
       <div className="nav-top">
         <Link aria-label="KukGrade, go to the dashboard" className="nav-brand" to="/">
           {strip ? (
-            <span aria-hidden="true" className="nav-mark">
+            <span aria-hidden="true" className="mark mark--large nav-mark">
               K
             </span>
           ) : (
             <KukGradeLogo className="nav-logo" />
           )}
         </Link>
-        <button
+        <Button
           aria-controls="nav-panel"
           aria-expanded={menuOpen}
-          className="nav-menu-button"
+          className="nav-menu"
           ref={menuButton}
           onClick={() => setMenuOpen((open) => !open)}
-          type="button"
+          variant="ghost"
         >
           Menu
-        </button>
+        </Button>
       </div>
 
       {/* On a phone the menu closes once a page is chosen from it. */}
@@ -161,30 +166,29 @@ export function NavigationRail({
         <div className="nav-foot">
           {strip ? (
             <div className="nav-strip-tools">
-              <NavLink aria-label="Settings" className="nav-icon-button" title="Settings" to="/settings">
+              <NavLink aria-label="Settings" className={TOOL} title="Settings" to="/settings">
                 <SettingsIcon />
               </NavLink>
-              <Link aria-label={aboutLabel} className="nav-icon-button" title="About" to="/settings/about">
+              <Link aria-label={aboutLabel} className={TOOL} title="About" to="/settings/about">
                 <AboutIcon />
               </Link>
               {about ? (
                 <ExternalLink
                   aria-label="KukGrade on GitHub (opens in a new tab)"
-                  className="nav-icon-button"
+                  className={TOOL}
                   href={about.repository_url}
-                 
-                 
-                  title="GitHub">
+                  title="GitHub"
+                >
                   <GitHubIcon />
                 </ExternalLink>
               ) : null}
               <Link
                 aria-label={`${user.full_name}, ${user.role_display}: your account`}
-                className="nav-icon-button"
+                className={TOOL}
                 title={`${user.full_name} · ${user.role_display}`}
                 to="/settings/account"
               >
-                <span aria-hidden="true" className="avatar-circle">
+                <span aria-hidden="true" className="mark mark--small avatar-circle">
                   {initials}
                 </span>
               </Link>
@@ -197,33 +201,34 @@ export function NavigationRail({
                   className="nav-person-link"
                   to="/settings/account"
                 >
-                  <span aria-hidden="true" className="avatar-circle">
+                  <span aria-hidden="true" className="mark mark--small avatar-circle">
                     {initials}
                   </span>
-                  <span className="nav-person-text">
+                  <span className="subtext nav-person-text">
                     {/* The first name only: a surname such as "Administrator" would push the
                         buttons off the line. The full name is in the link's label. */}
-                    <span className="nav-person-name">{user.first_name || user.full_name}</span>
-                    <span className="nav-person-role">{user.role_display}</span>
+                    <span className="item-title nav-person-name">{user.first_name || user.full_name}</span>
+                    <span className="meta nav-person-role">{user.role_display}</span>
                   </span>
                 </Link>
                 <span className="nav-person-actions">
-                  <NavLink aria-label="Settings" className="nav-icon-button" title="Settings" to="/settings">
+                  <NavLink aria-label="Settings" className={TOOL} title="Settings" to="/settings">
                     <SettingsIcon />
                   </NavLink>
-                  <button
+                  <Button
                     aria-label="Sign out"
-                    className="nav-icon-button"
+                    className="nav-tool"
                     disabled={isLoggingOut}
+                    icon
                     onClick={onLogout}
                     title="Sign out"
-                    type="button"
+                    variant="ghost"
                   >
                     <SignOutIcon />
-                  </button>
+                  </Button>
                 </span>
               </div>
-              <p className="nav-about-line">
+              <p className="meta nav-about-line">
                 <span>KukGrade{version ? ` ${version}` : ""}</span>
                 <span className="nav-about-item">
                   <span aria-hidden="true">·</span>
@@ -242,16 +247,17 @@ export function NavigationRail({
           )}
 
           {narrow ? null : (
-            <button
+            <Button
               aria-expanded={!strip}
               aria-label={strip ? "Expand sidebar" : "Collapse sidebar"}
               className="nav-collapse"
               onClick={() => setCollapsed(!collapsed)}
-              type="button"
+              small
+              variant="ghost"
             >
               <SidebarIcon />
               {strip ? null : <span>Collapse sidebar</span>}
-            </button>
+            </Button>
           )}
         </div>
       </div>

@@ -88,25 +88,24 @@ function CreateUserDialog({
             }}
           >
             <div className="users-form-grid">
-              <label className="field">
-                <span>First name</span>
-                <input data-dialog-autofocus name="first_name" autoComplete="off" />
-              </label>
-              <label className="field">
-                <span>Last name</span>
-                <input name="last_name" autoComplete="off" />
-              </label>
+              <Field label="First name" look="label">
+                {(control) => <input {...control} data-dialog-autofocus name="first_name" autoComplete="off" />}
+              </Field>
+              <Field label="Last name" look="label">
+                {(control) => <input {...control} name="last_name" autoComplete="off" />}
+              </Field>
               <Field className="users-form-wide" error={emailError} label="Email address" look="label">
                 {(control) => <input {...control} required type="email" name="email" autoComplete="off" />}
               </Field>
-              <label className="field users-form-wide">
-                <span>Role</span>
-                <select name="role" defaultValue="instructor">
-                  {roles.map((choice) => (
-                    <option key={choice.value} value={choice.value}>{choice.label}</option>
-                  ))}
-                </select>
-              </label>
+              <Field className="users-form-wide" label="Role" look="label">
+                {(control) => (
+                  <select {...control} name="role" defaultValue="instructor">
+                    {roles.map((choice) => (
+                      <option key={choice.value} value={choice.value}>{choice.label}</option>
+                    ))}
+                  </select>
+                )}
+              </Field>
             </div>
             <p className="users-form-note meta">
               A temporary password is created for them. They'll choose their own when they first
@@ -207,7 +206,7 @@ export function UsersScreen(): React.ReactElement {
       </div>
 
       <div className="users-info-note meta">
-        <span aria-hidden="true">i</span>
+        <span aria-hidden="true" className="mark mark--small">i</span>
         Master authority is granted separately from a user's role.
       </div>
 

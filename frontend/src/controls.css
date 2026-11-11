@@ -113,6 +113,12 @@
   font-size: var(--font-size-sm);
 }
 
+/* A button that is only an icon (its words are its aria-label): a square target. */
+.btn--icon {
+  width: var(--target-min);
+  padding: 0;
+}
+
 /* The one badge (Badge.tsx): a short label with a tone. A tone is a meaning (success,
    warning, danger, info, neutral) or one of a grading session's statuses; its colours
    come from theme.css, so the same thing looks the same on every screen. */
@@ -208,8 +214,10 @@
 }
 
 /* The one round mark: a single symbol (✓, ✕, !, –) in a circle, with a tone.
-   It is sized from its text, so it suits the line it sits on; `--small` and
-   `--large` set that text. Decorative: the words beside it say the same. */
+   It is sized from its text, so it suits the line it sits on; `--small`,
+   `--large` and `--display` set that text, and a screen may set the circle's
+   own size and colours (initials in an avatar, a step's number). Decorative:
+   the words beside it say the same. */
 .mark {
   display: inline-flex;
   flex: 0 0 auto;
@@ -228,6 +236,10 @@
 
 .mark--large {
   font-size: var(--font-size-xl);
+}
+
+.mark--display {
+  font-size: var(--font-size-3xl);
 }
 
 .mark--success {

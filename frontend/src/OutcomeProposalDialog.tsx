@@ -6,6 +6,7 @@
  * are served, never recounted. Proposing never finalises or
  * promotes; the Master decides on the board.
  */
+import { buttonClass } from "./buttonClass";
 import { useMutation } from "@tanstack/react-query";
 import React, { useState } from "react";
 
@@ -96,7 +97,7 @@ export function OutcomeProposalDialog({
             {outcomes.map((option) => (
               <label
                 key={option.value}
-                className={`outcome-segment outcome-segment-${option.value.toLowerCase()}`}
+                className={buttonClass({ small: true }, `outcome-segment outcome-segment-${option.value.toLowerCase()}`)}
               >
                 <input
                   type="radio"

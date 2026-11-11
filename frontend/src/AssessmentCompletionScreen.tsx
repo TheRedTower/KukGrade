@@ -52,6 +52,7 @@ import { CoreAreaMark, LedgerTable, ResultMark } from "./AssessmentRecordParts";
 import { EmailAddress, EmailList } from "./EmailAddress";
 import { agreeing } from "./plural";
 import { CandidateRanks } from "./RankTransition";
+import { cx } from "./cx";
 
 export function AssessmentCompletionScreen() {
   const sessionId = useIdParam("sessionId");
@@ -201,7 +202,7 @@ export function AssessmentCompletionScreen() {
               </div>
               <h1 className="acp-sheet-title" id="acp-title">Assessment record</h1>
             </div>
-            <span className={`acp-stamp ${isSealed ? "acp-stamp-sealed" : ""}`} data-testid="acp-stamp">
+            <span className={cx("eyebrow acp-stamp", isSealed && "acp-stamp-sealed")} data-testid="acp-stamp">
               {isSealed ? "Sealed" : "Unsealed draft"}
             </span>
           </div>
@@ -372,11 +373,11 @@ export function AssessmentCompletionScreen() {
               <span className="subtext">{`/ ${stats.requiredItems} required`}</span>
             </div>
             <div className="acp-count-tallies">
-              <span className="acp-result acp-result-met">
+              <span className="meta acp-result acp-result-met">
                 <CheckIcon size={13} />
                 {`${stats.metCount} met`}
               </span>
-              <span className="acp-result acp-result-not-met">
+              <span className="meta acp-result acp-result-not-met">
                 <CrossIcon size={13} />
                 {`${stats.notMetCount} not met`}
               </span>

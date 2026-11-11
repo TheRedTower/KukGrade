@@ -32,8 +32,8 @@ export function TemporaryPasswordIssued({
         own password when they first sign in.
       </p>
       <div className="users-issued-password-value">
-        <span id="issued-password-label">Temporary password</span>
-        <code aria-labelledby="issued-password-label">{issued.temporary_password}</code>
+        <span className="eyebrow--muted" id="issued-password-label">Temporary password</span>
+        <code aria-labelledby="issued-password-label" className="section-title">{issued.temporary_password}</code>
       </div>
       <p className="users-issued-password-warning item-title">
         Copy this temporary password now. It will not be shown again.

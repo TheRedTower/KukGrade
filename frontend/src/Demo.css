@@ -60,7 +60,6 @@
 }
 
 .demo-card code {
-  font-family: var(--font-mono);
   color: var(--color-text);
 }
 

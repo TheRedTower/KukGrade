@@ -11,9 +11,10 @@ export function Button({
   variant,
   small,
   block,
+  icon,
   className,
   type = "button",
   ...rest
 }: ButtonStyle & ComponentProps<"button">) {
-  return <button type={type} className={buttonClass({ variant, small, block }, className)} {...rest} />;
+  return <button type={type} className={buttonClass({ variant, small, block, icon }, className)} {...rest} />;
 }

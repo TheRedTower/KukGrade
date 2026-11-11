@@ -114,7 +114,7 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
             <nav aria-label={`${label}, on this page`} className="card card--flush ab-contents">
               <p className="eyebrow--muted">On this page</p>
               {contents.map((entry) => (
-                <button key={entry.id} onClick={() => jump(entry.id)} type="button">
+                <button className="menu-link" key={entry.id} onClick={() => jump(entry.id)} type="button">
                   {entry.text}
                 </button>
               ))}
@@ -165,7 +165,7 @@ export function AboutConduct() {
           <ol className="ab-pledge">
             {pledge.data.points.map((point, index) => (
               <li key={point.english}>
-                <span aria-hidden="true" className="ab-number">
+                <span aria-hidden="true" className="mark mark--small ab-number">
                   {index + 1}
                 </span>
                 <div className="ab-pledge-text">

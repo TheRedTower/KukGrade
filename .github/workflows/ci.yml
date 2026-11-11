@@ -143,6 +143,11 @@ jobs:
       - name: Lint (ESLint, then Stylelint for the CSS)
         run: npm run lint
 
+      # Prettier formats the frontend as Ruff format does the backend; the
+      # version is pinned exactly so a release cannot reformat files unasked.
+      - name: Format (Prettier)
+        run: npm run format:check
+
       - name: Type check
         run: npm run typecheck
 

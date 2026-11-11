@@ -69,6 +69,7 @@ npm ci
 npm run generate:types
 git diff --exit-code -- src/api/schema.ts
 npm run lint        # ESLint, then Stylelint (stylelint.config.mjs) for the CSS
+npm run format:check   # Prettier (.prettierrc.json); `npm run format` rewrites the files
 npm run typecheck
 npm run test
 npm run build
@@ -234,7 +235,8 @@ CI. Merge one once its checks are green.
   not support it yet). Security updates are still taken.
 - A package whose output is committed can fail CI until you add a follow-up commit to the
   Dependabot branch: `drf-spectacular` needs `schema.yml` regenerated,
-  `openapi-typescript` needs `npm run generate:types`, and `ruff` may need `ruff format`.
+  `openapi-typescript` needs `npm run generate:types`, `ruff` may need `ruff format`,
+  and `prettier` may need `npm run format`.
 - The PostgreSQL image is not tracked automatically: a new major version is a data
   migration (see [installation.md](installation.md#updating)).
 

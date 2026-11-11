@@ -44,7 +44,7 @@ cd ../frontend && npm ci
 
    ```sh
    cd backend  && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest -n auto
-   cd frontend && npm run lint && npm run typecheck && npm run test
+   cd frontend && npm run lint && npm run format:check && npm run typecheck && npm run test
    ```
 
 6. Open a pull request against `dev` (never `prod`, which only receives what

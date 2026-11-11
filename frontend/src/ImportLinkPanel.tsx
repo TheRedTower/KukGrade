@@ -109,7 +109,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
                 </p>
                 <p className="subtext">{periodRange(person)}</p>
               </div>
-              <div className="ix-actions ix-row-choice">
+              <div className="row row--wrap ix-row-choice">
                 {done ? (
                   <>
                     <span className="ix-success-text item-title">✓ Linked to {done.name}</span>
@@ -176,7 +176,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
         </ErrorText>
       ) : null}
       {canLink ? (
-        <div className="ix-row ix-actions-split">
+        <div className="action-row ix-row">
           <span className="subtext">
             {people.data && people.data.count > fromServer.length
               ? `${fromServer.length} of ${people.data.count} names shown. The rest are on the linking page.`

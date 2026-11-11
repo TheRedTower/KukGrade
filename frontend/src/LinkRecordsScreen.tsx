@@ -240,7 +240,7 @@ export function LinkRecordsScreen() {
               {pageSelected.length > 0 ? "Each is linked to the student shown on its row." : "Tick rows, or select every clear suggestion on this page."}
             </span>
           </p>
-          <div className="ix-actions">
+          <div className="row row--wrap">
             <Button
               variant="ghost"
               disabled={clearOnPage.length === 0}
@@ -288,7 +288,7 @@ export function LinkRecordsScreen() {
             Loading the names…
           </p>
         ) : people.isError ? (
-          <div className="ix-card-pad ix-section">
+          <div className="ix-card-pad stack stack--3">
             <ErrorText className="ix-flush">
               {errorMessage(people.error, "The names could not be loaded. Try again in a moment.")}
             </ErrorText>

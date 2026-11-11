@@ -211,7 +211,7 @@ export function ImportMatchColumns({
 
   return (
     <>
-      <section aria-labelledby="ix-match-h" className="card ix-section ix-roomy">
+      <section aria-labelledby="ix-match-h" className="card stack stack--4">
         <div className="ix-section-head ix-align-end">
           <div className="ix-head-text">
             <h2 className="ix-title" id="ix-match-h" tabIndex={-1}>
@@ -416,7 +416,7 @@ export function ImportMatchColumns({
         <Button variant="ghost" onClick={onBack}>
           Back to Imports
         </Button>
-        <div className="ix-actions">
+        <div className="row row--wrap">
           {save.isPending ? (
             <span className="subtext" role="status">
               Checking every row…

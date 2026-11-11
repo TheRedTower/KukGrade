@@ -1,5 +1,6 @@
 import type { DataImportBatch, DataImportKind } from "./api";
 import { useImportSteps } from "./importSteps";
+import { cx } from "./cx";
 
 /** The import's steps, with the one shown now (a step the server names). */
 export function ImportStepBar({ kind, current }: { kind: DataImportKind; current: DataImportBatch["next_step"] }) {
@@ -8,21 +9,21 @@ export function ImportStepBar({ kind, current }: { kind: DataImportKind; current
   if (at < 0) return null;
   return (
     <nav aria-label="Import steps" className="ix-steps">
-      <ol>
+      <ol className="list-plain">
         {names.map((step, index) => {
           const state = index < at ? "done" : index === at ? "current" : "todo";
           return (
             <li
               key={step.value}
               aria-current={index === at ? "step" : undefined}
-              className={`ix-step meta ix-step-${state}`}
+              className={cx("ix-step meta", `ix-step-${state}`, state === "current" && "item-title")}
             >
               <span aria-hidden="true" className="ix-step-bar" />
               <span className="ix-step-label">
-                <span aria-hidden="true" className="ix-step-dot">
+                <span aria-hidden="true" className="mark mark--small ix-step-dot">
                   {state === "done" ? "✓" : index + 1}
                 </span>
-                <span className="ix-step-name">{step.label}</span>
+                <span className="visually-hidden--phone">{step.label}</span>
                 {state === "done" ? <span className="visually-hidden">, done</span> : null}
               </span>
             </li>

@@ -17,7 +17,7 @@ import { counted } from "./plural";
 /** One more thing to do from the results page, in the side panel. */
 function AlsoItem({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
-    <div className="ix-section ix-also">
+    <div className="stack stack--3 ix-also">
       <p className="item-title">{title}</p>
       <p className="subtext">{body}</p>
       {children}
@@ -60,7 +60,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
 
       <div className="ix-two-col">
         <RowsLedger batch={batch} filter={filter} onFilter={setFilter} />
-        <aside aria-labelledby="ix-also-h" className="card ix-section">
+        <aside aria-labelledby="ix-also-h" className="card stack stack--3">
           <h2 className="ix-minor" id="ix-also-h">
             Also
           </h2>

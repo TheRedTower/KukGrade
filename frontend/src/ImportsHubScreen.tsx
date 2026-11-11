@@ -56,7 +56,7 @@ function UnfinishedImports({
 }) {
   const stepsOf = useImportSteps();
   return (
-    <section aria-labelledby="ix-unfinished" className="ix-section">
+    <section aria-labelledby="ix-unfinished" className="stack stack--3">
       <div className="ix-section-head">
         <h2 id="ix-unfinished">Pick up where you left off</h2>
         <span className="subtext">
@@ -87,7 +87,7 @@ function UnfinishedImports({
                 </div>
                 <p className="subtext">{importKinds[batch.kind].unfinished(batch)}</p>
               </div>
-              <div className="ix-actions">
+              <div className="row row--wrap">
                 <Link
                   aria-label={`Resume ${batch.original_filename}`}
                   className={buttonClass({ variant: "primary" })}
@@ -114,7 +114,7 @@ function UnfinishedImports({
 function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefined; canLink: boolean }) {
   const template = useTemplateDownload();
   return (
-    <section aria-labelledby="ix-start" className="ix-section">
+    <section aria-labelledby="ix-start" className="stack stack--3">
       <h2 className="section-title" id="ix-start">
         Start an import
       </h2>
@@ -125,7 +125,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
             <p className="subtext">
               A list of students, one per row: name, date of birth, WKSA ID and rank.
             </p>
-            <div className="ix-actions ix-push-down">
+            <div className="row row--wrap ix-push-down">
               <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=STUDENT_ROSTER">
                 Import students
               </Link>
@@ -142,7 +142,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
               An old grading record workbook: who tested, for which rank, the outcome and the
               comments.
             </p>
-            <div className="ix-actions ix-push-down">
+            <div className="row row--wrap ix-push-down">
               <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=LEGACY_GRADINGS">
                 Import past gradings
               </Link>
@@ -196,7 +196,7 @@ function PastImports() {
   const batches = paged.results;
 
   return (
-    <section aria-labelledby="ix-past" className="ix-section">
+    <section aria-labelledby="ix-past" className="stack stack--3">
       <h2 id="ix-past" className="section-title">Past imports</h2>
       <div className="filter-bar" role="search" aria-label="Import filters">
         <label className="field">

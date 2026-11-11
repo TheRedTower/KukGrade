@@ -73,7 +73,7 @@ export function ImportMatchRanks({
 
   return (
     <>
-      <section aria-labelledby="ix-ranks-h" className="card ix-section ix-roomy">
+      <section aria-labelledby="ix-ranks-h" className="card stack stack--4">
         <div className="ix-section-head ix-align-end">
           <div className="ix-head-text">
             <h2 className="ix-title" id="ix-ranks-h" tabIndex={-1}>
@@ -113,8 +113,8 @@ export function ImportMatchRanks({
         ) : current ? (
           <div className="ix-two-col ix-two-col-queue">
             <div className="card card--flush">
-              <div className="ix-section ix-focus-body">
-                <div className="ix-actions ix-align-end">
+              <div className="stack stack--3 ix-focus-body">
+                <div className="row row--wrap ix-align-end">
                   <label className="field field--sentence ix-field-wide">
                     <span>“{current.source_text}” means</span>
                     <select
@@ -168,7 +168,7 @@ export function ImportMatchRanks({
               </div>
             </div>
             <div aria-label="Rank spellings in the workbook" className="card card--flush" role="group">
-              <ul className="ix-queue">
+              <ul className="list-plain ix-queue">
                 {spellings.map((spelling) => {
                   const choice = spelling.chosen_rank_code;
                   const status = choice ? rankName(choice) : spelling.suggested_rank_code ? "Suggested" : "No suggestion";

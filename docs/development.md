@@ -119,7 +119,7 @@ serializers and the committed frontend types match the schema.
   (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
-  on a narrow page), `Dialog` for every modal (a sheet on a phone) and `ConfirmDialog` for every one that asks to confirm (a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form; `--1` to `--4` and `--6` for parts that sit closer, a step of the space scale), `.row` for things side by side on one line (`--wrap`, `--inline`, `--1`, `--3`, `--4`), `.list-plain` for a list with no bullets, `.filter-bar` for every set of filters (its
+  on a narrow page), `Dialog` for every modal (a sheet on a phone) and `ConfirmDialog` for every one that asks to confirm (a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form; `--1` to `--4` and `--6` for parts that sit closer, a step of the space scale), `.row` for things side by side on one line (`--wrap`, `--inline`, `--1`, `--3`, `--4`), `.list-plain` for a list with no bullets, `.visually-hidden--phone` for words a phone's row has no room to show (still read out), `.filter-bar` for every set of filters (its
   `.filter-bar__count` for how many results they leave) and
   `.field` (`.field--search` (through `SearchField`) for every search box, which draws its own magnifier; `.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help; `Field` writes a form field's label, required star, error and help and wires them to its control) for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
@@ -142,22 +142,18 @@ serializers and the committed frontend types match the schema.
   validation marks `--ring-*` and `--edge-accent`; space `--space-1` to `-7` (0.25rem to 3rem; a hairline offset of 0.2rem or less and a clearance over 3.25rem are not steps); letter-spacing `--tracking-label`, `-display` and `-tight`; line height `--line-height-tight`, `-snug` and `-body`; and one change time, `--duration` (a `transition` names what changes, never `all`). A value that sits between two steps takes the
   nearer one; if a design really needs a new step, add it to the scale for everyone.
   Stylelint (`stylelint.config.mjs`, part of `npm run lint`) rejects invalid CSS and what is already at zero everywhere: a named colour, an id selector, `!important` (the reduced-motion rule in `theme.css` is the one exception) and a word-splitting `overflow-wrap: anywhere` or `word-break: break-all`. An email address goes through `EmailAddress`, which lets it wrap after the `@` or before a dot; a Korean name carries `lang="ko"`, which keeps it whole.
-  `tokenRules.test.ts` counts what each stylesheet still holds outside them (raw colours,
-  dark-mode patches, `!important`, type, space, letter-spacing, line-height, transition, radius and shadow literals, z-index) and fails if
-  the count goes up; `tokenBaseline.json` only ever shrinks. It also fails on a `var()`
+  `tokenRules.test.ts` fails on anything a stylesheet holds outside them (raw colours,
+  dark-mode patches, `!important`, its own type, space, letter-spacing, line-height, transition, radius and shadow literals, z-index, a button class of its own),
+  with no list of exceptions. It also fails on a `var()`
   fallback, a token that is used but not defined (or defined but never used), a design token
-  defined outside those two files, and a class used in the code that no stylesheet defines
-  (`classBaseline.json` lists the legacy ones). After converting a screen, lower the lists with
-  `UPDATE_TOKEN_BASELINE=1 npx vitest run src/tokenRules.test.ts`; the command refuses to
-  raise anything. Before adding a style, look for the shared piece that already does it; if
+  defined outside those two files, and a class used in the code that no stylesheet defines. Before adding a style, look for the shared piece that already does it; if
   there is none and a second screen will want it, add it to `layout.css` or `theme.css`
   once, not to the screen.
 - **A button is `<Button variant="primary|secondary|ghost|danger|danger-quiet|link">`** (or a link given
   `buttonClass({ variant })`), styled in `frontend/src/controls.css` and nowhere else: primary
   for the one thing to do, secondary or ghost beside it, danger for what cannot be undone, danger-quiet for a smaller risky action in a list, link for one that reads as a link,
   `small` inside a table or card, `block` for one as wide as its box, `icon` for one that is only an icon (its words in its `aria-label`). A screen may add a class for its own place and colours (the navigation rail's ink), never its own type. Do not write a new
-  `.xyz-btn` class; `tokenRules.test.ts` counts the button classes outside `controls.css`
-  (`buttonClass`) and fails if the count goes up.
+  `.xyz-btn` class; `tokenRules.test.ts` fails on a button class outside `controls.css`.
 - **A badge is `<Badge tone="success|warning|danger|info|neutral">`** (a link given
   `badgeProps(tone)`), and a status the system defines has one component in `StatusBadge.tsx`
   (`SessionStatusBadge`, `StudentStatusBadge`, `AssessmentBadge`, `OutcomeBadge`,

@@ -90,7 +90,7 @@ export function HistoricalRecordsScreen() {
         actions={<Link className={buttonClass({ variant: "secondary" })} to="/imports/records">Link unassigned records</Link>}
       />
       <div className="ix-two-col ix-two-col-queue">
-        <div className="ix-section">
+        <div className="stack stack--3">
           {id === null ? (
             <p className="card subtext">Choose a record to inspect and correct it.</p>
           ) : detail.isPending ? (
@@ -98,7 +98,7 @@ export function HistoricalRecordsScreen() {
           ) : detail.isError || !record ? (
             <ErrorText>{errorMessage(detail.error, "This record could not be loaded.")}</ErrorText>
           ) : (
-            <div className="card ix-section" key={record.id}>
+            <div className="card stack stack--3" key={record.id}>
               <h2 className="ix-title ix-flush">“{record.source_name}” · {formatMonthYear(record.cycle_year, record.cycle_month)}</h2>
               <p className="subtext">{record.record_kind_display} · {record.source_section} · {record.outcome_display || record.attendance_status_display}</p>
               {record.report ? <p>Report as written: {record.report}</p> : null}
@@ -112,7 +112,7 @@ export function HistoricalRecordsScreen() {
                   <SomeoneElse chosen={chosen} onChoose={setChosen} />
                   {link.isError ? <ErrorText>{errorMessage(link.error, "The link could not be saved.")}</ErrorText> : null}
                   {unlink.isError ? <ErrorText>{errorMessage(unlink.error, "The link could not be removed.")}</ErrorText> : null}
-                  <div className="ix-actions">
+                  <div className="row row--wrap">
                     <Button variant="primary" disabled={!chosen || link.isPending} onClick={() => {
                       if (record.student && record.student !== chosen?.student) setConfirm("replace");
                       else link.mutate(false);
@@ -127,8 +127,8 @@ export function HistoricalRecordsScreen() {
             </div>
           )}
         </div>
-        <div className="card card--flush ix-section">
-          <div className="ix-section ix-queue-head">
+        <div className="card card--flush stack stack--3">
+          <div className="stack stack--3 ix-queue-head">
             <label className="field field--sentence">
               <span>Show</span>
               <select value={filter} onChange={(event) => filters.set({ filter: event.target.value === "all" ? null : event.target.value })}>
@@ -152,7 +152,7 @@ export function HistoricalRecordsScreen() {
           ) : (
             <>
               {records.data.results.length === 0 ? <p className="subtext ix-card-pad">No records match these filters.</p> : null}
-              <ol className="ix-queue">
+              <ol className="list-plain ix-queue">
                 {records.data.results.map((item) => <li key={item.id}>
                   <Link className="ix-queue-text" to={`/imports/history/${item.id}?${filters.query}`}>
                     <strong>“{item.source_name}” · {formatMonthYear(item.cycle_year, item.cycle_month)}</strong>

@@ -22,9 +22,9 @@ export function CountTiles<View extends string>({
     <div aria-label="Show" className="ix-tiles" role="group">
       {tiles.map((tile) => (
         <button aria-pressed={view === tile.key} className="ix-tile" key={tile.key} type="button" onClick={() => onView(tile.key)}>
-          <span className={cx("ix-tile-count stat__value", tile.tone)}>
+          <span className={cx("ix-tile-count", tile.tone)}>
             <span aria-hidden="true">{tile.mark}</span>
-            {tile.count}
+            <span className="stat__value">{tile.count}</span>
           </span>
           <span className="stat__label">{tile.label}</span>
         </button>

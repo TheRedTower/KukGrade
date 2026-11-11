@@ -67,11 +67,11 @@ function NameDetails({
 
   return (
     <div className="ix-name-detail">
-      <div className="ix-section ix-name-records">
+      <div className="stack stack--3 ix-name-records">
         <h3 className="ix-minor">
           Records <span className="subtext">· tick the ones to link</span>
         </h3>
-        <ul className="ix-detail-list">
+        <ul className="list-plain ix-detail-list">
           {records.isPending ? (
             <li className="subtext" role="status">
               Loading the records…
@@ -114,7 +114,7 @@ function NameDetails({
         </ul>
       </div>
 
-      <div className="ix-section ix-name-students">
+      <div className="stack stack--3 ix-name-students">
         <h3 className="ix-minor">Which student?</h3>
         {person.candidates.length > 0 ? (
           <div className="ix-student-list">
@@ -148,7 +148,7 @@ function NameDetails({
             {errorMessage(error, "Those records could not be linked.")}
           </ErrorText>
         ) : null}
-        <div className="ix-actions ix-actions-split">
+        <div className="action-row">
           {onLeave ? (
             <Button variant="ghost" onClick={onLeave}>
               Leave for now

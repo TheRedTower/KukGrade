@@ -28,7 +28,7 @@ export function RankFix({ record, onDone, showAll = false }: { record: LegacyGra
   if (showAll || (record.source_testing_for_rank_text && record.testing_for_rank === null)) open.push({ which: "tested", text: record.source_testing_for_rank_text });
   if (open.length === 0) return null;
   return (
-    <span className="ix-actions ix-rank-fix">
+    <span className="row row--wrap ix-rank-fix">
       {open.map((item) => (
         <label className="field field--sentence ix-warning-text" key={item.which}>
           <span>{showAll ? `${item.which === "held" ? "Held rank" : "Testing for"} (as written: “${item.text || "blank"}”)` : `“${item.text}” is not matched to a rank yet`}</span>

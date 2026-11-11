@@ -46,7 +46,7 @@ function RosterRowEditor({
 
   return (
     <div className={cx("ix-row", row.issues.length > 0 && "ix-attention")}>
-      <div className="ix-actions ix-actions-split ix-align-start">
+      <div className="action-row ix-align-start">
         <div className="ix-row-main">
           <p className="item-title">
             Row {row.row_number} · {importKinds[batch.kind].rowName(row)}
@@ -282,7 +282,7 @@ export function RosterReview({
           Back to matching
         </Button>
         {counts.review_required ? (
-          <div className="ix-actions">
+          <div className="row row--wrap">
             <span className="ix-why error-text">
               Fix or leave out the {counted(counts.review_required, "row that needs", "rows that need")} attention first.
             </span>

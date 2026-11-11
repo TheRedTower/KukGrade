@@ -78,7 +78,7 @@ function GuideList({ kind }: { kind: DataImportKind }) {
   return (
     <>
       <p className="subtext">{guide.lead}</p>
-      <ul className="ix-guide-list">
+      <ul className="list-plain ix-guide-list">
         {guide.fields.map((field) => (
           <li key={field.name}>
             <span>
@@ -131,7 +131,7 @@ function FoundChecklist({
   return (
     <div>
       <h3 className="ix-h3">What KukGrade found</h3>
-      <ul className="ix-checklist">
+      <ul className="list-plain ix-checklist">
         {items.map((item) => (
           <li key={item.title}>
             <span aria-hidden="true" className="mark" data-tone={item.ok ? "success" : "warning"}>
@@ -237,7 +237,7 @@ export function ImportStartScreen() {
       <ImportStepBar current="CHOOSE_FILE" kind={kind} />
 
       {loaded && created ? (
-        <section aria-labelledby="ix-your-file" className="card ix-section ix-roomy">
+        <section aria-labelledby="ix-your-file" className="card stack stack--4">
           <h2 className="ix-title ix-flush" id="ix-your-file" tabIndex={-1}>
             Your file
           </h2>
@@ -291,14 +291,14 @@ export function ImportStartScreen() {
               <ChevronRightIcon />
               What KukGrade looks for
             </summary>
-            <div className="ix-section disclosure__body">
+            <div className="stack stack--3 disclosure__body">
               <GuideList kind={kind} />
             </div>
           </details>
         </section>
       ) : (
         <div className="ix-split">
-          <section aria-labelledby="ix-choose" className="card ix-section ix-roomy">
+          <section aria-labelledby="ix-choose" className="card stack stack--4 stack--fill">
             <div>
               <h2 className="ix-title" id="ix-choose">
                 Choose your file
@@ -349,7 +349,7 @@ export function ImportStartScreen() {
               </ErrorText>
             ) : null}
           </section>
-          <aside aria-labelledby="ix-looks-for" className="card ix-sunken ix-section">
+          <aside aria-labelledby="ix-looks-for" className="card ix-sunken stack stack--3">
             <h2 className="ix-minor" id="ix-looks-for">
               What KukGrade looks for
             </h2>
@@ -367,7 +367,7 @@ export function ImportStartScreen() {
         <Button variant="ghost" disabled={discard.isPending} onClick={cancelImport}>
           Cancel import
         </Button>
-        <div className="ix-actions">
+        <div className="row row--wrap">
           {!loaded ? (
             <span className="subtext" id="ix-continue-why">
               Choose a file first.

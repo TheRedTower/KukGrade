@@ -70,6 +70,7 @@ npm run generate:types
 git diff --exit-code -- src/api/schema.ts
 npm run lint        # ESLint, then Stylelint (stylelint.config.mjs) for the CSS
 npm run format:check   # Prettier (.prettierrc.json); `npm run format` rewrites the files
+                       # (blame skips the reformat: git config blame.ignoreRevsFile .git-blame-ignore-revs)
 npm run typecheck
 npm run test
 npm run build

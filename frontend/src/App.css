@@ -117,7 +117,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
   min-width: var(--target-min);
 }
 
-
 .auth-page {
   min-height: 100vh;
   display: grid;
@@ -386,11 +385,6 @@ p {
   margin-top: 0;
 }
 
-.login-form {
-  display: grid;
-  gap: var(--space-4);
-}
-
 .app-layout {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -498,16 +492,10 @@ p {
 
 .must-change-password-form {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
   text-align: left;
 }
 
 .must-change-password-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   margin-top: var(--space-2);
 }
 
@@ -517,16 +505,6 @@ p {
   flex-shrink: 0;
 }
 
-/* Feedback & Helper Text */
-
-/* ── Error Banner ────────────────────────────────────────────────────────── */
-
-.gsd-modal-message {
-  line-height: var(--line-height-body);
-  margin: 0;
-}
-
-/* ── Loading and Error States ────────────────────────────────────────────── */
 /* A scrolling table wrapper a keyboard can reach (tabIndex 0): show it has
    focus like any other control. */
 [role="region"][tabindex="0"]:focus-visible,

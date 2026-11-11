@@ -71,7 +71,7 @@ function AccountForm({
 
   return (
     <form
-      className="user-detail-form"
+      className="stack stack--4"
       onSubmit={(event) => {
         event.preventDefault();
         mutation.mutate();
@@ -219,7 +219,7 @@ function PasswordResetDialog({
       {issued ? (
         <TemporaryPasswordIssued issued={issued} onDone={onClose} />
       ) : (
-        <form className="users-password-form" onSubmit={(event) => {
+        <form className="stack stack--4" onSubmit={(event) => {
           event.preventDefault();
           mutation.mutate();
         }}>
@@ -423,7 +423,7 @@ export function UserDetailScreen(): React.ReactElement {
             {activityQuery.isLoading ? (
               <p role="status">Loading activity…</p>
             ) : activityQuery.data?.results.length ? (
-              <ul className="user-activity-list">
+              <ul className="list-plain user-activity-list">
                 {activityQuery.data.results.map((event) => (
                   <li key={event.id}><strong>{event.summary}</strong><span className="meta">{formatDateTime(event.occurred_at)}</span></li>
                 ))}

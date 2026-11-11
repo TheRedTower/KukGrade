@@ -8,7 +8,7 @@ import { RequirementBadge } from "./StatusBadge";
 export function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {
   if (result === "MET") {
     return (
-      <span className="meta acp-result acp-result-met">
+      <span className="meta row row--inline row--1 acp-result-met">
         <CheckIcon size={13} />
         Met
       </span>
@@ -16,33 +16,33 @@ export function ResultMark({ result }: { result: CandidateAssessmentItem["result
   }
   if (result === "NOT_MET") {
     return (
-      <span className="meta acp-result acp-result-not-met">
+      <span className="meta row row--inline row--1 acp-result-not-met">
         <CrossIcon size={13} />
         Not met
       </span>
     );
   }
-  return <span className="meta acp-result acp-result-none">Not assessed</span>;
+  return <span className="meta row row--inline row--1 acp-result-none">Not assessed</span>;
 }
 
 /** Core areas carry a mark rather than a full ledger row. */
 export function CoreAreaMark({ group }: { group: CategoryGroup }) {
   if (group.notMetCount > 0) {
     return (
-      <span className="mark mark--small mark--danger" aria-hidden="true">
+      <span className="mark mark--small" data-tone="danger" aria-hidden="true">
         <CrossIcon size={13} />
       </span>
     );
   }
   if (group.notAssessedCount > 0) {
     return (
-      <span className="mark mark--small mark--neutral" aria-hidden="true">
+      <span className="mark mark--small" data-tone="neutral" aria-hidden="true">
         –
       </span>
     );
   }
   return (
-    <span className="mark mark--small mark--success" aria-hidden="true">
+    <span className="mark mark--small" data-tone="success" aria-hidden="true">
       <CheckIcon size={13} />
     </span>
   );

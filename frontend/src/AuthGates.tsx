@@ -72,7 +72,7 @@ function LoginPage() {
           <h1 id="login-title">{isReturningVisitor ? "Welcome back" : "Sign in"}</h1>
           <p className="login-subtitle">Sign in to KukGrade</p>
           <DemoSignIn busy={status === "loading" || isSubmitting} onSignIn={signIn} />
-          <form className="login-form" onSubmit={handleSubmit}>
+          <form className="stack stack--4" onSubmit={handleSubmit}>
             <label className="field field--sentence">
               <span>Email address</span>
               <input

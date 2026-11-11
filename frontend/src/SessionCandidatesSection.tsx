@@ -55,7 +55,7 @@ export function SessionCandidatesSection({
   const { bulkPrepare, bulkStart } = work;
 
   return (
-    <section className="gsd-candidates-section" aria-labelledby="candidates-heading">
+    <section className="stack stack--3 gsd-candidates-section" aria-labelledby="candidates-heading">
       <div className="action-row">
         <h2 id="candidates-heading" className="section-title">
           Candidates

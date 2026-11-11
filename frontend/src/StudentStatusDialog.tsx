@@ -38,7 +38,7 @@ export function StudentStatusDialog({
       <p>
         Update status for <strong>{name}</strong>:
       </p>
-      <div className="status-radio-options" role="radiogroup" aria-label="Student status options">
+      <div className="stack stack--3" role="radiogroup" aria-label="Student status options">
         {choices.map((choice) => (
           <label className={cx("status-radio-card", selected === choice.value && "selected")} key={choice.value}>
             <input
@@ -49,7 +49,7 @@ export function StudentStatusDialog({
               onChange={() => setSelected(choice.value)}
               data-dialog-autofocus={selected === choice.value ? true : undefined}
             />
-            <div className="status-radio-content">
+            <div className="stack stack--1">
               <div>
                 <StudentStatusBadge status={choice.value} label={choice.label} />
               </div>

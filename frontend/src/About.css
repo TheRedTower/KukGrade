@@ -34,9 +34,6 @@
 
 .ab-main {
   line-height: var(--line-height-body);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
 }
 
 .ab-main > header h2 {
@@ -210,8 +207,6 @@
 /* The pledge. */
 .ab-pledge {
   margin: var(--space-4) 0 0;
-  padding: 0;
-  list-style: none;
 }
 
 .ab-pledge li {
@@ -248,8 +243,6 @@
 /* Support and credits. */
 .ab-steps {
   margin: var(--space-3) 0 0;
-  padding: 0;
-  list-style: none;
 }
 
 .ab-steps li {

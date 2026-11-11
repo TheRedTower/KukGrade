@@ -22,7 +22,7 @@ interface CohortTrayProps {
 /** The cohort so far, by rank, and the button that registers it. */
 export function CohortTray({ sessionId, count, breakdown, generateAssessments, onGenerateAssessments, submitting, onRegister, onRemoveGroup, onReview }: CohortTrayProps) {
   return (
-          <aside className="bgc-section" aria-labelledby="bgc-tray-heading">
+          <aside className="stack stack--3" aria-labelledby="bgc-tray-heading">
             <div className="action-row">
               <h2 id="bgc-tray-heading" className="section-title">Cohort to register</h2>
               <span className="bgc-cohort-count item-title" data-testid="bgc-cohort-count">
@@ -69,7 +69,7 @@ export function CohortTray({ sessionId, count, breakdown, generateAssessments, o
               />
 
               {/* Review exceptions link */}
-              <div className="bgc-exceptions-callout">
+              <div className="stack stack--1 bgc-exceptions-callout">
                 <Button
                   variant="link"
                   onClick={() => onReview()}

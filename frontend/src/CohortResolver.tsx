@@ -78,7 +78,7 @@ export function CohortResolver({
       )}
 
       {/* Flagged items table section */}
-      <section className="bgc-section bgc-resolver-section">
+      <section className="stack stack--3 bgc-resolver-section">
         <div className="bgc-section-header">
           <div>
             <h2 className="section-title">
@@ -164,9 +164,9 @@ export function CohortResolver({
             </span>
           </summary>
           <div className="disclosure__body bgc-accordion-content">
-            <ul className="bgc-created-list">
+            <ul className="stack stack--2 list-plain">
               {registrationResult.created.map((entry) => (
-                <li key={entry.candidate.id} className="bgc-created-item">
+                <li key={entry.candidate.id} className="row row--wrap bgc-created-item">
                   <span className="item-title">{entry.candidate.student_display_name}</span>
                   <span className="meta">({entry.candidate.student_wksa_id})</span>
                   <CandidateRanks candidate={entry.candidate} />

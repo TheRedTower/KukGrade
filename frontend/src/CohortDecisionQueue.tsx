@@ -94,7 +94,7 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                     return (
                       <>
                         {outcome?.status === "FINALISED" ? (
-                          <span className="cab-recorded meta">
+                          <span className="row row--inline row--1 meta">
                             <CheckIcon size={14} /> Recorded · {outcome.final_outcome_display}
                           </span>
                         ) : row.decidable && canDecide && outcome ? (
@@ -107,8 +107,9 @@ export function CohortDecisionQueue({ rows, focusId, staged, failures, canDecide
                               <button
                                 key={option.value}
                                 type="button"
-                                className={buttonClass({ small: true }, `outcome-segment outcome-segment-${option.value.toLowerCase()}`)}
+                                className={buttonClass({ small: true }, "outcome-segment")}
                                 aria-pressed={decision?.outcome === option.value}
+                                data-tone={decision?.outcome === option.value ? outcomeTone(option.value) : undefined}
                                 disabled={!canStage}
                                 onClick={() => onStage(row, option.value)}
                               >

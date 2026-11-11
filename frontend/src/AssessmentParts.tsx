@@ -180,7 +180,7 @@ export function AssessmentItemRow({
           across most of the record.
         */}
         {(attribution || hasRemarks(item)) && (
-          <div className="caw-row-meta">
+          <div className="stack stack--1 caw-row-meta">
             {attribution && (
               <span>
                 <PersonIcon size={12} />
@@ -274,7 +274,7 @@ export function AssessmentItemRow({
         )}
 
         {canEdit && !isAsking && (
-          <div className="caw-row-tools">
+          <div className="row row--1 caw-row-tools">
             <button type="button" className="caw-row-tool meta" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
               Add comment
             </button>

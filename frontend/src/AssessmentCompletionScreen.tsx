@@ -264,7 +264,7 @@ export function AssessmentCompletionScreen() {
                 Every comment, and every mark changed with its reason, whichever way the requirement went.
               </p>
               {notedItems.map((item) => (
-                <div key={item.id} className="acp-note" data-testid={`acp-note-${item.id}`}>
+                <div key={item.id} className="stack stack--1 acp-note" data-testid={`acp-note-${item.id}`}>
                   <div className="acp-note-head">
                     <span className="item-title">
                       #{item.position} {item.item_name}
@@ -373,11 +373,11 @@ export function AssessmentCompletionScreen() {
               <span className="subtext">{`/ ${stats.requiredItems} required`}</span>
             </div>
             <div className="acp-count-tallies">
-              <span className="meta acp-result acp-result-met">
+              <span className="meta row row--inline row--1 acp-result-met">
                 <CheckIcon size={13} />
                 {`${stats.metCount} met`}
               </span>
-              <span className="meta acp-result acp-result-not-met">
+              <span className="meta row row--inline row--1 acp-result-not-met">
                 <CrossIcon size={13} />
                 {`${stats.notMetCount} not met`}
               </span>

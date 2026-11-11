@@ -26,7 +26,7 @@ export function TemporaryPasswordIssued({
   useEffect(() => copyRef.current?.focus(), []);
 
   return (
-    <div className="users-issued-password">
+    <div className="stack stack--4 users-issued-password">
       <p>
         Give this temporary password to <strong>{issued.full_name}</strong>. They'll choose their
         own password when they first sign in.

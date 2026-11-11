@@ -3,16 +3,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 .bgc-left-column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
   min-width: 0;
-}
-
-.bgc-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .bgc-section-subtext {
@@ -27,12 +18,6 @@
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--btn-primary-bg);
   border-radius: var(--radius-sm);
-}
-
-.bgc-summary-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 .bgc-info-icon {
@@ -58,9 +43,6 @@
 }
 
 .bgc-exceptions-callout {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
   padding: var(--space-3) 0;
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
@@ -87,9 +69,6 @@
 /* ── Review Exceptions Modal ────────────────────────────────────────────── */
 
 .bgc-modal-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
 }
@@ -106,13 +85,6 @@
 
 .bgc-modal-list-item:last-child {
   border-bottom: none;
-}
-
-.bgc-modal-student-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
 }
 
 /* ── EXCEPTION RESOLVER ───────────────────────────────────────── */
@@ -158,23 +130,6 @@
   border-top: 1px solid var(--color-border);
   background: var(--color-surface-sunken);
 }
-
-.bgc-created-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.bgc-created-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
 
 /* ── Resolver Footer Actions ────────────────────────────────────────────── */
 

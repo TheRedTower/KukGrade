@@ -7,6 +7,7 @@
  * promotes; the Master decides on the board.
  */
 import { buttonClass } from "./buttonClass";
+import { outcomeTone } from "./badgeClass";
 import { useMutation } from "@tanstack/react-query";
 import React, { useState } from "react";
 
@@ -78,7 +79,7 @@ export function OutcomeProposalDialog({
       onClose={onClose}
       canClose={!isSubmitting}
     >
-      <p className="outcome-rank-line subtext">
+      <p className="row row--wrap outcome-rank-line subtext">
         <span className="opd-sub">{candidate.student_wksa_id}</span>
         <CandidateRanks candidate={candidate} />
       </p>
@@ -91,13 +92,14 @@ export function OutcomeProposalDialog({
           candidateId={candidate.id}
         />
 
-        <fieldset className="opd-section opd-fieldset">
+        <fieldset className="opd-section stack stack--2 opd-fieldset">
           <legend>Proposed outcome</legend>
           <div className="outcome-segments">
             {outcomes.map((option) => (
               <label
                 key={option.value}
-                className={buttonClass({ small: true }, `outcome-segment outcome-segment-${option.value.toLowerCase()}`)}
+                className={buttonClass({ small: true }, "outcome-segment")}
+                data-tone={selectedOutcome === option.value ? outcomeTone(option.value) : undefined}
               >
                 <input
                   type="radio"

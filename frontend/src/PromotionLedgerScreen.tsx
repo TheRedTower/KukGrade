@@ -240,7 +240,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
       {/* Top Cohort Promotion Summary Card */}
       <section className="action-row pl-summary-card" aria-label="Cohort Promotion Summary">
-        <div className="pl-summary-info">
+        <div className="stack stack--1">
           <span className="pl-summary-count item-title">
             {counted(eligibleCohort.length, "Candidate", "Candidates")} Finalised with Pass · Eligible for Promotion
           </span>
@@ -305,7 +305,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               header: "Candidate",
               primary: true,
               render: (row) => (
-                <div className="pl-candidate-cell">
+                <div className="row row--3">
                   <span className="mark pl-candidate-avatar" aria-hidden="true">
                     {row.candidate.student_display_name.charAt(0)}
                   </span>
@@ -408,7 +408,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         >
           {feedbackBanner}
           <p className="pl-batch-count meta">{eligibleCohort.length} Candidates Selected</p>
-          <ol className="pl-batch-chips">
+          <ol className="row row--wrap list-plain">
             {eligibleCohort.map((r, i) => (
               <li key={r.candidate.id} className="pl-batch-chip">
                 <span className="pl-chip-num item-title">{i + 1}.</span>
@@ -448,7 +448,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             <span className="pl-modal-name section-title">
               {singlePromoteCandidate.candidate.student_display_name}
             </span>
-            <p className="pl-modal-ranks">
+            <p className="row row--wrap pl-modal-ranks">
               <CandidateRanks
                 candidate={singlePromoteCandidate.candidate}
                 fromLabel="Current"

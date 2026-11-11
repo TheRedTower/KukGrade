@@ -117,12 +117,6 @@
   color: inherit;
 }
 
-.nav-links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 /* A .menu-link, in the rail's colours. */
 .nav-link {
   min-height: 2.9rem;
@@ -228,14 +222,6 @@
   margin: 0;
   padding: 0 var(--space-3);
   color: var(--color-text-on-ink-muted);
-}
-
-/* Each dot travels with the link after it, outside the link, so a line
-   never ends on one and the dot is never underlined or clickable. */
-.nav-about-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 
 .nav-about-line a {

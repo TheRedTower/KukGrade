@@ -26,23 +26,23 @@ interface CohortFocusPaneProps {
 export function CohortFocusPane({ row, sessionId, decision, canStage, recording, evidenceLoaded, headingRef, onUpdate, onRecord }: CohortFocusPaneProps) {
   const outcomes = useChoices().outcomes;
   return (
-          <aside className="cab-detail split__aside" aria-labelledby="cab-focus-title" data-testid="cab-detail">
+          <aside className="card stack stack--4 cab-detail split__aside" aria-labelledby="cab-focus-title" data-testid="cab-detail">
             <p className="outcome-eyebrow eyebrow--muted">In focus</p>
             <h2 id="cab-focus-title" ref={headingRef} tabIndex={-1}>
               {row.candidate.student_display_name}
             </h2>
-            <p className="outcome-rank-line subtext">
+            <p className="row row--wrap outcome-rank-line subtext">
               <CandidateRanks candidate={row.candidate} />
             </p>
 
             <SealedAssessmentEvidence
-              className="cab-detail-section"
+              className="stack stack--2 cab-detail-section"
               assessmentId={row.assessment?.id}
               sessionId={sessionId}
               candidateId={row.candidate.id}
             />
 
-            <section className="cab-detail-section" aria-labelledby="cab-proposal-title">
+            <section className="stack stack--2 cab-detail-section" aria-labelledby="cab-proposal-title">
               <h3 id="cab-proposal-title">Proposal</h3>
               {row.outcome?.proposed_outcome ? (
                 <>
@@ -61,7 +61,7 @@ export function CohortFocusPane({ row, sessionId, decision, canStage, recording,
             </section>
 
             {row.outcome?.status === "FINALISED" && (
-              <section className="cab-detail-section" aria-labelledby="cab-decision-title">
+              <section className="stack stack--2 cab-detail-section" aria-labelledby="cab-decision-title">
                 <h3 id="cab-decision-title">Final decision</h3>
                 <p>
                   <Badge tone={outcomeTone(row.outcome.final_outcome)}>{row.outcome.final_outcome_display}</Badge>{" "}
@@ -78,7 +78,7 @@ export function CohortFocusPane({ row, sessionId, decision, canStage, recording,
             )}
 
             {decision && row.outcome && (
-              <section className="cab-detail-section" aria-labelledby="cab-staged-title">
+              <section className="stack stack--2 cab-detail-section" aria-labelledby="cab-staged-title">
                 <h3 id="cab-staged-title">Staged: {labelOf(outcomes, decision.outcome)}</h3>
                 {decision.outcome === "CONDITIONAL" && (
                   <label className="field field--sentence">

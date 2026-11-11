@@ -12,9 +12,9 @@ export type BadgeTone =
   | "completed"
   | "cancelled";
 
-/** The classes of a badge, for something that is not a <span> (a link that looks like one). */
-export function badgeClass(tone: BadgeTone, extra?: string): string {
-  return cx("badge", `badge--${tone}`, extra);
+/** The class and tone of a badge, for something that is not a <span> (a link that looks like one). */
+export function badgeProps(tone: BadgeTone, extra?: string): { className: string; "data-tone": BadgeTone } {
+  return { className: cx("badge", extra), "data-tone": tone };
 }
 
 const OUTCOME_TONES = { PASS: "success", CONDITIONAL: "warning", FAIL: "danger" } as const;

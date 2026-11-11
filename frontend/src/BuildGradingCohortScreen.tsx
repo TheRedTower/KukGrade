@@ -133,7 +133,7 @@ export function BuildGradingCohortScreen() {
       {registration.submitError && <Alert onDismiss={registration.clearError}>{registration.submitError}</Alert>}
 
       <div className="split">
-        <div className="bgc-left-column">
+        <div className="stack stack--6 bgc-left-column">
           <CohortFindSection
             search={search}
             onSearch={setSearch}

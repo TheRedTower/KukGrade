@@ -36,7 +36,7 @@ export function NoShowDialog({
       onClose={onClose}
       onConfirm={() => onConfirm(selected)}
     >
-      <p className="attendance-dialog-copy">
+      <p className="subtext">
         Select only the candidates who did not attend. Everyone else remains registered and unchanged.
       </p>
       <fieldset className="attendance-candidate-list">
@@ -62,7 +62,7 @@ export function NoShowDialog({
           </label>
         ))}
       </fieldset>
-      <div className="attendance-dialog-summary subtext" aria-live="polite">
+      <div className="subtext" aria-live="polite">
         {selected.length === 0
           ? "No no-shows selected"
           : `${counted(selected.length, "no-show", "no-shows")} selected`}
@@ -107,7 +107,7 @@ export function LockedWithdrawalDialog({
         if (reason) onConfirm({ withdrawal_reason: reason.value, withdrawal_note: note.trim() });
       }}
     >
-      <p className="attendance-dialog-copy">
+      <p className="subtext">
         Use this only when the candidate cannot finish the locked grading. Existing assessment work remains on record; any unfinalised outcome proposal is removed.
       </p>
       <fieldset className="attendance-candidate-list">
@@ -176,7 +176,7 @@ export function MoveRegistrationDialog({
       onClose={onClose}
       onConfirm={() => onConfirm(Number(sessionId))}
     >
-      <p className="attendance-dialog-copy">
+      <p className="subtext">
         Moves this registration to another draft or open session. It is refused once an assessment has been prepared.
       </p>
       <label className="field field--sentence">
@@ -196,7 +196,7 @@ export function MoveRegistrationDialog({
         </select>
       </label>
       {sessions.length === 0 && (
-        <p className="attendance-dialog-copy">No other draft or open session to move to.</p>
+        <p className="subtext">No other draft or open session to move to.</p>
       )}
     </ConfirmDialog>
   );
@@ -229,7 +229,7 @@ export function RemoveRegistrationDialog({
       onClose={onClose}
       onConfirm={onConfirm}
     >
-      <p className="attendance-dialog-copy">
+      <p className="subtext">
         Removes this registration and its assessment, which has not been started. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
       </p>
     </ConfirmDialog>

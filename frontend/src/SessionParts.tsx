@@ -37,12 +37,12 @@ export function SessionLifecycle({ status = "DRAFT" }: { status?: GradingSession
   const statuses = useChoices().session_statuses;
   const currentIndex = STAGES.indexOf(status as (typeof STAGES)[number]);
   return (
-    <section className="gsd-lifecycle-section" aria-label="Session progress">
+    <section className="card" aria-label="Session progress">
       <div className="gsd-lifecycle-track">
         {STAGES.map((key, index) => {
           const state = currentIndex > index ? "completed" : currentIndex === index ? "current" : "upcoming";
           return (
-            <div key={key} className={`gsd-lifecycle-step gsd-step-${state}`}>
+            <div key={key} className={`row row--3 gsd-step-${state}`}>
               <div className="mark mark--small gsd-step-circle" aria-hidden="true">
                 {state === "completed" && "✓"}
               </div>
@@ -80,7 +80,7 @@ export function SessionNotes({
 
   return (
     <section aria-labelledby="notes-heading">
-      <div className="gsd-notes-card">
+      <div className="card stack stack--4">
         <div className="action-row gsd-notes-header">
           <div>
             <h2 id="notes-heading" className="gsd-notes-title section-title">Session notes</h2>
@@ -104,7 +104,7 @@ export function SessionNotes({
 
         <div>
           {editing ? (
-            <form onSubmit={save} className="gsd-notes-form">
+            <form onSubmit={save} className="stack stack--3">
               <textarea
                 className="gsd-notes-textarea"
                 value={draft}

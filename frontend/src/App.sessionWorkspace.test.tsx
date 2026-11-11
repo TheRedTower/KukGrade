@@ -446,7 +446,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     expect(await screen.findByRole("heading", { name: "Autumn Grading" })).toBeVisible();
     expect(screen.getByText("Riverside Dojang")).toBeVisible();
-    expect(screen.getByText("Open", { selector: ".badge--open" })).toBeVisible();
+    expect(screen.getByText("Open", { selector: '[data-tone="open"]' })).toBeVisible();
 
     // Stepper track
     expect(screen.getByText("Draft", { selector: ".item-title" })).toBeVisible();
@@ -939,7 +939,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       expect(patchBody).toEqual({ status: "LOCKED" });
     });
 
-    expect(await screen.findByText("Locked", { selector: ".badge--locked" })).toBeVisible();
+    expect(await screen.findByText("Locked", { selector: '[data-tone="locked"]' })).toBeVisible();
   });
 
   it("handles session transition to CANCELLED via Session actions dropdown with cancellation reason", async () => {
@@ -995,7 +995,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       });
     });
 
-    expect(await screen.findByText("Cancelled", { selector: ".badge--cancelled" })).toBeVisible();
+    expect(await screen.findByText("Cancelled", { selector: '[data-tone="cancelled"]' })).toBeVisible();
   });
 
   it("renders clean zero-candidate empty state when session has no registered candidates", async () => {

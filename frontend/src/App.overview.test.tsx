@@ -156,16 +156,16 @@ describe("Overview screen (Operational Ledger)", () => {
     const statusOf = (summary: string) =>
       within(ledger).getByText(summary).closest("tr")!.querySelector(".badge")!;
     expect(statusOf("Password reset for someone@example.com.")).toHaveTextContent("User updated");
-    expect(statusOf("Password reset for someone@example.com.")).toHaveClass("badge--neutral");
+    expect(statusOf("Password reset for someone@example.com.")).toHaveAttribute("data-tone", "neutral");
     expect(statusOf("Outcome proposed as PASS.")).toHaveTextContent("Outcome proposed · Pass");
-    expect(statusOf("Outcome proposed as PASS.")).toHaveClass("badge--info");
+    expect(statusOf("Outcome proposed as PASS.")).toHaveAttribute("data-tone", "info");
     const overridden = statusOf("Final decision FAIL, overriding a proposed PASS.");
     expect(overridden).toHaveTextContent("Outcome finalised · Fail");
-    expect(overridden).toHaveClass("badge--warning");
+    expect(overridden).toHaveAttribute("data-tone", "warning");
     expect(statusOf("Final decision CONDITIONAL.")).toHaveTextContent("Outcome finalised · Conditional");
-    expect(statusOf("Withdrawn: did not attend.")).toHaveClass("badge--warning");
-    expect(statusOf("Promoted to Yellow.")).toHaveClass("badge--success");
-    expect(statusOf("Notes: everyone should pass.")).toHaveClass("badge--neutral");
+    expect(statusOf("Withdrawn: did not attend.")).toHaveAttribute("data-tone", "warning");
+    expect(statusOf("Promoted to Yellow.")).toHaveAttribute("data-tone", "success");
+    expect(statusOf("Notes: everyone should pass.")).toHaveAttribute("data-tone", "neutral");
     expect(within(ledger).queryByText("Approved")).not.toBeInTheDocument();
     expect(within(ledger).getAllByText("Morgan Master")).toHaveLength(events.length);
   });

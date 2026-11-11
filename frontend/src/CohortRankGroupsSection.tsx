@@ -16,7 +16,7 @@ interface CohortRankGroupsSectionProps {
 /** Step 2: add everyone who holds a rank in one go. */
 export function CohortRankGroupsSection({ groups, filteredCount, inCohort, onAddGroup, onRemoveGroup }: CohortRankGroupsSectionProps) {
   return (
-          <section className="bgc-section" aria-labelledby="bgc-rank-groups-heading">
+          <section className="stack stack--3" aria-labelledby="bgc-rank-groups-heading">
             <h2 id="bgc-rank-groups-heading" className="section-title">
               2. Add whole rank groups
             </h2>

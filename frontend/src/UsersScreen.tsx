@@ -74,7 +74,7 @@ function CreateUserDialog({
           <TemporaryPasswordIssued issued={issued} onDone={close} />
         ) : (
           <form
-            className="users-dialog-form"
+            className="stack stack--4"
             onSubmit={(event) => {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
@@ -210,7 +210,7 @@ export function UsersScreen(): React.ReactElement {
         Master authority is granted separately from a user's role.
       </div>
 
-      <div className="users-ledger" aria-live="polite">
+      <div className="stack stack--4" aria-live="polite">
         {query.isLoading ? (
           <LoadingState>Loading users…</LoadingState>
         ) : query.isError ? (

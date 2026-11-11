@@ -355,15 +355,15 @@ export function CandidateAssessmentScreen() {
           ]}
         />
 
-        <span className="caw-mat-tally caw-mat-tally-met">
+        <span className="row row--inline row--1 caw-mat-tally-met">
           <CheckIcon size={13} />
           {`${stats.metCount} met`}
         </span>
-        <span className="caw-mat-tally caw-mat-tally-not-met">
+        <span className="row row--inline row--1 caw-mat-tally-not-met">
           <CrossIcon size={13} />
           {`${stats.notMetCount} not met`}
         </span>
-        <span className="caw-mat-tally caw-mat-tally-remaining">
+        <span className="row row--inline row--1 caw-mat-tally-remaining">
           {`${stats.remainingRequired} remaining`}
         </span>
 

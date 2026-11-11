@@ -149,7 +149,7 @@ export function StudentsScreen() {
       </div>
 
       {/* Data Table / Empty State Container */}
-      <div className="students-results">
+      <div className="stack stack--4">
         {studentsQuery.query.isLoading ? (
           <LoadingState>Loading student records…</LoadingState>
         ) : students.length === 0 ? (

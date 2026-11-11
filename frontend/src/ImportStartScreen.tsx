@@ -134,7 +134,7 @@ function FoundChecklist({
       <ul className="ix-checklist">
         {items.map((item) => (
           <li key={item.title}>
-            <span aria-hidden="true" className={cx("mark", item.ok ? "mark--success" : "mark--warning")}>
+            <span aria-hidden="true" className="mark" data-tone={item.ok ? "success" : "warning"}>
               {item.ok ? "✓" : "!"}
             </span>
             <span>

@@ -81,7 +81,7 @@ function PasswordRow() {
         open ? (
           <ChangePasswordForm
             actionsClassName="st-form-actions"
-            className="st-password-form"
+            className="stack stack--4 st-password-form"
             currentPasswordLabel="Current password"
             onChanged={() => {
               setOpen(false);
@@ -137,7 +137,7 @@ export function SettingsAccount() {
       <SettingsRow
         below={
           <>
-            <ul className="st-capabilities">
+            <ul className="list-plain st-capabilities">
               {authorities.map((capability) => {
                 const granted = Boolean(user[capability.value]);
                 return (

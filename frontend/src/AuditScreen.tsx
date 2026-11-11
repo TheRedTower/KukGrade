@@ -257,7 +257,7 @@ export function AuditScreen(): React.ReactElement {
         </div>
       </div>
 
-      <div className="audit-ledger" aria-live="polite">
+      <div className="stack stack--4" aria-live="polite">
         {query.isLoading ? (
           <LoadingState>Loading audit events…</LoadingState>
         ) : query.isError ? (

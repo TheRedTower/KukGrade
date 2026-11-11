@@ -34,7 +34,7 @@ export function DemoSignIn({
         Everything here is made up, and anyone can use these accounts at the same time. The data
         is reset at {resetTime(demo.next_reset_at)}.
       </p>
-      <ul className="demo-accounts">
+      <ul className="stack stack--2 list-plain">
         {demo.accounts.map((account) => (
           <li key={account.key}>
             <button

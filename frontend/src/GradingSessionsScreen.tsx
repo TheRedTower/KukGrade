@@ -228,7 +228,7 @@ export function GradingSessionsScreen() {
       {/* ── Table + Empty States */}
       {!isLoading && (
         <>
-          <div className="gs-table-section">
+          <div className="stack stack--3">
             <h2 className="gs-table-heading section-title">{archivedOnly ? "Archived grading sessions" : "All grading sessions"}</h2>
             {sessions.length > 0 ? (
               <ResponsiveTable

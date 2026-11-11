@@ -38,7 +38,7 @@ export function SettingsAbout() {
           </p>
         ) : null}
       </nav>
-      <div className="ab-main">
+      <div className="stack stack--4 ab-main">
         <Routes>
           <Route element={<AboutOverview />} index />
           <Route element={<AboutLicence />} path="licence" />

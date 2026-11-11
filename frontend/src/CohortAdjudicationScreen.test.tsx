@@ -497,7 +497,7 @@ describe("CohortAdjudicationScreen", () => {
     const alex = await screen.findByTestId("cab-row-2");
     await waitFor(() => expect(within(alex).getByText("22 / 24 met")).toBeVisible());
     expect(within(alex).getByText("2 not met")).toBeVisible();
-    expect(within(alex).getByText("Conditional", { selector: ".badge--warning" })).toBeVisible();
+    expect(within(alex).getByText("Conditional", { selector: '[data-tone="warning"]' })).toBeVisible();
     expect(within(screen.getByTestId("cab-row-3")).getByText("Recorded · Fail")).toBeVisible();
     // The server leaves withdrawn candidates out, and counts them on the session.
     expect(mockGetCandidates).toHaveBeenCalledWith({ session: 10, withdrawn: false });

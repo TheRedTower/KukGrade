@@ -17,14 +17,14 @@ export function CohortReviewDialog({ cohort, onRemove, onClose }: CohortReviewDi
           title={`Review cohort candidates (${cohort.length})`}
           onClose={onClose}
         >
-          <p className="gsd-modal-message subtext">
+          <p className="subtext">
             Remove individual students who should not be registered in this grading cohort.
           </p>
 
-          <ul className="bgc-modal-list">
+          <ul className="list-plain bgc-modal-list">
             {cohort.map((item) => (
               <li key={item.student.id} className="bgc-modal-list-item">
-                <div className="bgc-modal-student-info">
+                <div className="row row--3 row--wrap">
                   <span className="item-title">
                     {item.student.first_name} {item.student.last_name}
                   </span>

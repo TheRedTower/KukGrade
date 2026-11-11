@@ -48,8 +48,8 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
         {/* Succeeding refetches the current user, whose cleared
             must_change_password lets the app open. */}
         <ChangePasswordForm
-          actionsClassName="must-change-password-actions"
-          className="must-change-password-form"
+          actionsClassName="stack stack--2 must-change-password-actions"
+          className="stack stack--4 must-change-password-form"
           currentPasswordLabel="Temporary password"
           labelledBy="change-password-title"
           secondaryAction={(isSubmitting) => (

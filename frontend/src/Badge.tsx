@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 
-import { type BadgeTone, badgeClass } from "./badgeClass";
+import { type BadgeTone, badgeProps } from "./badgeClass";
 
 interface BadgeStyle {
   tone: BadgeTone;
@@ -17,7 +17,7 @@ interface BadgeStyle {
  */
 export function Badge({ tone, dot, icon, className, children, ...rest }: BadgeStyle & ComponentProps<"span">) {
   return (
-    <span className={badgeClass(tone, className)} {...rest}>
+    <span {...badgeProps(tone, className)} {...rest}>
       {dot && <span className="badge__dot" aria-hidden="true" />}
       {icon}
       {children}

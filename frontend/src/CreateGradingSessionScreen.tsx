@@ -151,7 +151,7 @@ export function CreateGradingSessionScreen() {
       <div className="split">
         {/* Left Column: Form */}
         <div>
-          <form className="cgs-form" noValidate onSubmit={handleSubmit}>
+          <form className="stack" noValidate onSubmit={handleSubmit}>
             {/* Session Title */}
             <Field label="Session title" required error={form.errorFor("title")}>
               {(control) => (
@@ -259,7 +259,7 @@ export function CreateGradingSessionScreen() {
             </Field>
 
             {/* Form Actions */}
-            <div className="action-row cgs-form-actions">
+            <div className="action-row row row--4 cgs-form-actions">
               <Button
                 variant="ghost"
                 disabled={isSubmitting}

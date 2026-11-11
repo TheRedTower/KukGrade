@@ -25,10 +25,10 @@ export function AboutSupport() {
         </p>
       </header>
 
-      <div className="ab-main">
+      <div className="stack stack--4 ab-main">
           <section aria-labelledby="ab-steps" className="card">
             <h2 id="ab-steps">Asking for help</h2>
-            <ol className="ab-steps">
+            <ol className="list-plain ab-steps">
               <li>
                 <span aria-hidden="true" className="mark mark--small ab-number">
                   1

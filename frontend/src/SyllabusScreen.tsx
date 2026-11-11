@@ -81,7 +81,7 @@ function SyllabusLedgerTable({
             const noteText = !row.notation && row.notes && row.notes !== rangeDisplay ? row.notes : "";
             return (
               <div className="syl-cell-curriculum">
-                <div className="syl-item-name item-title">
+                <div className="row row--wrap item-title">
                   {row.item_name}
                   {isNew && <Badge tone="info">NEW</Badge>}
                 </div>
@@ -250,7 +250,7 @@ export function SyllabusScreen() {
       </ScrollRail>
 
       {/* Main Rank Chapter View */}
-      <div className="syl-rank-content">
+      <div className="stack stack--6">
         {/* Rank Chapter Heading */}
         <div className="syl-rank-header">
           <div>
@@ -285,8 +285,8 @@ export function SyllabusScreen() {
         ) : (
           <>
             {coreAreas.length > 0 && (
-              <div className="syl-section-block">
-                <div className="syl-section-title-wrap">
+              <div className="stack stack--4">
+                <div className="stack stack--1">
                   <h3 className="section-title">Core grading areas</h3>
                   <p className="syl-section-subtitle subtext">The same areas at every rank.</p>
                 </div>
@@ -305,8 +305,8 @@ export function SyllabusScreen() {
             )}
 
             {ledgers.map((ledger) => (
-              <div key={ledger.category} className="syl-section-block">
-                <div className="syl-section-title-wrap">
+              <div key={ledger.category} className="stack stack--4">
+                <div className="stack stack--1">
                   <h3 className="section-title">{ledger.title}</h3>
                   <p className="syl-section-subtitle subtext">
                     Where a later rank extended an item, its latest range is shown.
@@ -321,7 +321,7 @@ export function SyllabusScreen() {
 
       {/* Footer Reference */}
       <footer className="syl-footer subtext">
-        <div className="syl-footer-brand">
+        <div className="row syl-footer-brand">
           <strong>KukGrade</strong>
           <span className="syl-footer-divider">|</span>
           <span>Past assessments keep the wording they were graded on.</span>

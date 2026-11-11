@@ -162,7 +162,7 @@ export function AboutConduct() {
         <section aria-labelledby="ab-pledge" className="card">
           <p className="st-eyebrow eyebrow--muted">Kuk Sool Won</p>
           <h2 id="ab-pledge">{pledge.data.title}</h2>
-          <ol className="ab-pledge">
+          <ol className="list-plain ab-pledge">
             {pledge.data.points.map((point, index) => (
               <li key={point.english}>
                 <span aria-hidden="true" className="mark mark--small ab-number">

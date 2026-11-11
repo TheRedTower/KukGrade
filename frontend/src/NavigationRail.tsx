@@ -153,7 +153,7 @@ export function NavigationRail({
       >
         {strip ? null : <ClubCard name={clubName} />}
 
-        <nav aria-label="Main navigation" className="nav-links">
+        <nav aria-label="Main navigation" className="stack stack--1">
           <RailLink end icon={<OverviewIcon />} label="Overview" strip={strip} to="/" />
           <RailLink icon={<StudentsIcon />} label="Students" strip={strip} to="/students" />
           <RailLink icon={<GradingsIcon />} label="Gradings" strip={strip} to="/gradings" />
@@ -230,12 +230,12 @@ export function NavigationRail({
               </div>
               <p className="meta nav-about-line">
                 <span>KukGrade{version ? ` ${version}` : ""}</span>
-                <span className="nav-about-item">
+                <span className="row row--inline row--1">
                   <span aria-hidden="true">·</span>
                   <Link to="/settings/about">About</Link>
                 </span>
                 {about ? (
-                  <span className="nav-about-item">
+                  <span className="row row--inline row--1">
                     <span aria-hidden="true">·</span>
                     <ExternalLink href={about.repository_url}>
                       GitHub

@@ -47,7 +47,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
       />
 
       <div className="ix-banner ix-banner-success" role="status">
-        <span aria-hidden="true" className="mark mark--large mark--success ix-mark-on-surface">
+        <span aria-hidden="true" className="mark mark--large ix-mark-on-surface" data-tone="success">
           ✓
         </span>
         <p>

@@ -68,7 +68,7 @@ export function SetupPage() {
             </p>
           </div>
 
-          <form className="login-form" onSubmit={handleSubmit}>
+          <form className="stack stack--4" onSubmit={handleSubmit}>
             <Field label="Setup code" error={form.errorFor("code")}>
               {(control) => (
                 <input

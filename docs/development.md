@@ -119,7 +119,7 @@ serializers and the committed frontend types match the schema.
   (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
-  on a narrow page), `Dialog` for every modal (a sheet on a phone) and `ConfirmDialog` for every one that asks to confirm (a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form), `.filter-bar` for every set of filters (its
+  on a narrow page), `Dialog` for every modal (a sheet on a phone) and `ConfirmDialog` for every one that asks to confirm (a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form; `--1` to `--4` and `--6` for parts that sit closer, a step of the space scale), `.row` for things side by side on one line (`--wrap`, `--inline`, `--1`, `--3`, `--4`), `.list-plain` for a list with no bullets, `.filter-bar` for every set of filters (its
   `.filter-bar__count` for how many results they leave) and
   `.field` (`.field--search` (through `SearchField`) for every search box, which draws its own magnifier; `.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help; `Field` writes a form field's label, required star, error and help and wires them to its control) for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
@@ -159,10 +159,10 @@ serializers and the committed frontend types match the schema.
   `.xyz-btn` class; `tokenRules.test.ts` counts the button classes outside `controls.css`
   (`buttonClass`) and fails if the count goes up.
 - **A badge is `<Badge tone="success|warning|danger|info|neutral">`** (a link given
-  `badgeClass(tone)`), and a status the system defines has one component in `StatusBadge.tsx`
+  `badgeProps(tone)`), and a status the system defines has one component in `StatusBadge.tsx`
   (`SessionStatusBadge`, `StudentStatusBadge`, `AssessmentBadge`, `OutcomeBadge`,
   `RequirementBadge`): the one way to show it, so it cannot look different on two screens.
-  Their look is in `controls.css`, and the status colours (`--color-status-*`) are tokens in
+  Their look is in `controls.css`; a tone is a `data-tone` attribute, written once there for badges, marks and a chosen outcome alike, and the status colours (`--color-status-*`) are tokens in
   `theme.css`, with a dark value each.
 - **A link in running text is a plain `<Link>` or `<a>`, with no class.** `App.css` gives every
   unclassed link one look (the accent, underlined, the same once visited), and `layout.css`

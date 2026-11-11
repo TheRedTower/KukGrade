@@ -45,25 +45,9 @@
   color: var(--color-danger);
 }
 
-.cab-recorded {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
 .cab-row-name:focus-visible{
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
-}
-
-.cab-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
 }
 
 .cab-detail h2 {
@@ -71,9 +55,6 @@
 }
 
 .cab-detail-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
 }

@@ -46,7 +46,7 @@ export function SealedAssessmentEvidence({
   const failed = summaryQuery.isError || itemsQuery.isError;
 
   return (
-    <section className={cx("evd", className)} aria-labelledby={titleId}>
+    <section className={cx("stack stack--2 evd", className)} aria-labelledby={titleId}>
       <h3 id={titleId}>Sealed assessment</h3>
       {assessmentId === undefined ? (
         <p className="evd-muted subtext">No assessment recorded.</p>
@@ -77,12 +77,12 @@ export function SealedAssessmentEvidence({
       {[shortfalls, otherNotes].map(
         (group, index) =>
           group.length > 0 && (
-            <ul key={index} className="evd-notes">
+            <ul key={index} className="stack stack--2 list-plain">
               {group.map((item) => {
                 const shortfall = item.result === "NOT_MET";
                 return (
                   <li key={item.id} className={shortfall ? "evd-note evd-note-shortfall" : "evd-note"}>
-                    <span className="evd-note-title item-title">
+                    <span className="row row--inline row--1 evd-note-title item-title">
                       {shortfall && <WarningIcon size={14} />} {item.item_name} ·{" "}
                       {item.category_display}
                       {!shortfall && ` · ${item.result_display}`}

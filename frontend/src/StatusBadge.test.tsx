@@ -6,13 +6,15 @@ import { SessionStatusBadge, StudentStatusBadge } from "./StatusBadge";
 describe("SessionStatusBadge", () => {
   it("shows the label the server sent, in the tone of its status", () => {
     render(<SessionStatusBadge status="LOCKED" label="Locked for decisions" />);
-    expect(screen.getByText("Locked for decisions")).toHaveClass("badge", "badge--locked");
+    expect(screen.getByText("Locked for decisions")).toHaveClass("badge");
+    expect(screen.getByText("Locked for decisions")).toHaveAttribute("data-tone", "locked");
   });
 });
 
 describe("StudentStatusBadge", () => {
   it("shows the label the server sent, in the tone of its status", () => {
     render(<StudentStatusBadge status="LEFT" label="Left the club" />);
-    expect(screen.getByText("Left the club")).toHaveClass("badge", "badge--danger");
+    expect(screen.getByText("Left the club")).toHaveClass("badge");
+    expect(screen.getByText("Left the club")).toHaveAttribute("data-tone", "danger");
   });
 });

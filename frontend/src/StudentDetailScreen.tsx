@@ -25,7 +25,7 @@ import { useAuth } from "./auth";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
-import { badgeClass } from "./badgeClass";
+import { badgeProps } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useChoices } from "./choices";
 import { StudentStatusBadge } from "./StatusBadge";
@@ -224,7 +224,7 @@ export function StudentDetailScreen() {
       {/* Two-Column Grid Layout */}
       <div className="student-detail-grid">
         {/* Left Column: Core Record, Grading History & Rank History */}
-        <div className="detail-left-column">
+        <div className="stack detail-left-column">
           {/* Card 1: Student details */}
           <div className="card">
             <h2 className="section-title section-title--ruled">Student details</h2>
@@ -286,12 +286,12 @@ export function StudentDetailScreen() {
                     header: "Source",
                     render: (item) =>
                       item.source === "LEGACY" && currentUser?.can_reconcile_imported_history ? (
-                        <Link className={badgeClass("neutral")} to={`/imports/history/${item.record_id}`}>
+                        <Link {...badgeProps("neutral")} to={`/imports/history/${item.record_id}`}>
                           Historical · correct
                         </Link>
                       ) : item.session_id && item.candidate_id ? (
                         <Link
-                          className={badgeClass("info")}
+                          {...badgeProps("info")}
                           to={`/gradings/${item.session_id}/assessments/${item.candidate_id}/review`}
                         >
                           KukGrade · view assessment
@@ -391,20 +391,20 @@ export function StudentDetailScreen() {
         </div>
 
         {/* Right Column: Operational Sidebar */}
-        <div className="detail-right-column">
+        <div className="stack detail-right-column">
           {/* Card 1: Grading readiness. Whether they can be registered is the
               server's answer (can_be_graded); a deleted record is closed, so
               it has no readiness to show. */}
           {!isDeleted && (
             <div className="card">
               <h2 className="section-title section-title--ruled">Grading readiness</h2>
-              <div className="readiness-body">
-                <div className="readiness-row">
+              <div className="stack stack--4">
+                <div className="action-row">
                   <span className="meta">Next rank</span>
                   <span className="readiness-value item-title">{student.next_rank_name ?? "Highest curriculum rank"}</span>
                 </div>
 
-                <div className="readiness-row">
+                <div className="action-row">
                   <span className="meta">Current status</span>
                   {student.can_be_graded ? (
                     <Badge tone="success" icon={<CheckIcon size={14} />}>Can be registered</Badge>
@@ -424,13 +424,13 @@ export function StudentDetailScreen() {
           {/* Card 2: Record status */}
           <div className="card">
             <h2 className="section-title section-title--ruled">Record status</h2>
-            <div className="record-status-body">
-              <div className="record-status-badge-row">
+            <div className="stack stack--4">
+              <div className="action-row">
                 <span className="meta">Status</span>
                 <StudentStatusBadge status={student.status} label={student.status_display} />
               </div>
 
-              <div className="record-status-policy-note subtext">
+              <div className="stack stack--2 record-status-policy-note subtext">
                 <p>
                   Active students can be added to gradings and appear in active registers.
                 </p>

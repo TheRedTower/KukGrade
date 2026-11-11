@@ -43,7 +43,7 @@ export function CohortFindSection({
   const active = labelOf(statuses, "ACTIVE");
   const inactive = labelOf(statuses, "INACTIVE");
   return (
-          <section className="bgc-section" aria-labelledby="bgc-find-heading">
+          <section className="stack stack--3" aria-labelledby="bgc-find-heading">
             <h2 id="bgc-find-heading" className="section-title">
               1. Find eligible students
             </h2>
@@ -115,7 +115,7 @@ export function CohortFindSection({
 
             {/* Filter matching summary banner */}
             <div className="action-row bgc-filter-summary-card">
-              <div className="bgc-summary-info subtext">
+              <div className="row subtext">
                 <span className="item-title bgc-info-icon" aria-hidden="true">ℹ</span>
                 <span>
                   Students who have left, or are still registered for another grading that has not reached its result, are not listed.

@@ -1,7 +1,6 @@
 
 /* Rank buttons, in a ScrollRail */
 
-
 .syl-belt {
   gap: var(--space-3);
 }
@@ -11,12 +10,6 @@
 }
 
 /* Rank Content Section */
-
-.syl-rank-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-}
 
 .syl-rank-header {
   display: flex;
@@ -43,18 +36,6 @@
 }
 
 /* Section Blocks */
-
-.syl-section-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.syl-section-title-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
 
 .syl-section-subtitle {
   margin: 0;
@@ -90,13 +71,6 @@
   margin-top: 0.15rem;
 }
 
-.syl-item-name {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .syl-item-notes {
   font-style: italic;
   margin-top: 0.2rem;
@@ -118,12 +92,6 @@
   border-top: 1px solid var(--color-border);
 }
 
-.syl-footer-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .syl-footer-brand strong {
   color: var(--color-text);
 }
@@ -131,5 +99,4 @@
 .syl-footer-divider {
   color: var(--color-text-muted);
 }
-
 

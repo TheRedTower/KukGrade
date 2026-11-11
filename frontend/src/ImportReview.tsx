@@ -33,7 +33,7 @@ function Seal({
 
   return (
     <section aria-labelledby="ix-seal-h" className="card card--flush ix-banner ix-gold-edge">
-      <span aria-hidden="true" className="mark mark--large mark--success">
+      <span aria-hidden="true" className="mark mark--large" data-tone="success">
         ✓
       </span>
       <div className="ix-seal-text">

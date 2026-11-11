@@ -5,6 +5,7 @@ from typing import Any, cast
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from accounts.people import PersonNameField
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.assessment_services import (
     assessment_can_be_prepared,
@@ -406,10 +407,7 @@ class CandidateAssessmentSerializer(ModelSerializer):
         source="candidate.student",
         read_only=True,
     )
-    generated_by_email = serializers.EmailField(
-        source="generated_by.email",
-        read_only=True,
-    )
+    generated_by_name = PersonNameField("generated_by")
     # The served overall counts, so a list of assessments needs no
     # per-assessment summary request.
     overall = serializers.SerializerMethodField()
@@ -443,7 +441,7 @@ class CandidateAssessmentSerializer(ModelSerializer):
             "candidate_student_name",
             "status",
             "status_display",
-            "generated_by_email",
+            "generated_by_name",
             "generated_at",
             "started_at",
             "completed_at",
@@ -458,7 +456,7 @@ class CandidateAssessmentSerializer(ModelSerializer):
             "candidate",
             "candidate_student_name",
             "status_display",
-            "generated_by_email",
+            "generated_by_name",
             "generated_at",
             "started_at",
             "completed_at",
@@ -482,7 +480,7 @@ class CandidateAssessmentSerializer(ModelSerializer):
 
 
 class AssessmentItemCommentSerializer(ModelSerializer):
-    author_name = serializers.CharField(source="author.get_full_name", read_only=True)
+    author_name = PersonNameField("author")
 
     class Meta:
         model = AssessmentItemComment
@@ -503,10 +501,7 @@ class AssessmentItemResultChangeSerializer(ModelSerializer):
         source="get_to_result_display",
         read_only=True,
     )
-    changed_by_name = serializers.CharField(
-        source="changed_by.get_full_name",
-        read_only=True,
-    )
+    changed_by_name = PersonNameField("changed_by")
 
     class Meta:
         model = AssessmentItemResultChange
@@ -560,7 +555,7 @@ class CandidateAssessmentItemSerializer(ModelSerializer):
             "max_length": (f"A reason can be at most {REASON_MAX_LENGTH} characters."),
         },
     )
-    assessor_email = serializers.EmailField(source="assessor.email", read_only=True)
+    assessor_name = PersonNameField("assessor")
     display_range = serializers.CharField(read_only=True)
     category_is_core = serializers.SerializerMethodField(
         help_text=(
@@ -598,7 +593,7 @@ class CandidateAssessmentItemSerializer(ModelSerializer):
             "notation",
             "result",
             "result_display",
-            "assessor_email",
+            "assessor_name",
             "assessed_at",
             "comments",
             "changes",
@@ -619,7 +614,7 @@ class CandidateAssessmentItemSerializer(ModelSerializer):
             "requirement_notes",
             "notation",
             "result_display",
-            "assessor_email",
+            "assessor_name",
             "assessed_at",
         )
 
@@ -672,14 +667,8 @@ class CandidateOutcomeSerializer(ModelSerializer):
         allow_null=True,
         help_text="Null until the final decision is recorded.",
     )
-    proposed_by_name = serializers.CharField(
-        source="proposed_by.get_full_name",
-        read_only=True,
-    )
-    decided_by_name = serializers.CharField(
-        source="decided_by.get_full_name",
-        read_only=True,
-    )
+    proposed_by_name = PersonNameField("proposed_by")
+    decided_by_name = PersonNameField("decided_by")
 
     class Meta:
         model = CandidateOutcome
@@ -1009,12 +998,7 @@ class LegacyGradingRecordSerializer(ModelSerializer):
         allow_null=True,
         default=None,
     )
-    voided_by_email = serializers.EmailField(
-        source="voided_by.email",
-        read_only=True,
-        allow_null=True,
-        default=None,
-    )
+    voided_by_name = PersonNameField("voided_by")
     current_rank_name = serializers.CharField(
         source="current_rank.name",
         read_only=True,
@@ -1065,7 +1049,7 @@ class LegacyGradingRecordSerializer(ModelSerializer):
             "note",
             "is_void",
             "void_reason",
-            "voided_by_email",
+            "voided_by_name",
         )
         read_only_fields = fields
 

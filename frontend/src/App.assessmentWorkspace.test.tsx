@@ -86,7 +86,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     candidate_student_name: "Alex Carter",
     status: "IN_PROGRESS",
     status_display: "In progress",
-    generated_by_email: "casey@example.com",
+    generated_by_name: "KSN Casey Lane",
     overall: assessmentSummaryFor([]).overall,
     marks_open: true,
     can_start: false,
@@ -113,7 +113,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     notation: "",
     result: "MET",
     result_display: "Met",
-    assessor_email: "casey@example.com",
+    assessor_name: "KSN Casey Lane",
     assessed_at: "2026-09-18T10:10:00Z",
     comments: [],
     changes: [],
@@ -135,7 +135,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     notation: "",
     result: "NOT_MET",
     result_display: "Not Met",
-    assessor_email: "casey@example.com",
+    assessor_name: "KSN Casey Lane",
     assessed_at: "2026-09-18T10:15:00Z",
     comments: [
       {
@@ -165,7 +165,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     notation: "",
     result: "NOT_ASSESSED",
     result_display: "Not Assessed",
-    assessor_email: "",
+    assessor_name: "",
     assessed_at: null,
     comments: [],
     changes: [],
@@ -347,7 +347,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
 
@@ -440,7 +440,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
     const proofItems = [metWithNote, mockItem2, assessedItem3];
@@ -525,7 +525,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
     const proofItems = [metWithNote, mockItem2, assessedItem3];
@@ -582,7 +582,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
     const proofItems = [mockItem1, mockItem2, assessedItem3];
@@ -629,7 +629,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
     const proofItems = [mockItem1, mockItem2, assessedItem3];
@@ -792,13 +792,13 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       position: 4,
       display_range: "1–5",
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:25:00Z",
     };
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
     // A form's part lives in its chart notation, served as wording.
@@ -817,7 +817,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       requirement_notes: "Chart notation: (1/2).",
       notation: "Part 1 of 2",
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:30:00Z",
     };
     const proofItems = [mockItem1, mockItem2, assessedItem3, weaponsItem, formItem];
@@ -1187,7 +1187,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       // The comment did not touch the mark or who made it.
       expect(posts).toEqual(["Also lost balance on the landing."]);
       expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("aria-pressed", "true");
-      expect(row).toHaveTextContent("casey@example.com");
+      expect(row).toHaveTextContent("KSN Casey Lane");
     });
 
     it("adds nothing when the box is left or dismissed without saving", async () => {
@@ -1599,7 +1599,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       ...item,
       result: "NOT_ASSESSED",
       result_display: "Not Assessed",
-      assessor_email: "",
+      assessor_name: "",
       assessed_at: null,
     });
 
@@ -1814,11 +1814,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             const items =
               fetchedItems === 1
                 ? [mockItem1, mockItem2, mockItem3]
-                : [
-                    mockItem1,
-                    mockItem2,
-                    { ...mockItem3, result: "NOT_MET" as const, assessor_email: "lee@example.com" },
-                  ];
+                : [mockItem1, mockItem2, { ...mockItem3, result: "NOT_MET" as const, assessor_name: "PSBN Lee Moss" }];
             return jsonResponse(200, { count: 3, next: null, previous: null, results: items });
           }
           return jsonResponse(404, { detail: "Not found" });
@@ -2166,7 +2162,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           ...mockItem3,
           result: (patchedBody?.result as CandidateAssessmentItemResult) ?? "MET",
           assessor: authUser.id,
-          assessor_email: authUser.email,
+          assessor_name: `KSN ${authUser.full_name}`,
           assessed_at: "2026-09-18T10:20:00Z",
         });
       }
@@ -2251,7 +2247,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await user.click(screen.getByTestId("btn-clear-1001"));
 
     const prompt = screen.getByTestId("caw-change-prompt-1001");
-    expect(prompt).toHaveTextContent("casey@example.com");
+    expect(prompt).toHaveTextContent("KSN Casey Lane");
     expect(prompt).toHaveTextContent("removes the record of who assessed it");
     expect(prompt).toHaveTextContent("The change and your reason are kept");
     expect(screen.getByTestId("btn-reason-save-1001")).toBeDisabled();
@@ -2349,10 +2345,10 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await screen.findByRole("heading", { name: "Alex Carter" });
 
     // 1001 is MET, 1002 is NOT_MET: both carry their assessor.
-    expect(screen.getByTestId("caw-item-1001")).toHaveTextContent("casey@example.com");
-    expect(screen.getByTestId("caw-item-1002")).toHaveTextContent("casey@example.com");
+    expect(screen.getByTestId("caw-item-1001")).toHaveTextContent("KSN Casey Lane");
+    expect(screen.getByTestId("caw-item-1002")).toHaveTextContent("KSN Casey Lane");
     // 1003 is unassessed, so it has no attribution to show.
-    expect(screen.getByTestId("caw-item-1003")).not.toHaveTextContent("casey@example.com");
+    expect(screen.getByTestId("caw-item-1003")).not.toHaveTextContent("KSN Casey Lane");
   });
 
   // A COMPLETED assessment is corrected in place while the session is open (no
@@ -2454,7 +2450,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
 
@@ -2556,7 +2552,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
 
@@ -2668,8 +2664,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           next: null,
           previous: null,
           results: [
-            { ...mockItem1, result: "NOT_ASSESSED", assessor: null, assessor_email: "", assessed_at: null },
-            { ...mockItem2, result: "NOT_ASSESSED", assessor: null, assessor_email: "", assessed_at: null },
+            { ...mockItem1, result: "NOT_ASSESSED", assessor: null, assessor_name: "", assessed_at: null },
+            { ...mockItem2, result: "NOT_ASSESSED", assessor: null, assessor_name: "", assessed_at: null },
             mockItem3,
           ],
         });

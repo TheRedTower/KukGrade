@@ -121,6 +121,8 @@ class ImportBatch(models.Model):
         on_delete=models.PROTECT,
         related_name="import_batches_uploaded",
     )
+    # The rank (or "administrator") uploaded by held then (accounts.people).
+    uploaded_by_title = models.CharField(max_length=100, blank=True, editable=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     committed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -129,6 +131,8 @@ class ImportBatch(models.Model):
         blank=True,
         related_name="import_batches_committed",
     )
+    # The rank (or "administrator") committed by held then (accounts.people).
+    committed_by_title = models.CharField(max_length=100, blank=True, editable=False)
     committed_at = models.DateTimeField(null=True, blank=True)
     cancelled_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

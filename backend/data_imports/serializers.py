@@ -5,6 +5,7 @@ from typing import Any
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from accounts.people import named
 from data_imports.mappings import (
     STUDENT_FIELD_LABELS,
     STUDENT_OPTIONAL_FIELDS,
@@ -161,11 +162,10 @@ class ImportBatchSerializer(ModelSerializer):
         read_only_fields = fields
 
     def get_uploaded_by_name(self, batch: ImportBatch) -> str:
-        return batch.uploaded_by.get_full_name() or batch.uploaded_by.email
+        return named(batch.uploaded_by, batch.uploaded_by_title)
 
     def get_committed_by_name(self, batch: ImportBatch) -> str:
-        user = batch.committed_by
-        return (user.get_full_name() or user.email) if user else ""
+        return named(batch.committed_by, batch.committed_by_title)
 
     # Counted by ImportBatchViewSet's queryset (services.with_row_counts).
     def _rows_needing_review(self, batch: ImportBatch) -> int:

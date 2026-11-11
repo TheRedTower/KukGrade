@@ -51,7 +51,7 @@ function eventTime(value: string): { date: string; time: string } {
 }
 
 function actorLabel(event: AuditEvent): string {
-  return event.actor_name.trim() || event.actor_email || "System";
+  return event.actor_name || "System";
 }
 
 /** Where the app opens the record a history is of: the routes are the app's own. */

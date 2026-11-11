@@ -5,6 +5,7 @@ from typing import Any
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from accounts.people import person_label
 from audit import tones
 from audit.details import RankNames, event_details
 from audit.models import AuditEntity, AuditEvent
@@ -57,6 +58,12 @@ class AuditEventSerializer(ModelSerializer):
         ),
     )
 
+    actor_name = serializers.SerializerMethodField(
+        help_text=(
+            "Who acted, as they were then: their rank and name, or their name "
+            'and "(administrator)". Blank for an action with no person.'
+        ),
+    )
     details = serializers.SerializerMethodField(
         help_text=(
             "What the event recorded beyond its summary, as label and value pairs "
@@ -74,7 +81,6 @@ class AuditEventSerializer(ModelSerializer):
             "entity_type",
             "entity_type_display",
             "entity_id",
-            "actor_email",
             "actor_name",
             "summary",
             "subject_name",
@@ -91,6 +97,9 @@ class AuditEventSerializer(ModelSerializer):
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_outcome_display(self, event: AuditEvent) -> str | None:
         return tones.outcome_display(event)
+
+    def get_actor_name(self, event: AuditEvent) -> str:
+        return person_label(event.actor_name, event.actor_title)
 
     @extend_schema_field(AuditDetailSerializer(many=True))
     def get_details(self, event: AuditEvent) -> list[dict[str, str]]:

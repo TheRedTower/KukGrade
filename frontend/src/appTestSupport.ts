@@ -94,6 +94,12 @@ export const CHOICES: Choices = {
       description: "Allow this user to see grading, syllabus and assessment audit events (not user management).",
     },
   ],
+  staff_ranks: [
+    { value: 13, label: "KSN" },
+    { value: 14, label: "PSBN" },
+    { value: 15, label: "SBN" },
+    { value: 16, label: "PKJN" },
+  ],
 };
 
 /** /api/site/ as the server serves it, with a made-up club. */

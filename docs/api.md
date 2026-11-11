@@ -25,7 +25,7 @@ its password is refused with `password_change_required` until it does.
 | --- | --- |
 | `/api/auth/` | Sign in, sign out, current user, change own password |
 | `/api/setup/` | First administrator setup (only until one exists) |
-| `/api/users/` | Staff accounts, authority and temporary passwords (administrators) |
+| `/api/users/` | Staff accounts, authority and temporary passwords (administrators). An instructor's account is made with its `rank`, one of `staff_ranks`; an administrator's has none |
 | `/api/students/` | Students, history and rank history. Each student serves `next_rank` and `next_rank_name`: the rank they would grade for, or null at the top or when that rank has no syllabus recorded. The record also serves `can_be_deleted` (for the viewer) and `deletion_blocked_by`, the grading that keeps the student from being deleted yet |
 | `/api/ranks/`, `/api/syllabus/` | Reference data, including the cumulative requirements for a rank and age band |
 | `/api/gradings/sessions/` | Grading sessions and their lifecycle. `?year=` lists the sessions held in one year. The list leaves out archived sessions unless `archived=include` or `archived=only`; `<id>/archive/` and `<id>/restore/` (administrators) hide a completed or cancelled session or bring it back, and each session serves `archived_at`, `can_be_archived` and `can_be_restored`. A session holding a final decision cannot be deleted. Each session also says what its stage allows: `roster_open` (candidates can be added, changed and prepared), `marking_open` (assessments are started, marked and completed), `decisions_open` (final decisions are being made), the moves the viewer may ask for now (`can_open`, `can_lock`, `can_complete`, `can_cancel`; the move itself still checks that the grading is ready) and `cancel_reason_required`, plus `withdrawn_count` beside the other counts. `roster_open=true` lists only the sessions that still take candidates (draft or open) |
@@ -36,7 +36,7 @@ its password is refused with `password_change_required` until it does.
 | `/api/data-imports/` | Import batches, mapping, review and commit. A roster's columns are matched with `batches/<id>/mapping/` and its rows fixed one at a time (`rows/<row>/`); `batches/<id>/preview/` saves a historical import's rank choices and counts what it would do, naming for each rank as written the `chosen_rank_code` already chosen for it; `batches/<id>/commit/` takes no body and imports what is stored. Each batch serves `next_step` (the step it resumes at), `review_step` (the step after matching) and `uncovered_fields` (the needed roster fields no column or default covers yet); `batches/<id>/second-look/` counts what KukGrade filled in for the rows to be added. `?finished=true` lists the finished imports (imported, cancelled or expired) |
 | `/api/audit-events/` | The audit log. `?subject=session:ID`, `student:ID`, `candidate:ID` or `user:ID` narrows it to one record and everything that belongs to it; `subject/?subject=…` names that record as it is now, with its kind, its ids (a candidate also names its grading, `session_id`) and whether it still `exists`; the app keeps its own routes. Each event serves `tone` (how it reads at a glance), `outcome_display` (the outcome a proposal or final decision records) and `details`, what it recorded beyond its summary as `{label, value}` pairs in words (the stored metadata, with its codes and ids, is not served). `?search=` is the shared search (it also finds a student's events by their current name) |
 | `/api/health/`, `/api/site/` | Liveness and public site settings. The settings include `imports`: the upload size and row limits, how long a finished import's rows are kept, how many records one bulk link or unlink takes, each kind of import with the file types it reads and its named steps (`kinds`), and the standard roster template's header row |
-| `/api/choices/` | Every list of choices the screens offer, with their names (signed-in users): session, student, candidate and assessment statuses (a student status also says what it means), item results, outcomes in the order the controls offer them, import kinds, finished import states, import row outcomes, roles and the four authorities (each with its description) |
+| `/api/choices/` | Every list of choices the screens offer, with their names (signed-in users): session, student, candidate and assessment statuses (a student status also says what it means), item results, outcomes in the order the controls offer them, import kinds, finished import states, import row outcomes, roles, the four authorities (each with its description) and the ranks an instructor's account may hold (`staff_ranks`) |
 | `/api/about/` | Build information, licence, contact addresses and (for administrators) the school's settings; also `documents/<slug>/` (licence, code of conduct, security policy), `pledge/`, `credits/` and `credits/notices/` (the full licence notices, as text) |
 
 ## Conventions
@@ -74,6 +74,10 @@ lists come from `/api/choices/`; lists that belong to one area (audit event and 
 types, withdrawal reasons) come with it. A record names its own value in a `*_display`
 field beside it (`status_display`, `outcome_display`, `from_result_display`), so a client
 never keeps its own copy of the names.
+
+**People** a record names are served as `*_name` (`assessor_name`, `author_name`,
+`decided_by_name`, the audit log's `actor_name`): their rank then and their name ("KSN Jane
+Smith"), or "Jane Smith (administrator)". No record serves a person's email address.
 
 **Errors** always use one envelope, including unknown URLs and server errors:
 

@@ -9,6 +9,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from accounts.models import User
+from accounts.people import title_of
 from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
@@ -130,6 +131,7 @@ def propose_for_candidate(
             proposed_outcome=proposed_outcome,
             proposal_notes=proposal_notes,
             proposed_by=actor,
+            proposed_by_title=title_of(actor),
             proposed_at=timezone.now(),
         )
     except IntegrityError as exc:
@@ -224,9 +226,11 @@ def propose_candidate_outcome(
     locked_outcome.proposed_outcome = proposed_outcome
     locked_outcome.proposal_notes = proposal_notes
     locked_outcome.proposed_by = actor
+    locked_outcome.proposed_by_title = title_of(actor)
     locked_outcome.proposed_at = timezone.now()
     locked_outcome.final_outcome = None
     locked_outcome.decided_by = None
+    locked_outcome.decided_by_title = ""
     locked_outcome.decided_at = None
     locked_outcome.decision_notes = ""
     locked_outcome.conditional_requirements = ""
@@ -314,6 +318,7 @@ def finalise_candidate_outcome(
     locked_outcome.decision_notes = decision_notes
     locked_outcome.conditional_requirements = cleaned_conditions
     locked_outcome.decided_by = actor
+    locked_outcome.decided_by_title = title_of(actor)
     locked_outcome.decided_at = timezone.now()
     locked_outcome.status = CandidateOutcome.Status.FINALISED
     locked_outcome.save()

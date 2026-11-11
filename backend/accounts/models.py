@@ -8,8 +8,14 @@ from django.contrib.auth.models import (
     BaseUserManager,
     PermissionsMixin,
 )
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+from ranks.models import Rank
+
+ADMINISTRATOR_RANK_MESSAGE = "An administrator account has no rank."
+STAFF_RANK_MESSAGE = "Choose one of the instructor ranks."
 
 
 class UserManager(BaseUserManager["User"]):
@@ -74,6 +80,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         choices=Role.choices,
         default=Role.INSTRUCTOR,
     )
+    # An instructor's rank, chosen when the account is made, from the ranks
+    # above the syllabus (Rank.objects.staff()). An administrator account has
+    # none. What it was when they acted is kept on each record that names
+    # them (accounts.people), so a later promotion changes no record.
+    rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="staff_accounts",
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     must_change_password = models.BooleanField(default=False)
@@ -100,6 +117,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     def clean(self) -> None:
         super().clean()
         self.email = User.objects.normalize_email(self.email)
+        if self.rank_id is None:
+            return
+        if self.role == User.Role.ADMINISTRATOR:
+            raise ValidationError({"rank": [ADMINISTRATOR_RANK_MESSAGE]})
+        if not Rank.objects.staff().filter(pk=self.rank_id).exists():
+            raise ValidationError({"rank": [STAFF_RANK_MESSAGE]})
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.email = User.objects.normalize_email(self.email)

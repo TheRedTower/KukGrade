@@ -33,6 +33,7 @@ LABELS: dict[str, str] = {
     "date_of_birth": "Date of birth",
     "name": "Name",
     "role": "Role",
+    "rank": "Rank",
     "is_active": "Can sign in",
     "is_staff": "Admin site access",
     "is_superuser": "Full admin site access",
@@ -124,7 +125,9 @@ _CHOICES: dict[str, _Field] = {
     "kind": ("data_imports", "ImportBatch", "kind"),
 }
 
-_RANK_CODES = frozenset({"from_rank", "to_rank", "current_rank", "resolved_rank_code"})
+_RANK_CODES = frozenset(
+    {"from_rank", "to_rank", "current_rank", "resolved_rank_code", "rank"},
+)
 _DATES = frozenset({"grading_date", "effective_date"})
 _TIMES = frozenset({"temporary_password_expires_at"})
 

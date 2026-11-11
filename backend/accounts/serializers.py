@@ -25,6 +25,7 @@ from accounts.services import (
     email_holder,
 )
 from kukgrade.serializers import ModelSerializer
+from ranks.models import Rank
 
 security_logger = logging.getLogger("kukgrade.security")
 
@@ -176,6 +177,23 @@ class UserManagementSerializer(AuthorityFields, ModelSerializer):
 
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    rank = serializers.PrimaryKeyRelatedField(
+        queryset=Rank.objects.staff(),
+        required=False,
+        # Null for an account with no rank; sending null changes nothing.
+        allow_null=True,
+        help_text=(
+            "An instructor's rank, one of the instructor ranks (`/api/choices/`); "
+            "required when an instructor account is made. An administrator "
+            "account has none."
+        ),
+    )
+    rank_name = serializers.CharField(
+        source="rank.name",
+        read_only=True,
+        default="",
+        help_text="The rank's name; blank for an account with no rank.",
+    )
     # From the rule the services enforce (accounts.services.can_manage), so
     # the screen offers no change the server would refuse.
     manageable = serializers.SerializerMethodField(
@@ -198,6 +216,8 @@ class UserManagementSerializer(AuthorityFields, ModelSerializer):
             "full_name",
             "role",
             "role_display",
+            "rank",
+            "rank_name",
             "is_active",
             "can_make_final_grading_decision",
             "can_promote_student",
@@ -221,6 +241,7 @@ class UserManagementSerializer(AuthorityFields, ModelSerializer):
             "id",
             "full_name",
             "role_display",
+            "rank_name",
             "can_make_final_grading_decision",
             "can_promote_student",
             "can_override_locked_session",

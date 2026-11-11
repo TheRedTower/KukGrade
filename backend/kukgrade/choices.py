@@ -31,6 +31,7 @@ from gradings.models import (
     ItemResult,
 )
 from kukgrade.serializers import ChoiceSerializer
+from ranks.models import Rank
 from students.models import STUDENT_STATUS_MEANINGS, StudentStatus
 
 
@@ -51,6 +52,12 @@ class StudentStatusChoiceSerializer(ChoiceSerializer):
 class AuthorityChoiceSerializer(ChoiceSerializer):
     value = serializers.ChoiceField(choices=AUTHORITY_KEYS)
     description = serializers.CharField()
+
+
+class StaffRankChoiceSerializer(serializers.Serializer):
+    value = serializers.IntegerField(help_text="The rank's id, as a user's `rank`.")
+    # DRF lifts declared fields off the class (see ChoiceSerializer).
+    label = serializers.CharField()  # type: ignore[assignment]
 
 
 class ChoicesSerializer(serializers.Serializer):
@@ -75,6 +82,10 @@ class ChoicesSerializer(serializers.Serializer):
     authorities = AuthorityChoiceSerializer(
         many=True,
         help_text="The per-user authorities, keyed as the user record spells them.",
+    )
+    staff_ranks = StaffRankChoiceSerializer(
+        many=True,
+        help_text="The ranks an instructor's account may hold, lowest first.",
     )
 
 
@@ -111,6 +122,10 @@ def choices(_request: Request) -> Response:
                 "authorities": [
                     {"value": key, "label": label, "description": description}
                     for key, (label, description) in AUTHORITY_WORDS.items()
+                ],
+                "staff_ranks": [
+                    {"value": rank.pk, "label": rank.name}
+                    for rank in Rank.objects.staff()
                 ],
             },
         ).data,

@@ -20,6 +20,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from accounts.people import title_of
 from audit.models import AuditAction
 from audit.recording import record, student_label
 from gradings.locking import lock_student, lock_students
@@ -310,6 +311,7 @@ def _void(
     locked.is_void = True
     locked.void_reason = reason
     locked.voided_by = actor
+    locked.voided_by_title = title_of(actor)
     locked.voided_at = at
     locked.save()
     how = " with its whole import" if whole_import else ""

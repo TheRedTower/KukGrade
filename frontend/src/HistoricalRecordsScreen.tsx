@@ -122,7 +122,7 @@ export function HistoricalRecordsScreen() {
               {record.note ? <p>Other workbook notes: {record.note}</p> : null}
               {record.is_void ? (
                 <p className="ix-danger-text">
-                  Voided: {record.void_reason} {record.voided_by_email ? `· ${record.voided_by_email}` : ""}
+                  Voided: {record.void_reason} {record.voided_by_name ? `· ${record.voided_by_name}` : ""}
                 </p>
               ) : (
                 <>

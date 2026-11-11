@@ -35,6 +35,7 @@ from gradings.testing import (
     user,
 )
 from kukgrade.testing import results
+from ranks.models import Rank
 
 pytestmark = pytest.mark.django_db
 
@@ -53,7 +54,10 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     instructor_user = User.objects.create_user(
         email="e2e-instructor@example.com",
         password=password,
+        first_name="Erin",
+        last_name="Marker",
         role=User.Role.INSTRUCTOR,
+        rank=Rank.objects.get(code="KSN"),
     )
     master_user = User.objects.create_user(
         email="e2e-master@example.com",
@@ -164,7 +168,8 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
         assert item_response.status_code == 200
         item_body = item_response.json()
         assert item_body["result"] == CandidateAssessmentItem.Result.MET
-        assert item_body["assessor_email"] == instructor_user.email
+        # By rank and name, never an email address.
+        assert item_body["assessor_name"] == "KSN Erin Marker"
 
     # Every assessment is completed while the session is open; locking then
     # ends grading and opens the decision stage.

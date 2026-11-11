@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from django.apps import apps
 from django.core.management.base import CommandError
 from django.db import connection
 from django.test import override_settings
@@ -229,3 +230,21 @@ def test_tables_are_emptied_after_everything_that_refers_to_them() -> None:
         ("gradings_promotion", "gradings_candidateoutcome"),
     ]:
         assert order.index(child) < order.index(parent)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@demo_mode
+def test_every_person_the_demo_names_carries_the_rank_they_held() -> None:
+    # Each record keeps, beside a person, their rank then (accounts.people);
+    # one written without it would read as a bare name.
+    seed.build()
+    named = 0
+    for model in apps.get_models():
+        for field in model._meta.fields:
+            title = f"{field.name}_title"
+            if not field.is_relation or not hasattr(model, title):
+                continue
+            rows = model._base_manager.filter(**{f"{field.name}__isnull": False})
+            named += rows.count()
+            assert not rows.filter(**{title: ""}).exists(), f"{model.__name__}.{title}"
+    assert named > 100

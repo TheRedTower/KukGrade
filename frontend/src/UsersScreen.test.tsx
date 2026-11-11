@@ -29,6 +29,8 @@ const managedUser: ManagedUser = {
   full_name: "Riley Khan",
   role: "instructor",
   role_display: "Instructor",
+  rank: 13,
+  rank_name: "KSN",
   is_active: true,
   can_make_final_grading_decision: false,
   can_promote_student: false,
@@ -70,7 +72,7 @@ describe("UsersScreen", () => {
   it("shows staff identity, role, authority, status, and activity", async () => {
     renderScreen();
 
-    expect(await screen.findByText("Riley Khan")).toBeInTheDocument();
+    expect(await screen.findByText("KSN Riley Khan")).toBeInTheDocument();
     expect(screen.getByText("riley.khan@example.com")).toBeInTheDocument();
     expect(await screen.findByText("Override locked sessions")).toBeInTheDocument();
     const row = screen.getByRole("row", { name: /Riley Khan/ });
@@ -100,7 +102,7 @@ describe("UsersScreen", () => {
       results: [managedUser],
     });
     renderScreen();
-    await screen.findByText("Riley Khan");
+    await screen.findByText("KSN Riley Khan");
 
     await user.type(screen.getByRole("searchbox", { name: "Search users" }), "Riley");
     await user.selectOptions(screen.getByLabelText("Role"), "instructor");
@@ -135,13 +137,14 @@ describe("UsersScreen", () => {
       temporary_password: "Kq7#mPx4!vRt9@Wa",
     });
     renderScreen();
-    await screen.findByText("Riley Khan");
+    await screen.findByText("KSN Riley Khan");
 
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     // The server generates the password: there is nothing to type.
     expect(within(dialog).queryByLabelText(/password/i)).not.toBeInTheDocument();
     await user.type(within(dialog).getByLabelText("Email address"), "created@example.com");
+    await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     expect(mockCreateManagedUser.mock.calls[0][0]).toEqual({
@@ -149,6 +152,7 @@ describe("UsersScreen", () => {
       first_name: "",
       last_name: "",
       role: "instructor",
+      rank: 13,
       is_active: true,
     });
     const shown = await screen.findByRole("dialog", { name: "Staff user added" });
@@ -165,6 +169,37 @@ describe("UsersScreen", () => {
     expect(screen.queryByText("Kq7#mPx4!vRt9@Wa")).not.toBeInTheDocument();
   });
 
+  it("asks an instructor's rank, and none for an administrator account", async () => {
+    const user = userEvent.setup();
+    mockCreateManagedUser.mockResolvedValue({ ...managedUser, temporary_password: "Kq7#mPx4!vRt9@Wa" });
+    renderScreen();
+    await screen.findByText("KSN Riley Khan");
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+
+    // The instructor ranks the server serves, and nothing chosen for them.
+    const rank = within(dialog).getByLabelText("Rank");
+    expect(rank).toBeRequired();
+    expect(
+      within(rank)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Choose their rank", "KSN", "PSBN", "SBN", "PKJN"]);
+
+    await user.selectOptions(within(dialog).getByLabelText("Role"), "administrator");
+    expect(within(dialog).queryByLabelText("Rank")).not.toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText("Email address"), "admin2@example.com");
+    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
+
+    expect(mockCreateManagedUser.mock.calls[0][0]).toEqual({
+      email: "admin2@example.com",
+      first_name: "",
+      last_name: "",
+      role: "administrator",
+      is_active: true,
+    });
+  });
+
   it("does not lose the temporary password to a stray click outside the dialog", async () => {
     const user = userEvent.setup();
     mockCreateManagedUser.mockResolvedValue({
@@ -173,10 +208,11 @@ describe("UsersScreen", () => {
       temporary_password: "Kq7#mPx4!vRt9@Wa",
     });
     renderScreen();
-    await screen.findByText("Riley Khan");
+    await screen.findByText("KSN Riley Khan");
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     await user.type(within(dialog).getByLabelText("Email address"), "created@example.com");
+    await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
     const shown = await screen.findByRole("dialog", { name: "Staff user added" });
 
@@ -193,12 +229,13 @@ describe("UsersScreen", () => {
       }),
     );
     renderScreen();
-    await screen.findByText("Riley Khan");
+    await screen.findByText("KSN Riley Khan");
 
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     const emailInput = within(dialog).getByLabelText("Email address");
     await user.type(emailInput, "riley.khan@example.com");
+    await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     const fieldError = await screen.findByText("A user with that email already exists.");
@@ -218,11 +255,12 @@ describe("UsersScreen", () => {
       }),
     );
     renderScreen();
-    await screen.findByText("Riley Khan");
+    await screen.findByText("KSN Riley Khan");
 
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     await user.type(within(dialog).getByLabelText("Email address"), "riley.khan@example.com");
+    await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     expect(await within(dialog).findByText("Enter a first name.")).toBeVisible();
@@ -232,11 +270,12 @@ describe("UsersScreen", () => {
     const user = userEvent.setup();
     mockCreateManagedUser.mockRejectedValue(new TypeError("Failed to fetch"));
     renderScreen();
-    await screen.findByText("Riley Khan");
+    await screen.findByText("KSN Riley Khan");
 
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     await user.type(within(dialog).getByLabelText("Email address"), "riley.khan@example.com");
+    await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(NETWORK_ERROR);
@@ -246,11 +285,12 @@ describe("UsersScreen", () => {
     const user = userEvent.setup();
     mockCreateManagedUser.mockReturnValue(new Promise(() => {}));
     renderScreen();
-    await screen.findByText("Riley Khan");
+    await screen.findByText("KSN Riley Khan");
     await user.click(screen.getByRole("button", { name: "Add user" }));
 
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     await user.type(within(dialog).getByLabelText("Email address"), "pending@example.com");
+    await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     await waitFor(() => expect(mockCreateManagedUser).toHaveBeenCalled());
@@ -263,7 +303,7 @@ describe("UsersScreen", () => {
   it("opens the selected user for management", async () => {
     const user = userEvent.setup();
     renderScreen();
-    await screen.findByText("Riley Khan");
+    await screen.findByText("KSN Riley Khan");
     await user.click(screen.getByRole("button", { name: "Manage user" }));
     expect(await screen.findByRole("heading", { name: "User detail reached" })).toBeInTheDocument();
   });

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from django import forms
 from django.contrib import admin
@@ -17,6 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from accounts.admin_site import admin_notice
 from accounts.models import User
 from accounts.services import (
+    INSTRUCTOR_RANK_MESSAGE,
     TemporaryPassword,
     can_manage,
     create_platform_user,
@@ -25,6 +26,7 @@ from accounts.services import (
     update_platform_user,
     validate_can_reset_password,
 )
+from ranks.models import Rank
 
 # Where save_model leaves the password it just issued for response_add to
 # show: the request, never the ModelAdmin, which every request shares.
@@ -38,7 +40,15 @@ class UserCreationForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "first_name", "last_name", "role")
+        fields = ("email", "first_name", "last_name", "role", "rank")
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        # As create_platform_user requires, asked here so the form says so
+        # beside the field rather than failing on save.
+        if cleaned.get("role") == User.Role.INSTRUCTOR and not cleaned.get("rank"):
+            self.add_error("rank", INSTRUCTOR_RANK_MESSAGE)
+        return cleaned
 
 
 class UserChangeForm(forms.ModelForm):
@@ -52,6 +62,7 @@ class UserChangeForm(forms.ModelForm):
             "first_name",
             "last_name",
             "role",
+            "rank",
             "is_active",
             "is_staff",
             "is_superuser",
@@ -116,7 +127,7 @@ class UserAdmin(DjangoUserAdmin):
         (_("Personal info"), {"fields": ("first_name", "last_name")}),
         (
             _("KukGrade access"),
-            {"fields": ("role",)},
+            {"fields": ("role", "rank")},
         ),
         (
             _("Django permissions"),
@@ -142,6 +153,7 @@ class UserAdmin(DjangoUserAdmin):
                     "first_name",
                     "last_name",
                     "role",
+                    "rank",
                     "is_staff",
                     "is_superuser",
                     "is_active",
@@ -149,6 +161,17 @@ class UserAdmin(DjangoUserAdmin):
             },
         ),
     )
+
+    def formfield_for_foreignkey(
+        self,
+        db_field: Any,
+        request: HttpRequest,
+        **kwargs: Any,
+    ) -> Any:
+        if db_field.name == "rank":
+            # Only the ranks an instructor's account may hold.
+            kwargs["queryset"] = Rank.objects.staff()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(
         self,
@@ -169,6 +192,7 @@ class UserAdmin(DjangoUserAdmin):
                 first_name=obj.first_name,
                 last_name=obj.last_name,
                 role=obj.role,
+                rank=obj.rank,
                 is_active=obj.is_active,
                 actor=cast(User, request.user),
             )
@@ -191,6 +215,7 @@ class UserAdmin(DjangoUserAdmin):
             first_name=obj.first_name if "first_name" in changed_data else None,
             last_name=obj.last_name if "last_name" in changed_data else None,
             role=obj.role if "role" in changed_data else None,
+            rank=obj.rank if "rank" in changed_data else None,
             is_active=obj.is_active if "is_active" in changed_data else None,
             actor=cast(User, request.user),
         )

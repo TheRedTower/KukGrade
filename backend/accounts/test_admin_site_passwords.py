@@ -10,6 +10,7 @@ import pytest
 from django.test import Client
 
 from accounts.models import User
+from accounts.testing import instructor_rank
 from audit.models import AuditAction, AuditEvent
 from kukgrade.testing import render_admin_pages
 
@@ -198,6 +199,7 @@ def test_adding_a_user_on_the_admin_site_issues_a_temporary_password_once() -> N
             "email": "site-added@example.com",
             "first_name": "Ada",
             "role": User.Role.INSTRUCTOR,
+            "rank": instructor_rank().pk,
             "is_active": "on",
             # Ignored: the form has no password field.
             "password1": "Typed-On-Admin-2026!",

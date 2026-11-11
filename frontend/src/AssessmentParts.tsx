@@ -133,8 +133,8 @@ export function AssessmentItemRow({
   }, [isAsking]);
 
   const isScored = item.result === "MET" || item.result === "NOT_MET";
-  const attribution = item.assessor_email
-    ? `${item.assessor_email}${item.assessed_at ? ` · ${formatTime(item.assessed_at)}` : ""}`
+  const attribution = item.assessor_name
+    ? `${item.assessor_name}${item.assessed_at ? ` · ${formatTime(item.assessed_at)}` : ""}`
     : "";
   // Whether the mark can be taken away, and whether changing it must say why,
   // are served on the item by the rules the write checks (a completed

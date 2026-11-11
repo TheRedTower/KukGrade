@@ -26,7 +26,9 @@ from accounts.permissions import (
 )
 from audit.models import AuditAction
 from audit.recording import record
+from ranks.models import Rank
 
+INSTRUCTOR_RANK_MESSAGE = "Choose the instructor's rank."
 SUPERUSER_ONLY_MESSAGE = "Only a superuser can change this account."
 OWN_ROLE_OR_STATUS_MESSAGE = "You cannot change your own role or account status."
 DELETED_ACCOUNT_MESSAGE = "This account has been deleted and cannot be changed."
@@ -60,6 +62,7 @@ def _snapshot(user: User) -> dict[str, Any]:
         "first_name": user.first_name,
         "last_name": user.last_name,
         "role": user.role,
+        "rank": user.rank.code if user.rank else None,
         "is_active": user.is_active,
     }
 
@@ -120,6 +123,7 @@ def create_platform_user(
     first_name: str = "",
     last_name: str = "",
     role: str | None = None,
+    rank: Rank | None = None,
     is_active: bool | None = None,
     actor: User | None = None,
 ) -> TemporaryPassword:
@@ -137,6 +141,11 @@ def create_platform_user(
     }
     if role is not None:
         extra["role"] = role
+    # An instructor's rank is chosen when the account is made: every record
+    # they make names them by it (accounts.people).
+    if (role or User.Role.INSTRUCTOR) == User.Role.INSTRUCTOR and rank is None:
+        raise ValidationError({"rank": [INSTRUCTOR_RANK_MESSAGE]})
+    extra["rank"] = rank
     if is_active is not None:
         extra["is_active"] = is_active
     # Built unsaved from the submitted details, so the similarity check has
@@ -159,6 +168,7 @@ def create_platform_user(
         actor=actor,
         metadata={
             "role": user.role,
+            "rank": user.rank.code if user.rank else None,
             "temporary_password_expires_at": expires_at.isoformat(),
         },
     )
@@ -186,6 +196,7 @@ def update_platform_user(
     first_name: str | None = None,
     last_name: str | None = None,
     role: str | None = None,
+    rank: Rank | None = None,
     is_active: bool | None = None,
     actor: User | None = None,
 ) -> User:
@@ -226,6 +237,11 @@ def update_platform_user(
         locked.last_name = last_name
     if role is not None:
         locked.role = role
+    if rank is not None:
+        locked.rank = rank
+    if locked.role == User.Role.ADMINISTRATOR:
+        # An administrator account has no rank.
+        locked.rank = None
     if is_active is not None:
         locked.is_active = is_active
 

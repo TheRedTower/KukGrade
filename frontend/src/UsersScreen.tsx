@@ -41,7 +41,9 @@ function CreateUserDialog({
   onCreated: (user: ManagedUser) => void;
 }): React.ReactElement {
   const queryClient = useQueryClient();
-  const roles = useChoices().roles;
+  const { roles, staff_ranks: ranks } = useChoices();
+  // Only an instructor's account holds a rank; an administrator's has none.
+  const [role, setRole] = useState<UserRole>("instructor");
   // gcTime 0: the response carries the temporary password, which should
   // leave memory with this dialog rather than linger in the mutation cache.
   const mutation = useMutation({
@@ -51,9 +53,12 @@ function CreateUserDialog({
   });
   const issued = mutation.data;
   const close = issued ? () => onCreated(issued) : onClose;
-  // The email has its place beside its box; anything else the server says goes above the buttons.
-  const errors = mutation.error ? splitServerErrors(mutation.error, ["email"], "The user could not be added.") : null;
+  // The email and the rank have their place beside their boxes; anything else the server says goes above the buttons.
+  const errors = mutation.error
+    ? splitServerErrors(mutation.error, ["email", "rank"], "The user could not be added.")
+    : null;
   const emailError = errors?.fields.email?.join(" ");
+  const rankError = errors?.fields.rank?.join(" ");
 
   return (
     <Dialog
@@ -75,7 +80,8 @@ function CreateUserDialog({
               email: String(form.get("email") ?? "").trim(),
               first_name: String(form.get("first_name") ?? "").trim(),
               last_name: String(form.get("last_name") ?? "").trim(),
-              role: String(form.get("role") ?? "instructor") as UserRole,
+              role,
+              ...(role === "instructor" ? { rank: Number(form.get("rank")) } : {}),
               is_active: true,
             });
           }}
@@ -92,7 +98,12 @@ function CreateUserDialog({
             </Field>
             <Field className="users-form-wide" label="Role" look="label">
               {(control) => (
-                <select {...control} name="role" defaultValue="instructor">
+                <select
+                  {...control}
+                  name="role"
+                  value={role}
+                  onChange={(event) => setRole(event.target.value as UserRole)}
+                >
                   {roles.map((choice) => (
                     <option key={choice.value} value={choice.value}>
                       {choice.label}
@@ -101,6 +112,22 @@ function CreateUserDialog({
                 </select>
               )}
             </Field>
+            {role === "instructor" && (
+              <Field className="users-form-wide" error={rankError} label="Rank" look="label">
+                {(control) => (
+                  <select {...control} required name="rank" defaultValue="">
+                    <option value="" disabled>
+                      Choose their rank
+                    </option>
+                    {ranks.map((choice) => (
+                      <option key={choice.value} value={choice.value}>
+                        {choice.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+            )}
           </div>
           <p className="users-form-note meta">
             A temporary password is created for them. They'll choose their own when they first sign in.
@@ -239,7 +266,7 @@ export function UsersScreen(): React.ReactElement {
                   primary: true,
                   render: (user) => (
                     <>
-                      <strong>{user.full_name}</strong>
+                      <strong>{[user.rank_name, user.full_name].filter(Boolean).join(" ")}</strong>
                       <span className="users-email meta">
                         <EmailAddress address={user.email} />
                       </span>

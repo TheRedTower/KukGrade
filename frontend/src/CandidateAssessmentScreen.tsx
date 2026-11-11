@@ -25,7 +25,6 @@ import { buttonClass } from "./buttonClass";
 import { assessmentTone } from "./badgeClass";
 import { AssessmentItemRow, CategoryHeader, DeleteAssessmentDialog } from "./AssessmentParts";
 import "./CandidateAssessment.css";
-import { EmailAddress } from "./EmailAddress";
 import { counted } from "./plural";
 import { CandidateRanks } from "./RankTransition";
 import { type ItemWriteOptions, useItemWrites } from "./useItemWrites";
@@ -222,9 +221,9 @@ export function CandidateAssessmentScreen() {
         <div className="caw-identity-spacer" />
 
         {/* Provenance: who prepared the snapshot, and when it was frozen. */}
-        {assessment?.generated_by_email && (
+        {assessment?.generated_by_name && (
           <span className="meta">
-            Form prepared by <EmailAddress address={assessment.generated_by_email} />
+            Form prepared by {assessment.generated_by_name}
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
         )}

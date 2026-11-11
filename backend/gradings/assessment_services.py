@@ -8,6 +8,7 @@ from django.db.models import Max
 from django.utils import timezone
 
 from accounts.models import User
+from accounts.people import title_of
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from audit.models import AuditAction
 from audit.recording import grading_context, record, student_label
@@ -203,6 +204,7 @@ def generate_candidate_assessment(
         assessment = CandidateAssessment.objects.create(
             candidate=locked_candidate,
             generated_by=generated_by,
+            generated_by_title=title_of(generated_by),
         )
         CandidateAssessmentItem.objects.bulk_create(
             [
@@ -612,9 +614,11 @@ def update_candidate_assessment_item(
     locked_item.result = result
     if result == CandidateAssessmentItem.Result.NOT_ASSESSED:
         locked_item.assessor = None
+        locked_item.assessor_title = ""
         locked_item.assessed_at = None
     else:
         locked_item.assessor = assessor
+        locked_item.assessor_title = title_of(assessor)
         locked_item.assessed_at = timezone.now()
     locked_item.save()
     last = AssessmentItemResultChange.objects.filter(item=locked_item).aggregate(
@@ -626,6 +630,7 @@ def update_candidate_assessment_item(
         from_result=previous_result,
         to_result=result,
         changed_by=assessor,
+        changed_by_title=title_of(assessor),
         reason=reason,
         after_lock=after_lock,
     )
@@ -678,6 +683,7 @@ def add_item_comment(
     comment = AssessmentItemComment.objects.create(
         item=locked_item,
         author=author,
+        author_title=title_of(author),
         body=body,
         after_lock=after_lock,
     )

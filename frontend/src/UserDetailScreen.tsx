@@ -46,7 +46,9 @@ function AccountForm({
   const [lastName, setLastName] = useState(user.last_name ?? "");
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<UserRole>(user.role ?? "instructor");
-  const roles = useChoices().roles;
+  // Only an instructor's account holds a rank; an administrator's has none.
+  const [rank, setRank] = useState(user.rank ? String(user.rank) : "");
+  const { roles, staff_ranks: ranks } = useChoices();
   const [isActive, setIsActive] = useState(user.is_active ?? true);
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -56,6 +58,7 @@ function AccountForm({
         last_name: lastName.trim(),
         email: email.trim(),
         role,
+        ...(role === "instructor" && rank ? { rank: Number(rank) } : {}),
         is_active: isActive,
       }),
     onSuccess: (updated) => {
@@ -66,11 +69,12 @@ function AccountForm({
       onSaved("Account details saved.");
     },
   });
-  // The email has its place beside its box; anything else the server says goes above the buttons.
+  // The email and the rank have their place beside their boxes; anything else the server says goes above the buttons.
   const errors = mutation.error
-    ? splitServerErrors(mutation.error, ["email"], "The account could not be saved.")
+    ? splitServerErrors(mutation.error, ["email", "rank"], "The account could not be saved.")
     : null;
   const emailError = errors?.fields.email?.join(" ");
+  const rankError = errors?.fields.rank?.join(" ");
 
   return (
     <form
@@ -110,6 +114,22 @@ function AccountForm({
             ))}
           </select>
         </label>
+        {role === "instructor" && (
+          <Field error={rankError} label="Rank" look="label">
+            {(control) => (
+              <select {...control} required value={rank} onChange={(event) => setRank(event.target.value)}>
+                <option value="" disabled>
+                  Choose their rank
+                </option>
+                {ranks.map((choice) => (
+                  <option key={choice.value} value={choice.value}>
+                    {choice.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        )}
         <label className="field">
           <span>Account status</span>
           <select
@@ -123,7 +143,8 @@ function AccountForm({
         </label>
       </div>
       <p className="users-form-note meta">
-        The role decides what someone can do in KukGrade. Master authority is granted separately.
+        The role decides what someone can do in KukGrade. Master authority is granted separately. An instructor's rank
+        is shown beside their name on everything they record, as the rank they held then.
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
       {errors?.banner && <Alert>{errors.banner}</Alert>}
@@ -442,6 +463,12 @@ export function UserDetailScreen(): React.ReactElement {
                 <dt>Role</dt>
                 <dd>{managedUser.role_display}</dd>
               </div>
+              {managedUser.rank_name && (
+                <div>
+                  <dt>Rank</dt>
+                  <dd>{managedUser.rank_name}</dd>
+                </div>
+              )}
               <div>
                 <dt>Next sign-in</dt>
                 <dd>{managedUser.must_change_password ? "Password change required" : "Normal access"}</dd>

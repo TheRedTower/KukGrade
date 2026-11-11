@@ -40,7 +40,7 @@ function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
   return {
     id: event.id,
     timeDisplay: formatRecentTime(event.occurred_at),
-    actorName: event.actor_name || event.actor_email || "System",
+    actorName: event.actor_name || "System",
     summary: eventSummary(event),
     statusType: event.tone,
     statusLabel: event.outcome_display ? `${event.action_display} · ${event.outcome_display}` : event.action_display,

@@ -190,6 +190,14 @@ person, and a fourth that lets someone read the audit log. The server checks eve
 permission on every request; hiding a button in the interface is never the only
 protection.
 
+**Rank and name.** An instructor's account holds their rank, chosen by the administrator
+when the account is made from the ranks above the syllabus (KSN, PSBN, SBN, PKJN); an
+administrator account has none. Everyone a record names - who marked an item, wrote a
+comment, changed a mark, prepared the form, proposed or decided an outcome, voided a
+record, ran an import or acted in the audit log - is shown by rank and name ("KSN Jane
+Smith"), or as "Jane Smith (administrator)", never by email address. The rank is the one
+they held when they acted: a later change to their rank changes no record.
+
 | Capability | Instructor | Administrator | Master permissions |
 | --- | :---: | :---: | :---: |
 | View ranks, syllabus, students, history | ✓ | ✓ | |

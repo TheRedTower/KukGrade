@@ -13,6 +13,7 @@ const NONE_YET: Choices = {
   import_row_outcomes: [],
   roles: [],
   authorities: [],
+  staff_ranks: [],
 };
 
 /**

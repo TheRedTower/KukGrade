@@ -43,7 +43,6 @@ import { CheckIcon, CrossIcon, LockIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { CoreAreaMark, LedgerTable, ResultMark } from "./AssessmentRecordParts";
-import { EmailAddress, EmailList } from "./EmailAddress";
 import { agreeing } from "./plural";
 import { CandidateRanks } from "./RankTransition";
 import { cx } from "./cx";
@@ -163,9 +162,7 @@ export function AssessmentCompletionScreen() {
   const notedItems = items.filter(hasRemarks);
 
   // Distinct assessors across the record, in the order they first appear.
-  const assessors = Array.from(
-    new Set(items.map((item) => item.assessor_email).filter((email): email is string => !!email)),
-  );
+  const assessors = Array.from(new Set(items.map((item) => item.assessor_name).filter((name) => name !== "")));
 
   const canSeal = hasProofread && !completeAssessmentMutation.isPending;
 
@@ -313,7 +310,7 @@ export function AssessmentCompletionScreen() {
             <div>
               <div className="eyebrow--muted">Recorded by</div>
               <div className="acp-seal-value item-title">
-                {assessors.length > 0 ? <EmailList addresses={assessors} /> : "Not yet attributed"}
+                {assessors.length > 0 ? assessors.join(", ") : "Not yet attributed"}
               </div>
               {assessment.started_at && (
                 <div className="acp-seal-detail meta">
@@ -354,9 +351,7 @@ export function AssessmentCompletionScreen() {
               </div>
               <div>
                 <dt>Prepared by</dt>
-                <dd>
-                  {assessment.generated_by_email ? <EmailAddress address={assessment.generated_by_email} /> : "—"}
-                </dd>
+                <dd>{assessment.generated_by_name || "—"}</dd>
               </div>
               <div>
                 <dt>Age group</dt>
@@ -364,7 +359,7 @@ export function AssessmentCompletionScreen() {
               </div>
               <div>
                 <dt>Assessors</dt>
-                <dd>{assessors.length > 0 ? <EmailList addresses={assessors} /> : "—"}</dd>
+                <dd>{assessors.length > 0 ? assessors.join(", ") : "—"}</dd>
               </div>
             </dl>
           </div>

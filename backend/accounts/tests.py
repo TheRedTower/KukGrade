@@ -42,7 +42,7 @@ from accounts.services import (
     set_user_authority,
     update_platform_user,
 )
-from accounts.testing import grant_permission
+from accounts.testing import grant_permission, instructor_rank
 from audit.models import AuditAction, AuditEvent
 from kukgrade.testing import render_admin_pages, results
 
@@ -776,6 +776,8 @@ def create_user_via_api(client: APIClient, **overrides: object) -> dict[str, Any
         "first_name": "Created",
         "last_name": "User",
     }
+    if overrides.get("role", User.Role.INSTRUCTOR) == User.Role.INSTRUCTOR:
+        payload["rank"] = instructor_rank().pk
     payload.update(overrides)
     response = client.post("/api/users/", payload, format="json")
     assert response.status_code == 201, response.json()
@@ -1395,6 +1397,7 @@ def test_admin_created_user_is_persisted_and_audited() -> None:
         first_name="New",
         last_name="Person",
         role=User.Role.INSTRUCTOR,
+        rank=instructor_rank(),
         is_active=True,
     )
     model_admin = UserAdmin(User, admin.site)

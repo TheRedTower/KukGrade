@@ -460,6 +460,13 @@ def test_old_notes_become_comments_credited_to_the_best_known_author() -> None:
 BEFORE_THE_DROP = [("gradings", "0023_archive_sessions")]
 
 
+def _before_the_drop(model: str) -> Any:
+    """`model` as it was before the drop: the current one has columns added
+    since, which that schema does not hold."""
+    state = MigrationExecutor(connection).loader.project_state(BEFORE_THE_DROP)
+    return state.apps.get_model(model)
+
+
 def _started_items(count: int) -> list[CandidateAssessmentItem]:
     generated = start_assessment(
         assessment(
@@ -509,7 +516,7 @@ def test_dropping_the_note_column_keeps_a_note_that_was_never_carried() -> None:
                 " result = 'MET', assessed_at = now() WHERE id = %s",
                 [marked_it.pk, stranded.pk],
             )
-        Comment = apps.get_model("gradings", "AssessmentItemComment")
+        Comment = _before_the_drop("gradings.AssessmentItemComment")
         Comment.objects.create(
             item_id=carried.pk,
             author_id=marked_it.pk,
@@ -582,7 +589,7 @@ def test_a_note_with_nobody_to_credit_stops_the_drop_and_nothing_is_lost() -> No
     try:
         MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
         _write_note(orphan, "Nobody wrote this down.")
-        User = apps.get_model("accounts", "User")
+        User = _before_the_drop("accounts.User")
         User.objects.filter(email=DELETED_USER_PLACEHOLDER_EMAIL).delete()
 
         with pytest.raises(RuntimeError, match="nobody to credit"):
@@ -591,7 +598,7 @@ def test_a_note_with_nobody_to_credit_stops_the_drop_and_nothing_is_lost() -> No
         assert "assessor_notes" in _columns()
     finally:
         # Restore the placeholder the migration needs, then finish.
-        User = apps.get_model("accounts", "User")
+        User = _before_the_drop("accounts.User")
         User.objects.get_or_create(
             email=DELETED_USER_PLACEHOLDER_EMAIL,
             defaults={"is_active": False},

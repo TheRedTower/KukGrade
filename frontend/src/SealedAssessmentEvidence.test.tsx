@@ -47,7 +47,7 @@ function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentI
     notation: "",
     result: "MET",
     result_display: "Met",
-    assessor_email: "reed@example.com",
+    assessor_name: "KSN Reed Hart",
     assessed_at: null,
     comments: [],
     changes: [],

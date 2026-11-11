@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
-from accounts.testing import grant_permission
+from accounts.testing import grant_permission, instructor_rank
 from audit.admin import AuditEventAdmin
 from audit.models import (
     USER_MANAGEMENT_ACTIONS,
@@ -469,6 +469,7 @@ def test_master_authority_instructor_cannot_see_user_management_events_in_the_lo
     admin_actor = administrator("audit-user-mgmt-admin@example.com")
     created = create_platform_user(
         email="audit-user-mgmt-target@example.com",
+        rank=instructor_rank(),
         actor=admin_actor,
     ).user
     client = APIClient()
@@ -489,6 +490,7 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     admin_actor = administrator("audit-user-mgmt-admin-2@example.com")
     create_platform_user(
         email="audit-user-mgmt-target-2@example.com",
+        rank=instructor_rank(),
         actor=admin_actor,
     )
     client = APIClient()
@@ -533,6 +535,7 @@ def user_created_event() -> AuditEvent:
 
     created = create_platform_user(
         email="audit-parity-target@example.com",
+        rank=instructor_rank(),
         actor=administrator("audit-parity-admin@example.com"),
     ).user
     return AuditEvent.objects.get(

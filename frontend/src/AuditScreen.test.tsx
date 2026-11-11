@@ -39,7 +39,6 @@ const auditEvent: AuditEvent = {
   entity_type_display: "Outcome",
   subject_name: "",
   entity_id: "103",
-  actor_email: "master.kim@kuksoolwon.test",
   actor_name: "In Hyuk Kim",
   summary: "Finalised Carlos Rivera's grading outcome as Pass.",
   tone: "success",

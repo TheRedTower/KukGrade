@@ -138,9 +138,11 @@ class AuditEvent(KeptModel):
         blank=True,
     )
     # Who acted, as they were at the time: a later change to the account's
-    # name or email address never rewrites the trail.
+    # name, email address or rank never rewrites the trail.
     actor_email = models.EmailField(blank=True)
     actor_name = models.CharField(max_length=301, blank=True)
+    # Their rank then, or "administrator" (accounts.people).
+    actor_title = models.CharField(max_length=100, blank=True, editable=False)
     action = models.CharField(max_length=64, choices=AuditAction.choices)
     entity_type = models.CharField(max_length=64, choices=AuditEntity.choices)
     entity_id = models.CharField(max_length=64)

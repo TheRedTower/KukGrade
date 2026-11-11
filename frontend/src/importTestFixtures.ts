@@ -121,7 +121,7 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
     note: "",
     is_void: false,
     void_reason: "",
-    voided_by_email: null,
+    voided_by_name: "",
     ...overrides,
   };
 }

@@ -29,6 +29,7 @@ from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 from accounts.models import User
+from accounts.people import title_of
 from audit.models import AuditAction
 from audit.recording import record
 from data_imports.ksw_adapter import (
@@ -293,6 +294,7 @@ def _create_import_batch(
         sha256=digest,
         file_size=len(content),
         uploaded_by=uploaded_by,
+        uploaded_by_title=title_of(uploaded_by),
         configuration_json=configuration.stored,
     )
     if kind == ImportBatch.Kind.STUDENT_ROSTER:
@@ -528,6 +530,7 @@ def _mark_committed(
     one IMPORT_BATCH_COMMITTED event for the whole cascade."""
     locked.status = ImportBatch.Status.COMMITTED
     locked.committed_by = actor
+    locked.committed_by_title = title_of(actor)
     locked.committed_at = timezone.now()
     locked.summary_json = summary
     _release_source_file(locked)

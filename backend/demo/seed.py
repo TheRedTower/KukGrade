@@ -25,6 +25,7 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from accounts.models import User
+from accounts.people import title_of
 from accounts.permissions import AUTHORITY_PERMISSIONS
 from accounts.services import set_user_authority
 from audit.models import AuditAction, AuditEvent
@@ -214,7 +215,12 @@ def ensure_personas() -> dict[str, User]:
                 first_name=persona.first_name,
                 last_name=persona.last_name,
                 role=persona.role,
+                rank=Rank.objects.get(code=persona.rank) if persona.rank else None,
             )
+        elif persona.rank and user.rank_id is None:
+            # A demo made before staff held a rank.
+            user.rank = Rank.objects.get(code=persona.rank)
+            user.save(update_fields=["rank"])
         accounts[persona.key] = user
     return accounts
 
@@ -360,6 +366,7 @@ def judge(
     CandidateAssessmentItem.objects.filter(pk__in=bulk).update(
         result=Result.MET,
         assessor=assessor,
+        assessor_title=title_of(assessor),
         assessed_at=timezone.now(),
     )
     AssessmentItemResultChange.objects.bulk_create(
@@ -370,6 +377,7 @@ def judge(
                 from_result=Result.NOT_ASSESSED,
                 to_result=Result.MET,
                 changed_by=assessor,
+                changed_by_title=title_of(assessor),
             )
             for pk in bulk
         ],
@@ -681,7 +689,9 @@ def legacy_records(club: Club) -> None:
         sha256="0" * 64,
         file_size=1,
         uploaded_by=club.administrator,
+        uploaded_by_title=title_of(club.administrator),
         committed_by=club.administrator,
+        committed_by_title=title_of(club.administrator),
         committed_at=timezone.now(),
     )
     rows = (

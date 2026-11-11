@@ -22,6 +22,8 @@ import { useMediaQuery } from "./useMediaQuery";
 import { BREAKPOINTS_REM, maxWidthQuery } from "./layout";
 import { useSidebar } from "./useSidebar";
 import "./NavigationRail.css";
+import { cx } from "./cx";
+import { ExternalLink } from "./ExternalLink";
 
 function initialsOf(user: AuthUser): string {
   if (user.first_name && user.last_name) {
@@ -112,7 +114,7 @@ export function NavigationRail({
   return (
     <aside
       aria-label="Sidebar"
-      className={`nav-rail${strip ? " strip" : ""}${menuOpen ? " menu-open" : ""}`}
+      className={cx("nav-rail", strip && "strip", menuOpen && "menu-open")}
     >
       <div className="nav-top">
         <Link aria-label="KukGrade, go to the dashboard" className="nav-brand" to="/">
@@ -166,16 +168,15 @@ export function NavigationRail({
                 <AboutIcon />
               </Link>
               {about ? (
-                <a
+                <ExternalLink
                   aria-label="KukGrade on GitHub (opens in a new tab)"
                   className="nav-icon-button"
                   href={about.repository_url}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  title="GitHub"
-                >
+                 
+                 
+                  title="GitHub">
                   <GitHubIcon />
-                </a>
+                </ExternalLink>
               ) : null}
               <Link
                 aria-label={`${user.full_name}, ${user.role_display}: your account`}
@@ -231,9 +232,9 @@ export function NavigationRail({
                 {about ? (
                   <span className="nav-about-item">
                     <span aria-hidden="true">·</span>
-                    <a href={about.repository_url} rel="noopener noreferrer" target="_blank">
-                      GitHub<span className="visually-hidden"> (opens in a new tab)</span>
-                    </a>
+                    <ExternalLink href={about.repository_url}>
+                      GitHub
+                    </ExternalLink>
                   </span>
                 ) : null}
               </p>

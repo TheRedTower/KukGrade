@@ -161,6 +161,7 @@ export function CohortFindSection({
                             rel="noreferrer"
                           >
                             {student.first_name} {student.last_name}
+                            <span className="visually-hidden"> (opens in a new tab)</span>
                           </Link>
                           <span className="bgc-student-id meta">{student.wksa_id || "—"}</span>
                         </>

@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import { cx } from "./cx";
 
 interface EmptyStateProps extends Omit<ComponentProps<"div">, "title"> {
   /** What there is none of, or what was not found. */
@@ -33,9 +34,8 @@ export function EmptyState({
   children,
   ...rest
 }: EmptyStateProps) {
-  const classes = ["empty-state", framed ? "empty-state--framed" : "", fill ? "empty-state--fill" : "", className];
   return (
-    <div className={classes.filter(Boolean).join(" ")} {...rest}>
+    <div className={cx("empty-state", framed && "empty-state--framed", fill && "empty-state--fill", className)} {...rest}>
       {icon}
       {title ? (
         <TitleTag className="empty-state__title" id={titleId}>

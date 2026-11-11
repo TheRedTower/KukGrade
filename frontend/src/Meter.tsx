@@ -1,3 +1,5 @@
+import { cx } from "./cx";
+
 type MeterTone = "success" | "danger";
 
 interface MeterProps {
@@ -12,7 +14,7 @@ interface MeterProps {
  */
 export function Meter({ segments, className }: MeterProps) {
   return (
-    <span aria-hidden="true" className={["meter", className].filter(Boolean).join(" ")}>
+    <span aria-hidden="true" className={cx("meter", className)}>
       {segments.map((segment) => (
         <span className={`meter__fill meter__fill--${segment.tone}`} key={segment.tone} style={{ width: `${segment.percent}%` }} />
       ))}

@@ -13,6 +13,7 @@ import { CountTiles, ExclusionButton, LastLook, ListHead, RowsList } from "./Imp
 import { Exclusion, PAGE_SIZE, RowParams, Tile, useRowExclusion } from "./importReviewRows";
 import { labelOf, useChoices } from "./choices";
 import { counted } from "./plural";
+import { cx } from "./cx";
 
 /** The same source-preserving correction controls in every roster review view. */
 function RosterRowEditor({
@@ -44,7 +45,7 @@ function RosterRowEditor({
   }
 
   return (
-    <div className={`ix-row${row.issues.length ? " ix-attention" : ""}`}>
+    <div className={cx("ix-row", row.issues.length > 0 && "ix-attention")}>
       <div className="ix-actions ix-actions-split ix-align-start">
         <div className="ix-row-main">
           <p className="item-title">
@@ -109,7 +110,7 @@ function RosterRowEditor({
           }
           return (
             <div key={field.field}>
-              <span aria-hidden="true" className={`ix-field-label item-title${bad ? " ix-label-invalid" : ""}`}>
+              <span aria-hidden="true" className={cx("ix-field-label item-title", bad && "ix-label-invalid")}>
                 {field.name}
               </span>
               {control}

@@ -1,5 +1,6 @@
 import { useChoices } from "./choices";
 import { useState, type FormEvent } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 import { Alert } from "./Alert";
 import { Badge } from "./Badge";
@@ -15,37 +16,28 @@ function NameRow() {
   const { user, updateName } = useAuth();
   const [firstName, setFirstName] = useState(user?.first_name ?? "");
   const [lastName, setLastName] = useState(user?.last_name ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const save = useMutation({ mutationFn: () => updateName(firstName.trim(), lastName.trim()) });
   if (!user) return null;
+  const saving = save.isPending;
+  const saved = save.isSuccess;
+  const error = save.error ? errorMessage(save.error, "Could not save your name.") : null;
 
   const changed = firstName.trim() !== user.first_name || lastName.trim() !== user.last_name;
 
-  async function save(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
-    setSaving(true);
-    setError(null);
-    setSaved(false);
-    try {
-      await updateName(firstName.trim(), lastName.trim());
-      setSaved(true);
-    } catch (err) {
-      setError(errorMessage(err, "Could not save your name."));
-    } finally {
-      setSaving(false);
-    }
+    save.mutate();
   }
 
   return (
     <SettingsRow description="Shown on gradings and in the audit log." title="Name">
-      <form className="st-name-form" onSubmit={save}>
+      <form className="st-name-form" onSubmit={submit}>
         <label className="field field--sentence">
           <span>First name</span>
           <input
             onChange={(event) => {
               setFirstName(event.target.value);
-              setSaved(false);
+              save.reset();
             }}
             value={firstName}
           />
@@ -55,7 +47,7 @@ function NameRow() {
           <input
             onChange={(event) => {
               setLastName(event.target.value);
-              setSaved(false);
+              save.reset();
             }}
             value={lastName}
           />

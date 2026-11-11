@@ -4,6 +4,7 @@ import type { StudentStatus } from "./api";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { StudentStatusBadge } from "./StatusBadge";
 import { useChoices } from "./choices";
+import { cx } from "./cx";
 
 /** Choosing a student's status: each with what it means, the current one chosen to start with. */
 export function StudentStatusDialog({
@@ -39,7 +40,7 @@ export function StudentStatusDialog({
       </p>
       <div className="status-radio-options" role="radiogroup" aria-label="Student status options">
         {choices.map((choice) => (
-          <label className={`status-radio-card ${selected === choice.value ? "selected" : ""}`} key={choice.value}>
+          <label className={cx("status-radio-card", selected === choice.value && "selected")} key={choice.value}>
             <input
               type="radio"
               name="status"

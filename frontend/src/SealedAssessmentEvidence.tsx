@@ -20,6 +20,7 @@ import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
 import "./SealedAssessmentEvidence.css";
 import { EmailAddress } from "./EmailAddress";
+import { cx } from "./cx";
 
 export function SealedAssessmentEvidence({
   assessmentId,
@@ -45,7 +46,7 @@ export function SealedAssessmentEvidence({
   const failed = summaryQuery.isError || itemsQuery.isError;
 
   return (
-    <section className={`evd ${className}`} aria-labelledby={titleId}>
+    <section className={cx("evd", className)} aria-labelledby={titleId}>
       <h3 id={titleId}>Sealed assessment</h3>
       {assessmentId === undefined ? (
         <p className="evd-muted subtext">No assessment recorded.</p>

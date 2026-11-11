@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import type { IssuedTemporaryPassword } from "./api";
 import { formatDateTime } from "./dates";
 import { Button } from "./Button";
+import { useClipboard } from "./useClipboard";
 
 /**
  * A temporary password the server has just issued, shown this once.
@@ -18,20 +19,11 @@ export function TemporaryPasswordIssued({
   issued: IssuedTemporaryPassword;
   onDone: () => void;
 }): React.ReactElement {
-  const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+  const { copied, copy } = useClipboard();
   const copyRef = useRef<HTMLButtonElement>(null);
 
   // The form that issued it has gone, and focus with it.
   useEffect(() => copyRef.current?.focus(), []);
-
-  async function copyPassword() {
-    try {
-      await navigator.clipboard.writeText(issued.temporary_password);
-      setCopy("copied");
-    } catch {
-      setCopy("failed");
-    }
-  }
 
   return (
     <div className="users-issued-password">
@@ -50,9 +42,9 @@ export function TemporaryPasswordIssued({
         It stops working at {formatDateTime(issued.temporary_password_expires_at)}.
       </p>
       <p className="users-form-note meta" role="status">
-        {copy === "copied"
+        {copied === "done"
           ? "Copied."
-          : copy === "failed"
+          : copied === "failed"
             ? "It couldn't be copied. Select it and copy it instead."
             : ""}
       </p>
@@ -60,7 +52,7 @@ export function TemporaryPasswordIssued({
         <Button
           ref={copyRef}
           variant="secondary"
-          onClick={() => void copyPassword()}
+          onClick={() => void copy(issued.temporary_password)}
         >
           Copy password
         </Button>

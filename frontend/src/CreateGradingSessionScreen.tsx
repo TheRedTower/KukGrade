@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import { ErrorText } from "./ErrorText";
+import { Field } from "./Field";
 import { Alert } from "./Alert";
 import { createGradingSession } from "./api";
 import { useServerForm } from "./forms";
@@ -152,25 +153,19 @@ export function CreateGradingSessionScreen() {
         <div>
           <form className="cgs-form" noValidate onSubmit={handleSubmit}>
             {/* Session Title */}
-            <div className="field field--sentence">
-              <label htmlFor="cgs-title-input">
-                Session title <span className="required-star">*</span>
-              </label>
-              <input
-                aria-invalid={!!form.errorFor("title")}
-                aria-required="true"
-                disabled={isSubmitting}
-                id="cgs-title-input"
-                name="title"
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Winter Grading"
-                type="text"
-                value={title}
-              />
-              {form.errorFor("title") && (
-                <ErrorText field>{form.errorFor("title")}</ErrorText>
+            <Field label="Session title" required error={form.errorFor("title")}>
+              {(control) => (
+                <input
+                  {...control}
+                  disabled={isSubmitting}
+                  name="title"
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Winter Grading"
+                  type="text"
+                  value={title}
+                />
               )}
-            </div>
+            </Field>
 
             {/* Grading Date (Day / Month / Year) */}
             <div className="field field--sentence">
@@ -226,50 +221,42 @@ export function CreateGradingSessionScreen() {
             </div>
 
             {/* Location */}
-            <div className="field field--sentence">
-              <label htmlFor="cgs-location-input">
-                Location <small>(optional)</small>
-              </label>
-              <input
-                disabled={isSubmitting}
-                id="cgs-location-input"
-                name="location"
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Riverside Dojang"
-                type="text"
-                value={location}
-              />
-              {form.errorFor("location") && (
-                <ErrorText field>{form.errorFor("location")}</ErrorText>
+            <Field label={<>Location <small>(optional)</small></>} error={form.errorFor("location")}>
+              {(control) => (
+                <input
+                  {...control}
+                  disabled={isSubmitting}
+                  name="location"
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Riverside Dojang"
+                  type="text"
+                  value={location}
+                />
               )}
-            </div>
+            </Field>
 
             {/* Staff Notes */}
-            <div className="field field--sentence">
-              <div>
-                <label htmlFor="cgs-notes-input">
-                  Staff notes <small>(optional)</small>
-                </label>
-              </div>
-              <textarea
-                disabled={isSubmitting}
-                id="cgs-notes-input"
-                maxLength={500}
-                name="notes"
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add internal notes for grading staff"
-                rows={4}
-                value={notes}
-              />
-              <div className="cgs-char-counter meta">
-                <span className={notes.length >= 480 ? "cgs-char-near-limit" : ""}>
-                  {notes.length}/500
-                </span>
-              </div>
-              {form.errorFor("notes") && (
-                <ErrorText field>{form.errorFor("notes")}</ErrorText>
+            <Field label={<>Staff notes <small>(optional)</small></>} error={form.errorFor("notes")}>
+              {(control) => (
+                <>
+                  <textarea
+                    {...control}
+                    disabled={isSubmitting}
+                    maxLength={500}
+                    name="notes"
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add internal notes for grading staff"
+                    rows={4}
+                    value={notes}
+                  />
+                  <div className="cgs-char-counter meta">
+                    <span className={notes.length >= 480 ? "cgs-char-near-limit" : ""}>
+                      {notes.length}/500
+                    </span>
+                  </div>
+                </>
               )}
-            </div>
+            </Field>
 
             {/* Form Actions */}
             <div className="action-row cgs-form-actions">

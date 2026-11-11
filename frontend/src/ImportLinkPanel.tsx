@@ -10,6 +10,7 @@ import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
+import { cx } from "./cx";
 
 const LINK_GROUPS_SHOWN = 4;
 
@@ -101,7 +102,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
           const done = linked[person.source_name];
           const [best] = person.candidates;
           return (
-            <div className={`ix-row${done ? " ix-row-done" : ""}`} key={person.source_name}>
+            <div className={cx("ix-row", done && "ix-row-done")} key={person.source_name}>
               <div className="ix-row-main ix-row-name">
                 <p className="item-title">
                   “{person.source_name}” · {counted(person.records, "record", "records")}

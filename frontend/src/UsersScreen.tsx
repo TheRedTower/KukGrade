@@ -17,7 +17,7 @@ import {
 } from "./api";
 import { EmptyState } from "./EmptyState";
 import { Alert } from "./Alert";
-import { ErrorText } from "./ErrorText";
+import { Field } from "./Field";
 import { LoadingState } from "./LoadingState";
 import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { Dialog } from "./Dialog";
@@ -96,22 +96,9 @@ function CreateUserDialog({
                 <span>Last name</span>
                 <input name="last_name" autoComplete="off" />
               </label>
-              <label className="field users-form-wide">
-                <span>Email address</span>
-                <input
-                  required
-                  type="email"
-                  name="email"
-                  autoComplete="off"
-                  aria-invalid={Boolean(emailError)}
-                  aria-describedby={emailError ? "cud-email-error" : undefined}
-                />
-                {emailError && (
-                  <ErrorText as="small" field id="cud-email-error">
-                    {emailError}
-                  </ErrorText>
-                )}
-              </label>
+              <Field className="users-form-wide" error={emailError} label="Email address" look="label">
+                {(control) => <input {...control} required type="email" name="email" autoComplete="off" />}
+              </Field>
               <label className="field users-form-wide">
                 <span>Role</span>
                 <select name="role" defaultValue="instructor">

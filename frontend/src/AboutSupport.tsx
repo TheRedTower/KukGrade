@@ -3,6 +3,7 @@ import { CopyDetailsButton, DetailsList } from "./AboutDetailsView";
 import { versionDetails } from "./aboutDetails";
 import { useAboutQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
+import { ExternalLink } from "./ExternalLink";
 
 /** Where to ask for help, and the details to send with the question. */
 export function AboutSupport() {
@@ -85,9 +86,9 @@ export function AboutSupport() {
                   <strong>Report a problem or suggest a change</strong>
                   <p className="st-row-description subtext">Public. Do not include student information.</p>
                 </div>
-                <a className={buttonClass({ variant: "secondary" })} href={data.issues_url} rel="noopener noreferrer" target="_blank">
-                  Open an issue ↗<span className="visually-hidden"> (opens in a new tab)</span>
-                </a>
+                <ExternalLink className={buttonClass({ variant: "secondary" })} href={data.issues_url}>
+                  Open an issue ↗
+                </ExternalLink>
               </div>
               <div className="ab-contact">
                 <div>

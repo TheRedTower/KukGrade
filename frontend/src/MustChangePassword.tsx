@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 import { Alert } from "./Alert";
 import { useAuth } from "./auth";
@@ -13,22 +14,11 @@ type MustChangePasswordProps = {
 
 export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
   const { user, logout } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-  const [signOutError, setSignOutError] = useState<string | null>(null);
-
-  async function handleSignOut() {
-    setSignOutError(null);
-    setIsSigningOut(true);
-    try {
-      await logout();
-    } catch {
-      // The session may still be live, so the page stays rather than
-      // showing a signed-out screen backed by a valid cookie.
-      setSignOutError("Could not sign out. Check your connection and retry.");
-    } finally {
-      setIsSigningOut(false);
-    }
-  }
+  // On failure the session may still be live, so the page stays rather
+  // than showing a signed-out screen backed by a valid cookie.
+  const signOut = useMutation({ mutationFn: logout });
+  const isSigningOut = signOut.isPending;
+  const signOutError = signOut.isError ? "Could not sign out. Check your connection and retry." : null;
 
   return (
     <div className="must-change-password-page">
@@ -66,7 +56,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
             <Button
               variant="secondary"
               disabled={isSubmitting || isSigningOut}
-              onClick={() => void handleSignOut()}
+              onClick={() => signOut.mutate()}
             >
               Sign out
             </Button>

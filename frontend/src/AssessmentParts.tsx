@@ -10,6 +10,7 @@ import { labelOf, useChoices } from "./choices";
 import { hasRemarks } from "./remarks";
 import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
+import { cx } from "./cx";
 
 
 /**
@@ -247,7 +248,7 @@ export function AssessmentItemRow({
           <div role="group" aria-label={`Result for ${item.item_name}`} className="caw-verdicts">
             <button
               type="button"
-              className={`caw-verdict caw-verdict-met ${item.result === "MET" ? "caw-verdict-active" : ""}`}
+              className={cx("caw-verdict caw-verdict-met", item.result === "MET" && "caw-verdict-active")}
               disabled={!canEdit}
               onClick={() => choose("MET")}
               aria-pressed={item.result === "MET"}
@@ -259,7 +260,7 @@ export function AssessmentItemRow({
             </button>
             <button
               type="button"
-              className={`caw-verdict caw-verdict-not-met ${item.result === "NOT_MET" ? "caw-verdict-active" : ""}`}
+              className={cx("caw-verdict caw-verdict-not-met", item.result === "NOT_MET" && "caw-verdict-active")}
               disabled={!canEdit}
               onClick={() => choose("NOT_MET")}
               aria-pressed={item.result === "NOT_MET"}

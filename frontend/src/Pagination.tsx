@@ -1,5 +1,6 @@
 import { counted } from "./plural";
 import { pageCount } from "./usePagedQuery";
+import { cx } from "./cx";
 
 interface PaginationProps {
   /** Names the navigation for assistive technology. */
@@ -38,7 +39,7 @@ export function Pagination({ label, noun, page, pageSize, count, onPage, flush =
   const from = Math.min((page - 1) * pageSize + 1, count);
   const to = Math.min(page * pageSize, count);
   return (
-    <nav className={`action-row pager${flush ? " pager--foot" : ""}`} aria-label={label}>
+    <nav className={cx("action-row pager", flush && "pager--foot")} aria-label={label}>
       <span>
         Showing {from}–{to} of {counted(count, ...noun)}
       </span>

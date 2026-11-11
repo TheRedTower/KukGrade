@@ -18,6 +18,8 @@ import { useRanksQuery } from "./queries";
 import { Button } from "./Button";
 import { keys } from "./queryKeys";
 import { agreeing } from "./plural";
+import { cx } from "./cx";
+import { useDirtySet } from "./useDirtySet";
 
 const PREVIEW_ROWS = 5;
 const EXTRA = "extra";
@@ -97,7 +99,7 @@ export function ImportMatchColumns({
   const [choices, setChoices] = useState<Choices>(() => initialChoices(batch));
   const [rankDefault, setRankDefault] = useState(batch.defaults.current_rank ?? "");
   const [typed, setTyped] = useState<string[]>([]);
-  const [dirtyCells, setDirtyCells] = useState<string[]>([]);
+  const unsavedCells = useDirtySet();
   const [acknowledged, setAcknowledged] = useState(() => mappingKey({
     column_mapping: batch.column_mapping,
     defaults: batch.defaults,
@@ -188,10 +190,7 @@ export function ImportMatchColumns({
           label={`${fieldName(field)}, row ${row.row_number}`}
           placeholder={field === "date_of_birth" ? "dd/mm/yyyy" : undefined}
           value={shown}
-          onDirtyChange={(isDirty) => {
-            const key = `${row.row_number}:${field}`;
-            setDirtyCells((current) => isDirty ? [...new Set([...current, key])] : current.filter((item) => item !== key));
-          }}
+          onDirtyChange={(isDirty) => unsavedCells.mark(`${row.row_number}:${field}`, isDirty)}
           onSave={(next) => correct.mutateAsync({ row: row.row_number, field, value: next })}
         />
         {corrected ? (
@@ -321,7 +320,7 @@ export function ImportMatchColumns({
                         What “{header}” holds
                       </label>
                       <select
-                        className={`ix-col-select${clashes.has(choice) ? " ix-col-select-clash" : suggested ? " ix-col-select-suggested" : ""}`}
+                        className={cx("ix-col-select", clashes.has(choice) ? "ix-col-select-clash" : suggested && "ix-col-select-suggested")}
                         id={`ix-col-${index}`}
                         disabled={save.isPending || correct.isPending}
                         value={choice}
@@ -381,7 +380,7 @@ export function ImportMatchColumns({
                             {isField ? (
                               cell(row, choice, header)
                             ) : (
-                              <span className={`ix-cell-text scroll-region__nowrap ${choice === EXTRA ? "subtext" : "ix-struck"}`}>
+                              <span className={cx("ix-cell-text scroll-region__nowrap", choice === EXTRA ? "subtext" : "ix-struck")}>
                                 {row.cells[header] || "(blank)"}
                               </span>
                             )}
@@ -423,7 +422,7 @@ export function ImportMatchColumns({
               Checking every row…
             </span>
           ) : null}
-          {dirty || dirtyCells.length > 0 || correct.isPending || correct.isError ? (
+          {dirty || unsavedCells.any || correct.isPending || correct.isError ? (
             <span className="ix-why error-text" role="status">Save the visible changes before continuing.</span>
           ) : null}
           {blockedWhy ? (
@@ -434,7 +433,7 @@ export function ImportMatchColumns({
           <Button
             aria-describedby={blockedWhy ? "ix-match-why" : undefined}
             variant="primary"
-            disabled={Boolean(blockedWhy) || !saved || dirty || save.isPending || save.isError || dirtyCells.length > 0 || correct.isPending || correct.isError}
+            disabled={Boolean(blockedWhy) || !saved || dirty || save.isPending || save.isError || unsavedCells.any || correct.isPending || correct.isError}
             onClick={onContinue}
           >
             Continue to review all {batch.row_counts.total} rows

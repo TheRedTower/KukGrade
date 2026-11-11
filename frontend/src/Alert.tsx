@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
 import { Button } from "./Button";
+import { cx } from "./cx";
 
 type AlertTone = "error" | "warning" | "success" | "info";
 
@@ -24,7 +25,7 @@ interface AlertProps extends Omit<ComponentProps<"div">, "title"> {
 export function Alert({ tone = "error", title, icon, action, onDismiss, role, className, children, ...rest }: AlertProps) {
   return (
     <div
-      className={["alert", `alert--${tone}`, className].filter(Boolean).join(" ")}
+      className={cx("alert", `alert--${tone}`, className)}
       role={role ?? (tone === "error" || tone === "warning" ? "alert" : "status")}
       {...rest}
     >

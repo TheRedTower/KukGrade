@@ -207,7 +207,7 @@ describe("UsersScreen", () => {
     expect(fieldError.closest("[role='alert']")).not.toBeNull();
     expect(fieldError).toHaveClass("error-text--field");
     expect(emailInput).toHaveAttribute("aria-invalid", "true");
-    expect(emailInput).toHaveAttribute("aria-describedby", "cud-email-error");
+    expect(emailInput).toHaveAccessibleDescription("A user with that email already exists.");
     // Said once, beside the box, not repeated above the buttons.
     expect(screen.queryByText("Validation failed.")).not.toBeInTheDocument();
   });

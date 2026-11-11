@@ -6,6 +6,7 @@ import { errorMessage } from "./api";
 import { useAboutDocumentQuery, useAboutQuery, usePledgeQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
 import { mediaMatches } from "./useMediaQuery";
+import { ExternalLink } from "./ExternalLink";
 
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -73,9 +74,9 @@ function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitl
         {subtitle ? <p className="st-row-description subtext">{subtitle}</p> : null}
       </div>
       {sourceUrl ? (
-        <a className={buttonClass({ variant: "secondary" })} href={sourceUrl} rel="noopener noreferrer" target="_blank">
-          View on GitHub ↗<span className="visually-hidden"> (opens in a new tab)</span>
-        </a>
+        <ExternalLink className={buttonClass({ variant: "secondary" })} href={sourceUrl}>
+          View on GitHub ↗
+        </ExternalLink>
       ) : null}
     </header>
   );
@@ -237,9 +238,9 @@ export function AboutLicence() {
         </div>
         <div className="action-row">
           {about ? (
-            <a className={buttonClass({ variant: "primary" })} href={about.repository_url} rel="noopener noreferrer" target="_blank">
-              Get the source code ↗<span className="visually-hidden"> (opens in a new tab)</span>
-            </a>
+            <ExternalLink className={buttonClass({ variant: "primary" })} href={about.repository_url}>
+              Get the source code ↗
+            </ExternalLink>
           ) : null}
         </div>
         {about ? <p className="st-row-description subtext">{about.copyright}</p> : null}

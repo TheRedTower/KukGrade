@@ -10,7 +10,7 @@ import {
   type StudentStatus,
   createStudent,
 } from "./api";
-import { ErrorText } from "./ErrorText";
+import { Field } from "./Field";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
 import { useRanksQuery, useSiteSettingsQuery } from "./queries";
@@ -122,71 +122,50 @@ export function AddStudentScreen() {
           <h2 className="section-title section-title--ruled">Identity</h2>
 
           <div className="form-row-grid-2">
-            <div className="field field--sentence">
-              <label htmlFor="first-name-input">
-                First name <span className="required-star">*</span>
-              </label>
-              <input
-                id="first-name-input"
-                type="text"
-                placeholder="e.g. Alex"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                disabled={isSubmitting}
-                aria-required="true"
-                aria-invalid={!!form.errorFor("first_name")}
-                aria-describedby={form.errorFor("first_name") ? "first-name-error" : undefined}
-              />
-              {form.errorFor("first_name") && (
-                <ErrorText field id="first-name-error">{form.errorFor("first_name")}</ErrorText>
+            <Field label="First name" required error={form.errorFor("first_name")}>
+              {(control) => (
+                <input
+                  {...control}
+                  type="text"
+                  placeholder="e.g. Alex"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  disabled={isSubmitting}
+                />
               )}
-            </div>
+            </Field>
 
-            <div className="field field--sentence">
-              <label htmlFor="last-name-input">
-                Last name <span className="required-star">*</span>
-              </label>
-              <input
-                id="last-name-input"
-                type="text"
-                placeholder="e.g. Carter"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                disabled={isSubmitting}
-                aria-required="true"
-                aria-invalid={!!form.errorFor("last_name")}
-                aria-describedby={form.errorFor("last_name") ? "last-name-error" : undefined}
-              />
-              {form.errorFor("last_name") && (
-                <ErrorText field id="last-name-error">{form.errorFor("last_name")}</ErrorText>
+            <Field label="Last name" required error={form.errorFor("last_name")}>
+              {(control) => (
+                <input
+                  {...control}
+                  type="text"
+                  placeholder="e.g. Carter"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  disabled={isSubmitting}
+                />
               )}
-            </div>
+            </Field>
           </div>
 
-          <div className="field field--sentence">
-            <label htmlFor="wksa-id-input">
-              WKSA ID <span className="required-star">*</span>
-            </label>
-            <input
-              id="wksa-id-input"
-              type="text"
-              placeholder={idScheme ? `e.g. ${idScheme.forms.map((form) => form.example).join(" or ")}` : undefined}
-              value={wksaId}
-              onChange={(e) => setWksaId(e.target.value)}
-              disabled={isSubmitting}
-              aria-required="true"
-              aria-invalid={!!form.errorFor("wksa_id")}
-              aria-describedby={form.errorFor("wksa_id") ? "wksa-id-error" : undefined}
-            />
-            {form.errorFor("wksa_id") ? (
-              <ErrorText field id="wksa-id-error">{form.errorFor("wksa_id")}</ErrorText>
-            ) : (
-              <p className="field__hint">
-                {idScheme ? `${idScheme.hint} ` : ""}
-                A student ID changes only once, to the black belt ID handed out at the national grading.
-              </p>
+          <Field
+            label="WKSA ID"
+            required
+            error={form.errorFor("wksa_id")}
+            hint={`${idScheme ? `${idScheme.hint} ` : ""}A student ID changes only once, to the black belt ID handed out at the national grading.`}
+          >
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                placeholder={idScheme ? `e.g. ${idScheme.forms.map((form) => form.example).join(" or ")}` : undefined}
+                value={wksaId}
+                onChange={(e) => setWksaId(e.target.value)}
+                disabled={isSubmitting}
+              />
             )}
-          </div>
+          </Field>
         </div>
 
         {/* Card 2: Grading details */}
@@ -194,71 +173,60 @@ export function AddStudentScreen() {
           <h2 className="section-title section-title--ruled">Grading details</h2>
 
           <div className="form-row-grid-3">
-            <div className="field field--sentence">
-              <label htmlFor="dob-input">
-                Date of birth <span className="required-star">*</span>
-              </label>
-              <input
-                id="dob-input"
-                type="date"
-                value={dateOfBirth}
-                max={todayIsoDate()}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                disabled={isSubmitting}
-                aria-required="true"
-                aria-invalid={!!form.errorFor("date_of_birth")}
-                aria-describedby={form.errorFor("date_of_birth") ? "dob-error" : undefined}
-              />
-              {form.errorFor("date_of_birth") ? (
-                <ErrorText field id="dob-error">{form.errorFor("date_of_birth")}</ErrorText>
-              ) : (
-                <div className="privacy-badge-line meta">
+            <Field
+              label="Date of birth"
+              required
+              error={form.errorFor("date_of_birth")}
+              hint={
+                <span className="privacy-badge-line">
                   <LockIcon size={14} className="privacy-icon" />
                   <span>Date of birth is visible only on the individual student record.</span>
-                </div>
+                </span>
+              }
+            >
+              {(control) => (
+                <input
+                  {...control}
+                  type="date"
+                  value={dateOfBirth}
+                  max={todayIsoDate()}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  disabled={isSubmitting}
+                />
               )}
-            </div>
+            </Field>
 
-            <div className="field field--sentence">
-              <label htmlFor="rank-select-input">
-                Current rank <span className="required-star">*</span>
-              </label>
-              <select
-                id="rank-select-input"
-                value={effectiveRankId ?? ""}
-                onChange={(e) => setCurrentRank(Number(e.target.value))}
-                disabled={isSubmitting || ranksQuery.isLoading}
-                aria-required="true"
-                aria-invalid={!!form.errorFor("current_rank")}
-                aria-describedby={form.errorFor("current_rank") ? "current-rank-error" : undefined}
-              >
-                {ranks.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-              {form.errorFor("current_rank") && (
-                <ErrorText field id="current-rank-error">{form.errorFor("current_rank")}</ErrorText>
+            <Field label="Current rank" required error={form.errorFor("current_rank")}>
+              {(control) => (
+                <select
+                  {...control}
+                  value={effectiveRankId ?? ""}
+                  onChange={(e) => setCurrentRank(Number(e.target.value))}
+                  disabled={isSubmitting || ranksQuery.isLoading}
+                >
+                  {ranks.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
               )}
-            </div>
+            </Field>
 
-            <div className="field field--sentence">
-              <label htmlFor="status-select-input">
-                Status <span className="required-star">*</span>
-              </label>
-              <select
-                id="status-select-input"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as StudentStatus)}
-                disabled={isSubmitting}
-                aria-required="true"
-              >
-                {studentStatuses.map((choice) => (
-                  <option key={choice.value} value={choice.value}>{choice.label}</option>
-                ))}
-              </select>
-            </div>
+            <Field label="Status" required>
+              {(control) => (
+                <select
+                  {...control}
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as StudentStatus)}
+                  disabled={isSubmitting}
+                >
+                  {studentStatuses.map((choice) => (
+                    <option key={choice.value} value={choice.value}>{choice.label}</option>
+                  ))}
+                </select>
+              )}
+            </Field>
           </div>
         </div>
 

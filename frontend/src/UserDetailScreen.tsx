@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Alert } from "./Alert";
-import { ErrorText } from "./ErrorText";
+import { Field } from "./Field";
 import { RecordPage } from "./RecordPage";
 import { recordStatus } from "./recordStatus";
 import { useAuth } from "./auth";
@@ -80,22 +80,9 @@ function AccountForm({
       <div className="users-form-grid">
         <label className="field"><span>First name</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} /></label>
         <label className="field"><span>Last name</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} /></label>
-        <label className="field users-form-wide">
-          <span>Email address</span>
-          <input
-            required
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            aria-invalid={Boolean(emailError)}
-            aria-describedby={emailError ? "account-email-error" : undefined}
-          />
-          {emailError && (
-            <ErrorText as="small" field id="account-email-error">
-              {emailError}
-            </ErrorText>
-          )}
-        </label>
+        <Field className="users-form-wide" error={emailError} label="Email address" look="label">
+          {(control) => <input {...control} required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />}
+        </Field>
         <label className="field">
           <span>Role</span>
           <select value={role} disabled={isSelf} onChange={(event) => setRole(event.target.value as UserRole)}>

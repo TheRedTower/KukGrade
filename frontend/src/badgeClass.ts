@@ -1,3 +1,5 @@
+import { cx } from "./cx";
+
 export type BadgeTone =
   | "success"
   | "warning"
@@ -12,7 +14,7 @@ export type BadgeTone =
 
 /** The classes of a badge, for something that is not a <span> (a link that looks like one). */
 export function badgeClass(tone: BadgeTone, extra?: string): string {
-  return ["badge", `badge--${tone}`, extra ?? ""].filter(Boolean).join(" ");
+  return cx("badge", `badge--${tone}`, extra);
 }
 
 const OUTCOME_TONES = { PASS: "success", CONDITIONAL: "warning", FAIL: "danger" } as const;

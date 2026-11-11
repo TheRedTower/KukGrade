@@ -5,6 +5,7 @@ import { CopyDetailsButton, DetailsList } from "./AboutDetailsView";
 import { versionDetails } from "./aboutDetails";
 import { GitHubIcon } from "./Icons";
 import { useAboutQuery } from "./queries";
+import { ExternalLink } from "./ExternalLink";
 
 /** What is running, and what to quote when asking for help. */
 export function AboutOverview() {
@@ -81,28 +82,25 @@ export function AboutOverview() {
 
       {data ? (
         <section aria-label="Links" className="card card--flush st-links">
-          <a href={data.repository_url} rel="noopener noreferrer" target="_blank">
+          <ExternalLink href={data.repository_url}>
             <GitHubIcon />
             <span>Source on GitHub</span>
             <span aria-hidden="true" className="st-link-arrow">
               ↗
             </span>
-            <span className="visually-hidden"> (opens in a new tab)</span>
-          </a>
-          <a href={data.releases_url} rel="noopener noreferrer" target="_blank">
+          </ExternalLink>
+          <ExternalLink href={data.releases_url}>
             <span>Release notes</span>
             <span aria-hidden="true" className="st-link-arrow">
               ↗
             </span>
-            <span className="visually-hidden"> (opens in a new tab)</span>
-          </a>
-          <a href={data.issues_url} rel="noopener noreferrer" target="_blank">
+          </ExternalLink>
+          <ExternalLink href={data.issues_url}>
             <span>Report a problem</span>
             <span aria-hidden="true" className="st-link-arrow">
               ↗
             </span>
-            <span className="visually-hidden"> (opens in a new tab)</span>
-          </a>
+          </ExternalLink>
         </section>
       ) : null}
 

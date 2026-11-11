@@ -26,6 +26,7 @@ import "./Imports.css";
 import { Button } from "./Button";
 import { keys } from "./queryKeys";
 import { ChevronRightIcon, UploadIcon } from "./Icons";
+import { cx } from "./cx";
 
 function parseKind(value: string | null): DataImportKind {
   return value === "LEGACY_GRADINGS" ? "LEGACY_GRADINGS" : "STUDENT_ROSTER";
@@ -133,7 +134,7 @@ function FoundChecklist({
       <ul className="ix-checklist">
         {items.map((item) => (
           <li key={item.title}>
-            <span aria-hidden="true" className={`mark ${item.ok ? "mark--success" : "mark--warning"}`}>
+            <span aria-hidden="true" className={cx("mark", item.ok ? "mark--success" : "mark--warning")}>
               {item.ok ? "✓" : "!"}
             </span>
             <span>
@@ -307,7 +308,7 @@ export function ImportStartScreen() {
               </p>
             </div>
             <div
-              className={`ix-drop${dragging ? " ix-drop-active" : ""}`}
+              className={cx("ix-drop", dragging && "ix-drop-active")}
               onDragLeave={() => setDragging(false)}
               onDragOver={(event) => {
                 event.preventDefault();

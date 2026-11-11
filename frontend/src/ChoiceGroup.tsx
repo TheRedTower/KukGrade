@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cx } from "./cx";
 
 interface Choice<Value extends string> {
   value: Value;
@@ -27,7 +28,7 @@ interface ChoiceGroupProps<Value extends string> {
  */
 export function ChoiceGroup<Value extends string>({ label, choices, value, onChange, look = "segments", className }: ChoiceGroupProps<Value>) {
   return (
-    <div aria-label={label} className={["choices", `choices--${look}`, className].filter(Boolean).join(" ")} role="group">
+    <div aria-label={label} className={cx("choices", `choices--${look}`, className)} role="group">
       {choices.map((choice) => (
         <button aria-pressed={choice.value === value} key={choice.value} type="button" onClick={() => onChange(choice.value)}>
           {choice.label}

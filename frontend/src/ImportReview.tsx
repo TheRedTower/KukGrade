@@ -7,6 +7,7 @@ import { Button } from "./Button";
 import { LegacyReview } from "./ImportLegacyReview";
 import { RosterReview } from "./ImportRosterReview";
 import { keys } from "./queryKeys";
+import { useDirtySet } from "./useDirtySet";
 import { importKinds } from "./importKinds";
 
 /** The seal: once every row is sorted, the summary and the import itself. */
@@ -83,7 +84,7 @@ export function ImportReview({
   const queryClient = useQueryClient();
   const { addsStudents } = importKinds[batch.kind];
   const [announcement, setAnnouncement] = useState("");
-  const [dirtyRosterCells, setDirtyRosterCells] = useState<string[]>([]);
+  const unsavedCells = useDirtySet();
   // A refused import shows the review again from the top, as it now stands.
   const [refusals, setRefusals] = useState(0);
   const preview = useQuery({
@@ -119,9 +120,6 @@ export function ImportReview({
   });
 
   const sorted = !addsStudents || batch.row_counts.review_required === 0;
-  function editStateChanged(key: string, dirty: boolean) {
-    setDirtyRosterCells((current) => dirty ? [...new Set([...current, key])] : current.filter((item) => item !== key));
-  }
   const unresolvedRanks = (preview.data?.unresolved_current_rank ?? 0) + (preview.data?.unresolved_testing_for_rank ?? 0);
   return (
     <>
@@ -134,12 +132,12 @@ export function ImportReview({
         </Alert>
       ) : null}
       {sorted ? (
-        <Seal batch={batch} blocked={addsStudents && dirtyRosterCells.length > 0} pending={commit.isPending} unresolvedRanks={unresolvedRanks} onImport={() => {
-          if (dirtyRosterCells.length === 0) commit.mutate();
+        <Seal batch={batch} blocked={addsStudents && unsavedCells.any} pending={commit.isPending} unresolvedRanks={unresolvedRanks} onImport={() => {
+          if (!unsavedCells.any) commit.mutate();
         }} />
       ) : null}
       {addsStudents ? (
-        <RosterReview announce={setAnnouncement} batch={batch} key={refusals} onEditStateChange={editStateChanged} onMatch={onMatch} onRefresh={refresh} />
+        <RosterReview announce={setAnnouncement} batch={batch} key={refusals} onEditStateChange={unsavedCells.mark} onMatch={onMatch} onRefresh={refresh} />
       ) : (
         <LegacyReview
           announce={setAnnouncement}

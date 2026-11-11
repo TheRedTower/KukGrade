@@ -33,6 +33,7 @@ import "./StudentScreens.css";
 import { formatLongDate, formatMonthYear, formatShortDate } from "./dates";
 import { CheckIcon, LockIcon } from "./Icons";
 import { Button } from "./Button";
+import { cx } from "./cx";
 
 function formatGradingHistoryDate(item: GradingHistoryItem): string {
   if (item.date_precision === "DAY" && item.date) {
@@ -359,7 +360,7 @@ export function StudentDetailScreen() {
               {/* Promotion nodes from newest to oldest */}
               {promotions.map((p, idx) => (
                 <div key={p.id} className="timeline-node-item">
-                  <div className={`timeline-indicator ${idx === 0 ? "indicator-active" : ""}`} />
+                  <div className={cx("timeline-indicator", idx === 0 && "indicator-active")} />
                   <div>
                     <div className="meta">{formatShortDate(p.effective_date || p.promoted_at)}</div>
                     <div className="item-title">{p.to_rank_name}</div>

@@ -1,4 +1,5 @@
 import logo from "./assets/kukgrade-logo.svg?raw";
+import { cx } from "./cx";
 
 /**
  * The logo, drawn inline rather than as an image so its black strokes take
@@ -9,7 +10,7 @@ export function KukGradeLogo({ className }: { className: string }) {
   return (
     <span
       aria-label="KukGrade"
-      className={`kukgrade-logo ${className}`}
+      className={cx("kukgrade-logo", className)}
       dangerouslySetInnerHTML={{ __html: logo }}
       role="img"
     />

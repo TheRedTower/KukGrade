@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from "react";
+import { cx } from "./cx";
 
 /**
  * One value of a row, typed into. The fix is saved when the field is left
@@ -55,7 +56,7 @@ export function ImportCellInput({
     <input
       aria-invalid={invalid}
       aria-label={label}
-      className={`ix-cell-input${invalid ? " ix-cell-invalid" : changed ? " ix-cell-changed" : ""}`}
+      className={cx("ix-cell-input", invalid ? "ix-cell-invalid" : changed && "ix-cell-changed")}
       disabled={disabled || saving}
       placeholder={placeholder}
       value={draft ?? value}

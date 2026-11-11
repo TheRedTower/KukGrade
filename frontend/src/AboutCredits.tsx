@@ -3,6 +3,7 @@ import { creditsNoticesUrl, errorMessage, type Credit } from "./api";
 import { useCreditsQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { ExternalLink } from "./ExternalLink";
 
 function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) {
   return (
@@ -19,10 +20,9 @@ function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) 
           render: (credit) => (
             <>
               {credit.homepage ? (
-                <a href={credit.homepage} rel="noopener noreferrer" target="_blank">
+                <ExternalLink href={credit.homepage}>
                   {credit.name}
-                  <span className="visually-hidden"> (opens in a new tab)</span>
-                </a>
+                </ExternalLink>
               ) : (
                 <strong>{credit.name}</strong>
               )}
@@ -96,9 +96,9 @@ export function AboutCredits() {
                   Every other Python and browser package, with its licence and copyright notice, in one file.
                 </p>
               </div>
-              <a className={buttonClass({ variant: "secondary" })} href={creditsNoticesUrl()} rel="noopener noreferrer" target="_blank">
-                Open the full list<span className="visually-hidden"> (opens in a new tab)</span>
-              </a>
+              <ExternalLink className={buttonClass({ variant: "secondary" })} href={creditsNoticesUrl()}>
+                Open the full list
+              </ExternalLink>
             </div>
           </section>
         </>

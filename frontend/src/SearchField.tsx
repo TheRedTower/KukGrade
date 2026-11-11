@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useDebouncedValue } from "./useDebouncedValue";
+import { cx } from "./cx";
 
 /**
  * The search box of a list: its magnifier, its label (visually hidden when
@@ -52,7 +53,7 @@ export function SearchField({
   }, [settled, text, value, onChange]);
 
   return (
-    <label className={`field field--search${className ? ` ${className}` : ""}`}>
+    <label className={cx("field field--search", className)}>
       <span className={hideLabel ? "visually-hidden" : undefined}>{label}</span>
       <input id={id} placeholder={placeholder} type="search" value={text} onChange={(event) => setText(event.target.value)} />
     </label>

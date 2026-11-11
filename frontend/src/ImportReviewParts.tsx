@@ -6,6 +6,7 @@ import { usePagedRows } from "./useImportRows";
 import { importKinds } from "./importKinds";
 import { Button } from "./Button";
 import { Exclusion, Tile } from "./importReviewRows";
+import { cx } from "./cx";
 
 /** Counts that double as filters. */
 export function CountTiles<View extends string>({
@@ -21,7 +22,7 @@ export function CountTiles<View extends string>({
     <div aria-label="Show" className="ix-tiles" role="group">
       {tiles.map((tile) => (
         <button aria-pressed={view === tile.key} className="ix-tile" key={tile.key} type="button" onClick={() => onView(tile.key)}>
-          <span className={`ix-tile-count stat__value ${tile.tone}`}>
+          <span className={cx("ix-tile-count stat__value", tile.tone)}>
             <span aria-hidden="true">{tile.mark}</span>
             {tile.count}
           </span>
@@ -35,7 +36,7 @@ export function CountTiles<View extends string>({
 /** The way to a last look at everything that will be saved. */
 export function LastLook({ pressed, lead, label, onShow }: { pressed: boolean; lead: string; label: string; onShow: () => void }) {
   return (
-    <div className={`ix-banner card card--flush${pressed ? " ix-picked" : ""}`}>
+    <div className={cx("ix-banner card card--flush", pressed && "ix-picked")}>
       <p>
         <strong>Last look before you confirm.</strong> {lead}
       </p>
@@ -115,7 +116,7 @@ export function RowLines({
   return (
     <>
       {list.map((row) => (
-        <div className={`ix-row${row.excluded ? " ix-row-out" : ""}`} key={row.row_number}>
+        <div className={cx("ix-row", row.excluded && "ix-row-out")} key={row.row_number}>
           <div className="ix-row-main">
             <p className="item-title">
               {importKinds[kind].where(row)} · {importKinds[kind].rowName(row)}

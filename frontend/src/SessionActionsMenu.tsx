@@ -4,6 +4,7 @@ import type { AuthUser, GradingSession } from "./api";
 import { Button } from "./Button";
 import type { SessionAction } from "./sessionDetail";
 import type { useActionsMenu } from "./useActionsMenu";
+import { cx } from "./cx";
 
 interface SessionActionsMenuProps {
   session: GradingSession;
@@ -14,7 +15,7 @@ interface SessionActionsMenuProps {
 
 function MenuItem({ danger, onClick, children }: { danger?: boolean; onClick: () => void; children: string }) {
   return (
-    <button type="button" role="menuitem" className={`gsd-dropdown-item${danger ? " gsd-danger-text" : ""}`} onClick={onClick}>
+    <button type="button" role="menuitem" className={cx("gsd-dropdown-item", danger && "gsd-danger-text")} onClick={onClick}>
       {children}
     </button>
   );

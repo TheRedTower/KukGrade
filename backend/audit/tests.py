@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Any
 
@@ -30,6 +31,9 @@ from audit.testing import (
     locked_completed_candidate_with_outcome,
 )
 from gradings.models import CandidateOutcome, GradingSession
+from gradings.outcome_services import finalise_candidate_outcome
+from students.models import Student
+from students.services import update_student
 
 pytestmark = pytest.mark.django_db
 
@@ -142,7 +146,41 @@ def test_revising_a_proposal_records_what_it_said_before() -> None:
     assert proposals[1].metadata["before"]["proposal_notes"] == "Looked strong."
     assert proposals[1].metadata["after"]["proposed_outcome"] == "FAIL"
     assert proposals[1].actor == second
-    assert "revising an earlier PASS" in proposals[1].summary
+    assert proposals[1].summary.startswith(
+        "Outcome proposed as Fail, revising an earlier Pass"
+    )
+
+
+def test_summaries_name_statuses_marks_and_outcomes_as_the_screens_do() -> None:
+    # A summary is read by people: "moved from Draft to Open", never the
+    # stored code ("DRAFT"), for every kind of value a summary names.
+    outcome, _, _ = locked_completed_candidate_with_outcome()
+    decider = master("audit-summary-master@example.com")
+    finalise_candidate_outcome(
+        outcome,
+        CandidateOutcome.Outcome.CONDITIONAL,
+        "",
+        "Retest the first form.",
+        decider,
+    )
+    student = outcome.candidate.student
+    update_student(student, status=Student.Status.INACTIVE, actor=decider)
+
+    summaries = list(AuditEvent.objects.values_list("summary", flat=True))
+    joined = "\n".join(summaries)
+    assert "Grading session moved from Draft to Open." in summaries
+    assert "Grading session moved from Open to Locked." in summaries
+    assert "recorded as Met for student 123-4-901." in joined
+    assert "Outcome proposed as Pass." in summaries
+    assert "Final decision Conditional recorded for student 123-4-901" in joined
+    assert "overriding a proposed Pass." in joined
+    assert "Student 123-4-901 status changed from Active to Inactive." in summaries
+    # No stored code anywhere: an upper-case word with an underscore, or one
+    # of the bare codes these summaries carried.
+    assert not re.search(
+        r"\b[A-Z]+_[A-Z_]+\b|\b(DRAFT|OPEN|LOCKED|PASS|FAIL|CONDITIONAL|MET|ACTIVE)\b",
+        joined,
+    )
 
 
 # ---------------------------------------------------------------------------

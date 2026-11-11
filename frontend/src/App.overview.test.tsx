@@ -110,7 +110,7 @@ describe("Overview screen (Operational Ledger)", () => {
         summary,
         tone,
         outcome_display,
-        metadata: {},
+        details: [],
       }) satisfies AuditEvent;
     const events = [
       event(1, "USER_UPDATED", "User updated", "Password reset for someone@example.com.", "neutral"),
@@ -250,7 +250,7 @@ describe("Overview screen (Operational Ledger)", () => {
         summary: "Assessment complete (ready for review)",
         tone: "neutral",
         outcome_display: null,
-        metadata: {},
+        details: [],
       },
       {
         id: 502,
@@ -266,7 +266,7 @@ describe("Overview screen (Operational Ledger)", () => {
         summary: "Assessment started on the mat",
         tone: "info",
         outcome_display: null,
-        metadata: {},
+        details: [],
       },
     ] satisfies AuditEvent[];
 

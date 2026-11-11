@@ -273,7 +273,7 @@ def resolve_legacy_rank(
         return locked
     setattr(locked, field, rank)
     locked.save()
-    resolved_display = rank.code if rank else "unresolved"
+    resolved_display = rank.name if rank else "unresolved"
     record(
         AuditAction.LEGACY_GRADING_RANK_RESOLVED,
         locked,

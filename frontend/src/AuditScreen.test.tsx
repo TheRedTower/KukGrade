@@ -44,7 +44,10 @@ const auditEvent: AuditEvent = {
   summary: "Finalised Carlos Rivera's grading outcome as Pass.",
   tone: "success",
   outcome_display: "Pass",
-  metadata: { result: "PASS", previous_result: null },
+  details: [
+    { label: "Final decision", value: "Pass" },
+    { label: "Overrode the proposal", value: "No" },
+  ],
 };
 
 function renderScreen(initialEntry = "/audit") {
@@ -159,7 +162,11 @@ describe("AuditScreen", () => {
     const dialog = screen.getByRole("dialog", { name: "Outcome finalised" });
     // The internal action code is not shown; the summary says what happened.
     expect(within(dialog).queryByText("OUTCOME_FINALISED")).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/"result": "PASS"/)).toBeInTheDocument();
+    // What the event recorded, as the server names it: labels and words.
+    const recorded = within(dialog).getByText("Overrode the proposal").closest("dl")!;
+    expect(within(recorded).getByText("Final decision")).toBeInTheDocument();
+    expect(within(recorded).getByText("Pass")).toBeInTheDocument();
+    expect(within(recorded).getByText("No")).toBeInTheDocument();
     const closeButton = within(dialog).getByRole("button", { name: "Close event details" });
     expect(closeButton).toHaveFocus();
     await user.tab();

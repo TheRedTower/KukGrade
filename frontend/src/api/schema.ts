@@ -1716,6 +1716,12 @@ export interface components {
          * @enum {string}
          */
         AttendanceStatusEnum: "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
+        AuditDetail: {
+            /** @description What the detail is, as a screen names it. */
+            label: string;
+            /** @description What it was, in words. */
+            value: string;
+        };
         /**
          * @description * `GradingSession` - Grading session
          *     * `GradingCandidate` - Candidate
@@ -1750,7 +1756,8 @@ export interface components {
             readonly tone: components["schemas"]["ToneEnum"];
             /** @description The name of the grading outcome a proposal or final decision records; null for every other event. */
             readonly outcome_display: string | null;
-            readonly metadata: unknown;
+            /** @description What the event recorded beyond its summary, as label and value pairs in words: no stored codes or ids. */
+            readonly details: components["schemas"]["AuditDetail"][];
         };
         /**
          * @description GET /api/audit-events/labels/: the names of the event and record

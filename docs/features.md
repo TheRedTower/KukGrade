@@ -144,7 +144,9 @@ the admin. It stays attributed to a person even if their account is
 later deleted. New events never hold a student's name or date of birth: they
 name the student by WKSA ID and say which fields changed, and the screens add
 the student's current name while they exist. Older events can be cleaned on
-request ([Privacy](privacy.md)).
+request ([Privacy](privacy.md)). An event's summary and details are written in the
+words the screens use ("moved from Draft to Open", "Mark: Not assessed to Met"),
+never as stored codes or ids.
 
 **A record's history.** A grading, a student, a registration's assessment record and a user account
 each have a **History** link (for those who may read the audit log) that opens the log narrowed to

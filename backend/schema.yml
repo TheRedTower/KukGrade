@@ -3409,6 +3409,18 @@ components:
         * `ATTENDED` - Attended
         * `DID_NOT_ATTEND` - Did not attend
         * `UNKNOWN` - Unknown
+    AuditDetail:
+      type: object
+      properties:
+        label:
+          type: string
+          description: What the detail is, as a screen names it.
+        value:
+          type: string
+          description: What it was, in words.
+      required:
+      - label
+      - value
     AuditEntityEnum:
       enum:
       - GradingSession
@@ -3489,18 +3501,23 @@ components:
           readOnly: true
           description: The name of the grading outcome a proposal or final decision
             records; null for every other event.
-        metadata:
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditDetail'
           readOnly: true
+          description: 'What the event recorded beyond its summary, as label and value
+            pairs in words: no stored codes or ids.'
       required:
       - action
       - action_display
       - actor_email
       - actor_name
+      - details
       - entity_id
       - entity_type
       - entity_type_display
       - id
-      - metadata
       - occurred_at
       - outcome_display
       - subject_name

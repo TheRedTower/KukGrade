@@ -348,7 +348,9 @@ def transition_grading_session(
     record(
         AuditAction.SESSION_TRANSITIONED,
         locked_session,
-        f"Grading session moved from {previous_status} to {target_status}.",
+        "Grading session moved from "
+        f"{GradingSession.Status(previous_status).label} to "
+        f"{GradingSession.Status(target_status).label}.",
         actor=actor,
         metadata={
             "before": {"status": previous_status},
@@ -1070,7 +1072,8 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
         AuditAction.SESSION_DELETED,
         locked,
         (
-            f"Grading session '{locked.title}' deleted while {locked.status}"
+            f"Grading session '{locked.title}' deleted while "
+            f"{locked.get_status_display().lower()}"
             + (
                 f", removing {len(cascaded)} registered candidate(s)."
                 if cascaded

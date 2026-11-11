@@ -44,6 +44,11 @@ PROMOTION_SESSION_STATUSES = {
 }
 
 
+def _outcome_label(outcome: str | None) -> str:
+    """An outcome as the screens name it ("Pass"), for an audit summary."""
+    return str(CandidateOutcome.Outcome(outcome).label) if outcome else "none"
+
+
 @dataclass(frozen=True)
 class PromotionEligibilityFacts:
     """One request's promotion and rank facts; never cached across requests."""
@@ -165,9 +170,9 @@ def _record_proposal(
         AuditAction.OUTCOME_PROPOSED,
         outcome,
         (
-            f"Outcome proposed as {outcome.proposed_outcome}"
+            f"Outcome proposed as {_outcome_label(outcome.proposed_outcome)}"
             + (
-                f", revising an earlier {before['proposed_outcome']}."
+                f", revising an earlier {_outcome_label(before['proposed_outcome'])}."
                 if before["proposed_outcome"]
                 else "."
             )
@@ -316,10 +321,11 @@ def finalise_candidate_outcome(
         AuditAction.OUTCOME_FINALISED,
         locked_outcome,
         (
-            f"Final decision {final_outcome} recorded for "
+            f"Final decision {_outcome_label(final_outcome)} recorded for "
             f"{student_label(locked_outcome.candidate.student)}"
             + (
-                f", overriding a proposed {locked_outcome.proposed_outcome}."
+                ", overriding a proposed "
+                f"{_outcome_label(locked_outcome.proposed_outcome)}."
                 if locked_outcome.proposed_outcome != final_outcome
                 else "."
             )

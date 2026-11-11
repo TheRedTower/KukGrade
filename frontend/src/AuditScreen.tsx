@@ -54,17 +54,6 @@ function actorLabel(event: AuditEvent): string {
   return event.actor_name.trim() || event.actor_email || "System";
 }
 
-function eventMetadata(event: AuditEvent): string {
-  if (
-    event.metadata === null ||
-    event.metadata === undefined ||
-    (typeof event.metadata === "object" && Object.keys(event.metadata).length === 0)
-  ) {
-    return "No further details recorded.";
-  }
-  return JSON.stringify(event.metadata, null, 2);
-}
-
 /** Where the app opens the record a history is of: the routes are the app's own. */
 function subjectPath(subject: AuditSubject): string {
   switch (subject.kind) {
@@ -365,7 +354,18 @@ export function AuditScreen(): React.ReactElement {
           </div>
           <div className="audit-detail-section">
             <h3>Recorded details</h3>
-            <pre className="code-block">{eventMetadata(selectedEvent)}</pre>
+            {selectedEvent.details.length === 0 ? (
+              <p className="meta">No further details recorded.</p>
+            ) : (
+              <dl className="facts">
+                {selectedEvent.details.map((detail) => (
+                  <div key={detail.label}>
+                    <dt>{detail.label}</dt>
+                    <dd>{detail.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
         </Dialog>
       )}

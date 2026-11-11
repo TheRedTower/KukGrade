@@ -6,6 +6,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from audit import tones
+from audit.details import RankNames, event_details
 from audit.models import AuditEntity, AuditEvent
 from kukgrade.serializers import ChoiceSerializer, ModelSerializer
 
@@ -21,6 +22,14 @@ def student_id_of(event: AuditEvent) -> int | None:
         return int(raw)
     except TypeError, ValueError:
         return None
+
+
+class AuditDetailSerializer(serializers.Serializer):
+    # DRF lifts declared fields off the class (see ChoiceSerializer).
+    label = serializers.CharField(  # type: ignore[assignment]
+        help_text="What the detail is, as a screen names it.",
+    )
+    value = serializers.CharField(help_text="What it was, in words.")
 
 
 class AuditEventSerializer(ModelSerializer):
@@ -48,6 +57,13 @@ class AuditEventSerializer(ModelSerializer):
         ),
     )
 
+    details = serializers.SerializerMethodField(
+        help_text=(
+            "What the event recorded beyond its summary, as label and value pairs "
+            "in words: no stored codes or ids."
+        ),
+    )
+
     class Meta:
         model = AuditEvent
         fields = (
@@ -64,7 +80,7 @@ class AuditEventSerializer(ModelSerializer):
             "subject_name",
             "tone",
             "outcome_display",
-            "metadata",
+            "details",
         )
         read_only_fields = fields
 
@@ -75,6 +91,14 @@ class AuditEventSerializer(ModelSerializer):
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_outcome_display(self, event: AuditEvent) -> str | None:
         return tones.outcome_display(event)
+
+    @extend_schema_field(AuditDetailSerializer(many=True))
+    def get_details(self, event: AuditEvent) -> list[dict[str, str]]:
+        # Rank names are read once for the page, not once per event.
+        ranks = self.context.get("rank_names")
+        if ranks is None:
+            ranks = self.context["rank_names"] = RankNames.read()
+        return event_details(event, ranks)
 
     def get_subject_name(self, event: AuditEvent) -> str:
         student_id = student_id_of(event)

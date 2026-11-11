@@ -62,6 +62,11 @@ def _status_label(status: str) -> str:
     return str(CandidateAssessment.Status(status).label).lower()
 
 
+def _result_label(result: str) -> str:
+    """A mark as the screens name it ("Met"), for an audit summary."""
+    return str(CandidateAssessmentItem.Result(result).label)
+
+
 @transaction.atomic
 def delete_candidate_assessment(
     assessment: CandidateAssessment,
@@ -88,7 +93,8 @@ def delete_candidate_assessment(
         locked,
         (
             f"Assessment for {student_label(locked.candidate.student)} in "
-            f"'{locked.candidate.session.title}' deleted while {locked.status}."
+            f"'{locked.candidate.session.title}' deleted while "
+            f"{_status_label(locked.status)}."
         ),
         actor=actor,
         metadata={
@@ -629,10 +635,11 @@ def update_candidate_assessment_item(
         AuditAction.ITEM_RESULT_RECORDED,
         locked_item,
         (
-            f"{locked_item.item_name} changed from {previous_result} to {result} "
+            f"{locked_item.item_name} changed from {_result_label(previous_result)} "
+            f"to {_result_label(result)} "
             f"for {student_label(locked_item.assessment.candidate.student)}."
             if is_later_change
-            else f"{locked_item.item_name} recorded as {result} "
+            else f"{locked_item.item_name} recorded as {_result_label(result)} "
             f"for {student_label(locked_item.assessment.candidate.student)}."
         ),
         actor=assessor,

@@ -445,7 +445,8 @@ def update_student(
             locked,
             (
                 f"{student_label(locked, first=True)} status changed from "
-                f"{before['status']} to {after['status']}."
+                f"{Student.Status(before['status']).label} to "
+                f"{Student.Status(after['status']).label}."
             ),
             actor=actor,
             metadata=_audited_change(before, after, rebanded),

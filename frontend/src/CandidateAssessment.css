@@ -220,7 +220,10 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-muted);
-  transition: background var(--duration) ease, border-color var(--duration) ease, color var(--duration) ease;
+  transition:
+    background var(--duration) ease,
+    border-color var(--duration) ease,
+    color var(--duration) ease;
 }
 
 .caw-verdict:hover:not(:disabled) {
@@ -785,7 +788,6 @@
   .acp-rank-line {
     justify-content: flex-start;
   }
-
 }
 
 .acp-correct {

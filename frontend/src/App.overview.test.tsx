@@ -3,12 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type {
-  AuditEvent,
-  AuthUser,
-  CandidateAssessment,
-  GradingSession,
-} from "./api";
+import type { AuditEvent, AuthUser, CandidateAssessment, GradingSession } from "./api";
 import {
   authUser,
   ADMINISTRATOR_CAPABILITIES,
@@ -62,23 +57,17 @@ describe("Overview screen (Operational Ledger)", () => {
 
     // Needs attention card empty state
     expect(screen.getByText("All clear")).toBeVisible();
-    expect(
-      screen.getByText("No candidate assessments currently requiring review."),
-    ).toBeVisible();
+    expect(screen.getByText("No candidate assessments currently requiring review.")).toBeVisible();
 
     // Upcoming card empty state
     expect(screen.getByText("No upcoming gradings")).toBeVisible();
-    expect(
-      screen.getByText("No future grading sessions are currently scheduled."),
-    ).toBeVisible();
+    expect(screen.getByText("No future grading sessions are currently scheduled.")).toBeVisible();
 
     // Recent activity is the audit log's feed: someone who may not read the
     // log is shown no section at all, not an empty one.
     expect(screen.queryByText("Recent activity")).not.toBeInTheDocument();
     expect(screen.queryByText("No recent activity recorded.")).not.toBeInTheDocument();
-    expect(
-      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/audit-events/")),
-    ).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/audit-events/"))).toBe(false);
   });
 
   it("shows an audit reader that there is no recent activity", async () => {
@@ -126,7 +115,14 @@ describe("Overview screen (Operational Ledger)", () => {
     const events = [
       event(1, "USER_UPDATED", "User updated", "Password reset for someone@example.com.", "neutral"),
       event(2, "OUTCOME_PROPOSED", "Outcome proposed", "Outcome proposed as PASS.", "info", "Pass"),
-      event(3, "OUTCOME_FINALISED", "Outcome finalised", "Final decision FAIL, overriding a proposed PASS.", "warning", "Fail"),
+      event(
+        3,
+        "OUTCOME_FINALISED",
+        "Outcome finalised",
+        "Final decision FAIL, overriding a proposed PASS.",
+        "warning",
+        "Fail",
+      ),
       event(4, "OUTCOME_FINALISED", "Outcome finalised", "Final decision CONDITIONAL.", "warning", "Conditional"),
       event(5, "CANDIDATE_WITHDRAWN", "Candidate withdrawn", "Withdrawn: did not attend.", "warning"),
       event(6, "PROMOTION_RECORDED", "Promotion recorded", "Promoted to Yellow.", "success"),
@@ -141,9 +137,9 @@ describe("Overview screen (Operational Ledger)", () => {
           return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
         }
         if (url.includes("/api/audit-events/labels/")) {
-        return jsonResponse(200, { actions: [], entities: [] });
-      }
-      if (url.includes("/api/audit-events/")) {
+          return jsonResponse(200, { actions: [], entities: [] });
+        }
+        if (url.includes("/api/audit-events/")) {
           return jsonResponse(200, { count: events.length, next: null, previous: null, results: events });
         }
         return jsonResponse(404, {});
@@ -153,8 +149,7 @@ describe("Overview screen (Operational Ledger)", () => {
     render(<App />);
 
     const ledger = await screen.findByRole("table", { name: "Recent activity" });
-    const statusOf = (summary: string) =>
-      within(ledger).getByText(summary).closest("tr")!.querySelector(".badge")!;
+    const statusOf = (summary: string) => within(ledger).getByText(summary).closest("tr")!.querySelector(".badge")!;
     expect(statusOf("Password reset for someone@example.com.")).toHaveTextContent("User updated");
     expect(statusOf("Password reset for someone@example.com.")).toHaveAttribute("data-tone", "neutral");
     expect(statusOf("Outcome proposed as PASS.")).toHaveTextContent("Outcome proposed · Pass");
@@ -183,7 +178,10 @@ describe("Overview screen (Operational Ledger)", () => {
       completed_assessment_count: 1,
       awaiting_decision_count: 0,
       ...sessionServed("OPEN"),
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
     } satisfies GradingSession;
 
@@ -197,7 +195,10 @@ describe("Overview screen (Operational Ledger)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("DRAFT"),
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Ipswich Central",
     } satisfies GradingSession;
 
@@ -307,9 +308,7 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(screen.getByText("Riverside Dojang")).toBeVisible();
     expect(await screen.findByText("1 / 2")).toBeVisible(); // 1 of 2 completed
     expect(screen.getByText("2")).toBeVisible(); // candidates count
-    expect(screen.getByText("Awaiting final decision").previousElementSibling).toHaveTextContent(
-      "0",
-    );
+    expect(screen.getByText("Awaiting final decision").previousElementSibling).toHaveTextContent("0");
     expect(screen.getByRole("button", { name: /Open session/i })).toBeVisible();
 
     // Needs attention card
@@ -324,15 +323,16 @@ describe("Overview screen (Operational Ledger)", () => {
 
     // The rows are real links, so they can be opened in a new tab.
     expect(screen.getByRole("link", { name: /Summer Grading 2026/ })).toHaveAttribute("href", "/gradings/102");
-    expect(screen.getByRole("link", { name: /Student One/ })).toHaveAttribute("href", expect.stringMatching(/^\/gradings\//));
+    expect(screen.getByRole("link", { name: /Student One/ })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/gradings\//),
+    );
 
     // Two small requests for the two sessions shown, never the whole history.
     const requested = fetchMock.mock.calls.map(([url]) => String(url));
     expect(requested.some((url) => url.includes("page_size=200"))).toBe(false);
     expect(requested.some((url) => url.includes("status=OPEN") && url.includes("page_size=1"))).toBe(true);
-    expect(
-      requested.some((url) => url.includes("ordering=grading_date") && url.includes("page_size=2")),
-    ).toBe(true);
+    expect(requested.some((url) => url.includes("ordering=grading_date") && url.includes("page_size=2"))).toBe(true);
 
     // Recent activity table
     expect(await screen.findByText("Assessment complete (ready for review)")).toBeVisible();
@@ -381,7 +381,10 @@ describe("Overview screen (Operational Ledger)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("OPEN"),
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
     } satisfies GradingSession;
 

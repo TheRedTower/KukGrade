@@ -10,7 +10,13 @@ interface PasswordToggleProps {
 /** The Show / Hide button beside a password box (placed by .password-toggle in App.css). */
 export function PasswordToggle({ shown, onToggle, noun = "password" }: PasswordToggleProps) {
   return (
-    <Button aria-label={`${shown ? "Hide" : "Show"} ${noun}`} className="password-toggle" onClick={onToggle} small variant="link">
+    <Button
+      aria-label={`${shown ? "Hide" : "Show"} ${noun}`}
+      className="password-toggle"
+      onClick={onToggle}
+      small
+      variant="link"
+    >
       {shown ? "Hide" : "Show"}
     </Button>
   );

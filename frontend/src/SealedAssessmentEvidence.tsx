@@ -37,9 +37,7 @@ export function SealedAssessmentEvidence({
   const summaryQuery = useAssessmentSummaryQuery(assessmentId);
   const itemsQuery = useAssessmentItemsQuery(assessmentId);
 
-  const notedItems = (itemsQuery.data?.results ?? []).filter(
-    (item) => item.result === "NOT_MET" || hasRemarks(item),
-  );
+  const notedItems = (itemsQuery.data?.results ?? []).filter((item) => item.result === "NOT_MET" || hasRemarks(item));
   const shortfalls = notedItems.filter((item) => item.result === "NOT_MET");
   const otherNotes = notedItems.filter((item) => item.result !== "NOT_MET");
   const overall = summaryQuery.data?.overall;
@@ -83,8 +81,7 @@ export function SealedAssessmentEvidence({
                 return (
                   <li key={item.id} className={shortfall ? "evd-note evd-note-shortfall" : "evd-note"}>
                     <span className="row row--inline row--1 evd-note-title item-title">
-                      {shortfall && <WarningIcon size={14} />} {item.item_name} ·{" "}
-                      {item.category_display}
+                      {shortfall && <WarningIcon size={14} />} {item.item_name} · {item.category_display}
                       {!shortfall && ` · ${item.result_display}`}
                     </span>
                     <ItemRemarks item={item} />

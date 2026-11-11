@@ -68,7 +68,10 @@ const SCREENS: Screen[] = [
     role: "master",
     path: (ids) => `/gradings/${ids.sessions.DRAFT}/register`,
     after: async (page) => {
-      await page.getByRole("button", { name: /^Add all \d+$/ }).first().click();
+      await page
+        .getByRole("button", { name: /^Add all \d+$/ })
+        .first()
+        .click();
       await page.getByRole("button", { name: /^Review exceptions/ }).click();
       await page.getByRole("dialog").waitFor();
     },
@@ -87,7 +90,10 @@ const SCREENS: Screen[] = [
     role: "master",
     path: () => "/audit",
     after: async (page) => {
-      await page.getByRole("button", { name: /^View .* event$/ }).first().click();
+      await page
+        .getByRole("button", { name: /^View .* event$/ })
+        .first()
+        .click();
       await page.getByRole("dialog").waitFor();
     },
   },
@@ -181,7 +187,9 @@ test.beforeAll(async ({ browser }) => {
 
 test("the debt lists name only screens that exist", () => {
   const testInfo = test.info();
-  const webkitProjects = testInfo.config.projects.map((project) => project.name).filter((name) => name.startsWith("webkit"));
+  const webkitProjects = testInfo.config.projects
+    .map((project) => project.name)
+    .filter((name) => name.startsWith("webkit"));
   expect(Object.keys(webkitDebt).sort()).toEqual(webkitProjects.sort());
   expect(Object.keys(WEBKIT_WIDTHS).sort()).toEqual(webkitProjects.sort());
   expect([...debt, ...Object.values(webkitDebt).flat()].filter((name) => !known.has(name))).toEqual([]);
@@ -205,7 +213,10 @@ test("the edit-student dialog can be scrolled to Save on a short landscape scree
 
 test("an import step's Cancel and Continue stack on a phone and share a row with room", async () => {
   const page = await contexts.get("administrator")!.newPage();
-  for (const [width, together] of [[390, false], [1400, true]] as const) {
+  for (const [width, together] of [
+    [390, false],
+    [1400, true],
+  ] as const) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/imports/new?kind=STUDENT_ROSTER");
     const cancel = page.getByRole("button", { name: "Cancel import" });
@@ -228,7 +239,11 @@ for (const path of ["/", "/students", "/gradings"]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto(path);
       await page.getByRole("heading", { level: 1 }).waitFor();
-      const left = (selector: string) => page.locator(selector).first().evaluate((el) => el.getBoundingClientRect().left);
+      const left = (selector: string) =>
+        page
+          .locator(selector)
+          .first()
+          .evaluate((el) => el.getBoundingClientRect().left);
       const logo = await left(".nav-logo");
       expect(Math.abs(logo - (await left("h1"))), `logo against the title at ${width}px`).toBeLessThanOrEqual(1);
     }
@@ -259,7 +274,9 @@ for (const screen of SCREENS) {
     // WebKit checks the same few widths in every run, so only Chrome's quick run is partial.
     const partial = quick && !webkit;
     const debtFile = webkit ? `widthDebtWebkit.json (${testInfo.project.name})` : "widthDebt.json";
-    const owedHere = ((webkit ? webkitDebt[testInfo.project.name as keyof typeof webkitDebt] : debt) as string[]).includes(screen.name);
+    const owedHere = (
+      (webkit ? webkitDebt[testInfo.project.name as keyof typeof webkitDebt] : debt) as string[]
+    ).includes(screen.name);
     // A screen on the debt list is expected not to fit yet. Where the run is
     // authoritative (CI, all widths) Playwright reports a pass of an expected
     // failure as a failure: remove the screen from widthDebt.json. Fonts differ
@@ -283,7 +300,8 @@ for (const screen of SCREENS) {
     }
     await page.close();
     if (owedHere && !authoritative) {
-      if (process.env.KUKGRADE_E2E_REPORT && problems.length) console.log(`${screen.name}:\n  ${problems.join("\n  ")}`);
+      if (process.env.KUKGRADE_E2E_REPORT && problems.length)
+        console.log(`${screen.name}:\n  ${problems.join("\n  ")}`);
       test.info().annotations.push({
         type: "owed",
         description: problems.length ? "does not fit yet" : `fits here: remove it from ${debtFile} once CI agrees`,

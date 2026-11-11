@@ -54,7 +54,12 @@ export function ConfirmDialog({
         <div className="dialog__body">{children}</div>
         {error ? <Alert>{error}</Alert> : null}
         <div className="action-row dialog__actions">
-          <Button variant="secondary" data-dialog-autofocus={startOnCancel || undefined} disabled={pending} onClick={onClose}>
+          <Button
+            variant="secondary"
+            data-dialog-autofocus={startOnCancel || undefined}
+            disabled={pending}
+            onClick={onClose}
+          >
             {cancelLabel}
           </Button>
           <Button

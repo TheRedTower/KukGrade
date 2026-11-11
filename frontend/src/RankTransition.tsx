@@ -76,7 +76,13 @@ export function CandidateRanks({
   candidate,
   spoken = "grading for",
   ...options
-}: { candidate: CandidateRankFields; spoken?: string; fromLabel?: string; toLabel?: string; badges?: boolean }) {
+}: {
+  candidate: CandidateRankFields;
+  spoken?: string;
+  fromLabel?: string;
+  toLabel?: string;
+  badges?: boolean;
+}) {
   return (
     <RankTransition
       from={{ rank: candidate.from_rank, name: candidate.from_rank_name }}

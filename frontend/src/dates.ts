@@ -109,11 +109,7 @@ export function formatApiDate(
 
 /** A grading date as it reads throughout the app: "Tuesday, 1 June 2027". */
 export function formatSessionDate(isoDate: string): string {
-  return formatApiDate(
-    isoDate,
-    { weekday: "long", day: "numeric", month: "long", year: "numeric" },
-    "",
-  );
+  return formatApiDate(isoDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" }, "");
 }
 
 /**
@@ -169,7 +165,8 @@ export function formatTime(value: string | null | undefined, fallback = ""): str
 export function formatRecentTime(value: string): string {
   const daysAgo = calendarDaysAgo(value);
   if (daysAgo === null) return value;
-  const day = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : formatApiDate(value, { day: "numeric", month: "short" });
+  const day =
+    daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : formatApiDate(value, { day: "numeric", month: "short" });
   return unbroken(`${day} ${formatTime(value)}`);
 }
 
@@ -192,10 +189,7 @@ export function formatMonthYear(year: number, month: number): string {
  * falls on. Days are counted as calendar days, not 24-hour periods, so a
  * clock change does not move the answer.
  */
-export function calendarDaysAgo(
-  value: string | null | undefined,
-  now: Date = new Date(),
-): number | null {
+export function calendarDaysAgo(value: string | null | undefined, now: Date = new Date()): number | null {
   const date = parseApiDate(value);
   if (!value || !date) return null;
   const then = DATE_ONLY.test(value)

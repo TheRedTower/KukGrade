@@ -3,7 +3,6 @@ import type { CategoryGroup } from "./candidateAssessmentData";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { RequirementBadge } from "./StatusBadge";
 
-
 /** The mark shown against a requirement or core area on the proof. */
 export function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {
   if (result === "MET") {
@@ -64,8 +63,14 @@ export function LedgerTable({ group }: { group: CategoryGroup }) {
         <thead>
           <tr className="eyebrow--muted">
             <th scope="col">Requirement</th>
-            {hasAnyRange && <th scope="col" className="acp-ledger-range-col">Numbers</th>}
-            <th scope="col" className="acp-ledger-result-col">Result</th>
+            {hasAnyRange && (
+              <th scope="col" className="acp-ledger-range-col">
+                Numbers
+              </th>
+            )}
+            <th scope="col" className="acp-ledger-result-col">
+              Result
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -73,12 +78,15 @@ export function LedgerTable({ group }: { group: CategoryGroup }) {
             <tr key={item.id} data-testid={`acp-ledger-row-${item.id}`}>
               <td>
                 <strong>{item.item_name}</strong>
-                {item.korean_name && <span className="acp-ledger-korean" lang="ko"> {item.korean_name}</span>}
+                {item.korean_name && (
+                  <span className="acp-ledger-korean" lang="ko">
+                    {" "}
+                    {item.korean_name}
+                  </span>
+                )}
                 {!item.required && <RequirementBadge required={false} />}
               </td>
-              {hasAnyRange && (
-                <td className="acp-ledger-range meta">{item.display_range || item.notation}</td>
-              )}
+              {hasAnyRange && <td className="acp-ledger-range meta">{item.display_range || item.notation}</td>}
               <td>
                 <ResultMark result={item.result} />
               </td>

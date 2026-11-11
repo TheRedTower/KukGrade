@@ -3,17 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type {
-  Rank,
-  StudentDetail,
-  StudentListItem,
-  StudentRankHistory,
-} from "./api";
-import {
-  authUser,
-  jsonResponse,
-  CHOICES,
-} from "./appTestSupport";
+import type { Rank, StudentDetail, StudentListItem, StudentRankHistory } from "./api";
+import { authUser, jsonResponse, CHOICES } from "./appTestSupport";
 
 describe("Students registry screen (/students)", () => {
   beforeEach(() => {
@@ -48,9 +39,7 @@ describe("Students registry screen (/students)", () => {
     expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();
     expect(screen.getByText("Manage student records and grading history")).toBeVisible();
     expect(await screen.findByText("No students registered yet")).toBeVisible();
-    expect(
-      screen.getByText("Add your first student to get started."),
-    ).toBeVisible();
+    expect(screen.getByText("Add your first student to get started.")).toBeVisible();
     expect(screen.getByRole("button", { name: /Add student/i })).toBeVisible();
   });
 
@@ -101,7 +90,14 @@ describe("Students registry screen (/students)", () => {
         .map(([url]) => new URL(String(url), "http://localhost"))
         .filter((url) => url.pathname === "/api/students/");
     await waitFor(() =>
-      expect(listed().some((url) => url.searchParams.get("search") === "Ava" && url.searchParams.get("status") === "LEFT" && url.searchParams.get("page") === "2")).toBe(true),
+      expect(
+        listed().some(
+          (url) =>
+            url.searchParams.get("search") === "Ava" &&
+            url.searchParams.get("status") === "LEFT" &&
+            url.searchParams.get("page") === "2",
+        ),
+      ).toBe(true),
     );
     // Changing a filter goes back to the first page.
     await user.selectOptions(screen.getByLabelText("Status"), "");
@@ -110,9 +106,39 @@ describe("Students registry screen (/students)", () => {
 
   it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
     const testRanks = [
-      { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
-      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5, has_syllabus: true },
-      { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
+      {
+        id: 1,
+        code: "W",
+        name: "White Belt",
+        order: 1,
+        belt_colour: "WHITE",
+        stripe_colour: "",
+        stripe_count: 0,
+        next_rank: 2,
+        has_syllabus: true,
+      },
+      {
+        id: 2,
+        code: "YS",
+        name: "Yellow Stripe",
+        order: 2,
+        belt_colour: "WHITE",
+        stripe_colour: "YELLOW",
+        stripe_count: 1,
+        next_rank: 5,
+        has_syllabus: true,
+      },
+      {
+        id: 5,
+        code: "B",
+        name: "Blue Belt",
+        order: 5,
+        belt_colour: "BLUE",
+        stripe_colour: "",
+        stripe_count: 0,
+        next_rank: null,
+        has_syllabus: true,
+      },
     ] satisfies Rank[];
 
     const testStudents = [
@@ -198,7 +224,7 @@ describe("Students registry screen (/students)", () => {
           ...testStudents[0],
           wksa_id_can_change: true,
           previous_wksa_ids: [],
-    extra_information: [],
+          extra_information: [],
         });
       }
       if (url.includes("/api/students/")) {
@@ -225,10 +251,7 @@ describe("Students registry screen (/students)", () => {
     expect(tableScope.getByText("Active")).toBeVisible();
     // Current grading is the served registration and its stage, linked to
     // the session; a student with none says so.
-    expect(tableScope.getByRole("link", { name: "Spring Grading 2027" })).toHaveAttribute(
-      "href",
-      "/gradings/42",
-    );
+    expect(tableScope.getByRole("link", { name: "Spring Grading 2027" })).toHaveAttribute("href", "/gradings/42");
     expect(tableScope.getByText("Awaiting final decision")).toBeVisible();
     expect(tableScope.getAllByText("Not registered")).toHaveLength(2);
     expect(screen.queryByRole("columnheader", { name: "Next action" })).not.toBeInTheDocument();
@@ -264,7 +287,19 @@ describe("Students registry screen (/students)", () => {
           count: 1,
           next: null,
           previous: null,
-          results: [{ id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true } satisfies Rank],
+          results: [
+            {
+              id: 1,
+              code: "W",
+              name: "White Belt",
+              order: 1,
+              belt_colour: "WHITE",
+              stripe_colour: "",
+              stripe_count: 0,
+              next_rank: null,
+              has_syllabus: true,
+            } satisfies Rank,
+          ],
         });
       }
       if (url.includes("/api/students/")) {
@@ -276,22 +311,24 @@ describe("Students registry screen (/students)", () => {
           count: 1,
           next: null,
           previous: null,
-          results: [{
-            id: 1,
-            wksa_id: "UK-1001",
-            first_name: "Bruce",
-            last_name: "Wayne",
-            current_rank: 1,
-            current_rank_code: "W",
-            current_rank_name: "White Belt",
-            status: "ACTIVE",
-            status_display: "Active",
-            can_be_graded: true,
-            next_rank: null,
-            next_rank_name: null,
-            age_band: "AGE_18_AND_OVER",
-            age_band_display: "18+",
-          }],
+          results: [
+            {
+              id: 1,
+              wksa_id: "UK-1001",
+              first_name: "Bruce",
+              last_name: "Wayne",
+              current_rank: 1,
+              current_rank_code: "W",
+              current_rank_name: "White Belt",
+              status: "ACTIVE",
+              status_display: "Active",
+              can_be_graded: true,
+              next_rank: null,
+              next_rank_name: null,
+              age_band: "AGE_18_AND_OVER",
+              age_band_display: "18+",
+            },
+          ],
         });
       }
       return jsonResponse(404, {});
@@ -327,9 +364,39 @@ describe("Students registry screen (/students)", () => {
 
 describe("Add student screen (/students/new)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5, has_syllabus: true },
-    { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
+    {
+      id: 1,
+      code: "W",
+      name: "White Belt",
+      order: 1,
+      belt_colour: "WHITE",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: 2,
+      has_syllabus: true,
+    },
+    {
+      id: 2,
+      code: "YS",
+      name: "Yellow Stripe",
+      order: 2,
+      belt_colour: "WHITE",
+      stripe_colour: "YELLOW",
+      stripe_count: 1,
+      next_rank: 5,
+      has_syllabus: true,
+    },
+    {
+      id: 5,
+      code: "B",
+      name: "Blue Belt",
+      order: 5,
+      belt_colour: "BLUE",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: null,
+      has_syllabus: true,
+    },
   ] satisfies Rank[];
 
   beforeEach(() => {
@@ -428,8 +495,8 @@ describe("Add student screen (/students/new)", () => {
     expect(firstNameInput).toHaveAttribute("aria-invalid", "true");
 
     // Ensure no POST request was dispatched
-    const postCalls = fetchMock.mock.calls.filter(([url, options]) =>
-      url.includes("/api/students/") && (options as RequestInit)?.method === "POST"
+    const postCalls = fetchMock.mock.calls.filter(
+      ([url, options]) => url.includes("/api/students/") && (options as RequestInit)?.method === "POST",
     );
     expect(postCalls.length).toBe(0);
   });
@@ -520,9 +587,7 @@ describe("Add student screen (/students/new)", () => {
     await user.type(screen.getByLabelText(/Last name/i), "Carter");
     // The forms come from the server; the ID goes as typed, for it to tidy.
     expect(
-      await screen.findByText(
-        /Use a student ID such as 123-4-150 or a black belt ID such as A-20819\./,
-      ),
+      await screen.findByText(/Use a student ID such as 123-4-150 or a black belt ID such as A-20819\./),
     ).toBeVisible();
     await user.type(screen.getByLabelText(/WKSA ID/i), " a-20819");
     await user.type(screen.getByLabelText(/Date of birth/i), "2005-04-12");
@@ -687,9 +752,39 @@ describe("Add student screen (/students/new)", () => {
 
 describe("Student detail screen (/students/:id)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 3, has_syllabus: true },
-    { id: 3, code: "Y", name: "Yellow Belt", order: 3, belt_colour: "YELLOW", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
+    {
+      id: 1,
+      code: "W",
+      name: "White Belt",
+      order: 1,
+      belt_colour: "WHITE",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: 2,
+      has_syllabus: true,
+    },
+    {
+      id: 2,
+      code: "YS",
+      name: "Yellow Stripe",
+      order: 2,
+      belt_colour: "WHITE",
+      stripe_colour: "YELLOW",
+      stripe_count: 1,
+      next_rank: 3,
+      has_syllabus: true,
+    },
+    {
+      id: 3,
+      code: "Y",
+      name: "Yellow Belt",
+      order: 3,
+      belt_colour: "YELLOW",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: null,
+      has_syllabus: true,
+    },
   ] satisfies Rank[];
 
   const testStudent = {
@@ -804,7 +899,15 @@ describe("Student detail screen (/students/:id)", () => {
           return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
         }
         if (url.includes("/rank-history/")) {
-          return jsonResponse(200, { student: 10, current_rank: 2, current_rank_code: "YS", current_rank_name: "Yellow Stripe", promotions: [], student_display_name: "Alex Carter (UK-5001)", student_wksa_id: "UK-5001" });
+          return jsonResponse(200, {
+            student: 10,
+            current_rank: 2,
+            current_rank_code: "YS",
+            current_rank_name: "Yellow Stripe",
+            promotions: [],
+            student_display_name: "Alex Carter (UK-5001)",
+            student_wksa_id: "UK-5001",
+          });
         }
         if (url.includes("/api/students/10/")) return jsonResponse(200, testStudent);
         return jsonResponse(404, {});
@@ -1157,9 +1260,7 @@ describe("Student detail screen (/students/:id)", () => {
     await user.click(await screen.findByRole("button", { name: "Edit student" }));
     // A mistyped ID of either form can be corrected.
     expect(await screen.findByLabelText("WKSA ID")).toBeEnabled();
-    expect(
-      screen.getByText("Correct a mistyped black belt ID. It never goes back to a student ID."),
-    ).toBeVisible();
+    expect(screen.getByText("Correct a mistyped black belt ID. It never goes back to a student ID.")).toBeVisible();
   });
 
   it("announces edit-student field errors and associates them with their input", async () => {
@@ -1275,7 +1376,10 @@ describe("A student record that is not there", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { level: 1, name: "Student record not found" })).toBeVisible();
-    expect(within(screen.getByRole("main")).getByRole("link", { name: "Students" })).toHaveAttribute("href", "/students");
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Students" })).toHaveAttribute(
+      "href",
+      "/students",
+    );
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/students/12"))).toBe(false);
   });
 

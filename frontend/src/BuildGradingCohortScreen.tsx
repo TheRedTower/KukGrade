@@ -12,7 +12,14 @@ import { useDebouncedValue } from "./useDebouncedValue";
 import { SessionStatusBadge } from "./StatusBadge";
 import "./BuildGradingCohort.css";
 import { CohortResolver } from "./CohortResolver";
-import { type CohortItem, buildRankGroups, cohortBreakdown, destinationOf, newCohortItems, rankMapOf } from "./cohortBuilder";
+import {
+  type CohortItem,
+  buildRankGroups,
+  cohortBreakdown,
+  destinationOf,
+  newCohortItems,
+  rankMapOf,
+} from "./cohortBuilder";
 import { CohortFindSection, type StatusFilter } from "./CohortFindSection";
 import { CohortRankGroupsSection } from "./CohortRankGroupsSection";
 import { CohortReviewDialog } from "./CohortReviewDialog";
@@ -67,9 +74,15 @@ export function BuildGradingCohortScreen() {
   // list "Add all" would mean.
   const rosterUpdating = studentsQuery.isPlaceholderData || search.trim() !== debouncedSearch;
 
-  const ranks: Rank[] = useMemo(() => [...(ranksQuery.data?.results ?? [])].sort((a, b) => a.order - b.order), [ranksQuery.data]);
+  const ranks: Rank[] = useMemo(
+    () => [...(ranksQuery.data?.results ?? [])].sort((a, b) => a.order - b.order),
+    [ranksQuery.data],
+  );
   const rankMap = useMemo(() => rankMapOf(ranks), [ranks]);
-  const rankGroups = useMemo(() => buildRankGroups(eligibleStudents, ranks, rankMap, ageBands), [eligibleStudents, ranks, rankMap, ageBands]);
+  const rankGroups = useMemo(
+    () => buildRankGroups(eligibleStudents, ranks, rankMap, ageBands),
+    [eligibleStudents, ranks, rankMap, ageBands],
+  );
   const breakdown = useMemo(() => cohortBreakdown(cohort), [cohort]);
   const inCohort = useMemo(() => new Set(cohort.map((item) => item.student.id)), [cohort]);
 
@@ -79,8 +92,10 @@ export function BuildGradingCohortScreen() {
   });
   const addStudents = (students: StudentListItem[], ranksOf = rankFor) =>
     setCohort((prev) => [...prev, ...newCohortItems(prev, students, ranksOf)]);
-  const removeStudent = (studentId: number) => setCohort((prev) => prev.filter((item) => item.student.id !== studentId));
-  const removeRankGroup = (rankId: number) => setCohort((prev) => prev.filter((item) => item.student.current_rank !== rankId));
+  const removeStudent = (studentId: number) =>
+    setCohort((prev) => prev.filter((item) => item.student.id !== studentId));
+  const removeRankGroup = (rankId: number) =>
+    setCohort((prev) => prev.filter((item) => item.student.current_rank !== rankId));
 
   const registration = useCohortRegistration({ sessionId, session, cohort, setCohort, generateAssessments });
 
@@ -179,7 +194,9 @@ export function BuildGradingCohortScreen() {
         </div>
       </div>
 
-      {reviewOpen && <CohortReviewDialog cohort={cohort} onRemove={removeStudent} onClose={() => setReviewOpen(false)} />}
+      {reviewOpen && (
+        <CohortReviewDialog cohort={cohort} onRemove={removeStudent} onClose={() => setReviewOpen(false)} />
+      )}
     </section>
   );
 }

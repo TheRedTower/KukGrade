@@ -59,9 +59,7 @@ function UnfinishedImports({
     <section aria-labelledby="ix-unfinished" className="stack stack--3">
       <div className="ix-section-head">
         <h2 id="ix-unfinished">Pick up where you left off</h2>
-        <span className="subtext">
-          An unfinished import is cleared a day after it was uploaded.
-        </span>
+        <span className="subtext">An unfinished import is cleared a day after it was uploaded.</span>
       </div>
       <div className="card card--flush">
         {batches.map((batch) => {
@@ -122,9 +120,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
         <div className="card card--flush ix-panel">
           <div className="ix-panel-body">
             <h3>Students</h3>
-            <p className="subtext">
-              A list of students, one per row: name, date of birth, WKSA ID and rank.
-            </p>
+            <p className="subtext">A list of students, one per row: name, date of birth, WKSA ID and rank.</p>
             <div className="row row--wrap ix-push-down">
               <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=STUDENT_ROSTER">
                 Import students
@@ -139,14 +135,17 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
           <div className="ix-panel-body">
             <h3>Past gradings</h3>
             <p className="subtext">
-              An old grading record workbook: who tested, for which rank, the outcome and the
-              comments.
+              An old grading record workbook: who tested, for which rank, the outcome and the comments.
             </p>
             <div className="row row--wrap ix-push-down">
               <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=LEGACY_GRADINGS">
                 Import past gradings
               </Link>
-              {canLink ? <Link className={buttonClass({ variant: "secondary" })} to="/imports/history">Browse and correct records</Link> : null}
+              {canLink ? (
+                <Link className={buttonClass({ variant: "secondary" })} to="/imports/history">
+                  Browse and correct records
+                </Link>
+              ) : null}
             </div>
           </div>
           {awaitingLink ? (
@@ -197,14 +196,18 @@ function PastImports() {
 
   return (
     <section aria-labelledby="ix-past" className="stack stack--3">
-      <h2 id="ix-past" className="section-title">Past imports</h2>
+      <h2 id="ix-past" className="section-title">
+        Past imports
+      </h2>
       <div className="filter-bar" role="search" aria-label="Import filters">
         <label className="field">
           <span>What</span>
           <select value={kind} onChange={(event) => filters.set({ kind: event.target.value })}>
             <option value="">Everything</option>
             {choices.import_kinds.map((choice) => (
-              <option key={choice.value} value={choice.value}>{choice.label}</option>
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
             ))}
           </select>
         </label>
@@ -213,7 +216,9 @@ function PastImports() {
           <select value={state} onChange={(event) => filters.set({ state: event.target.value })}>
             <option value="">Any</option>
             {choices.finished_import_statuses.map((choice) => (
-              <option key={choice.value} value={choice.value}>{choice.label}</option>
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
             ))}
           </select>
         </label>
@@ -316,13 +321,9 @@ export function ImportsHubScreen() {
       />
 
       {unfinished.isError ? (
-        <ErrorText>
-          {errorMessage(unfinished.error, "Unfinished imports could not be loaded.")}
-        </ErrorText>
+        <ErrorText>{errorMessage(unfinished.error, "Unfinished imports could not be loaded.")}</ErrorText>
       ) : null}
-      {open.length > 0 ? (
-        <UnfinishedImports batches={open} onCancel={(batch) => setCancelling(batch)} />
-      ) : null}
+      {open.length > 0 ? <UnfinishedImports batches={open} onCancel={(batch) => setCancelling(batch)} /> : null}
 
       <StartPanels
         awaitingLink={awaitingLink.data?.awaiting_link}
@@ -333,7 +334,7 @@ export function ImportsHubScreen() {
 
       {cancelling ? (
         <ConfirmDialog
-        cancelLabel="Not yet"
+          cancelLabel="Not yet"
           confirmLabel="Cancel the import"
           danger
           error={cancel.isError ? errorMessage(cancel.error, "The import could not be cancelled.") : null}
@@ -347,8 +348,8 @@ export function ImportsHubScreen() {
           onConfirm={() => cancel.mutate(cancelling)}
         >
           <p className="subtext">
-            The file and everything you did with it are removed, and nothing is imported. You can
-            start again with the file at any time.
+            The file and everything you did with it are removed, and nothing is imported. You can start again with the
+            file at any time.
           </p>
         </ConfirmDialog>
       ) : null}

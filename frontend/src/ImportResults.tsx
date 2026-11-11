@@ -67,12 +67,21 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
           {addsStudents ? (
             <>
               <AlsoItem body="The Students page, showing only those this import added." title="See the new students">
-                <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to={`/students?source_import=${batch.id}`}>
+                <Link
+                  className={buttonClass({ variant: "secondary" }, "ix-start")}
+                  to={`/students?source_import=${batch.id}`}
+                >
                   Go to Students
                 </Link>
               </AlsoItem>
-              <AlsoItem body="Import the grading record workbook, then link it to these students." title="Bring in their past gradings">
-                <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to="/imports/new?kind=LEGACY_GRADINGS">
+              <AlsoItem
+                body="Import the grading record workbook, then link it to these students."
+                title="Bring in their past gradings"
+              >
+                <Link
+                  className={buttonClass({ variant: "secondary" }, "ix-start")}
+                  to="/imports/new?kind=LEGACY_GRADINGS"
+                >
                   Import past gradings
                 </Link>
               </AlsoItem>
@@ -80,14 +89,20 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
           ) : (
             <>
               {unresolvedRanks ? (
-                <AlsoItem body={`${counted(unresolvedRanks, "rank is", "ranks are")} still as written in the workbook.`} title="Match the last ranks">
+                <AlsoItem
+                  body={`${counted(unresolvedRanks, "rank is", "ranks are")} still as written in the workbook.`}
+                  title="Match the last ranks"
+                >
                   <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to="/imports/records">
                     Match ranks
                   </Link>
                 </AlsoItem>
               ) : null}
               {user?.can_reconcile_imported_history ? (
-                <AlsoItem body="Void the whole import. Its records are kept, marked void, with your reason." title="Wrong workbook?">
+                <AlsoItem
+                  body="Void the whole import. Its records are kept, marked void, with your reason."
+                  title="Wrong workbook?"
+                >
                   <Button variant="ghost" className="ix-danger-text ix-start" onClick={() => setVoiding(true)}>
                     Void this import
                   </Button>

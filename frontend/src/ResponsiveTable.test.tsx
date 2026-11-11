@@ -17,7 +17,12 @@ function renderTable() {
       columns={[
         { key: "place", header: "Place", render: (row) => row.place },
         { key: "name", header: "Session", primary: true, render: (row) => row.name },
-        { key: "act", header: "Open it", actions: true, render: (row) => <button type="button">Open {row.name}</button> },
+        {
+          key: "act",
+          header: "Open it",
+          actions: true,
+          render: (row) => <button type="button">Open {row.name}</button>,
+        },
       ]}
     />,
   );
@@ -25,7 +30,16 @@ function renderTable() {
 
 describe("ResponsiveTable", () => {
   it("names its empty box, and keeps a flush table's look", () => {
-    render(<ResponsiveTable flush empty="Nothing yet." label="Sessions" rows={[]} rowKey={(row: { id: number }) => row.id} columns={[]} />);
+    render(
+      <ResponsiveTable
+        flush
+        empty="Nothing yet."
+        label="Sessions"
+        rows={[]}
+        rowKey={(row: { id: number }) => row.id}
+        columns={[]}
+      />,
+    );
     const box = screen.getByRole("group", { name: "Sessions" });
     expect(box).toHaveTextContent("Nothing yet.");
     expect(box).toHaveClass("rtable--flush", "rtable__empty");
@@ -54,11 +68,11 @@ describe("ResponsiveTable", () => {
   it("is a real table with named columns and a row per item", () => {
     renderTable();
     const table = screen.getByRole("table", { name: "Sessions" });
-    expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
-      "Place",
-      "Session",
-      "Open it",
-    ]);
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Place", "Session", "Open it"]);
     expect(within(table).getAllByRole("row")).toHaveLength(3);
     expect(within(table).getByRole("button", { name: "Open Summer" })).toBeInTheDocument();
   });

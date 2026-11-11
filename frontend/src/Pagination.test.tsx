@@ -6,7 +6,9 @@ import { Pagination } from "./Pagination";
 
 function renderPager(page: number, totalPages: number, count = totalPages * 10) {
   const onPage = vi.fn();
-  render(<Pagination label="Pages" noun={["event", "events"]} page={page} pageSize={10} count={count} onPage={onPage} />);
+  render(
+    <Pagination label="Pages" noun={["event", "events"]} page={page} pageSize={10} count={count} onPage={onPage} />,
+  );
   return onPage;
 }
 

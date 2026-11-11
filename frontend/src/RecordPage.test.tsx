@@ -34,11 +34,15 @@ describe("useIdParam", () => {
 describe("recordStatus", () => {
   it("is missing for a bad id or a record the server does not have", () => {
     expect(recordStatus(null, settled)).toBe("missing");
-    expect(recordStatus(3, { isPending: false, isError: true, error: new ApiError("Not found.", 404) })).toBe("missing");
+    expect(recordStatus(3, { isPending: false, isError: true, error: new ApiError("Not found.", 404) })).toBe(
+      "missing",
+    );
   });
 
   it("is failed for any other refusal, loading until it arrives, and null once it has", () => {
-    expect(recordStatus(3, { isPending: false, isError: true, error: new ApiError("Server error.", 500) })).toBe("failed");
+    expect(recordStatus(3, { isPending: false, isError: true, error: new ApiError("Server error.", 500) })).toBe(
+      "failed",
+    );
     expect(recordStatus(3, { isPending: true, isError: false, error: null })).toBe("loading");
     expect(recordStatus(3, settled)).toBeNull();
   });
@@ -77,7 +81,15 @@ describe("RecordPage", () => {
   });
 
   it("says it in its own words when the server gives none", () => {
-    renderPage(<RecordPage back={back} failed="Nothing could be read." label="Thing" missing="Thing not found" status="failed" />);
+    renderPage(
+      <RecordPage
+        back={back}
+        failed="Nothing could be read."
+        label="Thing"
+        missing="Thing not found"
+        status="failed"
+      />,
+    );
     expect(screen.getByRole("alert")).toHaveTextContent("Nothing could be read.");
   });
 });

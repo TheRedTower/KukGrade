@@ -20,8 +20,17 @@ export const CHOICES: Choices = {
     { value: "CANCELLED", label: "Cancelled" },
   ],
   student_statuses: [
-    { value: "ACTIVE", label: "Active", description: "In regular training. Can be registered for gradings, one at a time." },
-    { value: "INACTIVE", label: "Inactive", description: "On a temporary break, such as medical leave. Inactive blocks nothing: the student can still be registered, and all history is kept." },
+    {
+      value: "ACTIVE",
+      label: "Active",
+      description: "In regular training. Can be registered for gradings, one at a time.",
+    },
+    {
+      value: "INACTIVE",
+      label: "Inactive",
+      description:
+        "On a temporary break, such as medical leave. Inactive blocks nothing: the student can still be registered, and all history is kept.",
+    },
     { value: "LEFT", label: "Left", description: "Has left. Cannot be registered for gradings; all history is kept." },
   ],
   candidate_statuses: [
@@ -64,10 +73,26 @@ export const CHOICES: Choices = {
     { value: "administrator", label: "Administrator" },
   ],
   authorities: [
-    { value: "can_make_final_grading_decision", label: "Make final grading decisions", description: "Allow this user to make final decisions on student gradings." },
-    { value: "can_promote_student", label: "Promote students", description: "Allow this user to promote students to the next rank." },
-    { value: "can_override_locked_session", label: "Override locked sessions", description: "Allow this user to make authorised corrections after locking." },
-    { value: "can_view_grading_audit_log", label: "View grading audit log", description: "Allow this user to see grading, syllabus and assessment audit events (not user management)." },
+    {
+      value: "can_make_final_grading_decision",
+      label: "Make final grading decisions",
+      description: "Allow this user to make final decisions on student gradings.",
+    },
+    {
+      value: "can_promote_student",
+      label: "Promote students",
+      description: "Allow this user to promote students to the next rank.",
+    },
+    {
+      value: "can_override_locked_session",
+      label: "Override locked sessions",
+      description: "Allow this user to make authorised corrections after locking.",
+    },
+    {
+      value: "can_view_grading_audit_log",
+      label: "View grading audit log",
+      description: "Allow this user to see grading, syllabus and assessment audit events (not user management).",
+    },
   ],
 };
 
@@ -159,9 +184,7 @@ export function jsonResponse(status: number, body: unknown): Response {
  * says not signed in.
  */
 export function signedOutResponse(url: string): Response {
-  return url.includes("/api/setup/")
-    ? jsonResponse(200, { setup_needed: false })
-    : authRequiredResponse();
+  return url.includes("/api/setup/") ? jsonResponse(200, { setup_needed: false }) : authRequiredResponse();
 }
 
 export function emptyResponse(status: number): Response {
@@ -196,9 +219,7 @@ afterEach(() => {
 export function assessmentSummaryFor(items: CandidateAssessmentItem[]): CandidateAssessmentSummary {
   const block = (subset: CandidateAssessmentItem[]): CandidateAssessmentSummary["overall"] => {
     const required = subset.filter((item) => item.required);
-    const requiredNotAssessed = required.filter(
-      (item) => item.result === "NOT_ASSESSED",
-    ).length;
+    const requiredNotAssessed = required.filter((item) => item.result === "NOT_ASSESSED").length;
     return {
       total: subset.length,
       required: required.length,
@@ -210,12 +231,10 @@ export function assessmentSummaryFor(items: CandidateAssessmentItem[]): Candidat
       all_required_assessed: requiredNotAssessed === 0,
     };
   };
-  const categories = Array.from(new Set(items.map((item) => item.category))).map(
-    (category) => ({
-      category,
-      ...block(items.filter((item) => item.category === category)),
-    }),
-  );
+  const categories = Array.from(new Set(items.map((item) => item.category))).map((category) => ({
+    category,
+    ...block(items.filter((item) => item.category === category)),
+  }));
   const overall = block(items);
   // As if the assessment is in progress in an open session.
   return { overall, can_complete: overall.required_not_assessed === 0, categories };
@@ -223,10 +242,7 @@ export function assessmentSummaryFor(items: CandidateAssessmentItem[]): Candidat
 
 // Mirrors an item's served rules (gradings.assessment_services
 // item_change_needs_reason and item_mark_can_be_cleared) for a fixture.
-export function itemServed<T extends CandidateAssessmentItem>(
-  item: T,
-  { locked = false, completed = false } = {},
-): T {
+export function itemServed<T extends CandidateAssessmentItem>(item: T, { locked = false, completed = false } = {}): T {
   const scored = item.result === "MET" || item.result === "NOT_MET";
   return {
     ...item,
@@ -320,9 +336,7 @@ export const ABOUT_CREDITS = {
       homepage: "https://www.djangoproject.com/",
     },
   ],
-  browser: [
-    { name: "react", version: "19.0.0", summary: "A UI library.", licence: "MIT", homepage: "" },
-  ],
+  browser: [{ name: "react", version: "19.0.0", summary: "A UI library.", licence: "MIT", homepage: "" }],
 };
 
 /** What every endpoint answers for a signed-in user: their account, the served choices and settings, the About pages, and otherwise an empty page. */

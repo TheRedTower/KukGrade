@@ -44,7 +44,10 @@ export function ImportMatchRanks({
     queryFn: () => previewLegacyGradingImport(batch.id, {}),
   });
   const spellings = preview.data?.rank_suggestions ?? [];
-  const current = spellings.find((spelling) => spelling.source_text === picked) ?? spellings.find((spelling) => !spelling.chosen_rank_code) ?? spellings[0];
+  const current =
+    spellings.find((spelling) => spelling.source_text === picked) ??
+    spellings.find((spelling) => !spelling.chosen_rank_code) ??
+    spellings[0];
 
   const examples = useQuery({
     queryKey: keys.imports.rowsWithRank(batch.id, current?.source_text),
@@ -67,9 +70,7 @@ export function ImportMatchRanks({
   });
 
   const matched = spellings.filter((spelling) => spelling.chosen_rank_code).length;
-  const withSuggestion = spellings.filter(
-    (spelling) => spelling.suggested_rank_code && !spelling.chosen_rank_code,
-  );
+  const withSuggestion = spellings.filter((spelling) => spelling.suggested_rank_code && !spelling.chosen_rank_code);
 
   return (
     <>
@@ -80,9 +81,8 @@ export function ImportMatchRanks({
               Match the ranks
             </h2>
             <p className="subtext">
-              Pick a spelling to see the records that use it, then say which KukGrade rank it
-              means. The workbook’s own words are kept as the record of what was written; what you
-              add is what they mean.
+              Pick a spelling to see the records that use it, then say which KukGrade rank it means. The workbook’s own
+              words are kept as the record of what was written; what you add is what they mean.
             </p>
           </div>
           {withSuggestion.length ? (
@@ -91,7 +91,9 @@ export function ImportMatchRanks({
               disabled={save.isPending}
               onClick={() =>
                 save.mutate(
-                  Object.fromEntries(withSuggestion.map((spelling) => [spelling.source_text, spelling.suggested_rank_code])),
+                  Object.fromEntries(
+                    withSuggestion.map((spelling) => [spelling.source_text, spelling.suggested_rank_code]),
+                  ),
                 )
               }
             >
@@ -105,9 +107,7 @@ export function ImportMatchRanks({
             Reading the ranks…
           </p>
         ) : preview.isError ? (
-          <ErrorText>
-            {errorMessage(preview.error, "The ranks could not be read. Try again in a moment.")}
-          </ErrorText>
+          <ErrorText>{errorMessage(preview.error, "The ranks could not be read. Try again in a moment.")}</ErrorText>
         ) : spellings.length === 0 ? (
           <p className="subtext">The workbook writes no ranks, so there is nothing to match.</p>
         ) : current ? (
@@ -156,14 +156,15 @@ export function ImportMatchRanks({
                     {
                       key: "ranks",
                       header: "Held → Tested for",
-                      render: (row) => `${row.values.current_rank || "(blank)"} → ${row.values.testing_for_rank || "(blank)"}`,
+                      render: (row) =>
+                        `${row.values.current_rank || "(blank)"} → ${row.values.testing_for_rank || "(blank)"}`,
                     },
                     { key: "outcome", header: "Outcome", render: (row) => row.values.outcome || "—" },
                   ]}
                 />
                 <p className="subtext ix-flush">
-                  A rank left for later is still imported as written, and can be matched when you
-                  link records to students.
+                  A rank left for later is still imported as written, and can be matched when you link records to
+                  students.
                 </p>
               </div>
             </div>
@@ -171,7 +172,11 @@ export function ImportMatchRanks({
               <ul className="list-plain ix-queue">
                 {spellings.map((spelling) => {
                   const choice = spelling.chosen_rank_code;
-                  const status = choice ? rankName(choice) : spelling.suggested_rank_code ? "Suggested" : "No suggestion";
+                  const status = choice
+                    ? rankName(choice)
+                    : spelling.suggested_rank_code
+                      ? "Suggested"
+                      : "No suggestion";
                   const tone = choice ? "success" : spelling.suggested_rank_code ? "info" : "warning";
                   return (
                     <li key={spelling.source_text}>
@@ -182,9 +187,7 @@ export function ImportMatchRanks({
                       >
                         <span className="ix-queue-text">
                           <span className="ix-queue-name item-title">“{spelling.source_text}”</span>
-                          <span className="subtext">
-                            {counted(spelling.rows, "record", "records")}
-                          </span>
+                          <span className="subtext">{counted(spelling.rows, "record", "records")}</span>
                         </span>
                         <Badge dot tone={tone}>
                           {status}
@@ -198,11 +201,7 @@ export function ImportMatchRanks({
           </div>
         ) : null}
 
-        {save.isError ? (
-          <ErrorText>
-            {errorMessage(save.error, "That rank could not be saved.")}
-          </ErrorText>
-        ) : null}
+        {save.isError ? <ErrorText>{errorMessage(save.error, "That rank could not be saved.")}</ErrorText> : null}
       </section>
 
       <div className="step-foot">

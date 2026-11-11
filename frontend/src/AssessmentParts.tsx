@@ -13,7 +13,6 @@ import { RequirementBadge } from "./StatusBadge";
 import { cx } from "./cx";
 import { buttonClass } from "./buttonClass";
 
-
 /**
  * Sticky band header. It carries the category's own progress: the instructor
  * wants to know where they are in the section they are standing in.
@@ -23,9 +22,7 @@ export function CategoryHeader({ group }: { group: CategoryGroup }) {
 
   return (
     <div className="caw-band-header" data-testid={`caw-cat-header-${group.category}`}>
-      <h2 className="caw-band-title item-title">
-        {group.categoryDisplay}
-      </h2>
+      <h2 className="caw-band-title item-title">{group.categoryDisplay}</h2>
       <span aria-hidden="true" className="caw-band-rule" />
       <span className="caw-band-progress meta">
         {group.isDone
@@ -62,8 +59,8 @@ export function DeleteAssessmentDialog({
       onConfirm={onConfirm}
     >
       <p>
-        Permanently delete {candidateName}&apos;s assessment? Any proposed outcome is
-        deleted with it. This cannot be undone.
+        Permanently delete {candidateName}&apos;s assessment? Any proposed outcome is deleted with it. This cannot be
+        undone.
       </p>
     </ConfirmDialog>
   );
@@ -161,7 +158,11 @@ export function AssessmentItemRow({
         <div className="caw-row-title-line">
           <span className="caw-row-seq meta">#{item.position}</span>
           <span className="item-title">{item.item_name}</span>
-          {item.korean_name && <span className="meta" lang="ko">{item.korean_name}</span>}
+          {item.korean_name && (
+            <span className="meta" lang="ko">
+              {item.korean_name}
+            </span>
+          )}
           <RequirementBadge required={item.required} />
           {(item.display_range || item.notation) && (
             <span className="caw-row-range meta">{item.display_range || item.notation}</span>
@@ -170,9 +171,7 @@ export function AssessmentItemRow({
 
         {/* Chart notation is served as wording and shown as the range above,
             as the syllabus screen does; only other notes print here. */}
-        {!item.notation && item.requirement_notes && (
-          <p className="caw-row-desc meta">{item.requirement_notes}</p>
-        )}
+        {!item.notation && item.requirement_notes && <p className="caw-row-desc meta">{item.requirement_notes}</p>}
 
         {/*
           Attribution renders on every scored row. The previous screen showed
@@ -212,15 +211,16 @@ export function AssessmentItemRow({
                   Clearing removes the record of who assessed it
                   {attribution ? (
                     <>
-                      {" "}(<strong>{attribution}</strong>)
+                      {" "}
+                      (<strong>{attribution}</strong>)
                     </>
                   ) : null}
                   . The change and your reason are kept. Why is the mark being cleared?
                 </>
               ) : isScored ? (
                 <>
-                  Changing {item.result_display} to {labelOf(results, pendingResult)}. Why is the mark
-                  changing? The change and your reason are kept.
+                  Changing {item.result_display} to {labelOf(results, pendingResult)}. Why is the mark changing? The
+                  change and your reason are kept.
                 </>
               ) : hasHistory ? (
                 <>
@@ -249,7 +249,10 @@ export function AssessmentItemRow({
           <div role="group" aria-label={`Result for ${item.item_name}`} className="caw-verdicts">
             <button
               type="button"
-              className={buttonClass({}, cx("caw-verdict caw-verdict-met", item.result === "MET" && "caw-verdict-active"))}
+              className={buttonClass(
+                {},
+                cx("caw-verdict caw-verdict-met", item.result === "MET" && "caw-verdict-active"),
+              )}
               disabled={!canEdit}
               onClick={() => choose("MET")}
               aria-pressed={item.result === "MET"}
@@ -261,7 +264,10 @@ export function AssessmentItemRow({
             </button>
             <button
               type="button"
-              className={buttonClass({}, cx("caw-verdict caw-verdict-not-met", item.result === "NOT_MET" && "caw-verdict-active"))}
+              className={buttonClass(
+                {},
+                cx("caw-verdict caw-verdict-not-met", item.result === "NOT_MET" && "caw-verdict-active"),
+              )}
               disabled={!canEdit}
               onClick={() => choose("NOT_MET")}
               aria-pressed={item.result === "NOT_MET"}
@@ -275,7 +281,12 @@ export function AssessmentItemRow({
 
         {canEdit && !isAsking && (
           <div className="row row--1 caw-row-tools">
-            <button type="button" className="caw-row-tool meta" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
+            <button
+              type="button"
+              className="caw-row-tool meta"
+              onClick={onToggleComment}
+              data-testid={`btn-comment-${item.id}`}
+            >
               Add comment
             </button>
             {/* Clearing is only offered once there is a result to clear. */}

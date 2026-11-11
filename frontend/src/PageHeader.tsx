@@ -26,7 +26,17 @@ interface PageHeaderProps {
  * Every page's title area (see .page-header in layout.css): one title size,
  * one subtitle style, one place for a way back and for the page's buttons.
  */
-export function PageHeader({ title, titleId, subtitle, eyebrow, tag, back, actions, titleRef, children }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  titleId,
+  subtitle,
+  eyebrow,
+  tag,
+  back,
+  actions,
+  titleRef,
+  children,
+}: PageHeaderProps) {
   return (
     <header className="page-header">
       {back ? <BackLink to={back.to}>{back.label}</BackLink> : null}

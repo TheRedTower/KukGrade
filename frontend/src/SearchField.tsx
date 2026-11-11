@@ -55,7 +55,13 @@ export function SearchField({
   return (
     <label className={cx("field field--search", className)}>
       <span className={hideLabel ? "visually-hidden" : undefined}>{label}</span>
-      <input id={id} placeholder={placeholder} type="search" value={text} onChange={(event) => setText(event.target.value)} />
+      <input
+        id={id}
+        placeholder={placeholder}
+        type="search"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
     </label>
   );
 }

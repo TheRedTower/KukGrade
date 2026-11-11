@@ -5,12 +5,7 @@ import { PageHeader } from "./PageHeader";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 
-import {
-  type Rank,
-  type StudentListItem,
-  type StudentStatus,
-  getStudents,
-} from "./api";
+import { type Rank, type StudentListItem, type StudentStatus, getStudents } from "./api";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { useRanksQuery } from "./queries";
@@ -109,18 +104,16 @@ export function StudentsScreen() {
           >
             <option value="">All statuses</option>
             {studentStatuses.map((choice) => (
-              <option key={choice.value} value={choice.value}>{choice.label}</option>
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="field">
           <label htmlFor="rank-filter-select">Rank</label>
-          <select
-            id="rank-filter-select"
-            value={rankFilter}
-            onChange={(e) => filters.set({ rank: e.target.value })}
-          >
+          <select id="rank-filter-select" value={rankFilter} onChange={(e) => filters.set({ rank: e.target.value })}>
             <option value="">All ranks</option>
             {ranks.map((r) => (
               <option key={r.code} value={r.code}>
@@ -134,10 +127,7 @@ export function StudentsScreen() {
           {sourceImport ? (
             <>
               <span className="filter-bar__count">Only the students one import added</span>
-              <Button
-                variant="ghost"
-                onClick={() => filters.clear("source_import")}
-              >
+              <Button variant="ghost" onClick={() => filters.clear("source_import")}>
                 Show every student
               </Button>
             </>

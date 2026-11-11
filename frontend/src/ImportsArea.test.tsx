@@ -32,10 +32,7 @@ const api = vi.hoisted(() => ({
 vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   const mocked = Object.fromEntries(
-    Object.keys(api).map((name) => [
-      name,
-      (...args: unknown[]) => api[name as keyof typeof api](...args),
-    ]),
+    Object.keys(api).map((name) => [name, (...args: unknown[]) => api[name as keyof typeof api](...args)]),
   );
   return { ...actual, ...mocked };
 });
@@ -90,10 +87,7 @@ describe("Imports hub", () => {
     expect(await screen.findByRole("heading", { name: "Pick up where you left off" })).toBeInTheDocument();
     expect(screen.getByText("Step 3 of 5 · Review rows")).toBeInTheDocument();
     expect(screen.getByText("198 ready · 9 need attention · 5 already in KukGrade")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Resume spring-roster.xlsx" })).toHaveAttribute(
-      "href",
-      "/imports/7",
-    );
+    expect(screen.getByRole("link", { name: "Resume spring-roster.xlsx" })).toHaveAttribute("href", "/imports/7");
     expect(await screen.findByText("No imports have finished yet.")).toBeInTheDocument();
   });
 
@@ -146,9 +140,7 @@ describe("Imports hub", () => {
     renderAt("/imports");
 
     expect(await screen.findByText("186 students added · 4 already here")).toBeInTheDocument();
-    expect(api.getDataImportBatches).toHaveBeenCalledWith(
-      expect.objectContaining({ finished: true, page: 1 }),
-    );
+    expect(api.getDataImportBatches).toHaveBeenCalledWith(expect.objectContaining({ finished: true, page: 1 }));
     await user.selectOptions(screen.getByLabelText("What"), "LEGACY_GRADINGS");
     await user.selectOptions(screen.getByLabelText("State"), "CANCELLED");
 
@@ -185,9 +177,7 @@ describe("Choosing the file", () => {
   it("shows the guide until a file is chosen, then what KukGrade found", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue(created);
-    api.getDataImportBatch.mockResolvedValue(
-      batch({ next_step: "MATCH", sheet_names: ["Members", "Leavers"] }),
-    );
+    api.getDataImportBatch.mockResolvedValue(batch({ next_step: "MATCH", sheet_names: ["Members", "Leavers"] }));
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
 
@@ -215,9 +205,7 @@ describe("Choosing the file", () => {
     renderAt("/imports/new?kind=LEGACY_GRADINGS");
 
     await user.upload(screen.getByLabelText("Choose a file"), xlsx("record.csv"));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Choose the workbook saved as Excel (.xlsx).",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Choose the workbook saved as Excel (.xlsx).");
     await user.upload(screen.getByLabelText("Choose a file"), xlsx("record.xlsx", 6 * 1024 * 1024));
     expect(screen.getByRole("alert")).toHaveTextContent("The file is larger than 5 MB.");
     expect(api.createDataImportBatch).not.toHaveBeenCalled();
@@ -266,7 +254,11 @@ describe("Choosing the file", () => {
     api.createDataImportBatch.mockResolvedValue({ ...created, already_imported_warning: false });
     api.getDataImportBatch.mockResolvedValue(batch({ sheet_names: ["Members", "Leavers"] }));
     api.chooseDataImportSheet.mockResolvedValue(
-      batch({ sheet: "Leavers", sheet_names: ["Members", "Leavers"], row_counts: { total: 2, ready: 2, review_required: 0, skip_existing: 0, excluded: 0 } }),
+      batch({
+        sheet: "Leavers",
+        sheet_names: ["Members", "Leavers"],
+        row_counts: { total: 2, ready: 2, review_required: 0, skip_existing: 0, excluded: 0 },
+      }),
     );
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
@@ -280,11 +272,15 @@ describe("Choosing the file", () => {
   it("keeps a blank opening sheet recoverable and blocks continuation until another is read", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue({ ...created, already_imported_warning: false });
-    api.getDataImportBatch.mockResolvedValue(batch({
-      sheet: "Cover", sheet_names: ["Cover", "Members"], detected_headers: [],
-      sheet_error: "The file has no header row.",
-      row_counts: { total: 0, ready: 0, review_required: 0, skip_existing: 0, excluded: 0 },
-    }));
+    api.getDataImportBatch.mockResolvedValue(
+      batch({
+        sheet: "Cover",
+        sheet_names: ["Cover", "Members"],
+        detected_headers: [],
+        sheet_error: "The file has no header row.",
+        row_counts: { total: 0, ready: 0, review_required: 0, skip_existing: 0, excluded: 0 },
+      }),
+    );
     api.chooseDataImportSheet.mockResolvedValue(batch({ sheet: "Members", sheet_names: ["Cover", "Members"] }));
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
@@ -355,7 +351,10 @@ describe("An import's results", () => {
       Promise.resolve(
         params.corrected
           ? page([row({ row_number: 4, corrected_fields: ["date_of_birth"] })], 5)
-          : page([row(), row({ row_number: 12, outcome: "SKIP_EXISTING", outcome_display: "Already in KukGrade", created_id: "" })]),
+          : page([
+              row(),
+              row({ row_number: 12, outcome: "SKIP_EXISTING", outcome_display: "Already in KukGrade", created_id: "" }),
+            ]),
       ),
     );
 
@@ -363,7 +362,9 @@ describe("An import's results", () => {
 
     expect(await screen.findByText("203 students added")).toBeInTheDocument();
     expect(
-      screen.getByText(/5 students already in KukGrade were skipped and not changed\. 4 rows you left out were not imported\./),
+      screen.getByText(
+        /5 students already in KukGrade were skipped and not changed\. 4 rows you left out were not imported\./,
+      ),
     ).toBeInTheDocument();
     expect(await screen.findByText("5 students with your fixes")).toBeInTheDocument();
     expect(screen.getByText("“Parent phone” kept")).toBeInTheDocument();
@@ -371,10 +372,7 @@ describe("An import's results", () => {
     expect(api.getDataImportSecondLook).toHaveBeenCalledWith(7);
     expect(screen.getByRole("link", { name: "Open Mia Reynolds" })).toHaveAttribute("href", "/students/31");
     expect(screen.getByText("Already in KukGrade", { selector: ".badge" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to Students" })).toHaveAttribute(
-      "href",
-      "/students?source_import=7",
-    );
+    expect(screen.getByRole("link", { name: "Go to Students" })).toHaveAttribute("href", "/students?source_import=7");
 
     await user.click(screen.getByRole("button", { name: "See the 5" }));
     await waitFor(() =>
@@ -481,9 +479,7 @@ describe("An import's results", () => {
       renderAt("/imports/7");
       await user.click(await screen.findByRole("button", { name: "Theo Lane · White" }));
 
-      await waitFor(() =>
-        expect(api.bulkLinkLegacyRecords).toHaveBeenCalledWith([{ record: 201, student: 41 }]),
-      );
+      await waitFor(() => expect(api.bulkLinkLegacyRecords).toHaveBeenCalledWith([{ record: 201, student: 41 }]));
     });
 
     it("voids a wrong workbook only with a reason", async () => {
@@ -500,9 +496,7 @@ describe("An import's results", () => {
       await user.type(within(dialog).getByLabelText("Why"), "The wrong year's workbook");
       await user.click(confirm);
 
-      await waitFor(() =>
-        expect(api.voidDataImportRecords).toHaveBeenCalledWith(7, "The wrong year's workbook"),
-      );
+      await waitFor(() => expect(api.voidDataImportRecords).toHaveBeenCalledWith(7, "The wrong year's workbook"));
     });
 
     it("leaves linking to administrators", async () => {

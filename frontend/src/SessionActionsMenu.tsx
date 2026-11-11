@@ -15,7 +15,12 @@ interface SessionActionsMenuProps {
 
 function MenuItem({ danger, onClick, children }: { danger?: boolean; onClick: () => void; children: string }) {
   return (
-    <button type="button" role="menuitem" className={cx("gsd-dropdown-item", danger && "gsd-danger-text")} onClick={onClick}>
+    <button
+      type="button"
+      role="menuitem"
+      className={cx("gsd-dropdown-item", danger && "gsd-danger-text")}
+      onClick={onClick}
+    >
       {children}
     </button>
   );
@@ -35,7 +40,10 @@ export function SessionActionsMenu({ session, user, menu, onAction }: SessionAct
         aria-haspopup="menu"
         data-testid="gsd-actions-btn"
       >
-        Session actions <span className="gsd-chevron-down" aria-hidden="true">⌵</span>
+        Session actions{" "}
+        <span className="gsd-chevron-down" aria-hidden="true">
+          ⌵
+        </span>
       </Button>
 
       {open && (
@@ -44,7 +52,11 @@ export function SessionActionsMenu({ session, user, menu, onAction }: SessionAct
           {session.can_open && <MenuItem onClick={() => onAction("OPEN")}>Open session</MenuItem>}
           {session.can_lock && <MenuItem onClick={() => onAction("LOCK")}>Lock session</MenuItem>}
           {session.can_complete && <MenuItem onClick={() => onAction("COMPLETE")}>Complete session</MenuItem>}
-          {session.can_cancel && <MenuItem danger onClick={() => onAction("CANCEL")}>Cancel session</MenuItem>}
+          {session.can_cancel && (
+            <MenuItem danger onClick={() => onAction("CANCEL")}>
+              Cancel session
+            </MenuItem>
+          )}
           {user?.can_read_audit_log && (
             <Link
               to={`/audit?subject=session:${session.id}`}
@@ -57,7 +69,11 @@ export function SessionActionsMenu({ session, user, menu, onAction }: SessionAct
           )}
           {session.can_be_archived && <MenuItem onClick={() => onAction("ARCHIVE")}>Archive session</MenuItem>}
           {session.can_be_restored && <MenuItem onClick={() => onAction("RESTORE")}>Restore from archive</MenuItem>}
-          {session.can_be_deleted && <MenuItem danger onClick={() => onAction("DELETE")}>Delete session</MenuItem>}
+          {session.can_be_deleted && (
+            <MenuItem danger onClick={() => onAction("DELETE")}>
+              Delete session
+            </MenuItem>
+          )}
         </div>
       )}
     </div>

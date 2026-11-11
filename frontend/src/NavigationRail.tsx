@@ -117,10 +117,7 @@ export function NavigationRail({
   const aboutLabel = version ? `About KukGrade, version ${version}` : "About KukGrade";
 
   return (
-    <aside
-      aria-label="Sidebar"
-      className={cx("nav-rail", strip && "strip", menuOpen && "menu-open")}
-    >
+    <aside aria-label="Sidebar" className={cx("nav-rail", strip && "strip", menuOpen && "menu-open")}>
       <div className="nav-top">
         <Link aria-label="KukGrade, go to the dashboard" className="nav-brand" to="/">
           {strip ? (
@@ -158,7 +155,9 @@ export function NavigationRail({
           <RailLink icon={<StudentsIcon />} label="Students" strip={strip} to="/students" />
           <RailLink icon={<GradingsIcon />} label="Gradings" strip={strip} to="/gradings" />
           <RailLink icon={<SyllabusIcon />} label="Syllabus" strip={strip} to="/syllabus" />
-          {user.can_import_data ? <RailLink icon={<ImportsIcon />} label="Imports" strip={strip} to="/imports" /> : null}
+          {user.can_import_data ? (
+            <RailLink icon={<ImportsIcon />} label="Imports" strip={strip} to="/imports" />
+          ) : null}
           {user.can_read_audit_log ? <RailLink icon={<AuditIcon />} label="Audit" strip={strip} to="/audit" /> : null}
           {user.can_manage_users ? <RailLink icon={<UsersIcon />} label="Users" strip={strip} to="/users" /> : null}
         </nav>
@@ -237,9 +236,7 @@ export function NavigationRail({
                 {about ? (
                   <span className="row row--inline row--1">
                     <span aria-hidden="true">·</span>
-                    <ExternalLink href={about.repository_url}>
-                      GitHub
-                    </ExternalLink>
+                    <ExternalLink href={about.repository_url}>GitHub</ExternalLink>
                   </span>
                 ) : null}
               </p>

@@ -77,9 +77,7 @@ function NameDetails({
               Loading the records…
             </li>
           ) : records.isError ? (
-            <ErrorText as="li">
-              {errorMessage(records.error, "The records could not be loaded.")}
-            </ErrorText>
+            <ErrorText as="li">{errorMessage(records.error, "The records could not be loaded.")}</ErrorText>
           ) : (
             records.data.results.map((record) => (
               <li className="ix-detail-item" key={record.id}>
@@ -103,7 +101,8 @@ function NameDetails({
                 </div>
                 <Button
                   aria-label={`Void the ${recordMonth(record)} record`}
-                  variant="ghost" className="ix-danger-text"
+                  variant="ghost"
+                  className="ix-danger-text"
                   onClick={() => setVoiding(record)}
                 >
                   Void…
@@ -143,11 +142,7 @@ function NameDetails({
           <p className="subtext ix-flush">No student looks like this. Search every student below.</p>
         )}
         <SomeoneElse chosen={chosen} onChoose={onChoose} />
-        {error ? (
-          <ErrorText>
-            {errorMessage(error, "Those records could not be linked.")}
-          </ErrorText>
-        ) : null}
+        {error ? <ErrorText>{errorMessage(error, "Those records could not be linked.")}</ErrorText> : null}
         <div className="action-row">
           {onLeave ? (
             <Button variant="ghost" onClick={onLeave}>
@@ -242,7 +237,19 @@ function NameStudent(item: NameItem) {
 }
 
 /** What can be done with a name from its row. */
-function NameActions({ person, view, chosen, open, left, unticked, pending, onLink, onPutBack, onToggle, onUndo }: NameItem) {
+function NameActions({
+  person,
+  view,
+  chosen,
+  open,
+  left,
+  unticked,
+  pending,
+  onLink,
+  onPutBack,
+  onToggle,
+  onUndo,
+}: NameItem) {
   if (view === "done") {
     return (
       <Button aria-label={`Undo linking “${person.source_name}”`} variant="ghost" disabled={pending} onClick={onUndo}>
@@ -318,7 +325,9 @@ const NAME_COLUMNS: readonly Column<NameItem>[] = [
     render: ({ person }) => (
       <>
         {person.ranks.join(" · ")}
-        {person.needs_rank ? <span className="ix-warning-text item-title ix-block">A rank is not matched yet</span> : null}
+        {person.needs_rank ? (
+          <span className="ix-warning-text item-title ix-block">A rank is not matched yet</span>
+        ) : null}
       </>
     ),
   },

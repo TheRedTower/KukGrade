@@ -28,8 +28,6 @@ import { useUrlFilters } from "./useUrlFilters";
 import { Button } from "./Button";
 import { ArrowRightIcon, PlusIcon } from "./Icons";
 
-
-
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function deleteDetails(session: GradingSession) {
@@ -48,7 +46,13 @@ interface CurrentSessionCardProps {
   onOpen: () => void;
 }
 
-function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awaitingDecision, onOpen }: CurrentSessionCardProps) {
+function CurrentSessionCard({
+  session,
+  candidateCount,
+  assessmentsComplete,
+  awaitingDecision,
+  onOpen,
+}: CurrentSessionCardProps) {
   return (
     <section className="gs-current-card" aria-label="Current grading session">
       <div className="eyebrow gs-current-tag">Current</div>
@@ -67,7 +71,9 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
             <span className="stat__label">Candidates</span>
           </div>
           <div className="stat">
-            <span className="stat__value">{assessmentsComplete} / {candidateCount}</span>
+            <span className="stat__value">
+              {assessmentsComplete} / {candidateCount}
+            </span>
             <span className="stat__label">Assessments complete</span>
           </div>
           <div className="stat">
@@ -155,7 +161,9 @@ export function GradingSessionsScreen() {
   });
   const sessions: GradingSession[] = sessionsQuery.results;
 
-  function resetFilters() { filters.clear("search", "status", "year", "archived"); }
+  function resetFilters() {
+    filters.clear("search", "status", "year", "archived");
+  }
 
   const isFiltered = searchText.trim() !== "" || statusFilter !== "" || yearFilter !== "" || archivedOnly;
   const isLoading = currentSessionQuery.isLoading || sessionsQuery.query.isLoading;
@@ -163,7 +171,6 @@ export function GradingSessionsScreen() {
 
   return (
     <section aria-labelledby="gradings-heading" className="page">
-
       <PageHeader
         title="Gradings"
         titleId="gradings-heading"
@@ -190,19 +197,31 @@ export function GradingSessionsScreen() {
           <label htmlFor="gs-status-filter">Status</label>
           <select id="gs-status-filter" onChange={(e) => filters.set({ status: e.target.value })} value={statusFilter}>
             <option value="">All statuses</option>
-            {sessionStatuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            {sessionStatuses.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-year-filter">Year</label>
           <select id="gs-year-filter" onChange={(e) => filters.set({ year: e.target.value })} value={yearFilter}>
             <option value="">All years</option>
-            {availableYears.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+            {availableYears.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}
+              </option>
+            ))}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-archive-filter">Show</label>
-          <select id="gs-archive-filter" onChange={(e) => filters.set({ archived: e.target.value === "ARCHIVED" ? "only" : null })} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
+          <select
+            id="gs-archive-filter"
+            onChange={(e) => filters.set({ archived: e.target.value === "ARCHIVED" ? "only" : null })}
+            value={archivedOnly ? "ARCHIVED" : "CURRENT"}
+          >
             <option value="CURRENT">Current gradings</option>
             <option value="ARCHIVED">Archived gradings</option>
           </select>
@@ -221,15 +240,15 @@ export function GradingSessionsScreen() {
       )}
 
       {/* ── Loading */}
-      {isLoading && (
-        <LoadingState>Loading grading sessions…</LoadingState>
-      )}
+      {isLoading && <LoadingState>Loading grading sessions…</LoadingState>}
 
       {/* ── Table + Empty States */}
       {!isLoading && (
         <>
           <div className="stack stack--3">
-            <h2 className="gs-table-heading section-title">{archivedOnly ? "Archived grading sessions" : "All grading sessions"}</h2>
+            <h2 className="gs-table-heading section-title">
+              {archivedOnly ? "Archived grading sessions" : "All grading sessions"}
+            </h2>
             {sessions.length > 0 ? (
               <ResponsiveTable
                 label="Grading sessions"
@@ -239,7 +258,12 @@ export function GradingSessionsScreen() {
                   { key: "title", header: "Session", primary: true, render: (session) => session.title },
                   { key: "date", header: "Date", render: (session) => formatLongDate(session.grading_date) },
                   { key: "location", header: "Location", render: (session) => session.location || "—" },
-                  { key: "candidates", header: "Candidates", align: "end", render: (session) => session.candidate_count ?? "—" },
+                  {
+                    key: "candidates",
+                    header: "Candidates",
+                    align: "end",
+                    render: (session) => session.candidate_count ?? "—",
+                  },
                   {
                     key: "progress",
                     header: "Progress",
@@ -248,7 +272,11 @@ export function GradingSessionsScreen() {
                         ? `${session.completed_assessment_count ?? 0} of ${session.candidate_count} complete`
                         : "—",
                   },
-                  { key: "status", header: "Status", render: (session) => <SessionStatusBadge status={session.status} label={session.status_display} /> },
+                  {
+                    key: "status",
+                    header: "Status",
+                    render: (session) => <SessionStatusBadge status={session.status} label={session.status_display} />,
+                  },
                   {
                     key: "action",
                     header: "Action",
@@ -260,7 +288,8 @@ export function GradingSessionsScreen() {
                         </Button>
                         {session.can_be_deleted && (
                           <Button
-                            variant="danger-quiet" small
+                            variant="danger-quiet"
+                            small
                             onClick={() => {
                               setDeleteError(null);
                               setDeleteConfirmSession(session);

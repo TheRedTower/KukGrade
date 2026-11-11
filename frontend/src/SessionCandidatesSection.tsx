@@ -68,7 +68,11 @@ export function SessionCandidatesSection({
             </Button>
           )}
           {unpreparedIds.length > 0 && (
-            <Button variant="secondary" onClick={() => bulkPrepare.mutate(unpreparedIds)} disabled={bulkPrepare.isPending}>
+            <Button
+              variant="secondary"
+              onClick={() => bulkPrepare.mutate(unpreparedIds)}
+              disabled={bulkPrepare.isPending}
+            >
               {bulkPrepare.isPending ? "Preparing…" : `Prepare all (${unpreparedIds.length})`}
             </Button>
           )}
@@ -94,21 +98,17 @@ export function SessionCandidatesSection({
 
         <label className="field">
           <span>Assessment</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => onStatusFilter(e.target.value)}
-            data-testid="gsd-status-filter"
-          >
+          <select value={statusFilter} onChange={(e) => onStatusFilter(e.target.value)} data-testid="gsd-status-filter">
             <option value="ALL">Any status</option>
             {choices.assessment_statuses.map((choice) => (
-              <option key={choice.value} value={choice.value}>{choice.label}</option>
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
             ))}
             <option value="WITHDRAWN">{labelOf(choices.candidate_statuses, "WITHDRAWN")}</option>
           </select>
         </label>
-        <p className="filter-bar__count">
-          {counted(shown.length, "candidate", "candidates")}
-        </p>
+        <p className="filter-bar__count">{counted(shown.length, "candidate", "candidates")}</p>
       </div>
 
       {all.length === 0 ? (

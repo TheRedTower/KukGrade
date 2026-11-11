@@ -143,9 +143,7 @@ export function CreateGradingSessionScreen() {
       />
 
       {/* ── General Error Banner */}
-      {form.banner && (
-        <Alert>{form.banner}</Alert>
-      )}
+      {form.banner && <Alert>{form.banner}</Alert>}
 
       {/* ── Two-Column Layout */}
       <div className="split">
@@ -183,7 +181,9 @@ export function CreateGradingSessionScreen() {
                 >
                   <option value="">Day</option>
                   {daysList.map((d) => (
-                    <option key={d} value={d}>{d}</option>
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
                   ))}
                 </select>
 
@@ -197,7 +197,9 @@ export function CreateGradingSessionScreen() {
                 >
                   <option value="">Month</option>
                   {MONTHS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
                   ))}
                 </select>
 
@@ -211,17 +213,24 @@ export function CreateGradingSessionScreen() {
                 >
                   <option value="">Year</option>
                   {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
                   ))}
                 </select>
               </div>
-              {form.errorFor("grading_date") && (
-                <ErrorText field>{form.errorFor("grading_date")}</ErrorText>
-              )}
+              {form.errorFor("grading_date") && <ErrorText field>{form.errorFor("grading_date")}</ErrorText>}
             </div>
 
             {/* Location */}
-            <Field label={<>Location <small>(optional)</small></>} error={form.errorFor("location")}>
+            <Field
+              label={
+                <>
+                  Location <small>(optional)</small>
+                </>
+              }
+              error={form.errorFor("location")}
+            >
               {(control) => (
                 <input
                   {...control}
@@ -236,7 +245,14 @@ export function CreateGradingSessionScreen() {
             </Field>
 
             {/* Staff Notes */}
-            <Field label={<>Staff notes <small>(optional)</small></>} error={form.errorFor("notes")}>
+            <Field
+              label={
+                <>
+                  Staff notes <small>(optional)</small>
+                </>
+              }
+              error={form.errorFor("notes")}
+            >
               {(control) => (
                 <>
                   <textarea
@@ -250,9 +266,7 @@ export function CreateGradingSessionScreen() {
                     value={notes}
                   />
                   <div className="cgs-char-counter meta">
-                    <span className={notes.length >= 480 ? "cgs-char-near-limit" : ""}>
-                      {notes.length}/500
-                    </span>
+                    <span className={notes.length >= 480 ? "cgs-char-near-limit" : ""}>{notes.length}/500</span>
                   </div>
                 </>
               )}
@@ -260,20 +274,10 @@ export function CreateGradingSessionScreen() {
 
             {/* Form Actions */}
             <div className="action-row row row--4 cgs-form-actions">
-              <Button
-                variant="ghost"
-                disabled={isSubmitting}
-                id="cgs-cancel-btn"
-                onClick={() => navigate("/gradings")}
-              >
+              <Button variant="ghost" disabled={isSubmitting} id="cgs-cancel-btn" onClick={() => navigate("/gradings")}>
                 Cancel
               </Button>
-              <Button
-                variant="primary"
-                disabled={isSubmitting}
-                id="cgs-submit-btn"
-                type="submit"
-              >
+              <Button variant="primary" disabled={isSubmitting} id="cgs-submit-btn" type="submit">
                 {isSubmitting ? "Creating…" : "Create draft session"}
               </Button>
             </div>
@@ -283,7 +287,9 @@ export function CreateGradingSessionScreen() {
         {/* Right Column: Session Preview */}
         <div className="split__aside">
           <div className="cgs-preview-card">
-            <h2 className="cgs-preview-title section-title" id="cgs-preview-heading">Session preview</h2>
+            <h2 className="cgs-preview-title section-title" id="cgs-preview-heading">
+              Session preview
+            </h2>
             <p className="cgs-preview-subtitle subtext">
               This is how the session will appear in the gradings list after creation.
             </p>
@@ -301,7 +307,11 @@ export function CreateGradingSessionScreen() {
                 },
                 { key: "date", header: "Date", render: () => previewFormattedDate },
                 { key: "location", header: "Location", render: () => location.trim() || "—" },
-                { key: "status", header: "Status", render: () => <SessionStatusBadge status="DRAFT" label={labelOf(sessionStatuses, "DRAFT")} /> },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: () => <SessionStatusBadge status="DRAFT" label={labelOf(sessionStatuses, "DRAFT")} />,
+                },
                 { key: "candidates", header: "Candidates", align: "end", render: () => "0" },
               ]}
             />

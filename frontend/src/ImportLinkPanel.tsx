@@ -75,8 +75,8 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
             Who is each record?
           </h2>
           <p className="subtext">
-            Grouped by the name as written. KukGrade suggests a student; nothing is linked until
-            you say so. A linked record shows in that student’s history.
+            Grouped by the name as written. KukGrade suggests a student; nothing is linked until you say so. A linked
+            record shows in that student’s history.
           </p>
         </div>
         {waiting !== undefined ? (
@@ -92,9 +92,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
           Loading suggestions…
         </p>
       ) : people.isError ? (
-        <ErrorText className="ix-row">
-          {errorMessage(people.error, "Suggestions could not be loaded.")}
-        </ErrorText>
+        <ErrorText className="ix-row">{errorMessage(people.error, "Suggestions could not be loaded.")}</ErrorText>
       ) : shown.length === 0 ? (
         <p className="ix-row ix-success-text">Every record from this import is linked.</p>
       ) : (
@@ -170,11 +168,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
           );
         })
       )}
-      {failed ? (
-        <ErrorText className="ix-row">
-          {failed}
-        </ErrorText>
-      ) : null}
+      {failed ? <ErrorText className="ix-row">{failed}</ErrorText> : null}
       {canLink ? (
         <div className="action-row ix-row">
           <span className="subtext">

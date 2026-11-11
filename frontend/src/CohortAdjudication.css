@@ -45,7 +45,7 @@
   color: var(--color-danger);
 }
 
-.cab-row-name:focus-visible{
+.cab-row-name:focus-visible {
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
 }

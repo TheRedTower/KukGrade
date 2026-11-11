@@ -14,13 +14,7 @@ type NoShowDialogProps = {
   onConfirm: (candidateIds: number[]) => void;
 };
 
-export function NoShowDialog({
-  candidates,
-  pending,
-  error,
-  onClose,
-  onConfirm,
-}: NoShowDialogProps) {
+export function NoShowDialog({ candidates, pending, error, onClose, onConfirm }: NoShowDialogProps) {
   const [selected, setSelected] = useState<number[]>([]);
 
   return (
@@ -49,9 +43,7 @@ export function NoShowDialog({
               checked={selected.includes(candidate.id)}
               onChange={(event) => {
                 setSelected((current) =>
-                  event.target.checked
-                    ? [...current, candidate.id]
-                    : current.filter((id) => id !== candidate.id),
+                  event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id),
                 );
               }}
             />
@@ -63,9 +55,7 @@ export function NoShowDialog({
         ))}
       </fieldset>
       <div className="subtext" aria-live="polite">
-        {selected.length === 0
-          ? "No no-shows selected"
-          : `${counted(selected.length, "no-show", "no-shows")} selected`}
+        {selected.length === 0 ? "No no-shows selected" : `${counted(selected.length, "no-show", "no-shows")} selected`}
       </div>
     </ConfirmDialog>
   );
@@ -108,7 +98,8 @@ export function LockedWithdrawalDialog({
       }}
     >
       <p className="subtext">
-        Use this only when the candidate cannot finish the locked grading. Existing assessment work remains on record; any unfinalised outcome proposal is removed.
+        Use this only when the candidate cannot finish the locked grading. Existing assessment work remains on record;
+        any unfinalised outcome proposal is removed.
       </p>
       <fieldset className="attendance-candidate-list">
         <legend className="field__legend">Reason</legend>
@@ -195,9 +186,7 @@ export function MoveRegistrationDialog({
           ))}
         </select>
       </label>
-      {sessions.length === 0 && (
-        <p className="subtext">No other draft or open session to move to.</p>
-      )}
+      {sessions.length === 0 && <p className="subtext">No other draft or open session to move to.</p>}
     </ConfirmDialog>
   );
 }
@@ -230,7 +219,8 @@ export function RemoveRegistrationDialog({
       onConfirm={onConfirm}
     >
       <p className="subtext">
-        Removes this registration and its assessment, which has not been started. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
+        Removes this registration and its assessment, which has not been started. Use it for a registration made in
+        error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
       </p>
     </ConfirmDialog>
   );

@@ -19,7 +19,15 @@ interface SessionConfirmDialogProps {
 }
 
 /** The question asked before a session is opened, locked, completed, cancelled, archived, restored or deleted. */
-export function SessionConfirmDialog({ confirm, pending, reasonRequired, reason, onReason, onConfirm, onClose }: SessionConfirmDialogProps) {
+export function SessionConfirmDialog({
+  confirm,
+  pending,
+  reasonRequired,
+  reason,
+  onReason,
+  onConfirm,
+  onClose,
+}: SessionConfirmDialogProps) {
   const cancelling = confirm.action === "CANCEL";
   const deleting = confirm.action === "DELETE";
   return (

@@ -50,13 +50,14 @@ function AccountForm({
   const [isActive, setIsActive] = useState(user.is_active ?? true);
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: () => updateManagedUser(user.id, {
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      email: email.trim(),
-      role,
-      is_active: isActive,
-    }),
+    mutationFn: () =>
+      updateManagedUser(user.id, {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim(),
+        role,
+        is_active: isActive,
+      }),
     onSuccess: (updated) => {
       queryClient.setQueryData(keys.managedUser(user.id), updated);
       void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
@@ -66,7 +67,9 @@ function AccountForm({
     },
   });
   // The email has its place beside its box; anything else the server says goes above the buttons.
-  const errors = mutation.error ? splitServerErrors(mutation.error, ["email"], "The account could not be saved.") : null;
+  const errors = mutation.error
+    ? splitServerErrors(mutation.error, ["email"], "The account could not be saved.")
+    : null;
   const emailError = errors?.fields.email?.join(" ");
 
   return (
@@ -78,22 +81,42 @@ function AccountForm({
       }}
     >
       <div className="users-form-grid">
-        <label className="field"><span>First name</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} /></label>
-        <label className="field"><span>Last name</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} /></label>
+        <label className="field">
+          <span>First name</span>
+          <input value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+        </label>
+        <label className="field">
+          <span>Last name</span>
+          <input value={lastName} onChange={(event) => setLastName(event.target.value)} />
+        </label>
         <Field className="users-form-wide" error={emailError} label="Email address" look="label">
-          {(control) => <input {...control} required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />}
+          {(control) => (
+            <input
+              {...control}
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          )}
         </Field>
         <label className="field">
           <span>Role</span>
           <select value={role} disabled={isSelf} onChange={(event) => setRole(event.target.value as UserRole)}>
             {roles.map((choice) => (
-              <option key={choice.value} value={choice.value}>{choice.label}</option>
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
             ))}
           </select>
         </label>
         <label className="field">
           <span>Account status</span>
-          <select value={isActive ? "active" : "inactive"} disabled={isSelf} onChange={(event) => setIsActive(event.target.value === "active")}>
+          <select
+            value={isActive ? "active" : "inactive"}
+            disabled={isSelf}
+            onChange={(event) => setIsActive(event.target.value === "active")}
+          >
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
@@ -154,15 +177,20 @@ function AuthorityForm({
       <div className="user-authority-options">
         {options.map((option) => (
           <label key={option.value}>
-            <span><strong>{option.label}</strong><small>{option.description}</small></span>
+            <span>
+              <strong>{option.label}</strong>
+              <small>{option.description}</small>
+            </span>
             <input
               type="checkbox"
               checked={authority[option.value] ?? false}
               disabled={isSelf || option.disabled}
-              onChange={(event) => setAuthority((current) => ({
-                ...current,
-                [option.value]: event.target.checked,
-              }))}
+              onChange={(event) =>
+                setAuthority((current) => ({
+                  ...current,
+                  [option.value]: event.target.checked,
+                }))
+              }
             />
           </label>
         ))}
@@ -184,13 +212,7 @@ function AuthorityForm({
   );
 }
 
-function PasswordResetDialog({
-  user,
-  onClose,
-}: {
-  user: ManagedUser;
-  onClose: () => void;
-}): React.ReactElement {
+function PasswordResetDialog({ user, onClose }: { user: ManagedUser; onClose: () => void }): React.ReactElement {
   const queryClient = useQueryClient();
   // gcTime 0: the response carries the temporary password, which should
   // leave memory with this dialog rather than linger in the mutation cache.
@@ -219,18 +241,25 @@ function PasswordResetDialog({
       {issued ? (
         <TemporaryPasswordIssued issued={issued} onDone={onClose} />
       ) : (
-        <form className="stack stack--4" onSubmit={(event) => {
-          event.preventDefault();
-          mutation.mutate();
-        }}>
+        <form
+          className="stack stack--4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            mutation.mutate();
+          }}
+        >
           <p>
-            Reset the password for <strong>{user.full_name}</strong>? Their current password stops
-            working straight away, and you'll be given a temporary one to pass on.
+            Reset the password for <strong>{user.full_name}</strong>? Their current password stops working straight
+            away, and you'll be given a temporary one to pass on.
           </p>
           {mutation.error && <Alert>{errorMessage(mutation.error, "The password could not be reset.")}</Alert>}
           <div className="action-row users-dialog-actions">
-            <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>Cancel</Button>
-            <Button data-dialog-autofocus type="submit" variant="primary" disabled={mutation.isPending}>{mutation.isPending ? "Resetting…" : "Reset password"}</Button>
+            <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+              Cancel
+            </Button>
+            <Button data-dialog-autofocus type="submit" variant="primary" disabled={mutation.isPending}>
+              {mutation.isPending ? "Resetting…" : "Reset password"}
+            </Button>
           </div>
         </form>
       )}
@@ -245,13 +274,7 @@ function temporaryPasswordState(expiresAt: string): string {
     : `Works until ${when}`;
 }
 
-function DeleteUserDialog({
-  user,
-  onClose,
-}: {
-  user: ManagedUser;
-  onClose: () => void;
-}): React.ReactElement {
+function DeleteUserDialog({ user, onClose }: { user: ManagedUser; onClose: () => void }): React.ReactElement {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -274,9 +297,8 @@ function DeleteUserDialog({
       onConfirm={() => mutation.mutate()}
     >
       <p>
-        Delete <strong>{user.full_name}</strong>&apos;s account? They can no longer sign in and
-        the account leaves the staff list. Everything they recorded keeps their name, so it
-        still shows who did it. This cannot be undone.
+        Delete <strong>{user.full_name}</strong>&apos;s account? They can no longer sign in and the account leaves the
+        staff list. Everything they recorded keeps their name, so it still shows who did it. This cannot be undone.
       </p>
     </ConfirmDialog>
   );
@@ -356,7 +378,9 @@ export function UserDetailScreen(): React.ReactElement {
         subtitle={
           <>
             <EmailAddress address={managedUser.email} /> <span aria-hidden="true">·</span>{" "}
-            <Badge dot tone={managedUser.is_active ? "success" : "neutral"}>{managedUser.is_active ? "Active" : "Inactive"}</Badge>
+            <Badge dot tone={managedUser.is_active ? "success" : "neutral"}>
+              {managedUser.is_active ? "Active" : "Inactive"}
+            </Badge>
           </>
         }
         actions={
@@ -367,7 +391,9 @@ export function UserDetailScreen(): React.ReactElement {
           ) : viewOnly ? (
             <p className="users-self-password-hint subtext">Only a superuser can change this account.</p>
           ) : (
-            <Button ref={passwordButtonRef} variant="secondary" onClick={() => setPasswordOpen(true)}>Reset password</Button>
+            <Button ref={passwordButtonRef} variant="secondary" onClick={() => setPasswordOpen(true)}>
+              Reset password
+            </Button>
           )
         }
       />
@@ -391,15 +417,10 @@ export function UserDetailScreen(): React.ReactElement {
             <section className="user-detail-section">
               <h2>Danger zone</h2>
               <p>
-                Delete this account. They can no longer sign in, and everything they recorded
-                keeps their name so it still shows who did it. For someone who may come back,
-                set the account to Inactive instead.
+                Delete this account. They can no longer sign in, and everything they recorded keeps their name so it
+                still shows who did it. For someone who may come back, set the account to Inactive instead.
               </p>
-              <Button
-                ref={deleteButtonRef}
-                variant="danger"
-                onClick={() => setDeleteOpen(true)}
-              >
+              <Button ref={deleteButtonRef} variant="danger" onClick={() => setDeleteOpen(true)}>
                 Delete account
               </Button>
             </section>
@@ -409,12 +430,27 @@ export function UserDetailScreen(): React.ReactElement {
           <section>
             <h2>Account information</h2>
             <dl className="facts-list facts-list--aligned">
-              <div><dt>Joined</dt><dd>{formatLongDate(managedUser.date_joined, "Never")}</dd></div>
-              <div><dt>Last active</dt><dd>{formatDateTime(managedUser.last_login, "Never")}</dd></div>
-              <div><dt>Role</dt><dd>{managedUser.role_display}</dd></div>
-              <div><dt>Next sign-in</dt><dd>{managedUser.must_change_password ? "Password change required" : "Normal access"}</dd></div>
+              <div>
+                <dt>Joined</dt>
+                <dd>{formatLongDate(managedUser.date_joined, "Never")}</dd>
+              </div>
+              <div>
+                <dt>Last active</dt>
+                <dd>{formatDateTime(managedUser.last_login, "Never")}</dd>
+              </div>
+              <div>
+                <dt>Role</dt>
+                <dd>{managedUser.role_display}</dd>
+              </div>
+              <div>
+                <dt>Next sign-in</dt>
+                <dd>{managedUser.must_change_password ? "Password change required" : "Normal access"}</dd>
+              </div>
               {managedUser.temporary_password_expires_at && (
-                <div><dt>Temporary password</dt><dd>{temporaryPasswordState(managedUser.temporary_password_expires_at)}</dd></div>
+                <div>
+                  <dt>Temporary password</dt>
+                  <dd>{temporaryPasswordState(managedUser.temporary_password_expires_at)}</dd>
+                </div>
               )}
             </dl>
           </section>
@@ -425,13 +461,18 @@ export function UserDetailScreen(): React.ReactElement {
             ) : activityQuery.data?.results.length ? (
               <ul className="list-plain user-activity-list">
                 {activityQuery.data.results.map((event) => (
-                  <li key={event.id}><strong>{event.summary}</strong><span className="meta">{formatDateTime(event.occurred_at)}</span></li>
+                  <li key={event.id}>
+                    <strong>{event.summary}</strong>
+                    <span className="meta">{formatDateTime(event.occurred_at)}</span>
+                  </li>
                 ))}
               </ul>
             ) : (
               <p>No administrative activity recorded.</p>
             )}
-            <Link className={buttonClass({ variant: "link" })} to={`/audit?subject=user:${encodeURIComponent(id)}`}>View full history <span aria-hidden="true">→</span></Link>
+            <Link className={buttonClass({ variant: "link" })} to={`/audit?subject=user:${encodeURIComponent(id)}`}>
+              View full history <span aria-hidden="true">→</span>
+            </Link>
           </section>
         </aside>
       </div>

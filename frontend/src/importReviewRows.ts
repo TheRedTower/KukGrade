@@ -11,7 +11,11 @@ export type Tile<View extends string> = { key: View; label: string; count: numbe
 
 export type Exclusion = ReturnType<typeof useRowExclusion>;
 
-export function useRowExclusion(batch: DataImportBatch, onRefresh: () => Promise<void>, announce: (text: string) => void) {
+export function useRowExclusion(
+  batch: DataImportBatch,
+  onRefresh: () => Promise<void>,
+  announce: (text: string) => void,
+) {
   return useMutation({
     mutationFn: ({ row, excluded }: { row: DataImportRow; excluded: boolean }) =>
       setDataImportRowExcluded(batch.id, row.row_number, excluded),

@@ -73,19 +73,16 @@ export function CohortResolver({
         </p>
       </PageHeader>
 
-      {submitError && (
-        <Alert onDismiss={onDismissError}>{submitError}</Alert>
-      )}
+      {submitError && <Alert onDismiss={onDismissError}>{submitError}</Alert>}
 
       {/* Flagged items table section */}
       <section className="stack stack--3 bgc-resolver-section">
         <div className="bgc-section-header">
           <div>
-            <h2 className="section-title">
-              {counted(flaggedCount, "candidate needs", "candidates need")} attention
-            </h2>
+            <h2 className="section-title">{counted(flaggedCount, "candidate needs", "candidates need")} attention</h2>
             <p className="bgc-section-subtext">
-              These candidates could not be registered. Resolve the issues below, then retry only the flagged candidates.
+              These candidates could not be registered. Resolve the issues below, then retry only the flagged
+              candidates.
             </p>
           </div>
           <span className="meta">
@@ -139,11 +136,7 @@ export function CohortResolver({
                   >
                     View student<span className="visually-hidden"> (opens in a new tab)</span>
                   </Link>
-                  <Button
-                    variant="danger-quiet" small
-                    disabled={isSubmitting}
-                    onClick={() => onRemove(item.key)}
-                  >
+                  <Button variant="danger-quiet" small disabled={isSubmitting} onClick={() => onRemove(item.key)}>
                     Remove from list
                   </Button>
                 </>
@@ -170,9 +163,7 @@ export function CohortResolver({
                   <span className="item-title">{entry.candidate.student_display_name}</span>
                   <span className="meta">({entry.candidate.student_wksa_id})</span>
                   <CandidateRanks candidate={entry.candidate} />
-                  {entry.assessment && (
-                    <Badge tone="info">Form created (Not started)</Badge>
-                  )}
+                  {entry.assessment && <Badge tone="info">Form created (Not started)</Badge>}
                 </li>
               ))}
             </ul>

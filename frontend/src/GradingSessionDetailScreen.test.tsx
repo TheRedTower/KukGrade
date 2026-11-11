@@ -28,10 +28,8 @@ vi.mock("./api", async () => {
   return {
     ...actual,
     getGradingSession: (...args: unknown[]) => mockGetGradingSession(...args),
-    getAllGradingCandidates: (...args: unknown[]) =>
-      mockGetAllGradingCandidates(...args),
-    deleteGradingSession: (...args: unknown[]) =>
-      mockDeleteGradingSession(...args),
+    getAllGradingCandidates: (...args: unknown[]) => mockGetAllGradingCandidates(...args),
+    deleteGradingSession: (...args: unknown[]) => mockDeleteGradingSession(...args),
     getAllGradingSessions: (...args: unknown[]) => mockGetAllGradingSessions(...args),
     moveGradingCandidate: (...args: unknown[]) => mockMoveGradingCandidate(...args),
     deleteGradingCandidate: (...args: unknown[]) => mockDeleteGradingCandidate(...args),
@@ -89,7 +87,10 @@ function lockedSession(): GradingSession {
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
     ...sessionServed("LOCKED"),
-    can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+    can_be_deleted: false,
+    archived_at: null,
+    can_be_archived: false,
+    can_be_restored: false,
     location: "Riverside",
     notes: "",
   };
@@ -107,10 +108,7 @@ function renderScreen() {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={["/gradings/7"]}>
         <Routes>
-          <Route
-            path="/gradings/:id"
-            element={<GradingSessionDetailScreen />}
-          />
+          <Route path="/gradings/:id" element={<GradingSessionDetailScreen />} />
           <Route path="/gradings" element={<h1>Gradings list</h1>} />
         </Routes>
       </MemoryRouter>
@@ -131,21 +129,22 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
     renderScreen();
     await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "March 2027 Riverside Grading" }),
-      ).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: "March 2027 Riverside Grading" })).toBeInTheDocument(),
     );
 
     await user.click(screen.getByRole("button", { name: /Session actions/i }));
 
-    expect(
-      screen.queryByRole("menuitem", { name: "Delete session" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
   });
 
   it("offers no Session actions button when a finished session leaves the viewer nothing to do", async () => {
     currentUser = instructorUser;
-    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed", ...sessionServed("COMPLETED") });
+    mockGetGradingSession.mockResolvedValue({
+      ...lockedSession(),
+      status: "COMPLETED",
+      status_display: "Completed",
+      ...sessionServed("COMPLETED"),
+    });
     renderScreen();
 
     await screen.findByRole("heading", { name: "March 2027 Riverside Grading" });
@@ -154,7 +153,12 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
   it("moves focus to the heading when completing a session takes the menu away", async () => {
     currentUser = instructorUser;
-    const completed = { ...lockedSession(), status: "COMPLETED", status_display: "Completed", ...sessionServed("COMPLETED") };
+    const completed = {
+      ...lockedSession(),
+      status: "COMPLETED",
+      status_display: "Completed",
+      ...sessionServed("COMPLETED"),
+    };
     mockUpdateGradingSession.mockImplementation(async () => {
       mockGetGradingSession.mockResolvedValue(completed);
       return completed;
@@ -172,7 +176,12 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
   it("keeps Session actions on a finished session for someone who can read its audit events", async () => {
     currentUser = adminUser;
-    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed", ...sessionServed("COMPLETED") });
+    mockGetGradingSession.mockResolvedValue({
+      ...lockedSession(),
+      status: "COMPLETED",
+      status_display: "Completed",
+      ...sessionServed("COMPLETED"),
+    });
     renderScreen();
 
     expect(await screen.findByTestId("gsd-actions-btn")).toBeVisible();
@@ -186,9 +195,7 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
     renderScreen();
     await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "March 2027 Riverside Grading" }),
-      ).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: "March 2027 Riverside Grading" })).toBeInTheDocument(),
     );
 
     await user.click(screen.getByRole("button", { name: /Session actions/i }));
@@ -201,12 +208,8 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
     await user.click(screen.getByRole("button", { name: "Delete session" }));
 
-    await waitFor(() =>
-      expect(mockDeleteGradingSession).toHaveBeenCalledWith(7),
-    );
-    await waitFor(() =>
-      expect(screen.getByText("Gradings list")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(mockDeleteGradingSession).toHaveBeenCalledWith(7));
+    await waitFor(() => expect(screen.getByText("Gradings list")).toBeInTheDocument());
   });
 });
 
@@ -351,9 +354,7 @@ describe("GradingSessionDetailScreen registration actions", () => {
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(
-      await screen.findByRole("button", { name: "Move Mia Okafor to another session" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Move Mia Okafor to another session" }));
     const dialog = screen.getByRole("dialog", { name: "Move Mia Okafor" });
     const select = within(dialog).getByLabelText("Move to");
     await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(3));
@@ -376,18 +377,17 @@ describe("GradingSessionDetailScreen registration actions", () => {
 
   it("keeps the move dialog open with the server's reason when it is refused", async () => {
     mockMoveGradingCandidate.mockRejectedValue(
-      new ApiError("Session and testing-for rank cannot be changed after an assessment snapshot has been generated.", 400),
+      new ApiError(
+        "Session and testing-for rank cannot be changed after an assessment snapshot has been generated.",
+        400,
+      ),
     );
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(
-      await screen.findByRole("button", { name: "Move Mia Okafor to another session" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Move Mia Okafor to another session" }));
     const dialog = screen.getByRole("dialog", { name: "Move Mia Okafor" });
-    await waitFor(() =>
-      expect(within(dialog).getAllByRole("option").length).toBeGreaterThan(1),
-    );
+    await waitFor(() => expect(within(dialog).getAllByRole("option").length).toBeGreaterThan(1));
     await user.selectOptions(within(dialog).getByLabelText("Move to"), "8");
     await user.click(within(dialog).getByRole("button", { name: "Move registration" }));
 
@@ -450,10 +450,7 @@ describe("GradingSessionDetailScreen opening a draft session", () => {
     mockGetAllGradingCandidates.mockReset().mockResolvedValue({
       ...emptyPage(),
       count: 2,
-      results: [
-        registeredCandidate(),
-        registeredCandidate({ id: 32, student: 132, student_display_name: "Ben Hall" }),
-      ],
+      results: [registeredCandidate(), registeredCandidate({ id: 32, student: 132, student_display_name: "Ben Hall" })],
     });
     mockUpdateGradingSession
       .mockReset()
@@ -509,7 +506,9 @@ describe("GradingSessionDetailScreen opening a draft session", () => {
   });
 
   it("keeps the confirmation open with the server's reason when opening is refused", async () => {
-    mockUpdateGradingSession.mockRejectedValue(new ApiError("Cannot transition grading session from DRAFT to OPEN.", 400));
+    mockUpdateGradingSession.mockRejectedValue(
+      new ApiError("Cannot transition grading session from DRAFT to OPEN.", 400),
+    );
     const user = userEvent.setup();
     const dialog = await chooseOpenSession(user);
 

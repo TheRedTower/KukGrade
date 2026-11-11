@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { type DataImportBatch, type DataImportRow, correctDataImportRow, errorMessage, leaveOutDataImportRowsNeedingAttention } from "./api";
+import {
+  type DataImportBatch,
+  type DataImportRow,
+  correctDataImportRow,
+  errorMessage,
+  leaveOutDataImportRowsNeedingAttention,
+} from "./api";
 import { ErrorText } from "./ErrorText";
 import { ImportCellInput } from "./ImportCellInput";
 import { usePagedRows } from "./useImportRows";
@@ -62,10 +68,14 @@ function RosterRowEditor({
           >
             Leave this row out
           </Button>
-        ) : <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />}
+        ) : (
+          <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />
+        )}
       </div>
       {batch.extra_columns.length ? (
-        <p className="subtext">{batch.extra_columns.map((column) => `${column}: ${row.extra[column] ?? "(blank)"}`).join(" · ")}</p>
+        <p className="subtext">
+          {batch.extra_columns.map((column) => `${column}: ${row.extra[column] ?? "(blank)"}`).join(" · ")}
+        </p>
       ) : null}
       <div className="ix-field-grid">
         {batch.target_fields.map((field) => {
@@ -117,7 +127,11 @@ function RosterRowEditor({
               {corrected ? (
                 <span className="ix-fix-note meta">
                   File had “{row.file_values[field.field] || "nothing"}”
-                  <Button variant="link" aria-label={`Undo the fix to ${label}`} onClick={() => void save(field.field, null).catch(() => {})}>
+                  <Button
+                    variant="link"
+                    aria-label={`Undo the fix to ${label}`}
+                    onClick={() => void save(field.field, null).catch(() => {})}
+                  >
                     Undo
                   </Button>
                 </span>
@@ -127,9 +141,7 @@ function RosterRowEditor({
         })}
       </div>
       {fix.isError ? (
-        <ErrorText className="ix-flush">
-          {errorMessage(fix.error, "That fix could not be saved.")}
-        </ErrorText>
+        <ErrorText className="ix-flush">{errorMessage(fix.error, "That fix could not be saved.")}</ErrorText>
       ) : null}
     </div>
   );
@@ -218,12 +230,23 @@ export function RosterReview({
           title={heads[view][0]}
         />
         {view === "attention" && counts.review_required === 0 ? (
-          <p className="ix-row ix-success-text item-title">✓ Nothing needs attention. Every row will be imported or left out as shown.</p>
+          <p className="ix-row ix-success-text item-title">
+            ✓ Nothing needs attention. Every row will be imported or left out as shown.
+          </p>
         ) : (
           <RowsList kind={batch.kind} exclusion={exclusion} rows={rows}>
             {(list) =>
               view === "attention" ? (
-                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)
+                list.map((row) => (
+                  <RosterRowEditor
+                    batch={batch}
+                    exclusion={exclusion}
+                    key={row.row_number}
+                    row={row}
+                    onEditStateChange={onEditStateChange}
+                    onFixed={fixed}
+                  />
+                ))
               ) : view === "check" ? (
                 <div className="ix-ruled">
                   <ResponsiveTable
@@ -239,7 +262,9 @@ export function RosterReview({
                         render: (row: DataImportRow) => (
                           <>
                             {row.values[field.field] || <span className="subtext">(blank)</span>}
-                            {row.corrected_fields.includes(field.field) ? <span className="ix-fix-note meta">Your fix</span> : null}
+                            {row.corrected_fields.includes(field.field) ? (
+                              <span className="ix-fix-note meta">Your fix</span>
+                            ) : null}
                           </>
                         ),
                       })),
@@ -254,7 +279,11 @@ export function RosterReview({
                         actions: true,
                         render: (row) => (
                           <>
-                            <Button variant="link" aria-expanded={editing === row.row_number} onClick={() => setEditing(editing === row.row_number ? null : row.row_number)}>
+                            <Button
+                              variant="link"
+                              aria-expanded={editing === row.row_number}
+                              onClick={() => setEditing(editing === row.row_number ? null : row.row_number)}
+                            >
                               {editing === row.row_number ? "Close editor" : `Edit row ${row.row_number}`}
                             </Button>
                             <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />
@@ -264,13 +293,28 @@ export function RosterReview({
                     ]}
                     detail={(row) =>
                       editing === row.row_number ? (
-                        <RosterRowEditor batch={batch} exclusion={exclusion} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />
+                        <RosterRowEditor
+                          batch={batch}
+                          exclusion={exclusion}
+                          row={row}
+                          onEditStateChange={onEditStateChange}
+                          onFixed={fixed}
+                        />
                       ) : null
                     }
                   />
                 </div>
               ) : (
-                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)
+                list.map((row) => (
+                  <RosterRowEditor
+                    batch={batch}
+                    exclusion={exclusion}
+                    key={row.row_number}
+                    row={row}
+                    onEditStateChange={onEditStateChange}
+                    onFixed={fixed}
+                  />
+                ))
               )
             }
           </RowsList>
@@ -284,7 +328,8 @@ export function RosterReview({
         {counts.review_required ? (
           <div className="row row--wrap">
             <span className="ix-why error-text">
-              Fix or leave out the {counted(counts.review_required, "row that needs", "rows that need")} attention first.
+              Fix or leave out the {counted(counts.review_required, "row that needs", "rows that need")} attention
+              first.
             </span>
             <Button variant="secondary" disabled={leaveRest.isPending} onClick={() => leaveRest.mutate()}>
               {leaveRest.isPending ? "Leaving out…" : `Leave out the ${counts.review_required} left`}
@@ -295,9 +340,7 @@ export function RosterReview({
         )}
       </div>
       {leaveRest.isError ? (
-        <ErrorText>
-          {errorMessage(leaveRest.error, "Those rows could not be left out.")}
-        </ErrorText>
+        <ErrorText>{errorMessage(leaveRest.error, "Those rows could not be left out.")}</ErrorText>
       ) : null}
     </>
   );

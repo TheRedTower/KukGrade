@@ -1,4 +1,3 @@
-
 import { Alert } from "./Alert";
 import { CopyIcon } from "./Icons";
 import { Button } from "./Button";
@@ -46,11 +45,7 @@ export function CopyDetailsButton({ details }: { details: [string, string][] }) 
           Copied.
         </p>
       ) : null}
-      {copied === "failed" ? (
-        <Alert>
-          Could not copy. Select the details and copy them by hand.
-        </Alert>
-      ) : null}
+      {copied === "failed" ? <Alert>Could not copy. Select the details and copy them by hand.</Alert> : null}
     </>
   );
 }

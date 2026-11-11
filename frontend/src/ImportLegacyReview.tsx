@@ -48,7 +48,13 @@ export function LegacyReview({
 
   const leftOut = labelOf(useChoices().import_row_outcomes, "EXCLUDED");
   const tiles: Tile<LegacyView>[] = [
-    { key: "results", label: "Grading results", count: preview?.grading_result ?? 0, tone: "ix-success-text", mark: "✓" },
+    {
+      key: "results",
+      label: "Grading results",
+      count: preview?.grading_result ?? 0,
+      tone: "ix-success-text",
+      mark: "✓",
+    },
     { key: "attention", label: "Worth a look", count: preview?.worth_a_look ?? 0, tone: "ix-warning-text", mark: "!" },
     {
       key: "others",
@@ -113,7 +119,8 @@ export function LegacyReview({
                     {
                       key: "ranks",
                       header: "Ranks",
-                      render: (row) => [row.values.current_rank, row.values.testing_for_rank].filter(Boolean).join(" → "),
+                      render: (row) =>
+                        [row.values.current_rank, row.values.testing_for_rank].filter(Boolean).join(" → "),
                     },
                     { key: "outcome", header: "Outcome", render: (row) => row.values.outcome },
                     {

@@ -49,7 +49,10 @@ export function ImportCellInput({
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") event.currentTarget.blur();
-    if (event.key === "Escape") { setDraft(null); onDirtyChange?.(false); }
+    if (event.key === "Escape") {
+      setDraft(null);
+      onDirtyChange?.(false);
+    }
   }
 
   return (
@@ -61,7 +64,10 @@ export function ImportCellInput({
       placeholder={placeholder}
       value={draft ?? value}
       onBlur={() => void commit()}
-      onChange={(event) => { setDraft(event.target.value); onDirtyChange?.(event.target.value !== value); }}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        onDirtyChange?.(event.target.value !== value);
+      }}
       onKeyDown={onKeyDown}
     />
   );

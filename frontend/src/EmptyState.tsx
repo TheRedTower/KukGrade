@@ -35,7 +35,10 @@ export function EmptyState({
   ...rest
 }: EmptyStateProps) {
   return (
-    <div className={cx("empty-state", framed && "empty-state--framed", fill && "empty-state--fill", className)} {...rest}>
+    <div
+      className={cx("empty-state", framed && "empty-state--framed", fill && "empty-state--fill", className)}
+      {...rest}
+    >
       {icon}
       {title ? (
         <TitleTag className="empty-state__title" id={titleId}>

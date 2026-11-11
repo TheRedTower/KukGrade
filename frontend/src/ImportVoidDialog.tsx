@@ -19,7 +19,7 @@ export function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose
   });
   return (
     <ConfirmDialog
-        cancelLabel="Not yet"
+      cancelLabel="Not yet"
       confirmDisabled={!reason.trim()}
       confirmLabel="Void every record"
       danger
@@ -31,12 +31,17 @@ export function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose
       onConfirm={() => voiding.mutate()}
     >
       <p className="subtext">
-        They are kept, marked void with your reason, and leave every student’s history. This
-        cannot be undone except by importing the workbook again.
+        They are kept, marked void with your reason, and leave every student’s history. This cannot be undone except by
+        importing the workbook again.
       </p>
       <div className="field field--sentence">
         <label htmlFor="ix-void-reason">Why</label>
-        <textarea data-dialog-autofocus id="ix-void-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+        <textarea
+          data-dialog-autofocus
+          id="ix-void-reason"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+        />
       </div>
     </ConfirmDialog>
   );

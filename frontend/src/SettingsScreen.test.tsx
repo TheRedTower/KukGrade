@@ -133,9 +133,7 @@ describe("Settings: Account", () => {
     await user.click(save);
 
     expect(await screen.findByText("Your name is saved.")).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: "Casey Park, Instructor: your account" }),
-    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Casey Park, Instructor: your account" })).toBeVisible();
     const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(patch?.[0]).toContain("/api/auth/me/");
     expect(JSON.parse(patch?.[1]?.body as string)).toEqual({ first_name: "Casey", last_name: "Park" });

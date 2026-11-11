@@ -22,7 +22,6 @@ interface Feedback {
   setMessage: (message: string | null) => void;
 }
 
-
 /**
  * Everything a session page does to its candidates: prepare and start assessments in
  * bulk, mark no-shows, withdraw one from a locked session, move or remove a
@@ -35,7 +34,9 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
   /** The message after a bulk action: how many worked, and the server's reasons for the rest. */
   const reportBulk = (count: number, verb: string, errors: Record<string, string[]>) => {
     const failed = Object.keys(errors).length;
-    setMessage(`${counted(count, "assessment", "assessments")} ${verb}${failed ? `; ${failed} could not be ${verb}` : ""}.`);
+    setMessage(
+      `${counted(count, "assessment", "assessments")} ${verb}${failed ? `; ${failed} could not be ${verb}` : ""}.`,
+    );
     setError(failed ? Object.values(errors).flat().join(" ") : null);
   };
 
@@ -66,7 +67,9 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       refreshCandidateWork();
       setAttendanceOpen(false);
       const failed = Object.keys(errors).length;
-      setMessage(`${counted(updated.length, "candidate", "candidates")} marked as no-show${failed ? `; ${failed} could not be updated` : ""}.`);
+      setMessage(
+        `${counted(updated.length, "candidate", "candidates")} marked as no-show${failed ? `; ${failed} could not be updated` : ""}.`,
+      );
       setError(failed ? Object.values(errors).flat().join(" ") : null);
     },
     onError: (err: unknown) => setError(errorMessage(err, "Failed to confirm attendance.")),
@@ -75,8 +78,13 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
   const [withdrawing, setWithdrawing] = useState<EnrichedCandidate | null>(null);
   const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
   const withdrawal = useMutation({
-    mutationFn: ({ candidateId, payload }: { candidateId: number; payload: Parameters<typeof withdrawLockedCandidate>[1] }) =>
-      withdrawLockedCandidate(candidateId, payload),
+    mutationFn: ({
+      candidateId,
+      payload,
+    }: {
+      candidateId: number;
+      payload: Parameters<typeof withdrawLockedCandidate>[1];
+    }) => withdrawLockedCandidate(candidateId, payload),
     onSuccess: (updated) => {
       refreshCandidateWork();
       setWithdrawing(null);
@@ -92,7 +100,10 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
     enabled: withdrawing !== null,
   });
 
-  const [registrationAction, setRegistrationAction] = useState<{ kind: "move" | "remove"; item: EnrichedCandidate } | null>(null);
+  const [registrationAction, setRegistrationAction] = useState<{
+    kind: "move" | "remove";
+    item: EnrichedCandidate;
+  } | null>(null);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const closeRegistrationAction = () => {
     setRegistrationAction(null);
@@ -108,7 +119,15 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
     .filter((target) => target.id !== sessionId)
     .map((target) => ({ id: target.id, label: `${target.title} · ${formatSessionDate(target.grading_date)}` }));
   const registration = useMutation({
-    mutationFn: async ({ kind, candidateId, targetSessionId }: { kind: "move" | "remove"; candidateId: number; targetSessionId?: number }) => {
+    mutationFn: async ({
+      kind,
+      candidateId,
+      targetSessionId,
+    }: {
+      kind: "move" | "remove";
+      candidateId: number;
+      targetSessionId?: number;
+    }) => {
       if (kind === "move") await moveGradingCandidate(candidateId, targetSessionId as number);
       else await deleteGradingCandidate(candidateId);
     },

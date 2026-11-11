@@ -83,7 +83,10 @@ const lockedSession: GradingSession = {
   awaiting_decision_count: 0,
   ...sessionServed("LOCKED"),
   withdrawn_count: 1,
-  can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+  can_be_deleted: false,
+  archived_at: null,
+  can_be_archived: false,
+  can_be_restored: false,
   grading_date: "2026-11-12",
   location: "Riverside",
   notes: "",
@@ -112,11 +115,7 @@ function candidate(id: number, name: string, overrides: Partial<GradingCandidate
   };
 }
 
-function assessment(
-  id: number,
-  candidateId: number,
-  overall: CandidateAssessment["overall"],
-): CandidateAssessment {
+function assessment(id: number, candidateId: number, overall: CandidateAssessment["overall"]): CandidateAssessment {
   return {
     id,
     candidate: candidateId,
@@ -202,7 +201,7 @@ const cohort = [
   candidate(1, "Mia Okafor"),
   candidate(2, "Alex Carter"),
   candidate(3, "Tom Ashby"),
-  candidate(4, "Sam Withdrawn", { status: "WITHDRAWN", }),
+  candidate(4, "Sam Withdrawn", { status: "WITHDRAWN" }),
 ] satisfies GradingCandidate[];
 const outcomes = [
   outcome(11, 1),
@@ -281,8 +280,32 @@ describe("CohortAdjudicationScreen", () => {
     );
     mockGetItems.mockResolvedValue(
       page([
-        item(1, { result: "NOT_MET", result_display: "Not met", item_name: "Dwi Cha Gi", comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on the turn.", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
-        item(2, { item_name: "Ap Cha Gi", comments: [{ id: 2, author_name: "Casey Reed", body: "Excellent chamber.", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
+        item(1, {
+          result: "NOT_MET",
+          result_display: "Not met",
+          item_name: "Dwi Cha Gi",
+          comments: [
+            {
+              id: 1,
+              author_name: "Casey Reed",
+              body: "Guard dropped on the turn.",
+              created_at: "2026-09-18T10:20:00Z",
+              after_lock: false,
+            },
+          ],
+        }),
+        item(2, {
+          item_name: "Ap Cha Gi",
+          comments: [
+            {
+              id: 2,
+              author_name: "Casey Reed",
+              body: "Excellent chamber.",
+              created_at: "2026-09-18T10:20:00Z",
+              after_lock: false,
+            },
+          ],
+        }),
         item(3, { item_name: "Yup Cha Gi" }),
       ]),
     );
@@ -363,7 +386,13 @@ describe("CohortAdjudicationScreen", () => {
           recorded && row.id === 1
             ? {
                 ...row,
-                outcome: { ...row.outcome!, status: "FINALISED" as const, status_display: "Finalised", final_outcome: "PASS" as const, final_outcome_display: "Pass" },
+                outcome: {
+                  ...row.outcome!,
+                  status: "FINALISED" as const,
+                  status_display: "Finalised",
+                  final_outcome: "PASS" as const,
+                  final_outcome_display: "Pass",
+                },
                 can_be_finalised: false,
               }
             : row,
@@ -380,7 +409,9 @@ describe("CohortAdjudicationScreen", () => {
     await user.click(screen.getByTestId("cab-record-staged"));
 
     expect(await screen.findByText("1 decision recorded.")).toBeVisible();
-    await waitFor(() => expect(within(screen.getByTestId("cab-row-1")).queryByRole("button", { name: "Pass" })).toBeNull());
+    await waitFor(() =>
+      expect(within(screen.getByTestId("cab-row-1")).queryByRole("button", { name: "Pass" })).toBeNull(),
+    );
     expect(mockGetCandidates.mock.calls.length).toBeGreaterThan(1);
   });
 
@@ -390,7 +421,13 @@ describe("CohortAdjudicationScreen", () => {
     await waitFor(() => expect(mockGetStaged).toHaveBeenCalledTimes(1));
     first.unmount();
     mockGetStaged.mockResolvedValue([
-      { outcome: 11, final_outcome: "FAIL", decision_notes: "", conditional_requirements: "", updated_at: "2026-11-12T15:00:00Z" },
+      {
+        outcome: 11,
+        final_outcome: "FAIL",
+        decision_notes: "",
+        conditional_requirements: "",
+        updated_at: "2026-11-12T15:00:00Z",
+      },
     ]);
 
     renderBoard(undefined, queryClient);
@@ -615,7 +652,12 @@ describe("CohortAdjudicationScreen", () => {
   });
 
   it("offers no decision controls until the session is locked", async () => {
-    mockGetGradingSession.mockResolvedValue({ ...lockedSession, status: "OPEN", status_display: "Open", ...sessionServed("OPEN") });
+    mockGetGradingSession.mockResolvedValue({
+      ...lockedSession,
+      status: "OPEN",
+      status_display: "Open",
+      ...sessionServed("OPEN"),
+    });
     // Nothing can be finalised before the lock, and the rows say so.
     mockGetCandidates.mockResolvedValue(page(roster.map((row) => ({ ...row, can_be_finalised: false }))));
     renderBoard();
@@ -633,7 +675,9 @@ describe("CohortAdjudicationScreen", () => {
     });
     renderBoard();
 
-    await user.click(await within(await screen.findByTestId("cab-row-2")).findByRole("button", { name: "Alex Carter" }));
+    await user.click(
+      await within(await screen.findByTestId("cab-row-2")).findByRole("button", { name: "Alex Carter" }),
+    );
 
     await waitFor(() =>
       expect(within(screen.getByTestId("cab-detail")).getByRole("heading", { name: "Alex Carter" })).toHaveFocus(),

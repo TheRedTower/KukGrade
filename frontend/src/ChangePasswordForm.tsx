@@ -85,7 +85,11 @@ export function ChangePasswordForm({
               type={inputType}
               value={currentPassword}
             />
-            <PasswordToggle noun="passwords" onToggle={() => setShowPasswords((previous) => !previous)} shown={showPasswords} />
+            <PasswordToggle
+              noun="passwords"
+              onToggle={() => setShowPasswords((previous) => !previous)}
+              shown={showPasswords}
+            />
           </div>
         )}
       </Field>
@@ -123,9 +127,7 @@ export function ChangePasswordForm({
         )}
       </Field>
 
-      {form.banner ? (
-        <Alert>{form.banner}</Alert>
-      ) : null}
+      {form.banner ? <Alert>{form.banner}</Alert> : null}
 
       <div className={actionsClassName}>
         <Button variant="primary" disabled={isSubmitting} type="submit">

@@ -133,7 +133,6 @@
   overscroll-behavior: contain;
 }
 
-
 .ab-doc-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -203,7 +202,6 @@
   padding-left: var(--space-5);
 }
 
-
 /* The pledge. */
 .ab-pledge {
   margin: var(--space-4) 0 0;
@@ -268,4 +266,3 @@
 .ab-contact:first-child {
   border-top: 0;
 }
-

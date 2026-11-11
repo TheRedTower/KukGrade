@@ -9,9 +9,7 @@ it("reads every page of the server's historical name group within one import", a
   const fetchMock = vi.fn().mockImplementation(async (rawUrl: string) => {
     const url = new URL(rawUrl, "http://localhost");
     const page = Number(url.searchParams.get("page"));
-    const results = page === 1
-      ? Array.from({ length: 200 }, (_, index) => ({ id: index + 1 }))
-      : [{ id: 201 }];
+    const results = page === 1 ? Array.from({ length: 200 }, (_, index) => ({ id: index + 1 })) : [{ id: 201 }];
     return jsonResponse(200, {
       count: 201,
       next: page === 1 ? "?page=2" : null,

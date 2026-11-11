@@ -40,16 +40,12 @@ export function useDialogFocus<T extends HTMLElement>({
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    const previouslyFocused =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const getFocusableElements = () =>
-      Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-    const preferredFocus = dialog.querySelector<HTMLElement>(
-      "[data-dialog-autofocus]:not([disabled])",
-    );
+    const getFocusableElements = () => Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+    const preferredFocus = dialog.querySelector<HTMLElement>("[data-dialog-autofocus]:not([disabled])");
     (preferredFocus ?? getFocusableElements()[0] ?? dialog).focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {

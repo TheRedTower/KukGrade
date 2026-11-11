@@ -5,13 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { useDialogFocus } from "./useDialogFocus";
 
-function TestDialog({
-  onClose,
-  canClose = true,
-}: {
-  onClose: () => void;
-  canClose?: boolean;
-}) {
+function TestDialog({ onClose, canClose = true }: { onClose: () => void; canClose?: boolean }) {
   const dialogRef = useDialogFocus<HTMLDivElement>({
     isOpen: true,
     onClose,

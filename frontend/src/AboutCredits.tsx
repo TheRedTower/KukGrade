@@ -20,9 +20,7 @@ function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) 
           render: (credit) => (
             <>
               {credit.homepage ? (
-                <ExternalLink href={credit.homepage}>
-                  {credit.name}
-                </ExternalLink>
+                <ExternalLink href={credit.homepage}>{credit.name}</ExternalLink>
               ) : (
                 <strong>{credit.name}</strong>
               )}
@@ -48,21 +46,16 @@ export function AboutCredits() {
       <header>
         <h2>Credits</h2>
         <p className="st-row-description subtext">
-          KukGrade stands on the work of many open source projects. This list is written when each
-          version is built, so it matches what is running.
+          KukGrade stands on the work of many open source projects. This list is written when each version is built, so
+          it matches what is running.
         </p>
       </header>
 
-      {query.isError ? (
-        <Alert>
-          {errorMessage(query.error, "The credits could not be loaded.")}
-        </Alert>
-      ) : null}
+      {query.isError ? <Alert>{errorMessage(query.error, "The credits could not be loaded.")}</Alert> : null}
 
       {credits && !credits.available ? (
         <Alert tone="info" role="note">
-          This copy of KukGrade was not packaged for release, so it has no credits list. Releases
-          have one.
+          This copy of KukGrade was not packaged for release, so it has no credits list. Releases have one.
         </Alert>
       ) : null}
 

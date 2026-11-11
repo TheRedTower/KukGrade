@@ -37,7 +37,9 @@ function suffixOf(name: string): string {
 }
 
 function fileSize(bytes: number): string {
-  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function sizeLimit(bytes: number): string {
@@ -53,7 +55,12 @@ function typeWords(types: FileTypes): string {
   return types.map((type) => `${type.label} (.${type.value})`).join(" or ");
 }
 
-function clientRefusal(file: File, kind: DataImportKind, types: FileTypes, maxBytes: number | undefined): string | null {
+function clientRefusal(
+  file: File,
+  kind: DataImportKind,
+  types: FileTypes,
+  maxBytes: number | undefined,
+): string | null {
   if (types.length && !types.some((type) => type.value === suffixOf(file.name))) {
     return importKinds[kind].wrongType(typeWords(types));
   }
@@ -71,8 +78,6 @@ function uploadFailure(error: unknown): string {
   return errorMessage(error, "The file could not be read. Try again in a moment.");
 }
 
-
-
 function GuideList({ kind }: { kind: DataImportKind }) {
   const guide = importKinds[kind].guide;
   return (
@@ -85,15 +90,11 @@ function GuideList({ kind }: { kind: DataImportKind }) {
               <p className="item-title">{field.name}</p>
               {field.hint ? <p className="subtext">{field.hint}</p> : null}
             </span>
-            <Badge tone={field.needed ? "info" : "neutral"}>
-              {field.needed ? "Needed" : guide.optional}
-            </Badge>
+            <Badge tone={field.needed ? "info" : "neutral"}>{field.needed ? "Needed" : guide.optional}</Badge>
           </li>
         ))}
       </ul>
-      <p className="ix-flush">
-        {guide.foot}
-      </p>
+      <p className="ix-flush">{guide.foot}</p>
     </>
   );
 }
@@ -253,7 +254,8 @@ export function ImportStartScreen() {
           <FoundChecklist batch={loaded} created={created} kind={kind} limit={limit} />
           {emptySheet ? (
             <Alert tone="warning">
-              {loaded.sheet_error || "This sheet has no student rows."} Choose the sheet containing the roster before continuing.
+              {loaded.sheet_error || "This sheet has no student rows."} Choose the sheet containing the roster before
+              continuing.
             </Alert>
           ) : null}
           {oneSheet && loaded.sheet_names.length > 1 ? (
@@ -277,11 +279,7 @@ export function ImportStartScreen() {
               </span>
             </label>
           ) : null}
-          {sheet.isError ? (
-            <ErrorText>
-              {errorMessage(sheet.error, "That sheet could not be read.")}
-            </ErrorText>
-          ) : null}
+          {sheet.isError ? <ErrorText>{errorMessage(sheet.error, "That sheet could not be read.")}</ErrorText> : null}
           <details
             className="disclosure ix-fold"
             open={guideOpen}
@@ -303,9 +301,7 @@ export function ImportStartScreen() {
               <h2 className="ix-title" id="ix-choose">
                 Choose your file
               </h2>
-              <p className="subtext">
-                {chooseLead}
-              </p>
+              <p className="subtext">{chooseLead}</p>
             </div>
             <div
               className={cx("ix-drop", dragging && "ix-drop-active")}
@@ -343,11 +339,7 @@ export function ImportStartScreen() {
                 {oneSheet && imports ? ` and ${imports.max_rows.toLocaleString("en-GB")} rows` : null}
               </p>
             </div>
-            {fileError ? (
-              <ErrorText className="ix-flush">
-                {fileError}
-              </ErrorText>
-            ) : null}
+            {fileError ? <ErrorText className="ix-flush">{fileError}</ErrorText> : null}
           </section>
           <aside aria-labelledby="ix-looks-for" className="card ix-sunken stack stack--3">
             <h2 className="ix-minor" id="ix-looks-for">

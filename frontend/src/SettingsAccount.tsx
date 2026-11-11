@@ -55,11 +55,7 @@ function NameRow() {
         <Button variant="secondary" disabled={saving || !changed} type="submit">
           {saving ? "Saving…" : "Save name"}
         </Button>
-        {error ? (
-          <Alert className="st-full">
-            {error}
-          </Alert>
-        ) : null}
+        {error ? <Alert className="st-full">{error}</Alert> : null}
         {saved ? (
           <p className="st-saved item-title st-full" role="status">
             Your name is saved.
@@ -131,7 +127,9 @@ export function SettingsAccount() {
     <section aria-label="Account" className="card card--flush">
       <NameRow />
       <SettingsRow description="An administrator changes it on the Users page." title="Email">
-        <span><EmailAddress address={user.email} /></span>
+        <span>
+          <EmailAddress address={user.email} />
+        </span>
       </SettingsRow>
       <PasswordRow />
       <SettingsRow

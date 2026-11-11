@@ -175,7 +175,10 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   cursor: pointer;
-  transition: border-color var(--duration) ease, background var(--duration) ease, color var(--duration) ease;
+  transition:
+    border-color var(--duration) ease,
+    background var(--duration) ease,
+    color var(--duration) ease;
   background: var(--color-surface);
 }
 
@@ -199,4 +202,3 @@
   margin: 0;
   line-height: var(--line-height-snug);
 }
-

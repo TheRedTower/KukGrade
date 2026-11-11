@@ -49,9 +49,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
   const { user: currentUser } = useAuth();
 
   const [isBatchSummaryOpen, setIsBatchSummaryOpen] = useState(false);
-  const [singlePromoteCandidate, setSinglePromoteCandidate] = useState<PromotionRowItem | null>(
-    null,
-  );
+  const [singlePromoteCandidate, setSinglePromoteCandidate] = useState<PromotionRowItem | null>(null);
   const [singlePromoteNotes, setSinglePromoteNotes] = useState("");
   const [actionFeedback, setActionFeedback] = useState<{
     type: "success" | "error";
@@ -90,7 +88,10 @@ export function PromotionLedgerScreen(): React.ReactElement {
   const candidatesData = ledgerLoaded ? candidatesQuery.data : undefined;
   const eligibilityData = ledgerLoaded ? eligibilityQuery.data : undefined;
 
-  const eligibilityMap = useMemo(() => new Map(eligibilityData?.map((item) => [item.candidate, item])), [eligibilityData]);
+  const eligibilityMap = useMemo(
+    () => new Map(eligibilityData?.map((item) => [item.candidate, item])),
+    [eligibilityData],
+  );
 
   // Enriched rows
   const rows = useMemo<PromotionRowItem[]>(() => {
@@ -179,9 +180,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
   });
 
   function handleConfirmBulkPromote() {
-    const outcomeIds = eligibleCohort
-      .map((r) => r.outcome?.id)
-      .filter((id): id is number => typeof id === "number");
+    const outcomeIds = eligibleCohort.map((r) => r.outcome?.id).filter((id): id is number => typeof id === "number");
 
     if (outcomeIds.length === 0) return;
     bulkPromoteMutation.mutate(outcomeIds);
@@ -232,7 +231,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
       {/* Authority Disclaimer if user lacks permission */}
       {!canPromote && (
         <Alert tone="warning" title="Promotion authority needed" className="pl-alert">
-          You can review this ledger, but promoting students needs promotion authority, which an administrator can grant.
+          You can review this ledger, but promoting students needs promotion authority, which an administrator can
+          grant.
         </Alert>
       )}
 
@@ -245,9 +245,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             {counted(eligibleCohort.length, "Candidate", "Candidates")} Finalised with Pass · Eligible for Promotion
           </span>
           {eligibleCohort.length === 0 && rows.some((r) => r.isPromoted) && (
-            <span className="meta">
-              All qualified candidates in this cohort have already been promoted.
-            </span>
+            <span className="meta">All qualified candidates in this cohort have already been promoted.</span>
           )}
         </div>
 
@@ -262,8 +260,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
             !canPromote
               ? "Promotion authority required to promote cohort"
               : eligibleCohort.length === 0
-              ? "No unpromoted candidates eligible"
-              : `Review and promote ${eligibleCohort.length} qualified candidates`
+                ? "No unpromoted candidates eligible"
+                : `Review and promote ${eligibleCohort.length} qualified candidates`
           }
         >
           <span aria-hidden="true">✓</span>
@@ -335,7 +333,12 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 const outcome = row.outcome;
                 if (outcome?.status === "FINALISED") {
                   const result = outcome.final_outcome;
-                  if (result) return <Badge tone={outcomeTone(result)}>{outcome.final_outcome_display} ({outcome.status_display})</Badge>;
+                  if (result)
+                    return (
+                      <Badge tone={outcomeTone(result)}>
+                        {outcome.final_outcome_display} ({outcome.status_display})
+                      </Badge>
+                    );
                 }
                 if (outcome?.status === "PROPOSED") {
                   return <Badge tone="neutral">Proposed: {outcome.proposed_outcome_display || "Pending"}</Badge>;
@@ -353,9 +356,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                       Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name} ✓
                     </Badge>
                     {row.promotion?.effective_date && (
-                      <span className="meta">
-                        Effective {formatShortDate(row.promotion.effective_date)}
-                      </span>
+                      <span className="meta">Effective {formatShortDate(row.promotion.effective_date)}</span>
                     )}
                   </div>
                 ) : row.isEligible ? (
@@ -424,9 +425,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             </div>
             <div>
               <dt>Promoter</dt>
-              <dd>
-                {currentUser?.full_name || currentUser?.first_name || "Authorised Master"}
-              </dd>
+              <dd>{currentUser?.full_name || currentUser?.first_name || "Authorised Master"}</dd>
             </div>
           </dl>
         </ConfirmDialog>
@@ -445,9 +444,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         >
           {feedbackBanner}
           <div className="pl-modal-candidate-info">
-            <span className="pl-modal-name section-title">
-              {singlePromoteCandidate.candidate.student_display_name}
-            </span>
+            <span className="pl-modal-name section-title">{singlePromoteCandidate.candidate.student_display_name}</span>
             <p className="row row--wrap pl-modal-ranks">
               <CandidateRanks
                 candidate={singlePromoteCandidate.candidate}
@@ -472,7 +469,6 @@ export function PromotionLedgerScreen(): React.ReactElement {
               disabled={singlePromoteMutation.isPending}
             />
           </div>
-
         </ConfirmDialog>
       )}
     </section>

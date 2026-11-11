@@ -104,7 +104,13 @@ export function useCohortRegistration({ sessionId, session, cohort, setCohort, g
     flaggedItems,
     resolving: registrationResult !== null && flaggedItems.length > 0,
     submit: () => send(cohort, false),
-    retry: () => send(flaggedItems.filter((item) => !item.registered).map((item) => ({ student: item.student, destinationRank: item.destinationRank })), true),
+    retry: () =>
+      send(
+        flaggedItems
+          .filter((item) => !item.registered)
+          .map((item) => ({ student: item.student, destinationRank: item.destinationRank })),
+        true,
+      ),
     removeFlagged: (key: string) => {
       const removed = flaggedItems.find((item) => item.key === key);
       const remaining = flaggedItems.filter((item) => item.key !== key);

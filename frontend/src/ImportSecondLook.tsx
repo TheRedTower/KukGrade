@@ -60,8 +60,7 @@ export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: 
             What KukGrade filled in for you
           </h2>
           <p className="subtext">
-            Everything was imported. These are the details that did not all come straight from
-            the file.
+            Everything was imported. These are the details that did not all come straight from the file.
           </p>
         </div>
       </div>

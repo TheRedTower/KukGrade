@@ -105,7 +105,6 @@ export function AuditScreen(): React.ReactElement {
     enabled: subject !== "",
   });
 
-
   const paged = usePagedQuery({
     queryKey: keys.auditEvents.log(
       page,
@@ -136,9 +135,7 @@ export function AuditScreen(): React.ReactElement {
   const query = paged.query;
   const events = paged.results;
   const totalCount = paged.count;
-  const hasFilters = Boolean(
-    action || entityType || entityId || subject || occurredFrom || occurredTo || search,
-  );
+  const hasFilters = Boolean(action || entityType || entityId || subject || occurredFrom || occurredTo || search);
 
   // The trigger is restored explicitly: a clicked button is not focused in
   // every browser, so the hook's "whatever had focus" may not be it.
@@ -166,16 +163,14 @@ export function AuditScreen(): React.ReactElement {
             "Finding the record…"
           ) : subjectQuery.data?.exists ? (
             <>
-              <strong>History of {subjectQuery.data.name}</strong>: the record itself and everything
-              that belongs to it.{" "}
+              <strong>History of {subjectQuery.data.name}</strong>: the record itself and everything that belongs to it.{" "}
               <Link to={subjectPath(subjectQuery.data)}>
                 Open the record <span aria-hidden="true">→</span>
               </Link>
             </>
           ) : (
             <>
-              <strong>History of a record that no longer exists</strong>: what was recorded about it
-              is kept.
+              <strong>History of a record that no longer exists</strong>: what was recorded about it is kept.
             </>
           )}
         </Alert>
@@ -192,26 +187,24 @@ export function AuditScreen(): React.ReactElement {
 
         <label className="field">
           <span>Action</span>
-          <select
-            value={action}
-            onChange={(event) => filters.set({ action: event.target.value })}
-          >
+          <select value={action} onChange={(event) => filters.set({ action: event.target.value })}>
             <option value="">All actions</option>
             {labels.data?.actions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </label>
 
         <label className="field">
           <span>Record type</span>
-          <select
-            value={entityType}
-            onChange={(event) => filters.set({ entity_type: event.target.value })}
-          >
+          <select value={entityType} onChange={(event) => filters.set({ entity_type: event.target.value })}>
             <option value="">All record types</option>
             {labels.data?.entities.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </label>
@@ -249,7 +242,9 @@ export function AuditScreen(): React.ReactElement {
           {hasFilters && (
             <Button
               variant="link"
-              onClick={() => filters.clear("action", "entity_type", "entity_id", "subject", "occurred_from", "occurred_to", "search")}
+              onClick={() =>
+                filters.clear("action", "entity_type", "entity_id", "subject", "occurred_from", "occurred_to", "search")
+              }
             >
               Clear filters
             </Button>
@@ -289,14 +284,20 @@ export function AuditScreen(): React.ReactElement {
                     return (
                       <>
                         <span className="audit-date">{time.date}</span>
-                        <time className="audit-time meta" dateTime={event.occurred_at}>{time.time}</time>
+                        <time className="audit-time meta" dateTime={event.occurred_at}>
+                          {time.time}
+                        </time>
                       </>
                     );
                   },
                 },
                 { key: "action", header: "Action", primary: true, render: (event) => event.action_display },
                 { key: "summary", header: "Summary", render: (event) => eventSummary(event) },
-                { key: "actor", header: "Actor", render: (event) => <span className="audit-actor">{actorLabel(event)}</span> },
+                {
+                  key: "actor",
+                  header: "Actor",
+                  render: (event) => <span className="audit-actor">{actorLabel(event)}</span>,
+                },
                 {
                   key: "record",
                   header: "Record",
@@ -343,9 +344,20 @@ export function AuditScreen(): React.ReactElement {
           onClose={closeDetails}
         >
           <dl className="facts">
-            <div><dt>Occurred</dt><dd>{formatDateTime(selectedEvent.occurred_at)}</dd></div>
-            <div><dt>Actor</dt><dd>{actorLabel(selectedEvent)}</dd></div>
-            <div><dt>Record</dt><dd>{selectedEvent.entity_type_display} #{selectedEvent.entity_id}</dd></div>
+            <div>
+              <dt>Occurred</dt>
+              <dd>{formatDateTime(selectedEvent.occurred_at)}</dd>
+            </div>
+            <div>
+              <dt>Actor</dt>
+              <dd>{actorLabel(selectedEvent)}</dd>
+            </div>
+            <div>
+              <dt>Record</dt>
+              <dd>
+                {selectedEvent.entity_type_display} #{selectedEvent.entity_id}
+              </dd>
+            </div>
           </dl>
           <div className="audit-detail-section">
             <h3>Summary</h3>

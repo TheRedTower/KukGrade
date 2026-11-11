@@ -56,8 +56,7 @@ export function SetupPage() {
         <section className="login-content" aria-labelledby="setup-title">
           <h1 id="setup-title">Set up KukGrade</h1>
           <p className="login-subtitle">
-            Create the main administrator account. You will need the setup code from the
-            server&rsquo;s log.
+            Create the main administrator account. You will need the setup code from the server&rsquo;s log.
           </p>
 
           <div className="setup-theme">
@@ -132,7 +131,11 @@ export function SetupPage() {
                     type={inputType}
                     value={password}
                   />
-                  <PasswordToggle noun="passwords" onToggle={() => setShowPasswords((previous) => !previous)} shown={showPasswords} />
+                  <PasswordToggle
+                    noun="passwords"
+                    onToggle={() => setShowPasswords((previous) => !previous)}
+                    shown={showPasswords}
+                  />
                 </div>
               )}
             </Field>
@@ -156,8 +159,7 @@ export function SetupPage() {
             </Button>
           </form>
           <p className="login-security-note meta">
-            This page is shown once. After setup, every other account is added from the Users
-            screen.
+            This page is shown once. After setup, every other account is added from the Users screen.
           </p>
         </section>
       </div>

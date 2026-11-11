@@ -116,9 +116,10 @@ export function LinkRecordsScreen() {
   const totalNames = linkedNames + (counts.todo ?? 0) + (counts.left ?? 0);
 
   const loading = people.isPending || people.isPlaceholderData;
-  const rows = loading ? [] : people.data?.results ?? [];
+  const rows = loading ? [] : (people.data?.results ?? []);
   const pageSelected = rows.filter(
-    (person) => selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
+    (person) =>
+      selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
   );
   const selectedRecords = pageSelected.reduce((total, person) => total + recordsToLink(person, unticked).length, 0);
   const tooMany = linkLimit !== undefined && selectedRecords > linkLimit;
@@ -210,10 +211,7 @@ export function LinkRecordsScreen() {
         />
         <label className="field">
           <span>Import</span>
-          <select
-            value={batch}
-            onChange={(event) => refilter({ batch: event.target.value })}
-          >
+          <select value={batch} onChange={(event) => refilter({ batch: event.target.value })}>
             <option value="">Every import</option>
             {(imports.data?.results ?? []).map((item) => (
               <option key={item.id} value={item.id}>
@@ -237,7 +235,9 @@ export function LinkRecordsScreen() {
           <p className="ix-flush">
             <strong>{counted(pageSelected.length, "name", "names")} selected.</strong>{" "}
             <span className="subtext">
-              {pageSelected.length > 0 ? "Each is linked to the student shown on its row." : "Tick rows, or select every clear suggestion on this page."}
+              {pageSelected.length > 0
+                ? "Each is linked to the student shown on its row."
+                : "Tick rows, or select every clear suggestion on this page."}
             </span>
           </p>
           <div className="row row--wrap">
@@ -251,8 +251,16 @@ export function LinkRecordsScreen() {
             <Button variant="ghost" disabled={pageSelected.length === 0} onClick={() => setSelected([])}>
               Clear selection
             </Button>
-            <Button variant="primary" disabled={pageSelected.length === 0 || tooMany || link.isPending} onClick={() => linkNames(pageSelected)}>
-              {link.isPending ? "Linking…" : pageSelected.length > 0 ? `Link ${counted(pageSelected.length, "name", "names")} to their students` : "Link selected"}
+            <Button
+              variant="primary"
+              disabled={pageSelected.length === 0 || tooMany || link.isPending}
+              onClick={() => linkNames(pageSelected)}
+            >
+              {link.isPending
+                ? "Linking…"
+                : pageSelected.length > 0
+                  ? `Link ${counted(pageSelected.length, "name", "names")} to their students`
+                  : "Link selected"}
             </Button>
           </div>
         </div>
@@ -272,15 +280,9 @@ export function LinkRecordsScreen() {
         <ErrorText>{errorMessage(leftError, "That name could not be left for now or put back. Try again.")}</ErrorText>
       ) : null}
       {link.isError && !(linkedFrom && linkedFrom === open) ? (
-        <ErrorText>
-          {errorMessage(link.error, "Those records could not be linked.")}
-        </ErrorText>
+        <ErrorText>{errorMessage(link.error, "Those records could not be linked.")}</ErrorText>
       ) : null}
-      {undo.isError ? (
-        <ErrorText>
-          {errorMessage(undo.error, "That link could not be undone.")}
-        </ErrorText>
-      ) : null}
+      {undo.isError ? <ErrorText>{errorMessage(undo.error, "That link could not be undone.")}</ErrorText> : null}
 
       <div className="card card--flush">
         {loading ? (
@@ -325,7 +327,9 @@ export function LinkRecordsScreen() {
                 open: open === person.group_key,
                 pending: link.isPending || undo.isPending,
                 person,
-                sameAs: chosen ? (linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null : null,
+                sameAs: chosen
+                  ? ((linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null)
+                  : null,
                 selected: selected.includes(person.group_key),
                 unticked,
                 view,
@@ -338,10 +342,14 @@ export function LinkRecordsScreen() {
                 },
                 onSelect: () =>
                   setSelected((current) =>
-                    current.includes(person.group_key) ? current.filter((key) => key !== person.group_key) : [...current, person.group_key],
+                    current.includes(person.group_key)
+                      ? current.filter((key) => key !== person.group_key)
+                      : [...current, person.group_key],
                   ),
                 onTick: (record) =>
-                  setUnticked((current) => (current.includes(record) ? current.filter((id) => id !== record) : [...current, record])),
+                  setUnticked((current) =>
+                    current.includes(record) ? current.filter((id) => id !== record) : [...current, record],
+                  ),
                 onToggle: () => {
                   if (!link.isPending) link.reset();
                   setOpen(open === person.group_key ? null : person.group_key);

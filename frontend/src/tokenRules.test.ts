@@ -34,7 +34,9 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   fontFamily: (prop, value) => (prop === "font-family" && !/^(?:inherit|var\()/.test(value) ? 1 : 0),
   radius: (prop, value) =>
     // A corner of 0 is square, not a size: only another number is hand-set.
-    prop === "border-radius" && /\d/.test(value.replace(/var\([^)]*\)/g, "").replace(/\b0\b/g, "")) && value !== "50%" ? 1 : 0,
+    prop === "border-radius" && /\d/.test(value.replace(/var\([^)]*\)/g, "").replace(/\b0\b/g, "")) && value !== "50%"
+      ? 1
+      : 0,
   letterSpacing: (prop, value) => (prop === "letter-spacing" && !/^(?:0|normal|inherit|var\()/.test(value) ? 1 : 0),
   lineHeight: (prop, value) => (prop === "line-height" && !/^(?:0|1|normal|inherit|var\()/.test(value) ? 1 : 0),
   // A change takes the one duration, and names what changes: never `all`.
@@ -43,7 +45,9 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   // Space between and inside boxes is a step of the scale; a hairline offset (0.2rem or less) or a clearance (over 3.25rem) is not a step.
   spacing: (prop, value) => {
     if (!/^(?:gap|row-gap|column-gap|margin|padding)(?:-[a-z]+)?$/.test(prop)) return 0;
-    const lengths = value.replace(/(?:calc|clamp|min|max|var)\((?:[^()]|\([^()]*\))*\)/g, "").matchAll(/(?<![\w.-])(\d*\.?\d+)(rem|px)\b/g);
+    const lengths = value
+      .replace(/(?:calc|clamp|min|max|var)\((?:[^()]|\([^()]*\))*\)/g, "")
+      .matchAll(/(?<![\w.-])(\d*\.?\d+)(rem|px)\b/g);
     return [...lengths].some(([, n, unit]) => {
       const rem = unit === "px" ? Number(n) / 16 : Number(n);
       return rem > 0.2 && rem <= 3.25;
@@ -70,10 +74,15 @@ function countFile(file: string): Record<string, number> {
     if (total > 0) counts[rule] = total;
   }
   // A button is written once, in controls.css: a screen's own button class is a second one.
-  const buttons = file === "controls.css" ? 0 : [...definedClasses(css)].filter((name) => /(?:^|-)(?:btn|button)(?:-|$)/.test(name)).length;
+  const buttons =
+    file === "controls.css"
+      ? 0
+      : [...definedClasses(css)].filter((name) => /(?:^|-)(?:btn|button)(?:-|$)/.test(name)).length;
   if (buttons > 0) counts.buttonClass = buttons;
   // Text takes a heading's size or a type role, both in layout.css: a screen's own size or weight is a second one.
-  const ownType = TYPE_FILES.includes(file) ? 0 : decls.filter(({ prop }) => prop === "font-size" || prop === "font-weight").length;
+  const ownType = TYPE_FILES.includes(file)
+    ? 0
+    : decls.filter(({ prop }) => prop === "font-size" || prop === "font-weight").length;
   if (ownType > 0) counts.ownType = ownType;
   const dark = (css.match(/\[data-theme=|prefers-color-scheme/g) ?? []).length;
   if (dark > 0) counts.darkOverride = dark;
@@ -125,7 +134,12 @@ describe("token rules", () => {
     const unused: string[] = [];
     for (const file of DEFINITION_FILES) {
       for (const { prop } of declarations(readCss(file))) {
-        if (prop.startsWith("--") && !new RegExp(`var\\(\\s*${prop}(?![\\w-])`).test(everything) && !unused.includes(prop)) unused.push(prop);
+        if (
+          prop.startsWith("--") &&
+          !new RegExp(`var\\(\\s*${prop}(?![\\w-])`).test(everything) &&
+          !unused.includes(prop)
+        )
+          unused.push(prop);
       }
     }
     expect(unused).toEqual([]);

@@ -63,12 +63,8 @@ describe("API error envelope", () => {
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(400);
     expect(error.code).toBe("validation_error");
-    expect(error.messagesFor("title")).toEqual([
-      "This field may not be blank.",
-    ]);
-    expect(error.messagesFor("grading_date")).toEqual([
-      "This field is required.",
-    ]);
+    expect(error.messagesFor("title")).toEqual(["This field may not be blank."]);
+    expect(error.messagesFor("grading_date")).toEqual(["This field is required."]);
   });
 
   it("returns an empty list for a field with no errors", async () => {
@@ -95,9 +91,7 @@ describe("API error envelope", () => {
             code: "validation_error",
             message: "Unable to log in with the provided credentials.",
             fields: {
-              non_field_errors: [
-                "Unable to log in with the provided credentials.",
-              ],
+              non_field_errors: ["Unable to log in with the provided credentials."],
             },
           },
         }),
@@ -106,13 +100,9 @@ describe("API error envelope", () => {
 
     const error = await loginUser("a@example.com", "wrong").catch((e) => e);
 
-    expect(error.nonFieldMessages).toEqual([
-      "Unable to log in with the provided credentials.",
-    ]);
+    expect(error.nonFieldMessages).toEqual(["Unable to log in with the provided credentials."]);
     // A lone message is promoted to `message`, so a toast needs no digging.
-    expect(error.message).toBe(
-      "Unable to log in with the provided credentials.",
-    );
+    expect(error.message).toBe("Unable to log in with the provided credentials.");
   });
 
   it("carries the code for permission errors and leaves fields undefined", async () => {
@@ -176,9 +166,9 @@ describe("API pagination", () => {
   });
 
   it("uses the shared page-size parameter for audit events", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse(200, { count: 0, next: null, previous: null, results: [] }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }));
     vi.stubGlobal("fetch", fetchMock);
 
     await getAuditEvents({ page_size: 6 });
@@ -187,9 +177,9 @@ describe("API pagination", () => {
   });
 
   it("serialises audit browsing filters", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse(200, { count: 0, next: null, previous: null, results: [] }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }));
     vi.stubGlobal("fetch", fetchMock);
 
     await getAuditEvents({
@@ -215,9 +205,9 @@ describe("API pagination", () => {
   });
 
   it("uses page pagination when collecting assessment items", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse(200, { count: 0, next: null, previous: null, results: [] }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }));
     vi.stubGlobal("fetch", fetchMock);
 
     await getAllCandidateAssessmentItems({ assessment: 42 });
@@ -232,7 +222,8 @@ describe("API pagination", () => {
 
 describe("user management API", () => {
   it("serialises list filters and account-management writes", async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }))
       .mockResolvedValueOnce(jsonResponse(201, { id: "new-user" }))
       .mockResolvedValueOnce(jsonResponse(200, { id: "target" }))
@@ -278,16 +269,12 @@ describe("user management API", () => {
 
 describe("bulk grading operations", () => {
   it("prepares the selected candidates", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse(200, { created: [], errors: {} }),
-    );
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { created: [], errors: {} }));
     vi.stubGlobal("fetch", fetchMock);
 
     await bulkGenerateCandidateAssessments([11, 12]);
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain(
-      "/api/gradings/candidates/bulk-generate-assessments/",
-    );
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/gradings/candidates/bulk-generate-assessments/");
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",
       body: JSON.stringify({ candidates: [11, 12] }),
@@ -295,16 +282,12 @@ describe("bulk grading operations", () => {
   });
 
   it("starts the selected prepared assessments", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse(200, { started: [], errors: {} }),
-    );
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { started: [], errors: {} }));
     vi.stubGlobal("fetch", fetchMock);
 
     await bulkStartCandidateAssessments([21, 22]);
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain(
-      "/api/gradings/assessments/bulk-start/",
-    );
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/gradings/assessments/bulk-start/");
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",
       body: JSON.stringify({ assessments: [21, 22] }),
@@ -312,7 +295,8 @@ describe("bulk grading operations", () => {
   });
 
   it("marks selected no-shows and submits reasoned locked withdrawal", async () => {
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce(jsonResponse(200, { updated: [], errors: {} }))
       .mockResolvedValueOnce(jsonResponse(200, { id: 22, status: "WITHDRAWN" }));
     vi.stubGlobal("fetch", fetchMock);
@@ -327,9 +311,7 @@ describe("bulk grading operations", () => {
       withdrawal_note: "Unable to continue safely.",
     });
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain(
-      "/api/gradings/candidates/bulk-update-status/",
-    );
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/gradings/candidates/bulk-update-status/");
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",
       body: JSON.stringify({
@@ -338,9 +320,7 @@ describe("bulk grading operations", () => {
         withdrawal_reason: "ABSENT",
       }),
     });
-    expect(String(fetchMock.mock.calls[1][0])).toContain(
-      "/api/gradings/candidates/22/withdraw/",
-    );
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/gradings/candidates/22/withdraw/");
     expect(fetchMock.mock.calls[1][1]).toMatchObject({
       method: "POST",
       body: JSON.stringify({

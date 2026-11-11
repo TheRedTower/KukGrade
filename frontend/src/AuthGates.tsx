@@ -95,15 +95,15 @@ function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                 />
-                <PasswordToggle noun="password" onToggle={() => setShowPassword((previous) => !previous)} shown={showPassword} />
+                <PasswordToggle
+                  noun="password"
+                  onToggle={() => setShowPassword((previous) => !previous)}
+                  shown={showPassword}
+                />
               </div>
             </label>
             {error ? <Alert>{error}</Alert> : null}
-            <Button
-              variant="primary"
-              disabled={status === "loading" || isSubmitting}
-              type="submit"
-            >
+            <Button variant="primary" disabled={status === "loading" || isSubmitting} type="submit">
               {isSubmitting ? "Signing in" : "Sign in"}
             </Button>
           </form>
@@ -127,9 +127,7 @@ function ConnectionErrorPage() {
       <section className="login-panel" aria-labelledby="connection-error-title">
         <p className="eyebrow">KukGrade</p>
         <h1 id="connection-error-title">Can&rsquo;t reach KukGrade</h1>
-        <Alert>
-          {error ?? "Something went wrong."}
-        </Alert>
+        <Alert>{error ?? "Something went wrong."}</Alert>
         <Button variant="primary" onClick={retry}>
           Try again
         </Button>

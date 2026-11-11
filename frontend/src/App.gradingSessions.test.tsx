@@ -3,10 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type {
-  AuthUser,
-  GradingSession,
-} from "./api";
+import type { AuthUser, GradingSession } from "./api";
 import {
   authUser,
   ADMINISTRATOR_CAPABILITIES,
@@ -32,7 +29,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 3,
       awaiting_decision_count: 1,
       ...sessionServed("OPEN"),
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -46,7 +46,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("LOCKED"),
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -60,7 +63,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("COMPLETED"),
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -87,9 +93,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     const card = await screen.findByRole("region", { name: "Current grading session" });
     expect(within(card).getByText("3 / 5")).toBeVisible();
-    expect(within(card).getByText("Awaiting final decision").previousElementSibling).toHaveTextContent(
-      "1",
-    );
+    expect(within(card).getByText("Awaiting final decision").previousElementSibling).toHaveTextContent("1");
     const table = await screen.findByRole("table", { name: "Grading sessions" });
     expect(within(table).getByText("3 of 5 complete")).toBeVisible();
     const requested = fetchMock.mock.calls.map(([url]) => String(url));
@@ -118,7 +122,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
         title: "Draft Yet Kept",
         status: "DRAFT",
         status_display: "Draft",
-        can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+        can_be_deleted: false,
+        archived_at: null,
+        can_be_archived: false,
+        can_be_restored: false,
       },
     ] satisfies GradingSession[];
     vi.stubGlobal("fetch", makeFetch(sessions));
@@ -159,11 +166,11 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     const years = await screen.findByRole("combobox", { name: "Year" });
     await waitFor(() =>
-      expect(within(years).getAllByRole("option").map((option) => option.textContent)).toEqual([
-        "All years",
-        "2026",
-        "2024",
-      ]),
+      expect(
+        within(years)
+          .getAllByRole("option")
+          .map((option) => option.textContent),
+      ).toEqual(["All years", "2026", "2024"]),
     );
     const card = await screen.findByRole("region", { name: "Current grading session" });
     expect(within(card).getByText("Autumn Grading")).toBeVisible();
@@ -303,7 +310,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("CANCELLED"),
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -330,9 +340,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     // A status nothing has: the screen says so and offers a reset.
     await user.selectOptions(statusSelect, "DRAFT");
-    expect(
-      await screen.findByText("No grading sessions match the selected filters."),
-    ).toBeVisible();
+    expect(await screen.findByText("No grading sessions match the selected filters.")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Reset filters" }));
     expect(statusSelect).toHaveValue("");
     expect(await screen.findByText("Summer Grading")).toBeVisible();
@@ -349,7 +357,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("CANCELLED"),
-      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -385,8 +396,8 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     await user.click(confirmBtn);
 
     // Verify DELETE fetch call
-    const deleteCalls = deleteFetch.mock.calls.filter(([url, init]) =>
-      url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE"
+    const deleteCalls = deleteFetch.mock.calls.filter(
+      ([url, init]) => url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE",
     );
     expect(deleteCalls.length).toBe(1);
   });
@@ -402,7 +413,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("CANCELLED"),
-      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -450,7 +464,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("CANCELLED"),
-      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -669,7 +686,10 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       ...sessionServed("DRAFT"),
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Central Dojang",
       notes: "High rank candidates expected",
     } satisfies GradingSession;

@@ -66,7 +66,10 @@ describe("First-time setup", () => {
   });
 
   it("shows only the setup page, on any path, until it is done", async () => {
-    vi.stubGlobal("fetch", newDeployment(() => jsonResponse(500, {})));
+    vi.stubGlobal(
+      "fetch",
+      newDeployment(() => jsonResponse(500, {})),
+    );
 
     render(<App />);
 
@@ -77,7 +80,10 @@ describe("First-time setup", () => {
   });
 
   it("lets the first choice of theme stick", async () => {
-    vi.stubGlobal("fetch", newDeployment(() => jsonResponse(500, {})));
+    vi.stubGlobal(
+      "fetch",
+      newDeployment(() => jsonResponse(500, {})),
+    );
     const user = userEvent.setup();
 
     render(<App />);
@@ -114,9 +120,7 @@ describe("First-time setup", () => {
     ]);
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
     expect((post![1] as RequestInit).headers).toBeInstanceOf(Headers);
-    expect(((post![1] as RequestInit).headers as Headers).get("X-CSRFToken")).toBe(
-      "test-csrf-token",
-    );
+    expect(((post![1] as RequestInit).headers as Headers).get("X-CSRFToken")).toBe("test-csrf-token");
   });
 
   it("puts the server's refusal beside the field it is about", async () => {
@@ -139,9 +143,7 @@ describe("First-time setup", () => {
     await fillIn(user);
     await user.click(screen.getByRole("button", { name: "Create administrator" }));
 
-    expect(
-      await screen.findByText("That setup code is not right. Use the one in the server's log."),
-    ).toBeVisible();
+    expect(await screen.findByText("That setup code is not right. Use the one in the server's log.")).toBeVisible();
     expect(screen.getByLabelText("Setup code")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("heading", { name: "Set up KukGrade" })).toBeVisible();
   });
@@ -188,16 +190,12 @@ describe("First-time setup", () => {
   });
 
   it("never asks a signed-in visitor", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(async (url: string) => signedInResponse(url, authUser));
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => signedInResponse(url, authUser));
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
 
     await waitFor(() => expect(screen.getByText("Casey")).toBeVisible());
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/setup/"))).toBe(
-      false,
-    );
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/setup/"))).toBe(false);
   });
 });

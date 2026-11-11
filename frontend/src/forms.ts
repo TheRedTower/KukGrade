@@ -21,7 +21,9 @@ export function splitServerErrors(err: unknown, shown: readonly string[], fallba
   const fields: Record<string, string[]> = {};
   const rest: string[] = [];
   for (const [name, value] of Object.entries(err.fields ?? {})) {
-    const messages = Array.isArray(value) ? value.filter((message): message is string => typeof message === "string") : [];
+    const messages = Array.isArray(value)
+      ? value.filter((message): message is string => typeof message === "string")
+      : [];
     if (messages.length === 0) continue;
     if (shown.includes(name)) fields[name] = messages;
     else rest.push(...messages);

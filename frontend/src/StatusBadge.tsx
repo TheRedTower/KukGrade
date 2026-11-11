@@ -13,13 +13,29 @@ export function SessionStatusBadge({ status, label }: { status?: GradingSessionS
   const tone = status.toLowerCase() as Lowercase<GradingSessionStatus>;
   switch (status) {
     case "LOCKED":
-      return <Badge tone={tone} icon={<LockIcon size={13} />}>{label}</Badge>;
+      return (
+        <Badge tone={tone} icon={<LockIcon size={13} />}>
+          {label}
+        </Badge>
+      );
     case "COMPLETED":
-      return <Badge tone={tone} icon={<CheckIcon size={13} />}>{label}</Badge>;
+      return (
+        <Badge tone={tone} icon={<CheckIcon size={13} />}>
+          {label}
+        </Badge>
+      );
     case "CANCELLED":
-      return <Badge tone={tone} icon={<XCircleIcon size={13} />}>{label}</Badge>;
+      return (
+        <Badge tone={tone} icon={<XCircleIcon size={13} />}>
+          {label}
+        </Badge>
+      );
     default:
-      return <Badge tone={tone} dot>{label}</Badge>;
+      return (
+        <Badge tone={tone} dot>
+          {label}
+        </Badge>
+      );
   }
 }
 
@@ -43,8 +59,18 @@ export function StudentStatusBadge({ status, label }: { status?: StudentStatus; 
 export function AssessmentBadge({ assessment }: { assessment?: CandidateAssessment }) {
   if (!assessment) return <Badge tone="neutral">Not prepared</Badge>;
   const label = assessment.status_display;
-  if (assessment.status === "COMPLETED") return <Badge tone="success" icon={<CheckIcon size={12} />}>{label}</Badge>;
-  if (assessment.status === "IN_PROGRESS") return <Badge tone="info" dot>{label}</Badge>;
+  if (assessment.status === "COMPLETED")
+    return (
+      <Badge tone="success" icon={<CheckIcon size={12} />}>
+        {label}
+      </Badge>
+    );
+  if (assessment.status === "IN_PROGRESS")
+    return (
+      <Badge tone="info" dot>
+        {label}
+      </Badge>
+    );
   return <Badge tone="neutral">{label}</Badge>;
 }
 

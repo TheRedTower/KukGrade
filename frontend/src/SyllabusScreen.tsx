@@ -58,13 +58,7 @@ function ledgersByCategory(rows: EffectiveSyllabusRequirement[]): Ledger[] {
   return [...ledgers.values()];
 }
 
-function SyllabusLedgerTable({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: EffectiveSyllabusRequirement[];
-}) {
+function SyllabusLedgerTable({ title, rows }: { title: string; rows: EffectiveSyllabusRequirement[] }) {
   return (
     <ResponsiveTable
       label={`${title} for this rank`}
@@ -85,7 +79,11 @@ function SyllabusLedgerTable({
                   {row.item_name}
                   {isNew && <Badge tone="info">NEW</Badge>}
                 </div>
-                {row.item_korean_name && <div className="meta" lang="ko">{row.item_korean_name}</div>}
+                {row.item_korean_name && (
+                  <div className="meta" lang="ko">
+                    {row.item_korean_name}
+                  </div>
+                )}
                 {noteText && <div className="syl-item-notes meta">{noteText}</div>}
               </div>
             );
@@ -94,15 +92,16 @@ function SyllabusLedgerTable({
         {
           key: "range",
           header: "Range",
-          render: (row) => <span className="syl-range-value item-title">{row.display_range || row.notation || "—"}</span>,
+          render: (row) => (
+            <span className="syl-range-value item-title">{row.display_range || row.notation || "—"}</span>
+          ),
         },
         { key: "since", header: "Since", render: (row) => <span className="subtext">{provenance(row).text}</span> },
         {
           key: "requirement",
           header: "Requirement",
           align: "end",
-          render: (row) =>
-            <RequirementBadge required={row.required} />,
+          render: (row) => <RequirementBadge required={row.required} />,
         },
       ]}
     />
@@ -113,10 +112,7 @@ export function SyllabusScreen() {
   const ranksQuery = useRanksQuery();
   const ageBandsQuery = useAgeBandsQuery();
   // Only the ranks whose syllabus is recorded; the server says which.
-  const ranks = useMemo(
-    () => (ranksQuery.data?.results ?? []).filter((rank) => rank.has_syllabus),
-    [ranksQuery.data],
-  );
+  const ranks = useMemo(() => (ranksQuery.data?.results ?? []).filter((rank) => rank.has_syllabus), [ranksQuery.data]);
   const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
 
   // Until the viewer picks, the screen opens on the first served rank that
@@ -138,12 +134,8 @@ export function SyllabusScreen() {
       }),
     enabled: !!selectedRankCode && selectedAgeBand !== null,
   });
-  const requirements = useMemo(
-    () => requirementsQuery.data?.results ?? [],
-    [requirementsQuery.data],
-  );
-  const isLoading =
-    ranksQuery.isLoading || ageBandsQuery.isLoading || requirementsQuery.isLoading;
+  const requirements = useMemo(() => requirementsQuery.data?.results ?? [], [requirementsQuery.data]);
+  const isLoading = ranksQuery.isLoading || ageBandsQuery.isLoading || requirementsQuery.isLoading;
 
   const loadError = ranksQuery.error ?? ageBandsQuery.error ?? requirementsQuery.error;
   const error = loadError ? errorMessage(loadError, "Failed to load the syllabus.") : null;
@@ -255,9 +247,7 @@ export function SyllabusScreen() {
         <div className="syl-rank-header">
           <div>
             <h2 className="syl-rank-title">{rankName}</h2>
-            <p className="syl-rank-subtitle subtext">
-              {currentAgeBand?.description || "Curriculum requirements"}
-            </p>
+            <p className="syl-rank-subtitle subtext">{currentAgeBand?.description || "Curriculum requirements"}</p>
             {requirements.length > 0 && (
               <p className="syl-rank-everything-note subtext">
                 Everything examinable through {rankName}, all assessed at every grading.
@@ -279,8 +269,7 @@ export function SyllabusScreen() {
           <LoadingState>Loading curriculum requirements…</LoadingState>
         ) : hasNoSyllabus ? (
           <EmptyState framed>
-            No syllabus is recorded for {rankName} in this age group yet, so nobody can be assessed
-            for it.
+            No syllabus is recorded for {rankName} in this age group yet, so nobody can be assessed for it.
           </EmptyState>
         ) : (
           <>
@@ -295,7 +284,9 @@ export function SyllabusScreen() {
                     <div key={area.item_code} className="syl-core-card">
                       <div className="item-title">{area.item_name}</div>
                       {area.item_korean_name && (
-                        <div className="subtext" lang="ko">{area.item_korean_name}</div>
+                        <div className="subtext" lang="ko">
+                          {area.item_korean_name}
+                        </div>
                       )}
                       <div className="syl-core-english meta">{area.category_display}</div>
                     </div>
@@ -326,9 +317,7 @@ export function SyllabusScreen() {
           <span className="syl-footer-divider">|</span>
           <span>Past assessments keep the wording they were graded on.</span>
         </div>
-        <div className="meta">
-          Preliminary reference: WKSA curriculum chart, 2014
-        </div>
+        <div className="meta">Preliminary reference: WKSA curriculum chart, 2014</div>
       </footer>
     </section>
   );

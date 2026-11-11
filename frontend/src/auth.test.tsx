@@ -66,9 +66,11 @@ describe("ending a session", () => {
   it("drops everything fetched under it when the viewer signs out", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(async (url: string) =>
-        url.includes("/api/auth/logout/") ? response(204, undefined) : response(200, authUser),
-      ),
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/auth/logout/") ? response(204, undefined) : response(200, authUser),
+        ),
     );
     const queryClient = await renderSignedIn(<SignOutButton />);
 

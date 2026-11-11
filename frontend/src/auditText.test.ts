@@ -16,6 +16,8 @@ describe("eventSummary", () => {
   });
 
   it("shows the summary alone when the student is gone or the event is about no student", () => {
-    expect(eventSummary({ summary: "Student 123-4-001 created.", subject_name: "" })).toBe("Student 123-4-001 created.");
+    expect(eventSummary({ summary: "Student 123-4-001 created.", subject_name: "" })).toBe(
+      "Student 123-4-001 created.",
+    );
   });
 });

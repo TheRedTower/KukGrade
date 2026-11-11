@@ -50,7 +50,8 @@ export function filterCandidates(
     const assessmentStatus = item.assessment?.status || "NOT_STARTED";
     const withdrawn = item.candidate.status === "WITHDRAWN";
     const matchesStatus =
-      statusFilter === "ALL" || (statusFilter === "WITHDRAWN" ? withdrawn : !withdrawn && assessmentStatus === statusFilter);
+      statusFilter === "ALL" ||
+      (statusFilter === "WITHDRAWN" ? withdrawn : !withdrawn && assessmentStatus === statusFilter);
 
     return matchesSearch && matchesStatus;
   });
@@ -116,12 +117,14 @@ export function confirmDetails(action: SessionAction, session: GradingSession, r
     case "LOCK":
       return {
         title: "Lock Grading Session",
-        message: "Locking ends grading. Every assessment must be completed first, and after locking only the authorised Master can correct a mark, with a reason, until a candidate's decision is recorded.",
+        message:
+          "Locking ends grading. Every assessment must be completed first, and after locking only the authorised Master can correct a mark, with a reason, until a candidate's decision is recorded.",
       };
     case "COMPLETE":
       return {
         title: "Complete Grading Session",
-        message: "Completing this session finalises all grading results and records. Ensure all candidate decisions have been made.",
+        message:
+          "Completing this session finalises all grading results and records. Ensure all candidate decisions have been made.",
       };
     case "OPEN":
       return {

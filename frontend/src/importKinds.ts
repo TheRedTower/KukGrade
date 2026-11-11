@@ -7,7 +7,12 @@ import { agreeing, counted } from "./plural";
 
 type Summary = DataImportBatch["summary_json"];
 type Found = { ok: boolean; title: string; detail: string };
-type Guide = { lead: string; fields: { name: string; hint: string; needed: boolean }[]; foot: string; optional: string };
+type Guide = {
+  lead: string;
+  fields: { name: string; hint: string; needed: boolean }[];
+  foot: string;
+  optional: string;
+};
 type Tab = { key: "all" | "READY" | "SKIP_EXISTING" | "EXCLUDED" | "corrected"; label: string; count?: number };
 
 export type ImportKind = {
@@ -80,8 +85,7 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
     addsStudents: true,
     noun: ["row", "rows"],
     guide: {
-      lead:
-        "One student per row, with a heading on each column. The headings do not need to match: you pair them up next.",
+      lead: "One student per row, with a heading on each column. The headings do not need to match: you pair them up next.",
       fields: [
         { name: "WKSA ID", hint: "Such as 123-4-567, or A-12345 for a black belt", needed: true },
         { name: "First name", hint: "", needed: true },
@@ -90,8 +94,7 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
         { name: "Rank", hint: "Can be set once for the whole file", needed: true },
         { name: "Status", hint: "Active, Inactive or Left. Active if not given", needed: false },
       ],
-      foot:
-        "Anything missing can be typed in before importing, and any other column can be kept as extra information on the student.",
+      foot: "Anything missing can be typed in before importing, and any other column can be kept as extra information on the student.",
       optional: "Optional",
     },
     chooseLead: "A spreadsheet of students, one per row. Nothing is saved until the last step.",
@@ -100,7 +103,9 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
       {
         ok: batch.row_counts.total > 0,
         title: counted(batch.row_counts.total, "row of students", "rows of students"),
-        detail: batch.sheet ? `Read from the sheet “${batch.sheet}”. Blank rows are left out.` : "Blank rows are left out.",
+        detail: batch.sheet
+          ? `Read from the sheet “${batch.sheet}”. Blank rows are left out.`
+          : "Blank rows are left out.",
       },
       {
         ok: true,

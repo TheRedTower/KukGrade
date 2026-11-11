@@ -83,14 +83,15 @@ export function SessionNotes({
       <div className="card stack stack--4">
         <div className="action-row gsd-notes-header">
           <div>
-            <h2 id="notes-heading" className="gsd-notes-title section-title">Session notes</h2>
-            <p className="gsd-notes-sub subtext">
-              Everyone who can open this grading can read these notes.
-            </p>
+            <h2 id="notes-heading" className="gsd-notes-title section-title">
+              Session notes
+            </h2>
+            <p className="gsd-notes-sub subtext">Everyone who can open this grading can read these notes.</p>
           </div>
           {!editing && (
             <Button
-              variant="ghost" small
+              variant="ghost"
+              small
               onClick={() => {
                 setEditing(true);
                 setDraft(notes || "");
@@ -182,9 +183,7 @@ export function SessionCandidateTable({
                   alone in its cell, on the row's line with the other pills. */}
               {item.candidate.status === "WITHDRAWN" && (
                 <span className="gsd-withdrawal-record meta">
-                  {item.candidate.withdrawal_reason_display && (
-                    <span>{item.candidate.withdrawal_reason_display}</span>
-                  )}
+                  {item.candidate.withdrawal_reason_display && <span>{item.candidate.withdrawal_reason_display}</span>}
                   {item.candidate.withdrawal_note && <span>{item.candidate.withdrawal_note}</span>}
                 </span>
               )}
@@ -232,7 +231,8 @@ export function SessionCandidateTable({
                   <span className="meta">{next.label}</span>
                 ) : next.opensProposalDrawer ? (
                   <Button
-                    variant="ghost" small
+                    variant="ghost"
+                    small
                     onClick={() => onPropose(item)}
                     data-testid={`propose-outcome-btn-${candidateId}`}
                   >
@@ -245,7 +245,8 @@ export function SessionCandidateTable({
                 )}
                 {item.candidate.can_be_moved && (
                   <Button
-                    variant="ghost" small
+                    variant="ghost"
+                    small
                     onClick={() => onMove(item)}
                     aria-label={`Move ${item.candidate.student_display_name} to another session`}
                   >
@@ -254,7 +255,8 @@ export function SessionCandidateTable({
                 )}
                 {item.candidate.can_be_removed && (
                   <Button
-                    variant="danger-quiet" small
+                    variant="danger-quiet"
+                    small
                     onClick={() => onRemove(item)}
                     aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
                   >
@@ -263,7 +265,8 @@ export function SessionCandidateTable({
                 )}
                 {item.candidate.can_be_withdrawn_after_lock && (
                   <Button
-                    variant="danger-quiet" small
+                    variant="danger-quiet"
+                    small
                     onClick={() => onWithdraw(item)}
                     aria-label={`Withdraw ${item.candidate.student_display_name}`}
                   >

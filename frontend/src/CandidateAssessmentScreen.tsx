@@ -7,7 +7,14 @@ import { EmptyState } from "./EmptyState";
 import { RecordPage } from "./RecordPage";
 import { type RecordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
-import { addAssessmentItemComment, CandidateAssessmentItemResult, deleteCandidateAssessment, generateCandidateAssessment, updateCandidateAssessment, errorMessage } from "./api";
+import {
+  addAssessmentItemComment,
+  CandidateAssessmentItemResult,
+  deleteCandidateAssessment,
+  generateCandidateAssessment,
+  updateCandidateAssessment,
+  errorMessage,
+} from "./api";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
 import { formatDayMonth, formatTime } from "./dates";
 import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
@@ -63,15 +70,10 @@ export function CandidateAssessmentScreen() {
   const [changing, setChanging] = useState<{ itemId: number; result: CandidateAssessmentItemResult } | null>(null);
   const [openCommentId, setOpenCommentId] = useState<number | null>(null);
 
-  const {
-    session,
-    candidate,
-    assessment,
-    categoryGroups,
-    stats,
-    isLoading,
-    hasLoadError,
-  } = useCandidateAssessmentData(numSessionId, numCandidateId);
+  const { session, candidate, assessment, categoryGroups, stats, isLoading, hasLoadError } = useCandidateAssessmentData(
+    numSessionId,
+    numCandidateId,
+  );
 
   const generateAssessmentMutation = useMutation({
     mutationFn: (candidateId: number) => generateCandidateAssessment(candidateId),
@@ -128,7 +130,6 @@ export function CandidateAssessmentScreen() {
     onError: (err) => setActionError(errorMessage(err, "Could not add this comment.")),
   });
 
-
   const deleteAssessmentMutation = useMutation({
     mutationFn: () => {
       if (!assessment) throw new Error("Assessment not found");
@@ -148,11 +149,24 @@ export function CandidateAssessmentScreen() {
     ? errorMessage(deleteAssessmentMutation.error, "The assessment could not be deleted.")
     : null;
 
-  const status: RecordStatus | null = isLoading ? "loading" : hasLoadError ? "failed" : !session || !candidate ? "missing" : null;
+  const status: RecordStatus | null = isLoading
+    ? "loading"
+    : hasLoadError
+      ? "failed"
+      : !session || !candidate
+        ? "missing"
+        : null;
   if (status || !session || !candidate) {
     return (
       <RecordPage
-        back={status === "failed" ? { to: `/gradings/${sessionId}`, label: "Grading session" } : { to: sessionId ? `/gradings/${sessionId}` : "/gradings", label: sessionId ? "Grading session" : "Gradings" }}
+        back={
+          status === "failed"
+            ? { to: `/gradings/${sessionId}`, label: "Grading session" }
+            : {
+                to: sessionId ? `/gradings/${sessionId}` : "/gradings",
+                label: sessionId ? "Grading session" : "Gradings",
+              }
+        }
         failed="The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again."
         label="Candidate assessment"
         loading="Loading the assessment…"
@@ -193,18 +207,14 @@ export function CandidateAssessmentScreen() {
       <BackLink to={`/gradings/${session.id}`}>{session.title}</BackLink>
 
       <header className="caw-identity">
-        <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>
-        {candidate.student_wksa_id && (
-          <span className="caw-candidate-wksa meta">{candidate.student_wksa_id}</span>
-        )}
+        <h1 className="caw-candidate-name" id="caw-title">
+          {candidate.student_display_name}
+        </h1>
+        {candidate.student_wksa_id && <span className="caw-candidate-wksa meta">{candidate.student_wksa_id}</span>}
         <span aria-hidden="true" className="caw-identity-divider" />
         <CandidateRanks candidate={candidate} badges />
         <Badge tone="info">{candidate.age_band_display}</Badge>
-        <Badge
-          tone={assessmentTone(assessment?.status)}
-          dot
-          data-testid="caw-status-pill"
-        >
+        <Badge tone={assessmentTone(assessment?.status)} dot data-testid="caw-status-pill">
           {assessment?.status_display || "Not started"}
           {assessment?.started_at && ` · started ${formatTime(assessment.started_at)}`}
         </Badge>
@@ -219,27 +229,21 @@ export function CandidateAssessmentScreen() {
           </span>
         )}
         {assessment?.can_delete && (
-          <Button
-            variant="danger"
-            small
-            onClick={() => setDeleteOpen(true)}
-            data-testid="caw-delete-assessment-btn"
-          >
+          <Button variant="danger" small onClick={() => setDeleteOpen(true)} data-testid="caw-delete-assessment-btn">
             Delete assessment
           </Button>
         )}
       </header>
 
-      {actionError && (
-        <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>
-      )}
+      {actionError && <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>}
 
       {isAssessmentMissing && (
         <div className="action-row caw-not-started-banner" data-testid="caw-missing-assessment-banner">
           <div className="caw-not-started-content">
             <h2>Prepare assessment form</h2>
             <p className="subtext">
-              Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as it is today, so later changes to the syllabus never alter it.
+              Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as
+              it is today, so later changes to the syllabus never alter it.
             </p>
           </div>
           <Button
@@ -251,8 +255,8 @@ export function CandidateAssessmentScreen() {
             {generateAssessmentMutation.isPending
               ? "Preparing..."
               : !canPrepare
-              ? "The form cannot be prepared now"
-              : "Prepare assessment form"}
+                ? "The form cannot be prepared now"
+                : "Prepare assessment form"}
           </Button>
         </div>
       )}
@@ -260,9 +264,8 @@ export function CandidateAssessmentScreen() {
       {/* After the lock only the authorised Master corrects a record, until their decision is made. */}
       {correctingAfterLock && (
         <Alert tone="warning" role="status" data-testid="caw-locked-correction-note">
-          This session is locked. As the authorised Master you can still correct a mark or add a
-          comment, with a reason, until this candidate&rsquo;s final decision is recorded. Each
-          correction is kept and shown with the decision.
+          This session is locked. As the authorised Master you can still correct a mark or add a comment, with a reason,
+          until this candidate&rsquo;s final decision is recorded. Each correction is kept and shown with the decision.
         </Alert>
       )}
 
@@ -272,8 +275,7 @@ export function CandidateAssessmentScreen() {
           <div className="caw-not-started-content">
             <h2>Assessment ready to begin</h2>
             <p className="subtext">
-              Candidates must have their assessment started before individual syllabus items
-              can be scored.
+              Candidates must have their assessment started before individual syllabus items can be scored.
             </p>
           </div>
           <Button
@@ -285,8 +287,8 @@ export function CandidateAssessmentScreen() {
             {startAssessmentMutation.isPending
               ? "Starting..."
               : !canStart
-              ? "Session must be Open to start"
-              : "Start assessment"}
+                ? "Session must be Open to start"
+                : "Start assessment"}
           </Button>
         </div>
       )}
@@ -321,9 +323,7 @@ export function CandidateAssessmentScreen() {
                     setChanging(null);
                     setOpenCommentId((current) => (current === item.id ? null : item.id));
                   }}
-                  onCloseComment={() =>
-                    setOpenCommentId((current) => (current === item.id ? null : current))
-                  }
+                  onCloseComment={() => setOpenCommentId((current) => (current === item.id ? null : current))}
                   onAddComment={(body) => addCommentMutation.mutateAsync({ itemId: item.id, body })}
                 />
               ))}
@@ -363,9 +363,7 @@ export function CandidateAssessmentScreen() {
           <CrossIcon size={13} />
           {`${stats.notMetCount} not met`}
         </span>
-        <span className="row row--inline row--1 caw-mat-tally-remaining">
-          {`${stats.remainingRequired} remaining`}
-        </span>
+        <span className="row row--inline row--1 caw-mat-tally-remaining">{`${stats.remainingRequired} remaining`}</span>
 
         <div className="caw-identity-spacer" />
 
@@ -382,16 +380,16 @@ export function CandidateAssessmentScreen() {
               isSavingItems
                 ? "Saving the last result"
                 : stats.canComplete
-                ? "Proceed to completion review"
-                : `${stats.remainingRequired} required items remain unassessed`
+                  ? "Proceed to completion review"
+                  : `${stats.remainingRequired} required items remain unassessed`
             }
             data-testid="caw-complete-assessment-btn"
           >
             {isSavingItems
               ? "Saving..."
               : stats.canComplete
-              ? "Complete assessment →"
-              : `Complete assessment (${stats.remainingRequired} required remaining)`}
+                ? "Complete assessment →"
+                : `Complete assessment (${stats.remainingRequired} required remaining)`}
           </Button>
         )}
       </div>

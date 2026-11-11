@@ -28,12 +28,16 @@ export function TemporaryPasswordIssued({
   return (
     <div className="stack stack--4 users-issued-password">
       <p>
-        Give this temporary password to <strong>{issued.full_name}</strong>. They'll choose their
-        own password when they first sign in.
+        Give this temporary password to <strong>{issued.full_name}</strong>. They'll choose their own password when they
+        first sign in.
       </p>
       <div className="users-issued-password-value">
-        <span className="eyebrow--muted" id="issued-password-label">Temporary password</span>
-        <code aria-labelledby="issued-password-label" className="section-title">{issued.temporary_password}</code>
+        <span className="eyebrow--muted" id="issued-password-label">
+          Temporary password
+        </span>
+        <code aria-labelledby="issued-password-label" className="section-title">
+          {issued.temporary_password}
+        </code>
       </div>
       <p className="users-issued-password-warning item-title">
         Copy this temporary password now. It will not be shown again.
@@ -49,11 +53,7 @@ export function TemporaryPasswordIssued({
             : ""}
       </p>
       <div className="action-row users-dialog-actions">
-        <Button
-          ref={copyRef}
-          variant="secondary"
-          onClick={() => void copy(issued.temporary_password)}
-        >
+        <Button ref={copyRef} variant="secondary" onClick={() => void copy(issued.temporary_password)}>
           Copy password
         </Button>
         <Button variant="primary" onClick={onDone}>

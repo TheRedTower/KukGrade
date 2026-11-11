@@ -120,7 +120,8 @@ export function ImportReview({
   });
 
   const sorted = !addsStudents || batch.row_counts.review_required === 0;
-  const unresolvedRanks = (preview.data?.unresolved_current_rank ?? 0) + (preview.data?.unresolved_testing_for_rank ?? 0);
+  const unresolvedRanks =
+    (preview.data?.unresolved_current_rank ?? 0) + (preview.data?.unresolved_testing_for_rank ?? 0);
   return (
     <>
       <p aria-live="polite" className="visually-hidden">
@@ -132,12 +133,25 @@ export function ImportReview({
         </Alert>
       ) : null}
       {sorted ? (
-        <Seal batch={batch} blocked={addsStudents && unsavedCells.any} pending={commit.isPending} unresolvedRanks={unresolvedRanks} onImport={() => {
-          if (!unsavedCells.any) commit.mutate();
-        }} />
+        <Seal
+          batch={batch}
+          blocked={addsStudents && unsavedCells.any}
+          pending={commit.isPending}
+          unresolvedRanks={unresolvedRanks}
+          onImport={() => {
+            if (!unsavedCells.any) commit.mutate();
+          }}
+        />
       ) : null}
       {addsStudents ? (
-        <RosterReview announce={setAnnouncement} batch={batch} key={refusals} onEditStateChange={unsavedCells.mark} onMatch={onMatch} onRefresh={refresh} />
+        <RosterReview
+          announce={setAnnouncement}
+          batch={batch}
+          key={refusals}
+          onEditStateChange={unsavedCells.mark}
+          onMatch={onMatch}
+          onRefresh={refresh}
+        />
       ) : (
         <LegacyReview
           announce={setAnnouncement}

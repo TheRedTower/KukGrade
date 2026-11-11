@@ -12,12 +12,7 @@ import type {
   Rank,
   StudentListItem,
 } from "./api";
-import {
-  ADMINISTRATOR_CAPABILITIES,
-  jsonResponse,
-  sessionServed,
-  CHOICES,
-} from "./appTestSupport";
+import { ADMINISTRATOR_CAPABILITIES, jsonResponse, sessionServed, CHOICES } from "./appTestSupport";
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/register)
@@ -50,7 +45,10 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
     ...sessionServed("DRAFT"),
-    can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+    can_be_deleted: false,
+    archived_at: null,
+    can_be_archived: false,
+    can_be_restored: false,
     notes: "",
   };
 
@@ -224,15 +222,37 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   const mockAgeBands: AgeBand[] = [
-    { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
-    { code: "AGE_9_TO_12", name: "9-12", description: "Junior ages 9-12", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
-    { code: "AGE_13_TO_17", name: "13-17", description: "Youth ages 13-17", programme: "ADULT", programme_display: "Adult & Youth" },
-    { code: "AGE_18_AND_OVER", name: "18+", description: "Adult ages 18+", programme: "ADULT", programme_display: "Adult & Youth" },
+    {
+      code: "AGE_8_AND_UNDER",
+      name: "8 and under",
+      description: "Little Dragon ages 8 and under",
+      programme: "JUNIOR",
+      programme_display: "Junior & Little Dragon",
+    },
+    {
+      code: "AGE_9_TO_12",
+      name: "9-12",
+      description: "Junior ages 9-12",
+      programme: "JUNIOR",
+      programme_display: "Junior & Little Dragon",
+    },
+    {
+      code: "AGE_13_TO_17",
+      name: "13-17",
+      description: "Youth ages 13-17",
+      programme: "ADULT",
+      programme_display: "Adult & Youth",
+    },
+    {
+      code: "AGE_18_AND_OVER",
+      name: "18+",
+      description: "Adult ages 18+",
+      programme: "ADULT",
+      programme_display: "Adult & Youth",
+    },
   ];
 
-  function setupCohortMock(options?: {
-    bulkRegisterHandler?: (body: unknown) => Response;
-  }) {
+  function setupCohortMock(options?: { bulkRegisterHandler?: (body: unknown) => Response }) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
@@ -391,7 +411,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(screen.getByTestId("bgc-empty-filtered")).toHaveTextContent(
       "No eligible students match the selected filters.",
     );
-    expect(screen.getByText("No eligible students match the selected filters.", { selector: ".rtable__empty" })).toBeVisible();
+    expect(
+      screen.getByText("No eligible students match the selected filters.", { selector: ".rtable__empty" }),
+    ).toBeVisible();
 
     // Filter to "13-17" (AGE_13_TO_17) - Charlie Brown (103) matches
     await user.selectOptions(ageSelect, "AGE_13_TO_17");
@@ -584,14 +606,19 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   it("counts what a retry registers and keeps the rows it did not send", async () => {
     const heldElsewhere = "This student is already registered for 'Summer Grading'.";
     const responses: BulkCandidateRegistrationResponse[] = [
-      { created: [], errors: { "101": [heldElsewhere], "102": ["Temporary problem."], "103": ["Another problem."] }, already_registered: { "101": "ANOTHER_GRADING" } },
-      { created: [{ candidate: registeredRow(102), assessment: null }], errors: { "103": ["Still a problem."] }, already_registered: {} },
+      {
+        created: [],
+        errors: { "101": [heldElsewhere], "102": ["Temporary problem."], "103": ["Another problem."] },
+        already_registered: { "101": "ANOTHER_GRADING" },
+      },
+      {
+        created: [{ candidate: registeredRow(102), assessment: null }],
+        errors: { "103": ["Still a problem."] },
+        already_registered: {},
+      },
       { created: [{ candidate: registeredRow(103), assessment: null }], errors: {}, already_registered: {} },
     ];
-    vi.stubGlobal(
-      "fetch",
-      setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }),
-    );
+    vi.stubGlobal("fetch", setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -620,13 +647,14 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   it("stays on the flagged list when a retry succeeds but rows it did not send remain", async () => {
     const heldElsewhere = "This student is already registered for 'Summer Grading'.";
     const responses: BulkCandidateRegistrationResponse[] = [
-      { created: [], errors: { "101": [heldElsewhere], "102": ["Temporary problem."] }, already_registered: { "101": "ANOTHER_GRADING" } },
+      {
+        created: [],
+        errors: { "101": [heldElsewhere], "102": ["Temporary problem."] },
+        already_registered: { "101": "ANOTHER_GRADING" },
+      },
       { created: [{ candidate: registeredRow(102), assessment: null }], errors: {}, already_registered: {} },
     ];
-    vi.stubGlobal(
-      "fetch",
-      setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }),
-    );
+    vi.stubGlobal("fetch", setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -673,7 +701,11 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       "fetch",
       setupCohortMock({
         bulkRegisterHandler: () =>
-          jsonResponse(200, { created: [], errors: { "101": ["This student cannot be registered."] }, already_registered: {} }),
+          jsonResponse(200, {
+            created: [],
+            errors: { "101": ["This student cannot be registered."] },
+            already_registered: {},
+          }),
       }),
     );
     const user = userEvent.setup();
@@ -699,7 +731,11 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       "fetch",
       setupCohortMock({
         bulkRegisterHandler: () =>
-          jsonResponse(200, { created: [], errors: { "101": [heldElsewhere] }, already_registered: { "101": "ANOTHER_GRADING" } }),
+          jsonResponse(200, {
+            created: [],
+            errors: { "101": [heldElsewhere] },
+            already_registered: { "101": "ANOTHER_GRADING" },
+          }),
       }),
     );
     const user = userEvent.setup();

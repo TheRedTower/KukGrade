@@ -15,7 +15,8 @@ type Remarked = Pick<CandidateAssessmentItem, "id" | "comments" | "changes">;
 function ByLine({ name, at, afterLock }: { name: string; at: string; afterLock: boolean }) {
   return (
     <span className="remarks__by">
-      {" "}— {name}, {formatShortDateTime(at)}
+      {" "}
+      — {name}, {formatShortDateTime(at)}
       {afterLock ? ", after the lock" : ""}
     </span>
   );

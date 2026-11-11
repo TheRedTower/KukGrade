@@ -21,20 +21,27 @@ const api = vi.hoisted(() => ({
 
 vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
-  return { ...actual, ...Object.fromEntries(Object.keys(api).map((name) => [name, (...args: unknown[]) => api[name as keyof typeof api](...args)])) };
+  return {
+    ...actual,
+    ...Object.fromEntries(
+      Object.keys(api).map((name) => [name, (...args: unknown[]) => api[name as keyof typeof api](...args)]),
+    ),
+  };
 });
 
 function renderAt(path: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={queryClient}>
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route element={<HistoricalRecordsScreen />} path="/imports/history/:id?" />
-        <Route element={<h1>Imports</h1>} path="/imports" />
-        <Route element={<h1>Linking</h1>} path="/imports/records" />
-      </Routes>
-    </MemoryRouter>
-  </QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<HistoricalRecordsScreen />} path="/imports/history/:id?" />
+          <Route element={<h1>Imports</h1>} path="/imports" />
+          <Route element={<h1>Linking</h1>} path="/imports/records" />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
 }
 
 beforeEach(() => {
@@ -43,7 +50,9 @@ beforeEach(() => {
   api.getLegacyGradingRecords.mockResolvedValue(page([legacyRecord()]));
   api.getLegacyGradingRecord.mockResolvedValue(legacyRecord());
   api.getRanks.mockResolvedValue(page(RANKS));
-  api.getStudents.mockResolvedValue(page([{ id: 32, first_name: "Mia", last_name: "Reynolds", current_rank_name: "Blue", wksa_id: "123-4-032" }]));
+  api.getStudents.mockResolvedValue(
+    page([{ id: 32, first_name: "Mia", last_name: "Reynolds", current_rank_name: "Blue", wksa_id: "123-4-032" }]),
+  );
 });
 
 describe("Historical record recovery", () => {

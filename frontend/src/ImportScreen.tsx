@@ -94,8 +94,7 @@ export function ImportScreen() {
         subtitle={
           <>
             {loaded.original_filename}
-            {loaded.sheet ? ` · sheet “${loaded.sheet}”` : ""} ·{" "}
-            {importKinds[loaded.kind].fileCounts(loaded)}
+            {loaded.sheet ? ` · sheet “${loaded.sheet}”` : ""} · {importKinds[loaded.kind].fileCounts(loaded)}
           </>
         }
       />

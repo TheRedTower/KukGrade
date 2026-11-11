@@ -84,8 +84,33 @@ describe("SealedAssessmentEvidence", () => {
       next: null,
       previous: null,
       results: [
-        item({ id: 1, result: "NOT_MET", result_display: "Not met", comments: [{ id: 1, author_name: "Casey Reed", body: "Chamber too low", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
-        item({ id: 2, item_name: "Stance", comments: [{ id: 2, author_name: "Lee Tan", body: "Crisp footwork", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
+        item({
+          id: 1,
+          result: "NOT_MET",
+          result_display: "Not met",
+          comments: [
+            {
+              id: 1,
+              author_name: "Casey Reed",
+              body: "Chamber too low",
+              created_at: "2026-09-18T10:20:00Z",
+              after_lock: false,
+            },
+          ],
+        }),
+        item({
+          id: 2,
+          item_name: "Stance",
+          comments: [
+            {
+              id: 2,
+              author_name: "Lee Tan",
+              body: "Crisp footwork",
+              created_at: "2026-09-18T10:20:00Z",
+              after_lock: false,
+            },
+          ],
+        }),
       ],
     });
 
@@ -112,8 +137,28 @@ describe("SealedAssessmentEvidence", () => {
           result: "NOT_MET",
           result_display: "Not met",
           changes: [
-            { sequence: 1, from_result: "NOT_ASSESSED", from_result_display: "Not assessed", to_result: "MET", to_result_display: "Met", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
-            { sequence: 2, from_result: "MET", from_result_display: "Met", to_result: "NOT_MET", to_result_display: "Not met", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on review.", after_lock: true },
+            {
+              sequence: 1,
+              from_result: "NOT_ASSESSED",
+              from_result_display: "Not assessed",
+              to_result: "MET",
+              to_result_display: "Met",
+              changed_by_name: "Casey Reed",
+              changed_at: "2026-09-18T10:00:00Z",
+              reason: "",
+              after_lock: false,
+            },
+            {
+              sequence: 2,
+              from_result: "MET",
+              from_result_display: "Met",
+              to_result: "NOT_MET",
+              to_result_display: "Not met",
+              changed_by_name: "Master Park",
+              changed_at: "2026-09-19T09:30:00Z",
+              reason: "Dropped the guard on review.",
+              after_lock: true,
+            },
           ],
         }),
       ],
@@ -138,7 +183,17 @@ describe("SealedAssessmentEvidence", () => {
         item({
           id: 6,
           changes: [
-            { sequence: 1, from_result: "NOT_ASSESSED", from_result_display: "Not assessed", to_result: "MET", to_result_display: "Met", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Seen on the recording.", after_lock: true },
+            {
+              sequence: 1,
+              from_result: "NOT_ASSESSED",
+              from_result_display: "Not assessed",
+              to_result: "MET",
+              to_result_display: "Met",
+              changed_by_name: "Master Park",
+              changed_at: "2026-09-19T09:30:00Z",
+              reason: "Seen on the recording.",
+              after_lock: true,
+            },
           ],
         }),
       ],
@@ -166,9 +221,7 @@ describe("SealedAssessmentEvidence", () => {
 
     renderEvidence();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The sealed assessment could not be loaded.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("The sealed assessment could not be loaded.");
     expect(screen.queryByText("Loading the assessment…")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Try again" }));

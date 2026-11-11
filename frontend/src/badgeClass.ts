@@ -1,16 +1,7 @@
 import { cx } from "./cx";
 
 export type BadgeTone =
-  | "success"
-  | "warning"
-  | "danger"
-  | "info"
-  | "neutral"
-  | "draft"
-  | "open"
-  | "locked"
-  | "completed"
-  | "cancelled";
+  "success" | "warning" | "danger" | "info" | "neutral" | "draft" | "open" | "locked" | "completed" | "cancelled";
 
 /** The class and tone of a badge, for something that is not a <span> (a link that looks like one). */
 export function badgeProps(tone: BadgeTone, extra?: string): { className: string; "data-tone": BadgeTone } {

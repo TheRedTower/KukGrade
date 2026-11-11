@@ -11,7 +11,10 @@ import { ExternalLink } from "./ExternalLink";
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 
 function slug(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function textOf(node: unknown): string {
@@ -53,7 +56,11 @@ function MarkdownText({ content, repositoryUrl }: { content: string; repositoryU
               : `${repositoryUrl}/blob/HEAD/${href.replace(/^\.?\//, "")}`;
           const opensTab = /^https?:/i.test(target);
           return (
-            <a href={target} rel={opensTab ? "noopener noreferrer" : undefined} target={opensTab ? "_blank" : undefined}>
+            <a
+              href={target}
+              rel={opensTab ? "noopener noreferrer" : undefined}
+              target={opensTab ? "_blank" : undefined}
+            >
               {children}
               {opensTab ? <span className="visually-hidden"> (opens in a new tab)</span> : null}
             </a>
@@ -83,11 +90,7 @@ function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitl
 }
 
 function Problem({ error }: { error: unknown }) {
-  return (
-    <Alert>
-      {errorMessage(error, "This page could not be loaded.")}
-    </Alert>
-  );
+  return <Alert>{errorMessage(error, "This page could not be loaded.")}</Alert>;
 }
 
 function ReadableDocument({ slugName, label }: { slugName: string; label: string }) {
@@ -207,8 +210,8 @@ export function AboutLicence() {
         <div>
           <h2 id="ab-plain">In plain words</h2>
           <p className="st-row-description subtext">
-            KukGrade is free software. This is a short guide, not legal advice: the full licence
-            below is the only text that counts.
+            KukGrade is free software. This is a short guide, not legal advice: the full licence below is the only text
+            that counts.
           </p>
         </div>
         <div className="ab-three">
@@ -260,8 +263,8 @@ export function AboutLicence() {
       ) : null}
 
       <Alert tone="info" role="note">
-        Not sure what the licence means for your school? Ask on the{" "}
-        <Link to="/settings/about/support">Support</Link> page. The project cannot give legal advice.
+        Not sure what the licence means for your school? Ask on the <Link to="/settings/about/support">Support</Link>{" "}
+        page. The project cannot give legal advice.
       </Alert>
     </>
   );

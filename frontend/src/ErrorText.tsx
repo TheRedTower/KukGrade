@@ -16,5 +16,11 @@ interface ErrorTextProps extends ComponentProps<"p"> {
  * action. Give it the `id` the control points at with aria-describedby.
  */
 export function ErrorText({ as: Tag = "p", field, announce = true, className, role, ...rest }: ErrorTextProps) {
-  return <Tag className={cx("error-text", field && "error-text--field", className)} role={role ?? (announce ? "alert" : undefined)} {...rest} />;
+  return (
+    <Tag
+      className={cx("error-text", field && "error-text--field", className)}
+      role={role ?? (announce ? "alert" : undefined)}
+      {...rest}
+    />
+  );
 }

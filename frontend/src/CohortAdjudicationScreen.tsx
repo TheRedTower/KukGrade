@@ -103,7 +103,10 @@ export function CohortAdjudicationScreen() {
   if (status || !session) {
     return (
       <RecordPage
-        back={{ to: id ? `/gradings/${id}` : "/gradings", label: session?.title ?? (id ? "Grading session" : "Gradings") }}
+        back={{
+          to: id ? `/gradings/${id}` : "/gradings",
+          label: session?.title ?? (id ? "Grading session" : "Gradings"),
+        }}
         failed="The final decisions could not be loaded."
         label="Final decisions"
         loading="Loading final decisions…"

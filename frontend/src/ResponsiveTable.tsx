@@ -45,7 +45,18 @@ interface ResponsiveTableProps<Row> {
  * Each cell's content sits in one box, so a card pairs a label with one value.
  * A card expects one `primary` column and at most one `inline` action column.
  */
-export function ResponsiveTable<Row>({ label, rows, rowKey, columns, empty, testId, rowTestId, selected, flush, detail }: ResponsiveTableProps<Row>) {
+export function ResponsiveTable<Row>({
+  label,
+  rows,
+  rowKey,
+  columns,
+  empty,
+  testId,
+  rowTestId,
+  selected,
+  flush,
+  detail,
+}: ResponsiveTableProps<Row>) {
   const box = flush ? "rtable rtable--flush" : "rtable";
   if (rows.length === 0 && empty !== undefined) {
     return (

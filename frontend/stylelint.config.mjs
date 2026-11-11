@@ -19,10 +19,7 @@ export default {
     "color-no-invalid-hex": true,
     "declaration-block-no-duplicate-custom-properties": true,
     // A fallback line before a newer value (round(), say) is deliberate.
-    "declaration-block-no-duplicate-properties": [
-      true,
-      { ignore: ["consecutive-duplicates-with-different-syntaxes"] },
-    ],
+    "declaration-block-no-duplicate-properties": [true, { ignore: ["consecutive-duplicates-with-different-syntaxes"] }],
     "declaration-block-no-shorthand-property-overrides": true,
     "declaration-property-value-no-unknown": true,
     "function-calc-no-unspaced-operator": true,

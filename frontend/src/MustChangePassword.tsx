@@ -34,8 +34,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
 
         <h1 id="change-password-title">Choose a new password</h1>
         <p className="must-change-password-subtitle subtext">
-          You signed in with a temporary password. Choose your own password to
-          continue.
+          You signed in with a temporary password. Choose your own password to continue.
         </p>
 
         {user ? (
@@ -53,20 +52,14 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
           currentPasswordLabel="Temporary password"
           labelledBy="change-password-title"
           secondaryAction={(isSubmitting) => (
-            <Button
-              variant="secondary"
-              disabled={isSubmitting || isSigningOut}
-              onClick={() => signOut.mutate()}
-            >
+            <Button variant="secondary" disabled={isSubmitting || isSigningOut} onClick={() => signOut.mutate()}>
               Sign out
             </Button>
           )}
           submitLabel="Update password and continue"
           submittingLabel="Updating password..."
         />
-        {signOutError ? (
-          <Alert>{signOutError}</Alert>
-        ) : null}
+        {signOutError ? <Alert>{signOutError}</Alert> : null}
       </main>
     </div>
   );

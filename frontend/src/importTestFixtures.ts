@@ -126,16 +126,23 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
   };
 }
 
-export const RANKS: Rank[] = ["White", "Yellow stripe", "Yellow", "Blue stripe", "Blue", "Red stripe", "Red", "Brown stripe"].map(
-  (name, index) => ({
-    id: index + 1,
-    code: name.toUpperCase().replace(" ", "_"),
-    name,
-    order: index + 1,
-    belt_colour: "WHITE",
-    stripe_colour: "",
-    stripe_count: 0,
-    next_rank: index + 2,
-    has_syllabus: true,
-  }),
-);
+export const RANKS: Rank[] = [
+  "White",
+  "Yellow stripe",
+  "Yellow",
+  "Blue stripe",
+  "Blue",
+  "Red stripe",
+  "Red",
+  "Brown stripe",
+].map((name, index) => ({
+  id: index + 1,
+  code: name.toUpperCase().replace(" ", "_"),
+  name,
+  order: index + 1,
+  belt_colour: "WHITE",
+  stripe_colour: "",
+  stripe_count: 0,
+  next_rank: index + 2,
+  has_syllabus: true,
+}));

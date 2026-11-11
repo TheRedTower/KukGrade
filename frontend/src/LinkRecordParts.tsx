@@ -2,13 +2,7 @@ import { useState } from "react";
 import { keys } from "./queryKeys";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import {
-  type LegacyGradingRecord,
-  errorMessage,
-  getStudents,
-  resolveLegacyRank,
-  voidLegacyGradingRecord,
-} from "./api";
+import { type LegacyGradingRecord, errorMessage, getStudents, resolveLegacyRank, voidLegacyGradingRecord } from "./api";
 import { ErrorText } from "./ErrorText";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { type Chosen, recordMonth } from "./linkRecords";
@@ -16,7 +10,15 @@ import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 
 /** A record's ranks still as written, each with a rank to choose. */
-export function RankFix({ record, onDone, showAll = false }: { record: LegacyGradingRecord; onDone: () => Promise<void>; showAll?: boolean }) {
+export function RankFix({
+  record,
+  onDone,
+  showAll = false,
+}: {
+  record: LegacyGradingRecord;
+  onDone: () => Promise<void>;
+  showAll?: boolean;
+}) {
   const ranks = useRanksQuery().data?.results ?? [];
   const fix = useMutation({
     mutationFn: ({ which, rank }: { which: "held" | "tested"; rank: number | null }) =>
@@ -24,18 +26,26 @@ export function RankFix({ record, onDone, showAll = false }: { record: LegacyGra
     onSuccess: onDone,
   });
   const open: { which: "held" | "tested"; text: string }[] = [];
-  if (showAll || (record.source_current_rank_text && record.current_rank === null)) open.push({ which: "held", text: record.source_current_rank_text });
-  if (showAll || (record.source_testing_for_rank_text && record.testing_for_rank === null)) open.push({ which: "tested", text: record.source_testing_for_rank_text });
+  if (showAll || (record.source_current_rank_text && record.current_rank === null))
+    open.push({ which: "held", text: record.source_current_rank_text });
+  if (showAll || (record.source_testing_for_rank_text && record.testing_for_rank === null))
+    open.push({ which: "tested", text: record.source_testing_for_rank_text });
   if (open.length === 0) return null;
   return (
     <span className="row row--wrap ix-rank-fix">
       {open.map((item) => (
         <label className="field field--sentence ix-warning-text" key={item.which}>
-          <span>{showAll ? `${item.which === "held" ? "Held rank" : "Testing for"} (as written: “${item.text || "blank"}”)` : `“${item.text}” is not matched to a rank yet`}</span>
+          <span>
+            {showAll
+              ? `${item.which === "held" ? "Held rank" : "Testing for"} (as written: “${item.text || "blank"}”)`
+              : `“${item.text}” is not matched to a rank yet`}
+          </span>
           <select
             disabled={fix.isPending}
-            value={showAll ? (item.which === "held" ? record.current_rank : record.testing_for_rank) ?? "" : ""}
-            onChange={(event) => fix.mutate({ which: item.which, rank: event.target.value ? Number(event.target.value) : null })}
+            value={showAll ? ((item.which === "held" ? record.current_rank : record.testing_for_rank) ?? "") : ""}
+            onChange={(event) =>
+              fix.mutate({ which: item.which, rank: event.target.value ? Number(event.target.value) : null })
+            }
           >
             <option value="">{showAll ? "No mapped rank" : "Match it…"}</option>
             {ranks.map((rank) => (
@@ -46,16 +56,20 @@ export function RankFix({ record, onDone, showAll = false }: { record: LegacyGra
           </select>
         </label>
       ))}
-      {fix.isError ? (
-        <ErrorText as="span">
-          {errorMessage(fix.error, "That rank could not be saved.")}
-        </ErrorText>
-      ) : null}
+      {fix.isError ? <ErrorText as="span">{errorMessage(fix.error, "That rank could not be saved.")}</ErrorText> : null}
     </span>
   );
 }
 
-export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingRecord; onClose: () => void; onDone: () => Promise<void> }) {
+export function VoidRecord({
+  record,
+  onClose,
+  onDone,
+}: {
+  record: LegacyGradingRecord;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
   const [reason, setReason] = useState("");
   const voiding = useMutation({
     mutationFn: () => voidLegacyGradingRecord(record.id, reason.trim()),
@@ -66,7 +80,7 @@ export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingR
   });
   return (
     <ConfirmDialog
-        cancelLabel="Not yet"
+      cancelLabel="Not yet"
       confirmDisabled={!reason.trim()}
       confirmLabel="Void the record"
       danger
@@ -80,7 +94,12 @@ export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingR
       <p className="subtext">It is kept, marked void with your reason, and is never linked to anyone.</p>
       <div className="field field--sentence">
         <label htmlFor="ix-void-record-reason">Why</label>
-        <textarea data-dialog-autofocus id="ix-void-record-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+        <textarea
+          data-dialog-autofocus
+          id="ix-void-record-reason"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+        />
       </div>
     </ConfirmDialog>
   );
@@ -99,7 +118,12 @@ export function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onCho
     <div className="ix-student-search">
       <label className="field field--sentence ix-field-wide">
         <span>Search every student</span>
-        <input placeholder="Type at least two letters" type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <input
+          placeholder="Type at least two letters"
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
       </label>
       {(found.data?.results ?? []).map((student) => {
         const name = `${student.first_name} ${student.last_name}`;
@@ -113,7 +137,9 @@ export function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onCho
           >
             <span className="item-title">{name}</span>{" "}
             <span className="subtext">
-              {[`${student.current_rank_name} now`, student.age_band_display, student.status_display, student.wksa_id].filter(Boolean).join(" · ")}
+              {[`${student.current_rank_name} now`, student.age_band_display, student.status_display, student.wksa_id]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           </button>
         );

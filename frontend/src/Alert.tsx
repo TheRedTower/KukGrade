@@ -22,7 +22,17 @@ interface AlertProps extends Omit<ComponentProps<"div">, "title"> {
  * (see .alert in controls.css). An error or a warning is announced at once; a
  * confirmation or a note waits its turn. Pass `role` to override.
  */
-export function Alert({ tone = "error", title, icon, action, onDismiss, role, className, children, ...rest }: AlertProps) {
+export function Alert({
+  tone = "error",
+  title,
+  icon,
+  action,
+  onDismiss,
+  role,
+  className,
+  children,
+  ...rest
+}: AlertProps) {
   return (
     <div
       className={cx("alert", `alert--${tone}`, className)}

@@ -45,8 +45,7 @@ export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
 export type Rank = components["schemas"]["Rank"];
-export type EffectiveSyllabusRequirement =
-  components["schemas"]["EffectiveSyllabusRequirement"];
+export type EffectiveSyllabusRequirement = components["schemas"]["EffectiveSyllabusRequirement"];
 export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
 export type AgeBand = components["schemas"]["AgeBand"];
 export type Programme = components["schemas"]["ProgrammeEnum"];
@@ -75,12 +74,7 @@ export class ApiError extends Error {
   code?: string;
   fields?: FieldErrors;
 
-  constructor(
-    message: string,
-    status: number,
-    code?: string,
-    fields?: FieldErrors,
-  ) {
+  constructor(message: string, status: number, code?: string, fields?: FieldErrors) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -109,8 +103,7 @@ export class ApiError extends Error {
 export function isAnonymousResponse(error: unknown): boolean {
   return (
     error instanceof ApiError &&
-    (error.status === 401 ||
-      (error.status === 403 && error.code === "authentication_required"))
+    (error.status === 401 || (error.status === 403 && error.code === "authentication_required"))
   );
 }
 
@@ -137,21 +130,14 @@ function csrfToken(): string | undefined {
     ?.split("=")[1];
 }
 
-async function apiRequest<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = init.method?.toUpperCase() ?? "GET";
   const headers = new Headers(init.headers);
 
   // A FormData body (file upload) must keep the browser's own multipart
   // boundary in Content-Type - setting it to application/json here would
   // silently break every multipart upload.
-  if (
-    !headers.has("Content-Type") &&
-    init.body !== undefined &&
-    !(init.body instanceof FormData)
-  ) {
+  if (!headers.has("Content-Type") && init.body !== undefined && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -277,10 +263,7 @@ export async function updateCurrentUser(data: SelfProfilePayload): Promise<AuthU
   });
 }
 
-export async function loginUser(
-  email: string,
-  password: string,
-): Promise<AuthUser> {
+export async function loginUser(email: string, password: string): Promise<AuthUser> {
   return apiRequest<AuthUser>("/api/auth/login/", {
     method: "POST",
     body: JSON.stringify({ email, password }),
@@ -308,10 +291,7 @@ export async function completeSetup(details: SetupDetails): Promise<AuthUser> {
   });
 }
 
-export async function changePassword(
-  currentPassword: string,
-  newPassword: string,
-): Promise<void> {
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   await apiRequest<void>("/api/auth/change-password/", {
     method: "POST",
     body: JSON.stringify({
@@ -322,9 +302,7 @@ export async function changePassword(
 }
 
 export async function getManagedUsers(params?: ListQuery<"users_list">): Promise<PaginatedResponse<ManagedUser>> {
-  return apiRequest<PaginatedResponse<ManagedUser>>(
-    withQuery("/api/users/", params),
-  );
+  return apiRequest<PaginatedResponse<ManagedUser>>(withQuery("/api/users/", params));
 }
 
 export async function getManagedUser(id: string): Promise<ManagedUser> {
@@ -333,9 +311,7 @@ export async function getManagedUser(id: string): Promise<ManagedUser> {
 
 type CreateManagedUserPayload = Schemas["UserManagementRequest"];
 
-export async function createManagedUser(
-  data: CreateManagedUserPayload,
-): Promise<IssuedTemporaryPassword> {
+export async function createManagedUser(data: CreateManagedUserPayload): Promise<IssuedTemporaryPassword> {
   return apiRequest<IssuedTemporaryPassword>("/api/users/", {
     method: "POST",
     body: JSON.stringify(data),
@@ -360,10 +336,7 @@ export async function updateManagedUser(
 
 export type UserAuthorityPayload = Schemas["PatchedUserAuthorityRequest"];
 
-export async function updateManagedUserAuthority(
-  id: string,
-  data: UserAuthorityPayload,
-): Promise<ManagedUser> {
+export async function updateManagedUserAuthority(id: string, data: UserAuthorityPayload): Promise<ManagedUser> {
   return apiRequest<ManagedUser>(`/api/users/${id}/authority/`, {
     method: "PATCH",
     body: JSON.stringify(data),
@@ -379,40 +352,30 @@ export async function resetManagedUserPassword(id: string): Promise<IssuedTempor
 export async function getGradingSessions(
   params?: ListQuery<"gradings_sessions_list">,
 ): Promise<PaginatedResponse<GradingSession>> {
-  return apiRequest<PaginatedResponse<GradingSession>>(
-    withQuery("/api/gradings/sessions/", params),
-  );
+  return apiRequest<PaginatedResponse<GradingSession>>(withQuery("/api/gradings/sessions/", params));
 }
 
 export async function getAllGradingSessions(
   params: Omit<ListQuery<"gradings_sessions_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<GradingSession>> {
-  return collectAllPages((page) =>
-    getGradingSessions({ ...params, page, page_size: LARGEST_PAGE }),
-  );
+  return collectAllPages((page) => getGradingSessions({ ...params, page, page_size: LARGEST_PAGE }));
 }
 
 export async function getGradingSessionYears(): Promise<number[]> {
-  const body = await apiRequest<Schemas["GradingYears"]>(
-    "/api/gradings/sessions/years/",
-  );
+  const body = await apiRequest<Schemas["GradingYears"]>("/api/gradings/sessions/years/");
   return body.years;
 }
 
 type CreateGradingSessionPayload = Schemas["GradingSessionRequest"];
 
-export async function createGradingSession(
-  payload: CreateGradingSessionPayload,
-): Promise<GradingSession> {
+export async function createGradingSession(payload: CreateGradingSessionPayload): Promise<GradingSession> {
   return apiRequest<GradingSession>("/api/gradings/sessions/", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export async function getGradingSession(
-  id: number | string,
-): Promise<GradingSession> {
+export async function getGradingSession(id: number | string): Promise<GradingSession> {
   return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/`);
 }
 
@@ -445,9 +408,7 @@ export async function deleteGradingSession(id: number | string): Promise<void> {
 async function getGradingCandidates(
   params?: ListQuery<"gradings_candidates_list">,
 ): Promise<PaginatedResponse<GradingCandidateRoster>> {
-  return apiRequest<PaginatedResponse<GradingCandidateRoster>>(
-    withQuery("/api/gradings/candidates/", params),
-  );
+  return apiRequest<PaginatedResponse<GradingCandidateRoster>>(withQuery("/api/gradings/candidates/", params));
 }
 
 export async function getGradingCandidate(id: number): Promise<GradingCandidateRoster> {
@@ -457,16 +418,11 @@ export async function getGradingCandidate(id: number): Promise<GradingCandidateR
 export async function getAllGradingCandidates(
   params: Omit<ListQuery<"gradings_candidates_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<GradingCandidateRoster>> {
-  return collectAllPages((page) =>
-    getGradingCandidates({ ...params, page, page_size: LARGEST_PAGE }),
-  );
+  return collectAllPages((page) => getGradingCandidates({ ...params, page, page_size: LARGEST_PAGE }));
 }
 
 /** Move a registration to another draft or open session. */
-export async function moveGradingCandidate(
-  id: number,
-  sessionId: number,
-): Promise<GradingCandidate> {
+export async function moveGradingCandidate(id: number, sessionId: number): Promise<GradingCandidate> {
   return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`, {
     method: "PATCH",
     body: JSON.stringify({ session: sessionId }),
@@ -481,28 +437,21 @@ export async function deleteGradingCandidate(id: number): Promise<void> {
 }
 
 export type BulkCandidateRegistrationPayload = Schemas["BulkCandidateRegistrationRequest"];
-export type BulkCandidateRegistrationResponse =
-  Schemas["BulkCandidateRegistrationResult"];
+export type BulkCandidateRegistrationResponse = Schemas["BulkCandidateRegistrationResult"];
 
 export async function bulkRegisterCandidates(
   payload: BulkCandidateRegistrationPayload,
 ): Promise<BulkCandidateRegistrationResponse> {
-  return apiRequest<BulkCandidateRegistrationResponse>(
-    "/api/gradings/candidates/bulk-register/",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
+  return apiRequest<BulkCandidateRegistrationResponse>("/api/gradings/candidates/bulk-register/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
-export async function generateCandidateAssessment(
-  candidateId: number,
-): Promise<CandidateAssessment> {
-  return apiRequest<CandidateAssessment>(
-    `/api/gradings/candidates/${candidateId}/generate-assessment/`,
-    { method: "POST" },
-  );
+export async function generateCandidateAssessment(candidateId: number): Promise<CandidateAssessment> {
+  return apiRequest<CandidateAssessment>(`/api/gradings/candidates/${candidateId}/generate-assessment/`, {
+    method: "POST",
+  });
 }
 
 export async function bulkGenerateCandidateAssessments(
@@ -529,28 +478,22 @@ export async function getWithdrawalReasons(): Promise<PaginatedResponse<Withdraw
   return apiRequest<PaginatedResponse<WithdrawalReason>>("/api/gradings/withdrawal-reasons/");
 }
 
-export type LockedCandidateWithdrawal =
-  Schemas["LockedCandidateWithdrawalRequest"];
+export type LockedCandidateWithdrawal = Schemas["LockedCandidateWithdrawalRequest"];
 
 export async function withdrawLockedCandidate(
   candidateId: number,
   payload: LockedCandidateWithdrawal,
 ): Promise<GradingCandidate> {
-  return apiRequest<GradingCandidate>(
-    `/api/gradings/candidates/${candidateId}/withdraw/`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
+  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${candidateId}/withdraw/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getCandidateAssessments(
   params?: ListQuery<"gradings_assessments_list">,
 ): Promise<PaginatedResponse<CandidateAssessment>> {
-  return apiRequest<PaginatedResponse<CandidateAssessment>>(
-    withQuery("/api/gradings/assessments/", params),
-  );
+  return apiRequest<PaginatedResponse<CandidateAssessment>>(withQuery("/api/gradings/assessments/", params));
 }
 
 export async function updateCandidateAssessment(
@@ -581,17 +524,13 @@ export async function bulkStartCandidateAssessments(
 async function getCandidateAssessmentItems(
   params?: ListQuery<"gradings_assessment_items_list">,
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
-  return apiRequest<PaginatedResponse<CandidateAssessmentItem>>(
-    withQuery("/api/gradings/assessment-items/", params),
-  );
+  return apiRequest<PaginatedResponse<CandidateAssessmentItem>>(withQuery("/api/gradings/assessment-items/", params));
 }
 
 export async function getAllCandidateAssessmentItems(
   params: Omit<ListQuery<"gradings_assessment_items_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
-  return collectAllPages((page) =>
-    getCandidateAssessmentItems({ ...params, page, page_size: LARGEST_PAGE }),
-  );
+  return collectAllPages((page) => getCandidateAssessmentItems({ ...params, page, page_size: LARGEST_PAGE }));
 }
 
 /** An item as a mark returns it: with the assessment's counts as the save left them. */
@@ -608,10 +547,7 @@ export async function updateCandidateAssessmentItem(
 }
 
 /** Add a comment to an item. A comment is kept as written; a correction is another. */
-export async function addAssessmentItemComment(
-  itemId: number,
-  body: string,
-): Promise<AssessmentItemComment> {
+export async function addAssessmentItemComment(itemId: number, body: string): Promise<AssessmentItemComment> {
   return apiRequest<AssessmentItemComment>(`/api/gradings/assessment-items/${itemId}/comments/`, {
     method: "POST",
     body: JSON.stringify({ body }),
@@ -621,9 +557,7 @@ export async function addAssessmentItemComment(
 export type PromotionEligibility = Schemas["PromotionEligibility"];
 
 export async function getPromotionEligibility(session: number): Promise<PromotionEligibility[]> {
-  return apiRequest<PromotionEligibility[]>(
-    withQuery("/api/gradings/outcomes/promotion-eligibility/", { session }),
-  );
+  return apiRequest<PromotionEligibility[]>(withQuery("/api/gradings/outcomes/promotion-eligibility/", { session }));
 }
 
 /** The first proposal opens the candidate's outcome record; later ones revise it. */
@@ -641,12 +575,8 @@ export async function proposeCandidateOutcome(
  * Rollup for one assessment, reachable at any assessment status - scoring,
  * completion review and the adjudication board all read counts from here.
  */
-export async function getAssessmentSummary(
-  assessmentId: number,
-): Promise<CandidateAssessmentSummary> {
-  return apiRequest<CandidateAssessmentSummary>(
-    `/api/gradings/assessments/${assessmentId}/summary/`,
-  );
+export async function getAssessmentSummary(assessmentId: number): Promise<CandidateAssessmentSummary> {
+  return apiRequest<CandidateAssessmentSummary>(`/api/gradings/assessments/${assessmentId}/summary/`);
 }
 
 /** The viewer's own decisions staged in a session and not yet recorded. */
@@ -674,13 +604,10 @@ export async function finaliseCandidateOutcome(
   outcomeId: number,
   data: Schemas["CandidateOutcomeFinaliseRequest"],
 ): Promise<CandidateOutcome> {
-  return apiRequest<CandidateOutcome>(
-    `/api/gradings/outcomes/${outcomeId}/finalise/`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    },
-  );
+  return apiRequest<CandidateOutcome>(`/api/gradings/outcomes/${outcomeId}/finalise/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 /** The names of the audit event and record types, for the audit filters. */
@@ -694,15 +621,11 @@ export async function getAuditSubject(subject: string): Promise<AuditSubject> {
 }
 
 export async function getAuditEvents(params?: ListQuery<"audit_events_list">): Promise<PaginatedResponse<AuditEvent>> {
-  return apiRequest<PaginatedResponse<AuditEvent>>(
-    withQuery("/api/audit-events/", params),
-  );
+  return apiRequest<PaginatedResponse<AuditEvent>>(withQuery("/api/audit-events/", params));
 }
 
 export async function getStudents(params?: ListQuery<"students_list">): Promise<PaginatedResponse<StudentListItem>> {
-  return apiRequest<PaginatedResponse<StudentListItem>>(
-    withQuery("/api/students/", params),
-  );
+  return apiRequest<PaginatedResponse<StudentListItem>>(withQuery("/api/students/", params));
 }
 
 export async function getAllStudents(
@@ -712,16 +635,16 @@ export async function getAllStudents(
 }
 
 export async function getRanks(params?: ListQuery<"ranks_list">): Promise<PaginatedResponse<Rank>> {
-  return apiRequest<PaginatedResponse<Rank>>(
-    withQuery("/api/ranks/", params),
-  );
+  return apiRequest<PaginatedResponse<Rank>>(withQuery("/api/ranks/", params));
 }
 
 export async function getAgeBands(): Promise<PaginatedResponse<AgeBand>> {
   return apiRequest<PaginatedResponse<AgeBand>>("/api/syllabus/age-bands/");
 }
 
-async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requirements_effective_list">): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
+async function getEffectiveSyllabusRequirements(
+  params: ListQuery<"syllabus_requirements_effective_list">,
+): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
   return apiRequest<PaginatedResponse<EffectiveSyllabusRequirement>>(
     withQuery("/api/syllabus/requirements/effective/", {
       ...params,
@@ -733,9 +656,7 @@ async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requ
 export async function getAllEffectiveSyllabusRequirements(
   params: Omit<Parameters<typeof getEffectiveSyllabusRequirements>[0], "page" | "page_size">,
 ): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
-  return collectAllPages((page) =>
-    getEffectiveSyllabusRequirements({ ...params, page, page_size: LARGEST_PAGE }),
-  );
+  return collectAllPages((page) => getEffectiveSyllabusRequirements({ ...params, page, page_size: LARGEST_PAGE }));
 }
 
 export async function getStudent(id: number): Promise<StudentDetail> {
@@ -744,9 +665,7 @@ export async function getStudent(id: number): Promise<StudentDetail> {
 
 type CreateStudentPayload = Schemas["StudentRequest"];
 
-export async function createStudent(
-  payload: CreateStudentPayload,
-): Promise<StudentDetail> {
+export async function createStudent(payload: CreateStudentPayload): Promise<StudentDetail> {
   return apiRequest<StudentDetail>("/api/students/", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -761,10 +680,7 @@ export async function getStudentRankHistory(id: number): Promise<StudentRankHist
 
 type UpdateStudentPayload = Schemas["PatchedStudentRequest"];
 
-export async function updateStudent(
-  id: number,
-  payload: UpdateStudentPayload,
-): Promise<StudentDetail> {
+export async function updateStudent(id: number, payload: UpdateStudentPayload): Promise<StudentDetail> {
   return apiRequest<StudentDetail>(`/api/students/${id}/`, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -792,13 +708,10 @@ type BulkPromoteResponse = Schemas["BulkPromotionResult"];
 export async function bulkPromoteCandidateOutcomes(
   data: Schemas["BulkPromotionRequest"],
 ): Promise<BulkPromoteResponse> {
-  return apiRequest<BulkPromoteResponse>(
-    `/api/gradings/outcomes/bulk-promote/`,
-    {
-      method: "POST",
-      body: JSON.stringify(data),
-    },
-  );
+  return apiRequest<BulkPromoteResponse>(`/api/gradings/outcomes/bulk-promote/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 export type DataImportKind = Schemas["KindEnum"];
@@ -823,9 +736,7 @@ export type DataImportRow = Schemas["ImportRow"];
 export async function getDataImportBatches(
   params?: ListQuery<"data_imports_batches_list">,
 ): Promise<PaginatedResponse<DataImportBatch>> {
-  return apiRequest<PaginatedResponse<DataImportBatch>>(
-    withQuery("/api/data-imports/batches/", params),
-  );
+  return apiRequest<PaginatedResponse<DataImportBatch>>(withQuery("/api/data-imports/batches/", params));
 }
 
 /** Complete import choices for filters, regardless of how many were committed. */
@@ -850,16 +761,11 @@ export async function getDataImportRows(
   batchId: number,
   params?: ListQuery<"data_imports_batches_rows_list">,
 ): Promise<PaginatedResponse<DataImportRow>> {
-  return apiRequest<PaginatedResponse<DataImportRow>>(
-    withQuery(`/api/data-imports/batches/${batchId}/rows/`, params),
-  );
+  return apiRequest<PaginatedResponse<DataImportRow>>(withQuery(`/api/data-imports/batches/${batchId}/rows/`, params));
 }
 
 /** Read a roster from another sheet of its workbook. */
-export async function chooseDataImportSheet(
-  batchId: number,
-  sheet: string,
-): Promise<DataImportBatch> {
+export async function chooseDataImportSheet(batchId: number, sheet: string): Promise<DataImportBatch> {
   return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/sheet/`, {
     method: "POST",
     body: JSON.stringify({ sheet }),
@@ -867,24 +773,18 @@ export async function chooseDataImportSheet(
 }
 
 /** Void every record a finished historical import made, with the reason. */
-export async function voidDataImportRecords(
-  batchId: number,
-  reason: string,
-): Promise<Schemas["ImportRecordsVoided"]> {
-  return apiRequest<Schemas["ImportRecordsVoided"]>(
-    `/api/data-imports/batches/${batchId}/void-records/`,
-    { method: "POST", body: JSON.stringify({ reason }) },
-  );
+export async function voidDataImportRecords(batchId: number, reason: string): Promise<Schemas["ImportRecordsVoided"]> {
+  return apiRequest<Schemas["ImportRecordsVoided"]>(`/api/data-imports/batches/${batchId}/void-records/`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
 }
 
 type DataImportMapping = Schemas["ImportMappingRequest"];
 type DataImportRowChanges = Schemas["PatchedImportRowCorrectionRequest"];
 
 /** Match a roster's columns to KukGrade's fields; every row is checked again. */
-export async function saveDataImportMapping(
-  batchId: number,
-  mapping: DataImportMapping,
-): Promise<DataImportBatch> {
+export async function saveDataImportMapping(batchId: number, mapping: DataImportMapping): Promise<DataImportBatch> {
   return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/mapping/`, {
     method: "POST",
     body: JSON.stringify(mapping),
@@ -897,10 +797,10 @@ export async function correctDataImportRow(
   rowNumber: number,
   changes: DataImportRowChanges,
 ): Promise<DataImportRow> {
-  return apiRequest<DataImportRow>(
-    `/api/data-imports/batches/${batchId}/rows/${rowNumber}/`,
-    { method: "PATCH", body: JSON.stringify(changes) },
-  );
+  return apiRequest<DataImportRow>(`/api/data-imports/batches/${batchId}/rows/${rowNumber}/`, {
+    method: "PATCH",
+    body: JSON.stringify(changes),
+  });
 }
 
 /** Leave a row out of the import, or bring it back. */
@@ -909,20 +809,17 @@ export async function setDataImportRowExcluded(
   rowNumber: number,
   excluded: boolean,
 ): Promise<DataImportRow> {
-  return apiRequest<DataImportRow>(
-    `/api/data-imports/batches/${batchId}/rows/${rowNumber}/exclusion/`,
-    { method: "POST", body: JSON.stringify({ excluded }) },
-  );
+  return apiRequest<DataImportRow>(`/api/data-imports/batches/${batchId}/rows/${rowNumber}/exclusion/`, {
+    method: "POST",
+    body: JSON.stringify({ excluded }),
+  });
 }
 
 /** Leave out every roster row still needing attention. */
-export async function leaveOutDataImportRowsNeedingAttention(
-  batchId: number,
-): Promise<DataImportBatch> {
-  return apiRequest<DataImportBatch>(
-    `/api/data-imports/batches/${batchId}/rows/leave-out-attention/`,
-    { method: "POST" },
-  );
+export async function leaveOutDataImportRowsNeedingAttention(batchId: number): Promise<DataImportBatch> {
+  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/rows/leave-out-attention/`, {
+    method: "POST",
+  });
 }
 
 /** Import what the stored rows say, all or nothing. */
@@ -944,28 +841,29 @@ export async function previewLegacyGradingImport(
   batchId: number,
   payload: Schemas["LegacyImportRequest"],
 ): Promise<LegacyImportPreview> {
-  return apiRequest<LegacyImportPreview>(
-    `/api/data-imports/batches/${batchId}/preview/`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
+  return apiRequest<LegacyImportPreview>(`/api/data-imports/batches/${batchId}/preview/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export type LegacyGradingRecord = Schemas["LegacyGradingRecord"];
 
-export async function getLegacyGradingRecords(params?: ListQuery<"gradings_legacy_records_list">): Promise<PaginatedResponse<LegacyGradingRecord>> {
-  return apiRequest<PaginatedResponse<LegacyGradingRecord>>(
-    withQuery("/api/gradings/legacy-records/", params),
-  );
+export async function getLegacyGradingRecords(
+  params?: ListQuery<"gradings_legacy_records_list">,
+): Promise<PaginatedResponse<LegacyGradingRecord>> {
+  return apiRequest<PaginatedResponse<LegacyGradingRecord>>(withQuery("/api/gradings/legacy-records/", params));
 }
 
 export async function getLegacyGradingRecord(id: number): Promise<LegacyGradingRecord> {
   return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/`);
 }
 
-export async function linkLegacyGradingRecord(id: number, student: number, replace = false): Promise<LegacyGradingRecord> {
+export async function linkLegacyGradingRecord(
+  id: number,
+  student: number,
+  replace = false,
+): Promise<LegacyGradingRecord> {
   return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/link-student/`, {
     method: "POST",
     body: JSON.stringify({ student, replace }),
@@ -985,9 +883,7 @@ export type LegacyPerson = Schemas["LegacyPerson"];
 export async function getLegacyPeople(
   params?: ListQuery<"gradings_legacy_records_people_list">,
 ): Promise<PaginatedResponse<LegacyPerson>> {
-  return apiRequest<PaginatedResponse<LegacyPerson>>(
-    withQuery("/api/gradings/legacy-records/people/", params),
-  );
+  return apiRequest<PaginatedResponse<LegacyPerson>>(withQuery("/api/gradings/legacy-records/people/", params));
 }
 
 type LegacyPeopleSummary = Schemas["LegacyPeopleSummary"];
@@ -1004,9 +900,7 @@ export async function getLegacyRecordCounts(
 export async function getLegacyPeopleSummary(
   params?: ListQuery<"gradings_legacy_records_people_summary_retrieve">,
 ): Promise<LegacyPeopleSummary> {
-  return apiRequest<LegacyPeopleSummary>(
-    withQuery("/api/gradings/legacy-records/people-summary/", params),
-  );
+  return apiRequest<LegacyPeopleSummary>(withQuery("/api/gradings/legacy-records/people-summary/", params));
 }
 
 /** Put names aside for now on the linking page; the viewer's own list, on the server. */
@@ -1045,10 +939,7 @@ export async function bulkUnlinkLegacyRecords(
 }
 
 export async function unlinkLegacyGradingRecord(id: number): Promise<LegacyGradingRecord> {
-  return apiRequest<LegacyGradingRecord>(
-    `/api/gradings/legacy-records/${id}/unlink-student/`,
-    { method: "POST" },
-  );
+  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/unlink-student/`, { method: "POST" });
 }
 
 export async function resolveLegacyRank(
@@ -1057,19 +948,13 @@ export async function resolveLegacyRank(
   rankId: number | null,
 ): Promise<LegacyGradingRecord> {
   const body: Schemas["ResolveLegacyRankRequest"] = { field, rank: rankId };
-  return apiRequest<LegacyGradingRecord>(
-    `/api/gradings/legacy-records/${id}/resolve-rank/`,
-    {
-      method: "POST",
-      body: JSON.stringify(body),
-    },
-  );
+  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/resolve-rank/`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
-export async function voidLegacyGradingRecord(
-  id: number,
-  reason: string,
-): Promise<LegacyGradingRecord> {
+export async function voidLegacyGradingRecord(id: number, reason: string): Promise<LegacyGradingRecord> {
   return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/void/`, {
     method: "POST",
     body: JSON.stringify({ reason }),
@@ -1079,10 +964,6 @@ export async function voidLegacyGradingRecord(
 export type GradingHistoryItem = Schemas["GradingHistoryItem"];
 export type StudentGradingHistory = Schemas["StudentGradingHistory"];
 
-export async function getStudentGradingHistory(
-  studentId: number,
-): Promise<StudentGradingHistory> {
-  return apiRequest<StudentGradingHistory>(
-    `/api/students/${studentId}/grading-history/`,
-  );
+export async function getStudentGradingHistory(studentId: number): Promise<StudentGradingHistory> {
+  return apiRequest<StudentGradingHistory>(`/api/students/${studentId}/grading-history/`);
 }

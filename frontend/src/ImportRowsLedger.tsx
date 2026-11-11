@@ -19,11 +19,10 @@ const ROWS_PAGE_SIZE = 50;
 export type RowFilter = "all" | "READY" | "SKIP_EXISTING" | "EXCLUDED" | "corrected" | "status" | "current_rank";
 
 function rowState(row: DataImportRow, batch: DataImportBatch): { label: string; tone: BadgeTone } {
-  if (row.outcome === "EXCLUDED" || row.outcome === "SKIP_EXISTING") return { label: row.outcome_display, tone: "neutral" };
+  if (row.outcome === "EXCLUDED" || row.outcome === "SKIP_EXISTING")
+    return { label: row.outcome_display, tone: "neutral" };
   return { label: importKinds[batch.kind].ledger.saved(row), tone: "success" };
 }
-
-
 
 export function RowsLedger({
   batch,
@@ -50,7 +49,9 @@ export function RowsLedger({
     ROWS_PAGE_SIZE,
   );
   const summary = batch.summary_json;
-  const tabs: { key: RowFilter; label: string; count?: number }[] = ledger.tabs(summary, (value) => labelOf(outcomes, value));
+  const tabs: { key: RowFilter; label: string; count?: number }[] = ledger.tabs(summary, (value) =>
+    labelOf(outcomes, value),
+  );
   // A second-look filter shows as a chip of its own while it is in use.
   if (filter === "status") tabs.push({ key: "status", label: "Given a status" });
   if (filter === "current_rank") tabs.push({ key: "current_rank", label: "Given a rank" });
@@ -82,13 +83,11 @@ export function RowsLedger({
         onChange={onFilter}
       />
       {rows.query.isError ? (
-        <ErrorText className="ix-row">
-          {errorMessage(rows.query.error, "The rows could not be loaded.")}
-        </ErrorText>
+        <ErrorText className="ix-row">{errorMessage(rows.query.error, "The rows could not be loaded.")}</ErrorText>
       ) : cleared ? (
         <p className="ix-row subtext">
-          The row-by-row list is kept {keptForDays === undefined ? "for a time" : `for ${keptForDays} days`} after an import, and this one’s has been
-          cleared. The counts above stay for good.
+          The row-by-row list is kept {keptForDays === undefined ? "for a time" : `for ${keptForDays} days`} after an
+          import, and this one’s has been cleared. The counts above stay for good.
         </p>
       ) : list.length === 0 && !rows.query.isPending ? (
         <p className="ix-row subtext">Nothing here.</p>

@@ -19,10 +19,7 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
     },
   },
   {
@@ -38,8 +35,7 @@ export default tseslint.config(
           message: "Name the key in src/queryKeys.ts and use it from there.",
         },
         {
-          selector:
-            "CallExpression[callee.property.name=/^(get|set)Quer(y|ies)(Data|Defaults)$/] > ArrayExpression",
+          selector: "CallExpression[callee.property.name=/^(get|set)Quer(y|ies)(Data|Defaults)$/] > ArrayExpression",
           message: "Name the key in src/queryKeys.ts and use it from there.",
         },
       ],

@@ -29,18 +29,12 @@ import { refresh } from "./queryKeys";
 import { BackLink } from "./BackLink";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  updateCandidateAssessment,
-  errorMessage,
-} from "./api";
+import { updateCandidateAssessment, errorMessage } from "./api";
 import { RecordPage } from "./RecordPage";
 import { type RecordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { useSiteSettingsQuery } from "./queries";
-import {
-  useAssessmentNotesDraft,
-  useCandidateAssessmentData,
-} from "./candidateAssessmentData";
+import { useAssessmentNotesDraft, useCandidateAssessmentData } from "./candidateAssessmentData";
 import { formatShortDate, formatTime } from "./dates";
 import { ItemRemarks } from "./ItemRemarks";
 import { hasRemarks } from "./remarks";
@@ -68,19 +62,14 @@ export function AssessmentCompletionScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [hasProofread, setHasProofread] = useState(false);
 
-  const {
-    session,
-    candidate,
-    assessment,
-    items,
-    categoryGroups,
-    stats,
-    isLoading,
-    hasLoadError,
-  } = useCandidateAssessmentData(numSessionId, numCandidateId);
+  const { session, candidate, assessment, items, categoryGroups, stats, isLoading, hasLoadError } =
+    useCandidateAssessmentData(numSessionId, numCandidateId);
   // The draft outlives a trip back to scoring - see useAssessmentNotesDraft.
-  const { draft: userNotes, setDraft: setUserNotes, clearDraft: clearNotesDraft } =
-    useAssessmentNotesDraft(assessment?.id);
+  const {
+    draft: userNotes,
+    setDraft: setUserNotes,
+    clearDraft: clearNotesDraft,
+  } = useAssessmentNotesDraft(assessment?.id);
 
   const generalNotes = userNotes !== null ? userNotes : (assessment?.notes ?? "");
   const scoringPath = `/gradings/${sessionId}/assessments/${candidateId}`;
@@ -104,11 +93,24 @@ export function AssessmentCompletionScreen() {
     },
   });
 
-  const status: RecordStatus | null = isLoading ? "loading" : hasLoadError ? "failed" : !session || !candidate ? "missing" : null;
+  const status: RecordStatus | null = isLoading
+    ? "loading"
+    : hasLoadError
+      ? "failed"
+      : !session || !candidate
+        ? "missing"
+        : null;
   if (status || !session || !candidate) {
     return (
       <RecordPage
-        back={status === "failed" ? { to: scoringPath, label: "Assessment" } : { to: sessionId ? `/gradings/${sessionId}` : "/gradings", label: sessionId ? "Grading session" : "Gradings" }}
+        back={
+          status === "failed"
+            ? { to: scoringPath, label: "Assessment" }
+            : {
+                to: sessionId ? `/gradings/${sessionId}` : "/gradings",
+                label: sessionId ? "Grading session" : "Gradings",
+              }
+        }
         failed="The assessment summary could not be loaded, so the record cannot be reviewed or sealed right now. Reload to try again."
         label="Assessment completion review"
         loading="Loading completion review…"
@@ -127,16 +129,20 @@ export function AssessmentCompletionScreen() {
   if (!assessment || (!isSealed && !stats.canComplete)) {
     return (
       <section aria-label="Assessment completion review" className="page" data-testid="caw-review-unavailable">
-        <Alert action={<Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
-            ← Return to scoring
-          </Link>}>
+        <Alert
+          action={
+            <Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
+              ← Return to scoring
+            </Link>
+          }
+        >
           {!assessment
-              ? "This candidate has no assessment form yet, so there is nothing to review."
-              : `${stats.remainingRequired} required ${agreeing(
-                  stats.remainingRequired,
-                  "item remains",
-                  "items remain",
-                )} unassessed. Finish scoring before completing the assessment.`}
+            ? "This candidate has no assessment form yet, so there is nothing to review."
+            : `${stats.remainingRequired} required ${agreeing(
+                stats.remainingRequired,
+                "item remains",
+                "items remain",
+              )} unassessed. Finish scoring before completing the assessment.`}
         </Alert>
       </section>
     );
@@ -188,9 +194,7 @@ export function AssessmentCompletionScreen() {
         </span>
       </header>
 
-      {actionError && (
-        <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>
-      )}
+      {actionError && <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>}
 
       <div className="acp-layout">
         {/* ── The record ─────────────────────────────────────────────────── */}
@@ -198,9 +202,12 @@ export function AssessmentCompletionScreen() {
           <div className="acp-sheet-head">
             <div>
               <div className="eyebrow--muted">
-                {clubName}{session.location && ` · ${session.location}`}
+                {clubName}
+                {session.location && ` · ${session.location}`}
               </div>
-              <h1 className="acp-sheet-title" id="acp-title">Assessment record</h1>
+              <h1 className="acp-sheet-title" id="acp-title">
+                Assessment record
+              </h1>
             </div>
             <span className={cx("eyebrow acp-stamp", isSealed && "acp-stamp-sealed")} data-testid="acp-stamp">
               {isSealed ? "Sealed" : "Unsealed draft"}
@@ -288,8 +295,8 @@ export function AssessmentCompletionScreen() {
           ) : (
             <>
               <p className="acp-section-note meta">
-                Editable until the record is sealed. This is the only point at which the overall
-                assessment note can be written — it is saved with the record and cannot be changed afterwards.
+                Editable until the record is sealed. This is the only point at which the overall assessment note can be
+                written — it is saved with the record and cannot be changed afterwards.
               </p>
               <textarea
                 id="general-assessment-notes"
@@ -322,8 +329,7 @@ export function AssessmentCompletionScreen() {
               {isSealed && assessment.completed_at ? (
                 <>
                   <div className="acp-seal-value item-title acp-seal-applied" data-testid="acp-seal-applied">
-                    Sealed {formatShortDate(assessment.completed_at, "")} at{" "}
-                    {formatTime(assessment.completed_at)}
+                    Sealed {formatShortDate(assessment.completed_at, "")} at {formatTime(assessment.completed_at)}
                   </div>
                   <div className="acp-seal-detail meta">This record can no longer be changed.</div>
                 </>
@@ -348,7 +354,9 @@ export function AssessmentCompletionScreen() {
               </div>
               <div>
                 <dt>Prepared by</dt>
-                <dd>{assessment.generated_by_email ? <EmailAddress address={assessment.generated_by_email} /> : "—"}</dd>
+                <dd>
+                  {assessment.generated_by_email ? <EmailAddress address={assessment.generated_by_email} /> : "—"}
+                </dd>
               </div>
               <div>
                 <dt>Age group</dt>
@@ -421,9 +429,8 @@ export function AssessmentCompletionScreen() {
                 <div className="acp-notice-row">
                   <LockIcon size={18} />
                   <p>
-                    Sealing completes this record. While the session is open a mark can still
-                    be corrected, with a reason that is kept; it becomes permanent when the
-                    session locks.
+                    Sealing completes this record. While the session is open a mark can still be corrected, with a
+                    reason that is kept; it becomes permanent when the session locks.
                   </p>
                 </div>
                 <label className="check acp-proofread">

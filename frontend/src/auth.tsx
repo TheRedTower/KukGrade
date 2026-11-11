@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -95,8 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const loginMutation = useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      loginUser(email, password),
+    mutationFn: ({ email, password }: { email: string; password: string }) => loginUser(email, password),
     onSuccess: (authenticatedUser) => {
       // Signing out clears the cache, but only if the logout request
       // succeeded. Closing the tab, losing the network, or an expiry the
@@ -117,13 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const changePasswordMutation = useMutation({
-    mutationFn: ({
-      currentPassword,
-      newPassword,
-    }: {
-      currentPassword: string;
-      newPassword: string;
-    }) => changePasswordApi(currentPassword, newPassword),
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      changePasswordApi(currentPassword, newPassword),
     onSuccess: async () => {
       await currentUserQuery.refetch();
     },
@@ -197,8 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status = "anonymous";
   }
 
-  const error =
-    status === "error" ? describeAuthFailure(currentUserQuery.error) : null;
+  const error = status === "error" ? describeAuthFailure(currentUserQuery.error) : null;
 
   const refetchCurrentUser = currentUserQuery.refetch;
   const retry = useCallback(() => {

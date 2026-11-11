@@ -26,11 +26,23 @@ interface ChoiceGroupProps<Value extends string> {
  * Every pick-one row of buttons (see .choices in controls.css): each a real
  * button, the chosen one pressed, so it reads as a set of toggles.
  */
-export function ChoiceGroup<Value extends string>({ label, choices, value, onChange, look = "segments", className }: ChoiceGroupProps<Value>) {
+export function ChoiceGroup<Value extends string>({
+  label,
+  choices,
+  value,
+  onChange,
+  look = "segments",
+  className,
+}: ChoiceGroupProps<Value>) {
   return (
     <div aria-label={label} className={cx("choices", `choices--${look}`, className)} role="group">
       {choices.map((choice) => (
-        <button aria-pressed={choice.value === value} key={choice.value} type="button" onClick={() => onChange(choice.value)}>
+        <button
+          aria-pressed={choice.value === value}
+          key={choice.value}
+          type="button"
+          onClick={() => onChange(choice.value)}
+        >
           {choice.label}
           {choice.count !== undefined ? <span className="choices__count">{choice.count}</span> : null}
         </button>

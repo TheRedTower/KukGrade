@@ -7,12 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StudentDetailScreen } from "./StudentDetailScreen";
 import { ApiError } from "./api";
 import { CHOICES } from "./appTestSupport";
-import type {
-  AuthUser,
-  StudentDetail,
-  StudentGradingHistory,
-  StudentRankHistory,
-} from "./api";
+import type { AuthUser, StudentDetail, StudentGradingHistory, StudentRankHistory } from "./api";
 
 let currentUser: AuthUser;
 const mockGetStudent = vi.fn();
@@ -30,10 +25,8 @@ vi.mock("./api", async () => {
     ...actual,
     getChoices: async () => CHOICES,
     getStudent: (...args: unknown[]) => mockGetStudent(...args),
-    getStudentRankHistory: (...args: unknown[]) =>
-      mockGetStudentRankHistory(...args),
-    getStudentGradingHistory: (...args: unknown[]) =>
-      mockGetStudentGradingHistory(...args),
+    getStudentRankHistory: (...args: unknown[]) => mockGetStudentRankHistory(...args),
+    getStudentGradingHistory: (...args: unknown[]) => mockGetStudentGradingHistory(...args),
     deleteStudent: (...args: unknown[]) => mockDeleteStudent(...args),
   };
 });
@@ -116,15 +109,9 @@ describe("StudentDetailScreen delete action", () => {
     };
 
     renderScreen();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Alex Kim" }),
-      ).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Alex Kim" })).toBeInTheDocument());
 
-    expect(
-      screen.queryByRole("button", { name: "Delete student" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete student" })).not.toBeInTheDocument();
   });
 
   function signInAsAdministrator() {
@@ -164,14 +151,10 @@ describe("StudentDetailScreen delete action", () => {
     });
     expect(dialog).toHaveTextContent("past gradings, marks and decisions stay as recorded");
 
-    await user.click(
-      within(dialog).getByRole("button", { name: "Delete student" }),
-    );
+    await user.click(within(dialog).getByRole("button", { name: "Delete student" }));
 
     await waitFor(() => expect(mockDeleteStudent).toHaveBeenCalledWith(42));
-    await waitFor(() =>
-      expect(screen.getByText("Students list")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Students list")).toBeInTheDocument());
   });
 
   it("says why a student cannot be deleted yet and offers no delete", async () => {
@@ -184,12 +167,8 @@ describe("StudentDetailScreen delete action", () => {
 
     renderScreen();
 
-    expect(await screen.findByTestId("student-delete-blocked")).toHaveTextContent(
-      "'Spring grading'",
-    );
-    expect(
-      screen.queryByRole("button", { name: "Delete student" }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByTestId("student-delete-blocked")).toHaveTextContent("'Spring grading'");
+    expect(screen.queryByRole("button", { name: "Delete student" })).not.toBeInTheDocument();
   });
 
   it("shows the server's reason when a delete is refused after the page loaded", async () => {
@@ -304,9 +283,7 @@ describe("StudentDetailScreen extra information", () => {
 
     renderScreen();
 
-    const card = (await screen.findByRole("heading", { name: "Extra information" })).closest(
-      ".card",
-    ) as HTMLElement;
+    const card = (await screen.findByRole("heading", { name: "Extra information" })).closest(".card") as HTMLElement;
     expect(within(card).getByText("Parent phone")).toBeVisible();
     expect(within(card).getByText("07700 900001")).toBeVisible();
     expect(within(card).getByText("Left-handed")).toBeVisible();

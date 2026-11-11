@@ -118,9 +118,7 @@ describe("UsersScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Next page" }));
     await waitFor(() => {
-      expect(mockGetManagedUsers).toHaveBeenLastCalledWith(
-        expect.objectContaining({ page: 2 }),
-      );
+      expect(mockGetManagedUsers).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
     });
   });
 

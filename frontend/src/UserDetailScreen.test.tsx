@@ -93,22 +93,24 @@ describe("UserDetailScreen", () => {
       count: 1,
       next: null,
       previous: null,
-      results: [{
-        id: 9,
-        occurred_at: "2026-09-14T18:43:00Z",
-        action: "USER_AUTHORITY_CHANGED",
-        action_display: "User authority changed",
-        entity_type: "User",
-        entity_type_display: "User",
-        entity_id: "target-user",
-        actor: "admin-user",
-        actor_email: "admin@example.com",
-        actor_name: "Admin User",
-        summary: "User authority changed.",
-        tone: "neutral",
-        outcome_display: null,
-        metadata: {},
-      }],
+      results: [
+        {
+          id: 9,
+          occurred_at: "2026-09-14T18:43:00Z",
+          action: "USER_AUTHORITY_CHANGED",
+          action_display: "User authority changed",
+          entity_type: "User",
+          entity_type_display: "User",
+          entity_id: "target-user",
+          actor: "admin-user",
+          actor_email: "admin@example.com",
+          actor_name: "Admin User",
+          summary: "User authority changed.",
+          tone: "neutral",
+          outcome_display: null,
+          metadata: {},
+        },
+      ],
     });
     mockUpdateManagedUser.mockReset().mockResolvedValue(managedUser);
     mockUpdateManagedUserAuthority.mockReset().mockResolvedValue(managedUser);
@@ -142,10 +144,13 @@ describe("UserDetailScreen", () => {
     await user.click(screen.getByRole("button", { name: "Save account details" }));
 
     await waitFor(() => {
-      expect(mockUpdateManagedUser).toHaveBeenCalledWith("target-user", expect.objectContaining({
-        first_name: "Rina",
-        is_active: false,
-      }));
+      expect(mockUpdateManagedUser).toHaveBeenCalledWith(
+        "target-user",
+        expect.objectContaining({
+          first_name: "Rina",
+          is_active: false,
+        }),
+      );
     });
     expect(await screen.findByText("Account details saved.")).toBeInTheDocument();
     // The change is audited, so the page's activity list is read again.
@@ -227,9 +232,7 @@ describe("UserDetailScreen", () => {
     });
     renderScreen();
 
-    expect(
-      await screen.findByText(/^Expired .*Reset the password to give them a new one\.$/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/^Expired .*Reset the password to give them a new one\.$/)).toBeInTheDocument();
   });
 
   it("cannot close the password dialog while the reset is in flight", async () => {
@@ -275,8 +278,6 @@ describe("UserDetailScreen", () => {
     // Your own password is changed in Settings, behind the current
     // one; a reset - which asks for none - is not offered.
     expect(screen.queryByRole("button", { name: "Reset password" })).not.toBeInTheDocument();
-    expect(
-      screen.getByText("Change your own password in Settings."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Change your own password in Settings.")).toBeInTheDocument();
   });
 });

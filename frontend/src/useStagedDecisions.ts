@@ -154,7 +154,6 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     );
   }
 
-
   // Each write goes through the mutation cache, so a session that expired mid-way signs the viewer out.
   const finaliseMutation = useMutation({
     scope,
@@ -179,8 +178,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
           payload: {
             final_outcome: decision.outcome,
             decision_notes: decision.notes.trim(),
-            conditional_requirements:
-              decision.outcome === "CONDITIONAL" ? decision.conditionalRequirements.trim() : "",
+            conditional_requirements: decision.outcome === "CONDITIONAL" ? decision.conditionalRequirements.trim() : "",
           },
         });
         recorded.add(outcomeId);
@@ -217,7 +215,9 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
 
   const stagedIds = Object.keys(staged).map(Number);
   const incomplete = stagedIds.filter((outcomeId) => missingRequirements(staged[outcomeId]));
-  const failedIds = Object.keys(failures).map(Number).filter((oid) => oid in staged);
+  const failedIds = Object.keys(failures)
+    .map(Number)
+    .filter((oid) => oid in staged);
 
   return {
     staged,

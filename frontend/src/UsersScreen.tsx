@@ -7,14 +7,7 @@ import { UserPlusIcon } from "./Icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import {
-  type Choices,
-  createManagedUser,
-  getManagedUsers,
-  type ManagedUser,
-  type UserRole,
-  errorMessage,
-} from "./api";
+import { type Choices, createManagedUser, getManagedUsers, type ManagedUser, type UserRole, errorMessage } from "./api";
 import { EmptyState } from "./EmptyState";
 import { Alert } from "./Alert";
 import { Field } from "./Field";
@@ -70,58 +63,59 @@ function CreateUserDialog({
       canClose={!mutation.isPending}
       closeOnBackdrop={!issued}
     >
-        {issued ? (
-          <TemporaryPasswordIssued issued={issued} onDone={close} />
-        ) : (
-          <form
-            className="stack stack--4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const form = new FormData(event.currentTarget);
-              mutation.mutate({
-                email: String(form.get("email") ?? "").trim(),
-                first_name: String(form.get("first_name") ?? "").trim(),
-                last_name: String(form.get("last_name") ?? "").trim(),
-                role: String(form.get("role") ?? "instructor") as UserRole,
-                is_active: true,
-              });
-            }}
-          >
-            <div className="users-form-grid">
-              <Field label="First name" look="label">
-                {(control) => <input {...control} data-dialog-autofocus name="first_name" autoComplete="off" />}
-              </Field>
-              <Field label="Last name" look="label">
-                {(control) => <input {...control} name="last_name" autoComplete="off" />}
-              </Field>
-              <Field className="users-form-wide" error={emailError} label="Email address" look="label">
-                {(control) => <input {...control} required type="email" name="email" autoComplete="off" />}
-              </Field>
-              <Field className="users-form-wide" label="Role" look="label">
-                {(control) => (
-                  <select {...control} name="role" defaultValue="instructor">
-                    {roles.map((choice) => (
-                      <option key={choice.value} value={choice.value}>{choice.label}</option>
-                    ))}
-                  </select>
-                )}
-              </Field>
-            </div>
-            <p className="users-form-note meta">
-              A temporary password is created for them. They'll choose their own when they first
-              sign in.
-            </p>
-            {errors?.banner && <Alert>{errors.banner}</Alert>}
-            <div className="action-row users-dialog-actions">
-              <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" disabled={mutation.isPending}>
-                {mutation.isPending ? "Adding…" : "Add user"}
-              </Button>
-            </div>
-          </form>
-        )}
+      {issued ? (
+        <TemporaryPasswordIssued issued={issued} onDone={close} />
+      ) : (
+        <form
+          className="stack stack--4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            mutation.mutate({
+              email: String(form.get("email") ?? "").trim(),
+              first_name: String(form.get("first_name") ?? "").trim(),
+              last_name: String(form.get("last_name") ?? "").trim(),
+              role: String(form.get("role") ?? "instructor") as UserRole,
+              is_active: true,
+            });
+          }}
+        >
+          <div className="users-form-grid">
+            <Field label="First name" look="label">
+              {(control) => <input {...control} data-dialog-autofocus name="first_name" autoComplete="off" />}
+            </Field>
+            <Field label="Last name" look="label">
+              {(control) => <input {...control} name="last_name" autoComplete="off" />}
+            </Field>
+            <Field className="users-form-wide" error={emailError} label="Email address" look="label">
+              {(control) => <input {...control} required type="email" name="email" autoComplete="off" />}
+            </Field>
+            <Field className="users-form-wide" label="Role" look="label">
+              {(control) => (
+                <select {...control} name="role" defaultValue="instructor">
+                  {roles.map((choice) => (
+                    <option key={choice.value} value={choice.value}>
+                      {choice.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          </div>
+          <p className="users-form-note meta">
+            A temporary password is created for them. They'll choose their own when they first sign in.
+          </p>
+          {errors?.banner && <Alert>{errors.banner}</Alert>}
+          <div className="action-row users-dialog-actions">
+            <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={mutation.isPending}>
+              {mutation.isPending ? "Adding…" : "Add user"}
+            </Button>
+          </div>
+        </form>
+      )}
     </Dialog>
   );
 }
@@ -141,13 +135,14 @@ export function UsersScreen(): React.ReactElement {
 
   const paged = usePagedQuery({
     queryKey: keys.managedUsers.page(page, searched, role, status),
-    queryFn: () => getManagedUsers({
-      page,
-      page_size: PAGE_SIZE,
-      search: searched || undefined,
-      role: role || undefined,
-      is_active: status ? status === "active" : undefined,
-    }),
+    queryFn: () =>
+      getManagedUsers({
+        page,
+        page_size: PAGE_SIZE,
+        search: searched || undefined,
+        role: role || undefined,
+        is_active: status ? status === "active" : undefined,
+      }),
     page,
     pageSize: PAGE_SIZE,
     onPage: filters.setPage,
@@ -190,7 +185,9 @@ export function UsersScreen(): React.ReactElement {
           <select value={role} onChange={(event) => filters.set({ role: event.target.value })}>
             <option value="">All roles</option>
             {roles.map((choice) => (
-              <option key={choice.value} value={choice.value}>{choice.label}</option>
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
             ))}
           </select>
         </label>
@@ -206,7 +203,9 @@ export function UsersScreen(): React.ReactElement {
       </div>
 
       <div className="users-info-note meta">
-        <span aria-hidden="true" className="mark mark--small">i</span>
+        <span aria-hidden="true" className="mark mark--small">
+          i
+        </span>
         Master authority is granted separately from a user's role.
       </div>
 
@@ -241,7 +240,9 @@ export function UsersScreen(): React.ReactElement {
                   render: (user) => (
                     <>
                       <strong>{user.full_name}</strong>
-                      <span className="users-email meta"><EmailAddress address={user.email} /></span>
+                      <span className="users-email meta">
+                        <EmailAddress address={user.email} />
+                      </span>
                     </>
                   ),
                 },
@@ -249,16 +250,24 @@ export function UsersScreen(): React.ReactElement {
                 {
                   key: "authority",
                   header: "Master authority",
-                  render: (user) => <span className="users-authority-summary">{authoritySummary(user, authorities)}</span>,
+                  render: (user) => (
+                    <span className="users-authority-summary">{authoritySummary(user, authorities)}</span>
+                  ),
                 },
                 {
                   key: "status",
                   header: "Status",
                   render: (user) => (
-                    <Badge dot tone={user.is_active ? "success" : "neutral"}>{user.is_active ? "Active" : "Inactive"}</Badge>
+                    <Badge dot tone={user.is_active ? "success" : "neutral"}>
+                      {user.is_active ? "Active" : "Inactive"}
+                    </Badge>
                   ),
                 },
-                { key: "login", header: "Last active", render: (user) => formatShortDateTime(user.last_login, "Never") },
+                {
+                  key: "login",
+                  header: "Last active",
+                  render: (user) => formatShortDateTime(user.last_login, "Never"),
+                },
                 {
                   key: "action",
                   header: "Action",

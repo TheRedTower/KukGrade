@@ -53,8 +53,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const resolvedTheme: "light" | "dark" =
-    preference === "system" ? (systemDark ? "dark" : "light") : preference;
+  const resolvedTheme: "light" | "dark" = preference === "system" ? (systemDark ? "dark" : "light") : preference;
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", resolvedTheme);

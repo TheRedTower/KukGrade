@@ -34,7 +34,9 @@ function mappingPayload(choices: Choices, rank: string): MappingPayload {
   return {
     column_mapping: mapping,
     defaults: rank && !mapping.current_rank ? { current_rank: rank } : {},
-    extra_columns: Object.entries(choices).filter(([, choice]) => choice === EXTRA).map(([header]) => header),
+    extra_columns: Object.entries(choices)
+      .filter(([, choice]) => choice === EXTRA)
+      .map(([header]) => header),
   };
 }
 
@@ -100,11 +102,13 @@ export function ImportMatchColumns({
   const [rankDefault, setRankDefault] = useState(batch.defaults.current_rank ?? "");
   const [typed, setTyped] = useState<string[]>([]);
   const unsavedCells = useDirtySet();
-  const [acknowledged, setAcknowledged] = useState(() => mappingKey({
-    column_mapping: batch.column_mapping,
-    defaults: batch.defaults,
-    extra_columns: batch.extra_columns,
-  }));
+  const [acknowledged, setAcknowledged] = useState(() =>
+    mappingKey({
+      column_mapping: batch.column_mapping,
+      defaults: batch.defaults,
+      extra_columns: batch.extra_columns,
+    }),
+  );
   const { columnFor, clashes } = useMemo(() => readChoices(choices), [choices]);
   const saved = Object.keys(batch.column_mapping).length > 0;
   const draftPayload = mappingPayload(choices, rankDefault);
@@ -218,8 +222,8 @@ export function ImportMatchColumns({
               Match your columns
             </h2>
             <p className="subtext">
-              Set what each column holds, above it. Then type into any cell to fix or fill it:
-              the file itself is never changed, and your fix is what KukGrade imports.
+              Set what each column holds, above it. Then type into any cell to fix or fill it: the file itself is never
+              changed, and your fix is what KukGrade imports.
             </p>
           </div>
           {saved && previewRows.length ? (
@@ -297,15 +301,16 @@ export function ImportMatchColumns({
             {errorMessage(save.error, "The columns could not be saved. Try again in a moment.")}
           </Alert>
         ) : null}
-        {correct.isError ? (
-          <ErrorText>
-            {errorMessage(correct.error, "That fix could not be saved.")}
-          </ErrorText>
-        ) : null}
+        {correct.isError ? <ErrorText>{errorMessage(correct.error, "That fix could not be saved.")}</ErrorText> : null}
 
         {/* The file's own columns side by side, as in the spreadsheet: this one
             table scrolls sideways, so it can be reached and named by keyboard. */}
-        <div className="card card--flush scroll-region" role="region" aria-label="Your file's columns and first rows" tabIndex={0}>
+        <div
+          className="card card--flush scroll-region"
+          role="region"
+          aria-label="Your file's columns and first rows"
+          tabIndex={0}
+        >
           <table className="ix-table ix-table-cells">
             <thead>
               <tr className="eyebrow--muted">
@@ -320,7 +325,10 @@ export function ImportMatchColumns({
                         What “{header}” holds
                       </label>
                       <select
-                        className={cx("ix-col-select", clashes.has(choice) ? "ix-col-select-clash" : suggested && "ix-col-select-suggested")}
+                        className={cx(
+                          "ix-col-select",
+                          clashes.has(choice) ? "ix-col-select-clash" : suggested && "ix-col-select-suggested",
+                        )}
                         id={`ix-col-${index}`}
                         disabled={save.isPending || correct.isPending}
                         value={choice}
@@ -341,7 +349,10 @@ export function ImportMatchColumns({
                 {typedColumns.map((field) => (
                   <th key={`typed-${field}`} scope="col">
                     <span className="ix-col-name">
-                      {fieldName(field)} <Badge dot tone="info">Typed in</Badge>
+                      {fieldName(field)}{" "}
+                      <Badge dot tone="info">
+                        Typed in
+                      </Badge>
                     </span>
                     {withFixes.has(field) ? null : (
                       <Button variant="link" onClick={() => setTyped(typed.filter((name) => name !== field))}>
@@ -363,7 +374,9 @@ export function ImportMatchColumns({
               ) : rows.isPending ? (
                 <tr>
                   <td colSpan={batch.detected_headers.length + typedColumns.length + 2}>
-                    <span className="subtext" role="status">Reading the first rows…</span>
+                    <span className="subtext" role="status">
+                      Reading the first rows…
+                    </span>
                   </td>
                 </tr>
               ) : (
@@ -380,7 +393,12 @@ export function ImportMatchColumns({
                             {isField ? (
                               cell(row, choice, header)
                             ) : (
-                              <span className={cx("ix-cell-text scroll-region__nowrap", choice === EXTRA ? "subtext" : "ix-struck")}>
+                              <span
+                                className={cx(
+                                  "ix-cell-text scroll-region__nowrap",
+                                  choice === EXTRA ? "subtext" : "ix-struck",
+                                )}
+                              >
                                 {row.cells[header] || "(blank)"}
                               </span>
                             )}
@@ -391,11 +409,11 @@ export function ImportMatchColumns({
                         <td key={`typed-${field}`}>{cell(row, field, null)}</td>
                       ))}
                       <td className="ix-cell-reading scroll-region__wide">
-                        <Badge dot tone={state.tone}>{state.label}</Badge>
+                        <Badge dot tone={state.tone}>
+                          {state.label}
+                        </Badge>
                         {row.outcome === "REVIEW_REQUIRED" && row.issues.length ? (
-                          <span className="subtext">
-                            {row.issues.slice(0, 2).join(" ")}
-                          </span>
+                          <span className="subtext">{row.issues.slice(0, 2).join(" ")}</span>
                         ) : null}
                       </td>
                     </tr>
@@ -406,8 +424,8 @@ export function ImportMatchColumns({
           </table>
         </div>
         <p className="subtext ix-flush">
-          These are the first {Math.min(PREVIEW_ROWS, batch.row_counts.total)} of {batch.row_counts.total} rows. In the next step every
-          row can be checked and fixed the same way. Columns left out are struck through; Status is
+          These are the first {Math.min(PREVIEW_ROWS, batch.row_counts.total)} of {batch.row_counts.total} rows. In the
+          next step every row can be checked and fixed the same way. Columns left out are struck through; Status is
           Active where none is given.
         </p>
       </section>
@@ -423,7 +441,9 @@ export function ImportMatchColumns({
             </span>
           ) : null}
           {dirty || unsavedCells.any || correct.isPending || correct.isError ? (
-            <span className="ix-why error-text" role="status">Save the visible changes before continuing.</span>
+            <span className="ix-why error-text" role="status">
+              Save the visible changes before continuing.
+            </span>
           ) : null}
           {blockedWhy ? (
             <span className="ix-why error-text" id="ix-match-why">
@@ -433,7 +453,16 @@ export function ImportMatchColumns({
           <Button
             aria-describedby={blockedWhy ? "ix-match-why" : undefined}
             variant="primary"
-            disabled={Boolean(blockedWhy) || !saved || dirty || save.isPending || save.isError || unsavedCells.any || correct.isPending || correct.isError}
+            disabled={
+              Boolean(blockedWhy) ||
+              !saved ||
+              dirty ||
+              save.isPending ||
+              save.isError ||
+              unsavedCells.any ||
+              correct.isPending ||
+              correct.isError
+            }
             onClick={onContinue}
           >
             Continue to review all {batch.row_counts.total} rows

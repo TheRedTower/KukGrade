@@ -51,7 +51,12 @@ export function RecordPage({
   if (status === "missing") {
     return (
       <section aria-labelledby={titleId} className="page" data-testid={testIdFor}>
-        <PageHeader back={back} subtitle="It may have been removed, or the link may be wrong." title={missing} titleId={titleId} />
+        <PageHeader
+          back={back}
+          subtitle="It may have been removed, or the link may be wrong."
+          title={missing}
+          titleId={titleId}
+        />
       </section>
     );
   }

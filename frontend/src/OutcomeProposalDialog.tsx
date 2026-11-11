@@ -129,25 +129,17 @@ export function OutcomeProposalDialog({
           </label>
         </div>
 
-        {submitError && (
-          <ErrorText field>
-            {submitError}
-          </ErrorText>
-        )}
+        {submitError && <ErrorText field>{submitError}</ErrorText>}
 
         <p className="opd-footer-text subtext">
-          A proposal does not finalise the grading or promote the candidate. An authorised
-          Master records the final decision.
+          A proposal does not finalise the grading or promote the candidate. An authorised Master records the final
+          decision.
         </p>
         <div className="action-row dialog__actions">
           <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isSubmitting || !evidenceLoaded}
-          >
+          <Button type="submit" variant="primary" disabled={isSubmitting || !evidenceLoaded}>
             {isSubmitting ? "Submitting…" : "Submit proposal"}
           </Button>
         </div>

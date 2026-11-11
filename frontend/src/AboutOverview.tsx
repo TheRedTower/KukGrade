@@ -25,8 +25,8 @@ export function AboutOverview() {
           </h2>
           <p className="st-eyebrow eyebrow--muted">People · Progress · Purpose</p>
           <p className="st-row-description subtext">
-            Grading management for Kuk Sool Won schools: students, syllabus, gradings and
-            promotions. Free and open source, and run by your own school.
+            Grading management for Kuk Sool Won schools: students, syllabus, gradings and promotions. Free and open
+            source, and run by your own school.
           </p>
         </div>
         <p className="st-version-tile">
@@ -35,11 +35,7 @@ export function AboutOverview() {
         </p>
       </section>
 
-      {about.isError ? (
-        <Alert>
-          {errorMessage(about.error, "The version could not be loaded.")}
-        </Alert>
-      ) : null}
+      {about.isError ? <Alert>{errorMessage(about.error, "The version could not be loaded.")}</Alert> : null}
 
       <section aria-labelledby="st-version-details" className="card stack">
         <div className="action-row">
@@ -107,8 +103,8 @@ export function AboutOverview() {
       <section aria-labelledby="st-updates" className="card">
         <h2 id="st-updates">Updates</h2>
         <p className="st-row-description subtext">
-          KukGrade does not look for updates by itself. Your administrator installs new versions,
-          and this page shows the version in use.
+          KukGrade does not look for updates by itself. Your administrator installs new versions, and this page shows
+          the version in use.
         </p>
       </section>
     </>

@@ -59,79 +59,80 @@ export function StudentEditDialog({
 
   return (
     <Dialog title="Edit student record" closeLabel="Close dialog" onClose={onClose} canClose={!saving}>
+      {form.banner && <Alert className="form-alert">{form.banner}</Alert>}
 
-        {form.banner && (
-          <Alert className="form-alert">{form.banner}</Alert>
-        )}
+      <form className="stack" onSubmit={save} noValidate>
+        <div className="stack">
+          <Field
+            label="WKSA ID"
+            error={form.errorFor("wksa_id")}
+            hint={
+              student.wksa_id_can_change
+                ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
+                : "Correct a mistyped black belt ID. It never goes back to a student ID."
+            }
+          >
+            {(control) => (
+              <input
+                {...control}
+                type="text"
+                value={wksaId}
+                onChange={(e) => setWksaId(e.target.value)}
+                disabled={saving}
+              />
+            )}
+          </Field>
 
-        <form className="stack" onSubmit={save} noValidate>
-          <div className="stack">
-            <Field
-              label="WKSA ID"
-              error={form.errorFor("wksa_id")}
-              hint={
-                student.wksa_id_can_change
-                  ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
-                  : "Correct a mistyped black belt ID. It never goes back to a student ID."
-              }
-            >
-              {(control) => (
-                <input {...control} type="text" value={wksaId} onChange={(e) => setWksaId(e.target.value)} disabled={saving} />
-              )}
-            </Field>
-
-            <div className="form-row-grid-2">
-              <Field label="First name" required error={form.errorFor("first_name")}>
-                {(control) => (
-                  <input
-                    {...control}
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    disabled={saving}
-                    data-dialog-autofocus
-                  />
-                )}
-              </Field>
-
-              <Field label="Last name" required error={form.errorFor("last_name")}>
-                {(control) => (
-                  <input {...control} type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={saving} />
-                )}
-              </Field>
-            </div>
-
-            <Field label="Date of birth" required error={form.errorFor("date_of_birth")}>
+          <div className="form-row-grid-2">
+            <Field label="First name" required error={form.errorFor("first_name")}>
               {(control) => (
                 <input
                   {...control}
-                  type="date"
-                  value={dob}
-                  max={todayIsoDate()}
-                  onChange={(e) => setDob(e.target.value)}
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  disabled={saving}
+                  data-dialog-autofocus
+                />
+              )}
+            </Field>
+
+            <Field label="Last name" required error={form.errorFor("last_name")}>
+              {(control) => (
+                <input
+                  {...control}
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                   disabled={saving}
                 />
               )}
             </Field>
           </div>
 
-          <div className="action-row action-row--end">
-            <Button
-              variant="secondary"
-              onClick={onClose}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save changes"}
-            </Button>
-          </div>
-        </form>
+          <Field label="Date of birth" required error={form.errorFor("date_of_birth")}>
+            {(control) => (
+              <input
+                {...control}
+                type="date"
+                value={dob}
+                max={todayIsoDate()}
+                onChange={(e) => setDob(e.target.value)}
+                disabled={saving}
+              />
+            )}
+          </Field>
+        </div>
+
+        <div className="action-row action-row--end">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" disabled={saving}>
+            {saving ? "Saving..." : "Save changes"}
+          </Button>
+        </div>
+      </form>
     </Dialog>
   );
 }

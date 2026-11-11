@@ -26,10 +26,6 @@ import { PageHeader } from "./PageHeader";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Badge } from "./Badge";
 
-
-
-
-
 type FormattedActivityItem = {
   id: number;
   timeDisplay: string;
@@ -47,9 +43,7 @@ function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
     actorName: event.actor_name || event.actor_email || "System",
     summary: eventSummary(event),
     statusType: event.tone,
-    statusLabel: event.outcome_display
-      ? `${event.action_display} · ${event.outcome_display}`
-      : event.action_display,
+    statusLabel: event.outcome_display ? `${event.action_display} · ${event.outcome_display}` : event.action_display,
   };
 }
 
@@ -79,8 +73,7 @@ export function OverviewScreen() {
   });
 
   const openSession: GradingSession | undefined = openQuery.data?.results[0];
-  const upcomingSession: GradingSession | undefined =
-    upcomingQuery.data?.results.find((s) => s.id !== openSession?.id);
+  const upcomingSession: GradingSession | undefined = upcomingQuery.data?.results.find((s) => s.id !== openSession?.id);
 
   // 2. Fetch assessments for open session
   const assessmentsQuery = useQuery({
@@ -145,10 +138,7 @@ export function OverviewScreen() {
     (!!openSession && assessmentsQuery.isLoading);
 
   return (
-    <section
-      aria-labelledby="overview-heading"
-      className="page"
-    >
+    <section aria-labelledby="overview-heading" className="page">
       <PageHeader
         title="Overview"
         titleId="overview-heading"
@@ -163,8 +153,8 @@ export function OverviewScreen() {
 
       {openQuery.isError || upcomingQuery.isError ? (
         <div className="workspace-alert">
-            <Alert>The overview could not be loaded. Check your connection and try again.</Alert>
-          </div>
+          <Alert>The overview could not be loaded. Check your connection and try again.</Alert>
+        </div>
       ) : null}
 
       {/* Top 3-Column Grid */}
@@ -232,12 +222,8 @@ export function OverviewScreen() {
                       !
                     </span>
                     <div className="attention-item-info">
-                      <strong className="item-title">
-                        {item.candidate_student_name}
-                      </strong>
-                      <span className="meta">
-                        {item.statusDescription}
-                      </span>
+                      <strong className="item-title">{item.candidate_student_name}</strong>
+                      <span className="meta">{item.statusDescription}</span>
                     </div>
                     <span aria-hidden="true" className="chevron-icon">
                       &rsaquo;
@@ -247,7 +233,15 @@ export function OverviewScreen() {
               ))}
             </div>
           ) : (
-            <EmptyState fill icon={<span className="all-clear-icon"><CheckCircleIcon className="overview-icon" size={20} /></span>} title="All clear">
+            <EmptyState
+              fill
+              icon={
+                <span className="all-clear-icon">
+                  <CheckCircleIcon className="overview-icon" size={20} />
+                </span>
+              }
+              title="All clear"
+            >
               No candidate assessments currently requiring review.
             </EmptyState>
           )}
@@ -263,15 +257,9 @@ export function OverviewScreen() {
                 <CalendarIcon className="overview-icon" size={20} />
               </div>
               <div className="upcoming-session-info">
-                <strong className="item-title">
-                  {upcomingSession.title}
-                </strong>
-                <span className="upcoming-session-date meta">
-                  {formatSessionDate(upcomingSession.grading_date)}
-                </span>
-                {upcomingSession.location && (
-                  <span className="meta">{upcomingSession.location}</span>
-                )}
+                <strong className="item-title">{upcomingSession.title}</strong>
+                <span className="upcoming-session-date meta">{formatSessionDate(upcomingSession.grading_date)}</span>
+                {upcomingSession.location && <span className="meta">{upcomingSession.location}</span>}
               </div>
               <span aria-hidden="true" className="chevron-icon">
                 &rsaquo;
@@ -297,53 +285,55 @@ export function OverviewScreen() {
           so only for someone who may read it; nobody else is told there is
           nothing. */}
       {canViewAudit && (
-      <section className="stack">
-        <div className="action-row">
-          <h2 className="section-title">Recent activity</h2>
-          <Link className={buttonClass({ variant: "link" })} to="/audit">
-            View all activity <span aria-hidden="true">&rarr;</span>
-          </Link>
-        </div>
+        <section className="stack">
+          <div className="action-row">
+            <h2 className="section-title">Recent activity</h2>
+            <Link className={buttonClass({ variant: "link" })} to="/audit">
+              View all activity <span aria-hidden="true">&rarr;</span>
+            </Link>
+          </div>
 
-        {recentActivities.length > 0 ? (
-          <ResponsiveTable
-            label="Recent activity"
-            rows={recentActivities}
-            rowKey={(activity) => activity.id}
-            columns={[
-              { key: "time", header: "Time", render: (activity) => <span className="meta">{activity.timeDisplay}</span> },
-              { key: "actor", header: "By", render: (activity) => <strong>{activity.actorName}</strong> },
-              { key: "event", header: "Event", primary: true, render: (activity) => activity.summary },
-              {
-                key: "status",
-                header: "Status",
-                render: (activity) => (
-                  <Badge
-                    tone={activity.statusType}
-                    icon={
-                      activity.statusType === "success" ? (
-                        <CheckIcon size={14} />
-                      ) : activity.statusType === "warning" ? (
-                        <AlertCircleIcon className="overview-icon" size={14} />
-                      ) : activity.statusType === "info" ? (
-                        <ClockIcon className="overview-icon" size={14} />
-                      ) : null
-                    }
-                  >
-                    {activity.statusLabel}
-                  </Badge>
-                ),
-              },
-            ]}
-          />
-        ) : (
-          isInitialLoading ? (
+          {recentActivities.length > 0 ? (
+            <ResponsiveTable
+              label="Recent activity"
+              rows={recentActivities}
+              rowKey={(activity) => activity.id}
+              columns={[
+                {
+                  key: "time",
+                  header: "Time",
+                  render: (activity) => <span className="meta">{activity.timeDisplay}</span>,
+                },
+                { key: "actor", header: "By", render: (activity) => <strong>{activity.actorName}</strong> },
+                { key: "event", header: "Event", primary: true, render: (activity) => activity.summary },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (activity) => (
+                    <Badge
+                      tone={activity.statusType}
+                      icon={
+                        activity.statusType === "success" ? (
+                          <CheckIcon size={14} />
+                        ) : activity.statusType === "warning" ? (
+                          <AlertCircleIcon className="overview-icon" size={14} />
+                        ) : activity.statusType === "info" ? (
+                          <ClockIcon className="overview-icon" size={14} />
+                        ) : null
+                      }
+                    >
+                      {activity.statusLabel}
+                    </Badge>
+                  ),
+                },
+              ]}
+            />
+          ) : isInitialLoading ? (
             <LoadingState>Loading recent activity…</LoadingState>
           ) : (
             <EmptyState title="No recent activity recorded." />
-          )
-        )}
-      </section>
+          )}
+        </section>
       )}
     </section>
   );

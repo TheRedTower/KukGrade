@@ -75,14 +75,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // menu. What it offers is the server's to say (SessionActionsMenu).
   const hasSessionActions = Boolean(
     session &&
-      (session.can_open ||
-        session.can_lock ||
-        session.can_complete ||
-        session.can_cancel ||
-        currentUser?.can_read_audit_log ||
-        session.can_be_deleted ||
-        session.can_be_archived ||
-        session.can_be_restored),
+    (session.can_open ||
+      session.can_lock ||
+      session.can_complete ||
+      session.can_cancel ||
+      currentUser?.can_read_audit_log ||
+      session.can_be_deleted ||
+      session.can_be_archived ||
+      session.can_be_restored),
   );
   // Finishing a session can take the menu's button away with focus still on it.
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -165,10 +165,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const searchStatus: "idle" | "searching" | "failed" =
     searchTerm === "" ? "idle" : searchQuery.data ? "idle" : searchQuery.isError ? "failed" : "searching";
   const matching = useMemo(
-    () =>
-      searchTerm === ""
-        ? null
-        : new Set((searchQuery.data?.results ?? []).map((row) => row.id)),
+    () => (searchTerm === "" ? null : new Set((searchQuery.data?.results ?? []).map((row) => row.id))),
     [searchTerm, searchQuery.data],
   );
   const filteredCandidates = useMemo(
@@ -184,9 +181,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // Who can be prepared, started or marked a no-show now is served on each
   // row, by the same rules the writes check.
-  const unpreparedIds = enrichedCandidates.filter((item) => item.candidate.can_prepare_assessment).map((item) => item.candidate.id);
+  const unpreparedIds = enrichedCandidates
+    .filter((item) => item.candidate.can_prepare_assessment)
+    .map((item) => item.candidate.id);
   const preparedIds = enrichedCandidates.flatMap((item) => (item.assessment?.can_start ? [item.assessment.id] : []));
-  const attendanceCandidates = enrichedCandidates.filter((item) => item.candidate.can_be_marked_absent).map(toAttendanceCandidate);
+  const attendanceCandidates = enrichedCandidates
+    .filter((item) => item.candidate.can_be_marked_absent)
+    .map(toAttendanceCandidate);
 
   const status = recordStatus(id, sessionQuery);
   if (status || !session) {
@@ -220,7 +221,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     if (!confirm) return;
     if (confirm.action === "DELETE") deleteSessionMutation.mutate();
     else if (confirm.action === "ARCHIVE" || confirm.action === "RESTORE") archiveMutation.mutate(confirm.action);
-    else if (confirm.action === "CANCEL") updateSessionMutation.mutate({ status: "CANCELLED", cancellation_reason: cancellationReason });
+    else if (confirm.action === "CANCEL")
+      updateSessionMutation.mutate({ status: "CANCELLED", cancellation_reason: cancellationReason });
     else if (confirm.action === "OPEN") updateSessionMutation.mutate({ status: "OPEN" });
     else if (confirm.action === "LOCK") updateSessionMutation.mutate({ status: "LOCKED" });
     else updateSessionMutation.mutate({ status: "COMPLETED" });
@@ -240,18 +242,32 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         actions={
           <>
             {decided && (
-              <Link to={`/gradings/${session.id}/decisions`} className={buttonClass({ variant: "secondary" })} data-testid="gsd-final-decisions-btn">
+              <Link
+                to={`/gradings/${session.id}/decisions`}
+                className={buttonClass({ variant: "secondary" })}
+                data-testid="gsd-final-decisions-btn"
+              >
                 Final decisions →
               </Link>
             )}
             {decided && (
-              <Link to={`/gradings/${session.id}/promotions`} className={buttonClass({ variant: "secondary" })} data-testid="gsd-promotion-ledger-btn">
+              <Link
+                to={`/gradings/${session.id}/promotions`}
+                className={buttonClass({ variant: "secondary" })}
+                data-testid="gsd-promotion-ledger-btn"
+              >
                 Promotion ledger →
               </Link>
             )}
-            {hasSessionActions && <SessionActionsMenu session={session} user={currentUser} menu={menu} onAction={handleAction} />}
+            {hasSessionActions && (
+              <SessionActionsMenu session={session} user={currentUser} menu={menu} onAction={handleAction} />
+            )}
             {session.roster_open && (
-              <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })} data-testid="gsd-add-candidate-btn">
+              <Link
+                to={`/gradings/${session.id}/register`}
+                className={buttonClass({ variant: "primary" })}
+                data-testid="gsd-add-candidate-btn"
+              >
                 Add candidate <span aria-hidden="true">→</span>
               </Link>
             )}
@@ -268,8 +284,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {session.archived_at && (
         <Alert tone="info" data-testid="gsd-archived-note">
-          This session is archived, so it is left out of the list of gradings. Its results, decisions and
-          promotions are kept.
+          This session is archived, so it is left out of the list of gradings. Its results, decisions and promotions are
+          kept.
         </Alert>
       )}
 
@@ -282,7 +298,11 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           aria-label="Action required"
           icon={<WarningIcon size={18} />}
           action={
-            <Link to={`/gradings/${session.id}/decisions`} className={buttonClass({ variant: "ghost", small: true })} data-testid="gsd-review-decisions-btn">
+            <Link
+              to={`/gradings/${session.id}/decisions`}
+              className={buttonClass({ variant: "ghost", small: true })}
+              data-testid="gsd-review-decisions-btn"
+            >
               Review <span aria-hidden="true">→</span>
             </Link>
           }

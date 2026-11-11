@@ -60,11 +60,7 @@ describe("About: the overview", () => {
     const signedIn = fetchSignedInAs(authUser);
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) =>
-        url.endsWith("/api/about/")
-          ? jsonResponse(200, candidate)
-          : signedIn(url),
-      ),
+      vi.fn(async (url: string) => (url.endsWith("/api/about/") ? jsonResponse(200, candidate) : signedIn(url))),
     );
 
     render(<App />);
@@ -121,11 +117,13 @@ describe("About: the overview", () => {
   it("says so when the details cannot be loaded", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(async (url: string) =>
-        url.includes("/api/about/")
-          ? jsonResponse(500, { error: { code: "server_error", message: "Server error." } })
-          : signedInResponse(url, authUser),
-      ),
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/about/")
+            ? jsonResponse(500, { error: { code: "server_error", message: "Server error." } })
+            : signedInResponse(url, authUser),
+        ),
     );
 
     render(<App />);
@@ -230,11 +228,13 @@ describe("About: security", () => {
   it("says so when the document cannot be loaded", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(async (url: string) =>
-        url.includes("/documents/")
-          ? jsonResponse(404, { error: { code: "not_found", message: "Not found." } })
-          : signedInResponse(url, authUser),
-      ),
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/documents/")
+            ? jsonResponse(404, { error: { code: "not_found", message: "Not found." } })
+            : signedInResponse(url, authUser),
+        ),
     );
 
     render(<App />);

@@ -41,10 +41,7 @@ export interface CategoryGroup {
   isDone: boolean;
 }
 
-export function useCandidateAssessmentData(
-  numSessionId: number | undefined,
-  numCandidateId: number | undefined,
-) {
+export function useCandidateAssessmentData(numSessionId: number | undefined, numCandidateId: number | undefined) {
   const sessionEnabled = numSessionId !== undefined && !isNaN(numSessionId);
   const candidateEnabled = numCandidateId !== undefined && !isNaN(numCandidateId);
 

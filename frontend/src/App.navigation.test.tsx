@@ -4,9 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import { setClubTimeZone, todayIsoDate } from "./dates";
-import type {
-  AuthUser,
-} from "./api";
+import type { AuthUser } from "./api";
 import {
   authUser,
   ADMINISTRATOR_CAPABILITIES,
@@ -125,10 +123,7 @@ describe("Navigation rail and role-gated routes", () => {
 
   it("redirects an Authorised Master attempting direct URL access to /users", async () => {
     window.history.replaceState({}, "", "/users");
-    vi.stubGlobal(
-      "fetch",
-      fetchSignedInAs(masterInstructorUser),
-    );
+    vi.stubGlobal("fetch", fetchSignedInAs(masterInstructorUser));
 
     render(<App />);
 
@@ -140,10 +135,7 @@ describe("Navigation rail and role-gated routes", () => {
   });
 
   it("grants Audit access and displays the Audit link for an Authorised Master", async () => {
-    vi.stubGlobal(
-      "fetch",
-      fetchSignedInAs(masterInstructorUser),
-    );
+    vi.stubGlobal("fetch", fetchSignedInAs(masterInstructorUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -158,10 +150,7 @@ describe("Navigation rail and role-gated routes", () => {
   });
 
   it("grants full navigation and route access for an Administrator", async () => {
-    vi.stubGlobal(
-      "fetch",
-      fetchSignedInAs(adminUser),
-    );
+    vi.stubGlobal("fetch", fetchSignedInAs(adminUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -199,11 +188,13 @@ describe("The sidebar", () => {
   function stubSite(user: AuthUser = authUser) {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(async (url: string) =>
-        url.includes("/api/site/")
-          ? jsonResponse(200, { club_name: "Kuk Sool Won Testville", time_zone: "Europe/London" })
-          : signedInResponse(url, user),
-      ),
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/site/")
+            ? jsonResponse(200, { club_name: "Kuk Sool Won Testville", time_zone: "Europe/London" })
+            : signedInResponse(url, user),
+        ),
     );
   }
 
@@ -280,11 +271,13 @@ describe("The sidebar", () => {
   it("loads the club time zone before rendering a collapsed sidebar", async () => {
     window.localStorage.setItem("kukgrade-sidebar", "icons");
     setClubTimeZone(undefined);
-    const fetchMock = vi.fn().mockImplementation(async (url: string) =>
-      url.includes("/api/site/")
-        ? jsonResponse(200, { club_name: "Test club", time_zone: "Pacific/Auckland" })
-        : signedInResponse(url, authUser),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (url: string) =>
+        url.includes("/api/site/")
+          ? jsonResponse(200, { club_name: "Test club", time_zone: "Pacific/Auckland" })
+          : signedInResponse(url, authUser),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);

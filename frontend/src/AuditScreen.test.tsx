@@ -129,7 +129,13 @@ describe("AuditScreen", () => {
   });
 
   it("shows no history banner on the whole log, and clearing the filters leaves a history", async () => {
-    mockGetAuditSubject.mockResolvedValue({ kind: "user", id: "u", session_id: null, name: "Riley Khan", exists: true });
+    mockGetAuditSubject.mockResolvedValue({
+      kind: "user",
+      id: "u",
+      session_id: null,
+      name: "Riley Khan",
+      exists: true,
+    });
     const user = userEvent.setup();
     renderScreen("/audit?subject=user:u");
     await screen.findByTestId("audit-subject");
@@ -206,9 +212,7 @@ describe("AuditScreen", () => {
     await user.click(screen.getByRole("button", { name: "Next page" }));
 
     await waitFor(() => {
-      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
-        expect.objectContaining({ page: 2, page_size: 10 }),
-      );
+      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, page_size: 10 }));
     });
     expect(screen.getByText("Showing 11–20 of 25 events")).toBeInTheDocument();
   });
@@ -227,9 +231,7 @@ describe("AuditScreen", () => {
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
 
     await waitFor(() => {
-      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
-        expect.objectContaining({ action: undefined, page: 1 }),
-      );
+      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(expect.objectContaining({ action: undefined, page: 1 }));
     });
   });
 
@@ -245,9 +247,7 @@ describe("AuditScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     await waitFor(() => {
-      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
-        expect.objectContaining({ entity_id: undefined }),
-      );
+      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(expect.objectContaining({ entity_id: undefined }));
     });
   });
 });

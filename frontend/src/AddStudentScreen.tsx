@@ -5,11 +5,7 @@ import { PageHeader } from "./PageHeader";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import {
-  type Rank,
-  type StudentStatus,
-  createStudent,
-} from "./api";
+import { type Rank, type StudentStatus, createStudent } from "./api";
 import { Field } from "./Field";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
@@ -112,9 +108,7 @@ export function AddStudentScreen() {
         subtitle="Create a staff-only student record"
       />
 
-      {form.banner && (
-        <Alert className="form-alert">{form.banner}</Alert>
-      )}
+      {form.banner && <Alert className="form-alert">{form.banner}</Alert>}
 
       <form onSubmit={handleSubmit} noValidate className="stack">
         {/* Card 1: Identity */}
@@ -222,7 +216,9 @@ export function AddStudentScreen() {
                   disabled={isSubmitting}
                 >
                   {studentStatuses.map((choice) => (
-                    <option key={choice.value} value={choice.value}>{choice.label}</option>
+                    <option key={choice.value} value={choice.value}>
+                      {choice.label}
+                    </option>
                   ))}
                 </select>
               )}
@@ -232,18 +228,10 @@ export function AddStudentScreen() {
 
         {/* Actions Row */}
         <div className="action-row action-row--end">
-          <Button
-            variant="secondary"
-            onClick={() => navigate("/students")}
-            disabled={isSubmitting}
-          >
+          <Button variant="secondary" onClick={() => navigate("/students")} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" variant="primary" disabled={isSubmitting}>
             {isSubmitting ? "Creating..." : "Create student"}
           </Button>
         </div>

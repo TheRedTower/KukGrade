@@ -1,11 +1,7 @@
 import { useRef } from "react";
 import { type UseMutationOptions, useIsMutating, useQueryClient } from "@tanstack/react-query";
 
-import {
-  type CandidateAssessmentItem,
-  type CandidateAssessmentItemResult,
-  updateCandidateAssessmentItem,
-} from "./api";
+import { type CandidateAssessmentItem, type CandidateAssessmentItemResult, updateCandidateAssessmentItem } from "./api";
 import { keys } from "./queryKeys";
 
 type CandidateAssessmentItemSaved = Awaited<ReturnType<typeof updateCandidateAssessmentItem>>;
@@ -113,7 +109,9 @@ export function useItemWrites({
         // failed save) would land after these and put older counts over them,
         // with nothing left to correct it: it is cancelled first. Not awaited,
         // so the write does not stay pending while it is.
-        void queryClient.cancelQueries({ queryKey: summaryKey }).then(() => queryClient.setQueryData(summaryKey, counts));
+        void queryClient
+          .cancelQueries({ queryKey: summaryKey })
+          .then(() => queryClient.setQueryData(summaryKey, counts));
       } else {
         queryClient.invalidateQueries({ queryKey: summaryKey });
       }

@@ -6,13 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { ApiError, NETWORK_ERROR } from "./api";
-import type {
-  AuthUser,
-  CandidateOutcome,
-  GradingCandidate,
-  GradingSession,
-  Promotion,
-} from "./api";
+import type { AuthUser, CandidateOutcome, GradingCandidate, GradingSession, Promotion } from "./api";
 import { sessionServed } from "./appTestSupport";
 
 let mockCurrentUser: AuthUser = {
@@ -91,12 +85,14 @@ const mockSession: GradingSession = {
   completed_assessment_count: 0,
   awaiting_decision_count: 0,
   ...sessionServed("LOCKED"),
-  can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+  can_be_deleted: false,
+  archived_at: null,
+  can_be_archived: false,
+  can_be_restored: false,
   grading_date: "2026-10-15",
   location: "Main Dojang",
   notes: "Annual autumn examination",
 };
-
 
 // A locked session: every candidate's assessment is completed.
 const mockCandidates: GradingCandidate[] = [
@@ -347,10 +343,7 @@ const mockExistingPromotions: Promotion[] = [
   }),
 ];
 
-function renderScreen(
-  sessionId = 1,
-  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
-) {
+function renderScreen(sessionId = 1, queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/gradings/${sessionId}/promotions`]}>
@@ -421,21 +414,14 @@ describe("PromotionLedgerScreen", () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("heading", { name: "Autumn 2026 Grading — Promotion Ledger" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Autumn 2026 Grading — Promotion Ledger" })).toBeInTheDocument();
     });
 
     // Back to the session the ledger belongs to.
-    expect(screen.getByRole("link", { name: "Autumn 2026 Grading" })).toHaveAttribute(
-      "href",
-      "/gradings/1",
-    );
+    expect(screen.getByRole("link", { name: "Autumn 2026 Grading" })).toHaveAttribute("href", "/gradings/1");
 
     // Summary banner (Alex and Beth are eligible, Carlos is already promoted)
-    expect(
-      screen.getByText("2 Candidates Finalised with Pass · Eligible for Promotion"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("2 Candidates Finalised with Pass · Eligible for Promotion")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: /Promote Qualified Cohort \(2 Candidates\)/i,
@@ -453,7 +439,12 @@ describe("PromotionLedgerScreen", () => {
 
   it("uses the server's black-belt ID blocker instead of marking a pass eligible", async () => {
     mockGetPromotionEligibility.mockResolvedValue([
-      { candidate: 101, outcome: 101, eligible: false, reason: "Record Alex Mercer's black belt ID before promoting them to JKN." },
+      {
+        candidate: 101,
+        outcome: 101,
+        eligible: false,
+        reason: "Record Alex Mercer's black belt ID before promoting them to JKN.",
+      },
       { candidate: 102, outcome: 102, eligible: true, reason: "" },
       { candidate: 103, outcome: 103, eligible: false, reason: "Outcome already has a promotion." },
       { candidate: 104, outcome: 104, eligible: false, reason: "Only a pass can be promoted." },
@@ -482,9 +473,7 @@ describe("PromotionLedgerScreen", () => {
     await user.click(within(alert).getByRole("button", { name: "Try again" }));
 
     expect(await screen.findByText("Carlos Rivera")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Promote Qualified Cohort \(2 Candidates\)/i }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Promote Qualified Cohort \(2 Candidates\)/i })).toBeEnabled();
   });
 
   it("displays correct eligibility badges and action states across candidate statuses", async () => {
@@ -504,9 +493,7 @@ describe("PromotionLedgerScreen", () => {
     const row102 = screen.getByTestId("promotion-row-102");
     expect(row102).toHaveTextContent("Pass (Finalised)");
     expect(row102).toHaveTextContent("Eligible for Blue Stripe");
-    expect(screen.getByTestId("promote-candidate-btn-102")).toHaveTextContent(
-      "Promote to Blue Stripe",
-    );
+    expect(screen.getByTestId("promote-candidate-btn-102")).toHaveTextContent("Promote to Blue Stripe");
 
     // Row 103 (Carlos Rivera): Already promoted to Yellow
     const row103 = screen.getByTestId("promotion-row-103");
@@ -597,9 +584,7 @@ describe("PromotionLedgerScreen", () => {
     const anaRow = await screen.findByTestId("promotion-row-7");
     expect(anaRow).toHaveTextContent("Blue");
     expect(anaRow).not.toHaveTextContent("Promoted ✓");
-    expect(screen.getByTestId("promote-candidate-btn-7")).toHaveTextContent(
-      "Promote to Red stripe",
-    );
+    expect(screen.getByTestId("promote-candidate-btn-7")).toHaveTextContent("Promote to Red stripe");
     expect(screen.getByTestId("promotion-row-9")).toHaveTextContent("Promoted ✓");
   });
 
@@ -624,13 +609,9 @@ describe("PromotionLedgerScreen", () => {
     await user.click(screen.getByTestId("promote-candidate-btn-101"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Confirm Student Promotion" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Confirm Student Promotion" })).toBeInTheDocument();
     expect(screen.getByText("Alex Mercer", { selector: ".pl-modal-name" })).toBeInTheDocument();
-    expect(
-      screen.getByText("Effective date:", { exact: false }),
-    ).toHaveTextContent("15 Oct 2026");
+    expect(screen.getByText("Effective date:", { exact: false })).toHaveTextContent("15 Oct 2026");
 
     // Enter optional ceremonial remarks
     const notesTextarea = screen.getByLabelText("Promotion Notes (Optional)");
@@ -646,9 +627,7 @@ describe("PromotionLedgerScreen", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Successfully promoted Alex Mercer to Yellow!"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Successfully promoted Alex Mercer to Yellow!")).toBeInTheDocument();
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -671,9 +650,7 @@ describe("PromotionLedgerScreen", () => {
 
     renderScreen(1, queryClient);
     await user.click(await screen.findByTestId("promote-candidate-btn-101"));
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Promote to Yellow" }),
-    );
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Promote to Yellow" }));
 
     await waitFor(() => {
       expect(queryClient.getQueryState(["students", "detail", 50])?.isInvalidated).toBe(true);
@@ -781,11 +758,15 @@ describe("PromotionLedgerScreen", () => {
     // Check candidate pills
     expect(screen.getByText("1.")).toBeInTheDocument();
     expect(screen.getByText("Alex Mercer", { selector: ".pl-chip-name" })).toBeInTheDocument();
-    expect(screen.getByText("Alex Mercer", { selector: ".pl-chip-name" }).closest("li")).toHaveTextContent("promoted to: Yellow");
+    expect(screen.getByText("Alex Mercer", { selector: ".pl-chip-name" }).closest("li")).toHaveTextContent(
+      "promoted to: Yellow",
+    );
 
     expect(screen.getByText("2.")).toBeInTheDocument();
     expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" })).toBeInTheDocument();
-    expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" }).closest("li")).toHaveTextContent("promoted to: Blue Stripe");
+    expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" }).closest("li")).toHaveTextContent(
+      "promoted to: Blue Stripe",
+    );
 
     // Metadata in right section: the session's grading date, labelled as such.
     expect(screen.getByText("15 Oct 2026", { selector: "dd" })).toBeInTheDocument();
@@ -803,9 +784,7 @@ describe("PromotionLedgerScreen", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Successfully promoted all 2 qualified candidates!"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Successfully promoted all 2 qualified candidates!")).toBeInTheDocument();
     });
     expect(screen.queryByRole("dialog", { name: "Promotion summary" })).not.toBeInTheDocument();
   });
@@ -827,9 +806,7 @@ describe("PromotionLedgerScreen", () => {
         name: /Promote Qualified Cohort \(2 Candidates\)/i,
       }),
     );
-    expect(
-      screen.getByRole("dialog", { name: "Promotion summary" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Promotion summary" })).toBeInTheDocument();
 
     // A promotion cannot be taken back, so the summary starts on Cancel.
     const cancelBtn = within(screen.getByRole("dialog", { name: "Promotion summary" })).getByRole("button", {
@@ -838,9 +815,7 @@ describe("PromotionLedgerScreen", () => {
     expect(cancelBtn).toHaveFocus();
     await user.click(cancelBtn);
 
-    expect(
-      screen.queryByRole("dialog", { name: "Promotion summary" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Promotion summary" })).not.toBeInTheDocument();
     expect(mockBulkPromoteCandidateOutcomes).not.toHaveBeenCalled();
   });
 
@@ -853,15 +828,11 @@ describe("PromotionLedgerScreen", () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(
-        screen.queryByText("Loading candidate promotion ledger…"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading candidate promotion ledger…")).not.toBeInTheDocument();
     });
 
     expect(screen.getByText("Promotion authority needed")).toBeInTheDocument();
-    expect(
-      screen.getByText(/promoting students needs promotion authority/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/promoting students needs promotion authority/)).toBeInTheDocument();
 
     // Cohort promotion CTA is disabled
     const summaryBtn = screen.getByRole("button", {
@@ -954,20 +925,12 @@ describe("PromotionLedgerScreen", () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(
-        screen.queryByText("Loading candidate promotion ledger…"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading candidate promotion ledger…")).not.toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText("0 Candidates Finalised with Pass · Eligible for Promotion"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("0 Candidates Finalised with Pass · Eligible for Promotion")).toBeInTheDocument();
 
-    expect(
-      screen.getByText(
-        "All qualified candidates in this cohort have already been promoted.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("All qualified candidates in this cohort have already been promoted.")).toBeInTheDocument();
 
     const summaryBtn = screen.getByRole("button", {
       name: /Promote Qualified Cohort \(0 Candidates\)/i,

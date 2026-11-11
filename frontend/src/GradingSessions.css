@@ -183,7 +183,10 @@
   height: 26px;
   border: 2px solid var(--color-text-muted);
   color: transparent;
-  transition: border-color var(--duration) ease, background var(--duration) ease, color var(--duration) ease;
+  transition:
+    border-color var(--duration) ease,
+    background var(--duration) ease,
+    color var(--duration) ease;
 }
 
 .gsd-step-completed .gsd-step-circle {
@@ -273,4 +276,3 @@
 .gsd-notes-actions {
   justify-content: flex-start;
 }
-

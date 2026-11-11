@@ -34,9 +34,7 @@ describe("BeltSwatch", () => {
 
   it("draws no band for a rank without a stripe", () => {
     const { container } = render(
-      <BeltSwatch
-        rank={{ ...blueStripe, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0 }}
-      />,
+      <BeltSwatch rank={{ ...blueStripe, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0 }} />,
     );
 
     expect(container.querySelector(".belt")).toHaveClass("belt-blue");
@@ -45,9 +43,7 @@ describe("BeltSwatch", () => {
 
   it("draws two black bands on a brown belt for Dahn Bo", () => {
     const { container } = render(
-      <BeltSwatch
-        rank={{ ...blueStripe, belt_colour: "BROWN", stripe_colour: "BLACK", stripe_count: 2 }}
-      />,
+      <BeltSwatch rank={{ ...blueStripe, belt_colour: "BROWN", stripe_colour: "BLACK", stripe_count: 2 }} />,
     );
 
     expect(container.querySelector(".belt")).toHaveClass("belt-brown");

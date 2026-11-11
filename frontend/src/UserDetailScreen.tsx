@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { useChoices } from "./choices";
 import { keys } from "./queryKeys";
-import { splitServerErrors } from "./forms";
+import { ACCOUNT_FIELDS, splitServerErrors } from "./forms";
+import { MissingDetails } from "./MissingDetails";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -69,9 +70,9 @@ function AccountForm({
       onSaved("Account details saved.");
     },
   });
-  // The email and the rank have their place beside their boxes; anything else the server says goes above the buttons.
+  // Each field's error has its place beside its box; anything else the server says goes above the buttons.
   const errors = mutation.error
-    ? splitServerErrors(mutation.error, ["email", "rank"], "The account could not be saved.")
+    ? splitServerErrors(mutation.error, ACCOUNT_FIELDS, "The account could not be saved.")
     : null;
   const emailError = errors?.fields.email?.join(" ");
   const rankError = errors?.fields.rank?.join(" ");
@@ -85,14 +86,16 @@ function AccountForm({
       }}
     >
       <div className="users-form-grid">
-        <label className="field">
-          <span>First name</span>
-          <input value={firstName} onChange={(event) => setFirstName(event.target.value)} />
-        </label>
-        <label className="field">
-          <span>Last name</span>
-          <input value={lastName} onChange={(event) => setLastName(event.target.value)} />
-        </label>
+        <Field error={errors?.fields.first_name?.join(" ")} label="First name" look="label">
+          {(control) => (
+            <input {...control} required value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+          )}
+        </Field>
+        <Field error={errors?.fields.last_name?.join(" ")} label="Last name" look="label">
+          {(control) => (
+            <input {...control} required value={lastName} onChange={(event) => setLastName(event.target.value)} />
+          )}
+        </Field>
         <Field className="users-form-wide" error={emailError} label="Email address" look="label">
           {(control) => (
             <input
@@ -373,6 +376,7 @@ export function UserDetailScreen(): React.ReactElement {
     managedUser.first_name,
     managedUser.last_name,
     managedUser.role,
+    managedUser.rank,
     managedUser.is_active,
     managedUser.can_make_final_grading_decision,
     managedUser.can_promote_student,
@@ -402,6 +406,7 @@ export function UserDetailScreen(): React.ReactElement {
             <Badge dot tone={managedUser.is_active ? "success" : "neutral"}>
               {managedUser.is_active ? "Active" : "Inactive"}
             </Badge>
+            <MissingDetails user={managedUser} />
           </>
         }
         actions={
@@ -420,6 +425,11 @@ export function UserDetailScreen(): React.ReactElement {
       />
 
       {notice && <Alert tone="success">{notice}</Alert>}
+      {managedUser.missing_details.length > 0 && !viewOnly && (
+        <Alert tone="warning">
+          This account is missing details every account now needs. Fill them in under Account details and save.
+        </Alert>
+      )}
 
       <div className="split">
         <main>

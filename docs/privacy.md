@@ -23,8 +23,11 @@ personal details.
   records that one was written, by whom and when, and the text lives only on the
   assessment, which is kept with the student's grading history.
 
-Staff accounts appear in user-management events by email address; those events are
-visible to administrators only.
+A user-management event names the account as every record names a person ("Authority
+changed for KSN Jane Smith."), and keeps the account's email address in its details, which
+tell one person's administrator and instructor accounts apart. Those events are visible to
+administrators only. Events written before 2026-11-11 named the account by email address
+and are left as they were.
 
 ## Events written before this change
 

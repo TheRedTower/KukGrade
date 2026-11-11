@@ -39,9 +39,15 @@ const managedUser: ManagedUser = {
   must_change_password: false,
   temporary_password_expires_at: null,
   manageable: true,
+  missing_details: [],
   date_joined: "2025-02-14T09:00:00Z",
   last_login: "2026-09-14T18:43:00Z",
 };
+
+async function giveName(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+  await user.type(within(dialog).getByLabelText("First name"), "Casey");
+  await user.type(within(dialog).getByLabelText("Last name"), "Created");
+}
 
 function renderScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -91,6 +97,41 @@ describe("UsersScreen", () => {
     for (const header of screen.getAllByRole("columnheader")) {
       expect(header).toHaveAttribute("scope", "col");
     }
+  });
+
+  it("flags an account that still lacks a name or a rank, in the server's words", async () => {
+    mockGetManagedUsers.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        {
+          ...managedUser,
+          first_name: "",
+          last_name: "",
+          full_name: "Unnamed account",
+          rank: null,
+          rank_name: "",
+          missing_details: [
+            { value: "name", label: "Needs a name" },
+            { value: "rank", label: "Needs a rank" },
+          ],
+        },
+      ],
+    });
+    renderScreen();
+
+    const row = await screen.findByRole("row", { name: /Unnamed account/ });
+    expect(within(row).getByText("Needs a name")).toBeInTheDocument();
+    expect(within(row).getByText("Needs a rank")).toBeInTheDocument();
+    // No address stands in for the missing name.
+    expect(within(row).getByText("Unnamed account").tagName).toBe("STRONG");
+  });
+
+  it("flags nothing on an account that has all it needs", async () => {
+    renderScreen();
+    const row = await screen.findByRole("row", { name: /Riley Khan/ });
+    expect(within(row).queryByText(/^Needs a/)).not.toBeInTheDocument();
   });
 
   it("applies server-side search, role, status, and pagination", async () => {
@@ -143,14 +184,15 @@ describe("UsersScreen", () => {
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     // The server generates the password: there is nothing to type.
     expect(within(dialog).queryByLabelText(/password/i)).not.toBeInTheDocument();
+    await giveName(user, dialog);
     await user.type(within(dialog).getByLabelText("Email address"), "created@example.com");
     await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     expect(mockCreateManagedUser.mock.calls[0][0]).toEqual({
       email: "created@example.com",
-      first_name: "",
-      last_name: "",
+      first_name: "Casey",
+      last_name: "Created",
       role: "instructor",
       rank: 13,
       is_active: true,
@@ -184,17 +226,18 @@ describe("UsersScreen", () => {
       within(rank)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["Choose their rank", "KSN", "PSBN", "SBN", "PKJN"]);
+    ).toEqual(["Choose their rank", "JKN", "KSN", "PSBN", "SBN", "PKJN"]);
 
     await user.selectOptions(within(dialog).getByLabelText("Role"), "administrator");
     expect(within(dialog).queryByLabelText("Rank")).not.toBeInTheDocument();
+    await giveName(user, dialog);
     await user.type(within(dialog).getByLabelText("Email address"), "admin2@example.com");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     expect(mockCreateManagedUser.mock.calls[0][0]).toEqual({
       email: "admin2@example.com",
-      first_name: "",
-      last_name: "",
+      first_name: "Casey",
+      last_name: "Created",
       role: "administrator",
       is_active: true,
     });
@@ -211,6 +254,7 @@ describe("UsersScreen", () => {
     await screen.findByText("KSN Riley Khan");
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await giveName(user, dialog);
     await user.type(within(dialog).getByLabelText("Email address"), "created@example.com");
     await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
@@ -233,6 +277,7 @@ describe("UsersScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await giveName(user, dialog);
     const emailInput = within(dialog).getByLabelText("Email address");
     await user.type(emailInput, "riley.khan@example.com");
     await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
@@ -247,11 +292,11 @@ describe("UsersScreen", () => {
     expect(screen.queryByText("Validation failed.")).not.toBeInTheDocument();
   });
 
-  it("says a refusal about a field it has no message box for, rather than dropping it", async () => {
+  it("says a missing name beside its box, and asks for both names before sending", async () => {
     const user = userEvent.setup();
     mockCreateManagedUser.mockRejectedValue(
       new ApiError("Validation failed.", 400, "validation_error", {
-        first_name: ["Enter a first name."],
+        last_name: ["Enter a last name."],
       }),
     );
     renderScreen();
@@ -259,11 +304,35 @@ describe("UsersScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    expect(within(dialog).getByLabelText("First name")).toBeRequired();
+    expect(within(dialog).getByLabelText("Last name")).toBeRequired();
+    await giveName(user, dialog);
     await user.type(within(dialog).getByLabelText("Email address"), "riley.khan@example.com");
     await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
-    expect(await within(dialog).findByText("Enter a first name.")).toBeVisible();
+    expect(await within(dialog).findByText("Enter a last name.")).toHaveClass("error-text--field");
+    expect(within(dialog).getByLabelText("Last name")).toHaveAccessibleDescription("Enter a last name.");
+  });
+
+  it("says a refusal about a field it has no message box for, rather than dropping it", async () => {
+    const user = userEvent.setup();
+    mockCreateManagedUser.mockRejectedValue(
+      new ApiError("Validation failed.", 400, "validation_error", {
+        is_active: ["A new account starts active."],
+      }),
+    );
+    renderScreen();
+    await screen.findByText("KSN Riley Khan");
+
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await giveName(user, dialog);
+    await user.type(within(dialog).getByLabelText("Email address"), "riley.khan@example.com");
+    await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
+    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
+
+    expect(await within(dialog).findByText("A new account starts active.")).toBeVisible();
   });
 
   it("says so when the connection fails, rather than doing nothing", async () => {
@@ -274,6 +343,7 @@ describe("UsersScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await giveName(user, dialog);
     await user.type(within(dialog).getByLabelText("Email address"), "riley.khan@example.com");
     await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
@@ -289,6 +359,7 @@ describe("UsersScreen", () => {
     await user.click(screen.getByRole("button", { name: "Add user" }));
 
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await giveName(user, dialog);
     await user.type(within(dialog).getByLabelText("Email address"), "pending@example.com");
     await user.selectOptions(within(dialog).getByLabelText("Rank"), "KSN");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));

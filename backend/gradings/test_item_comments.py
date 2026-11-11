@@ -262,11 +262,11 @@ def test_the_same_person_can_add_a_second_comment_to_a_marked_item() -> None:
 def test_the_items_list_shows_every_persons_comment_on_a_marked_item() -> None:
     item = started_item()
     update_candidate_assessment_item(item, result="MET", assessor=user("m@example.com"))
-    for email, body in (
-        ("reviewer-one@example.com", "Technical point one."),
-        ("reviewer-two@example.com", "A different technical point."),
+    for email, last_name, body in (
+        ("reviewer-one@example.com", "One", "Technical point one."),
+        ("reviewer-two@example.com", "Two", "A different technical point."),
     ):
-        response = auth_client(email).post(
+        response = auth_client(email, first_name="Rae", last_name=last_name).post(
             f"/api/gradings/assessment-items/{item.pk}/comments/",
             {"body": body},
             format="json",
@@ -280,8 +280,8 @@ def test_the_items_list_shows_every_persons_comment_on_a_marked_item() -> None:
     [row] = [r for r in results(listed) if r["id"] == item.pk]
     assert row["result"] == "MET"
     assert [(c["author_name"], c["body"]) for c in row["comments"]] == [
-        ("reviewer-one@example.com", "Technical point one."),
-        ("reviewer-two@example.com", "A different technical point."),
+        ("Rae One", "Technical point one."),
+        ("Rae Two", "A different technical point."),
     ]
     assert all(c["created_at"] for c in row["comments"])
 
@@ -304,8 +304,8 @@ def test_the_api_adds_a_comment_and_the_items_list_carries_it() -> None:
 
     assert created.status_code == 201
     assert created.json()["body"] == "Needs a wider stance."
-    # A person with no name set is shown by their email, as elsewhere.
-    assert created.json()["author_name"] == "api-commenter@example.com"
+    # Never by email: an account made before names were required says so.
+    assert created.json()["author_name"] == "Unnamed account"
     [row] = [r for r in results(listed) if r["id"] == item.pk]
     assert [c["body"] for c in row["comments"]] == ["Needs a wider stance."]
     assert "assessor_notes" not in row

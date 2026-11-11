@@ -17,16 +17,11 @@ class RankQuerySet(models.QuerySet["Rank"]):
         return self.filter(active=True, order__gt=order).order_by("order")
 
     def staff(self) -> RankQuerySet:
-        """The ranks an instructor's account may hold: active ranks above
-        every rank the syllabus examines (nobody on staff is a JKN)."""
-        # A subquery, not a read: the queryset stays lazy, so a serializer
-        # may hold it from import time.
-        examined = Rank.objects.filter(syllabus_requirements__isnull=False)
-        highest = examined.order_by("-order").values("order")[:1]
-        return (
-            self.filter(active=True)
-            .filter(Q(order__gt=Subquery(highest)) | ~models.Exists(examined))
-            .order_by("order")
+        """The ranks an instructor's account may hold: the active black belt
+        ranks, JKN and above. Nobody on staff is a JKN today; it is offered
+        so one can be, without a change here (owner, 2026-11-11)."""
+        return self.filter(active=True, category=RankCategory.BLACK_BELT).order_by(
+            "order",
         )
 
     def with_next_active_rank(self) -> RankQuerySet:

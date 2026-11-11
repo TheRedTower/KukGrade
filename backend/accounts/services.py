@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from accounts.password_policy import generate_temporary_password
+from accounts.people import name_of, person_label, require_names, title_of
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
@@ -65,6 +66,13 @@ def _snapshot(user: User) -> dict[str, Any]:
         "rank": user.rank.code if user.rank else None,
         "is_active": user.is_active,
     }
+
+
+def _account(user: User) -> str:
+    """An account as its events name it: "KSN Jane Smith", as every record
+    names a person. The email address goes in the event's details, which tell
+    one person's two accounts apart."""
+    return person_label(name_of(user), title_of(user))
 
 
 def can_manage(target: User, actor: User) -> bool:
@@ -129,6 +137,7 @@ def create_platform_user(
 ) -> TemporaryPassword:
     """A new account with a generated temporary password, which expires and
     which its owner must replace at their first sign-in."""
+    require_names(first_name, last_name)
     holder = email_holder(email)
     if holder is not None and holder.deleted_at is not None:
         raise ValidationError({"email": [DELETED_ACCOUNT_EMAIL_MESSAGE]})
@@ -164,9 +173,10 @@ def create_platform_user(
     record(
         AuditAction.USER_CREATED,
         user,
-        f"User account created for {user.email}.",
+        f"User account created for {_account(user)}.",
         actor=actor,
         metadata={
+            "email": user.email,
             "role": user.role,
             "rank": user.rank.code if user.rank else None,
             "temporary_password_expires_at": expires_at.isoformat(),
@@ -208,6 +218,7 @@ def update_platform_user(
     # makes the Master check below race-proof: set_user_authority() takes the
     # same lock, so a role change and a Master grant cannot both read the
     # other's field as it was.
+    require_names(first_name, last_name)
     locked = _lock_user(user.pk)
     before = _snapshot(locked)
 
@@ -274,9 +285,9 @@ def update_platform_user(
     record(
         AuditAction.USER_UPDATED,
         locked,
-        f"User account {locked.email} updated.",
+        f"User account {_account(locked)} updated.",
         actor=actor,
-        metadata={"before": before, "after": after},
+        metadata={"email": locked.email, "before": before, "after": after},
     )
     return locked
 
@@ -318,10 +329,10 @@ def delete_platform_user(target: User, actor: User) -> bool:
         AuditAction.USER_DELETED,
         locked,
         (
-            f"User account {locked.email} deleted; their name stays on what "
+            f"User account {_account(locked)} deleted; their name stays on what "
             "they recorded."
             if keep
-            else f"User account {locked.email} deleted."
+            else f"User account {_account(locked)} deleted."
         ),
         actor=actor,
         metadata={
@@ -426,9 +437,9 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
         record(
             AuditAction.USER_AUTHORITY_CHANGED,
             refreshed,
-            f"Authority changed for {refreshed.email}.",
+            f"Authority changed for {_account(refreshed)}.",
             actor=actor,
-            metadata={"before": before, "after": after},
+            metadata={"email": refreshed.email, "before": before, "after": after},
         )
     return refreshed
 
@@ -501,15 +512,18 @@ def _password_set(locked: User, *, actor: User) -> User:
         AuditAction.USER_UPDATED,
         locked,
         (
-            f"Password changed by {locked.email}."
+            f"Password changed by {_account(locked)}."
             if chosen_by_owner
-            else f"Password reset for {locked.email}."
+            else f"Password reset for {_account(locked)}."
         ),
         actor=actor,
         metadata=(
-            {"temporary_password_expires_at": expires_at.isoformat()}
+            {
+                "email": locked.email,
+                "temporary_password_expires_at": expires_at.isoformat(),
+            }
             if expires_at
-            else {}
+            else {"email": locked.email}
         ),
     )
     return locked
@@ -542,8 +556,8 @@ def set_admin_site_access(
     record(
         AuditAction.USER_UPDATED,
         locked,
-        f"Admin site access changed for {locked.email}.",
+        f"Admin site access changed for {_account(locked)}.",
         actor=actor,
-        metadata={"before": before, "after": after},
+        metadata={"email": locked.email, "before": before, "after": after},
     )
     return locked

@@ -13,11 +13,52 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.core.exceptions import ValidationError
+from django.db import models
 from rest_framework import serializers
 
 from accounts.models import User
 
 ADMINISTRATOR_TITLE = "administrator"
+
+# For an account made before names were required: never its email address.
+
+FIRST_NAME_MESSAGE = "Enter a first name."
+LAST_NAME_MESSAGE = "Enter a last name."
+
+
+def name_of(user: User) -> str:
+    """A person's name as a record shows it: never their email address."""
+    return user.get_full_name()
+
+
+def require_names(first_name: str | None, last_name: str | None) -> None:
+    """Every staff account has a first and a last name (owner, 2026-11-11),
+    so a record can always name who made it. None means "not being set"."""
+    errors: dict[str, list[str]] = {}
+    if first_name is not None and not first_name.strip():
+        errors["first_name"] = [FIRST_NAME_MESSAGE]
+    if last_name is not None and not last_name.strip():
+        errors["last_name"] = [LAST_NAME_MESSAGE]
+    if errors:
+        raise ValidationError(errors)
+
+
+class MissingDetail(models.TextChoices):
+    """What an account made before a rule still lacks, for an administrator
+    to fill in."""
+
+    NAME = "name", "Needs a name"
+    RANK = "rank", "Needs a rank"
+
+
+def missing_details(user: User) -> list[str]:
+    missing = []
+    if not user.first_name.strip() or not user.last_name.strip():
+        missing.append(MissingDetail.NAME.value)
+    if user.role == User.Role.INSTRUCTOR and user.rank_id is None:
+        missing.append(MissingDetail.RANK.value)
+    return missing
 
 
 def title_of(user: User | None) -> str:
@@ -40,7 +81,7 @@ def person_label(name: str, title: str) -> str:
 
 def named(user: User | None, title: str) -> str:
     """`user` by their current name and the title the record kept."""
-    return person_label(user.get_full_name(), title) if user else ""
+    return person_label(name_of(user), title) if user else ""
 
 
 class PersonNameField(serializers.CharField):

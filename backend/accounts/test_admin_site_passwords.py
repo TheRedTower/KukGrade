@@ -198,6 +198,7 @@ def test_adding_a_user_on_the_admin_site_issues_a_temporary_password_once() -> N
         {
             "email": "site-added@example.com",
             "first_name": "Ada",
+            "last_name": "Lovelace",
             "role": User.Role.INSTRUCTOR,
             "rank": instructor_rank().pk,
             "is_active": "on",

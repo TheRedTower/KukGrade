@@ -167,7 +167,7 @@ def describe(value: str) -> dict[str, Any]:
         else:
             row = _model("accounts.User").objects.filter(pk=_uuid(ident)).first()
             if row is not None:
-                name = row.get_full_name() or row.email
+                name = row.get_full_name()
     return {
         "kind": kind,
         "id": ident,

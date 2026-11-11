@@ -425,7 +425,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             </div>
             <div>
               <dt>Promoter</dt>
-              <dd>{currentUser?.full_name || currentUser?.first_name || "Authorised Master"}</dd>
+              <dd>{currentUser?.full_name}</dd>
             </div>
           </dl>
         </ConfirmDialog>

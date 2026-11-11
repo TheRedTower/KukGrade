@@ -56,17 +56,28 @@ def test_a_person_reads_rank_first_or_as_the_administrator_account() -> None:
     assert person_label("Jane Smith", "") == "Jane Smith"
 
 
-def test_an_instructor_holds_a_rank_above_the_syllabus() -> None:
-    assert [r.code for r in Rank.objects.staff()] == ["KSN", "PSBN", "SBN", "PKJN"]
+def test_an_instructor_holds_a_black_belt_rank_jkn_and_above() -> None:
+    # JKN is offered although nobody on staff holds it today.
+    assert [r.code for r in Rank.objects.staff()] == [
+        "JKN",
+        "KSN",
+        "PSBN",
+        "SBN",
+        "PKJN",
+    ]
 
 
 def test_an_instructor_account_is_made_with_its_rank() -> None:
     client = admin_client()
-    payload = {"email": "new-staff@example.com", "first_name": "New"}
+    payload = {
+        "email": "new-staff@example.com",
+        "first_name": "New",
+        "last_name": "Staff",
+    }
 
     missing = client.post("/api/users/", payload, format="json")
     below = client.post(
-        "/api/users/", {**payload, "rank": rank("JKN").pk}, format="json"
+        "/api/users/", {**payload, "rank": rank("DAHN_BO").pk}, format="json"
     )
     made = client.post(
         "/api/users/", {**payload, "rank": rank("SBN").pk}, format="json"
@@ -89,6 +100,8 @@ def test_an_administrator_account_has_no_rank() -> None:
         "/api/users/",
         {
             "email": "new-admin@example.com",
+            "first_name": "New",
+            "last_name": "Admin",
             "role": User.Role.ADMINISTRATOR,
             "rank": rank("KSN").pk,
         },
@@ -96,7 +109,12 @@ def test_an_administrator_account_has_no_rank() -> None:
     )
     made = client.post(
         "/api/users/",
-        {"email": "new-admin@example.com", "role": User.Role.ADMINISTRATOR},
+        {
+            "email": "new-admin@example.com",
+            "first_name": "New",
+            "last_name": "Admin",
+            "role": User.Role.ADMINISTRATOR,
+        },
         format="json",
     )
     teacher = instructor("becomes-admin@example.com")
@@ -201,5 +219,98 @@ def test_the_instructor_ranks_are_served_as_choices() -> None:
 
     served = client.get("/api/choices/").json()["staff_ranks"]
 
-    assert [choice["label"] for choice in served] == ["KSN", "PSBN", "SBN", "PKJN"]
-    assert served[0]["value"] == rank("KSN").pk
+    assert [choice["label"] for choice in served] == [
+        "JKN",
+        "KSN",
+        "PSBN",
+        "SBN",
+        "PKJN",
+    ]
+    assert served[0]["value"] == rank("JKN").pk
+
+
+def test_every_account_has_a_first_and_a_last_name() -> None:
+    client = admin_client()
+    teacher = instructor("keeps-a-name@example.com")
+    me = APIClient()
+    me.force_authenticate(user=teacher)
+
+    nameless = client.post(
+        "/api/users/",
+        {"email": "nameless@example.com", "rank": rank("KSN").pk},
+        format="json",
+    )
+    blanked = client.patch(
+        f"/api/users/{teacher.pk}/", {"last_name": "  "}, format="json"
+    )
+    own = me.patch("/api/auth/me/", {"first_name": ""}, format="json")
+
+    assert nameless.status_code == 400
+    assert nameless.json()["error"]["fields"] == {
+        "first_name": ["Enter a first name."],
+        "last_name": ["Enter a last name."],
+    }
+    assert blanked.status_code == 400
+    assert blanked.json()["error"]["fields"] == {"last_name": ["Enter a last name."]}
+    assert own.status_code == 400
+    teacher.refresh_from_db()
+    assert (teacher.first_name, teacher.last_name) == ("Jane", "Smith")
+
+
+def test_an_account_made_before_the_rules_says_what_it_lacks() -> None:
+    # Made before names and ranks were required: flagged for an administrator,
+    # and its records name it without its email address.
+    old = User.objects.create_user(email="old-account@example.com")
+    User.objects.create_user(
+        email="old-admin@example.com",
+        first_name="Old",
+        last_name="Admin",
+        role=User.Role.ADMINISTRATOR,
+    )
+    client = admin_client()
+
+    rows = {row["email"]: row for row in results(client.get("/api/users/"))}
+
+    assert rows[old.email]["missing_details"] == [
+        {"value": "name", "label": "Needs a name"},
+        {"value": "rank", "label": "Needs a rank"},
+    ]
+    assert rows[old.email]["full_name"] == "Unnamed account"
+    assert rows["old-admin@example.com"]["missing_details"] == []
+    assert person_label("Unnamed account", "") == "Unnamed account"
+
+    client.patch(
+        f"/api/users/{old.pk}/",
+        {"first_name": "Now", "last_name": "Named", "rank": rank("SBN").pk},
+        format="json",
+    )
+    [row] = [r for r in results(client.get("/api/users/")) if r["email"] == old.email]
+    assert row["missing_details"] == []
+    assert row["full_name"] == "Now Named"
+
+
+def test_an_account_event_names_the_account_and_keeps_its_email_in_the_details() -> (
+    None
+):
+    # Owner, 2026-11-11: account events name the account as every record names
+    # a person; the address is in the details, which tell one person's
+    # administrator and instructor accounts apart.
+    client = admin_client()
+    teacher = instructor("named-in-the-log@example.com")
+
+    client.patch(
+        f"/api/users/{teacher.pk}/authority/",
+        {"can_promote_student": True},
+        format="json",
+    )
+    client.post(f"/api/users/{teacher.pk}/set-password/")
+    events = results(client.get(f"/api/audit-events/?subject=user:{teacher.pk}"))
+
+    summaries = [event["summary"] for event in events]
+    assert "Authority changed for KSN Jane Smith." in summaries
+    assert "Password reset for KSN Jane Smith." in summaries
+    for event in events:
+        assert "named-in-the-log@example.com" not in event["summary"]
+        assert {"label": "Email", "value": "named-in-the-log@example.com"} in event[
+            "details"
+        ]

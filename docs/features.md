@@ -191,12 +191,21 @@ permission on every request; hiding a button in the interface is never the only
 protection.
 
 **Rank and name.** An instructor's account holds their rank, chosen by the administrator
-when the account is made from the ranks above the syllabus (KSN, PSBN, SBN, PKJN); an
+when the account is made from the black belt ranks (JKN, KSN, PSBN, SBN, PKJN); an
 administrator account has none. Everyone a record names - who marked an item, wrote a
 comment, changed a mark, prepared the form, proposed or decided an outcome, voided a
 record, ran an import or acted in the audit log - is shown by rank and name ("KSN Jane
 Smith"), or as "Jane Smith (administrator)", never by email address. The rank is the one
 they held when they acted: a later change to their rank changes no record.
+
+Every account has a first and a last name: adding a user, editing one, your own name in
+Settings and the first administrator at setup all refuse a blank one. An account made
+before names and ranks were required is flagged on the Users screen ("Needs a name",
+"Needs a rank") and its page asks the administrator to fill in what it lacks; nothing is
+guessed for it. Until then its records name it "Unnamed account". Records made before
+ranks were kept show the name alone, and no audit event is rewritten. An account's own events
+(created, changed, authority, password, deleted) name it the same way and keep its email
+address in their details.
 
 | Capability | Instructor | Administrator | Master permissions |
 | --- | :---: | :---: | :---: |

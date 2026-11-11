@@ -1,6 +1,6 @@
 import { useChoices } from "./choices";
 import { useRef, useState } from "react";
-import { splitServerErrors } from "./forms";
+import { ACCOUNT_FIELDS, splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
 import { UserPlusIcon } from "./Icons";
@@ -25,6 +25,7 @@ import { SearchField } from "./SearchField";
 import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
 import { counted } from "./plural";
+import { MissingDetails } from "./MissingDetails";
 
 const PAGE_SIZE = 10;
 
@@ -53,9 +54,9 @@ function CreateUserDialog({
   });
   const issued = mutation.data;
   const close = issued ? () => onCreated(issued) : onClose;
-  // The email and the rank have their place beside their boxes; anything else the server says goes above the buttons.
+  // Each field's error has its place beside its box; anything else the server says goes above the buttons.
   const errors = mutation.error
-    ? splitServerErrors(mutation.error, ["email", "rank"], "The user could not be added.")
+    ? splitServerErrors(mutation.error, ACCOUNT_FIELDS, "The user could not be added.")
     : null;
   const emailError = errors?.fields.email?.join(" ");
   const rankError = errors?.fields.rank?.join(" ");
@@ -87,11 +88,11 @@ function CreateUserDialog({
           }}
         >
           <div className="users-form-grid">
-            <Field label="First name" look="label">
-              {(control) => <input {...control} data-dialog-autofocus name="first_name" autoComplete="off" />}
+            <Field error={errors?.fields.first_name?.join(" ")} label="First name" look="label">
+              {(control) => <input {...control} required data-dialog-autofocus name="first_name" autoComplete="off" />}
             </Field>
-            <Field label="Last name" look="label">
-              {(control) => <input {...control} name="last_name" autoComplete="off" />}
+            <Field error={errors?.fields.last_name?.join(" ")} label="Last name" look="label">
+              {(control) => <input {...control} required name="last_name" autoComplete="off" />}
             </Field>
             <Field className="users-form-wide" error={emailError} label="Email address" look="label">
               {(control) => <input {...control} required type="email" name="email" autoComplete="off" />}
@@ -270,6 +271,7 @@ export function UsersScreen(): React.ReactElement {
                       <span className="users-email meta">
                         <EmailAddress address={user.email} />
                       </span>
+                      <MissingDetails user={user} />
                     </>
                   ),
                 },

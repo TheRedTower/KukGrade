@@ -467,7 +467,12 @@ def test_change_password_enforces_the_configured_validators() -> None:
 
 
 def test_change_password_succeeds_and_is_audited_without_leaking_the_value() -> None:
-    user = create_user(email="change-pw-ok@example.com", password="OldPassw0rd!")
+    user = create_user(
+        email="change-pw-ok@example.com",
+        password="OldPassw0rd!",
+        first_name="Casey",
+        last_name="Park",
+    )
     client = APIClient()
     client.force_authenticate(user=user)
 
@@ -486,7 +491,9 @@ def test_change_password_succeeds_and_is_audited_without_leaking_the_value() -> 
         action=AuditAction.USER_UPDATED, entity_id=str(user.pk)
     )
     assert event.actor == user
-    assert event.summary == "Password changed by change-pw-ok@example.com."
+    assert event.summary == "Password changed by Casey Park."
+    assert "change-pw-ok@example.com" not in event.summary
+    assert event.metadata["email"] == "change-pw-ok@example.com"
     assert "BrandNewPassw0rd" not in event.summary
     assert "BrandNewPassw0rd" not in str(event.metadata)
 
@@ -1312,7 +1319,9 @@ def test_password_reset_is_recorded_without_leaking_the_password() -> None:
         entity_id=created["id"],
         action=AuditAction.USER_UPDATED,
     ).latest("pk")
-    assert event.summary == "Password reset for reset-audit-target@example.com."
+    assert event.summary == f"Password reset for {instructor_rank().name} Created User."
+    assert "reset-audit-target@example.com" not in event.summary
+    assert event.metadata["email"] == "reset-audit-target@example.com"
     assert issued not in event.summary
     assert issued not in str(event.metadata)
 

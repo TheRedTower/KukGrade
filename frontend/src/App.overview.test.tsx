@@ -112,7 +112,7 @@ describe("Overview screen (Operational Ledger)", () => {
         details: [],
       }) satisfies AuditEvent;
     const events = [
-      event(1, "USER_UPDATED", "User updated", "Password reset for someone@example.com.", "neutral"),
+      event(1, "USER_UPDATED", "User updated", "Password reset for KSN Jane Smith.", "neutral"),
       event(2, "OUTCOME_PROPOSED", "Outcome proposed", "Outcome proposed as PASS.", "info", "Pass"),
       event(
         3,
@@ -149,8 +149,8 @@ describe("Overview screen (Operational Ledger)", () => {
 
     const ledger = await screen.findByRole("table", { name: "Recent activity" });
     const statusOf = (summary: string) => within(ledger).getByText(summary).closest("tr")!.querySelector(".badge")!;
-    expect(statusOf("Password reset for someone@example.com.")).toHaveTextContent("User updated");
-    expect(statusOf("Password reset for someone@example.com.")).toHaveAttribute("data-tone", "neutral");
+    expect(statusOf("Password reset for KSN Jane Smith.")).toHaveTextContent("User updated");
+    expect(statusOf("Password reset for KSN Jane Smith.")).toHaveAttribute("data-tone", "neutral");
     expect(statusOf("Outcome proposed as PASS.")).toHaveTextContent("Outcome proposed · Pass");
     expect(statusOf("Outcome proposed as PASS.")).toHaveAttribute("data-tone", "info");
     const overridden = statusOf("Final decision FAIL, overriding a proposed PASS.");

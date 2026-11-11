@@ -5619,6 +5619,7 @@ components:
         full_name:
           type: string
           readOnly: true
+          description: Their name; never their email address.
         role:
           $ref: '#/components/schemas/RoleEnum'
         role_display:
@@ -5635,6 +5636,13 @@ components:
           readOnly: true
           default: ''
           description: The rank's name; blank for an account with no rank.
+        missing_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissingDetail'
+          readOnly: true
+          description: 'What an account made before a rule still lacks: a name, or
+            an instructor''s rank. Empty when it is complete.'
         is_active:
           type: boolean
         can_make_final_grading_decision:
@@ -5685,6 +5693,7 @@ components:
       - id
       - last_login
       - manageable
+      - missing_details
       - must_change_password
       - rank_name
       - role_display
@@ -6059,6 +6068,27 @@ components:
       required:
       - email
       - password
+    MissingDetail:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/MissingDetailValueEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
+    MissingDetailValueEnum:
+      enum:
+      - name
+      - rank
+      type: string
+      description: |-
+        * `name` - Needs a name
+        * `rank` - Needs a rank
     NextActionEnum:
       enum:
       - PREPARE_ASSESSMENT
@@ -6971,10 +7001,12 @@ components:
         first_name:
           type: string
           writeOnly: true
+          minLength: 1
           maxLength: 150
         last_name:
           type: string
           writeOnly: true
+          minLength: 1
           maxLength: 150
         password:
           type: string
@@ -6983,6 +7015,8 @@ components:
       required:
       - code
       - email
+      - first_name
+      - last_name
       - password
     SetupStatus:
       type: object
@@ -7471,6 +7505,7 @@ components:
         full_name:
           type: string
           readOnly: true
+          description: Their name; never their email address.
         role_display:
           type: string
           readOnly: true
@@ -7557,6 +7592,7 @@ components:
         full_name:
           type: string
           readOnly: true
+          description: Their name; never their email address.
         role:
           $ref: '#/components/schemas/RoleEnum'
         role_display:
@@ -7573,6 +7609,13 @@ components:
           readOnly: true
           default: ''
           description: The rank's name; blank for an account with no rank.
+        missing_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissingDetail'
+          readOnly: true
+          description: 'What an account made before a rule still lacks: a name, or
+            an instructor''s rank. Empty when it is complete.'
         is_active:
           type: boolean
         can_make_final_grading_decision:
@@ -7620,6 +7663,7 @@ components:
       - id
       - last_login
       - manageable
+      - missing_details
       - must_change_password
       - rank_name
       - role_display

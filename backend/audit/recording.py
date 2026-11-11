@@ -13,7 +13,7 @@ from typing import Any
 from django.db import models
 
 from accounts.models import User
-from accounts.people import title_of
+from accounts.people import name_of, title_of
 from audit.models import AuditEvent
 
 
@@ -49,7 +49,7 @@ def _build(
     return AuditEvent(
         actor=actor,
         actor_email=actor.email if actor else "",
-        actor_name=actor.get_full_name() if actor else "",
+        actor_name=name_of(actor) if actor else "",
         actor_title=title_of(actor),
         action=action,
         # entity.__class__, not type(entity): request.user is a

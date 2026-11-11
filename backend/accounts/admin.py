@@ -42,6 +42,12 @@ class UserCreationForm(forms.ModelForm):
         model = User
         fields = ("email", "first_name", "last_name", "role", "rank")
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Every staff account has a name (accounts.people.require_names).
+        self.fields["first_name"].required = True
+        self.fields["last_name"].required = True
+
     def clean(self) -> dict[str, Any]:
         cleaned = super().clean() or {}
         # As create_platform_user requires, asked here so the form says so
@@ -53,6 +59,11 @@ class UserCreationForm(forms.ModelForm):
 
 class UserChangeForm(forms.ModelForm):
     password = ReadOnlyPasswordHashField()
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["first_name"].required = True
+        self.fields["last_name"].required = True
 
     class Meta:
         model = User

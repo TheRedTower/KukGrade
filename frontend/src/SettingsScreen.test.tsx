@@ -127,6 +127,9 @@ describe("Settings: Account", () => {
 
     const save = await screen.findByRole("button", { name: "Save name" });
     expect(save).toBeDisabled();
+    // Both names are needed: neither box may be left empty.
+    expect(screen.getByLabelText("First name")).toBeRequired();
+    expect(screen.getByLabelText("Last name")).toBeRequired();
     const lastName = screen.getByLabelText("Last name");
     await user.clear(lastName);
     await user.type(lastName, "  Park ");
@@ -164,6 +167,8 @@ describe("Settings: Account", () => {
     await user.click(screen.getByRole("button", { name: "Save name" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Last name is too long.");
+    // Said beside the box it is about.
+    expect(lastName).toHaveAccessibleDescription("Last name is too long.");
     expect(lastName).toHaveValue("Instructorx");
     expect(screen.getByRole("button", { name: "Save name" })).toBeEnabled();
   });

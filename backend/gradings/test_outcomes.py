@@ -11,6 +11,7 @@ from drf_spectacular.settings import spectacular_settings
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from accounts.people import name_of
 from gradings.models import (
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -738,10 +739,10 @@ def test_candidate_outcome_api_workflow() -> None:
     # A second proposal revises the same record rather than opening another.
     assert revised_response.json()["id"] == outcome_id
     assert [response.status_code for response in retired] == [404, 404]
-    assert propose_response.json()["proposed_by_name"] == actor.get_full_name()
+    assert propose_response.json()["proposed_by_name"] == name_of(actor)
     assert forbidden_finalise.status_code == 403
     assert finalise_response.status_code == 200
-    assert finalise_response.json()["decided_by_name"] == master_user.get_full_name()
+    assert finalise_response.json()["decided_by_name"] == name_of(master_user)
     assert finalise_response.json()["final_outcome"] == CandidateOutcome.Outcome.PASS
     assert listing.status_code == 404
     assert delete_response.status_code == 404

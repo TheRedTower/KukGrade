@@ -95,6 +95,7 @@ export const CHOICES: Choices = {
     },
   ],
   staff_ranks: [
+    { value: 12, label: "JKN" },
     { value: 13, label: "KSN" },
     { value: 14, label: "PSBN" },
     { value: 15, label: "SBN" },

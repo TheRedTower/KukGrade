@@ -103,6 +103,7 @@ export function SetupPage() {
                     autoComplete="given-name"
                     name="first_name"
                     onChange={(event) => setFirstName(event.target.value)}
+                    required
                     value={firstName}
                   />
                 )}
@@ -114,6 +115,7 @@ export function SetupPage() {
                     autoComplete="family-name"
                     name="last_name"
                     onChange={(event) => setLastName(event.target.value)}
+                    required
                     value={lastName}
                   />
                 )}

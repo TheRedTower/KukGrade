@@ -296,9 +296,9 @@ def test_the_list_and_detail_say_where_each_import_is_up_to() -> None:
     assert listed[reviewing.pk]["kind_display"] == "Students"
     assert listed[reviewing.pk]["status_display"] == "Uploaded"
     assert listed[reviewing.pk]["column_mapping"] == STANDARD_MAPPING
-    # An account with no name is named by its email; an administrator's
-    # says so.
-    assert listed[reviewing.pk]["uploaded_by_name"] == f"{admin.email} (administrator)"
+    # Never by email: an account made before names were required says so,
+    # and an administrator's says it is one.
+    assert listed[reviewing.pk]["uploaded_by_name"] == "Unnamed account (administrator)"
 
     detail = client.get(f"{BASE}{unmatched.pk}/").json()
     assert detail["detected_headers"] == list(STANDARD_MAPPING.values())

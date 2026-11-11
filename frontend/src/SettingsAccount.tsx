@@ -4,7 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 
 import { Alert } from "./Alert";
 import { Badge } from "./Badge";
-import { errorMessage } from "./api";
+import { Field } from "./Field";
+import { splitServerErrors } from "./forms";
 import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { SettingsRow } from "./SettingsRow";
@@ -20,7 +21,10 @@ function NameRow() {
   if (!user) return null;
   const saving = save.isPending;
   const saved = save.isSuccess;
-  const error = save.error ? errorMessage(save.error, "Could not save your name.") : null;
+  // A missing name is said beside its box; anything else above the button.
+  const errors = save.error
+    ? splitServerErrors(save.error, ["first_name", "last_name"], "Could not save your name.")
+    : null;
 
   const changed = firstName.trim() !== user.first_name || lastName.trim() !== user.last_name;
 
@@ -31,33 +35,44 @@ function NameRow() {
 
   return (
     <SettingsRow description="Shown on gradings and in the audit log." title="Name">
-      <form className="st-name-form" onSubmit={submit}>
-        <label className="field field--sentence">
-          <span>First name</span>
-          <input
-            onChange={(event) => {
-              setFirstName(event.target.value);
-              save.reset();
-            }}
-            value={firstName}
-          />
-        </label>
-        <label className="field field--sentence">
-          <span>Last name</span>
-          <input
-            onChange={(event) => {
-              setLastName(event.target.value);
-              save.reset();
-            }}
-            value={lastName}
-          />
-        </label>
-        <Button variant="secondary" disabled={saving || !changed} type="submit">
-          {saving ? "Saving…" : "Save name"}
-        </Button>
-        {error ? <Alert className="st-full">{error}</Alert> : null}
+      <form className="stack stack--4 st-name-form" onSubmit={submit}>
+        <div className="st-name-fields">
+          <Field error={errors?.fields.first_name?.join(" ")} label="First name">
+            {(control) => (
+              <input
+                {...control}
+                onChange={(event) => {
+                  setFirstName(event.target.value);
+                  save.reset();
+                }}
+                required
+                value={firstName}
+              />
+            )}
+          </Field>
+          <Field error={errors?.fields.last_name?.join(" ")} label="Last name">
+            {(control) => (
+              <input
+                {...control}
+                onChange={(event) => {
+                  setLastName(event.target.value);
+                  save.reset();
+                }}
+                required
+                value={lastName}
+              />
+            )}
+          </Field>
+        </div>
+        {/* Below the boxes, so an error under one never moves it. */}
+        <div className="st-form-actions">
+          <Button variant="secondary" disabled={saving || !changed} type="submit">
+            {saving ? "Saving…" : "Save name"}
+          </Button>
+        </div>
+        {errors?.banner ? <Alert>{errors.banner}</Alert> : null}
         {saved ? (
-          <p className="st-saved item-title st-full" role="status">
+          <p className="st-saved item-title" role="status">
             Your name is saved.
           </p>
         ) : null}

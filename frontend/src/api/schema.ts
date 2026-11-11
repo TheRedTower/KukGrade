@@ -2595,6 +2595,7 @@ export interface components {
             email: string;
             first_name?: string;
             last_name?: string;
+            /** @description Their name; never their email address. */
             readonly full_name: string;
             role?: components["schemas"]["RoleEnum"];
             readonly role_display: string;
@@ -2605,6 +2606,8 @@ export interface components {
              * @default
              */
             readonly rank_name: string;
+            /** @description What an account made before a rule still lacks: a name, or an instructor's rank. Empty when it is complete. */
+            readonly missing_details: components["schemas"]["MissingDetail"][];
             is_active?: boolean;
             readonly can_make_final_grading_decision: boolean;
             readonly can_promote_student: boolean;
@@ -2778,6 +2781,20 @@ export interface components {
             email: string;
             password: string;
         };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        MissingDetail: {
+            value: components["schemas"]["MissingDetailValueEnum"];
+            label: string;
+        };
+        /**
+         * @description * `name` - Needs a name
+         *     * `rank` - Needs a rank
+         * @enum {string}
+         */
+        MissingDetailValueEnum: "name" | "rank";
         /**
          * @description * `PREPARE_ASSESSMENT` - Prepare assessment
          *     * `START_ASSESSMENT` - Start assessment
@@ -3274,8 +3291,8 @@ export interface components {
             code: string;
             /** Format: email */
             email: string;
-            first_name?: string;
-            last_name?: string;
+            first_name: string;
+            last_name: string;
             password: string;
         };
         /** @description GET /api/setup/. */
@@ -3494,6 +3511,7 @@ export interface components {
             readonly email: string;
             readonly first_name: string;
             readonly last_name: string;
+            /** @description Their name; never their email address. */
             readonly full_name: string;
             readonly role_display: string;
             readonly can_make_final_grading_decision: boolean;
@@ -3525,6 +3543,7 @@ export interface components {
             email: string;
             first_name?: string;
             last_name?: string;
+            /** @description Their name; never their email address. */
             readonly full_name: string;
             role?: components["schemas"]["RoleEnum"];
             readonly role_display: string;
@@ -3535,6 +3554,8 @@ export interface components {
              * @default
              */
             readonly rank_name: string;
+            /** @description What an account made before a rule still lacks: a name, or an instructor's rank. Empty when it is complete. */
+            readonly missing_details: components["schemas"]["MissingDetail"][];
             is_active?: boolean;
             readonly can_make_final_grading_decision: boolean;
             readonly can_promote_student: boolean;

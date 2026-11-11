@@ -39,7 +39,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
 
         {user ? (
           <div className="account-pill" aria-label={`Account: ${user.email}`}>
-            <span className="item-title">{user.full_name || user.email}</span>
+            <span className="item-title">{user.full_name}</span>
             <span className="eyebrow account-pill-role">{user.role_display}</span>
           </div>
         ) : null}

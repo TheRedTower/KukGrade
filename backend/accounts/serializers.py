@@ -6,9 +6,11 @@ from typing import Any, ClassVar
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import User
+from accounts.people import MissingDetail, missing_details, name_of
 from accounts.permissions import (
     DELETE_ANY_SESSION_PERMISSION,
     FINAL_GRADING_DECISION_PERMISSION,
@@ -24,7 +26,7 @@ from accounts.services import (
     can_manage,
     email_holder,
 )
-from kukgrade.serializers import ModelSerializer
+from kukgrade.serializers import ChoiceSerializer, ModelSerializer
 from ranks.models import Rank
 
 security_logger = logging.getLogger("kukgrade.security")
@@ -65,7 +67,9 @@ class AuthorityFields(serializers.Serializer):
 
 
 class UserSerializer(AuthorityFields, ModelSerializer):
-    full_name = serializers.CharField(source="get_full_name", read_only=True)
+    full_name = serializers.SerializerMethodField(
+        help_text="Their name; never their email address.",
+    )
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     # What the signed-in user may do beyond ordinary grading, from the exact
     # permission each action checks - so the UI offers a control only when
@@ -81,6 +85,9 @@ class UserSerializer(AuthorityFields, ModelSerializer):
     # Not a single permission: the audit-log rule, computed by the same
     # function the API and admin enforce it with.
     can_read_audit_log = serializers.SerializerMethodField()
+
+    def get_full_name(self, user: User) -> str:
+        return name_of(user)
 
     def get_can_read_audit_log(self, user: User) -> bool:
         return can_view_audit_log(user)
@@ -165,6 +172,10 @@ class PermissionPrimedListSerializer(serializers.ListSerializer[User]):
         return super().to_representation(users)
 
 
+class MissingDetailSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=MissingDetail.choices)
+
+
 class UserManagementSerializer(AuthorityFields, ModelSerializer):
     """List, retrieve, create and update for the administrator-facing API.
 
@@ -175,7 +186,9 @@ class UserManagementSerializer(AuthorityFields, ModelSerializer):
     meant for one endpoint to the other.
     """
 
-    full_name = serializers.CharField(source="get_full_name", read_only=True)
+    full_name = serializers.SerializerMethodField(
+        help_text="Their name; never their email address.",
+    )
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     rank = serializers.PrimaryKeyRelatedField(
         queryset=Rank.objects.staff(),
@@ -186,6 +199,12 @@ class UserManagementSerializer(AuthorityFields, ModelSerializer):
             "An instructor's rank, one of the instructor ranks (`/api/choices/`); "
             "required when an instructor account is made. An administrator "
             "account has none."
+        ),
+    )
+    missing_details = serializers.SerializerMethodField(
+        help_text=(
+            "What an account made before a rule still lacks: a name, or an "
+            "instructor's rank. Empty when it is complete."
         ),
     )
     rank_name = serializers.CharField(
@@ -218,6 +237,7 @@ class UserManagementSerializer(AuthorityFields, ModelSerializer):
             "role_display",
             "rank",
             "rank_name",
+            "missing_details",
             "is_active",
             "can_make_final_grading_decision",
             "can_promote_student",
@@ -251,6 +271,16 @@ class UserManagementSerializer(AuthorityFields, ModelSerializer):
             "date_joined",
             "last_login",
         )
+
+    def get_full_name(self, user: User) -> str:
+        return name_of(user)
+
+    @extend_schema_field(MissingDetailSerializer(many=True))
+    def get_missing_details(self, user: User) -> list[dict[str, str]]:
+        return [
+            {"value": value, "label": str(MissingDetail(value).label)}
+            for value in missing_details(user)
+        ]
 
     def get_manageable(self, user: User) -> bool:
         return can_manage(user, self.context["request"].user)
@@ -347,18 +377,8 @@ class SetupSerializer(serializers.Serializer):
         help_text="The one-time setup code from the server's log.",
     )
     email = serializers.EmailField(write_only=True)
-    first_name = serializers.CharField(
-        write_only=True,
-        required=False,
-        allow_blank=True,
-        max_length=150,
-    )
-    last_name = serializers.CharField(
-        write_only=True,
-        required=False,
-        allow_blank=True,
-        max_length=150,
-    )
+    first_name = serializers.CharField(write_only=True, max_length=150)
+    last_name = serializers.CharField(write_only=True, max_length=150)
     # Untrimmed, as sign-in reads it.
     password = serializers.CharField(
         write_only=True,

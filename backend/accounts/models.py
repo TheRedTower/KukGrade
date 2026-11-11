@@ -18,6 +18,10 @@ ADMINISTRATOR_RANK_MESSAGE = "An administrator account has no rank."
 STAFF_RANK_MESSAGE = "Choose one of the instructor ranks."
 
 
+# What an account without a name is called wherever it is named.
+UNNAMED = "Unnamed account"
+
+
 class UserManager(BaseUserManager["User"]):
     """Manager for email-first KukGrade staff accounts."""
 
@@ -81,7 +85,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=Role.INSTRUCTOR,
     )
     # An instructor's rank, chosen when the account is made, from the ranks
-    # above the syllabus (Rank.objects.staff()). An administrator account has
+    # held by staff (Rank.objects.staff(): JKN and above). An administrator account has
     # none. What it was when they acted is kept on each record that names
     # them (accounts.people), so a later promotion changes no record.
     rank = models.ForeignKey(
@@ -137,11 +141,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     def get_full_name(self) -> str:
-        full_name = f"{self.first_name} {self.last_name}".strip()
-        return full_name or self.email
+        """Their name as a record shows it, never their email address (owner,
+        2026-11-11): an account made before names were required is "Unnamed
+        account" until an administrator gives it one."""
+        return f"{self.first_name} {self.last_name}".strip() or UNNAMED
 
     def get_short_name(self) -> str:
-        return self.first_name or self.email
+        return self.first_name or self.get_full_name()
 
 
 class SetupCode(models.Model):

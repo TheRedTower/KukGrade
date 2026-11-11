@@ -96,6 +96,7 @@ def create(client: APIClient, **extra: object) -> Any:
         {
             "email": "temp-new@example.com",
             "first_name": "Temp",
+            "last_name": "Worker",
             "rank": instructor_rank().pk,
             **extra,
         },
@@ -368,7 +369,12 @@ def test_a_password_its_owner_chose_never_expires() -> None:
 
 
 def test_an_issued_password_never_prints() -> None:
-    issued = create_platform_user(email="temp-repr@example.com", rank=instructor_rank())
+    issued = create_platform_user(
+        email="temp-repr@example.com",
+        first_name="Temp",
+        last_name="Repr",
+        rank=instructor_rank(),
+    )
 
     assert issued.password not in repr(issued)
     assert issued.password not in str(issued)

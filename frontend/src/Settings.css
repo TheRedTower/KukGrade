@@ -78,21 +78,20 @@
 }
 
 .st-name-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-2);
   width: 100%;
 }
 
-.st-name-form .field {
-  flex: 1 1 8rem;
-  min-width: 0;
+/* The two names side by side, each on its own line when there is no room. */
+.st-name-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
 }
 
-.st-full {
-  flex: 1 1 100%;
-  margin: 0;
+.st-name-fields .field {
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 
 .st-saved {

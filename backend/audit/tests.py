@@ -469,6 +469,8 @@ def test_master_authority_instructor_cannot_see_user_management_events_in_the_lo
     admin_actor = administrator("audit-user-mgmt-admin@example.com")
     created = create_platform_user(
         email="audit-user-mgmt-target@example.com",
+        first_name="Target",
+        last_name="Person",
         rank=instructor_rank(),
         actor=admin_actor,
     ).user
@@ -490,6 +492,8 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     admin_actor = administrator("audit-user-mgmt-admin-2@example.com")
     create_platform_user(
         email="audit-user-mgmt-target-2@example.com",
+        first_name="Target",
+        last_name="Person",
         rank=instructor_rank(),
         actor=admin_actor,
     )
@@ -535,6 +539,8 @@ def user_created_event() -> AuditEvent:
 
     created = create_platform_user(
         email="audit-parity-target@example.com",
+        first_name="Target",
+        last_name="Person",
         rank=instructor_rank(),
         actor=administrator("audit-parity-admin@example.com"),
     ).user

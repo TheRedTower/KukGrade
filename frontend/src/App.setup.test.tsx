@@ -175,6 +175,19 @@ describe("First-time setup", () => {
     expect(screen.getByText("Setup is already under way in another browser.")).toBeVisible();
   });
 
+  it("asks the first administrator for both names", async () => {
+    vi.stubGlobal(
+      "fetch",
+      newDeployment(() => jsonResponse(201, owner)),
+    );
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Set up KukGrade" });
+
+    expect(screen.getByLabelText("First name")).toBeRequired();
+    expect(screen.getByLabelText("Last name")).toBeRequired();
+  });
+
   it("checks the confirmation before sending anything", async () => {
     const fetchMock = newDeployment(() => jsonResponse(201, owner));
     vi.stubGlobal("fetch", fetchMock);

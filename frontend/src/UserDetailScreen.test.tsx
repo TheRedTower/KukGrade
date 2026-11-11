@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserDetailScreen } from "./UserDetailScreen";
-import { NETWORK_ERROR, type AuthUser, type ManagedUser } from "./api";
+import { ApiError, NETWORK_ERROR, type AuthUser, type ManagedUser } from "./api";
 import { CHOICES } from "./appTestSupport";
 
 let currentUser: AuthUser;
@@ -50,6 +50,7 @@ const managedUser: ManagedUser = {
   must_change_password: false,
   temporary_password_expires_at: null,
   manageable: true,
+  missing_details: [],
   date_joined: "2025-02-14T09:00:00Z",
   last_login: "2026-09-14T18:43:00Z",
 };
@@ -156,6 +157,51 @@ describe("UserDetailScreen", () => {
     expect(await screen.findByText("Account details saved.")).toBeInTheDocument();
     // The change is audited, so the page's activity list is read again.
     await waitFor(() => expect(mockGetAuditEvents.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("asks the administrator to fill in what an old account lacks", async () => {
+    mockGetManagedUser.mockResolvedValue({
+      ...managedUser,
+      first_name: "",
+      last_name: "",
+      full_name: "Unnamed account",
+      rank: null,
+      rank_name: "",
+      missing_details: [
+        { value: "name", label: "Needs a name" },
+        { value: "rank", label: "Needs a rank" },
+      ],
+    });
+    renderScreen();
+
+    expect(await screen.findByRole("heading", { name: "Unnamed account" })).toBeInTheDocument();
+    expect(screen.getByText("Needs a name")).toBeInTheDocument();
+    expect(screen.getByText("Needs a rank")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/missing details every account now needs/);
+    expect(screen.getByLabelText("First name")).toBeRequired();
+    expect(screen.getByLabelText("Last name")).toBeRequired();
+    expect(screen.getByLabelText("Rank")).toHaveValue("");
+  });
+
+  it("asks nothing of an account that has all it needs", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "Riley Khan" });
+    expect(screen.queryByText(/^Needs a/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/missing details/)).not.toBeInTheDocument();
+  });
+
+  it("says a missing name beside its box", async () => {
+    const user = userEvent.setup();
+    mockUpdateManagedUser.mockRejectedValue(
+      new ApiError("Validation failed.", 400, "validation_error", { first_name: ["Enter a first name."] }),
+    );
+    renderScreen();
+    await screen.findByRole("heading", { name: "Riley Khan" });
+
+    await user.click(screen.getByRole("button", { name: "Save account details" }));
+
+    expect(await screen.findByText("Enter a first name.")).toHaveClass("error-text--field");
+    expect(screen.getByLabelText("First name")).toHaveAccessibleDescription("Enter a first name.");
   });
 
   it("saves independent Master authority", async () => {

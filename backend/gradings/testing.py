@@ -209,9 +209,9 @@ def finalised_outcome(
     )
 
 
-def auth_client(email: str = "grading-api@example.com") -> APIClient:
+def auth_client(email: str = "grading-api@example.com", **overrides: Any) -> APIClient:
     client = APIClient()
-    client.force_authenticate(user=user(email))
+    client.force_authenticate(user=user(email, **overrides))
     return client
 
 

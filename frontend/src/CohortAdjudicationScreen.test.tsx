@@ -443,6 +443,26 @@ describe("CohortAdjudicationScreen", () => {
     expect(mockStage).toHaveBeenLastCalledWith(11, expect.objectContaining({ final_outcome: "FAIL" }));
   });
 
+  it("records a decision only after its save in flight has landed", async () => {
+    const user = userEvent.setup();
+    let finishSave!: () => void;
+    mockStage.mockImplementationOnce(
+      (outcomeId: number) => new Promise((resolve) => (finishSave = () => resolve({ outcome: outcomeId }))),
+    );
+    renderBoard();
+
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByTestId("cab-record-staged"));
+    // The save is still on its way, so recording waits behind it.
+    expect(mockFinalise).not.toHaveBeenCalled();
+
+    finishSave();
+
+    expect(await screen.findByText("1 decision recorded.")).toBeVisible();
+    expect(mockFinalise).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps warning while any candidate's decision is unsaved", async () => {
     const user = userEvent.setup();
     mockStage.mockImplementation(async (outcomeId: number) => {

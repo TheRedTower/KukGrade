@@ -2,13 +2,14 @@ import { PageHeader } from "./PageHeader";
 import { keys, refresh } from "./queryKeys";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { outcomeTone } from "./badgeClass";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
 
 import {
   type CandidateOutcome,
@@ -41,8 +42,9 @@ type PromotionRowItem = {
 };
 
 export function PromotionLedgerScreen(): React.ReactElement {
-  const { id } = useParams<{ id: string }>();
-  const sessionId = Number(id);
+  const id = useIdParam();
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
 
@@ -59,22 +61,24 @@ export function PromotionLedgerScreen(): React.ReactElement {
   const canPromote = Boolean(currentUser?.can_promote_student);
 
   // Queries
-  const { data: session, isLoading: isLoadingSession } = useQuery({
+  const sessionQuery = useQuery({
     queryKey: keys.gradingSessions.detail(sessionId),
     queryFn: () => getGradingSession(sessionId),
-    enabled: !Number.isNaN(sessionId) && sessionId > 0,
+    enabled: id !== null,
   });
+  const session = sessionQuery.data;
+  const isLoadingSession = sessionQuery.isLoading;
 
   const candidatesQuery = useQuery({
     queryKey: keys.gradingCandidates.session(sessionId),
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
-    enabled: !Number.isNaN(sessionId) && sessionId > 0,
+    enabled: id !== null,
   });
 
   const eligibilityQuery = useQuery({
     queryKey: keys.promotionEligibility(sessionId),
     queryFn: () => getPromotionEligibility(sessionId),
-    enabled: !Number.isNaN(sessionId) && sessionId > 0,
+    enabled: id !== null,
   });
 
   const ledgerQueries = [candidatesQuery, eligibilityQuery];
@@ -202,6 +206,19 @@ export function PromotionLedgerScreen(): React.ReactElement {
   );
 
   const isLoading = isLoadingSession || (!ledgerLoaded && !ledgerFailed);
+
+  // A link to a session that is not there says so; the ledger's own
+  // loading and failures show inside the page below.
+  if (recordStatus(id, sessionQuery) === "missing") {
+    return (
+      <RecordPage
+        back={{ to: "/gradings", label: "Gradings" }}
+        label="Promotion Ledger"
+        missing="Grading session not found"
+        status="missing"
+      />
+    );
+  }
 
   return (
     <section aria-labelledby="pl-title" className="page" data-testid="promotion-ledger-screen">

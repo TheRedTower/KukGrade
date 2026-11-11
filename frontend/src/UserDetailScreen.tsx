@@ -8,7 +8,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Alert } from "./Alert";
 import { ErrorText } from "./ErrorText";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus } from "./recordStatus";
 import { useAuth } from "./auth";
 import {
   deleteManagedUser,
@@ -295,8 +296,8 @@ function DeleteUserDialog({
 }
 
 export function UserDetailScreen(): React.ReactElement {
+  // An account's id is a UUID, not a number.
   const { id = "" } = useParams();
-  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -315,20 +316,19 @@ export function UserDetailScreen(): React.ReactElement {
     enabled: Boolean(id),
   });
 
-  if (query.isLoading) return <LoadingState className="page">Loading user…</LoadingState>;
-  if (query.isError || !query.data) {
+  const status = recordStatus(id || null, query);
+  if (status || !query.data) {
     return (
-      <div className="page">
-        <Alert
-          action={
-            <Button variant="secondary" onClick={() => navigate("/users")}>
-              Back to users
-            </Button>
-          }
-        >
-          {errorMessage(query.error, "This user could not be loaded.")}
-        </Alert>
-      </div>
+      <RecordPage
+        back={{ to: "/users", label: "Users" }}
+        error={query.error}
+        failed="This user could not be loaded."
+        label="User"
+        loading="Loading user…"
+        missing="User not found"
+        status={status ?? "loading"}
+        onRetry={() => void query.refetch()}
+      />
     );
   }
 

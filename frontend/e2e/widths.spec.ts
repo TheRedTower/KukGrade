@@ -29,6 +29,8 @@ const SCREENS: Screen[] = [
   { name: "dashboard", role: "master", path: () => "/" },
   { name: "students", role: "administrator", path: () => "/students" },
   { name: "student-new", role: "administrator", path: () => "/students/new" },
+  // A record that is not there: the shared not-found page (RecordPage).
+  { name: "student-missing", role: "administrator", path: () => "/students/999999" },
   { name: "student-detail", role: "administrator", path: (ids) => `/students/${ids.student}` },
   {
     name: "student-edit-dialog",
@@ -117,6 +119,7 @@ const SCREENS: Screen[] = [
   { name: "imports", role: "administrator", path: () => "/imports" },
   { name: "imports-new", role: "administrator", path: () => "/imports/new?kind=STUDENT_ROSTER" },
   { name: "imports-batch", role: "administrator", path: (ids) => `/imports/${ids.batch}` },
+  { name: "imports-missing", role: "administrator", path: () => "/imports/999999" },
   { name: "imports-history", role: "administrator", path: () => "/imports/history" },
   { name: "imports-records", role: "administrator", path: () => "/imports/records" },
   { name: "settings-account", role: "master", path: () => "/settings/account" },

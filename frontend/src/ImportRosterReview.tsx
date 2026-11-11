@@ -219,7 +219,7 @@ export function RosterReview({
         {view === "attention" && counts.review_required === 0 ? (
           <p className="ix-row ix-success-text item-title">✓ Nothing needs attention. Every row will be imported or left out as shown.</p>
         ) : (
-          <RowsList exclusion={exclusion} rows={rows}>
+          <RowsList kind={batch.kind} exclusion={exclusion} rows={rows}>
             {(list) =>
               view === "attention" ? (
                 list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)

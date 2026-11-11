@@ -396,13 +396,9 @@ select:not([multiple]):not([size]) {
   resize: vertical;
 }
 
-.field__row {
-  display: flex;
-}
-
 /* A search box: a .field whose magnifier is drawn at the box's start, in the
    theme's muted colour, so a screen adds no icon of its own. Its label may be
-   visually hidden; the box is always the field's last child. */
+   visually hidden; the box is always the field's last child (SearchField). */
 .field--search {
   position: relative;
 }
@@ -421,40 +417,6 @@ select:not([multiple]):not([size]) {
   background: var(--color-text-muted);
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E") center / contain no-repeat;
   pointer-events: none;
-}
-
-/* A search box and its button, joined. */
-.field__row > input {
-  flex: 1 1 auto;
-  width: auto;
-  min-width: 0;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-}
-
-/* The button joined to a search box. The box gives way on a narrow screen;
-   the button keeps its word whole. */
-.field__row > button {
-  flex-shrink: 0;
-  border: 1px solid var(--btn-primary-border);
-  border-left: 0;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  padding: var(--space-2) var(--space-4);
-  cursor: pointer;
-}
-
-.field__row > button:focus-visible {
-  outline: 2px solid var(--color-accent-strong);
-  outline-offset: 1px;
-}
-
-.field__row > button:hover {
-  border-color: var(--btn-primary-hover-border);
-  background: var(--btn-primary-hover-bg);
-  color: var(--btn-primary-hover-text);
 }
 
 /* ── Tables ────────────────────────────────────────────────────────────── */
@@ -1160,6 +1122,12 @@ select:not([multiple]):not([size]) {
 .pager {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+/* At the foot of a flush card (Pagination flush). */
+.pager--foot {
+  padding: var(--space-3) var(--card-pad);
+  border-top: 1px solid var(--color-border);
 }
 
 .pager__buttons {

@@ -11,11 +11,13 @@ import {
   getLegacyPeopleSummary,
 } from "./api";
 import { ErrorText } from "./ErrorText";
-import { ImportPager } from "./ImportPager";
+import { Pagination } from "./Pagination";
+import { SearchField } from "./SearchField";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
 import { type NameItem, type NameView, NamesTable } from "./LinkNameRow";
 import { type Chosen, recordsToLink } from "./linkRecords";
 import { useSiteSettingsQuery } from "./queries";
-import { useDebouncedValue } from "./useDebouncedValue";
 import { useLeftNames } from "./useLeftNames";
 import { useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
@@ -24,6 +26,8 @@ import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
 
 const PAGE_SIZE = 50;
+
+const NAME_VIEWS: readonly NameView[] = ["todo", "clear", "choose", "none", "left", "done"];
 
 const VIEWS: { view: NameView; label: string }[] = [
   { view: "todo", label: "To link" },
@@ -51,10 +55,12 @@ export function LinkRecordsScreen() {
   // The most records one link request takes, as the server serves it.
   const linkLimit = useSiteSettingsQuery().data?.imports.bulk_link_limit;
   const { leave, putBack, error: leftError, reset: resetLeft } = useLeftNames();
-  const [view, setView] = useState<NameView>("todo");
-  const [batch, setBatch] = useState("");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const filters = useUrlFilters();
+  const view = filters.oneOf("view", NAME_VIEWS, "todo");
+  const batch = filters.value("batch");
+  const search = filters.value("search");
+  const page = filters.page;
+  const setPage = filters.setPage;
   const [open, setOpen] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [picks, setPicks] = useState<Record<string, Chosen>>({});
@@ -63,7 +69,7 @@ export function LinkRecordsScreen() {
   const [notice, setNotice] = useState("");
   // The open row a link was started from, so its failure shows in that row.
   const [linkedFrom, setLinkedFrom] = useState<string | null>(null);
-  const debouncedSearch = useDebouncedValue(search.trim());
+  const debouncedSearch = search.trim();
 
   const batchId = batch ? Number(batch) : undefined;
 
@@ -75,9 +81,15 @@ export function LinkRecordsScreen() {
     queryKey: keys.legacyPeople.summary(batchId),
     queryFn: () => getLegacyPeopleSummary({ batch: batchId, set_aside: "exclude" }),
   });
-  const people = useQuery({
+  const paged = usePagedQuery({
     queryKey: keys.legacyPeople.list(view, batchId, debouncedSearch, page),
     placeholderData: keepPreviousData,
+    page,
+    pageSize: PAGE_SIZE,
+    onPage: (next) => {
+      setPage(next);
+      resetRows();
+    },
     queryFn: () =>
       getLegacyPeople({
         batch: batchId,
@@ -89,6 +101,7 @@ export function LinkRecordsScreen() {
         ...(view === "clear" || view === "choose" || view === "none" ? { suggestion: view } : {}),
       }),
   });
+  const people = paged.query;
 
   const counts: Record<NameView, number | undefined> = {
     todo: summary.data?.names,
@@ -104,7 +117,6 @@ export function LinkRecordsScreen() {
 
   const loading = people.isPending || people.isPlaceholderData;
   const rows = loading ? [] : people.data?.results ?? [];
-  const listed = people.data?.count ?? 0;
   const pageSelected = rows.filter(
     (person) => selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
   );
@@ -118,11 +130,15 @@ export function LinkRecordsScreen() {
     setSelected([]);
   }
 
-  function show(next: NameView) {
-    setView(next);
-    setPage(1);
+  // A filter changed: the first page of what it shows, nothing carried over.
+  function refilter(updates: Parameters<typeof filters.set>[0]) {
+    filters.set(updates);
     setNotice("");
     resetRows();
+  }
+
+  function show(next: NameView) {
+    refilter({ view: next === "todo" ? null : next });
   }
 
   function linkNames(names: LegacyPerson[], from: string | null = null) {
@@ -183,27 +199,20 @@ export function LinkRecordsScreen() {
       </PageHeader>
 
       <div className="filter-bar" role="search" aria-label="Name filters">
-        <label className="field">
-          <span>Find a name</span>
-          <input
-            placeholder="Name as written"
-            type="search"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-              resetRows();
-            }}
-          />
-        </label>
+        <SearchField
+          label="Find a name"
+          placeholder="Name as written"
+          value={search}
+          onChange={(value) => {
+            filters.set({ search: value });
+            resetRows();
+          }}
+        />
         <label className="field">
           <span>Import</span>
           <select
             value={batch}
-            onChange={(event) => {
-              setBatch(event.target.value);
-              show(view);
-            }}
+            onChange={(event) => refilter({ batch: event.target.value })}
           >
             <option value="">Every import</option>
             {(imports.data?.results ?? []).map((item) => (
@@ -345,16 +354,7 @@ export function LinkRecordsScreen() {
             })}
           />
         )}
-        <ImportPager
-          label="Pages of names"
-          page={page}
-          pages={Math.ceil(listed / PAGE_SIZE)}
-          total={listed}
-          onPage={(next) => {
-            setPage(next);
-            resetRows();
-          }}
-        />
+        <Pagination flush label="Pages of names" noun={["name", "names"]} {...paged.pager} />
       </div>
     </section>
   );

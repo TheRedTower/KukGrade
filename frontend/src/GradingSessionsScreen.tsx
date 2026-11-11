@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { useNavigate } from "react-router-dom";
@@ -22,7 +22,9 @@ import { useChoices } from "./choices";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
-import { useDebouncedValue } from "./useDebouncedValue";
+import { SearchField } from "./SearchField";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
 import { Button } from "./Button";
 import { ArrowRightIcon, PlusIcon } from "./Icons";
 
@@ -89,12 +91,13 @@ export function GradingSessionsScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState<GradingSessionStatus | "ALL">("ALL");
-  const [yearFilter, setYearFilter] = useState<string>("ALL");
+  const filters = useUrlFilters();
+  const searchText = filters.value("search");
+  const statusFilter = filters.value("status") as GradingSessionStatus | "";
+  const yearFilter = filters.value("year");
   const sessionStatuses = useChoices().session_statuses;
-  const [archivedOnly, setArchivedOnly] = useState(false);
-  const [page, setPage] = useState(1);
+  const archivedOnly = filters.value("archived") === "only";
+  const page = filters.page;
 
   const [deleteConfirmSession, setDeleteConfirmSession] = useState<GradingSession | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -129,12 +132,12 @@ export function GradingSessionsScreen() {
   const currentSession = currentSessionQuery.data?.results[0] ?? null;
 
   // Paginated sessions filtered by status on the server
-  const serverStatus = statusFilter !== "ALL" ? statusFilter : undefined;
-  const selectedYear = yearFilter !== "ALL" ? Number(yearFilter) : undefined;
+  const serverStatus = statusFilter || undefined;
+  const selectedYear = yearFilter ? Number(yearFilter) : undefined;
   // Waits for a pause in typing; the last page stays while the next loads.
-  const serverSearch = useDebouncedValue(searchText.trim()) || undefined;
+  const serverSearch = searchText.trim() || undefined;
 
-  const sessionsQuery = useQuery({
+  const sessionsQuery = usePagedQuery({
     queryKey: keys.gradingSessions.page(page, serverStatus, selectedYear, serverSearch, archivedOnly),
     placeholderData: keepPreviousData,
     queryFn: () =>
@@ -146,26 +149,17 @@ export function GradingSessionsScreen() {
         year: selectedYear,
         archived: archivedOnly ? "only" : undefined,
       }),
+    page,
+    pageSize: PAGE_SIZE,
+    onPage: filters.setPage,
   });
+  const sessions: GradingSession[] = sessionsQuery.results;
 
-  const sessions: GradingSession[] = useMemo(
-    () => sessionsQuery.data?.results ?? [],
-    [sessionsQuery.data],
-  );
-  const totalCount = sessionsQuery.data?.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  function resetFilters() { filters.clear("search", "status", "year", "archived"); }
 
-  function handleStatusFilter(value: GradingSessionStatus | "ALL") { setStatusFilter(value); setPage(1); }
-  function handleYearFilter(value: string) { setYearFilter(value); setPage(1); }
-  function handleArchived(value: boolean) { setArchivedOnly(value); setPage(1); }
-  function handleSearch(value: string) { setSearchText(value); setPage(1); }
-  function resetFilters() { setSearchText(""); setStatusFilter("ALL"); setYearFilter("ALL"); setArchivedOnly(false); setPage(1); }
-
-  const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL" || archivedOnly;
-  const isLoading = currentSessionQuery.isLoading || sessionsQuery.isLoading;
-  const showingFrom = sessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const showingTo = Math.min(page * PAGE_SIZE, totalCount);
-  const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL" && !archivedOnly;
+  const isFiltered = searchText.trim() !== "" || statusFilter !== "" || yearFilter !== "" || archivedOnly;
+  const isLoading = currentSessionQuery.isLoading || sessionsQuery.query.isLoading;
+  const showCurrentCard = currentSession !== null && !isFiltered;
 
   return (
     <section aria-labelledby="gradings-heading" className="page">
@@ -183,33 +177,32 @@ export function GradingSessionsScreen() {
 
       {/* ── Filters */}
       <div className="filter-bar" role="search">
-        <label className="field field--search filter-bar__full">
-          <span className="visually-hidden">Search grading sessions</span>
-          <input
-            id="gs-search-input"
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search title, place, date or status…"
-            type="search"
-            value={searchText}
-          />
-        </label>
+        <SearchField
+          className="filter-bar__full"
+          hideLabel
+          id="gs-search-input"
+          label="Search grading sessions"
+          placeholder="Search title, place, date or status…"
+          value={searchText}
+          onChange={(value) => filters.set({ search: value })}
+        />
         <div className="field">
           <label htmlFor="gs-status-filter">Status</label>
-          <select id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
-            <option value="ALL">All statuses</option>
+          <select id="gs-status-filter" onChange={(e) => filters.set({ status: e.target.value })} value={statusFilter}>
+            <option value="">All statuses</option>
             {sessionStatuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-year-filter">Year</label>
-          <select id="gs-year-filter" onChange={(e) => handleYearFilter(e.target.value)} value={yearFilter}>
-            <option value="ALL">All years</option>
+          <select id="gs-year-filter" onChange={(e) => filters.set({ year: e.target.value })} value={yearFilter}>
+            <option value="">All years</option>
             {availableYears.map((y) => <option key={y} value={String(y)}>{y}</option>)}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-archive-filter">Show</label>
-          <select id="gs-archive-filter" onChange={(e) => handleArchived(e.target.value === "ARCHIVED")} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
+          <select id="gs-archive-filter" onChange={(e) => filters.set({ archived: e.target.value === "ARCHIVED" ? "only" : null })} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
             <option value="CURRENT">Current gradings</option>
             <option value="ARCHIVED">Archived gradings</option>
           </select>
@@ -308,19 +301,7 @@ export function GradingSessionsScreen() {
           </div>
 
           {/* ── Pagination */}
-          {sessions.length > 0 && (
-            <Pagination
-              label="Grading sessions pagination"
-              page={page}
-              totalPages={totalPages}
-              onPage={setPage}
-              summary={
-                totalPages > 1
-                  ? `Showing ${showingFrom}–${showingTo} of ${totalCount} sessions`
-                  : `Showing ${sessions.length} of ${totalCount} sessions`
-              }
-            />
-          )}
+          <Pagination label="Grading sessions pagination" noun={["session", "sessions"]} {...sessionsQuery.pager} />
         </>
       )}
 

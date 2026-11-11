@@ -251,11 +251,6 @@
   margin: 0;
 }
 
-.ix-table-foot {
-  padding: var(--space-3) var(--card-pad);
-  border-top: 1px solid var(--color-border);
-}
-
 .ix-danger-text {
   color: var(--color-danger);
 }

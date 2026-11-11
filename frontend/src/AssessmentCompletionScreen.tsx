@@ -27,13 +27,14 @@ import { useState } from "react";
 import { useAuth } from "./auth";
 import { refresh } from "./queryKeys";
 import { BackLink } from "./BackLink";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   updateCandidateAssessment,
   errorMessage,
 } from "./api";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { type RecordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { useSiteSettingsQuery } from "./queries";
 import {
@@ -53,14 +54,15 @@ import { agreeing } from "./plural";
 import { CandidateRanks } from "./RankTransition";
 
 export function AssessmentCompletionScreen() {
-  const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
+  const sessionId = useIdParam("sessionId");
+  const candidateId = useIdParam("candidateId");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const clubName = useSiteSettingsQuery().data?.club_name;
   const { user: currentUser } = useAuth();
 
-  const numSessionId = sessionId ? Number(sessionId) : undefined;
-  const numCandidateId = candidateId ? Number(candidateId) : undefined;
+  const numSessionId = sessionId ?? undefined;
+  const numCandidateId = candidateId ?? undefined;
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [hasProofread, setHasProofread] = useState(false);
@@ -101,36 +103,18 @@ export function AssessmentCompletionScreen() {
     },
   });
 
-  if (isLoading) {
+  const status: RecordStatus | null = isLoading ? "loading" : hasLoadError ? "failed" : !session || !candidate ? "missing" : null;
+  if (status || !session || !candidate) {
     return (
-      <section aria-label="Assessment completion review" className="page" data-testid="caw-review-loading">
-        <LoadingState>Loading completion review…</LoadingState>
-      </section>
-    );
-  }
-
-  if (hasLoadError) {
-    return (
-      <section aria-label="Assessment completion review" className="page" data-testid="caw-review-load-error">
-        <Alert action={<Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
-            ← Return to scoring
-          </Link>}>
-          The assessment summary could not be loaded, so the record cannot be reviewed or
-            sealed right now. Reload to try again.
-        </Alert>
-      </section>
-    );
-  }
-
-  if (!session || !candidate) {
-    return (
-      <section aria-label="Assessment completion review" className="page" data-testid="caw-review-not-found">
-        <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
-            ← Return to session roster
-          </Link>}>
-          Candidate or grading session not found.
-        </Alert>
-      </section>
+      <RecordPage
+        back={status === "failed" ? { to: scoringPath, label: "Assessment" } : { to: sessionId ? `/gradings/${sessionId}` : "/gradings", label: sessionId ? "Grading session" : "Gradings" }}
+        failed="The assessment summary could not be loaded, so the record cannot be reviewed or sealed right now. Reload to try again."
+        label="Assessment completion review"
+        loading="Loading completion review…"
+        missing="Candidate or grading session not found"
+        status={status ?? "loading"}
+        testId="caw-review"
+      />
     );
   }
 

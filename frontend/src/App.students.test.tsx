@@ -79,6 +79,35 @@ describe("Students registry screen (/students)", () => {
     expect(screen.queryByText("Only the students one import added")).not.toBeInTheDocument();
   });
 
+  it("keeps its filters and page in the address, so a reload shows the same list", async () => {
+    window.history.replaceState({}, "", "/students?search=Ava&status=LEFT&page=2");
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/ranks/") || url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByPlaceholderText("Search name or WKSA ID")).toHaveValue("Ava");
+    expect(screen.getByLabelText("Status")).toHaveValue("LEFT");
+    const listed = () =>
+      fetchMock.mock.calls
+        .map(([url]) => new URL(String(url), "http://localhost"))
+        .filter((url) => url.pathname === "/api/students/");
+    await waitFor(() =>
+      expect(listed().some((url) => url.searchParams.get("search") === "Ava" && url.searchParams.get("status") === "LEFT" && url.searchParams.get("page") === "2")).toBe(true),
+    );
+    // Changing a filter goes back to the first page.
+    await user.selectOptions(screen.getByLabelText("Status"), "");
+    expect(window.location.search).toBe("?search=Ava");
+  });
+
   it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
     const testRanks = [
       { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
@@ -1216,5 +1245,46 @@ describe("Student detail screen (/students/:id)", () => {
     await user.click(backLink);
 
     expect(window.location.pathname).toBe("/students");
+  });
+});
+
+describe("A student record that is not there", () => {
+  beforeEach(() => {
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch() {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      return jsonResponse(404, { detail: "Not found." });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("says so for an address that names no record, without asking the server", async () => {
+    window.history.replaceState({}, "", "/students/12abc");
+    const fetchMock = stubFetch();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Student record not found" })).toBeVisible();
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Students" })).toHaveAttribute("href", "/students");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/students/12"))).toBe(false);
+  });
+
+  it("says so for a record the server does not have", async () => {
+    window.history.replaceState({}, "", "/students/99");
+    stubFetch();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Student record not found" })).toBeVisible();
   });
 });

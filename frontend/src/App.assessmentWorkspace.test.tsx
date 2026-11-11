@@ -825,7 +825,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     render(<App />);
 
-    expect(await screen.findByTestId("caw-load-error", {}, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByTestId("caw-failed", {}, { timeout: 5000 })).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("scoring is paused");
     expect(screen.queryByTestId("caw-complete-assessment-btn")).toBeNull();
     expect(screen.queryByText("0 / 0")).toBeNull();
   });

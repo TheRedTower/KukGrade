@@ -2,15 +2,16 @@ import { useEffect } from "react";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-import { ErrorText } from "./ErrorText";
-import { ApiError, errorMessage, getDataImportBatch } from "./api";
+import { getDataImportBatch } from "./api";
 import { ImportMatchColumns } from "./ImportMatchColumns";
 import { ImportMatchRanks } from "./ImportMatchRanks";
 import { ImportResults } from "./ImportResults";
 import { ImportReview } from "./ImportReview";
 import { ImportStepBar } from "./ImportStepBar";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { importKinds } from "./importKinds";
 import "./Imports.css";
 import { buttonClass } from "./buttonClass";
@@ -18,14 +19,15 @@ import { keys } from "./queryKeys";
 
 /** One import, opened at the step it is up to - so it survives a reload. */
 export function ImportScreen() {
-  const { id } = useParams();
-  const batchId = Number(id);
+  const id = useIdParam();
+  // The query waits for a real id; 0 is never sent.
+  const batchId = id ?? 0;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const batch = useQuery({
     queryKey: keys.imports.batch(batchId),
     queryFn: () => getDataImportBatch(batchId),
-    enabled: Number.isInteger(batchId) && batchId > 0,
+    enabled: id !== null,
   });
 
   // The step is the one in the address, so a reload keeps it; with none, it
@@ -40,30 +42,19 @@ export function ImportScreen() {
     if (open && !asked && upTo === "match") setSearchParams({ step: "match" }, { replace: true });
   }, [open, asked, upTo, setSearchParams]);
 
-  if (!Number.isInteger(batchId) || batchId <= 0 || (batch.error instanceof ApiError && batch.error.status === 404)) {
+  const status = recordStatus(id, batch);
+  if (status || !batch.data) {
     return (
-      <section aria-labelledby="ix-missing-title" className="page">
-        <PageHeader
-          back={{ to: "/imports", label: "Imports" }}
-          title="Import not found"
-          titleId="ix-missing-title"
-          subtitle="It may have been cleared. Start again from Imports."
-        />
-      </section>
-    );
-  }
-  if (batch.isPending) {
-    return (
-      <p className="subtext" role="status">
-        Loading the import…
-      </p>
-    );
-  }
-  if (batch.isError) {
-    return (
-      <ErrorText>
-        {errorMessage(batch.error, "The import could not be loaded. Try again in a moment.")}
-      </ErrorText>
+      <RecordPage
+        back={{ to: "/imports", label: "Imports" }}
+        error={batch.error}
+        failed="The import could not be loaded. Try again in a moment."
+        label="Import"
+        loading="Loading the import…"
+        missing="Import not found"
+        status={status ?? "loading"}
+        onRetry={() => void batch.refetch()}
+      />
     );
   }
 

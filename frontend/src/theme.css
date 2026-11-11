@@ -50,9 +50,6 @@
   --btn-primary-bg: #f2a71b;
   --btn-primary-text: #17140f;
   --btn-primary-border: #d6900e;
-  --btn-primary-hover-bg: #e59e19;
-  --btn-primary-hover-border: #b87b0a;
-  --btn-primary-hover-text: #17140f;
   --btn-primary-shadow: 0 2px 8px rgb(197 155 39 / 20%);
 
   /* Reserved for operational meaning - never the sole carrier of
@@ -150,9 +147,6 @@
   --btn-primary-bg: #e8a838;
   --btn-primary-text: #14110c;
   --btn-primary-border: #ffbb3d;
-  --btn-primary-hover-bg: #ffbb3d;
-  --btn-primary-hover-border: #ffd073;
-  --btn-primary-hover-text: #0e0c08;
   --btn-primary-shadow: 0 2px 12px rgb(232 168 56 / 25%);
 
   --color-success: #4cbf84;

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { keys } from "./queryKeys";
 import { useDebouncedValue } from "./useDebouncedValue";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   GradingSession,
@@ -14,8 +14,8 @@ import {
   updateGradingSession,
 } from "./api";
 import { PageHeader } from "./PageHeader";
-import { EmptyState } from "./EmptyState";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { WarningIcon } from "./Icons";
 import { useAuth } from "./auth";
@@ -40,13 +40,13 @@ import { useCandidateWork } from "./useCandidateWork";
 import { counted } from "./plural";
 
 export function GradingSessionDetailScreen(): React.ReactElement {
-  const { id } = useParams<{ id: string }>();
+  const id = useIdParam();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Number(), not parseInt: "12abc" is no session, not session 12.
-  const sessionId = Number(id);
-  const valid = !isNaN(sessionId);
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
+  const valid = id !== null;
   const { user: currentUser } = useAuth();
 
   const [search, setSearch] = useState("");
@@ -188,41 +188,20 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const preparedIds = enrichedCandidates.flatMap((item) => (item.assessment?.can_start ? [item.assessment.id] : []));
   const attendanceCandidates = enrichedCandidates.filter((item) => item.candidate.can_be_marked_absent).map(toAttendanceCandidate);
 
-  if (!valid) {
+  const status = recordStatus(id, sessionQuery);
+  if (status || !session) {
     return (
-      <section aria-labelledby="gsd-invalid-id-heading" className="page" data-testid="gsd-page">
-        <EmptyState
-          titleAs="h2"
-          titleId="gsd-invalid-id-heading"
-          title="Grading session not found"
-          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
-        >
-          Please return to the sessions list.
-        </EmptyState>
-      </section>
-    );
-  }
-
-  if (sessionQuery.isLoading) {
-    return (
-      <section aria-label="Grading session" className="page" data-testid="gsd-page">
-        <LoadingState>Loading grading session…</LoadingState>
-      </section>
-    );
-  }
-
-  if (sessionQuery.isError || !session) {
-    return (
-      <section aria-labelledby="gsd-error-heading" className="page" data-testid="gsd-page">
-        <EmptyState
-          titleAs="h2"
-          titleId="gsd-error-heading"
-          title="Failed to load grading session"
-          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
-        >
-          {errorMessage(sessionQuery.error, "Session not found.")}
-        </EmptyState>
-      </section>
+      <RecordPage
+        back={{ to: "/gradings", label: "Gradings" }}
+        error={sessionQuery.error}
+        failed="The grading session could not be loaded."
+        label="Grading session"
+        loading="Loading grading session…"
+        missing="Grading session not found"
+        status={status ?? "loading"}
+        testId="gsd-page"
+        onRetry={() => void sessionQuery.refetch()}
+      />
     );
   }
 

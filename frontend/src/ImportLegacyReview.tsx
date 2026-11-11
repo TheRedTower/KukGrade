@@ -89,6 +89,7 @@ export function LegacyReview({
           title={heads[view][0]}
         />
         <RowsList
+          kind={batch.kind}
           empty={view === "attention" ? "✓ Nothing to look at: every record reads as KukGrade expects." : undefined}
           exclusion={exclusion}
           rows={rows}

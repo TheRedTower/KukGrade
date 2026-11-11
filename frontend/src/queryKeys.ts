@@ -52,7 +52,7 @@ export const keys = {
   auditEvents: {
     all: () => ["auditEvents"] as const,
     recent: () => ["auditEvents", "recent"] as const,
-    user: (id: Id | string) => ["auditEvents", "user", id] as const,
+    user: (id: string) => ["auditEvents", "user", id] as const,
     log: (...filters: unknown[]) => ["auditEvents", "log", ...filters] as const,
   },
   auditLabels: () => ["auditLabels"] as const,
@@ -74,7 +74,7 @@ export const keys = {
   legacyRecords: {
     all: () => ["legacyRecords"] as const,
     browse: (...filters: unknown[]) => ["legacyRecords", "browse", ...filters] as const,
-    detail: (id: Id | string) => ["legacyRecords", "detail", id] as const,
+    detail: (id: Id) => ["legacyRecords", "detail", id] as const,
     group: (groupKey: string, batch: Id) => ["legacyRecords", "group", groupKey, batch] as const,
     /** How many still await a student: every import, or one. */
     awaitingLinkCount: (...batch: number[]) => ["legacyRecords", "awaitingLinkCount", ...batch] as const,
@@ -90,7 +90,7 @@ export const keys = {
     page: (...filters: unknown[]) => ["managedUsers", ...filters] as const,
   },
   /** One account: its own family, so refreshing the list leaves it as just saved. */
-  managedUser: (id: Id | string) => ["managedUser", id] as const,
+  managedUser: (id: string) => ["managedUser", id] as const,
   currentUser: () => ["currentUser"] as const,
   setupStatus: () => ["setupStatus"] as const,
   ranks: () => ["ranks"] as const,

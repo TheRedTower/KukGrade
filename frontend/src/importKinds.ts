@@ -18,6 +18,8 @@ export type ImportKind = {
   oneSheet: boolean;
   /** Each row becomes a student, so a template, row edits and a link to the student follow. */
   addsStudents: boolean;
+  /** What one row of the file is called, one and many. */
+  noun: [string, string];
   guide: Guide;
   /** The start screen's first line, before a file is chosen. */
   chooseLead: string;
@@ -76,6 +78,7 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
     match: "columns",
     oneSheet: true,
     addsStudents: true,
+    noun: ["row", "rows"],
     guide: {
       lead:
         "One student per row, with a heading on each column. The headings do not need to match: you pair them up next.",
@@ -187,6 +190,7 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
     match: "ranks",
     oneSheet: false,
     addsStudents: false,
+    noun: ["record", "records"],
     guide: {
       lead: "The grading record workbook, one sheet per grading. In Google Sheets, use File, Download, Microsoft Excel.",
       fields: [

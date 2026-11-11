@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import {
   type DataImportBatch,
@@ -17,9 +17,11 @@ import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { ImportPager } from "./ImportPager";
+import { Pagination } from "./Pagination";
 import { importKinds } from "./importKinds";
 import { useImportSteps } from "./importSteps";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
 import { useTemplateDownload } from "./importTemplate";
 import "./Imports.css";
 import { Button } from "./Button";
@@ -169,13 +171,13 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
 }
 
 function PastImports() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const kind = (searchParams.get("kind") ?? "") as DataImportKind | "";
-  const state = searchParams.get("state") ?? "";
-  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const filters = useUrlFilters();
+  const kind = filters.value("kind") as DataImportKind | "";
+  const state = filters.value("state");
+  const page = filters.page;
   const choices = useChoices();
 
-  const past = useQuery({
+  const paged = usePagedQuery({
     queryKey: keys.imports.past(kind, state, page),
     placeholderData: keepPreviousData,
     queryFn: () =>
@@ -186,24 +188,12 @@ function PastImports() {
         page,
         page_size: PAST_PAGE_SIZE,
       }),
+    page,
+    pageSize: PAST_PAGE_SIZE,
+    onPage: filters.setPage,
   });
-
-  function setFilter(name: string, value: string) {
-    const next = new URLSearchParams(searchParams);
-    if (value) next.set(name, value);
-    else next.delete(name);
-    next.delete("page");
-    setSearchParams(next, { replace: true });
-  }
-
-  function setPage(next: number) {
-    const params = new URLSearchParams(searchParams);
-    params.set("page", String(next));
-    setSearchParams(params, { replace: true });
-  }
-
-  const batches = past.data?.results ?? [];
-  const total = past.data?.count ?? 0;
+  const past = paged.query;
+  const batches = paged.results;
 
   return (
     <section aria-labelledby="ix-past" className="ix-section">
@@ -211,7 +201,7 @@ function PastImports() {
       <div className="filter-bar" role="search" aria-label="Import filters">
         <label className="field">
           <span>What</span>
-          <select value={kind} onChange={(event) => setFilter("kind", event.target.value)}>
+          <select value={kind} onChange={(event) => filters.set({ kind: event.target.value })}>
             <option value="">Everything</option>
             {choices.import_kinds.map((choice) => (
               <option key={choice.value} value={choice.value}>{choice.label}</option>
@@ -220,7 +210,7 @@ function PastImports() {
         </label>
         <label className="field">
           <span>State</span>
-          <select value={state} onChange={(event) => setFilter("state", event.target.value)}>
+          <select value={state} onChange={(event) => filters.set({ state: event.target.value })}>
             <option value="">Any</option>
             {choices.finished_import_statuses.map((choice) => (
               <option key={choice.value} value={choice.value}>{choice.label}</option>
@@ -284,7 +274,7 @@ function PastImports() {
                 },
               ]}
             />
-            <ImportPager label="Pages of past imports" page={page} pages={Math.max(1, Math.ceil(total / PAST_PAGE_SIZE))} total={total} onPage={setPage} />
+            <Pagination flush label="Pages of past imports" noun={["import", "imports"]} {...paged.pager} />
           </>
         )}
       </div>

@@ -103,7 +103,6 @@ describe("UsersScreen", () => {
     await screen.findByText("Riley Khan");
 
     await user.type(screen.getByRole("searchbox", { name: "Search users" }), "Riley");
-    await user.click(screen.getByRole("button", { name: "Search" }));
     await user.selectOptions(screen.getByLabelText("Role"), "instructor");
     await user.selectOptions(screen.getByLabelText("Status"), "inactive");
 

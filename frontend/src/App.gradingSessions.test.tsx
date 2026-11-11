@@ -334,7 +334,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       await screen.findByText("No grading sessions match the selected filters."),
     ).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Reset filters" }));
-    expect(statusSelect).toHaveValue("ALL");
+    expect(statusSelect).toHaveValue("");
     expect(await screen.findByText("Summer Grading")).toBeVisible();
   });
 

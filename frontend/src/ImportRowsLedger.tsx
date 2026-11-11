@@ -8,7 +8,7 @@ import { Badge } from "./Badge";
 import { Link } from "react-router-dom";
 import { type DataImportBatch, type DataImportRow, errorMessage } from "./api";
 import { ErrorText } from "./ErrorText";
-import { ImportPager } from "./ImportPager";
+import { Pagination } from "./Pagination";
 import { usePagedRows } from "./useImportRows";
 import { importKinds } from "./importKinds";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -54,8 +54,8 @@ export function RowsLedger({
   // A second-look filter shows as a chip of its own while it is in use.
   if (filter === "status") tabs.push({ key: "status", label: "Given a status" });
   if (filter === "current_rank") tabs.push({ key: "current_rank", label: "Given a rank" });
-  const list = rows.query.data?.results ?? [];
-  const cleared = !rows.query.isPending && rows.total === 0 && filter === "all" && !debounced;
+  const list = rows.results;
+  const cleared = !rows.query.isPending && rows.count === 0 && filter === "all" && !debounced;
 
   return (
     <section aria-labelledby="ix-rows-h" className="card card--flush">
@@ -139,7 +139,7 @@ export function RowsLedger({
           />
         </div>
       )}
-      <ImportPager label="Pages of results" page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />
+      <Pagination flush label="Pages of results" noun={importKinds[batch.kind].noun} {...rows.pager} />
     </section>
   );
 }

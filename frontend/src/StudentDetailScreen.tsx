@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { keys, refresh } from "./queryKeys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   type GradingHistoryItem,
@@ -17,7 +17,8 @@ import { PageHeader } from "./PageHeader";
 import { StudentEditDialog } from "./StudentEditDialog";
 import { StudentStatusDialog } from "./StudentStatusDialog";
 import { EmptyState } from "./EmptyState";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
 import { useAuth } from "./auth";
@@ -52,12 +53,13 @@ function gradingHistoryOutcomeLabel(item: GradingHistoryItem): string {
 }
 
 export function StudentDetailScreen() {
-  const { id } = useParams<{ id: string }>();
+  const id = useIdParam();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
 
-  const studentId = Number(id);
+  // The queries wait for a real id; 0 is never sent.
+  const studentId = id ?? 0;
 
   // Modals state
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -112,21 +114,21 @@ export function StudentDetailScreen() {
   const studentQuery = useQuery({
     queryKey: keys.students.detail(studentId),
     queryFn: () => getStudent(studentId),
-    enabled: !isNaN(studentId) && studentId > 0,
+    enabled: id !== null,
   });
 
   // 2. Fetch Rank History
   const rankHistoryQuery = useQuery({
     queryKey: keys.students.rankHistory(studentId),
     queryFn: () => getStudentRankHistory(studentId),
-    enabled: !isNaN(studentId) && studentId > 0,
+    enabled: id !== null,
   });
 
   // 2b. Fetch unified grading history (native + linked historical records)
   const gradingHistoryQuery = useQuery({
     queryKey: keys.students.gradingHistory(studentId),
     queryFn: () => getStudentGradingHistory(studentId),
-    enabled: !isNaN(studentId) && studentId > 0,
+    enabled: id !== null,
   });
 
   const student = studentQuery.data;
@@ -139,30 +141,19 @@ export function StudentDetailScreen() {
     deleteMutation.mutate(student.id);
   }
 
-  if (studentQuery.isLoading) {
+  const status = recordStatus(id, studentQuery);
+  if (status || !student) {
     return (
-      <section aria-labelledby="student-loading-title" className="page">
-        <LoadingState id="student-loading-title">Loading student record…</LoadingState>
-      </section>
-    );
-  }
-
-  if (studentQuery.isError || !student) {
-    return (
-      <section aria-labelledby="student-error-title" className="page">
-        <EmptyState
-          titleAs="h2"
-          titleId="student-error-title"
-          title="Student record not found"
-          action={
-            <Button variant="secondary" onClick={() => navigate("/students")}>
-              ← Back to students
-            </Button>
-          }
-        >
-          The requested student record could not be loaded or may not exist.
-        </EmptyState>
-      </section>
+      <RecordPage
+        back={{ to: "/students", label: "Students" }}
+        error={studentQuery.error}
+        failed="The student record could not be loaded."
+        label="Student record"
+        loading="Loading student record…"
+        missing="Student record not found"
+        status={status ?? "loading"}
+        onRetry={() => void studentQuery.refetch()}
+      />
     );
   }
 

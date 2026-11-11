@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { type DataImportKind, type DataImportRow, errorMessage } from "./api";
 import { ErrorText } from "./ErrorText";
-import { ImportPager } from "./ImportPager";
+import { Pagination } from "./Pagination";
 import { usePagedRows } from "./useImportRows";
 import { importKinds } from "./importKinds";
 import { Button } from "./Button";
@@ -62,17 +62,19 @@ export function ExclusionButton({ row, kind, exclusion }: { row: DataImportRow; 
 
 /** One page of a list: loading, failed, empty, or its rows, and the pager. */
 export function RowsList({
+  kind,
   rows,
   empty = "Nothing here.",
   exclusion,
   children,
 }: {
+  kind: DataImportKind;
   rows: ReturnType<typeof usePagedRows>;
   empty?: string;
   exclusion: Exclusion;
   children: (list: DataImportRow[]) => ReactNode;
 }) {
-  const list = rows.query.data?.results ?? [];
+  const list = rows.results;
   return (
     <>
       {rows.query.isError ? (
@@ -93,7 +95,7 @@ export function RowsList({
           {errorMessage(exclusion.error, "That row could not be changed.")}
         </ErrorText>
       ) : null}
-      <ImportPager label="Pages of rows" page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />
+      <Pagination flush label="Pages of rows" noun={importKinds[kind].noun} {...rows.pager} />
     </>
   );
 }

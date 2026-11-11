@@ -1,18 +1,16 @@
 import { useMemo, useState } from "react";
 import { keys } from "./queryKeys";
-import { Link, useParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { type AgeBandEnum, type Rank, type StudentListItem, errorMessage, getAllStudents, getGradingSession } from "./api";
+import { type AgeBandEnum, type Rank, type StudentListItem, getAllStudents, getGradingSession } from "./api";
 import { PageHeader } from "./PageHeader";
 import { SessionFacts } from "./SessionParts";
-import { EmptyState } from "./EmptyState";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { SessionStatusBadge } from "./StatusBadge";
 import "./BuildGradingCohort.css";
-import { buttonClass } from "./buttonClass";
 import { CohortResolver } from "./CohortResolver";
 import { type CohortItem, buildRankGroups, cohortBreakdown, destinationOf, newCohortItems, rankMapOf } from "./cohortBuilder";
 import { CohortFindSection, type StatusFilter } from "./CohortFindSection";
@@ -22,9 +20,10 @@ import { CohortTray } from "./CohortTray";
 import { useCohortRegistration } from "./useCohortRegistration";
 
 export function BuildGradingCohortScreen() {
-  const { id } = useParams<{ id: string }>();
-  const sessionId = Number(id);
-  const valid = !isNaN(sessionId);
+  const id = useIdParam();
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
+  const valid = id !== null;
 
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState("ALL");
@@ -85,41 +84,20 @@ export function BuildGradingCohortScreen() {
 
   const registration = useCohortRegistration({ sessionId, session, cohort, setCohort, generateAssessments });
 
-  if (!valid) {
+  const status = recordStatus(id, sessionQuery);
+  if (status || !session) {
     return (
-      <section aria-labelledby="bgc-invalid-id-heading" className="page" data-testid="bgc-page">
-        <EmptyState
-          titleAs="h2"
-          titleId="bgc-invalid-id-heading"
-          title="Grading session not found"
-          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
-        >
-          Please return to the grading sessions list.
-        </EmptyState>
-      </section>
-    );
-  }
-
-  if (sessionQuery.isLoading) {
-    return (
-      <section aria-label="Build grading cohort" className="page" data-testid="bgc-page">
-        <LoadingState>Loading the grading session…</LoadingState>
-      </section>
-    );
-  }
-
-  if (sessionQuery.isError || !session) {
-    return (
-      <section aria-labelledby="bgc-error-heading" className="page" data-testid="bgc-page">
-        <EmptyState
-          titleAs="h2"
-          titleId="bgc-error-heading"
-          title="Failed to load grading session"
-          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
-        >
-          {errorMessage(sessionQuery.error, "Session not found.")}
-        </EmptyState>
-      </section>
+      <RecordPage
+        back={{ to: "/gradings", label: "Gradings" }}
+        error={sessionQuery.error}
+        failed="The grading session could not be loaded."
+        label="Build grading cohort"
+        loading="Loading the grading session…"
+        missing="Grading session not found"
+        status={status ?? "loading"}
+        testId="bgc-page"
+        onRetry={() => void sessionQuery.refetch()}
+      />
     );
   }
 

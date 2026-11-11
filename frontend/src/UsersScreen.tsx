@@ -4,8 +4,8 @@ import { splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
 import { UserPlusIcon } from "./Icons";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 import {
   type Choices,
@@ -28,6 +28,9 @@ import { formatShortDateTime } from "./dates";
 import { Button } from "./Button";
 import { EmailAddress } from "./EmailAddress";
 import { keys } from "./queryKeys";
+import { SearchField } from "./SearchField";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
 import { counted } from "./plural";
 
 const PAGE_SIZE = 10;
@@ -139,41 +142,33 @@ function CreateUserDialog({
 
 export function UsersScreen(): React.ReactElement {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = useUrlFilters();
   const [createOpen, setCreateOpen] = useState(false);
   const addButtonRef = useRef<HTMLButtonElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
 
-  const page = Math.max(1, Number(searchParams.get("page")) || 1);
-  const search = searchParams.get("search") ?? "";
-  const role = (searchParams.get("role") ?? "") as UserRole | "";
-  const status = searchParams.get("status") ?? "";
+  const page = filters.page;
+  const search = filters.value("search");
+  const searched = search.trim();
+  const role = filters.value("role") as UserRole | "";
+  const status = filters.value("status");
   const { roles, authorities } = useChoices();
 
-  const updateFilters = (updates: Record<string, string>, preservePage = false) => {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value) next.set(key, value);
-      else next.delete(key);
-    });
-    if (!preservePage) next.delete("page");
-    setSearchParams(next, { replace: true });
-  };
-
-  const query = useQuery({
-    queryKey: keys.managedUsers.page(page, search, role, status),
+  const paged = usePagedQuery({
+    queryKey: keys.managedUsers.page(page, searched, role, status),
     queryFn: () => getManagedUsers({
       page,
       page_size: PAGE_SIZE,
-      search: search || undefined,
+      search: searched || undefined,
       role: role || undefined,
       is_active: status ? status === "active" : undefined,
     }),
+    page,
+    pageSize: PAGE_SIZE,
+    onPage: filters.setPage,
   });
-
-  const users = query.data?.results ?? [];
-  const count = query.data?.count ?? 0;
-  const pages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const query = paged.query;
+  const users = paged.results;
+  const count = paged.count;
 
   const closeCreate = () => {
     setCreateOpen(false);
@@ -195,31 +190,18 @@ export function UsersScreen(): React.ReactElement {
         }
       />
 
-      <form
-        className="filter-bar"
-        aria-label="User filters"
-        onSubmit={(event) => {
-          event.preventDefault();
-          updateFilters({ search: searchRef.current?.value.trim() ?? "" });
-        }}
-      >
-        <label className="field field--search filter-bar__full">
-          <span className="visually-hidden">Search users</span>
-          <div className="field__row">
-            <input
-              key={search}
-              ref={searchRef}
-              type="search"
-              aria-label="Search users"
-              defaultValue={search}
-              placeholder="Search name or email"
-            />
-            <button type="submit">Search</button>
-          </div>
-        </label>
+      <div className="filter-bar" role="search" aria-label="User filters">
+        <SearchField
+          className="filter-bar__full"
+          hideLabel
+          label="Search users"
+          placeholder="Search name or email"
+          value={search}
+          onChange={(value) => filters.set({ search: value })}
+        />
         <label className="field">
           <span>Role</span>
-          <select value={role} onChange={(event) => updateFilters({ role: event.target.value })}>
+          <select value={role} onChange={(event) => filters.set({ role: event.target.value })}>
             <option value="">All roles</option>
             {roles.map((choice) => (
               <option key={choice.value} value={choice.value}>{choice.label}</option>
@@ -228,14 +210,14 @@ export function UsersScreen(): React.ReactElement {
         </label>
         <label className="field">
           <span>Status</span>
-          <select value={status} onChange={(event) => updateFilters({ status: event.target.value })}>
+          <select value={status} onChange={(event) => filters.set({ status: event.target.value })}>
             <option value="">All statuses</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
         </label>
         <p className="filter-bar__count">{counted(count, "user", "users")}</p>
-      </form>
+      </div>
 
       <div className="users-info-note meta">
         <span aria-hidden="true">i</span>
@@ -303,13 +285,7 @@ export function UsersScreen(): React.ReactElement {
                 },
               ]}
             />
-            <Pagination
-              label="User pages"
-              page={page}
-              totalPages={pages}
-              onPage={(next) => updateFilters({ page: String(next) }, true)}
-              summary={`Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, count)} of ${count} users`}
-            />
+            <Pagination label="User pages" noun={["user", "users"]} {...paged.pager} />
           </>
         )}
       </div>

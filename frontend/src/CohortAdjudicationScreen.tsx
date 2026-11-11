@@ -17,13 +17,14 @@
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
 import { useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "./EmptyState";
 import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { Alert } from "./Alert";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Button } from "./Button";
 import { getAllGradingCandidates, getGradingSession } from "./api";
 import { buildRows } from "./adjudicationBoard";
@@ -39,8 +40,9 @@ import { useStagedDecisions } from "./useStagedDecisions";
 import { agreeing } from "./plural";
 
 export function CohortAdjudicationScreen() {
-  const { id } = useParams<{ id: string }>();
-  const sessionId = Number(id);
+  const id = useIdParam();
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
@@ -50,7 +52,7 @@ export function CohortAdjudicationScreen() {
   });
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
 
-  const enabled = !Number.isNaN(sessionId) && sessionId > 0;
+  const enabled = id !== null;
 
   const sessionQuery = useQuery({
     queryKey: keys.gradingSessions.detail(sessionId),
@@ -92,34 +94,23 @@ export function CohortAdjudicationScreen() {
     });
   };
 
-  if (sessionQuery.isLoading || candidatesQuery.isLoading) {
-    return (
-      <section aria-label="Final decisions" className="page">
-        <LoadingState>Loading final decisions…</LoadingState>
-      </section>
-    );
-  }
-
   // Either request failing would otherwise render as a real, empty cohort (no
   // rows, or "No assessment" on every row).
-  const failedQueries = [sessionQuery, candidatesQuery].filter(
-    (query) => query.isError,
-  );
-  if (!session || failedQueries.length > 0) {
+  const failedQueries = [sessionQuery, candidatesQuery].filter((query) => query.isError);
+  const status =
+    recordStatus(id, sessionQuery) ??
+    (candidatesQuery.isError ? "failed" : candidatesQuery.isPending ? "loading" : null);
+  if (status || !session) {
     return (
-      <section aria-label="Final decisions" className="page">
-        <Alert
-          action={
-            failedQueries.length > 0 ? (
-              <Button variant="secondary" onClick={() => failedQueries.forEach((query) => void query.refetch())}>
-                Try again
-              </Button>
-            ) : undefined
-          }
-        >
-          The final decisions could not be loaded.
-        </Alert>
-      </section>
+      <RecordPage
+        back={{ to: id ? `/gradings/${id}` : "/gradings", label: session?.title ?? (id ? "Grading session" : "Gradings") }}
+        failed="The final decisions could not be loaded."
+        label="Final decisions"
+        loading="Loading final decisions…"
+        missing="Grading session not found"
+        status={status ?? "loading"}
+        onRetry={() => failedQueries.forEach((query) => void query.refetch())}
+      />
     );
   }
 

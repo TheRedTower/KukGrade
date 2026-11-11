@@ -175,8 +175,9 @@ describe("AuditScreen", () => {
     await user.selectOptions(screen.getByLabelText("Record type"), "CandidateOutcome");
     fireEvent.change(screen.getByLabelText("Date from"), { target: { value: "2026-09-01" } });
     fireEvent.change(screen.getByLabelText("Date to"), { target: { value: "2026-09-30" } });
+    // The list follows as you type: there is no Search button.
     await user.type(screen.getByLabelText("Search student name, record number or summary"), "Carlos");
-    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.queryByRole("button", { name: "Search" })).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockGetAuditEvents).toHaveBeenLastCalledWith({

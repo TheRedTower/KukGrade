@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { keys } from "./queryKeys";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BackLink } from "./BackLink";
 import { EmptyState } from "./EmptyState";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { type RecordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { addAssessmentItemComment, CandidateAssessmentItem, CandidateAssessmentItemResult, deleteCandidateAssessment, generateCandidateAssessment, updateCandidateAssessment, updateCandidateAssessmentItem, errorMessage } from "./api";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
@@ -22,12 +23,13 @@ import { counted } from "./plural";
 import { CandidateRanks } from "./RankTransition";
 
 export function CandidateAssessmentScreen() {
-  const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
+  const sessionId = useIdParam("sessionId");
+  const candidateId = useIdParam("candidateId");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const numSessionId = sessionId ? Number(sessionId) : undefined;
-  const numCandidateId = candidateId ? Number(candidateId) : undefined;
+  const numSessionId = sessionId ?? undefined;
+  const numCandidateId = candidateId ?? undefined;
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -223,35 +225,18 @@ export function CandidateAssessmentScreen() {
     ? errorMessage(deleteAssessmentMutation.error, "The assessment could not be deleted.")
     : null;
 
-  if (isLoading) {
+  const status: RecordStatus | null = isLoading ? "loading" : hasLoadError ? "failed" : !session || !candidate ? "missing" : null;
+  if (status || !session || !candidate) {
     return (
-      <section aria-label="Candidate assessment" className="page" data-testid="caw-loading">
-        <LoadingState>Loading the assessment…</LoadingState>
-      </section>
-    );
-  }
-
-  if (hasLoadError) {
-    return (
-      <section aria-label="Candidate assessment" className="page" data-testid="caw-load-error">
-        <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
-            ← Return to session roster
-          </Link>}>
-          The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again.
-        </Alert>
-      </section>
-    );
-  }
-
-  if (!session || !candidate) {
-    return (
-      <section aria-label="Candidate assessment" className="page" data-testid="caw-not-found">
-        <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
-            ← Return to session roster
-          </Link>}>
-          Candidate or grading session not found.
-        </Alert>
-      </section>
+      <RecordPage
+        back={status === "failed" ? { to: `/gradings/${sessionId}`, label: "Grading session" } : { to: sessionId ? `/gradings/${sessionId}` : "/gradings", label: sessionId ? "Grading session" : "Gradings" }}
+        failed="The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again."
+        label="Candidate assessment"
+        loading="Loading the assessment…"
+        missing="Candidate or grading session not found"
+        status={status ?? "loading"}
+        testId="caw"
+      />
     );
   }
 

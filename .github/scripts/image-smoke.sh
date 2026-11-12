@@ -81,7 +81,7 @@ post() {
         -H 'Content-Type: application/json' -d "$2" "$base$1"
 }
 
-setup='{"code":"'"$code"'","email":"admin@example.com","password":"'"$password"'"}'
+setup='{"code":"'"$code"'","email":"admin@example.com","first_name":"Smoke","last_name":"Test","password":"'"$password"'"}'
 [ "$(post /api/setup/ "$setup")" = 201 ] || fail "first administrator setup"
 login='{"email":"admin@example.com","password":"'"$password"'"}'
 [ "$(post /api/auth/login/ "$login")" = 200 ] || fail "sign-in"

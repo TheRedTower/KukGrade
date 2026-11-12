@@ -1,6 +1,7 @@
 import type { ReactNode, Ref } from "react";
 
 import { BackLink } from "./BackLink";
+import { usePageLabel } from "./pageTrail";
 
 interface PageHeaderProps {
   title: ReactNode;
@@ -37,6 +38,8 @@ export function PageHeader({
   titleRef,
   children,
 }: PageHeaderProps) {
+  // A page opened from this one names it on its back link (pageTrail.tsx).
+  usePageLabel(typeof title === "string" ? title : undefined);
   return (
     <header className="page-header">
       {back ? <BackLink to={back.to}>{back.label}</BackLink> : null}

@@ -8,6 +8,7 @@ import { formatTime } from "./dates";
 import { labelOf, useChoices } from "./choices";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 import { CandidateRanks } from "./RankTransition";
+import { stickyAside } from "./stickyParts";
 
 interface CohortFocusPaneProps {
   row: BoardRow;
@@ -38,6 +39,7 @@ export function CohortFocusPane({
   return (
     <aside
       className="card stack stack--4 cab-detail split__aside"
+      ref={stickyAside}
       aria-labelledby="cab-focus-title"
       data-testid="cab-detail"
     >

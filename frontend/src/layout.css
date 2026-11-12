@@ -58,6 +58,10 @@
   --z-bar: 3;
   --z-menu: 50;
   --z-dialog: 100;
+  /* Measured in the browser by stickyParts.ts: a side panel's own height, and
+     the height of a bar kept at the foot of the window. None until measured. */
+  --aside-height: 0px;
+  --foot-bar-height: 0px;
 }
 
 /* A screen's root. Centred, never wider than its size, with room beneath. It
@@ -651,6 +655,26 @@ select:not([multiple]):not([size]) {
   outline-offset: -2px;
 }
 
+/* A row that one control speaks for (the decision board's names): a tap
+   anywhere on the row or card is a tap on that control, whose target is
+   stretched over the whole row. The row's other controls stay above it and
+   answer for themselves; the keyboard still reaches the control itself. */
+.rtable tbody tr:has(.row-target) {
+  position: relative;
+  cursor: pointer;
+}
+
+.row-target::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.rtable tbody tr:has(.row-target) :is(a, button, input, select, textarea, summary):not(.row-target) {
+  position: relative;
+  z-index: 1;
+}
+
 .rtable__value {
   min-width: 0;
 }
@@ -817,11 +841,85 @@ select:not([multiple]):not([size]) {
   font-size: var(--font-size-sm);
 }
 
+/* ── Tiles: as many in a row as fit, and no row ends in a gap ─────────── */
+
+/* Cards, fields or facts side by side. Each is at least --tile-min wide (all of
+   the width when that is less), so a row holds as many as fit, as an auto-fit
+   grid would. Unlike a grid, the tiles of a short last row share its width, so
+   three cards in two columns end with one card across the row, not a hole
+   beside it. Every tile is a flex item: a stated width or a grid span inside one
+   does nothing; .tile-full takes a row of its own. */
+.tiles {
+  --tile-min: 14rem;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* The five sizes the screens had as grids, kept exactly, so a row holds as many as before. */
+.tiles--narrowest {
+  --tile-min: 10rem;
+}
+
+.tiles--narrow {
+  --tile-min: 12rem;
+}
+
+.tiles--broad {
+  --tile-min: 18rem;
+}
+
+.tiles--broadest {
+  --tile-min: 20rem;
+}
+
+.tiles > * {
+  flex: 1 1 min(100%, var(--tile-min));
+  min-width: 0;
+}
+
+.tiles > .tile-full {
+  flex-basis: 100%;
+}
+
+/* An even set: a set that always holds the same number of things (the six core
+   areas, the four permissions, three boxes) and splits evenly at every width,
+   measured on its own box, so no tile is wider than the rest. The wrapper is the
+   box measured; its one child, .even-set__items, holds the things and is also
+   .tiles. In a box narrower than `compact` the set wraps as its tiles, which
+   at their sizes go 1 or 2 to a row for four and 1, 2 or 3 for six; three go
+   one to a row. From `compact`, three and six go 3 to a row and four go 2; from
+   `wide`, six go 6. The width check fails on a set whose rows differ. */
+.even-set {
+  container-type: inline-size;
+}
+
+.even-set__items:has(> :nth-child(3):last-child) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 40rem) {
+  .even-set__items:has(> :nth-child(3):last-child),
+  .even-set__items:has(> :nth-child(4):last-child),
+  .even-set__items:has(> :nth-child(6):last-child) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .even-set__items:has(> :nth-child(4):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 56rem) {
+  .even-set__items:has(> :nth-child(6):last-child) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 /* ── Facts and recorded text, for dialogs and detail panes ─────────────── */
 
 .facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: var(--space-3);
   margin: 0;
 }
@@ -911,10 +1009,8 @@ select:not([multiple]):not([size]) {
 
 .code-block {
   font-family: var(--font-mono);
-  max-height: 14rem;
   margin: 0;
   padding: var(--space-3);
-  overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
@@ -1102,6 +1198,46 @@ select:not([multiple]):not([size]) {
   padding-top: var(--space-2);
 }
 
+/* What opens eases in rather than appearing at once (reduced motion: theme.css). */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--space-1)));
+  }
+}
+
+.disclosure[open] > :not(summary) {
+  animation: reveal var(--duration) ease;
+}
+
+/* ── Changes: the old look eases into the new (smoothly.ts) ────────────── */
+
+/* The sidebar and the page are pictured apart, so each slides to its new size
+   while the old picture fades into the new. A picture keeps its own size and
+   is cut to the moving edge, rather than stretched with it. */
+.nav-rail {
+  view-transition-name: sidebar;
+}
+
+.app-main {
+  view-transition-name: page;
+}
+
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: var(--duration);
+}
+
+::view-transition-old(sidebar),
+::view-transition-new(sidebar),
+::view-transition-old(page),
+::view-transition-new(page) {
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .disclosure > summary svg {
     transition: none;
@@ -1198,12 +1334,10 @@ select:not([multiple]):not([size]) {
 
   .split__aside {
     position: sticky;
-    top: var(--space-5);
-    /* Taller than the window, it scrolls itself; otherwise its foot could
-       only be reached at the very end of the page. */
-    max-height: calc(100dvh - 2 * var(--space-5));
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    /* In view while the page scrolls. Taller than the window, it moves with the
+       page until its foot is in view, above any bar at the foot, and stays
+       there: the page is the only scroller (stickyParts.ts). */
+    top: min(var(--space-5), calc(100dvh - var(--aside-height) - var(--foot-bar-height) - var(--space-5)));
   }
 }
 
@@ -1266,12 +1400,10 @@ select:not([multiple]):not([size]) {
 
   .split--rail > .split__aside {
     position: sticky;
-    top: var(--space-5);
-    /* Taller than the window, it scrolls itself; otherwise its foot could
-       only be reached at the very end of the page. */
-    max-height: calc(100dvh - 2 * var(--space-5));
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    /* In view while the page scrolls. Taller than the window, it moves with the
+       page until its foot is in view, above any bar at the foot, and stays
+       there: the page is the only scroller (stickyParts.ts). */
+    top: min(var(--space-5), calc(100dvh - var(--aside-height) - var(--foot-bar-height) - var(--space-5)));
   }
 }
 

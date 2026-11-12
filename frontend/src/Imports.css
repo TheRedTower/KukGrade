@@ -156,8 +156,6 @@
 }
 
 .ix-grid-2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
   gap: var(--space-4);
 }
 
@@ -755,8 +753,6 @@
 
 /* The counts on the review page, each a filter. */
 .ix-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
   gap: var(--space-4);
 }
 

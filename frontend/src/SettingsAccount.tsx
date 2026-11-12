@@ -150,17 +150,19 @@ export function SettingsAccount() {
       <SettingsRow
         below={
           <>
-            <ul className="list-plain st-capabilities">
-              {authorities.map((capability) => {
-                const granted = Boolean(user[capability.value]);
-                return (
-                  <li key={capability.value}>
-                    <span>{capability.label}</span>
-                    <Badge tone={granted ? "success" : "neutral"}>{granted ? "Granted" : "Not granted"}</Badge>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="even-set">
+              <ul className="list-plain st-capabilities tiles tiles--broad even-set__items">
+                {authorities.map((capability) => {
+                  const granted = Boolean(user[capability.value]);
+                  return (
+                    <li key={capability.value}>
+                      <span>{capability.label}</span>
+                      <Badge tone={granted ? "success" : "neutral"}>{granted ? "Granted" : "Not granted"}</Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
             <p className="st-row-description subtext">Capabilities are independent of your role.</p>
           </>
         }

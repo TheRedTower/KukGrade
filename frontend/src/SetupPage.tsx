@@ -95,7 +95,7 @@ export function SetupPage() {
                 />
               )}
             </Field>
-            <div className="setup-name-row">
+            <div className="setup-name-row tiles tiles--narrow">
               <Field label="First name" error={form.errorFor("first_name")}>
                 {(control) => (
                   <input

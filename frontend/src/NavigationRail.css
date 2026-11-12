@@ -324,6 +324,7 @@
 
   .nav-rail.menu-open .nav-panel {
     display: flex;
+    animation: reveal var(--duration) ease;
   }
 }
 

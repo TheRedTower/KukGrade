@@ -28,6 +28,7 @@ import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
 import { AuditScreen } from "./AuditScreen";
 import { LoadingPage, LoginRoute, RequireAccess, RequireAuth, SetupGate } from "./AuthGates";
+import { PageTrailProvider } from "./PageTrailProvider";
 
 const UsersScreen = lazy(() => import("./UsersScreen").then((module) => ({ default: module.UsersScreen })));
 const UserDetailScreen = lazy(() =>
@@ -147,129 +148,134 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <BrowserRouter>
-            <SetupGate>
-              <Routes>
-                <Route element={<LoginRoute />} path="/login" />
-                <Route
-                  element={
-                    <RequireAuth>
-                      <ApplicationShell />
-                    </RequireAuth>
-                  }
-                >
-                  <Route element={<OverviewScreen />} index />
-                  <Route element={<StudentsScreen />} path="students" />
-                  <Route element={<AddStudentScreen />} path="students/new" />
-                  <Route element={<StudentDetailScreen />} path="students/:id" />
-                  <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
-                  <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
-                  <Route element={<CohortAdjudicationScreen />} path="gradings/:id/decisions" />
-                  <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
-                  <Route
-                    element={<AssessmentCompletionScreen />}
-                    path="gradings/:sessionId/assessments/:candidateId/review"
-                  />
-                  <Route element={<CandidateAssessmentScreen />} path="gradings/:sessionId/assessments/:candidateId" />
+            <PageTrailProvider>
+              <SetupGate>
+                <Routes>
+                  <Route element={<LoginRoute />} path="/login" />
                   <Route
                     element={
-                      <Suspense fallback={<LoadingState>Loading grading session…</LoadingState>}>
-                        <GradingSessionDetailScreen />
-                      </Suspense>
+                      <RequireAuth>
+                        <ApplicationShell />
+                      </RequireAuth>
                     }
-                    path="gradings/:id"
-                  />
-                  <Route element={<GradingSessionsScreen />} path="gradings" />
-                  <Route element={<SyllabusScreen />} path="syllabus" />
-                  <Route
-                    element={
-                      <Suspense fallback={<LoadingState>Loading settings…</LoadingState>}>
-                        <SettingsScreen />
-                      </Suspense>
-                    }
-                    path="settings/*"
-                  />
-                  <Route
-                    element={
-                      <RequireAccess flag="can_import_data">
-                        <Suspense fallback={<ImportFallback />}>
-                          <ImportsHubScreen />
+                  >
+                    <Route element={<OverviewScreen />} index />
+                    <Route element={<StudentsScreen />} path="students" />
+                    <Route element={<AddStudentScreen />} path="students/new" />
+                    <Route element={<StudentDetailScreen />} path="students/:id" />
+                    <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
+                    <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
+                    <Route element={<CohortAdjudicationScreen />} path="gradings/:id/decisions" />
+                    <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
+                    <Route
+                      element={<AssessmentCompletionScreen />}
+                      path="gradings/:sessionId/assessments/:candidateId/review"
+                    />
+                    <Route
+                      element={<CandidateAssessmentScreen />}
+                      path="gradings/:sessionId/assessments/:candidateId"
+                    />
+                    <Route
+                      element={
+                        <Suspense fallback={<LoadingState>Loading grading session…</LoadingState>}>
+                          <GradingSessionDetailScreen />
                         </Suspense>
-                      </RequireAccess>
-                    }
-                    path="imports"
-                  />
-                  <Route
-                    element={
-                      <RequireAccess flag="can_import_data">
-                        <Suspense fallback={<ImportFallback />}>
-                          <ImportStartScreen />
+                      }
+                      path="gradings/:id"
+                    />
+                    <Route element={<GradingSessionsScreen />} path="gradings" />
+                    <Route element={<SyllabusScreen />} path="syllabus" />
+                    <Route
+                      element={
+                        <Suspense fallback={<LoadingState>Loading settings…</LoadingState>}>
+                          <SettingsScreen />
                         </Suspense>
-                      </RequireAccess>
-                    }
-                    path="imports/new"
-                  />
-                  <Route
-                    element={
-                      <RequireAccess flag="can_reconcile_imported_history">
-                        <Suspense fallback={<ImportFallback />}>
-                          <LinkRecordsScreen />
-                        </Suspense>
-                      </RequireAccess>
-                    }
-                    path="imports/records"
-                  />
-                  <Route
-                    element={
-                      <RequireAccess flag="can_reconcile_imported_history">
-                        <Suspense fallback={<ImportFallback />}>
-                          <HistoricalRecordsScreen />
-                        </Suspense>
-                      </RequireAccess>
-                    }
-                    path="imports/history/:id?"
-                  />
-                  <Route
-                    element={
-                      <RequireAccess flag="can_import_data">
-                        <Suspense fallback={<ImportFallback />}>
-                          <ImportScreen />
-                        </Suspense>
-                      </RequireAccess>
-                    }
-                    path="imports/:id"
-                  />
-                  <Route
-                    element={
-                      <RequireAccess flag="can_read_audit_log">
-                        <AuditScreen />
-                      </RequireAccess>
-                    }
-                    path="audit"
-                  />
-                  <Route
-                    element={
-                      <RequireAccess flag="can_manage_users">
-                        <Suspense fallback={<UserManagementFallback />}>
-                          <UsersScreen />
-                        </Suspense>
-                      </RequireAccess>
-                    }
-                    path="users"
-                  />
-                  <Route
-                    element={
-                      <RequireAccess flag="can_manage_users">
-                        <Suspense fallback={<UserManagementFallback />}>
-                          <UserDetailScreen />
-                        </Suspense>
-                      </RequireAccess>
-                    }
-                    path="users/:id"
-                  />
-                  <Route element={<Navigate replace to="/" />} path="*" />
-                </Route>
-              </Routes>
-            </SetupGate>
+                      }
+                      path="settings/*"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_import_data">
+                          <Suspense fallback={<ImportFallback />}>
+                            <ImportsHubScreen />
+                          </Suspense>
+                        </RequireAccess>
+                      }
+                      path="imports"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_import_data">
+                          <Suspense fallback={<ImportFallback />}>
+                            <ImportStartScreen />
+                          </Suspense>
+                        </RequireAccess>
+                      }
+                      path="imports/new"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_reconcile_imported_history">
+                          <Suspense fallback={<ImportFallback />}>
+                            <LinkRecordsScreen />
+                          </Suspense>
+                        </RequireAccess>
+                      }
+                      path="imports/records"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_reconcile_imported_history">
+                          <Suspense fallback={<ImportFallback />}>
+                            <HistoricalRecordsScreen />
+                          </Suspense>
+                        </RequireAccess>
+                      }
+                      path="imports/history/:id?"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_import_data">
+                          <Suspense fallback={<ImportFallback />}>
+                            <ImportScreen />
+                          </Suspense>
+                        </RequireAccess>
+                      }
+                      path="imports/:id"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_read_audit_log">
+                          <AuditScreen />
+                        </RequireAccess>
+                      }
+                      path="audit"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_manage_users">
+                          <Suspense fallback={<UserManagementFallback />}>
+                            <UsersScreen />
+                          </Suspense>
+                        </RequireAccess>
+                      }
+                      path="users"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_manage_users">
+                          <Suspense fallback={<UserManagementFallback />}>
+                            <UserDetailScreen />
+                          </Suspense>
+                        </RequireAccess>
+                      }
+                      path="users/:id"
+                    />
+                    <Route element={<Navigate replace to="/" />} path="*" />
+                  </Route>
+                </Routes>
+              </SetupGate>
+            </PageTrailProvider>
           </BrowserRouter>
         </AuthProvider>
       </QueryClientProvider>

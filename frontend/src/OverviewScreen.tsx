@@ -158,7 +158,7 @@ export function OverviewScreen() {
       ) : null}
 
       {/* Top 3-Column Grid */}
-      <div className="overview-grid">
+      <div className="overview-grid tiles tiles--broad">
         {/* Card 1: Now */}
         <section className="card">
           <h2 className="section-title section-title--ruled">Now</h2>

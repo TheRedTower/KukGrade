@@ -157,7 +157,10 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
  *  - a table column whose rows do not start at one left edge (a column of
  *    text, read from the start: centred and end-aligned cells are left alone);
  *  - a link or button the browser draws itself (its default blue, purple or
- *    grey), because no shared style reached it.
+ *    grey), because no shared style reached it;
+ *  - a box that scrolls up and down inside the page: the page is the only
+ *    scroller (src/stickyParts.ts), apart from the sidebar beside it and a
+ *    dialog over it.
  * data-clip-ok and data-scroll-ok leave an element alone, as in findOverflow.
  */
 export async function findLayoutFaults(page: Page): Promise<string[]> {
@@ -247,6 +250,44 @@ export async function findLayoutFaults(page: Page): Promise<string[]> {
           ? browserColours.has(style.color)
           : ["rgb(239, 239, 239)", "rgb(240, 240, 240)", "rgb(233, 233, 237)"].includes(style.backgroundColor);
       if (bare) out.push(`${el.tagName === "A" ? "a link" : "a button"} has no style of its own: ${label(el)}`);
+    }
+
+    // A box that scrolls inside the scrolling page.
+    for (const el of document.body.querySelectorAll("*")) {
+      if (el.closest(".nav-rail, .dialog") || !shown(el)) continue;
+      const overflowY = getComputedStyle(el).overflowY;
+      if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1) {
+        out.push(`a box scrolls inside the page: ${label(el)}`);
+      }
+    }
+
+    // A gap on a box that lays nothing out: its grid or flex was lost, and its parts touch.
+    for (const el of document.body.querySelectorAll("*")) {
+      const style = getComputedStyle(el);
+      if (!["block", "inline", "inline-block"].includes(style.display) || el.closest("select, table") || !shown(el))
+        continue;
+      if (style.rowGap !== "normal" || style.columnGap !== "normal") {
+        out.push(`a gap on a box that is not a grid or flex: ${label(el)}`);
+      }
+    }
+
+    // Tiles whose last row ends in a hole, or an even set whose rows differ (layout.css).
+    for (const set of document.body.querySelectorAll(".tiles, .even-set__items")) {
+      if (!shown(set)) continue;
+      const items = [...set.children].filter((el) => el.getBoundingClientRect().width > 0);
+      const rows = new Map<number, number>();
+      for (const item of items) {
+        const top = Math.round(item.getBoundingClientRect().top);
+        rows.set(top, (rows.get(top) ?? 0) + 1);
+      }
+      const counts = [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, count]) => count);
+      const last = items[items.length - 1];
+      if (!last || counts.length < 2) continue;
+      const end = set.getBoundingClientRect().right - parseFloat(getComputedStyle(set).paddingRight);
+      const uneven = set.matches(".even-set__items") && new Set(counts).size > 1;
+      if (end - last.getBoundingClientRect().right > 8 || uneven) {
+        out.push(`a row ends in a gap: ${label(set)} (${counts.join(" + ")})`);
+      }
     }
     return out;
   });

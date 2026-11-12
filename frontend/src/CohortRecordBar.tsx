@@ -3,6 +3,7 @@ import type { Ref } from "react";
 import { Button } from "./Button";
 import { ErrorText } from "./ErrorText";
 import { agreeing } from "./plural";
+import { footBar } from "./stickyParts";
 
 interface CohortRecordBarProps {
   stagedIds: number[];
@@ -27,7 +28,7 @@ export function CohortRecordBar({
   onRecord,
 }: CohortRecordBarProps) {
   return (
-    <footer className="cab-bar">
+    <footer className="cab-bar" ref={footBar}>
       <p className="cab-bar-text meta">
         Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest are
         kept. What you stage is saved for you until it is recorded, even if you are signed out.

@@ -19,7 +19,7 @@ export function CountTiles<View extends string>({
   onView: (view: View) => void;
 }) {
   return (
-    <div aria-label="Show" className="ix-tiles" role="group">
+    <div aria-label="Show" className="ix-tiles tiles tiles--narrowest" role="group">
       {tiles.map((tile) => (
         <button
           aria-pressed={view === tile.key}

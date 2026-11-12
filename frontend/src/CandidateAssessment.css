@@ -40,16 +40,16 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /*
-  The run owns the viewport: one line of chrome, a scrolling column of
-  requirements, and a mat bar pinned to the bottom. `min-height: 0` on the
-  scroller is what lets it scroll instead of pushing the bar off-screen.
+  The run flows with the page, which is its only scroller: a box that scrolls
+  inside a scrolling page traps a swipe and hides what is under it. Each
+  category's header stays at the top while its rows pass under it, and the mat
+  bar stays at the foot of the window from the first row to the last.
 */
 .caw-run {
   display: flex;
   flex-direction: column;
   gap: 0;
-  height: calc(100dvh - 2rem);
-  /* It fills the screen height, so it keeps no room beneath. */
+  /* The mat bar is the last thing on the page, so it keeps no room beneath. */
   padding-block-end: 0;
 }
 
@@ -83,27 +83,6 @@
 
 .caw-identity-spacer {
   flex-grow: 1;
-}
-
-/* ── The run ─────────────────────────────────────────────────────────────── */
-
-.caw-run-scroll {
-  flex-grow: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  /* A focused row scrolls in below the sticky band header, not under it. */
-  scroll-padding-top: 3rem;
-  scrollbar-gutter: stable;
-}
-
-/* The header and the bar keep the same gutter as the list between them, so a
-   button at their end lines up with the Met and Not met buttons. The gutter is
-   as wide as the browser's scrollbar, and nothing where scrollbars overlay. */
-.caw-identity,
-.caw-mat-bar {
-  overflow-y: hidden;
-  scrollbar-gutter: stable;
 }
 
 .caw-band-header {
@@ -141,6 +120,8 @@
 /* ── Requirement rows: divider-led, not cards ──────────────────── */
 
 .caw-row {
+  /* A row reached by Tab stops clear of its category's header and the mat bar. */
+  scroll-margin-block: 3rem 7rem;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -312,7 +293,9 @@
 /* ── Persistent mat bar ──────────────────────────────────────────────────── */
 
 .caw-mat-bar {
-  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-bar);
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -352,21 +335,7 @@
 
 /* ── Tablet and phone ────────────────────────────────────────────────────── */
 
-/* The run and its bar follow the window, because the sidebar does: below this
-   width it becomes a top row, which is what makes a fixed bottom bar safe. */
 @media (max-width: 56rem) {
-  /*
-    The run stops owning the viewport and flows with the page, so the mat bar
-    can no longer be pinned by the flex column. `position: sticky` would not
-    rescue it: the bar sits after the whole syllabus, and sticky never pulls an
-    element that has not yet been scrolled to into view. It is fixed to the
-    viewport instead, which is safe here because the nav rail becomes a top row
-    at this width rather than a bottom bar.
-  */
-  .caw-run {
-    height: auto;
-  }
-
   .caw-run > .back-link,
   .caw-identity,
   .caw-band-header,
@@ -375,21 +344,6 @@
   .caw-run-end {
     padding-left: var(--space-4);
     padding-right: var(--space-4);
-  }
-
-  .caw-mat-bar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: var(--z-bar);
-  }
-
-  /* Clear the fixed bar so the last requirement is never hidden behind it. */
-  .caw-run-scroll {
-    padding-bottom: 7rem;
-    /* Here the page scrolls, not this: let a gesture over the rows reach it. */
-    overscroll-behavior: auto;
   }
 
   .caw-mat-meter {
@@ -533,8 +487,6 @@
 /* Wide enough for the longest area name beside its mark in any font, so a
    phone shows one area per row rather than two cramped ones. */
 .acp-core-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
   gap: 1px;
   background: var(--color-border);
   border: 1px solid var(--color-border);
@@ -685,12 +637,8 @@
   flex-direction: column;
   gap: var(--space-4);
   position: sticky;
-  top: 1rem;
-  /* Taller than the window, it scrolls itself; otherwise its foot could
-     only be reached at the very end of the page. */
-  max-height: calc(100dvh - 2rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  /* As a .split__aside: in view while the page scrolls, never a scroller. */
+  top: min(var(--space-4), calc(100dvh - var(--aside-height) - var(--space-4)));
 }
 
 .acp-card {

@@ -7,7 +7,7 @@ import { useAboutDocumentQuery, useAboutQuery, usePledgeQuery } from "./queries"
 import { buttonClass } from "./buttonClass";
 import { mediaMatches } from "./useMediaQuery";
 import { ExternalLink } from "./ExternalLink";
-import { ExternalLinkIcon } from "./Icons";
+import { ChevronRightIcon, ExternalLinkIcon } from "./Icons";
 
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -172,7 +172,7 @@ export function AboutConduct() {
                 <span aria-hidden="true" className="mark mark--small ab-number">
                   {index + 1}
                 </span>
-                <div className="ab-pledge-text">
+                <div className="ab-pledge-text tiles">
                   <p>{point.english}</p>
                   <p className="ab-pledge-korean" lang="ko">
                     {point.korean}
@@ -215,29 +215,31 @@ export function AboutLicence() {
             that counts.
           </p>
         </div>
-        <div className="ab-three">
-          <div>
-            <h3>You may</h3>
-            <ul>
-              <li>Use KukGrade for your school, at no cost.</li>
-              <li>Read how it works, and change it.</li>
-              <li>Share it with other schools.</li>
-            </ul>
-          </div>
-          <div>
-            <h3>You must</h3>
-            <ul>
-              <li>Keep the licence and copyright notices.</li>
-              <li>Share the source of a changed version under this same licence.</li>
-              <li>Offer that source to people who use your changed version over a network.</li>
-            </ul>
-          </div>
-          <div>
-            <h3>There is no</h3>
-            <ul>
-              <li>Warranty. It is provided as it is.</li>
-              <li>Liability for problems it causes.</li>
-            </ul>
+        <div className="even-set">
+          <div className="ab-three tiles even-set__items">
+            <div>
+              <h3>You may</h3>
+              <ul>
+                <li>Use KukGrade for your school, at no cost.</li>
+                <li>Read how it works, and change it.</li>
+                <li>Share it with other schools.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>You must</h3>
+              <ul>
+                <li>Keep the licence and copyright notices.</li>
+                <li>Share the source of a changed version under this same licence.</li>
+                <li>Offer that source to people who use your changed version over a network.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>There is no</h3>
+              <ul>
+                <li>Warranty. It is provided as it is.</li>
+                <li>Liability for problems it causes.</li>
+              </ul>
+            </div>
           </div>
         </div>
         <div className="action-row">
@@ -256,10 +258,16 @@ export function AboutLicence() {
             <h2 id="ab-full">Full licence</h2>
             <p className="st-row-description subtext">The licence file that ships with this version.</p>
           </div>
-          {/* A scrolling box has to be reachable by keyboard to be read. */}
-          <pre aria-label="Full licence text" className="code-block ab-licence-text" role="region" tabIndex={0}>
-            {doc.content}
-          </pre>
+          {/* Folded, then read in full in the page's own scroll: never a box that scrolls inside it. */}
+          <details className="disclosure">
+            <summary>
+              <ChevronRightIcon />
+              <span>Show the full licence</span>
+            </summary>
+            <div className="disclosure__body">
+              <pre className="code-block">{doc.content}</pre>
+            </div>
+          </details>
         </section>
       ) : null}
 

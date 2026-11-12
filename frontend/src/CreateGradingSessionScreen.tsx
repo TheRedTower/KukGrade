@@ -15,6 +15,7 @@ import { labelOf, useChoices } from "./choices";
 import "./GradingSessions.css";
 import { currentYear, formatSessionDate } from "./dates";
 import { Button } from "./Button";
+import { stickyAside } from "./stickyParts";
 
 const MONTHS = [
   { value: "01", label: "January" },
@@ -285,7 +286,7 @@ export function CreateGradingSessionScreen() {
         </div>
 
         {/* Right Column: Session Preview */}
-        <div className="split__aside">
+        <div className="split__aside" ref={stickyAside}>
           <div className="cgs-preview-card">
             <h2 className="cgs-preview-title section-title" id="cgs-preview-heading">
               Session preview

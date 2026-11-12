@@ -28,6 +28,7 @@ import "./CandidateAssessment.css";
 import { counted } from "./plural";
 import { CandidateRanks } from "./RankTransition";
 import { type ItemWriteOptions, useItemWrites } from "./useItemWrites";
+import { usePageLabel } from "./pageTrail";
 
 /** An item's row with a mutation of its own, so its writes queue in that item's scope. */
 function ScoredItemRow({
@@ -155,6 +156,8 @@ export function CandidateAssessmentScreen() {
       : !session || !candidate
         ? "missing"
         : null;
+  usePageLabel(candidate ? `Scoring · ${candidate.student_display_name}` : undefined);
+
   if (status || !session || !candidate) {
     return (
       <RecordPage
@@ -292,8 +295,8 @@ export function CandidateAssessmentScreen() {
         </div>
       )}
 
-      {/* The run itself: every requirement, in syllabus order, in one scroll. */}
-      <div className="caw-run-scroll">
+      {/* The run itself: every requirement, in syllabus order, in the page's one scroll. */}
+      <div>
         {categoryGroups.length === 0 ? (
           <EmptyState title="This assessment form has no items." />
         ) : (

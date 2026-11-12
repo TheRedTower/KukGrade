@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
+import { smoothly } from "./smoothly";
+
 /**
  * Whether the sidebar is a strip of icons. Per browser, like the
  * theme: a person's own habit, not the club's setting. One state shared by the
@@ -23,7 +25,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsedState] = useState(readCollapsed);
 
   const setCollapsed = useCallback((next: boolean) => {
-    setCollapsedState(next);
+    // The sidebar and the page slide to their new widths (smoothly.ts).
+    smoothly(() => setCollapsedState(next));
     try {
       if (next) window.localStorage.setItem(STORAGE_KEY, "icons");
       else window.localStorage.removeItem(STORAGE_KEY);

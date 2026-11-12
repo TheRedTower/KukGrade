@@ -232,6 +232,63 @@ test("an import step's Cancel and Continue stack on a phone and share a row with
   await page.close();
 });
 
+test("a tap anywhere on a decision card brings it into focus, and its buttons still answer for themselves", async () => {
+  const page = await contexts.get("master")!.newPage();
+  // An iPad mini on its side (cards, the focus pane under them) and a desktop (table rows).
+  for (const width of [1133, 1440]) {
+    await page.setViewportSize({ width, height: 744 });
+    await page.goto(`/gradings/${ids.sessions.LOCKED}/decisions`);
+    const rows = page.locator("[data-testid^=cab-row-]");
+    await rows.nth(1).waitFor();
+    const row = rows.nth(1);
+    const name = row.locator(".cab-row-name");
+    await expect(name).toHaveAttribute("aria-pressed", "false");
+
+    // The evidence cell: neither the name nor a button. The tap lands on the
+    // name's stretched target, which is the point.
+    const evidence = (await row.locator("td").nth(1).boundingBox())!;
+    await page.mouse.click(evidence.x + evidence.width / 2, evidence.y + evidence.height / 2);
+    await expect(name, `${width}px`).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("cab-detail").getByRole("heading", { level: 2 })).toHaveText(
+      (await name.textContent())!,
+    );
+
+    // A decision button stages its decision rather than only selecting the row.
+    const decidable = page.locator("tr[data-testid^=cab-row-]", { has: page.getByRole("group") }).last();
+    const pass = decidable.getByRole("button", { name: /Pass$/ });
+    await pass.click();
+    await expect(pass).toHaveAttribute("aria-pressed", "true");
+    await expect(decidable.locator(".cab-row-name")).toHaveAttribute("aria-pressed", "true");
+    await pass.click(); // and unstaged again, leaving the demo as it was
+    await expect(pass).toHaveAttribute("aria-pressed", "false");
+  }
+  await page.close();
+});
+
+test("a record's back link returns to the page it was opened from, and to the page above otherwise", async () => {
+  const page = await contexts.get("master")!.newPage();
+  await page.setViewportSize({ width: 1133, height: 744 });
+  const board = `/gradings/${ids.sessions.LOCKED}/decisions`;
+  await page.goto(board);
+  const title = (await page.getByRole("heading", { level: 1 }).textContent())!;
+  await page.evaluate(() => scrollTo(0, 300));
+  await page.getByRole("link", { name: "Open the full assessment record" }).click();
+  await page.waitForURL(/\/review$/);
+  const back = page.locator(".back-link");
+  await expect(back).toHaveText(title);
+
+  // The browser's own Back: the board as it was left, with its own way back.
+  await back.click();
+  await page.waitForURL((url) => url.pathname === board);
+  await expect(page.locator(".back-link")).not.toHaveText(title);
+  await expect(page.locator(".back-link")).not.toHaveText(/record/i);
+
+  // Opened directly, the record goes back to its scoring page, as before.
+  await page.goto(`/gradings/${ids.sessions.COMPLETED}/assessments/${ids.completedCandidate}/review`);
+  await expect(page.locator(".back-link")).toHaveText("Back to scoring");
+  await page.close();
+});
+
 for (const path of ["/", "/students", "/gradings"]) {
   test(`on a phone and a tablet the logo and the page start at one left edge: ${path}`, async () => {
     const page = await contexts.get("master")!.newPage();

@@ -83,7 +83,7 @@ export function StudentEditDialog({
             )}
           </Field>
 
-          <div className="form-row-grid-2">
+          <div className="form-row-grid-2 tiles">
             <Field label="First name" required error={form.errorFor("first_name")}>
               {(control) => (
                 <input

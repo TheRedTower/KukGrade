@@ -115,7 +115,7 @@ export function AddStudentScreen() {
         <div className="card stack">
           <h2 className="section-title section-title--ruled">Identity</h2>
 
-          <div className="form-row-grid-2">
+          <div className="form-row-grid-2 tiles">
             <Field label="First name" required error={form.errorFor("first_name")}>
               {(control) => (
                 <input
@@ -166,7 +166,7 @@ export function AddStudentScreen() {
         <div className="card stack">
           <h2 className="section-title section-title--ruled">Grading details</h2>
 
-          <div className="form-row-grid-3">
+          <div className="form-row-grid-3 tiles">
             <Field
               label="Date of birth"
               required

@@ -87,17 +87,17 @@ function CreateUserDialog({
             });
           }}
         >
-          <div className="users-form-grid">
+          <div className="users-form-grid tiles">
             <Field error={errors?.fields.first_name?.join(" ")} label="First name" look="label">
               {(control) => <input {...control} required data-dialog-autofocus name="first_name" autoComplete="off" />}
             </Field>
             <Field error={errors?.fields.last_name?.join(" ")} label="Last name" look="label">
               {(control) => <input {...control} required name="last_name" autoComplete="off" />}
             </Field>
-            <Field className="users-form-wide" error={emailError} label="Email address" look="label">
+            <Field className="tile-full" error={emailError} label="Email address" look="label">
               {(control) => <input {...control} required type="email" name="email" autoComplete="off" />}
             </Field>
-            <Field className="users-form-wide" label="Role" look="label">
+            <Field className="tile-full" label="Role" look="label">
               {(control) => (
                 <select
                   {...control}
@@ -114,7 +114,7 @@ function CreateUserDialog({
               )}
             </Field>
             {role === "instructor" && (
-              <Field className="users-form-wide" error={rankError} label="Rank" look="label">
+              <Field className="tile-full" error={rankError} label="Rank" look="label">
                 {(control) => (
                   <select {...control} required name="rank" defaultValue="">
                     <option value="" disabled>

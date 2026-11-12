@@ -34,7 +34,19 @@ function Pages({ at }: { at: string }) {
           />
           <Route
             path="/record"
-            element={<PageHeader back={{ to: "/scoring", label: "Back to scoring" }} title="Record" titleId="t" />}
+            element={
+              <>
+                <PageHeader back={{ to: "/scoring", label: "Back to scoring" }} title="Record" titleId="t" />
+                {/* A filter change, as useUrlFilters makes it: in place of this step. */}
+                <Link replace to="/record?show=all">
+                  Show all
+                </Link>
+              </>
+            }
+          />
+          <Route
+            path="/scoring"
+            element={<PageHeader back={{ to: "/session", label: "The session" }} title="Scoring" titleId="t" />}
           />
         </Routes>
       </PageTrailProvider>
@@ -42,7 +54,7 @@ function Pages({ at }: { at: string }) {
   );
 }
 
-const back = () => screen.getByRole("link", { name: /^(?!Open|Another)/ });
+const back = () => screen.getByRole("link", { name: /^(?!Open|Another|Show)/ });
 
 beforeEach(() => sessionStorage.clear());
 
@@ -80,6 +92,23 @@ describe("the back link", () => {
     await user.click(back());
     expect(screen.getByRole("heading", { name: "Final decisions" })).toBeVisible();
     expect(back()).toHaveTextContent("The session");
+  });
+
+  it("does not make the page above point back at a page opened directly", async () => {
+    const user = userEvent.setup();
+    render(<Pages at="/record" />);
+    await user.click(back());
+    expect(screen.getByRole("heading", { name: "Scoring" })).toBeVisible();
+    expect(back()).toHaveTextContent("The session");
+  });
+
+  it("keeps the way back when a filter changes the page in place", async () => {
+    const user = userEvent.setup();
+    render(<Pages at="/student" />);
+    await user.click(screen.getByRole("link", { name: "Open the record" }));
+    await user.click(screen.getByRole("link", { name: "Show all" }));
+    expect(back()).toHaveTextContent("Isla Brennan");
+    expect(back()).toHaveAttribute("href", "/student");
   });
 });
 

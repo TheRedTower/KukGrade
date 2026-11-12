@@ -19,13 +19,14 @@ export function PageTrailProvider({ children }: { children: ReactNode }) {
     here.current = location.pathname;
     const left = previous.current;
     previous.current = location;
-    if (!left || left.key === location.key || navigationType !== "PUSH") return;
+    if (!left || left.key === location.key || navigationType === "POP") return;
     // A back link followed as a link: its page goes back to the page above it.
     if ((location.state as { back?: unknown } | null)?.back) return;
     const current = readTrail();
     let came: CameFrom | undefined;
-    if (left.pathname === location.pathname) {
-      // The same page with other filters: it still came from where it came from.
+    if (navigationType === "REPLACE" || left.pathname === location.pathname) {
+      // A step that takes the place of the last (a filter change, a redirect), or
+      // the same page with other filters: it still came from where that came from.
       came = current[left.key];
     } else {
       const label = labels.current.get(left.pathname);

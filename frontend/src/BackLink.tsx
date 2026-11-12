@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeftIcon } from "./Icons";
 import { historyIndex, useCameFrom } from "./pageTrail";
 
-// Followed as a link, the page it opens goes back to the page above it, not here.
+// Followed as a link, either way, the page it opens goes back to the page above it, not here.
 const BACK = { back: true };
 
 /**
@@ -18,7 +18,7 @@ export function BackLink({ to, children }: { to: string; children: string }) {
   const navigate = useNavigate();
   if (!came) {
     return (
-      <Link className="back-link" to={to}>
+      <Link className="back-link" state={BACK} to={to}>
         <ArrowLeftIcon size={15} />
         {children}
       </Link>

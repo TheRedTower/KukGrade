@@ -141,6 +141,9 @@ serializers and the committed frontend types match the schema.
   not fit: delete a screen from them when you fix it.
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
   or `layout.css` (widths and the shared pieces), and every class a screen uses is defined.**
+  The one typeface is Pretendard (`--font-sans`, loaded in `main.tsx` and served by the app
+  itself, never a font host): Latin as in Inter and Korean to match, but no hanja, so text
+  in Chinese characters would fall back to a system font and needs a different typeface.
   The scales are: type `--font-size-xs` to `-3xl` (eight steps, 0.75rem to 2rem) and
   `--font-weight-normal` to `-title` (400 to 800); corners `--radius-xs`, `-sm`, `-control`,
   `--radius` and `-pill`; elevation `--shadow-xs` to `-lg` and `--shadow-up`; and the focus and

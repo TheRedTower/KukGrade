@@ -165,6 +165,15 @@ def python_packages(pyproject: Path) -> tuple[list[Package], list[Package]]:
     )
 
 
+def _licence_texts(folder: Path) -> list[str]:
+    """The licence files in one folder of a package."""
+    return [
+        path.read_text(encoding="utf-8", errors="replace").strip()
+        for path in sorted(folder.glob("*"))
+        if path.is_file() and _LICENCE_FILE.search(path.name)
+    ]
+
+
 def node_packages(frontend: Path) -> tuple[list[Package], list[Package]]:
     """As `python_packages`, for the browser's packages, from the lock file."""
     direct_names = set(
@@ -182,11 +191,7 @@ def node_packages(frontend: Path) -> tuple[list[Package], list[Package]]:
         own = {}
         if (folder / "package.json").is_file():
             own = json.loads((folder / "package.json").read_text())
-        texts = [
-            path.read_text(encoding="utf-8", errors="replace").strip()
-            for path in sorted(folder.glob("*"))
-            if path.is_file() and _LICENCE_FILE.search(path.name)
-        ]
+        texts = _licence_texts(folder) or _licence_texts(folder / "dist")
         package = Package(
             name=name,
             version=entry["version"],

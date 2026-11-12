@@ -18,7 +18,7 @@ flowchart LR
 | Layer | Technology |
 | --- | --- |
 | Backend | Python 3.14, Django 5.2 (LTS), Django REST Framework, drf-spectacular |
-| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, openapi-fetch, plain CSS on design tokens |
+| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, openapi-fetch, plain CSS on design tokens, one shipped typeface (Pretendard) |
 | Database | PostgreSQL 17 |
 | Testing | pytest, Vitest and React Testing Library; Playwright for the width check (dev only) |
 | Quality | Ruff, mypy, ESLint, Stylelint, Prettier, GitHub Actions |

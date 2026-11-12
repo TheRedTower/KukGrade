@@ -419,7 +419,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               </li>
             ))}
           </ol>
-          <dl className="facts">
+          <dl className="facts tiles tiles--narrow">
             <div>
               <dt>Grading date</dt>
               <dd>{formatShortDate(session?.grading_date)}</dd>

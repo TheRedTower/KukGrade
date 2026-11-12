@@ -113,3 +113,33 @@ describe("one scroller per page", () => {
     expect(found.sort()).toEqual([...OWN_SCROLLERS].sort());
   });
 });
+
+/**
+ * Cards, fields and facts that wrap onto more rows are `.tiles` (layout.css): the
+ * tiles of a short last row share its width, where an auto-fit grid leaves a hole
+ * beside them. The two grids left keep their columns on purpose.
+ */
+const OWN_GRIDS = new Set([
+  "Imports.css: .ix-field-grid", // each imported row's fields line up with the next row's
+  "GradingSessions.css: .gsd-lifecycle-track", // a session's steps, in order, one size each
+]);
+
+function autoFitGrids(file: string, css: string): string[] {
+  return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, , body]) => /repeat\(\s*auto-(?:fit|fill)/.test(body))
+    .map(([, selector]) => `${file}: ${selector.trim()}`);
+}
+
+describe("no row ends in a gap", () => {
+  it("finds an auto-fit grid", () => {
+    expect(autoFitGrids("a.css", ".a { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)) }")).toEqual([
+      "a.css: .a",
+    ]);
+    expect(autoFitGrids("a.css", ".b { grid-template-columns: 1fr 1fr }")).toEqual([]);
+  });
+
+  it("cards and fields that wrap are tiles, not an auto-fit grid", () => {
+    const found = allCssFiles().flatMap((file) => autoFitGrids(file, readCss(file)));
+    expect(found.sort()).toEqual([...OWN_GRIDS].sort());
+  });
+});

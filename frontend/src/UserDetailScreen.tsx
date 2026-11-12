@@ -86,7 +86,7 @@ function AccountForm({
         mutation.mutate();
       }}
     >
-      <div className="users-form-grid">
+      <div className="users-form-grid tiles">
         <Field error={errors?.fields.first_name?.join(" ")} label="First name" look="label">
           {(control) => (
             <input {...control} required value={firstName} onChange={(event) => setFirstName(event.target.value)} />
@@ -97,7 +97,7 @@ function AccountForm({
             <input {...control} required value={lastName} onChange={(event) => setLastName(event.target.value)} />
           )}
         </Field>
-        <Field className="users-form-wide" error={emailError} label="Email address" look="label">
+        <Field className="tile-full" error={emailError} label="Email address" look="label">
           {(control) => (
             <input
               {...control}

@@ -333,7 +333,7 @@ export function AuditScreen(): React.ReactElement {
           closeLabel="Close event details"
           onClose={closeDetails}
         >
-          <dl className="facts">
+          <dl className="facts tiles tiles--narrow">
             <div>
               <dt>Occurred</dt>
               <dd>{formatDateTime(selectedEvent.occurred_at)}</dd>
@@ -358,7 +358,7 @@ export function AuditScreen(): React.ReactElement {
             {selectedEvent.details.length === 0 ? (
               <p className="meta">No further details recorded.</p>
             ) : (
-              <dl className="facts">
+              <dl className="facts tiles tiles--narrow">
                 {selectedEvent.details.map((detail) => (
                   <div key={detail.label}>
                     <dt>{detail.label}</dt>

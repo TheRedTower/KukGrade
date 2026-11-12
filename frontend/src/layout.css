@@ -841,11 +841,85 @@ select:not([multiple]):not([size]) {
   font-size: var(--font-size-sm);
 }
 
+/* ── Tiles: as many in a row as fit, and no row ends in a gap ─────────── */
+
+/* Cards, fields or facts side by side. Each is at least --tile-min wide (all of
+   the width when that is less), so a row holds as many as fit, as an auto-fit
+   grid would. Unlike a grid, the tiles of a short last row share its width, so
+   three cards in two columns end with one card across the row, not a hole
+   beside it. Every tile is a flex item: a stated width or a grid span inside one
+   does nothing; .tile-full takes a row of its own. */
+.tiles {
+  --tile-min: 14rem;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* The five sizes the screens had as grids, kept exactly, so a row holds as many as before. */
+.tiles--narrowest {
+  --tile-min: 10rem;
+}
+
+.tiles--narrow {
+  --tile-min: 12rem;
+}
+
+.tiles--broad {
+  --tile-min: 18rem;
+}
+
+.tiles--broadest {
+  --tile-min: 20rem;
+}
+
+.tiles > * {
+  flex: 1 1 min(100%, var(--tile-min));
+  min-width: 0;
+}
+
+.tiles > .tile-full {
+  flex-basis: 100%;
+}
+
+/* An even set: a set that always holds the same number of things (the six core
+   areas, the four permissions, three boxes) and splits evenly at every width,
+   measured on its own box, so no tile is wider than the rest. The wrapper is the
+   box measured; its one child, .even-set__items, holds the things and is also
+   .tiles. In a box narrower than `compact` the set wraps as its tiles, which
+   at their sizes go 1 or 2 to a row for four and 1, 2 or 3 for six; three go
+   one to a row. From `compact`, three and six go 3 to a row and four go 2; from
+   `wide`, six go 6. The width check fails on a set whose rows differ. */
+.even-set {
+  container-type: inline-size;
+}
+
+.even-set__items:has(> :nth-child(3):last-child) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 40rem) {
+  .even-set__items:has(> :nth-child(3):last-child),
+  .even-set__items:has(> :nth-child(4):last-child),
+  .even-set__items:has(> :nth-child(6):last-child) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .even-set__items:has(> :nth-child(4):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 56rem) {
+  .even-set__items:has(> :nth-child(6):last-child) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 /* ── Facts and recorded text, for dialogs and detail panes ─────────────── */
 
 .facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: var(--space-3);
   margin: 0;
 }

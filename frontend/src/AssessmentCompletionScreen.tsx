@@ -238,20 +238,22 @@ export function AssessmentCompletionScreen() {
           {coreGroups.length > 0 && (
             <>
               <h2 className="acp-section eyebrow--muted">Core grading areas · always assessed</h2>
-              <div className="acp-core-grid">
-                {coreGroups.map((group) => (
-                  <div key={group.category} className="acp-core-cell" data-testid={`acp-core-${group.category}`}>
-                    <CoreAreaMark group={group} />
-                    <span className="acp-core-text">
-                      <span className="acp-core-name item-title">{group.categoryDisplay}</span>
-                      <span className="acp-core-detail meta">
-                        {group.metCount} of {group.totalCount} met
-                        {group.notMetCount > 0 && ` · ${group.notMetCount} not met`}
-                        {group.notAssessedCount > 0 && ` · ${group.notAssessedCount} not assessed`}
+              <div className="even-set">
+                <div className="acp-core-grid tiles even-set__items">
+                  {coreGroups.map((group) => (
+                    <div key={group.category} className="acp-core-cell" data-testid={`acp-core-${group.category}`}>
+                      <CoreAreaMark group={group} />
+                      <span className="acp-core-text">
+                        <span className="acp-core-name item-title">{group.categoryDisplay}</span>
+                        <span className="acp-core-detail meta">
+                          {group.metCount} of {group.totalCount} met
+                          {group.notMetCount > 0 && ` · ${group.notMetCount} not met`}
+                          {group.notAssessedCount > 0 && ` · ${group.notAssessedCount} not assessed`}
+                        </span>
                       </span>
-                    </span>
-                  </div>
-                ))}
+                    </div>
+                  ))}
+                </div>
               </div>
             </>
           )}

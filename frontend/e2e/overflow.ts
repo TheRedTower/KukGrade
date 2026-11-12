@@ -260,6 +260,25 @@ export async function findLayoutFaults(page: Page): Promise<string[]> {
         out.push(`a box scrolls inside the page: ${label(el)}`);
       }
     }
+
+    // Tiles whose last row ends in a hole, or an even set whose rows differ (layout.css).
+    for (const set of document.body.querySelectorAll(".tiles, .even-set__items")) {
+      if (!shown(set)) continue;
+      const items = [...set.children].filter((el) => el.getBoundingClientRect().width > 0);
+      const rows = new Map<number, number>();
+      for (const item of items) {
+        const top = Math.round(item.getBoundingClientRect().top);
+        rows.set(top, (rows.get(top) ?? 0) + 1);
+      }
+      const counts = [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, count]) => count);
+      const last = items[items.length - 1];
+      if (!last || counts.length < 2) continue;
+      const end = set.getBoundingClientRect().right - parseFloat(getComputedStyle(set).paddingRight);
+      const uneven = set.matches(".even-set__items") && new Set(counts).size > 1;
+      if (end - last.getBoundingClientRect().right > 8 || uneven) {
+        out.push(`a row ends in a gap: ${label(set)} (${counts.join(" + ")})`);
+      }
+    }
     return out;
   });
 }

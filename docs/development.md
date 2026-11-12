@@ -129,7 +129,7 @@ serializers and the committed frontend types match the schema.
   (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
-  on a narrow page), `Dialog` for every modal (a sheet on a phone) and `ConfirmDialog` for every one that asks to confirm (a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form; `--1` to `--4` and `--6` for parts that sit closer, a step of the space scale), `.row` for things side by side on one line (`--wrap`, `--inline`, `--1`, `--3`, `--4`), `.list-plain` for a list with no bullets, `.visually-hidden--phone` for words a phone's row has no room to show (still read out), `.filter-bar` for every set of filters (its
+  on a narrow page), `Dialog` for every modal (a sheet on a phone) and `ConfirmDialog` for every one that asks to confirm (a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form; `--1` to `--4` and `--6` for parts that sit closer, a step of the space scale), `.row` for things side by side on one line (`--wrap`, `--inline`, `--1`, `--3`, `--4`), `.tiles` for cards, fields or facts side by side that wrap onto more rows (each at least `--tile-min`: 14rem, `--narrowest` 10rem, `--narrow` 12rem, `--broad` 18rem, `--broadest` 20rem; `.tile-full` for one on a row of its own), whose short last row shares its width so a row never ends in a gap, and `.even-set` around a set that always holds the same number of things (`.even-set__items`: six go 2, 3 or 6 to a row, four 1 or 2, three 1 or 3), so every row holds the same (`layoutRules.test.ts` fails on a new `auto-fit` grid, and the width check on a row that ends in a gap), `.list-plain` for a list with no bullets, `.visually-hidden--phone` for words a phone's row has no room to show (still read out), `.filter-bar` for every set of filters (its
   `.filter-bar__count` for how many results they leave) and
   `.field` (`.field--search` (through `SearchField`) for every search box, which draws its own magnifier; `.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help; `Field` writes a form field's label, required star, error and help and wires them to its control) for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
@@ -210,14 +210,14 @@ names and titles are matched by likeness. `kukgrade/test_search.py` holds the be
 `backend/gradings/test_query_baseline.py` holds the hot paths to a ceiling, and the
 roster and list tests hold their counts flat as data grows. Measured 2026-11-05:
 
-| Request | Queries | Ceiling |
-| --- | --- | --- |
-| Mark an item (first mark, or a later change with a reason), with the assessment's counts in the answer | 18 (76 before) | 20 |
-| Comment on an item | 11 (26 before) | 14 |
-| Item list for an assessment (page of 9) | 4 | 6 |
-| Assessment summary (a lone mark no longer asks for it) | 2 | 4 |
-| Student list (any length of page) | 2 | 4 |
-| A session's roster (any number of candidates) | 12 or fewer | 12 |
+| Request                                                                                                | Queries        | Ceiling |
+| ------------------------------------------------------------------------------------------------------ | -------------- | ------- |
+| Mark an item (first mark, or a later change with a reason), with the assessment's counts in the answer | 18 (76 before) | 20      |
+| Comment on an item                                                                                     | 11 (26 before) | 14      |
+| Item list for an assessment (page of 9)                                                                | 4              | 6       |
+| Assessment summary (a lone mark no longer asks for it)                                                 | 2              | 4       |
+| Student list (any length of page)                                                                      | 2              | 4       |
+| A session's roster (any number of candidates)                                                          | 12 or fewer    | 12      |
 
 Marking an item once cost 76: about fifty of those statements were the database
 re-checking constraints that `Model.save()` had just validated (`full_clean()` runs a
@@ -238,7 +238,7 @@ a newer version. Each updates the manifest and its lockfile together and runs th
 CI. Merge one once its checks are green.
 
 - Minor and patch updates arrive grouped; a major version gets its own pull request.
-- A new Python or Node *line* is never proposed automatically: it is a decision. Change
+- A new Python or Node _line_ is never proposed automatically: it is a decision. Change
   `python:3.14-slim` in the `Dockerfile`, `requires-python` and the tool targets in
   `backend/pyproject.toml` (then `uv lock`), `backend/.python-version`, `node:22-alpine`
   and `node-version` in `.github/workflows/ci.yml`, together.

@@ -4,7 +4,7 @@ import { findLayoutFaults } from "./overflow";
 
 // The checks in findLayoutFaults pass on every screen, so this proves they
 // still find something: one of each fault, on a page made to have them.
-test("findLayoutFaults reports a split word, a ragged column, unstyled controls and a box that scrolls", async ({
+test("findLayoutFaults reports a split word, a ragged column, unstyled controls, a box that scrolls and a row with a gap", async ({
   page,
   browserName,
 }) => {
@@ -19,6 +19,7 @@ test("findLayoutFaults reports a split word, a ragged column, unstyled controls 
     <a href="/somewhere">a link</a> <button>A button</button>
     <p style="width: 60px; overflow-wrap: anywhere">Administrator</p>
     <div class="trap" style="height: 40px; overflow-y: auto"><div style="height: 200px"></div></div>
+    <div class="tiles" style="display: grid; grid-template-columns: 1fr 1fr"><i>a</i><i>b</i><i>c</i></div>
   </body>`);
   const faults = await findLayoutFaults(page);
   expect(
@@ -37,6 +38,10 @@ test("findLayoutFaults reports a split word, a ragged column, unstyled controls 
     faults.some((f) => f.startsWith("a box scrolls inside the page: div.trap")),
     faults.join("\n"),
   ).toBe(true);
+  expect(
+    faults.some((f) => f.startsWith("a row ends in a gap: div.tiles")),
+    faults.join("\n"),
+  ).toBe(true);
   // A bare button is known by the grey Chrome and Firefox give it; WebKit
   // draws its own, so that check is proved in Chrome, which runs every screen.
   const bareButton = browserName === "chromium";
@@ -44,5 +49,5 @@ test("findLayoutFaults reports a split word, a ragged column, unstyled controls 
     faults.some((f) => f.startsWith("a button has no style")),
     faults.join("\n"),
   ).toBe(bareButton);
-  expect(faults).toHaveLength(bareButton ? 5 : 4);
+  expect(faults).toHaveLength(bareButton ? 6 : 5);
 });

@@ -116,7 +116,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
       <h2 className="section-title" id="ix-start">
         Start an import
       </h2>
-      <div className="ix-grid-2">
+      <div className="ix-grid-2 tiles tiles--broadest">
         <div className="card card--flush ix-panel">
           <div className="ix-panel-body">
             <h3>Students</h3>

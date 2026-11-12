@@ -43,8 +43,6 @@
 /* Core Grading Areas Grid */
 
 .syl-core-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: var(--space-3);
 }
 

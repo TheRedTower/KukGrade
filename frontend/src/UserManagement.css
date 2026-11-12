@@ -24,14 +24,9 @@
 }
 
 .users-form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   gap: var(--space-4);
 }
 
-.users-form-wide {
-  grid-column: 1 / -1;
-}
 .users-form-note {
   margin: 0;
 }

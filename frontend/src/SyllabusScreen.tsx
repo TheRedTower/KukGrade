@@ -280,18 +280,20 @@ export function SyllabusScreen() {
                   <h3 className="section-title">Core grading areas</h3>
                   <p className="syl-section-subtitle subtext">The same areas at every rank.</p>
                 </div>
-                <div className="syl-core-grid">
-                  {coreAreas.map((area) => (
-                    <div key={area.item_code} className="syl-core-card">
-                      <div className="item-title">{area.item_name}</div>
-                      {area.item_korean_name && (
-                        <div className="subtext" lang="ko">
-                          {area.item_korean_name}
-                        </div>
-                      )}
-                      <div className="syl-core-english meta">{area.category_display}</div>
-                    </div>
-                  ))}
+                <div className="even-set">
+                  <div className="syl-core-grid tiles tiles--narrowest even-set__items">
+                    {coreAreas.map((area) => (
+                      <div key={area.item_code} className="syl-core-card">
+                        <div className="item-title">{area.item_name}</div>
+                        {area.item_korean_name && (
+                          <div className="subtext" lang="ko">
+                            {area.item_korean_name}
+                          </div>
+                        )}
+                        <div className="syl-core-english meta">{area.category_display}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

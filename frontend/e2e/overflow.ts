@@ -261,6 +261,16 @@ export async function findLayoutFaults(page: Page): Promise<string[]> {
       }
     }
 
+    // A gap on a box that lays nothing out: its grid or flex was lost, and its parts touch.
+    for (const el of document.body.querySelectorAll("*")) {
+      const style = getComputedStyle(el);
+      if (!["block", "inline", "inline-block"].includes(style.display) || el.closest("select, table") || !shown(el))
+        continue;
+      if (style.rowGap !== "normal" || style.columnGap !== "normal") {
+        out.push(`a gap on a box that is not a grid or flex: ${label(el)}`);
+      }
+    }
+
     // Tiles whose last row ends in a hole, or an even set whose rows differ (layout.css).
     for (const set of document.body.querySelectorAll(".tiles, .even-set__items")) {
       if (!shown(set)) continue;

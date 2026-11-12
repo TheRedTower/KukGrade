@@ -8,7 +8,7 @@ a change, [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 - [Docker](https://docs.docker.com/get-docker/), for a local PostgreSQL
 - [uv](https://docs.astral.sh/uv/), which installs Python 3.14 and the backend's dependencies
-- Node 22.22.2 or newer (Vite 8 and jsdom 30 require it)
+- Node 22.22.2 or newer (Vite 8 and jsdom 31 require it)
 
 ## Run it locally
 
@@ -109,8 +109,10 @@ serializers and the committed frontend types match the schema.
 - **Test data is synthetic.** Use `example.com` addresses and made-up names. Never
   commit real student data, exports, secrets or screenshots containing them.
 - **Builders live in `testing.py`** inside their own app, never in another app's tests.
-- **Frontend tests mock the API at the `./api` module boundary**, with fixtures declared
-  `satisfies <GeneratedType>`, so a contract change breaks the test instead of hiding.
+- **Frontend tests mock the API at the `./api` module boundary**, or stand in for the
+  server with `stubFetch` (`appTestSupport.ts`, never `vi.stubGlobal("fetch")` directly,
+  since the client sends a `Request`), with fixtures declared `satisfies <GeneratedType>`,
+  so a contract change breaks the test instead of hiding.
 - **Never hand-write an API type** in the frontend. Declare the shape in the backend
   (`@extend_schema`), regenerate `schema.yml`, then `npm run generate:types`.
 - **Layout numbers live in `frontend/src/layout.css`, nowhere else.** A screen adds its

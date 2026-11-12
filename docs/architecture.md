@@ -18,10 +18,10 @@ flowchart LR
 | Layer | Technology |
 | --- | --- |
 | Backend | Python 3.14, Django 5.2 (LTS), Django REST Framework, drf-spectacular |
-| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, plain CSS on design tokens |
+| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, openapi-fetch, plain CSS on design tokens |
 | Database | PostgreSQL 17 |
 | Testing | pytest, Vitest and React Testing Library; Playwright for the width check (dev only) |
-| Quality | Ruff, mypy, ESLint, GitHub Actions |
+| Quality | Ruff, mypy, ESLint, Stylelint, Prettier, GitHub Actions |
 | Packaging | One multi-stage `Dockerfile`; WhiteNoise serves the built frontend |
 
 ## Repository layout
@@ -114,7 +114,8 @@ that changes data and one that shows it agree.
 Two behaviours worth knowing:
 
 - **Sign-in state has four values**, not three: `loading`, `authenticated`, `anonymous`
-  and `error`. `anonymous` needs a real answer from the server (a 401). A dropped
+  and `error`. `anonymous` needs a real answer from the server that nobody is signed in (a 401, or a
+  403 with `authentication_required`). A dropped
   connection or a 5xx is `error`, with a retry, so a backend hiccup never signs
   someone out mid-grading. Signing out clears local state only after the server
   confirms.

@@ -22,8 +22,8 @@ Before implementation, read:
 - `docs/roadmap.md` - what is still to come and what needs a decision
 
 Implemented stack: Django, Django REST Framework, React, TypeScript, Vite,
-PostgreSQL, pytest, Ruff, mypy, React Testing Library, Vitest, GitHub Actions
-CI, local Docker Compose for PostgreSQL, and a single-container production
+openapi-fetch, PostgreSQL, pytest, Ruff, mypy, ESLint, Stylelint, Prettier,
+React Testing Library, Vitest, Playwright (the width check), GitHub Actions CI, local Docker Compose for PostgreSQL, and a single-container production
 image (`docs/installation.md`).
 
 ## Domain Rules

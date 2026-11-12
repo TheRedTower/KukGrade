@@ -48,7 +48,7 @@ and shows who decided what.
 | | |
 | --- | --- |
 | **Grading sessions** | Draft → Open → Locked → Completed, with a cohort builder that registers a whole mixed-belt group in one step |
-| **Assessment** | Item-level *Met / Not met* with notes, results rolled up by category, attendance confirmed in bulk |
+| **Assessment** | Item-level *Met / Not met* with comments, results rolled up by category, attendance confirmed in bulk |
 | **Decisions** | Instructor proposals, a Master's decision board, Pass / Fail / Conditional, then promotion with permanent rank history |
 | **Students** | Records, status (active, inactive, left), school and national IDs, and one timeline of every grading |
 | **Syllabus** | WKSA charts for the ranks up to Jo Kyo Nim and every age band, held as data, never hard-coded |
@@ -67,15 +67,16 @@ You need [Docker](https://docs.docker.com/get-docker/) with Compose v2 and git.
 git clone https://github.com/TheRedTower/KukGrade.git
 cd KukGrade/deploy
 cp .env.example .env
-docker compose up -d
 ```
 
-The first run pulls the image, which takes a minute or two. There is no `latest` image
-until the first stable release, so first set the `image:` line in `deploy/compose.yml` to the
-newest release candidate under [Releases](https://github.com/TheRedTower/KukGrade/releases)
-(for example `ghcr.io/theredtower/kukgrade:0.2.0-rc.10`). Then:
+There is no `latest` image until the first stable release, so set the `image:` line in
+`deploy/compose.yml` to the newest release candidate under
+[Releases](https://github.com/TheRedTower/KukGrade/releases) (for example
+`ghcr.io/theredtower/kukgrade:0.2.0-rc.10`). Then start it; the first run pulls the image,
+which takes a minute or two:
 
 ```sh
+docker compose up -d
 docker compose logs | grep "setup code"
 ```
 
@@ -153,7 +154,7 @@ flowchart LR
 ## Built with
 
 Python 3.14 · Django · Django REST Framework · PostgreSQL 17 · React 19 · TypeScript · Vite ·
-Docker. Fully typed and tested (pytest, Vitest, Ruff, mypy, ESLint), with every API type
+Docker. Fully typed and tested (pytest, Vitest, Ruff, mypy, ESLint, Stylelint, Prettier), with every API type
 generated from one OpenAPI schema.
 
 ## Status

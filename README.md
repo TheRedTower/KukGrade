@@ -92,32 +92,32 @@ Pangolin: see the [installation guide](docs/installation.md). Every setting is i
 
 <table>
   <tr>
-    <td width="50%">
-      <img src="docs/assets/screenshots/session.png" alt="A grading session with its lifecycle and candidates">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/session.png" alt="A grading session with its lifecycle and candidates" width="100%">
       <p align="center"><b>Run a grading session</b><br>Lifecycle, candidates and next actions at a glance</p>
     </td>
-    <td width="50%">
-      <img src="docs/assets/screenshots/assessment.png" alt="Scoring a candidate requirement by requirement">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/assessment.png" alt="Scoring a candidate requirement by requirement" width="100%">
       <p align="center"><b>Assess on the mat</b><br>Mark every requirement, with a live count</p>
     </td>
   </tr>
   <tr>
-    <td width="50%">
-      <img src="docs/assets/screenshots/decisions.png" alt="The Master's final decision board">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/decisions.png" alt="The Master's final decision board" width="100%">
       <p align="center"><b>Decide</b><br>The evidence, the proposal and the final decision, side by side</p>
     </td>
-    <td width="50%">
-      <img src="docs/assets/screenshots/cohort.png" alt="Building a grading cohort">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/cohort.png" alt="Building a grading cohort" width="100%">
       <p align="center"><b>Build a cohort</b><br>Add whole groups, then review exceptions</p>
     </td>
   </tr>
   <tr>
-    <td width="50%">
-      <img src="docs/assets/screenshots/students.png" alt="The student list">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/students.png" alt="The student list" width="100%">
       <p align="center"><b>Know your students</b><br>Search, filter, and see each one's current grading</p>
     </td>
-    <td width="50%">
-      <img src="docs/assets/screenshots/syllabus.png" alt="The syllabus by rank and age band">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/syllabus.png" alt="The syllabus by rank and age band" width="100%">
       <p align="center"><b>Browse the syllabus</b><br>By rank and age band, cumulative to each rank</p>
     </td>
   </tr>

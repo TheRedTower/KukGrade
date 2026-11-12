@@ -890,9 +890,11 @@ select:not([multiple]):not([size]) {
   padding-block: var(--space-2);
 }
 
+/* Labels in one column, values in the other. When the line is short a label
+   wraps between its words before a value is split: a date never breaks. */
 .facts-list--aligned {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: minmax(min-content, max-content) minmax(min-content, 1fr);
 }
 
 .facts-list--aligned > div {

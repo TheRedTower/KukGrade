@@ -143,7 +143,7 @@ describe("Matching a roster's columns", () => {
       file_values: { date_of_birth: "31/02/2010" },
       outcome: "REVIEW_REQUIRED",
       outcome_display: "Needs attention",
-      issues: ["Date of birth '31/02/2010' could not be parsed."],
+      issues: ["Date of birth '31/02/2010' is not a valid date."],
       issue_fields: ["date_of_birth", "current_rank"],
     }),
   ];
@@ -166,7 +166,7 @@ describe("Matching a roster's columns", () => {
     expect(await screen.findByLabelText("Date of birth, row 4")).toHaveAttribute("aria-invalid", "true");
     expect(await screen.findByLabelText("Date of birth, row 2")).toHaveAttribute("aria-invalid", "false");
     expect(await screen.findAllByText("Needs attention", { selector: ".badge" })).toHaveLength(2);
-    expect(screen.getByText("Date of birth '31/02/2010' could not be parsed.")).toBeInTheDocument();
+    expect(screen.getByText("Date of birth '31/02/2010' is not a valid date.")).toBeInTheDocument();
     expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Match columns");
   });
 

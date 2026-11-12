@@ -372,7 +372,7 @@ PARITY_CASES = {
     ),
     "unparseable date of birth": (
         {"date_of_birth": "31/31/2012"},
-        "Date of birth '31/31/2012' could not be parsed.",
+        "Date of birth '31/31/2012' is not a valid date.",
     ),
     "status in lower case": ({"status": "left"}, None),
     "unrecognised status": ({"status": "GONE"}, "Status 'GONE' is not recognised."),

@@ -938,7 +938,7 @@ def _classify_student_row(
     if not dob_display:
         issue("date_of_birth", "Date of birth is required.")
     elif parsed_dob is None:
-        issue("date_of_birth", f"Date of birth {dob_display!r} could not be parsed.")
+        issue("date_of_birth", f"Date of birth {dob_display!r} is not a valid date.")
 
     # The club's own fixed spellings are the rank they spell ("White Belt"
     # is White, "DBN" Dahn Bo - ranks.matching); a rank the file marks as

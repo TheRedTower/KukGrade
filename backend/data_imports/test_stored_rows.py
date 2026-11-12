@@ -117,7 +117,7 @@ def test_matching_columns_checks_and_stores_every_row() -> None:
 
     assert outcomes(batch) == {2: "READY", 3: "REVIEW_REQUIRED"}
     bad = batch.rows.get(row_number=3)
-    assert bad.issues == ["Date of birth 'not a date' could not be parsed."]
+    assert bad.issues == ["Date of birth 'not a date' is not a valid date."]
     assert bad.values["first_name"] == "Casey"
     assert batch.configuration_json["column_mapping"] == STANDARD_MAPPING
 
@@ -414,7 +414,7 @@ def test_the_rows_come_a_page_at_a_time_filtered_and_searched() -> None:
     assert [row["row_number"] for row in first["results"]] == [2, 3]
     review = results(client.get(url, {"outcome": "REVIEW_REQUIRED"}))
     assert [row["row_number"] for row in review] == [4]
-    assert review[0]["issues"] == ["Date of birth 'not a date' could not be parsed."]
+    assert review[0]["issues"] == ["Date of birth 'not a date' is not a valid date."]
     assert review[0]["outcome_display"] == "Needs attention"
     assert [
         row["row_number"] for row in results(client.get(url, {"search": "blair"}))

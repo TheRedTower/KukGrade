@@ -5,7 +5,13 @@ import { eventSummary } from "./auditText";
 describe("eventSummary", () => {
   it("adds the student's current name to a summary that holds only their ID", () => {
     expect(eventSummary({ summary: "Student 123-4-001 created.", subject_name: "Alex Kim" })).toBe(
-      "Student 123-4-001 created. (Alex Kim)",
+      "Student 123-4-001 created (Alex Kim).",
+    );
+  });
+
+  it("adds it at the end of a summary with no full stop", () => {
+    expect(eventSummary({ summary: "Student 123-4-001 created", subject_name: "Alex Kim" })).toBe(
+      "Student 123-4-001 created (Alex Kim)",
     );
   });
 

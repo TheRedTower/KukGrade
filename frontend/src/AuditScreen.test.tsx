@@ -84,7 +84,7 @@ describe("AuditScreen", () => {
     });
     renderScreen();
 
-    expect(await screen.findByText("Student 123-4-001 created. (Alex Kim)")).toBeVisible();
+    expect(await screen.findByText("Student 123-4-001 created (Alex Kim).")).toBeVisible();
   });
 
   it("says whose history it is, by name, and asks the server for exactly that history", async () => {

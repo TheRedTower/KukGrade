@@ -71,6 +71,7 @@ git diff --exit-code -- src/api/schema.ts
 npm run lint        # ESLint, then Stylelint (stylelint.config.mjs) for the CSS
 npm run format:check   # Prettier (.prettierrc.json); `npm run format` rewrites the files
                        # (blame skips the reformat: git config blame.ignoreRevsFile .git-blame-ignore-revs)
+npm run knip        # unused files, exports and dependencies (knip.json leaves out the generated types)
 npm run typecheck
 npm run test
 npm run build
@@ -91,10 +92,6 @@ cd frontend
 npx playwright install chromium webkit   # once
 npm run test:widths                 # every screen: Chrome at nine widths, WebKit as an iPhone and an iPad (CI: four widths, nine on a release tag)
 ```
-
-`npm run knip` (in `frontend/`) lists unused files, exports and dependencies; run it by hand
-before a pull request (it is not in CI yet). `knip.json` leaves out the generated
-`src/api/schema.ts`.
 
 The two `git diff --exit-code` steps prove the committed OpenAPI schema matches the
 serializers and the committed frontend types match the schema.

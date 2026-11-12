@@ -148,6 +148,10 @@ jobs:
       - name: Format (Prettier)
         run: npm run format:check
 
+      # knip fails on a file, export or dependency nothing uses (knip.json).
+      - name: Unused code (knip)
+        run: npm run knip
+
       - name: Type check
         run: npm run typecheck
 

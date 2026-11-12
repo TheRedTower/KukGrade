@@ -17,7 +17,7 @@ import { PageHeader } from "./PageHeader";
 import { RecordPage } from "./RecordPage";
 import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
-import { WarningIcon } from "./Icons";
+import { ArrowRightIcon, WarningIcon } from "./Icons";
 import { useAuth } from "./auth";
 import { CandidateDialogs } from "./CandidateDialogs";
 import { SessionActionsMenu } from "./SessionActionsMenu";
@@ -114,7 +114,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setCancellationReason("");
       setActionError(null);
     },
-    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to update session.")),
+    onError: (err: unknown) => setActionError(errorMessage(err, "The grading session could not be updated.")),
   });
 
   // Archiving or restoring changes what the lists show, never the session.
@@ -130,7 +130,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setConfirm(null);
       setActionError(null);
     },
-    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to update the archive.")),
+    onError: (err: unknown) =>
+      setActionError(errorMessage(err, "The grading session could not be archived or restored.")),
   });
 
   const deleteSessionMutation = useMutation({
@@ -139,7 +140,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       void queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
       void navigate("/gradings");
     },
-    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to delete session.")),
+    onError: (err: unknown) => setActionError(errorMessage(err, "The grading session could not be deleted.")),
   });
   const confirmPending =
     updateSessionMutation.isPending || deleteSessionMutation.isPending || archiveMutation.isPending;
@@ -247,7 +248,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 className={buttonClass({ variant: "secondary" })}
                 data-testid="gsd-final-decisions-btn"
               >
-                Final decisions →
+                Final decisions <ArrowRightIcon />
               </Link>
             )}
             {decided && (
@@ -256,7 +257,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 className={buttonClass({ variant: "secondary" })}
                 data-testid="gsd-promotion-ledger-btn"
               >
-                Promotion ledger →
+                Promotion ledger <ArrowRightIcon />
               </Link>
             )}
             {hasSessionActions && (
@@ -268,7 +269,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 className={buttonClass({ variant: "primary" })}
                 data-testid="gsd-add-candidate-btn"
               >
-                Add candidate <span aria-hidden="true">→</span>
+                Add candidate <ArrowRightIcon />
               </Link>
             )}
           </>
@@ -303,7 +304,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               className={buttonClass({ variant: "ghost", small: true })}
               data-testid="gsd-review-decisions-btn"
             >
-              Review <span aria-hidden="true">→</span>
+              Review <ArrowRightIcon />
             </Link>
           }
         >

@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
-import { ApiError, type AuthUser, getSetupStatus } from "./api";
+import { ApiError, type AuthUser, getSetupStatus, NETWORK_ERROR } from "./api";
 import { hasSignedInBefore, useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
 import { DemoSignIn } from "./DemoSignIn";
@@ -26,7 +26,7 @@ function useReturnPath(): string {
 
 /** Why signing in failed, said plainly. */
 function signInFailure(error: unknown): string {
-  if (!(error instanceof ApiError)) return "KukGrade could not be reached. Check your connection and try again.";
+  if (!(error instanceof ApiError)) return NETWORK_ERROR;
   if (error.status === 403) return "Your sign-in could not be checked. Refresh the page and try again.";
   // The server's own message names how long to wait.
   if (error.status === 429) return error.message;

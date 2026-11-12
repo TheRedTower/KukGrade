@@ -79,7 +79,7 @@ export function useCohortRegistration({ sessionId, session, cohort, setCohort, g
       });
       setFlaggedItems([...unsent, ...flagged]);
     },
-    onError: (err) => setSubmitError(errorMessage(err, "Failed to register grading candidates.")),
+    onError: (err) => setSubmitError(errorMessage(err, "The candidates could not be registered.")),
   });
 
   const send = (items: { student: StudentListItem; destinationRank: Rank | null }[], retry: boolean) => {

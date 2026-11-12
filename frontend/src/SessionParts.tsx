@@ -11,6 +11,7 @@ import { formatSessionDate } from "./dates";
 import { labelOf, useChoices } from "./choices";
 import { AssessmentBadge, OutcomeBadge } from "./StatusBadge";
 import { CandidateRanks } from "./RankTransition";
+import { ArrowRightIcon, CheckIcon, PencilIcon } from "./Icons";
 
 /** A session's candidate with their assessment and outcome, as the session page shows them. */
 /** What a candidate's row offers next: a link, the proposal drawer, or nothing (no url). */
@@ -44,7 +45,7 @@ export function SessionLifecycle({ status = "DRAFT" }: { status?: GradingSession
           return (
             <div key={key} className={`row row--3 gsd-step-${state}`}>
               <div className="mark mark--small gsd-step-circle" aria-hidden="true">
-                {state === "completed" && "✓"}
+                {state === "completed" && <CheckIcon size={12} />}
               </div>
               <div className="gsd-step-content">
                 <span className="item-title">{labelOf(statuses, key)}</span>
@@ -98,7 +99,7 @@ export function SessionNotes({
               }}
               data-testid="gsd-edit-notes-btn"
             >
-              <span aria-hidden="true">📝</span> {notes ? "Edit notes" : "Add note"}
+              <PencilIcon /> {notes ? "Edit notes" : "Add note"}
             </Button>
           )}
         </div>
@@ -110,13 +111,13 @@ export function SessionNotes({
                 className="gsd-notes-textarea"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Enter notes, observations, or logistics for this grading session..."
+                placeholder="Enter notes, observations, or logistics for this grading session…"
                 rows={4}
                 data-testid="gsd-notes-textarea"
               />
               <div className="action-row gsd-notes-actions">
                 <Button type="submit" variant="primary" disabled={saving} data-testid="gsd-save-notes-btn">
-                  {saving ? "Saving..." : "Save notes"}
+                  {saving ? "Saving…" : "Save notes"}
                 </Button>
                 <Button
                   variant="ghost"
@@ -237,10 +238,12 @@ export function SessionCandidateTable({
                     data-testid={`propose-outcome-btn-${candidateId}`}
                   >
                     {next.label}
+                    <ArrowRightIcon />
                   </Button>
                 ) : (
                   <Link to={next.url} className={buttonClass({ variant: "ghost", small: true })}>
                     {next.label}
+                    <ArrowRightIcon />
                   </Link>
                 )}
                 {item.candidate.can_be_moved && (

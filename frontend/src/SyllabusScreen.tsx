@@ -20,6 +20,7 @@ import { ScrollRail } from "./ScrollRail";
 import { RequirementBadge } from "./StatusBadge";
 import "./Syllabus.css";
 import { keys } from "./queryKeys";
+import { ArrowRightIcon } from "./Icons";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -138,7 +139,7 @@ export function SyllabusScreen() {
   const isLoading = ranksQuery.isLoading || ageBandsQuery.isLoading || requirementsQuery.isLoading;
 
   const loadError = ranksQuery.error ?? ageBandsQuery.error ?? requirementsQuery.error;
-  const error = loadError ? errorMessage(loadError, "Failed to load the syllabus.") : null;
+  const error = loadError ? errorMessage(loadError, "The syllabus could not be loaded.") : null;
 
   // A programme change keeps the age band if it belongs to that programme,
   // otherwise moves to the programme's oldest band.
@@ -257,7 +258,7 @@ export function SyllabusScreen() {
 
           {nextRank && (
             <Button variant="link" onClick={() => setChosenRankCode(nextRank.code)}>
-              Next rank: {nextRank.name} →
+              Next rank: {nextRank.name} <ArrowRightIcon />
             </Button>
           )}
         </div>

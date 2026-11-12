@@ -4,6 +4,7 @@ import { versionDetails } from "./aboutDetails";
 import { useAboutQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
 import { ExternalLink } from "./ExternalLink";
+import { ExternalLinkIcon } from "./Icons";
 
 /** Where to ask for help, and the details to send with the question. */
 export function AboutSupport() {
@@ -85,7 +86,7 @@ export function AboutSupport() {
                 <p className="st-row-description subtext">Public. Do not include student information.</p>
               </div>
               <ExternalLink className={buttonClass({ variant: "secondary" })} href={data.issues_url}>
-                Open an issue ↗
+                Open an issue <ExternalLinkIcon />
               </ExternalLink>
             </div>
             <div className="ab-contact">

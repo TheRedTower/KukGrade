@@ -11,6 +11,7 @@ import { buttonClass } from "./buttonClass";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
 import { cx } from "./cx";
+import { CheckIcon } from "./Icons";
 
 const LINK_GROUPS_SHOWN = 4;
 
@@ -110,7 +111,9 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
               <div className="row row--wrap ix-row-choice">
                 {done ? (
                   <>
-                    <span className="ix-success-text item-title">✓ Linked to {done.name}</span>
+                    <span className="row row--inline ix-success-text item-title">
+                      <CheckIcon /> Linked to {done.name}
+                    </span>
                     <Button
                       aria-label={`Undo linking “${person.source_name}”`}
                       variant="link"

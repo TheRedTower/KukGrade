@@ -33,6 +33,7 @@ import { Button } from "./Button";
 import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
 import { EmailAddress } from "./EmailAddress";
+import { ArrowRightIcon } from "./Icons";
 
 function AccountForm({
   user,
@@ -466,7 +467,7 @@ export function UserDetailScreen(): React.ReactElement {
                 <dd>{formatLongDate(managedUser.date_joined, "Never")}</dd>
               </div>
               <div>
-                <dt>Last active</dt>
+                <dt>Last signed in</dt>
                 <dd>{formatDateTime(managedUser.last_login, "Never")}</dd>
               </div>
               <div>
@@ -508,7 +509,7 @@ export function UserDetailScreen(): React.ReactElement {
               <p>No administrative activity recorded.</p>
             )}
             <Link className={buttonClass({ variant: "link" })} to={`/audit?subject=user:${encodeURIComponent(id)}`}>
-              View full history <span aria-hidden="true">→</span>
+              View full history <ArrowRightIcon />
             </Link>
           </section>
         </aside>

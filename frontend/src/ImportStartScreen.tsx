@@ -25,7 +25,7 @@ import { useSiteSettingsQuery } from "./queries";
 import "./Imports.css";
 import { Button } from "./Button";
 import { keys } from "./queryKeys";
-import { ChevronRightIcon, UploadIcon } from "./Icons";
+import { CheckIcon, ChevronRightIcon, ExclamationIcon, UploadIcon } from "./Icons";
 import { cx } from "./cx";
 
 function parseKind(value: string | null): DataImportKind {
@@ -136,7 +136,7 @@ function FoundChecklist({
         {items.map((item) => (
           <li key={item.title}>
             <span aria-hidden="true" className="mark" data-tone={item.ok ? "success" : "warning"}>
-              {item.ok ? "✓" : "!"}
+              {item.ok ? <CheckIcon /> : <ExclamationIcon />}
             </span>
             <span>
               <p className="item-title">{item.title}</p>

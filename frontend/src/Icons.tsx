@@ -56,6 +56,63 @@ export function WarningIcon(props: IconProps) {
   );
 }
 
+/** "Look at this", inside a .mark: the mark draws the circle. */
+export function ExclamationIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 2.6)}>
+      <path d="M12 5.5v8M12 18.5v.1" />
+    </svg>
+  );
+}
+
+/** A note to read, inside a .mark: the mark draws the circle. */
+export function InfoIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 2.6)}>
+      <path d="M12 10.5v8M12 5.5v.1" />
+    </svg>
+  );
+}
+
+/** Not done, or left out. */
+export function MinusIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 2.6)}>
+      <path d="M6.5 12h11" />
+    </svg>
+  );
+}
+
+/** Passed over: already there, so not added again. */
+export function SkipIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 15a8 8 0 0 1 15-4" />
+      <path d="M20 5v6h-6" />
+    </svg>
+  );
+}
+
+/** Opens somewhere outside KukGrade. */
+export function ExternalLinkIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M14 4h6v6M20 4l-9 9" />
+      <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+    </svg>
+  );
+}
+
+/** Write or change a note. */
+export function PencilIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 20h4L19 9l-4-4L4 16z" />
+      <path d="m13.5 6.5 4 4" />
+    </svg>
+  );
+}
+
 export function LockIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

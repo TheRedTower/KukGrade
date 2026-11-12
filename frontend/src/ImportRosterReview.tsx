@@ -20,6 +20,7 @@ import { Exclusion, PAGE_SIZE, RowParams, Tile, useRowExclusion } from "./import
 import { labelOf, useChoices } from "./choices";
 import { counted } from "./plural";
 import { cx } from "./cx";
+import { CheckIcon, ExclamationIcon, MinusIcon, SkipIcon } from "./Icons";
 
 /** The same source-preserving correction controls in every roster review view. */
 function RosterRowEditor({
@@ -191,10 +192,22 @@ export function RosterReview({
   const skipped = labelOf(outcomes, "SKIP_EXISTING");
   const leftOut = labelOf(outcomes, "EXCLUDED");
   const tiles: Tile<RosterView>[] = [
-    { key: "READY", label: "Ready to add", count: counts.ready, tone: "ix-success-text", mark: "✓" },
-    { key: "attention", label: "Need attention", count: counts.review_required, tone: "ix-warning-text", mark: "!" },
-    { key: "SKIP_EXISTING", label: skipped, count: counts.skip_existing, tone: "", mark: "↷" },
-    { key: "EXCLUDED", label: leftOut, count: counts.excluded, tone: "subtext", mark: "–" },
+    {
+      key: "READY",
+      label: "Ready to add",
+      count: counts.ready,
+      tone: "ix-success-text",
+      mark: <CheckIcon size={22} />,
+    },
+    {
+      key: "attention",
+      label: "Need attention",
+      count: counts.review_required,
+      tone: "ix-warning-text",
+      mark: <ExclamationIcon size={22} />,
+    },
+    { key: "SKIP_EXISTING", label: skipped, count: counts.skip_existing, tone: "", mark: <SkipIcon size={22} /> },
+    { key: "EXCLUDED", label: leftOut, count: counts.excluded, tone: "subtext", mark: <MinusIcon size={22} /> },
   ];
   const heads: Record<RosterView, [string, string]> = {
     attention: [
@@ -230,8 +243,8 @@ export function RosterReview({
           title={heads[view][0]}
         />
         {view === "attention" && counts.review_required === 0 ? (
-          <p className="ix-row ix-success-text item-title">
-            ✓ Nothing needs attention. Every row will be imported or left out as shown.
+          <p className="row ix-row ix-success-text item-title">
+            <CheckIcon /> Nothing needs attention. Every row will be imported or left out as shown.
           </p>
         ) : (
           <RowsList kind={batch.kind} exclusion={exclusion} rows={rows}>

@@ -46,7 +46,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       refreshCandidateWork();
       reportBulk(created.length, "prepared", errors);
     },
-    onError: (err: unknown) => setError(errorMessage(err, "Failed to prepare assessments.")),
+    onError: (err: unknown) => setError(errorMessage(err, "The assessments could not be prepared.")),
   });
 
   const bulkStart = useMutation({
@@ -55,7 +55,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       refreshCandidateWork();
       reportBulk(started.length, "started", errors);
     },
-    onError: (err: unknown) => setError(errorMessage(err, "Failed to start assessments.")),
+    onError: (err: unknown) => setError(errorMessage(err, "The assessments could not be started.")),
   });
 
   const [attendanceOpen, setAttendanceOpen] = useState(false);
@@ -72,7 +72,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       );
       setError(failed ? Object.values(errors).flat().join(" ") : null);
     },
-    onError: (err: unknown) => setError(errorMessage(err, "Failed to confirm attendance.")),
+    onError: (err: unknown) => setError(errorMessage(err, "Attendance could not be confirmed.")),
   });
 
   const [withdrawing, setWithdrawing] = useState<EnrichedCandidate | null>(null);
@@ -92,7 +92,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       setError(null);
       setMessage(`${updated.student_display_name} was withdrawn from the locked session.`);
     },
-    onError: (err: unknown) => setWithdrawalError(errorMessage(err, "Failed to withdraw the candidate.")),
+    onError: (err: unknown) => setWithdrawalError(errorMessage(err, "The candidate could not be withdrawn.")),
   });
   const withdrawalReasons = useQuery({
     queryKey: keys.withdrawalReasons(),
@@ -139,7 +139,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       setError(null);
       setMessage(kind === "move" ? `${name} was moved to another session.` : `${name} was removed from this session.`);
     },
-    onError: (err: unknown) => setRegistrationError(errorMessage(err, "Failed to change the registration.")),
+    onError: (err: unknown) => setRegistrationError(errorMessage(err, "The registration could not be changed.")),
   });
 
   const [proposing, setProposing] = useState<EnrichedCandidate | null>(null);

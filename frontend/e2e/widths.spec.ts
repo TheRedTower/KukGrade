@@ -72,7 +72,7 @@ const SCREENS: Screen[] = [
         .getByRole("button", { name: /^Add all \d+$/ })
         .first()
         .click();
-      await page.getByRole("button", { name: /^Review exceptions/ }).click();
+      await page.getByRole("button", { name: /^Review candidates/ }).click();
       await page.getByRole("dialog").waitFor();
     },
   },

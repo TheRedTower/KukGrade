@@ -29,6 +29,7 @@ import { counted } from "./plural";
 import { SearchField } from "./SearchField";
 import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
+import { ArrowRightIcon } from "./Icons";
 
 const PAGE_SIZE = 10;
 
@@ -154,7 +155,7 @@ export function AuditScreen(): React.ReactElement {
             <>
               <strong>History of {subjectQuery.data.name}</strong>: the record itself and everything that belongs to it.{" "}
               <Link to={subjectPath(subjectQuery.data)}>
-                Open the record <span aria-hidden="true">→</span>
+                Open the record <ArrowRightIcon />
               </Link>
             </>
           ) : (

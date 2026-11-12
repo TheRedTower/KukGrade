@@ -409,7 +409,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
     render(<App />);
 
-    // Click "Open session →"
+    // Click "Open session"
     const openSessionButton = await screen.findByRole("button", { name: /Open session/i });
     await user.click(openSessionButton);
     expect(window.location.pathname).toBe("/gradings/101");
@@ -418,7 +418,7 @@ describe("Overview screen (Operational Ledger)", () => {
     window.history.replaceState({}, "", "/");
     await user.click(screen.getByRole("link", { name: "Overview" }));
 
-    // Click "View all activity →"
+    // Click "View all activity"
     const viewAllButton = await screen.findByRole("link", { name: /View all activity/i });
     await user.click(viewAllButton);
     expect(window.location.pathname).toBe("/audit");

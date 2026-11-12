@@ -949,7 +949,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await user.type(screen.getByTestId("caw-reason-input-1001"), "Wrong item.{Enter}");
 
     await waitFor(() => expect(completeBtn).toBeDisabled());
-    expect(completeBtn).toHaveTextContent("Saving...");
+    expect(completeBtn).toHaveTextContent("Saving…");
 
     resolvePatch?.(jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" }) as Response);
   });
@@ -2505,7 +2505,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     // "Complete assessment" is ready and enabled
     const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
     expect(completeBtn).toBeEnabled();
-    expect(completeBtn).toHaveTextContent("Complete assessment →");
+    expect(completeBtn).toHaveTextContent("Complete assessment");
 
     // Click to enter review mode
     await user.click(completeBtn);

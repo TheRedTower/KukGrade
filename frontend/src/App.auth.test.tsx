@@ -541,7 +541,7 @@ describe("Connection failures are not sign-outs", () => {
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     // The session may still be live, so a signed-out UI would be a lie.
-    expect(await screen.findByRole("alert")).toHaveTextContent("Could not sign out");
+    expect(await screen.findByRole("alert")).toHaveTextContent("You are still signed in");
     expect(screen.getByText("Casey")).toBeVisible();
     expect(window.location.pathname).toBe("/");
   });
@@ -759,7 +759,7 @@ describe("Mandatory password change", () => {
     await user.type(screen.getByLabelText(/^Confirm new password/i), "MismatchPass456!");
     await user.click(screen.getByRole("button", { name: "Update password and continue" }));
 
-    expect(await screen.findByText("New passwords do not match.")).toBeVisible();
+    expect(await screen.findByText("The passwords do not match.")).toBeVisible();
     expect(changeRequests()).toHaveLength(1);
   });
 
@@ -877,7 +877,11 @@ describe("Mandatory password change", () => {
     await screen.findByRole("heading", { name: "Choose a new password" });
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
-    expect(await screen.findByText("Could not sign out. Check your connection and retry.")).toBeVisible();
+    expect(
+      await screen.findByText(
+        "You are still signed in: KukGrade could not be reached. Check your connection and try again.",
+      ),
+    ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeEnabled();
   });

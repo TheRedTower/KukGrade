@@ -270,7 +270,7 @@ describe("Students registry screen (/students)", () => {
     // Privacy verification: Date of birth must NOT be rendered in table
     expect(screen.queryByText(/199[0-9]|200[0-9]/)).not.toBeInTheDocument();
 
-    // Navigate to student profile via "View student →"
+    // Navigate to student profile via "View student"
     const viewBruceButton = tableScope.getByRole("button", { name: /View record for Bruce Wayne/i });
     await user.click(viewBruceButton);
     expect(window.location.pathname).toBe("/students/1");

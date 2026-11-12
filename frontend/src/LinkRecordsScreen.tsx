@@ -24,6 +24,7 @@ import "./Imports.css";
 import { Button } from "./Button";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
+import { CheckIcon } from "./Icons";
 
 const PAGE_SIZE = 50;
 
@@ -303,7 +304,9 @@ export function LinkRecordsScreen() {
         ) : rows.length === 0 ? (
           <div className="ix-card-pad">
             {everyNameLinked ? (
-              <p className="ix-success-text item-title ix-flush">✓ Every imported record is linked to a student.</p>
+              <p className="row ix-success-text item-title ix-flush">
+                <CheckIcon /> Every imported record is linked to a student.
+              </p>
             ) : (
               <p className="subtext ix-flush">
                 {view === "todo" && !debouncedSearch && (counts.left ?? 0) > 0

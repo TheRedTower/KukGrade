@@ -49,7 +49,7 @@ export function TemporaryPasswordIssued({
         {copied === "done"
           ? "Copied."
           : copied === "failed"
-            ? "It couldn't be copied. Select it and copy it instead."
+            ? "It could not be copied. Select it and copy it instead."
             : ""}
       </p>
       <div className="action-row users-dialog-actions">

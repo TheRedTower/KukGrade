@@ -39,7 +39,7 @@ import { formatShortDate, formatTime } from "./dates";
 import { ItemRemarks } from "./ItemRemarks";
 import { hasRemarks } from "./remarks";
 import "./CandidateAssessment.css";
-import { CheckIcon, CrossIcon, LockIcon, WarningIcon } from "./Icons";
+import { ArrowLeftIcon, CheckIcon, CrossIcon, LockIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { CoreAreaMark, LedgerTable, ResultMark } from "./AssessmentRecordParts";
@@ -88,7 +88,7 @@ export function AssessmentCompletionScreen() {
       navigate(`/gradings/${numSessionId}`);
     },
     onError: (err) => {
-      setActionError(errorMessage(err, "Failed to complete assessment."));
+      setActionError(errorMessage(err, "The assessment could not be completed."));
     },
   });
 
@@ -131,7 +131,7 @@ export function AssessmentCompletionScreen() {
         <Alert
           action={
             <Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
-              ← Return to scoring
+              <ArrowLeftIcon /> Return to scoring
             </Link>
           }
         >
@@ -446,7 +446,7 @@ export function AssessmentCompletionScreen() {
                 data-testid="confirm-complete-assessment-btn"
               >
                 <CheckIcon size={17} />
-                {completeAssessmentMutation.isPending ? "Sealing..." : "Seal assessment record"}
+                {completeAssessmentMutation.isPending ? "Sealing…" : "Seal assessment record"}
               </Button>
             </>
           )}

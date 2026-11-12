@@ -1,6 +1,7 @@
 import type { DataImportBatch, DataImportKind } from "./api";
 import { useImportSteps } from "./importSteps";
 import { cx } from "./cx";
+import { CheckIcon } from "./Icons";
 
 /** The import's steps, with the one shown now (a step the server names). */
 export function ImportStepBar({ kind, current }: { kind: DataImportKind; current: DataImportBatch["next_step"] }) {
@@ -21,7 +22,7 @@ export function ImportStepBar({ kind, current }: { kind: DataImportKind; current
               <span aria-hidden="true" className="ix-step-bar" />
               <span className="ix-step-label">
                 <span aria-hidden="true" className="mark mark--small ix-step-dot">
-                  {state === "done" ? "✓" : index + 1}
+                  {state === "done" ? <CheckIcon size={12} /> : index + 1}
                 </span>
                 <span className="visually-hidden--phone">{step.label}</span>
                 {state === "done" ? <span className="visually-hidden">, done</span> : null}

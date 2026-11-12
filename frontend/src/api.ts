@@ -108,7 +108,7 @@ export function isAnonymousResponse(error: unknown): boolean {
 }
 
 /** What a person sees when a request never reached the server. */
-export const NETWORK_ERROR = "A network error occurred. Please check your connection.";
+export const NETWORK_ERROR = "KukGrade could not be reached. Check your connection and try again.";
 
 /**
  * The line to show for any failed request: the server's reason, the network

@@ -482,7 +482,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row1).getByText("Yellow Stripe")).toBeVisible();
     expect(within(row1).getByText("Yellow")).toBeVisible();
     expect(within(row1).getByText("In progress")).toBeVisible();
-    expect(within(row1).getByText("Continue assessment →")).toBeVisible();
+    expect(within(row1).getByText("Continue assessment")).toBeVisible();
 
     // Candidate 2: Brooke Ellis
     const row2 = screen.getByTestId("candidate-row-102");
@@ -491,7 +491,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row2).getByText("Red stripe")).toBeVisible();
     expect(within(row2).getByText("Completed")).toBeVisible();
     expect(within(row2).getByText("Not proposed")).toBeVisible();
-    expect(within(row2).getByText("View record →")).toBeVisible();
+    expect(within(row2).getByText("View record")).toBeVisible();
 
     // Candidate 3: Casey Nguyen
     const row3 = screen.getByTestId("candidate-row-103");
@@ -499,7 +499,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row3).getByText("Red stripe")).toBeVisible();
     expect(within(row3).getByText("Red")).toBeVisible();
     expect(within(row3).getByText("Not started")).toBeVisible();
-    expect(within(row3).getByText("Start assessment →")).toBeVisible();
+    expect(within(row3).getByText("Start assessment")).toBeVisible();
   });
 
   it("starts all prepared assessments as an explicit bulk action", async () => {
@@ -678,11 +678,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     const proposed = await screen.findByTestId("candidate-row-102");
     expect(within(proposed).getByText("Proposed: Pass")).toBeVisible();
-    expect(within(proposed).getByRole("link", { name: "Review decision →" })).toHaveAttribute(
+    expect(within(proposed).getByRole("link", { name: "Review decision" })).toHaveAttribute(
       "href",
       "/gradings/10/decisions?candidate=102",
     );
-    expect(screen.getByTestId("propose-outcome-btn-101")).toHaveTextContent("Propose outcome →");
+    expect(screen.getByTestId("propose-outcome-btn-101")).toHaveTextContent("Propose outcome");
   });
 
   it("points the awaiting-decision banner at the served count and the decisions board", async () => {
@@ -1109,7 +1109,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     render(<App />);
 
     const row = await screen.findByTestId("candidate-row-102");
-    expect(within(row).getByRole("link", { name: "View record →" })).toBeVisible();
+    expect(within(row).getByRole("link", { name: "View record" })).toBeVisible();
     expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
 
     await user.click(screen.getByTestId("gsd-actions-btn"));
@@ -1432,7 +1432,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const row = await screen.findByTestId("candidate-row-102");
 
     expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
-    expect(within(row).getByRole("link", { name: "View record →" })).toHaveAttribute(
+    expect(within(row).getByRole("link", { name: "View record" })).toHaveAttribute(
       "href",
       "/gradings/10/assessments/102/review",
     );
@@ -1541,12 +1541,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     await screen.findByRole("heading", { name: "Autumn Grading" });
 
-    // Candidate 102 (Brooke Ellis) has COMPLETED assessment but no outcome -> shows "Propose outcome →"
+    // Candidate 102 (Brooke Ellis) has COMPLETED assessment but no outcome -> shows "Propose outcome"
     const proposeBtn = await screen.findByTestId("propose-outcome-btn-102");
     expect(proposeBtn).toBeVisible();
-    expect(proposeBtn).toHaveTextContent("Propose outcome →");
+    expect(proposeBtn).toHaveTextContent("Propose outcome");
 
-    // Click "Propose outcome →" to open drawer
+    // Click "Propose outcome" to open drawer
     await user.click(proposeBtn);
 
     // Verify drawer is opened

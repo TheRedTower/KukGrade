@@ -85,9 +85,6 @@ export function CohortResolver({
               candidates.
             </p>
           </div>
-          <span className="meta">
-            Showing {flaggedCount} of {flaggedCount} flagged candidates
-          </span>
         </div>
 
         <ResponsiveTable
@@ -188,7 +185,7 @@ export function CohortResolver({
             disabled={isSubmitting || retryableCount === 0}
             data-testid="bgc-retry-flagged-btn"
           >
-            {isSubmitting ? "Retrying..." : `Save changes and retry ${retryableCount}`}
+            {isSubmitting ? "Retrying…" : `Save changes and retry ${retryableCount}`}
           </Button>
           <span className="meta">Only resolved candidates will be retried.</span>
         </div>

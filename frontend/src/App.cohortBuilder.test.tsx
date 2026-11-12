@@ -352,10 +352,10 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(registerBtn).toHaveTextContent("Register 2 candidates");
     expect(registerBtn).toBeEnabled();
 
-    // Left table White group button and individual student rows should now show "Added ✓"
-    expect(screen.getByTestId("bgc-group-added-1")).toHaveTextContent("Added ✓");
-    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added ✓");
-    expect(screen.getByTestId("bgc-student-added-102")).toHaveTextContent("Added ✓");
+    // Left table White group button and individual student rows should now show "Added"
+    expect(screen.getByTestId("bgc-group-added-1")).toHaveTextContent("Added");
+    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added");
+    expect(screen.getByTestId("bgc-student-added-102")).toHaveTextContent("Added");
   });
 
   it("renders matching eligible students table with details and individual add/remove buttons", async () => {
@@ -386,9 +386,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
 
     // Right tray updates to 1 candidate selected
     expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("1 candidate selected");
-    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added ✓");
+    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added");
 
-    // Click "Added ✓" on Alice to remove her
+    // Click "Added" on Alice to remove her
     await user.click(screen.getByTestId("bgc-student-added-101"));
     expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("0 candidates selected");
     expect(screen.getByTestId("bgc-add-student-101")).toHaveTextContent("+ Add");
@@ -499,12 +499,12 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     await user.click(screen.getByTestId("bgc-add-group-1"));
     expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("2 candidates selected");
 
-    // Click "Review exceptions →"
+    // Click "Review candidates"
     const reviewExceptionsButton = screen.getByTestId("bgc-review-exceptions-btn");
     await user.click(reviewExceptionsButton);
 
     // Modal opens
-    expect(screen.getByRole("heading", { name: "Review cohort candidates (2)" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Review candidates (2)" })).toBeVisible();
     expect(screen.getByTestId("bgc-modal-done-btn")).toHaveFocus();
     expect(screen.getByText("Alice Smith", { selector: ".item-title" })).toBeVisible();
     expect(screen.getByText("Bob Jones", { selector: ".item-title" })).toBeVisible();

@@ -3,6 +3,7 @@ import { Button } from "./Button";
 import type { RankGroup } from "./cohortBuilder";
 import { RankTransition, rankEnd } from "./RankTransition";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { CheckIcon } from "./Icons";
 
 interface CohortRankGroupsSectionProps {
   groups: RankGroup[];
@@ -91,7 +92,7 @@ export function CohortRankGroupsSection({
                   title="Click to remove the group"
                   data-testid={`bgc-group-added-${group.rank.id}`}
                 >
-                  Added ✓
+                  Added <CheckIcon />
                 </Button>
               ) : (
                 <Button

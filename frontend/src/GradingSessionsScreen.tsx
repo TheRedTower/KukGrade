@@ -116,7 +116,7 @@ export function GradingSessionsScreen() {
       setDeleteError(null);
     },
     onError: (err) => {
-      setDeleteError(errorMessage(err, "Failed to delete session."));
+      setDeleteError(errorMessage(err, "The grading session could not be deleted."));
     },
   });
 

@@ -363,7 +363,7 @@ describe("SyllabusScreen", () => {
     ).toBeVisible();
 
     // Next rank button
-    expect(screen.getByRole("button", { name: "Next rank: Blue Stripe →" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Next rank: Blue Stripe" })).toBeVisible();
 
     // Core grading areas: the core-category rows of the same response
     expect(screen.getByRole("heading", { name: "Core grading areas" })).toBeVisible();
@@ -454,7 +454,7 @@ describe("SyllabusScreen", () => {
     expect(blueStripeBtn).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Testing for")).toHaveValue("BLUE_STRIPE");
     expect(await screen.findByRole("heading", { name: "Blue Stripe", level: 2 })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Next rank: Blue →" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Next rank: Blue" })).toBeVisible();
 
     const techniquesTable = await screen.findByRole("table", {
       name: "Technique set for this rank",
@@ -462,14 +462,14 @@ describe("SyllabusScreen", () => {
     expect(await within(techniquesTable).findByText("Sohn Mohk Soo")).toBeVisible();
   });
 
-  it("advances to next rank when clicking 'Next rank: ... →'", async () => {
+  it("advances to next rank when clicking 'Next rank: ...'", async () => {
     const user = userEvent.setup();
     stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
     await renderOnYellow();
 
     const nextRankBtn = await screen.findByRole("button", {
-      name: "Next rank: Blue Stripe →",
+      name: "Next rank: Blue Stripe",
     });
     await user.click(nextRankBtn);
 

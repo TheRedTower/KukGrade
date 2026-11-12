@@ -129,7 +129,7 @@ export function StudentEditDialog({
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={saving}>
-            {saving ? "Saving..." : "Save changes"}
+            {saving ? "Saving…" : "Save changes"}
           </Button>
         </div>
       </form>

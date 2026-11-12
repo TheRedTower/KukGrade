@@ -9,6 +9,7 @@ import { CountTiles, ExclusionButton, LastLook, ListHead, RowLines, RowsList } f
 import { PAGE_SIZE, RowParams, Tile, useRowExclusion } from "./importReviewRows";
 import { importKinds } from "./importKinds";
 import { counted } from "./plural";
+import { CheckIcon, ExclamationIcon, InfoIcon, MinusIcon } from "./Icons";
 
 type LegacyView = "attention" | "results" | "others" | "EXCLUDED" | "check";
 
@@ -53,17 +54,29 @@ export function LegacyReview({
       label: "Grading results",
       count: preview?.grading_result ?? 0,
       tone: "ix-success-text",
-      mark: "✓",
+      mark: <CheckIcon size={22} />,
     },
-    { key: "attention", label: "Worth a look", count: preview?.worth_a_look ?? 0, tone: "ix-warning-text", mark: "!" },
+    {
+      key: "attention",
+      label: "Worth a look",
+      count: preview?.worth_a_look ?? 0,
+      tone: "ix-warning-text",
+      mark: <ExclamationIcon size={22} />,
+    },
     {
       key: "others",
       label: "Did not attend and notes",
       count: (preview?.did_not_attend ?? 0) + (preview?.auxiliary_note ?? 0),
       tone: "",
-      mark: "i",
+      mark: <InfoIcon size={22} />,
     },
-    { key: "EXCLUDED", label: leftOut, count: batch.row_counts.excluded, tone: "subtext", mark: "–" },
+    {
+      key: "EXCLUDED",
+      label: leftOut,
+      count: batch.row_counts.excluded,
+      tone: "subtext",
+      mark: <MinusIcon size={22} />,
+    },
   ];
   const heads: Record<LegacyView, [string, string]> = {
     attention: [
@@ -96,7 +109,7 @@ export function LegacyReview({
         />
         <RowsList
           kind={batch.kind}
-          empty={view === "attention" ? "✓ Nothing to look at: every record reads as KukGrade expects." : undefined}
+          empty={view === "attention" ? "Nothing to look at: every record reads as KukGrade expects." : undefined}
           exclusion={exclusion}
           rows={rows}
         >

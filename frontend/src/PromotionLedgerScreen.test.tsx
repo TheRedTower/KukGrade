@@ -414,17 +414,17 @@ describe("PromotionLedgerScreen", () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Autumn 2026 Grading — Promotion Ledger" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Autumn 2026 Grading — Promotion ledger" })).toBeInTheDocument();
     });
 
     // Back to the session the ledger belongs to.
     expect(screen.getByRole("link", { name: "Autumn 2026 Grading" })).toHaveAttribute("href", "/gradings/1");
 
     // Summary banner (Alex and Beth are eligible, Carlos is already promoted)
-    expect(screen.getByText("2 Candidates Finalised with Pass · Eligible for Promotion")).toBeInTheDocument();
+    expect(screen.getByText("2 candidates passed and ready to promote")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: /Promote Qualified Cohort \(2 Candidates\)/i,
+        name: /^Promote 2 candidates$/i,
       }),
     ).toBeInTheDocument();
 
@@ -456,7 +456,7 @@ describe("PromotionLedgerScreen", () => {
     const row = await screen.findByTestId("promotion-row-101");
     expect(row).toHaveTextContent("black belt ID");
     expect(screen.queryByTestId("promote-candidate-btn-101")).not.toBeInTheDocument();
-    expect(screen.getByText("1 Candidate Finalised with Pass · Eligible for Promotion")).toBeInTheDocument();
+    expect(screen.getByText("1 candidate passed and ready to promote")).toBeInTheDocument();
   });
 
   it("blocks promotion when the promotions could not be loaded, until a retry succeeds", async () => {
@@ -468,12 +468,13 @@ describe("PromotionLedgerScreen", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("could not be loaded");
     expect(screen.queryByText("Carlos Rivera")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Promote Qualified Cohort/i })).toBeDisabled();
+    // Nobody can be promoted from a ledger that did not load: no button is offered.
+    expect(screen.queryByRole("button", { name: /^Promote \d+ candidates?$/i })).not.toBeInTheDocument();
 
     await user.click(within(alert).getByRole("button", { name: "Try again" }));
 
     expect(await screen.findByText("Carlos Rivera")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Promote Qualified Cohort \(2 Candidates\)/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^Promote 2 candidates$/i })).toBeEnabled();
   });
 
   it("displays correct eligibility badges and action states across candidate statuses", async () => {
@@ -498,9 +499,9 @@ describe("PromotionLedgerScreen", () => {
     // Row 103 (Carlos Rivera): Already promoted to Yellow
     const row103 = screen.getByTestId("promotion-row-103");
     expect(row103).toHaveTextContent("Pass (Finalised)");
-    expect(row103).toHaveTextContent("Promoted to Yellow ✓");
+    expect(row103).toHaveTextContent("Promoted to Yellow");
     expect(row103).toHaveTextContent("Effective 15 Oct 2026");
-    expect(row103).toHaveTextContent("Promoted ✓");
+    expect(row103).toHaveTextContent("Promoted");
     expect(screen.queryByTestId("promote-candidate-btn-103")).not.toBeInTheDocument();
 
     // Row 104 (Diana Prince): Conditional (Finalised)
@@ -583,9 +584,9 @@ describe("PromotionLedgerScreen", () => {
 
     const anaRow = await screen.findByTestId("promotion-row-7");
     expect(anaRow).toHaveTextContent("Blue");
-    expect(anaRow).not.toHaveTextContent("Promoted ✓");
+    expect(anaRow).not.toHaveTextContent("Promoted");
     expect(screen.getByTestId("promote-candidate-btn-7")).toHaveTextContent("Promote to Red stripe");
-    expect(screen.getByTestId("promotion-row-9")).toHaveTextContent("Promoted ✓");
+    expect(screen.getByTestId("promotion-row-9")).toHaveTextContent("Promoted");
   });
 
   it("handles single candidate promotion confirmation dialog and API submission", async () => {
@@ -609,12 +610,12 @@ describe("PromotionLedgerScreen", () => {
     await user.click(screen.getByTestId("promote-candidate-btn-101"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Confirm Student Promotion" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Promote student" })).toBeInTheDocument();
     expect(screen.getByText("Alex Mercer", { selector: ".pl-modal-name" })).toBeInTheDocument();
     expect(screen.getByText("Effective date:", { exact: false })).toHaveTextContent("15 Oct 2026");
 
     // Enter optional ceremonial remarks
-    const notesTextarea = screen.getByLabelText("Promotion Notes (Optional)");
+    const notesTextarea = screen.getByLabelText("Promotion notes (optional)");
     await user.type(notesTextarea, "Demonstrated great focus");
 
     // Confirm promotion
@@ -737,7 +738,7 @@ describe("PromotionLedgerScreen", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: /Promote Qualified Cohort \(2 Candidates\)/i,
+          name: /^Promote 2 candidates$/i,
         }),
       ).toBeInTheDocument();
     });
@@ -745,7 +746,7 @@ describe("PromotionLedgerScreen", () => {
     // Open batch promotion summary
     await user.click(
       screen.getByRole("button", {
-        name: /Promote Qualified Cohort \(2 Candidates\)/i,
+        name: /^Promote 2 candidates$/i,
       }),
     );
 
@@ -753,7 +754,7 @@ describe("PromotionLedgerScreen", () => {
       name: "Promotion summary",
     });
     expect(tray).toBeInTheDocument();
-    expect(screen.getByText("2 Candidates Selected")).toBeInTheDocument();
+    expect(screen.getByText("2 candidates to promote")).toBeInTheDocument();
 
     // Check candidate pills
     expect(screen.getByText("1.")).toBeInTheDocument();
@@ -796,14 +797,14 @@ describe("PromotionLedgerScreen", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: /Promote Qualified Cohort \(2 Candidates\)/i,
+          name: /^Promote 2 candidates$/i,
         }),
       ).toBeInTheDocument();
     });
 
     await user.click(
       screen.getByRole("button", {
-        name: /Promote Qualified Cohort \(2 Candidates\)/i,
+        name: /^Promote 2 candidates$/i,
       }),
     );
     expect(screen.getByRole("dialog", { name: "Promotion summary" })).toBeInTheDocument();
@@ -828,7 +829,7 @@ describe("PromotionLedgerScreen", () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(screen.queryByText("Loading candidate promotion ledger…")).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading the promotion ledger…")).not.toBeInTheDocument();
     });
 
     expect(screen.getByText("Promotion authority needed")).toBeInTheDocument();
@@ -836,7 +837,7 @@ describe("PromotionLedgerScreen", () => {
 
     // Cohort promotion CTA is disabled
     const summaryBtn = screen.getByRole("button", {
-      name: /Promote Qualified Cohort \(2 Candidates\)/i,
+      name: /^Promote 2 candidates$/i,
     });
     expect(summaryBtn).toBeDisabled();
 
@@ -866,14 +867,14 @@ describe("PromotionLedgerScreen", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: /Promote Qualified Cohort \(2 Candidates\)/i,
+          name: /^Promote 2 candidates$/i,
         }),
       ).toBeInTheDocument();
     });
 
     await user.click(
       screen.getByRole("button", {
-        name: /Promote Qualified Cohort \(2 Candidates\)/i,
+        name: /^Promote 2 candidates$/i,
       }),
     );
 
@@ -925,16 +926,14 @@ describe("PromotionLedgerScreen", () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(screen.queryByText("Loading candidate promotion ledger…")).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading the promotion ledger…")).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText("0 Candidates Finalised with Pass · Eligible for Promotion")).toBeInTheDocument();
+    expect(screen.getByText("0 candidates passed and ready to promote")).toBeInTheDocument();
 
     expect(screen.getByText("All qualified candidates in this cohort have already been promoted.")).toBeInTheDocument();
 
-    const summaryBtn = screen.getByRole("button", {
-      name: /Promote Qualified Cohort \(0 Candidates\)/i,
-    });
-    expect(summaryBtn).toBeDisabled();
+    // Nobody waiting: no Promote button at all, rather than one that cannot be pressed.
+    expect(screen.queryByRole("button", { name: /^Promote \d+ candidates?$/i })).not.toBeInTheDocument();
   });
 });

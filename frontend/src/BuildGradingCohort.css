@@ -20,10 +20,6 @@
   border-radius: var(--radius-sm);
 }
 
-.bgc-info-icon {
-  color: var(--color-accent-text);
-}
-
 /* ── Section 2 Tables & Rank Visuals ─────────────────────────────────────── */
 
 .bgc-eligible-count-cell {

@@ -39,7 +39,7 @@ export function AddStudentScreen() {
       await queryClient.invalidateQueries({ queryKey: keys.students.list() });
       navigate(`/students/${newStudent.id}`);
     },
-    onError: (err) => form.handle(err, "Failed to create student. Please check the form."),
+    onError: (err) => form.handle(err, "The student could not be added. Check the form."),
   });
   const isSubmitting = createMutation.isPending;
 
@@ -232,7 +232,7 @@ export function AddStudentScreen() {
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create student"}
+            {isSubmitting ? "Creating…" : "Create student"}
           </Button>
         </div>
       </form>

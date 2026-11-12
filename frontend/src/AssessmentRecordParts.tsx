@@ -1,6 +1,6 @@
 import type { CandidateAssessmentItem } from "./api";
 import type { CategoryGroup } from "./candidateAssessmentData";
-import { CheckIcon, CrossIcon } from "./Icons";
+import { CheckIcon, CrossIcon, MinusIcon } from "./Icons";
 import { RequirementBadge } from "./StatusBadge";
 
 /** The mark shown against a requirement or core area on the proof. */
@@ -36,7 +36,7 @@ export function CoreAreaMark({ group }: { group: CategoryGroup }) {
   if (group.notAssessedCount > 0) {
     return (
       <span className="mark mark--small" data-tone="neutral" aria-hidden="true">
-        –
+        <MinusIcon size={13} />
       </span>
     );
   }

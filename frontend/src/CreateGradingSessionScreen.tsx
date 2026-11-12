@@ -74,7 +74,7 @@ export function CreateGradingSessionScreen() {
       await queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
       navigate("/gradings");
     },
-    onError: (err) => form.handle(err, "Failed to create grading session. Please check the form."),
+    onError: (err) => form.handle(err, "The grading session could not be created. Check the form."),
   });
   const isSubmitting = createMutation.isPending;
 

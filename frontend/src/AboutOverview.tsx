@@ -3,7 +3,7 @@ import { Badge } from "./Badge";
 import { errorMessage } from "./api";
 import { CopyDetailsButton, DetailsList } from "./AboutDetailsView";
 import { versionDetails } from "./aboutDetails";
-import { GitHubIcon } from "./Icons";
+import { ExternalLinkIcon, GitHubIcon } from "./Icons";
 import { useAboutQuery } from "./queries";
 import { ExternalLink } from "./ExternalLink";
 
@@ -81,21 +81,15 @@ export function AboutOverview() {
           <ExternalLink className="menu-link" href={data.repository_url}>
             <GitHubIcon />
             <span>Source on GitHub</span>
-            <span aria-hidden="true" className="st-link-arrow">
-              ↗
-            </span>
+            <ExternalLinkIcon className="st-link-arrow" />
           </ExternalLink>
           <ExternalLink className="menu-link" href={data.releases_url}>
             <span>Release notes</span>
-            <span aria-hidden="true" className="st-link-arrow">
-              ↗
-            </span>
+            <ExternalLinkIcon className="st-link-arrow" />
           </ExternalLink>
           <ExternalLink className="menu-link" href={data.issues_url}>
             <span>Report a problem</span>
-            <span aria-hidden="true" className="st-link-arrow">
-              ↗
-            </span>
+            <ExternalLinkIcon className="st-link-arrow" />
           </ExternalLink>
         </section>
       ) : null}

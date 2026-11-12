@@ -1270,7 +1270,7 @@ describe("Linking historical records", () => {
 
     renderAt("/imports/records");
 
-    expect(await screen.findByText("✓ Every imported record is linked to a student.")).toBeInTheDocument();
+    expect(await screen.findByText("Every imported record is linked to a student.")).toBeInTheDocument();
   });
 
   it("shows a failed link inside the open row it came from", async () => {

@@ -13,7 +13,7 @@ import { Pagination } from "./Pagination";
 import { StudentStatusBadge } from "./StatusBadge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
-import { UserPlusIcon } from "./Icons";
+import { ArrowRightIcon, UserPlusIcon } from "./Icons";
 import { SearchField } from "./SearchField";
 import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
@@ -133,7 +133,7 @@ export function StudentsScreen() {
             </>
           ) : null}
           <span className="filter-bar__count">
-            {studentsQuery.query.isLoading ? "Loading..." : counted(totalCount, "student", "students")}
+            {studentsQuery.query.isLoading ? "Loading…" : counted(totalCount, "student", "students")}
           </span>
         </div>
       </div>
@@ -234,7 +234,7 @@ export function StudentsScreen() {
                       aria-label={`View record for ${student.first_name} ${student.last_name}`}
                     >
                       <span>View student</span>
-                      <span aria-hidden="true">→</span>
+                      <ArrowRightIcon />
                     </Button>
                   ),
                 },

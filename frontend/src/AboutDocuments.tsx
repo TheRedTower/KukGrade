@@ -7,6 +7,7 @@ import { useAboutDocumentQuery, useAboutQuery, usePledgeQuery } from "./queries"
 import { buttonClass } from "./buttonClass";
 import { mediaMatches } from "./useMediaQuery";
 import { ExternalLink } from "./ExternalLink";
+import { ExternalLinkIcon } from "./Icons";
 
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -82,7 +83,7 @@ function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitl
       </div>
       {sourceUrl ? (
         <ExternalLink className={buttonClass({ variant: "secondary" })} href={sourceUrl}>
-          View on GitHub ↗
+          View on GitHub <ExternalLinkIcon />
         </ExternalLink>
       ) : null}
     </header>
@@ -242,7 +243,7 @@ export function AboutLicence() {
         <div className="action-row">
           {about ? (
             <ExternalLink className={buttonClass({ variant: "primary" })} href={about.repository_url}>
-              Get the source code ↗
+              Get the source code <ExternalLinkIcon />
             </ExternalLink>
           ) : null}
         </div>

@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { ACCOUNT_FIELDS, splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
-import { UserPlusIcon } from "./Icons";
+import { InfoIcon, UserPlusIcon } from "./Icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -232,7 +232,7 @@ export function UsersScreen(): React.ReactElement {
 
       <div className="users-info-note meta">
         <span aria-hidden="true" className="mark mark--small">
-          i
+          <InfoIcon size={12} />
         </span>
         Master authority is granted separately from a user's role.
       </div>
@@ -294,7 +294,7 @@ export function UsersScreen(): React.ReactElement {
                 },
                 {
                   key: "login",
-                  header: "Last active",
+                  header: "Last signed in",
                   render: (user) => formatShortDateTime(user.last_login, "Never"),
                 },
                 {

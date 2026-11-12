@@ -10,10 +10,14 @@ import {
   getCurrentUser,
   loginUser,
   logoutUser,
+  NETWORK_ERROR,
   type SetupDetails,
   updateCurrentUser,
 } from "./api";
 import { keys } from "./queryKeys";
+
+/** A sign-out that did not reach the server: the session may still be live. */
+export const SIGN_OUT_ERROR = `You are still signed in: ${NETWORK_ERROR}`;
 
 type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
 
@@ -57,7 +61,7 @@ function describeAuthFailure(error: unknown): string {
     }
     return error.message;
   }
-  return "KukGrade could not be reached. Check your connection and try again.";
+  return NETWORK_ERROR;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

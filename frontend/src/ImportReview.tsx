@@ -9,6 +9,7 @@ import { RosterReview } from "./ImportRosterReview";
 import { keys } from "./queryKeys";
 import { useDirtySet } from "./useDirtySet";
 import { importKinds } from "./importKinds";
+import { CheckIcon } from "./Icons";
 
 /** The seal: once every row is sorted, the summary and the import itself. */
 function Seal({
@@ -34,7 +35,7 @@ function Seal({
   return (
     <section aria-labelledby="ix-seal-h" className="card card--flush ix-banner ix-gold-edge">
       <span aria-hidden="true" className="mark mark--large" data-tone="success">
-        ✓
+        <CheckIcon size={22} />
       </span>
       <div className="ix-seal-text">
         <h2 className="section-title" id="ix-seal-h" tabIndex={-1}>

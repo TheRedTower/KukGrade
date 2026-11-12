@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { Button } from "./Button";
 import { cx } from "./cx";
+import { CrossIcon } from "./Icons";
 
 type AlertTone = "error" | "warning" | "success" | "info";
 
@@ -51,7 +52,7 @@ export function Alert({
       {action}
       {onDismiss ? (
         <Button variant="ghost" small className="alert__dismiss" aria-label="Dismiss message" onClick={onDismiss}>
-          <span aria-hidden="true">✕</span>
+          <CrossIcon size={14} />
         </Button>
       ) : null}
     </div>

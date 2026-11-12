@@ -82,7 +82,7 @@ export function StudentDetailScreen() {
       await refresh.afterStudentChange(queryClient, change.id);
       setIsStatusModalOpen(false);
     },
-    onError: (err) => setStatusError(errorMessage(err, "Failed to update student status.")),
+    onError: (err) => setStatusError(errorMessage(err, "The student's status could not be changed.")),
   });
   const isSavingStatus = statusMutation.isPending;
 
@@ -94,7 +94,7 @@ export function StudentDetailScreen() {
       await refresh.afterStudentChange(queryClient, change.id);
       setIsEditModalOpen(false);
     },
-    onError: (err) => editForm.handle(err, "Failed to update student details."),
+    onError: (err) => editForm.handle(err, "The student's details could not be saved."),
   });
   const isSavingEdit = editMutation.isPending;
 
@@ -107,7 +107,7 @@ export function StudentDetailScreen() {
       ]);
       navigate("/students");
     },
-    onError: (err) => setDeleteError(errorMessage(err, "Failed to delete student.")),
+    onError: (err) => setDeleteError(errorMessage(err, "The student could not be deleted.")),
   });
   const isDeletingStudent = deleteMutation.isPending;
 

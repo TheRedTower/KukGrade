@@ -17,7 +17,7 @@ import {
 } from "./api";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
 import { formatDayMonth, formatTime } from "./dates";
-import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
+import { ArrowRightIcon, CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { Meter } from "./Meter";
@@ -82,7 +82,7 @@ export function CandidateAssessmentScreen() {
       queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     },
     onError: (err) => {
-      setActionError(errorMessage(err, "Failed to prepare the assessment form."));
+      setActionError(errorMessage(err, "The assessment form could not be prepared."));
     },
   });
 
@@ -97,7 +97,7 @@ export function CandidateAssessmentScreen() {
       queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     },
     onError: (err) => {
-      setActionError(errorMessage(err, "Failed to start assessment."));
+      setActionError(errorMessage(err, "The assessment could not be started."));
     },
   });
 
@@ -110,7 +110,7 @@ export function CandidateAssessmentScreen() {
   } = useItemWrites({
     assessmentId: assessment?.id,
     candidateId: numCandidateId,
-    onError: (err) => setActionError(errorMessage(err, "Could not save this result.")),
+    onError: (err) => setActionError(errorMessage(err, "This mark could not be saved.")),
   });
 
   // A comment is added, never changed, so it needs none of the write ordering
@@ -126,7 +126,7 @@ export function CandidateAssessmentScreen() {
         queryClient.invalidateQueries({ queryKey: itemsKey });
       }
     },
-    onError: (err) => setActionError(errorMessage(err, "Could not add this comment.")),
+    onError: (err) => setActionError(errorMessage(err, "The comment could not be added.")),
   });
 
   const deleteAssessmentMutation = useMutation({
@@ -252,7 +252,7 @@ export function CandidateAssessmentScreen() {
             data-testid="generate-assessment-btn"
           >
             {generateAssessmentMutation.isPending
-              ? "Preparing..."
+              ? "Preparing…"
               : !canPrepare
                 ? "The form cannot be prepared now"
                 : "Prepare assessment form"}
@@ -284,7 +284,7 @@ export function CandidateAssessmentScreen() {
             data-testid="start-assessment-btn"
           >
             {startAssessmentMutation.isPending
-              ? "Starting..."
+              ? "Starting…"
               : !canStart
                 ? "Session must be Open to start"
                 : "Start assessment"}
@@ -368,7 +368,7 @@ export function CandidateAssessmentScreen() {
 
         {isAssessmentCompleted ? (
           <Link className={buttonClass({ variant: "secondary" })} to={reviewPath} data-testid="caw-view-review-btn">
-            View completion record →
+            View completion record <ArrowRightIcon />
           </Link>
         ) : (
           <Button
@@ -384,11 +384,15 @@ export function CandidateAssessmentScreen() {
             }
             data-testid="caw-complete-assessment-btn"
           >
-            {isSavingItems
-              ? "Saving..."
-              : stats.canComplete
-                ? "Complete assessment →"
-                : `Complete assessment (${stats.remainingRequired} required remaining)`}
+            {isSavingItems ? (
+              "Saving…"
+            ) : stats.canComplete ? (
+              <>
+                Complete assessment <ArrowRightIcon />
+              </>
+            ) : (
+              `Complete assessment (${stats.remainingRequired} required remaining)`
+            )}
           </Button>
         )}
       </div>

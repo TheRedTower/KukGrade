@@ -8,7 +8,7 @@ import "./controls.css";
 import "./App.css";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
-import { AuthProvider, useAuth } from "./auth";
+import { AuthProvider, SIGN_OUT_ERROR, useAuth } from "./auth";
 import { DemoBanner } from "./DemoSignIn";
 import { NavigationRail } from "./NavigationRail";
 import { useChoicesQuery, useSiteSettingsQuery } from "./queries";
@@ -89,7 +89,7 @@ function ApplicationShell() {
     } catch {
       // The session may still be live, so the viewer stays signed in
       // rather than being shown a signed-out UI backed by a valid cookie.
-      setLogoutError("Could not sign out. Check your connection and retry.");
+      setLogoutError(SIGN_OUT_ERROR);
     } finally {
       setIsLoggingOut(false);
     }

@@ -55,7 +55,7 @@ export function ChangePasswordForm({
   const submit = useMutation({
     mutationFn: () => changePassword(currentPassword, newPassword),
     onSuccess: () => onChanged?.(),
-    onError: (error) => form.handle(error, "Could not update password. Try again in a moment."),
+    onError: (error) => form.handle(error, "The password could not be changed. Try again in a moment."),
   });
   const isSubmitting = submit.isPending;
 
@@ -63,7 +63,7 @@ export function ChangePasswordForm({
     event.preventDefault();
     form.reset();
     if (newPassword !== confirmPassword) {
-      form.setClientErrors({ confirm_password: ["New passwords do not match."] });
+      form.setClientErrors({ confirm_password: ["The passwords do not match."] });
       return;
     }
     submit.mutate();

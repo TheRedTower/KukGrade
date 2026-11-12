@@ -434,7 +434,7 @@ describe("An import's results", () => {
           { record: 103, student: 31 },
         ]),
       );
-      expect(await screen.findByText("✓ Linked to Mia Reynolds")).toBeInTheDocument();
+      expect(await screen.findByText("Linked to Mia Reynolds")).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
       await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledWith([101, 102, 103]));
       expect(await screen.findByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" })).toBeVisible();
@@ -450,7 +450,7 @@ describe("An import's results", () => {
       await user.click(await screen.findByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" }));
       await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
       expect(await screen.findByRole("alert")).toHaveTextContent("Those records could not be unlinked.");
-      expect(screen.getByText("✓ Linked to Mia Reynolds")).toBeInTheDocument();
+      expect(screen.getByText("Linked to Mia Reynolds")).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
       await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledTimes(2));

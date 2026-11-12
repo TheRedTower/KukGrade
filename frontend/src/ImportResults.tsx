@@ -13,6 +13,7 @@ import { SecondLook } from "./ImportSecondLook";
 import { VoidDialog } from "./ImportVoidDialog";
 import { importKinds } from "./importKinds";
 import { counted } from "./plural";
+import { CheckIcon } from "./Icons";
 
 /** One more thing to do from the results page, in the side panel. */
 function AlsoItem({ title, body, children }: { title: string; body: string; children: ReactNode }) {
@@ -48,7 +49,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
 
       <div className="ix-banner ix-banner-success" role="status">
         <span aria-hidden="true" className="mark mark--large ix-mark-on-surface" data-tone="success">
-          ✓
+          <CheckIcon size={22} />
         </span>
         <p>
           <strong className="section-title">{headline}</strong>

@@ -31,6 +31,7 @@ import { formatShortDate } from "./dates";
 import { Button } from "./Button";
 import { counted } from "./plural";
 import { CandidateRanks } from "./RankTransition";
+import { CheckIcon } from "./Icons";
 
 type PromotionRowItem = {
   candidate: GradingCandidate;
@@ -136,7 +137,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     onError: (err: Error) => {
       setActionFeedback({
         type: "error",
-        message: errorMessage(err, "Failed to promote candidate."),
+        message: errorMessage(err, "The candidate could not be promoted."),
       });
     },
   });
@@ -174,7 +175,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     onError: (err: Error) => {
       setActionFeedback({
         type: "error",
-        message: errorMessage(err, "Could not promote the selected candidates."),
+        message: errorMessage(err, "The candidates could not be promoted."),
       });
     },
   });
@@ -212,7 +213,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     return (
       <RecordPage
         back={{ to: "/gradings", label: "Gradings" }}
-        label="Promotion Ledger"
+        label="Promotion ledger"
         missing="Grading session not found"
         status="missing"
       />
@@ -223,7 +224,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     <section aria-labelledby="pl-title" className="page" data-testid="promotion-ledger-screen">
       <PageHeader
         back={{ to: `/gradings/${sessionId}`, label: session?.title || "Session" }}
-        title={session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
+        title={session ? `${session.title} — Promotion ledger` : "Promotion ledger"}
         titleId="pl-title"
         subtitle="Review the candidates who passed, check their new ranks, and promote them. Every promotion is dated the grading day."
       />
@@ -239,37 +240,38 @@ export function PromotionLedgerScreen(): React.ReactElement {
       {!(isBatchSummaryOpen && eligibleCohort.length > 0) && !singlePromoteCandidate && feedbackBanner}
 
       {/* Top Cohort Promotion Summary Card */}
-      <section className="action-row pl-summary-card" aria-label="Cohort Promotion Summary">
+      <section className="action-row pl-summary-card" aria-label="Promotion summary">
         <div className="stack stack--1">
           <span className="pl-summary-count item-title">
-            {counted(eligibleCohort.length, "Candidate", "Candidates")} Finalised with Pass · Eligible for Promotion
+            {counted(eligibleCohort.length, "candidate", "candidates")} passed and ready to promote
           </span>
           {eligibleCohort.length === 0 && rows.some((r) => r.isPromoted) && (
             <span className="meta">All qualified candidates in this cohort have already been promoted.</span>
           )}
         </div>
 
-        <Button
-          variant="primary"
-          onClick={() => {
-            setActionFeedback(null);
-            setIsBatchSummaryOpen(true);
-          }}
-          disabled={eligibleCohort.length === 0 || !canPromote}
-          title={
-            !canPromote
-              ? "Promotion authority required to promote cohort"
-              : eligibleCohort.length === 0
-                ? "No unpromoted candidates eligible"
-                : `Review and promote ${eligibleCohort.length} qualified candidates`
-          }
-        >
-          <span aria-hidden="true">✓</span>
-          <span>Promote Qualified Cohort ({eligibleCohort.length} Candidates)</span>
-        </Button>
+        {/* Offered only when someone is waiting: a button that can never be pressed is not shown. */}
+        {eligibleCohort.length > 0 && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              setActionFeedback(null);
+              setIsBatchSummaryOpen(true);
+            }}
+            disabled={!canPromote}
+            title={
+              canPromote
+                ? `Review and promote ${counted(eligibleCohort.length, "candidate", "candidates")}`
+                : "Promoting needs promotion authority"
+            }
+          >
+            <CheckIcon />
+            <span>Promote {counted(eligibleCohort.length, "candidate", "candidates")}</span>
+          </Button>
+        )}
       </section>
 
-      {/* Candidates Promotion Ledger Table */}
+      {/* The ledger: one row per candidate */}
       {ledgerFailed ? (
         <Alert
           action={
@@ -288,12 +290,12 @@ export function PromotionLedgerScreen(): React.ReactElement {
           The promotion ledger could not be loaded, so no one can be promoted from it yet.
         </Alert>
       ) : isLoading ? (
-        <LoadingState>Loading candidate promotion ledger…</LoadingState>
+        <LoadingState>Loading the promotion ledger…</LoadingState>
       ) : rows.length === 0 ? (
         <EmptyState framed title="No candidates registered in this grading session." />
       ) : (
         <ResponsiveTable
-          label="Student Promotion Ledger"
+          label="Promotion ledger"
           rows={rows}
           rowKey={(row) => row.candidate.id}
           rowTestId={(row) => `promotion-row-${row.candidate.id}`}
@@ -318,7 +320,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             },
             {
               key: "belt",
-              header: "Current Belt",
+              header: "Current rank",
               render: (row) => (
                 <div className="pl-belt-chip">
                   <RankBelt rankId={row.candidate.from_rank} />
@@ -343,17 +345,17 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 if (outcome?.status === "PROPOSED") {
                   return <Badge tone="neutral">Proposed: {outcome.proposed_outcome_display || "Pending"}</Badge>;
                 }
-                return <Badge tone="neutral">Pending Outcome</Badge>;
+                return <Badge tone="neutral">Outcome pending</Badge>;
               },
             },
             {
               key: "eligibility",
-              header: "Promotion Eligibility",
+              header: "Promotion",
               render: (row) =>
                 row.isPromoted ? (
                   <div className="pl-eligibility-promoted">
-                    <Badge tone="success">
-                      Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name} ✓
+                    <Badge tone="success" icon={<CheckIcon size={12} />}>
+                      Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name}
                     </Badge>
                     {row.promotion?.effective_date && (
                       <span className="meta">Effective {formatShortDate(row.promotion.effective_date)}</span>
@@ -372,7 +374,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               render: (row) =>
                 row.isPromoted ? (
                   <span className="pl-action-complete item-title" aria-label="Promotion completed">
-                    Promoted ✓
+                    <CheckIcon /> Promoted
                   </span>
                 ) : row.isEligible ? (
                   <Button
@@ -386,7 +388,6 @@ export function PromotionLedgerScreen(): React.ReactElement {
                     data-testid={`promote-candidate-btn-${row.candidate.id}`}
                   >
                     <span>Promote to {row.candidate.testing_for_rank_name}</span>
-                    <span aria-hidden="true">▾</span>
                   </Button>
                 ) : (
                   <span className="pl-action-disabled">—</span>
@@ -408,7 +409,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
           onConfirm={handleConfirmBulkPromote}
         >
           {feedbackBanner}
-          <p className="pl-batch-count meta">{eligibleCohort.length} Candidates Selected</p>
+          <p className="pl-batch-count meta">{counted(eligibleCohort.length, "candidate", "candidates")} to promote</p>
           <ol className="row row--wrap list-plain">
             {eligibleCohort.map((r, i) => (
               <li key={r.candidate.id} className="pl-batch-chip">
@@ -433,7 +434,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
       {singlePromoteCandidate && (
         <ConfirmDialog
-          title="Confirm Student Promotion"
+          title="Promote student"
           confirmLabel={`Promote to ${singlePromoteCandidate.candidate.testing_for_rank_name}`}
           pendingLabel="Recording promotion…"
           pending={singlePromoteMutation.isPending}
@@ -459,13 +460,13 @@ export function PromotionLedgerScreen(): React.ReactElement {
           </div>
 
           <div className="field">
-            <label htmlFor="single-promote-notes">Promotion Notes (Optional)</label>
+            <label htmlFor="single-promote-notes">Promotion notes (optional)</label>
             <textarea
               id="single-promote-notes"
               rows={2}
               value={singlePromoteNotes}
               onChange={(e) => setSinglePromoteNotes(e.target.value)}
-              placeholder="Official record notes or ceremonial remarks..."
+              placeholder="Official record notes or ceremonial remarks…"
               disabled={singlePromoteMutation.isPending}
             />
           </div>

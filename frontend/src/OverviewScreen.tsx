@@ -19,7 +19,7 @@ import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { formatRecentTime, formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
-import { AlertCircleIcon, CalendarIcon, CheckCircleIcon, CheckIcon, ClockIcon } from "./Icons";
+import { AlertCircleIcon, CalendarIcon, CheckCircleIcon, CheckIcon, ClockIcon, ExclamationIcon } from "./Icons";
 import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { PageHeader } from "./PageHeader";
@@ -219,7 +219,7 @@ export function OverviewScreen() {
                 <div key={item.id} role="listitem">
                   <Link className="attention-item-row" to={item.path}>
                     <span aria-hidden="true" className="mark" data-tone="warning">
-                      !
+                      <ExclamationIcon />
                     </span>
                     <div className="attention-item-info">
                       <strong className="item-title">{item.candidate_student_name}</strong>

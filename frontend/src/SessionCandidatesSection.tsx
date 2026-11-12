@@ -11,6 +11,7 @@ import { type NextAction, SessionCandidateTable } from "./SessionParts";
 import type { EnrichedCandidate } from "./sessionDetail";
 import type { useCandidateWork } from "./useCandidateWork";
 import { counted } from "./plural";
+import { ArrowRightIcon } from "./Icons";
 
 interface SessionCandidatesSectionProps {
   session: GradingSession;
@@ -119,7 +120,7 @@ export function SessionCandidatesSection({
           action={
             session.roster_open ? (
               <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })}>
-                Add candidate <span aria-hidden="true">→</span>
+                Add candidate <ArrowRightIcon />
               </Link>
             ) : undefined
           }

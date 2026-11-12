@@ -10,6 +10,7 @@ import { EmptyState } from "./EmptyState";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
 import { counted } from "./plural";
+import { CheckIcon, InfoIcon } from "./Icons";
 
 export type StatusFilter = "ACTIVE_INACTIVE" | "ACTIVE" | "INACTIVE";
 
@@ -62,9 +63,7 @@ export function CohortFindSection({
       <h2 id="bgc-find-heading" className="section-title">
         1. Find eligible students
       </h2>
-      <p className="bgc-section-subtext">
-        Search and filter to find students to add. Left students are not shown (not eligible).
-      </p>
+      <p className="bgc-section-subtext">Search and filter to find students to add.</p>
 
       {/* Filter toolbar */}
       <div className="filter-bar">
@@ -129,8 +128,8 @@ export function CohortFindSection({
       {/* Filter matching summary banner */}
       <div className="action-row bgc-filter-summary-card">
         <div className="row subtext">
-          <span className="item-title bgc-info-icon" aria-hidden="true">
-            ℹ
+          <span aria-hidden="true" className="mark mark--small">
+            <InfoIcon size={12} />
           </span>
           <span>
             Students who have left, or are still registered for another grading that has not reached its result, are not
@@ -212,7 +211,7 @@ export function CohortFindSection({
                       title="Click to remove from the cohort"
                       data-testid={`bgc-student-added-${student.id}`}
                     >
-                      Added ✓
+                      Added <CheckIcon />
                     </Button>
                   ) : (
                     <Button

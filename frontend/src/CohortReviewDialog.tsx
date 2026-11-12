@@ -3,6 +3,7 @@ import { RankTransition, rankEnd } from "./RankTransition";
 import type { CohortItem } from "./cohortBuilder";
 import { Dialog } from "./Dialog";
 import { StudentStatusBadge } from "./StatusBadge";
+import { CrossIcon } from "./Icons";
 
 interface CohortReviewDialogProps {
   cohort: CohortItem[];
@@ -13,7 +14,7 @@ interface CohortReviewDialogProps {
 /** Every student in the cohort, each with a way to take them out. */
 export function CohortReviewDialog({ cohort, onRemove, onClose }: CohortReviewDialogProps) {
   return (
-    <Dialog title={`Review cohort candidates (${cohort.length})`} onClose={onClose}>
+    <Dialog title={`Review candidates (${cohort.length})`} onClose={onClose}>
       <p className="subtext">Remove individual students who should not be registered in this grading cohort.</p>
 
       <ul className="list-plain bgc-modal-list">
@@ -36,7 +37,7 @@ export function CohortReviewDialog({ cohort, onRemove, onClose }: CohortReviewDi
               onClick={() => onRemove(item.student.id)}
               data-testid={`bgc-remove-student-${item.student.id}`}
             >
-              ✕ Remove
+              <CrossIcon /> Remove
             </Button>
           </li>
         ))}

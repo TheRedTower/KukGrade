@@ -6,6 +6,7 @@ import type { cohortBreakdown } from "./cohortBuilder";
 import { RankTransition, rankEnd } from "./RankTransition";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { counted } from "./plural";
+import { ArrowRightIcon, CrossIcon } from "./Icons";
 
 interface CohortTrayProps {
   sessionId: number;
@@ -74,14 +75,14 @@ export function CohortTray({
                   onClick={() => onRemoveGroup(item.rankId)}
                   aria-label={`Remove ${item.currentRank?.name} group`}
                 >
-                  ✕
+                  <CrossIcon />
                 </Button>
               ),
             },
           ]}
         />
 
-        {/* Review exceptions link */}
+        {/* Review the candidates, to take any out */}
         <div className="stack stack--1 bgc-exceptions-callout">
           <Button
             variant="link"
@@ -89,7 +90,7 @@ export function CohortTray({
             disabled={count === 0}
             data-testid="bgc-review-exceptions-btn"
           >
-            Review exceptions →
+            Review candidates <ArrowRightIcon />
           </Button>
           <p className="bgc-exceptions-help meta">
             Remove individual students from the selected roster before registering. Only needed if there are exceptions.
@@ -128,7 +129,7 @@ export function CohortTray({
             disabled={submitting || count === 0}
             data-testid="bgc-register-candidates-btn"
           >
-            {submitting ? "Registering..." : `Register ${counted(count, "candidate", "candidates")}`}
+            {submitting ? "Registering…" : `Register ${counted(count, "candidate", "candidates")}`}
           </Button>
         </div>
       </div>

@@ -23,7 +23,7 @@ function NameRow() {
   const saved = save.isSuccess;
   // A missing name is said beside its box; anything else above the button.
   const errors = save.error
-    ? splitServerErrors(save.error, ["first_name", "last_name"], "Could not save your name.")
+    ? splitServerErrors(save.error, ["first_name", "last_name"], "Your name could not be saved.")
     : null;
 
   const changed = firstName.trim() !== user.first_name || lastName.trim() !== user.last_name;

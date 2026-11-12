@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import { Alert } from "./Alert";
-import { useAuth } from "./auth";
+import { SIGN_OUT_ERROR, useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { KukGradeLogo } from "./KukGradeLogo";
 import { Button } from "./Button";
@@ -18,7 +18,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
   // than showing a signed-out screen backed by a valid cookie.
   const signOut = useMutation({ mutationFn: logout });
   const isSigningOut = signOut.isPending;
-  const signOutError = signOut.isError ? "Could not sign out. Check your connection and retry." : null;
+  const signOutError = signOut.isError ? SIGN_OUT_ERROR : null;
 
   return (
     <div className="must-change-password-page">
@@ -57,7 +57,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
             </Button>
           )}
           submitLabel="Update password and continue"
-          submittingLabel="Updating password..."
+          submittingLabel="Updating password…"
         />
         {signOutError ? <Alert>{signOutError}</Alert> : null}
       </main>

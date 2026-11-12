@@ -68,23 +68,23 @@ export function nextActionFor(item: EnrichedCandidate, session: GradingSession) 
   const decisionsUrl = `/gradings/${session.id}/decisions?candidate=${candidateId}`;
   switch (item.candidate.next_action) {
     case "PREPARE_ASSESSMENT":
-      return { label: "Prepare assessment →", url: assessmentUrl, opensProposalDrawer: false };
+      return { label: "Prepare assessment", url: assessmentUrl, opensProposalDrawer: false };
     case "START_ASSESSMENT":
-      return { label: "Start assessment →", url: assessmentUrl, opensProposalDrawer: false };
+      return { label: "Start assessment", url: assessmentUrl, opensProposalDrawer: false };
     case "CONTINUE_ASSESSMENT":
-      return { label: "Continue assessment →", url: assessmentUrl, opensProposalDrawer: false };
+      return { label: "Continue assessment", url: assessmentUrl, opensProposalDrawer: false };
     case "VIEW_ASSESSMENT":
-      return { label: "View record →", url: `${assessmentUrl}/review`, opensProposalDrawer: false };
+      return { label: "View record", url: `${assessmentUrl}/review`, opensProposalDrawer: false };
     case "PROPOSE_OUTCOME":
-      return { label: "Propose outcome →", url: assessmentUrl, opensProposalDrawer: true };
+      return { label: "Propose outcome", url: assessmentUrl, opensProposalDrawer: true };
     case "REVIEW_PROPOSAL":
-      return { label: "Review proposal →", url: assessmentUrl, opensProposalDrawer: true };
+      return { label: "Review proposal", url: assessmentUrl, opensProposalDrawer: true };
     case "REVIEW_DECISION":
-      return { label: "Review decision →", url: decisionsUrl, opensProposalDrawer: false };
+      return { label: "Review decision", url: decisionsUrl, opensProposalDrawer: false };
     case "VIEW_DECISION":
-      return { label: "View record →", url: decisionsUrl, opensProposalDrawer: false };
+      return { label: "View record", url: decisionsUrl, opensProposalDrawer: false };
     case "PROMOTION_LEDGER":
-      return { label: "Promotion ledger →", url: `/gradings/${session.id}/promotions`, opensProposalDrawer: false };
+      return { label: "Promotion ledger", url: `/gradings/${session.id}/promotions`, opensProposalDrawer: false };
     case "NONE":
       return { label: "No further action", url: null, opensProposalDrawer: false };
   }

@@ -138,7 +138,7 @@ serializers and the committed frontend types match the schema.
   of choices too long for the screen (a plain native scroller: swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch; the
   one place a screen may scroll a row sideways; `.scroll-region` is the other, for a grid that is wide by nature, such as a preview of the user's own spreadsheet). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
-  the table when there are no rows; `selected` marks the row a side panel shows; `flush` drops the border for a table that fills a card;
+  the table when there are no rows; `selected` marks the row a side panel shows, and `.row-target` on the control that selects it makes a tap anywhere on the row or card a tap on that control (the row's other buttons still answer for themselves); `flush` drops the border for a table that fills a card;
   `detail` shows what a row's own button opened beneath it, across the table. Rows sit in the middle of their line, and an
   `actions` column's buttons sit side by side at the end of the row, on one line while it is a table; a screen does not
   wrap them in its own box or build its own row grid.

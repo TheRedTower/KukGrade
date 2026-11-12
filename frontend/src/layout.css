@@ -655,6 +655,26 @@ select:not([multiple]):not([size]) {
   outline-offset: -2px;
 }
 
+/* A row that one control speaks for (the decision board's names): a tap
+   anywhere on the row or card is a tap on that control, whose target is
+   stretched over the whole row. The row's other controls stay above it and
+   answer for themselves; the keyboard still reaches the control itself. */
+.rtable tbody tr:has(.row-target) {
+  position: relative;
+  cursor: pointer;
+}
+
+.row-target::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.rtable tbody tr:has(.row-target) :is(a, button, input, select, textarea, summary):not(.row-target) {
+  position: relative;
+  z-index: 1;
+}
+
 .rtable__value {
   min-width: 0;
 }

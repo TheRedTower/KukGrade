@@ -232,6 +232,39 @@ test("an import step's Cancel and Continue stack on a phone and share a row with
   await page.close();
 });
 
+test("a tap anywhere on a decision card brings it into focus, and its buttons still answer for themselves", async () => {
+  const page = await contexts.get("master")!.newPage();
+  // An iPad mini on its side (cards, the focus pane under them) and a desktop (table rows).
+  for (const width of [1133, 1440]) {
+    await page.setViewportSize({ width, height: 744 });
+    await page.goto(`/gradings/${ids.sessions.LOCKED}/decisions`);
+    const rows = page.locator("[data-testid^=cab-row-]");
+    await rows.nth(1).waitFor();
+    const row = rows.nth(1);
+    const name = row.locator(".cab-row-name");
+    await expect(name).toHaveAttribute("aria-pressed", "false");
+
+    // The evidence cell: neither the name nor a button. The tap lands on the
+    // name's stretched target, which is the point.
+    const evidence = (await row.locator("td").nth(1).boundingBox())!;
+    await page.mouse.click(evidence.x + evidence.width / 2, evidence.y + evidence.height / 2);
+    await expect(name, `${width}px`).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("cab-detail").getByRole("heading", { level: 2 })).toHaveText(
+      (await name.textContent())!,
+    );
+
+    // A decision button stages its decision rather than only selecting the row.
+    const decidable = page.locator("tr[data-testid^=cab-row-]", { has: page.getByRole("group") }).last();
+    const pass = decidable.getByRole("button", { name: /Pass$/ });
+    await pass.click();
+    await expect(pass).toHaveAttribute("aria-pressed", "true");
+    await expect(decidable.locator(".cab-row-name")).toHaveAttribute("aria-pressed", "true");
+    await pass.click(); // and unstaged again, leaving the demo as it was
+    await expect(pass).toHaveAttribute("aria-pressed", "false");
+  }
+  await page.close();
+});
+
 for (const path of ["/", "/students", "/gradings"]) {
   test(`on a phone and a tablet the logo and the page start at one left edge: ${path}`, async () => {
     const page = await contexts.get("master")!.newPage();

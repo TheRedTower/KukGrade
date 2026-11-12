@@ -50,7 +50,7 @@ export function CohortDecisionQueue({
             <>
               <button
                 type="button"
-                className="cab-row-name item-title"
+                className="cab-row-name item-title row-target"
                 onClick={(event) => {
                   onFocus(row.candidate.id, event.currentTarget);
                 }}

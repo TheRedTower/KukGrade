@@ -33,8 +33,9 @@ the `grading-*-actions` screens open the Session actions menu so a menu running 
 
 What fits can still look broken, so `findLayoutFaults` in `overflow.ts` also flags, on every screen at every width:
 a word split between two letters (a break at a hyphen, slash or dash is allowed, and so is a run wider than most
-of the screen, such as a long web address), a table column whose rows do not start at one edge, and a link or
-button left in the browser's own colours. `layoutFaults.spec.ts` plants one of each, so a check that stops
+of the screen, such as a long web address), a table column whose rows do not start at one edge, a link or
+button left in the browser's own colours, and a box that scrolls up and down inside the page (the page is the
+one scroller; the sidebar beside it and a dialog over it are the exceptions). `layoutFaults.spec.ts` plants one of each, so a check that stops
 finding anything fails there.
 
 What it cannot reproduce: Safari's address bar, the on-screen keyboard, safe areas, real touch scrolling, or

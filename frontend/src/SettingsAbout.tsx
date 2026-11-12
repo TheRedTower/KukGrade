@@ -6,6 +6,7 @@ import { AboutCredits } from "./AboutCredits";
 import { AboutOverview } from "./AboutOverview";
 import { AboutSupport } from "./AboutSupport";
 import { useAboutQuery } from "./queries";
+import { stickyAside } from "./stickyParts";
 
 const SECTIONS = [
   { to: "/settings/about", label: "Overview", end: true },
@@ -22,7 +23,7 @@ export function SettingsAbout() {
 
   return (
     <div className="split split--rail">
-      <nav aria-label="About sections" className="card card--flush split__aside ab-rail">
+      <nav aria-label="About sections" className="card card--flush split__aside ab-rail" ref={stickyAside}>
         {SECTIONS.map((section) => (
           <NavLink className="menu-link" end={section.end} key={section.to} to={section.to}>
             {section.label}

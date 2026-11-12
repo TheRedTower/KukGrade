@@ -292,8 +292,8 @@ export function CandidateAssessmentScreen() {
         </div>
       )}
 
-      {/* The run itself: every requirement, in syllabus order, in one scroll. */}
-      <div className="caw-run-scroll">
+      {/* The run itself: every requirement, in syllabus order, in the page's one scroll. */}
+      <div>
         {categoryGroups.length === 0 ? (
           <EmptyState title="This assessment form has no items." />
         ) : (

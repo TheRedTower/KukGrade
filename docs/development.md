@@ -120,7 +120,12 @@ serializers and the committed frontend types match the schema.
   root class `page` (one width for every page) and writes no
   width, gutter, max-width or breakpoint of its own; `layoutRules.test.ts` fails if a
   stylesheet adds `nowrap`, sideways scroll, a fixed `min-width`, or a width query that is
-  not at a breakpoint. Breakpoints
+  not at a breakpoint, or a box that scrolls up and down inside the page. **The page is the
+  only scroller** (a box scrolling inside it traps a swipe and hides what is under it): a side
+  panel stays in view with `.split__aside` and `stickyAside`, a bar at the foot of the window
+  with `position: sticky; bottom: 0` (and `footBar` when a side panel must stay above it),
+  and long text reads in the page, folded in a `.disclosure` if need be. The sidebar beside the
+  page and a dialog over it are the two exceptions. Breakpoints
   (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards

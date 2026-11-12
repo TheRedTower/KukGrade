@@ -25,6 +25,7 @@ import { CohortRankGroupsSection } from "./CohortRankGroupsSection";
 import { CohortReviewDialog } from "./CohortReviewDialog";
 import { CohortTray } from "./CohortTray";
 import { useCohortRegistration } from "./useCohortRegistration";
+import { stickyAside } from "./stickyParts";
 
 export function BuildGradingCohortScreen() {
   const id = useIdParam();
@@ -179,7 +180,7 @@ export function BuildGradingCohortScreen() {
           />
         </div>
 
-        <div className="split__aside">
+        <div className="split__aside" ref={stickyAside}>
           <CohortTray
             sessionId={session.id}
             count={cohort.length}

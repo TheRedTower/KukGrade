@@ -127,12 +127,6 @@
   padding-left: var(--space-4);
 }
 
-/* A line under a card's buttons. */
-.ab-licence-text {
-  max-height: 24rem;
-  overscroll-behavior: contain;
-}
-
 .ab-doc-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

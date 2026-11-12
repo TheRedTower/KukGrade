@@ -157,7 +157,10 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
  *  - a table column whose rows do not start at one left edge (a column of
  *    text, read from the start: centred and end-aligned cells are left alone);
  *  - a link or button the browser draws itself (its default blue, purple or
- *    grey), because no shared style reached it.
+ *    grey), because no shared style reached it;
+ *  - a box that scrolls up and down inside the page: the page is the only
+ *    scroller (src/stickyParts.ts), apart from the sidebar beside it and a
+ *    dialog over it.
  * data-clip-ok and data-scroll-ok leave an element alone, as in findOverflow.
  */
 export async function findLayoutFaults(page: Page): Promise<string[]> {
@@ -247,6 +250,15 @@ export async function findLayoutFaults(page: Page): Promise<string[]> {
           ? browserColours.has(style.color)
           : ["rgb(239, 239, 239)", "rgb(240, 240, 240)", "rgb(233, 233, 237)"].includes(style.backgroundColor);
       if (bare) out.push(`${el.tagName === "A" ? "a link" : "a button"} has no style of its own: ${label(el)}`);
+    }
+
+    // A box that scrolls inside the scrolling page.
+    for (const el of document.body.querySelectorAll("*")) {
+      if (el.closest(".nav-rail, .dialog") || !shown(el)) continue;
+      const overflowY = getComputedStyle(el).overflowY;
+      if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight + 1) {
+        out.push(`a box scrolls inside the page: ${label(el)}`);
+      }
     }
     return out;
   });

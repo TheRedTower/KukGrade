@@ -155,6 +155,7 @@ describe("About: the licence", () => {
   beforeEach(() => visit("/settings/about/licence"));
 
   it("gives a short guide, then the licence file exactly as served", async () => {
+    const user = userEvent.setup();
     stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
@@ -164,9 +165,12 @@ describe("About: the licence", () => {
     expect(await screen.findByText("GNU AFFERO GENERAL PUBLIC LICENSE, Version 3, 19 November 2007")).toBeVisible();
     expect(screen.getByRole("heading", { name: "In plain words" })).toBeVisible();
     expect(screen.getByText(/not legal advice/)).toBeVisible();
-    const full = screen.getByRole("region", { name: "Full licence text" });
-    expect(full).toHaveTextContent("TERMS AND CONDITIONS");
-    expect(full).toHaveAttribute("tabindex", "0");
+    // Folded, then read in the page's own scroll: no box that scrolls by itself.
+    const fold = screen.getByText("Show the full licence").closest("details")!;
+    expect(fold).not.toHaveAttribute("open");
+    await user.click(screen.getByText("Show the full licence"));
+    expect(fold).toHaveAttribute("open");
+    expect(fold).toHaveTextContent("TERMS AND CONDITIONS");
     expect(screen.getByText(ABOUT.copyright)).toBeVisible();
     expect(screen.getByRole("link", { name: /Get the source code/ })).toHaveAttribute("href", ABOUT.repository_url);
     expect(screen.getByRole("link", { name: /View on GitHub/ })).toHaveAttribute(

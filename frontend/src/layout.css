@@ -58,6 +58,10 @@
   --z-bar: 3;
   --z-menu: 50;
   --z-dialog: 100;
+  /* Measured in the browser by stickyParts.ts: a side panel's own height, and
+     the height of a bar kept at the foot of the window. None until measured. */
+  --aside-height: 0px;
+  --foot-bar-height: 0px;
 }
 
 /* A screen's root. Centred, never wider than its size, with room beneath. It
@@ -911,10 +915,8 @@ select:not([multiple]):not([size]) {
 
 .code-block {
   font-family: var(--font-mono);
-  max-height: 14rem;
   margin: 0;
   padding: var(--space-3);
-  overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
@@ -1198,12 +1200,10 @@ select:not([multiple]):not([size]) {
 
   .split__aside {
     position: sticky;
-    top: var(--space-5);
-    /* Taller than the window, it scrolls itself; otherwise its foot could
-       only be reached at the very end of the page. */
-    max-height: calc(100dvh - 2 * var(--space-5));
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    /* In view while the page scrolls. Taller than the window, it moves with the
+       page until its foot is in view, above any bar at the foot, and stays
+       there: the page is the only scroller (stickyParts.ts). */
+    top: min(var(--space-5), calc(100dvh - var(--aside-height) - var(--foot-bar-height) - var(--space-5)));
   }
 }
 
@@ -1266,12 +1266,10 @@ select:not([multiple]):not([size]) {
 
   .split--rail > .split__aside {
     position: sticky;
-    top: var(--space-5);
-    /* Taller than the window, it scrolls itself; otherwise its foot could
-       only be reached at the very end of the page. */
-    max-height: calc(100dvh - 2 * var(--space-5));
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    /* In view while the page scrolls. Taller than the window, it moves with the
+       page until its foot is in view, above any bar at the foot, and stays
+       there: the page is the only scroller (stickyParts.ts). */
+    top: min(var(--space-5), calc(100dvh - var(--aside-height) - var(--foot-bar-height) - var(--space-5)));
   }
 }
 

@@ -46,6 +46,7 @@ import { CoreAreaMark, LedgerTable, ResultMark } from "./AssessmentRecordParts";
 import { agreeing } from "./plural";
 import { CandidateRanks } from "./RankTransition";
 import { cx } from "./cx";
+import { stickyAside } from "./stickyParts";
 
 export function AssessmentCompletionScreen() {
   const sessionId = useIdParam("sessionId");
@@ -341,7 +342,7 @@ export function AssessmentCompletionScreen() {
         </article>
 
         {/* ── Provenance, counts and the seal controls ───────────────────── */}
-        <aside aria-label="Record details and seal" className="acp-aside">
+        <aside aria-label="Record details and seal" className="acp-aside" ref={stickyAside}>
           <div className="acp-card">
             <h2 className="acp-card-title eyebrow--muted">Record details</h2>
             <dl className="facts-list facts-list--aligned facts-list--compact">

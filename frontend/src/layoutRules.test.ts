@@ -79,3 +79,37 @@ describe("layout rules", () => {
     }
   });
 });
+
+/**
+ * The page is the only thing that scrolls up and down (stickyParts.ts): a box
+ * that scrolls inside a scrolling page traps a swipe at its end and hides what
+ * is under it. The two exceptions sit over or beside the page, never in it.
+ */
+const OWN_SCROLLERS = new Set([
+  "layout.css: .dialog", // over the page, which cannot scroll behind it
+  "NavigationRail.css: .nav-rail", // the sidebar, beside the page
+]);
+
+const SCROLLS_DOWN = /(?:^|[;\s])overflow(?:-y|-block)?\s*:\s*(?:\S+\s+)?(?:auto|scroll)\b/;
+
+/** Every rule that lets a box scroll up and down, as "file: selector". */
+function verticalScrollers(file: string, css: string): string[] {
+  return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, , body]) => SCROLLS_DOWN.test(body))
+    .map(([, selector]) => `${file}: ${selector.trim()}`);
+}
+
+describe("one scroller per page", () => {
+  it("finds a box that scrolls up and down, and passes one that scrolls sideways", () => {
+    expect(verticalScrollers("a.css", ".a { overflow-y: auto }")).toEqual(["a.css: .a"]);
+    expect(verticalScrollers("a.css", "@media (x) { .b { color: red; overflow: auto; } }")).toEqual(["a.css: .b"]);
+    expect(verticalScrollers("a.css", ".c { overflow: hidden scroll }")).toEqual(["a.css: .c"]);
+    expect(verticalScrollers("a.css", ".d { overflow-x: auto } .e { overflow: clip }")).toEqual([]);
+  });
+
+  it("no stylesheet has a box that scrolls inside the page", () => {
+    const found = allCssFiles().flatMap((file) => verticalScrollers(file, readCss(file)));
+    expect(found.filter((rule) => !OWN_SCROLLERS.has(rule))).toEqual([]);
+    expect(found.sort()).toEqual([...OWN_SCROLLERS].sort());
+  });
+});

@@ -1198,6 +1198,46 @@ select:not([multiple]):not([size]) {
   padding-top: var(--space-2);
 }
 
+/* What opens eases in rather than appearing at once (reduced motion: theme.css). */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--space-1)));
+  }
+}
+
+.disclosure[open] > :not(summary) {
+  animation: reveal var(--duration) ease;
+}
+
+/* ── Changes: the old look eases into the new (smoothly.ts) ────────────── */
+
+/* The sidebar and the page are pictured apart, so each slides to its new size
+   while the old picture fades into the new. A picture keeps its own size and
+   is cut to the moving edge, rather than stretched with it. */
+.nav-rail {
+  view-transition-name: sidebar;
+}
+
+.app-main {
+  view-transition-name: page;
+}
+
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: var(--duration);
+}
+
+::view-transition-old(sidebar),
+::view-transition-new(sidebar),
+::view-transition-old(page),
+::view-transition-new(page) {
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .disclosure > summary svg {
     transition: none;

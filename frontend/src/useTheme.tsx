@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
+import { smoothly } from "./smoothly";
 import { useMediaQuery } from "./useMediaQuery";
 
 /**
@@ -40,7 +41,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
 
   const setTheme = useCallback((next: ThemePreference) => {
-    setPreference(next);
+    // The page fades from one theme to the other (smoothly.ts).
+    smoothly(() => setPreference(next));
     try {
       if (next === "system") {
         window.localStorage.removeItem(STORAGE_KEY);
@@ -55,7 +57,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const resolvedTheme: "light" | "dark" = preference === "system" ? (systemDark ? "dark" : "light") : preference;
 
-  useEffect(() => {
+  // Before the browser paints, so the picture of the new look has the new theme.
+  useLayoutEffect(() => {
     document.documentElement.setAttribute("data-theme", resolvedTheme);
   }, [resolvedTheme]);
 

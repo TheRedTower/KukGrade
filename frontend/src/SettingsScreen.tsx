@@ -1,9 +1,11 @@
-import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
+
 import { PageHeader } from "./PageHeader";
 
 import { SettingsAbout } from "./SettingsAbout";
 import { SettingsAccount } from "./SettingsAccount";
 import { SettingsAppearance } from "./SettingsAppearance";
+import { SmoothNavLink } from "./SmoothNavLink";
 import "./Settings.css";
 
 const TABS = [
@@ -19,9 +21,9 @@ export function SettingsScreen() {
       <PageHeader title="Settings" titleId="st-title" />
       <nav aria-label="Settings sections" className="st-tabs">
         {TABS.map((tab) => (
-          <NavLink className="menu-link st-tab" key={tab.to} to={tab.to}>
+          <SmoothNavLink className="menu-link st-tab" key={tab.to} to={tab.to}>
             {tab.label}
-          </NavLink>
+          </SmoothNavLink>
         ))}
       </nav>
       <Routes>

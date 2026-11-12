@@ -36,23 +36,23 @@ flowchart LR
    and confirm.
 4. **Lock.** A session can only be locked when every assessment is complete.
    Locking ends the grading and opens the decisions.
-   - *Until the lock*, a mark can be changed, including on a completed assessment, but
+   - _Until the lock_, a mark can be changed, including on a completed assessment, but
      every change after the first mark needs a written reason (even changing your own, even
      clearing it). The change, who made it, when and why are kept and shown on the item, and
      a completed assessment keeps every required item marked. The log starts with the release
      that added it (0.2.0-rc.8): an item marked before then begins with its mark at that time,
      credited to its assessor, and changes made before it, including a mark cleared then, are
      not known.
-   - *After the lock*, only the authorised Master can correct a mark or add a comment,
+   - _After the lock_, only the authorised Master can correct a mark or add a comment,
      always with a written reason, until that candidate's final decision is recorded. Each
      such change is flagged "after the lock" and shown with the decision (on the final
      decisions screen and the assessment record). Once the decision is recorded, the
      candidate's record is fixed.
-   - *Withdrawing:* after the lock, a candidate can be withdrawn with a recorded reason by
+   - _Withdrawing:_ after the lock, a candidate can be withdrawn with a recorded reason by
      someone with the authority.
 5. **Propose an outcome.** In the locked session, instructors propose **Pass**, **Fail** or
    **Conditional**. A conditional result must say what the candidate still has to do.
-6. **Final decision.** Only a person with *final grading decision* authority
+6. **Final decision.** Only a person with _final grading decision_ authority
    (the Master) can finalise an outcome. A finalised outcome can never be edited.
    Decisions the Master has chosen but not yet recorded ("staged") are saved on the
    server for that Master alone, so a session that times out or a closed tab loses
@@ -64,9 +64,9 @@ flowchart LR
    completed.
 8. **Complete.** A session can be completed when every candidate who was not withdrawn
    has a final decision.
-   - *Cancelling and deleting:* a session that has recorded a final decision can no longer be
+   - _Cancelling and deleting:_ a session that has recorded a final decision can no longer be
      cancelled or deleted.
-   - *Archiving:* a completed or cancelled session can be archived by an administrator. It is
+   - _Archiving:_ a completed or cancelled session can be archived by an administrator. It is
      hidden from the list of gradings (shown under "Archived gradings"), nothing is erased,
      and it can be restored.
 
@@ -99,7 +99,7 @@ grading flow (nobody can be registered to be graded for them) until their charts
 same holds per age band: a student whose band has no chart for the rank they would test for
 cannot be registered, and is not offered, until that band's chart is added. Which requirements
 apply depends on **rank** and **age band** (8 and under, 9–12, 13–17, 18+). Each
-grading covers the *cumulative* syllabus: everything examinable up to the rank
+grading covers the _cumulative_ syllabus: everything examinable up to the rank
 being tested, not only that rank's new material.
 
 When an assessment is created, the full text of every requirement is copied into
@@ -158,7 +158,6 @@ whose they are (by WKSA ID), so a grading's history reads as a story. Events wri
 carry fewer ids, so a record is followed through what still exists (a deleted candidate's older
 events may not be gathered into its grading's history).
 
-
 ## Users and settings
 
 - Administrators create staff accounts, set roles and status, grant authority, and
@@ -177,6 +176,9 @@ events may not be gathered into its grading's history).
 - One way back on every page, at the top: to the page it was opened from, by name (a record opened
   from the decision board goes back to the board), or to the page above when it was opened directly.
   The page itself is the only thing that scrolls; side panels and the bar at the foot stay in view.
+  Rows of cards never end in a gap. Changing the sidebar, the theme or a settings or About section
+  eases into the new look, and a panel that opens fades in; with reduced motion asked for, each is
+  at once.
 - **About** (Settings): the version, build and what to quote when asking for help; the licence
   (AGPL-3.0-only, with a short plain-words guide and the full text, folded until opened); the Kuk Sool Won pledge and
   the code of conduct; the security policy; support contacts; and credits for the open source
@@ -210,19 +212,19 @@ ranks were kept show the name alone, and no audit event is rewritten. An account
 (created, changed, authority, password, deleted) name it the same way and keep its email
 address in their details.
 
-| Capability | Instructor | Administrator | Master permissions |
-| --- | :---: | :---: | :---: |
-| View ranks, syllabus, students, history | ✓ | ✓ | |
-| Add and edit students; manage sessions, candidates and assessments | ✓ | ✓ | |
-| Propose or revise an outcome | ✓ | ✓ | |
-| **Make the final grading decision** (`can_make_final_grading_decision`) | | | ✓ |
-| **Promote a student** (`can_promote_student`) | | | ✓ |
-| **Withdraw a candidate from a locked session** (`can_override_locked_session`) | | | ✓ |
-| Read the audit log | with `can_view_grading_audit_log` | ✓ | ✓ |
-| Manage users, roles and authority | | ✓ | |
-| Import student rosters and past gradings; reconcile imported history | | ✓ | |
-| Delete a user or student, or an assessment or session without final decisions | | ✓ | |
-| Archive or restore a completed or cancelled session | | ✓ | |
+| Capability                                                                     |            Instructor             | Administrator | Master permissions |
+| ------------------------------------------------------------------------------ | :-------------------------------: | :-----------: | :----------------: |
+| View ranks, syllabus, students, history                                        |                 ✓                 |       ✓       |                    |
+| Add and edit students; manage sessions, candidates and assessments             |                 ✓                 |       ✓       |                    |
+| Propose or revise an outcome                                                   |                 ✓                 |       ✓       |                    |
+| **Make the final grading decision** (`can_make_final_grading_decision`)        |                                   |               |         ✓          |
+| **Promote a student** (`can_promote_student`)                                  |                                   |               |         ✓          |
+| **Withdraw a candidate from a locked session** (`can_override_locked_session`) |                                   |               |         ✓          |
+| Read the audit log                                                             | with `can_view_grading_audit_log` |       ✓       |         ✓          |
+| Manage users, roles and authority                                              |                                   |       ✓       |                    |
+| Import student rosters and past gradings; reconcile imported history           |                                   |       ✓       |                    |
+| Delete a user or student, or an assessment or session without final decisions  |                                   |       ✓       |                    |
+| Archive or restore a completed or cancelled session                            |                                   |       ✓       |                    |
 
 Notes:
 
@@ -237,17 +239,17 @@ Notes:
   but deletes none: an account is deleted in KukGrade.
 - User-management events in the audit log are visible to administrators only.
 - Deleting never erases a recorded decision, and is itself audited.
-  - *A student* is never deleted before their final decision: while any grading they are
+  - _A student_ is never deleted before their final decision: while any grading they are
     in has not reached it (a Pass waits for its promotion), the student page names that
     grading and offers no delete, and a delete asked for anyway is refused. Once it has, or once they are taken out, they can be
     deleted: they leave the student list and searches, cannot be registered, and their
     record is closed to changes, but it is kept, so every past grading, mark, decision and
     promotion still shows who it was. Only a record with no grading history at all (added
     by mistake, twice, or for testing) is erased, and its WKSA IDs are never given out again.
-  - *A staff account* that recorded anything is closed rather than erased: it can no longer
+  - _A staff account_ that recorded anything is closed rather than erased: it can no longer
     sign in, leaves the staff list, and its email cannot be reused, while every comment,
     mark, proposal and decision keeps its name. One that recorded nothing is erased.
-  - *A session or an assessment* holding a final decision cannot be deleted.
+  - _A session or an assessment_ holding a final decision cannot be deleted.
 
 ## The demo mode
 

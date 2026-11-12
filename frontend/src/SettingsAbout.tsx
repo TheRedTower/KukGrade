@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 import "./About.css";
 import { AboutConduct, AboutLicence, AboutSecurity } from "./AboutDocuments";
@@ -6,6 +6,7 @@ import { AboutCredits } from "./AboutCredits";
 import { AboutOverview } from "./AboutOverview";
 import { AboutSupport } from "./AboutSupport";
 import { useAboutQuery } from "./queries";
+import { SmoothNavLink } from "./SmoothNavLink";
 import { stickyAside } from "./stickyParts";
 
 const SECTIONS = [
@@ -25,9 +26,9 @@ export function SettingsAbout() {
     <div className="split split--rail">
       <nav aria-label="About sections" className="card card--flush split__aside ab-rail" ref={stickyAside}>
         {SECTIONS.map((section) => (
-          <NavLink className="menu-link" end={section.end} key={section.to} to={section.to}>
+          <SmoothNavLink className="menu-link" end={section.end} key={section.to} to={section.to}>
             {section.label}
-          </NavLink>
+          </SmoothNavLink>
         ))}
         {about ? (
           <p className="ab-rail-foot meta">

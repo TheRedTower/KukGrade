@@ -265,6 +265,30 @@ test("a tap anywhere on a decision card brings it into focus, and its buttons st
   await page.close();
 });
 
+test("a record's back link returns to the page it was opened from, and to the page above otherwise", async () => {
+  const page = await contexts.get("master")!.newPage();
+  await page.setViewportSize({ width: 1133, height: 744 });
+  const board = `/gradings/${ids.sessions.LOCKED}/decisions`;
+  await page.goto(board);
+  const title = (await page.getByRole("heading", { level: 1 }).textContent())!;
+  await page.evaluate(() => scrollTo(0, 300));
+  await page.getByRole("link", { name: "Open the full assessment record" }).click();
+  await page.waitForURL(/\/review$/);
+  const back = page.locator(".back-link");
+  await expect(back).toHaveText(title);
+
+  // The browser's own Back: the board as it was left, with its own way back.
+  await back.click();
+  await page.waitForURL((url) => url.pathname === board);
+  await expect(page.locator(".back-link")).not.toHaveText(title);
+  await expect(page.locator(".back-link")).not.toHaveText(/record/i);
+
+  // Opened directly, the record goes back to its scoring page, as before.
+  await page.goto(`/gradings/${ids.sessions.COMPLETED}/assessments/${ids.completedCandidate}/review`);
+  await expect(page.locator(".back-link")).toHaveText("Back to scoring");
+  await page.close();
+});
+
 for (const path of ["/", "/students", "/gradings"]) {
   test(`on a phone and a tablet the logo and the page start at one left edge: ${path}`, async () => {
     const page = await contexts.get("master")!.newPage();

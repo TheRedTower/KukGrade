@@ -28,6 +28,7 @@ import "./CandidateAssessment.css";
 import { counted } from "./plural";
 import { CandidateRanks } from "./RankTransition";
 import { type ItemWriteOptions, useItemWrites } from "./useItemWrites";
+import { usePageLabel } from "./pageTrail";
 
 /** An item's row with a mutation of its own, so its writes queue in that item's scope. */
 function ScoredItemRow({
@@ -155,6 +156,8 @@ export function CandidateAssessmentScreen() {
       : !session || !candidate
         ? "missing"
         : null;
+  usePageLabel(candidate ? `Scoring · ${candidate.student_display_name}` : undefined);
+
   if (status || !session || !candidate) {
     return (
       <RecordPage

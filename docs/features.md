@@ -174,8 +174,11 @@ events may not be gathered into its grading's history).
   down to report-only, or off, if a proxy or extension interferes
   ([configuration](configuration.md)).
 - Light, dark or system theme, keyboard-accessible dialogs, and layouts that adapt to phone and tablet widths (awaiting a check on real devices: `docs/roadmap.md`).
+- One way back on every page, at the top: to the page it was opened from, by name (a record opened
+  from the decision board goes back to the board), or to the page above when it was opened directly.
+  The page itself is the only thing that scrolls; side panels and the bar at the foot stay in view.
 - **About** (Settings): the version, build and what to quote when asking for help; the licence
-  (AGPL-3.0-only, with a short plain-words guide and the full text); the Kuk Sool Won pledge and
+  (AGPL-3.0-only, with a short plain-words guide and the full text, folded until opened); the Kuk Sool Won pledge and
   the code of conduct; the security policy; support contacts; and credits for the open source
   projects KukGrade is built on. Everything comes from the server: the documents are the
   repository's own files, the contact addresses and licence are written once in

@@ -47,6 +47,7 @@ import { agreeing } from "./plural";
 import { CandidateRanks } from "./RankTransition";
 import { cx } from "./cx";
 import { stickyAside } from "./stickyParts";
+import { usePageLabel } from "./pageTrail";
 
 export function AssessmentCompletionScreen() {
   const sessionId = useIdParam("sessionId");
@@ -73,6 +74,7 @@ export function AssessmentCompletionScreen() {
 
   const generalNotes = userNotes !== null ? userNotes : (assessment?.notes ?? "");
   const scoringPath = `/gradings/${sessionId}/assessments/${candidateId}`;
+  usePageLabel(candidate ? `Assessment record · ${candidate.student_display_name}` : undefined);
 
   const completeAssessmentMutation = useMutation({
     mutationFn: () => {

@@ -92,6 +92,10 @@ npx playwright install chromium webkit   # once
 npm run test:widths                 # every screen: Chrome at nine widths, WebKit as an iPhone and an iPad (CI: four widths, nine on a release tag)
 ```
 
+`npm run knip` (in `frontend/`) lists unused files, exports and dependencies; run it by hand
+before a pull request (it is not in CI yet). `knip.json` leaves out the generated
+`src/api/schema.ts`.
+
 The two `git diff --exit-code` steps prove the committed OpenAPI schema matches the
 serializers and the committed frontend types match the schema.
 

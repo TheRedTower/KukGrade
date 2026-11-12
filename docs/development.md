@@ -245,6 +245,10 @@ CI. Merge one once its checks are green.
 - Held back on purpose (ignored in the Dependabot config): Django 6 and django-stubs 6
   (Django 5.2 is long-term support to 2028) and TypeScript 7 (`openapi-typescript` does
   not support it yet). Security updates are still taken.
+- An override in `frontend/package.json` lifts a package that a tool pins below its
+  security fix. Today: `minimatch` 10 to 11 (GHSA-g3hv-75wg-m249), which ESLint and
+  typescript-eslint still ask for as `^10` and use only to match our own config's file
+  patterns. Remove an override once the tools ask for the fixed version themselves.
 - A package whose output is committed can fail CI until you add a follow-up commit to the
   Dependabot branch: `drf-spectacular` needs `schema.yml` regenerated,
   `openapi-typescript` needs `npm run generate:types`, `ruff` may need `ruff format`,

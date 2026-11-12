@@ -1,38 +1,28 @@
 import { useEffect, useRef } from "react";
-import { Alert } from "./Alert";
 import { CandidateAssessmentItem, CandidateAssessmentItemResult } from "./api";
 import { CategoryGroup } from "./candidateAssessmentData";
-import { Dialog } from "./Dialog";
-import { formatShortDateTime, formatTime } from "./dates";
-import { CheckIcon, CrossIcon } from "./Icons";
-import { Button } from "./Button";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { formatTime } from "./dates";
+import { CheckIcon, CrossIcon, PersonIcon } from "./Icons";
 import { ItemDraftBox } from "./ItemDraftBox";
-import { isReasonedChange, RESULT_WORDS } from "./resultWords";
+import { ItemRemarks } from "./ItemRemarks";
+import { labelOf, useChoices } from "./choices";
+import { hasRemarks } from "./remarks";
 import { Meter } from "./Meter";
 import { RequirementBadge } from "./StatusBadge";
-
-function AssessorIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <circle cx="12" cy="8" r="3.4" />
-      <path d="M5 20c0-3.6 3.1-5.8 7-5.8s7 2.2 7 5.8" />
-    </svg>
-  );
-}
+import { cx } from "./cx";
+import { buttonClass } from "./buttonClass";
 
 /**
- * Sticky band header. It carries the category's own progress, which is what
- * the removed sub-rail was really for - the instructor wants to know where
- * they are in the section they are standing in, not to jump to another one.
+ * Sticky band header. It carries the category's own progress: the instructor
+ * wants to know where they are in the section they are standing in.
  */
 export function CategoryHeader({ group }: { group: CategoryGroup }) {
   const filled = group.requiredCount > 0 ? (group.requiredAssessedCount / group.requiredCount) * 100 : 100;
 
   return (
     <div className="caw-band-header" data-testid={`caw-cat-header-${group.category}`}>
-      <h2 className="caw-band-title item-title">
-        {group.categoryDisplay}
-      </h2>
+      <h2 className="caw-band-title item-title">{group.categoryDisplay}</h2>
       <span aria-hidden="true" className="caw-band-rule" />
       <span className="caw-band-progress meta">
         {group.isDone
@@ -58,28 +48,21 @@ export function DeleteAssessmentDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Dialog title="Delete assessment" closeButton={false} onClose={onClose} canClose={!isPending}>
-      <p className="gsd-modal-message subtext">
-        Permanently delete {candidateName}&apos;s assessment? Any proposed outcome is
-        deleted with it. This cannot be undone.
+    <ConfirmDialog
+      title="Delete assessment"
+      confirmLabel="Delete assessment"
+      pendingLabel="Deleting…"
+      pending={isPending}
+      error={error}
+      danger
+      onClose={onClose}
+      onConfirm={onConfirm}
+    >
+      <p>
+        Permanently delete {candidateName}&apos;s assessment? Any proposed outcome is deleted with it. This cannot be
+        undone.
       </p>
-      {error && (
-        <Alert>{error}</Alert>
-      )}
-      <div className="action-row action-row--end">
-        <Button
-          variant="secondary"
-          onClick={onClose}
-          disabled={isPending}
-          data-dialog-autofocus
-        >
-          Cancel
-        </Button>
-        <Button variant="danger" onClick={onConfirm} disabled={isPending}>
-          {isPending ? "Deleting…" : "Delete assessment"}
-        </Button>
-      </div>
-    </Dialog>
+    </ConfirmDialog>
   );
 }
 
@@ -97,8 +80,6 @@ export function DeleteAssessmentDialog({
 export function AssessmentItemRow({
   item,
   canEdit,
-  reasonAlways,
-  assessmentCompleted,
   pendingResult,
   isCommentOpen,
   onMark,
@@ -112,9 +93,6 @@ export function AssessmentItemRow({
   item: CandidateAssessmentItem;
   /** Marks and comments may change: the assessment is started, the session is open. */
   canEdit: boolean;
-  /** After the lock every correction asks why, the first mark included. */
-  reasonAlways: boolean;
-  assessmentCompleted: boolean;
   /** The mark this row is asking a reason for, when it is. */
   pendingResult: CandidateAssessmentItemResult | null;
   isCommentOpen: boolean;
@@ -141,6 +119,7 @@ export function AssessmentItemRow({
     hides body overflow and traps Tab. This prompt is inline in a scrolling
     list and must not do either.
   */
+  const results = useChoices().item_results;
   const isAsking = pendingResult !== null;
   useEffect(() => {
     if (isAsking) {
@@ -154,22 +133,20 @@ export function AssessmentItemRow({
   }, [isAsking]);
 
   const isScored = item.result === "MET" || item.result === "NOT_MET";
-  const attribution = item.assessor_email
-    ? `${item.assessor_email}${item.assessed_at ? ` · ${formatTime(item.assessed_at)}` : ""}`
+  const attribution = item.assessor_name
+    ? `${item.assessor_name}${item.assessed_at ? ` · ${formatTime(item.assessed_at)}` : ""}`
     : "";
-  // A completed assessment keeps every required item marked: it can be changed,
-  // not emptied.
-  const canClear = canEdit && isScored && !(assessmentCompleted && item.required);
-  // The first mark on an item is made at once. Anything after it, including
-  // marking an item again after it was cleared, asks why; and once the session
-  // is locked every correction does.
+  // Whether the mark can be taken away, and whether changing it must say why,
+  // are served on the item by the rules the write checks (a completed
+  // assessment keeps its required marks; every change after the first, and
+  // every one after the lock, says why).
+  const canClear = canEdit && item.can_clear;
   const hasHistory = item.changes.length > 0;
   const choose = (result: CandidateAssessmentItemResult) => {
     if (result === item.result) return;
-    if (isScored || hasHistory || reasonAlways) onAskChange(result);
+    if (item.reason_required) onAskChange(result);
     else onMark(result);
   };
-  const laterChanges = item.changes.filter(isReasonedChange);
   const clearing = pendingResult === "NOT_ASSESSED";
 
   return (
@@ -181,7 +158,11 @@ export function AssessmentItemRow({
         <div className="caw-row-title-line">
           <span className="caw-row-seq meta">#{item.position}</span>
           <span className="item-title">{item.item_name}</span>
-          {item.korean_name && <span className="meta" lang="ko">{item.korean_name}</span>}
+          {item.korean_name && (
+            <span className="meta" lang="ko">
+              {item.korean_name}
+            </span>
+          )}
           <RequirementBadge required={item.required} />
           {(item.display_range || item.notation) && (
             <span className="caw-row-range meta">{item.display_range || item.notation}</span>
@@ -190,42 +171,22 @@ export function AssessmentItemRow({
 
         {/* Chart notation is served as wording and shown as the range above,
             as the syllabus screen does; only other notes print here. */}
-        {!item.notation && item.requirement_notes && (
-          <p className="caw-row-desc meta">{item.requirement_notes}</p>
-        )}
+        {!item.notation && item.requirement_notes && <p className="caw-row-desc meta">{item.requirement_notes}</p>}
 
         {/*
           Attribution renders on every scored row. The previous screen showed
           it only on not-met rows, so "who marked this, and when" was invisible
           across most of the record.
         */}
-        {(attribution || item.comments.length > 0 || laterChanges.length > 0) && (
-          <div className="caw-row-meta">
+        {(attribution || hasRemarks(item)) && (
+          <div className="stack stack--1 caw-row-meta">
             {attribution && (
               <span>
-                <AssessorIcon />
+                <PersonIcon size={12} />
                 {attribution}
               </span>
             )}
-            {laterChanges.map((change) => (
-              <span key={change.sequence} className="caw-row-change" data-testid={`caw-change-${item.id}-${change.sequence}`}>
-                Changed from {RESULT_WORDS[change.from_result]} to {RESULT_WORDS[change.to_result]}
-                <span className="caw-row-note-by">
-                  {" "}— {change.changed_by_name}, {formatShortDateTime(change.changed_at)}
-                  {change.after_lock ? ", after the lock" : ""}
-                </span>
-                : “{change.reason}”
-              </span>
-            ))}
-            {item.comments.map((comment) => (
-              <span key={comment.id} className="caw-row-note">
-                “{comment.body}”
-                <span className="caw-row-note-by">
-                  {" "}— {comment.author_name}, {formatShortDateTime(comment.created_at)}
-                  {comment.after_lock ? ", after the lock" : ""}
-                </span>
-              </span>
-            ))}
+            <ItemRemarks item={item} />
           </div>
         )}
       </div>
@@ -250,24 +211,25 @@ export function AssessmentItemRow({
                   Clearing removes the record of who assessed it
                   {attribution ? (
                     <>
-                      {" "}(<strong>{attribution}</strong>)
+                      {" "}
+                      (<strong>{attribution}</strong>)
                     </>
                   ) : null}
                   . The change and your reason are kept. Why is the mark being cleared?
                 </>
               ) : isScored ? (
                 <>
-                  Changing {RESULT_WORDS[item.result ?? "NOT_ASSESSED"]} to {RESULT_WORDS[pendingResult]}. Why is the mark
-                  changing? The change and your reason are kept.
+                  Changing {item.result_display} to {labelOf(results, pendingResult)}. Why is the mark changing? The
+                  change and your reason are kept.
                 </>
               ) : hasHistory ? (
                 <>
-                  Marking this item {RESULT_WORDS[pendingResult]} again, after it was cleared. Why is the mark
+                  Marking this item {labelOf(results, pendingResult)} again, after it was cleared. Why is the mark
                   changing? The change and your reason are kept.
                 </>
               ) : (
                 <>
-                  Marking this item {RESULT_WORDS[pendingResult]}, after the session was locked. Why is the mark
+                  Marking this item {labelOf(results, pendingResult)}, after the session was locked. Why is the mark
                   being made? The change and your reason are kept.
                 </>
               )}
@@ -287,10 +249,14 @@ export function AssessmentItemRow({
           <div role="group" aria-label={`Result for ${item.item_name}`} className="caw-verdicts">
             <button
               type="button"
-              className={`caw-verdict caw-verdict-met ${item.result === "MET" ? "caw-verdict-active" : ""}`}
+              className={buttonClass(
+                {},
+                cx("caw-verdict caw-verdict-met", item.result === "MET" && "caw-verdict-active"),
+              )}
               disabled={!canEdit}
               onClick={() => choose("MET")}
               aria-pressed={item.result === "MET"}
+              data-tone={item.result === "MET" ? "success" : undefined}
               data-testid={`btn-met-${item.id}`}
               ref={metButtonRef}
             >
@@ -299,10 +265,14 @@ export function AssessmentItemRow({
             </button>
             <button
               type="button"
-              className={`caw-verdict caw-verdict-not-met ${item.result === "NOT_MET" ? "caw-verdict-active" : ""}`}
+              className={buttonClass(
+                {},
+                cx("caw-verdict caw-verdict-not-met", item.result === "NOT_MET" && "caw-verdict-active"),
+              )}
               disabled={!canEdit}
               onClick={() => choose("NOT_MET")}
               aria-pressed={item.result === "NOT_MET"}
+              data-tone={item.result === "NOT_MET" ? "danger" : undefined}
               data-testid={`btn-not-met-${item.id}`}
             >
               <CrossIcon size={17} />
@@ -312,8 +282,13 @@ export function AssessmentItemRow({
         )}
 
         {canEdit && !isAsking && (
-          <div className="caw-row-tools">
-            <button type="button" className="caw-row-tool meta" onClick={onToggleComment} data-testid={`btn-comment-${item.id}`}>
+          <div className="row row--1 caw-row-tools">
+            <button
+              type="button"
+              className="caw-row-tool meta"
+              onClick={onToggleComment}
+              data-testid={`btn-comment-${item.id}`}
+            >
               Add comment
             </button>
             {/* Clearing is only offered once there is a result to clear. */}

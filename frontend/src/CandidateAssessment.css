@@ -7,10 +7,6 @@
   color: var(--color-text);
 }
 
-.caw-rank-arrow {
-  color: var(--color-text-muted);
-}
-
 /* ── Not Started Prompt Banner ───────────────────────────────────────────── */
 
 .caw-run > .alert {
@@ -39,8 +35,6 @@
   margin: 0;
 }
 
-/* ── Shared row badges and empty state ───────────────────────────────────── */
-/* Loading & Error states */
 /* ═══════════════════════════════════════════════════════════════════════════
    Mat-side scoring — Single Column Run
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -59,7 +53,7 @@
   padding-block-end: 0;
 }
 
-.caw-run > .crumbs {
+.caw-run > .back-link {
   padding: var(--space-1) var(--space-5) 0;
 }
 
@@ -198,26 +192,9 @@
   line-height: var(--line-height-body);
 }
 
+/* Who marked the item, then its remarks (ItemRemarks), one under the other. */
 .caw-row-meta {
   margin-top: var(--space-2);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.caw-row-change {
-  color: var(--color-text);
-  border-left: 2px solid var(--color-gold-strong);
-  padding: 0.2rem var(--space-2);
-}
-
-.caw-row-note {
-  color: var(--color-text);
-  background: var(--color-surface-sunken);
-  border-left: 2px solid var(--color-border);
-  padding: 0.2rem var(--space-2);
-  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
 }
 
 /* ── Two verdict targets, and the row tools ──────────────────────────────── */
@@ -237,19 +214,16 @@
 
 .caw-verdict {
   flex: 1 1 6rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: var(--space-1);
-  min-height: var(--target-min);
   padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
-  transition: background var(--duration) ease, border-color var(--duration) ease, color var(--duration) ease;
+  transition:
+    background var(--duration) ease,
+    border-color var(--duration) ease,
+    color var(--duration) ease;
 }
 
 .caw-verdict:hover:not(:disabled) {
@@ -266,21 +240,16 @@
   background: var(--color-success);
   border-color: var(--color-success);
   color: var(--color-on-success);
-  font-weight: var(--font-weight-semibold);
 }
 
 .caw-verdict-not-met.caw-verdict-active {
   background: var(--color-danger);
   border-color: var(--color-danger);
   color: var(--color-on-danger);
-  font-weight: var(--font-weight-semibold);
 }
 
 .caw-row-tools {
-  display: flex;
   justify-content: flex-end;
-  gap: var(--space-1);
-  align-items: center;
 }
 
 .caw-row-tool {
@@ -305,10 +274,6 @@
   justify-content: flex-end;
   gap: var(--space-2);
   margin-top: var(--space-2);
-}
-
-.caw-row-note-by {
-  color: var(--color-text-muted);
 }
 
 .caw-row-note-input {
@@ -373,12 +338,6 @@
   max-width: 19rem;
 }
 
-.caw-mat-tally {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
 .caw-mat-tally-met {
   color: var(--color-success);
 }
@@ -408,7 +367,7 @@
     height: auto;
   }
 
-  .caw-run > .crumbs,
+  .caw-run > .back-link,
   .caw-identity,
   .caw-band-header,
   .caw-row,
@@ -511,10 +470,7 @@
 
 .acp-stamp {
   flex-shrink: 0;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
   color: var(--color-gold-strong);
   border: 1.5px solid var(--color-gold-strong);
   border-radius: var(--radius-xs);
@@ -557,12 +513,6 @@
   gap: var(--space-2);
   margin-top: var(--space-2);
   flex-wrap: wrap;
-}
-
-.acp-rank {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 .acp-section {
@@ -647,15 +597,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Text plus icon, never colour alone. */
-.acp-result {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
+/* A result (.row of icon and words): text plus icon, never colour alone. */
 .acp-result-met {
   color: var(--color-success);
 }
@@ -681,11 +623,6 @@
   align-items: baseline;
   gap: var(--space-2);
   flex-wrap: wrap;
-}
-
-.acp-note-body {
-  margin: 0.2rem 0 0;
-  line-height: var(--line-height-body);
 }
 
 .acp-note-input {
@@ -815,20 +752,7 @@
 }
 
 .acp-proofread {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
   margin-top: var(--space-3);
-  line-height: var(--line-height-snug);
-  cursor: pointer;
-}
-
-.acp-proofread input {
-  width: 18px;
-  height: 18px;
-  margin: 1px 0 0;
-  accent-color: var(--color-gold-strong);
-  flex-shrink: 0;
 }
 
 /* ── Tablet and phone ────────────────────────────────────────────────────── */
@@ -864,7 +788,6 @@
   .acp-rank-line {
     justify-content: flex-start;
   }
-
 }
 
 .acp-correct {

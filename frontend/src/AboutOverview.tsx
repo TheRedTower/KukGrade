@@ -3,8 +3,9 @@ import { Badge } from "./Badge";
 import { errorMessage } from "./api";
 import { CopyDetailsButton, DetailsList } from "./AboutDetailsView";
 import { versionDetails } from "./aboutDetails";
-import { GitHubIcon } from "./Icons";
+import { ExternalLinkIcon, GitHubIcon } from "./Icons";
 import { useAboutQuery } from "./queries";
+import { ExternalLink } from "./ExternalLink";
 
 /** What is running, and what to quote when asking for help. */
 export function AboutOverview() {
@@ -15,17 +16,17 @@ export function AboutOverview() {
   return (
     <>
       <section aria-labelledby="st-about-hero" className="card card--flush st-hero">
-        <span aria-hidden="true" className="st-hero-mark">
+        <span aria-hidden="true" className="mark mark--display st-hero-mark">
           K
         </span>
         <div className="st-hero-text">
-          <h2 id="st-about-hero">
+          <h2 className="section-title section-title--display" id="st-about-hero">
             Kuk<span className="st-accent">Grade</span>
           </h2>
           <p className="st-eyebrow eyebrow--muted">People · Progress · Purpose</p>
           <p className="st-row-description subtext">
-            Grading management for Kuk Sool Won schools: students, syllabus, gradings and
-            promotions. Free and open source, and run by your own school.
+            Grading management for Kuk Sool Won schools: students, syllabus, gradings and promotions. Free and open
+            source, and run by your own school.
           </p>
         </div>
         <p className="st-version-tile">
@@ -34,11 +35,7 @@ export function AboutOverview() {
         </p>
       </section>
 
-      {about.isError ? (
-        <Alert>
-          {errorMessage(about.error, "The version could not be loaded.")}
-        </Alert>
-      ) : null}
+      {about.isError ? <Alert>{errorMessage(about.error, "The version could not be loaded.")}</Alert> : null}
 
       <section aria-labelledby="st-version-details" className="card stack">
         <div className="action-row">
@@ -81,36 +78,27 @@ export function AboutOverview() {
 
       {data ? (
         <section aria-label="Links" className="card card--flush st-links">
-          <a href={data.repository_url} rel="noopener noreferrer" target="_blank">
+          <ExternalLink className="menu-link" href={data.repository_url}>
             <GitHubIcon />
             <span>Source on GitHub</span>
-            <span aria-hidden="true" className="st-link-arrow">
-              ↗
-            </span>
-            <span className="visually-hidden"> (opens in a new tab)</span>
-          </a>
-          <a href={data.releases_url} rel="noopener noreferrer" target="_blank">
+            <ExternalLinkIcon className="st-link-arrow" />
+          </ExternalLink>
+          <ExternalLink className="menu-link" href={data.releases_url}>
             <span>Release notes</span>
-            <span aria-hidden="true" className="st-link-arrow">
-              ↗
-            </span>
-            <span className="visually-hidden"> (opens in a new tab)</span>
-          </a>
-          <a href={data.issues_url} rel="noopener noreferrer" target="_blank">
+            <ExternalLinkIcon className="st-link-arrow" />
+          </ExternalLink>
+          <ExternalLink className="menu-link" href={data.issues_url}>
             <span>Report a problem</span>
-            <span aria-hidden="true" className="st-link-arrow">
-              ↗
-            </span>
-            <span className="visually-hidden"> (opens in a new tab)</span>
-          </a>
+            <ExternalLinkIcon className="st-link-arrow" />
+          </ExternalLink>
         </section>
       ) : null}
 
       <section aria-labelledby="st-updates" className="card">
         <h2 id="st-updates">Updates</h2>
         <p className="st-row-description subtext">
-          KukGrade does not look for updates by itself. Your administrator installs new versions,
-          and this page shows the version in use.
+          KukGrade does not look for updates by itself. Your administrator installs new versions, and this page shows
+          the version in use.
         </p>
       </section>
     </>

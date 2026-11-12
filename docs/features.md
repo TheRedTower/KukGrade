@@ -11,10 +11,11 @@ flowchart LR
     A[Create a<br/>grading session] --> B[Register<br/>candidates]
     B --> C[Open the session]
     C --> D[Assess each<br/>candidate]
-    D --> E[Propose an<br/>outcome]
-    E --> F[Master makes the<br/>final decision]
-    F --> G[Promote<br/>passed students]
-    G --> H[Lock and<br/>complete]
+    D --> E[Lock the<br/>session]
+    E --> F[Propose an<br/>outcome]
+    F --> G[Master makes the<br/>final decision]
+    G --> H[Promote<br/>passed students]
+    H --> I[Complete the<br/>session]
 ```
 
 1. **Create a session** with a title, date, location and notes. A session moves through **Draft → Open → Locked → Completed**, or is
@@ -33,19 +34,8 @@ flowchart LR
    edited or removed, and adding one never changes the mark;
    category results are worked out from the items. Attendance is confirmed in bulk: tick the no-shows
    and confirm.
-4. **Propose an outcome.** Instructors propose **Pass**, **Fail** or
-   **Conditional**. A conditional result must say what the candidate still has to do.
-5. **Final decision.** Only a person with *final grading decision* authority
-   (the Master) can finalise an outcome. A finalised outcome can never be edited.
-   Decisions the Master has chosen but not yet recorded ("staged") are saved on the
-   server for that Master alone, so a session that times out or a closed tab loses
-   nothing; recording a decision, or the session leaving the locked state, removes
-   them. Staging is not audited, because it decides nothing; recording is.
-6. **Promote.** A Pass is promoted in a separate, deliberate step, which updates the
-   student's rank and writes a permanent rank-history record. A whole cohort can be
-   promoted at once.
-7. **Lock and complete.** A session can only be locked when every assessment is
-   complete.
+4. **Lock.** A session can only be locked when every assessment is complete.
+   Locking ends the grading and opens the decisions.
    - *Until the lock*, a mark can be changed, including on a completed assessment, but
      every change after the first mark needs a written reason (even changing your own, even
      clearing it). The change, who made it, when and why are kept and shown on the item, and
@@ -60,6 +50,20 @@ flowchart LR
      candidate's record is fixed.
    - *Withdrawing:* after the lock, a candidate can be withdrawn with a recorded reason by
      someone with the authority.
+5. **Propose an outcome.** In the locked session, instructors propose **Pass**, **Fail** or
+   **Conditional**. A conditional result must say what the candidate still has to do.
+6. **Final decision.** Only a person with *final grading decision* authority
+   (the Master) can finalise an outcome. A finalised outcome can never be edited.
+   Decisions the Master has chosen but not yet recorded ("staged") are saved on the
+   server for that Master alone, so a session that times out or a closed tab loses
+   nothing; recording a decision, or the session leaving the locked state, removes
+   them. Staging is not audited, because it decides nothing; recording is.
+7. **Promote.** A Pass is promoted in a separate, deliberate step, which updates the
+   student's rank and writes a permanent rank-history record. A whole cohort can be
+   promoted at once. Promoting is possible while the session is locked and after it is
+   completed.
+8. **Complete.** A session can be completed when every candidate who was not withdrawn
+   has a final decision.
    - *Cancelling and deleting:* a session that has recorded a final decision can no longer be
      cancelled or deleted.
    - *Archiving:* a completed or cancelled session can be archived by an administrator. It is
@@ -140,7 +144,9 @@ the admin. It stays attributed to a person even if their account is
 later deleted. New events never hold a student's name or date of birth: they
 name the student by WKSA ID and say which fields changed, and the screens add
 the student's current name while they exist. Older events can be cleaned on
-request ([Privacy](privacy.md)).
+request ([Privacy](privacy.md)). An event's summary and details are written in the
+words the screens use ("moved from Draft to Open", "Mark: Not assessed to Met"),
+never as stored codes or ids.
 
 **A record's history.** A grading, a student, a registration's assessment record and a user account
 each have a **History** link (for those who may read the audit log) that opens the log narrowed to
@@ -184,6 +190,23 @@ person, and a fourth that lets someone read the audit log. The server checks eve
 permission on every request; hiding a button in the interface is never the only
 protection.
 
+**Rank and name.** An instructor's account holds their rank, chosen by the administrator
+when the account is made from the black belt ranks (JKN, KSN, PSBN, SBN, PKJN); an
+administrator account has none. Everyone a record names - who marked an item, wrote a
+comment, changed a mark, prepared the form, proposed or decided an outcome, voided a
+record, ran an import or acted in the audit log - is shown by rank and name ("KSN Jane
+Smith"), or as "Jane Smith (administrator)", never by email address. The rank is the one
+they held when they acted: a later change to their rank changes no record.
+
+Every account has a first and a last name: adding a user, editing one, your own name in
+Settings and the first administrator at setup all refuse a blank one. An account made
+before names and ranks were required is flagged on the Users screen ("Needs a name",
+"Needs a rank") and its page asks the administrator to fill in what it lacks; nothing is
+guessed for it. Until then its records name it "Unnamed account". Records made before
+ranks were kept show the name alone, and no audit event is rewritten. An account's own events
+(created, changed, authority, password, deleted) name it the same way and keep its email
+address in their details.
+
 | Capability | Instructor | Administrator | Master permissions |
 | --- | :---: | :---: | :---: |
 | View ranks, syllabus, students, history | ✓ | ✓ | |
@@ -207,12 +230,13 @@ Notes:
   Django admin site.
 - The Django admin site (a shell-only emergency tool, not served by the app) shows
   grading, student, rank and syllabus data but cannot add, change or delete it, so
-  every such change is checked and recorded by KukGrade. It still recovers accounts.
+  every such change is checked and recorded by KukGrade. It still recovers accounts,
+  but deletes none: an account is deleted in KukGrade.
 - User-management events in the audit log are visible to administrators only.
 - Deleting never erases a recorded decision, and is itself audited.
   - *A student* is never deleted before their final decision: while any grading they are
-    in has not reached it (a Pass waits for its promotion), the student's page says which
-    grading and offers no delete. Once it has, or once they are taken out, they can be
+    in has not reached it (a Pass waits for its promotion), the student page names that
+    grading and offers no delete, and a delete asked for anyway is refused. Once it has, or once they are taken out, they can be
     deleted: they leave the student list and searches, cannot be registered, and their
     record is closed to changes, but it is kept, so every past grading, mark, decision and
     promotion still shows who it was. Only a record with no grading history at all (added

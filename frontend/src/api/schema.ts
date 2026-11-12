@@ -219,6 +219,23 @@ export interface paths {
         patch: operations["auth_me_partial_update"];
         trace?: never;
     };
+    "/api/choices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every list of choices the screens offer, each value with its name. */
+        get: operations["choices_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/data-imports/batches/": {
         parameters: {
             query?: never;
@@ -241,6 +258,74 @@ export interface paths {
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
          */
         post: operations["data_imports_batches_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{batch_pk}/rows/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The import's rows, a page at a time, in file order. */
+        get: operations["data_imports_batches_rows_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{batch_pk}/rows/{row_number}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Fix a roster row's values; every row is checked again. */
+        patch: operations["data_imports_batches_rows_partial_update"];
+        trace?: never;
+    };
+    "/api/data-imports/batches/{batch_pk}/rows/{row_number}/exclusion/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave a row out of the import, or bring it back. */
+        post: operations["data_imports_batches_rows_exclusion_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{batch_pk}/rows/leave-out-attention/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave out every roster row still needing attention, in one go. */
+        post: operations["data_imports_batches_rows_leave_out_attention_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -301,8 +386,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Finish the import. With no body, the stored mapping, fixes and rank
-         *     choices are used; any given here replace them first.
+         * @description Finish the import from what is stored: a roster's mapping and fixes,
+         *     or a historical import's rank choices.
          */
         post: operations["data_imports_batches_commit_create"];
         delete?: never;
@@ -338,10 +423,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import.
-         *
-         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         * @description A historical import's rank choices, saved when given, and what it
+         *     would do. A roster's columns are matched with mapping/ instead.
          */
         post: operations["data_imports_batches_preview_create"];
         delete?: never;
@@ -350,68 +433,17 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/data-imports/batches/{id}/rows/": {
+    "/api/data-imports/batches/{id}/second-look/": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** @description The import's rows, a page at a time, in file order. */
-        get: operations["data_imports_batches_rows_list"];
+        /** @description What KukGrade filled in for a roster's added students, counted. */
+        get: operations["data_imports_batches_second_look_retrieve"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/rows/{row_number}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** @description Fix a roster row's values; every row is checked again. */
-        patch: operations["data_imports_batches_rows_partial_update"];
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/rows/{row_number}/exclusion/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Leave a row out of the import, or bring it back. */
-        post: operations["data_imports_batches_rows_exclusion_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/rows/leave-out-attention/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Leave out every roster row still needing attention, in one go. */
-        post: operations["data_imports_batches_rows_leave_out_attention_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -757,7 +789,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         get: operations["gradings_legacy_records_list"];
         put?: never;
@@ -780,7 +812,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         get: operations["gradings_legacy_records_retrieve"];
         put?: never;
@@ -805,7 +837,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         post: operations["gradings_legacy_records_link_student_create"];
         delete?: never;
@@ -814,7 +846,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/legacy-records/{id}/resolve-current-rank/": {
+    "/api/gradings/legacy-records/{id}/resolve-rank/": {
         parameters: {
             query?: never;
             header?: never;
@@ -828,32 +860,9 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
-        post: operations["gradings_legacy_records_resolve_current_rank_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/legacy-records/{id}/resolve-testing-for-rank/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
-         *     create/update/delete: rows are only ever created by
-         *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
-         */
-        post: operations["gradings_legacy_records_resolve_testing_for_rank_create"];
+        post: operations["gradings_legacy_records_resolve_rank_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -874,7 +883,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         post: operations["gradings_legacy_records_unlink_student_create"];
         delete?: never;
@@ -897,7 +906,7 @@ export interface paths {
          *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
          *     create/update/delete: rows are only ever created by
          *     data_imports.services.commit_legacy_grading_import, and only ever changed
-         *     through the five gradings.legacy_services functions.
+         *     through gradings.legacy_services.
          */
         post: operations["gradings_legacy_records_void_create"];
         delete?: never;
@@ -920,6 +929,40 @@ export interface paths {
          *     the student confirmed for it, say.
          */
         post: operations["gradings_legacy_records_bulk_link_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/bulk-unlink/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Unlink many records at once, all or nothing - Undo after a bulk link. */
+        post: operations["gradings_legacy_records_bulk_unlink_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/counts/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description How many records still wait for a student, counted in one query. */
+        get: operations["gradings_legacy_records_counts_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -958,8 +1001,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description How many names still wait, by how clear their suggestions are, and
-         *     how many have every record linked.
+         * @description How many names still wait, by how clear their suggestions are; how
+         *     many have every record linked, or any; and how many the viewer has put
+         *     aside.
          */
         get: operations["gradings_legacy_records_people_summary_retrieve"];
         put?: never;
@@ -1396,7 +1440,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         get: operations["users_list"];
         put?: never;
@@ -1407,7 +1450,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         post: operations["users_create"];
         delete?: never;
@@ -1430,7 +1472,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         get: operations["users_retrieve"];
         put?: never;
@@ -1442,7 +1483,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         delete: operations["users_destroy"];
         options?: never;
@@ -1454,7 +1494,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         patch: operations["users_partial_update"];
         trace?: never;
@@ -1479,7 +1518,6 @@ export interface paths {
          *     destroy(), gated to accounts.delete_user (Administrator group only),
          *     removes an account that recorded nothing and closes one that did, so
          *     their name stays on their records (accounts.services.delete_platform_user).
-         *     No PUT: partial_update covers every real edit.
          */
         patch: operations["users_authority_partial_update"];
         trace?: never;
@@ -1558,7 +1596,6 @@ export interface components {
          *     * `ASSESSMENT_STARTED` - Assessment started
          *     * `ASSESSMENT_UPDATED` - Assessment notes updated
          *     * `ASSESSMENT_COMPLETED` - Assessment completed
-         *     * `ASSESSMENT_REOPENED` - Assessment reopened
          *     * `ASSESSMENT_DELETED` - Assessment deleted
          *     * `ITEM_RESULT_RECORDED` - Assessment item result recorded
          *     * `ITEM_COMMENT_ADDED` - Assessment item comment added
@@ -1584,7 +1621,7 @@ export interface components {
          *     * `AUDIT_REDACTED` - Personal details erased from the audit log
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "SESSION_ARCHIVED" | "SESSION_RESTORED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED" | "AUDIT_REDACTED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "SESSION_ARCHIVED" | "SESSION_RESTORED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED" | "AUDIT_REDACTED";
         /** @description One age band, from its code: label, description and programme. */
         AgeBand: {
             readonly code: components["schemas"]["AgeBandEnum"];
@@ -1622,6 +1659,7 @@ export interface components {
         };
         AssessmentItemComment: {
             readonly id: number;
+            /** @description Who author is, as the record names them: their rank then and their name. */
             readonly author_name: string;
             readonly body: string;
             /** Format: date-time */
@@ -1636,13 +1674,24 @@ export interface components {
             /** @description Its place in the item's history, from 1. */
             readonly sequence: number;
             readonly from_result: components["schemas"]["ResultEnum"];
+            readonly from_result_display: string;
             readonly to_result: components["schemas"]["ResultEnum"];
+            readonly to_result_display: string;
+            /** @description Who changed by is, as the record names them: their rank then and their name. */
             readonly changed_by_name: string;
             /** Format: date-time */
             readonly changed_at: string;
             readonly reason: string;
             /** @description Made after the session was locked. */
             readonly after_lock: boolean;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        AssessmentStatusChoice: {
+            value: components["schemas"]["CandidateAssessmentStatusEnum"];
+            label: string;
         };
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
@@ -1669,9 +1718,11 @@ export interface components {
          * @enum {string}
          */
         AttendanceStatusEnum: "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
-        AuditChoice: {
-            value: string;
+        AuditDetail: {
+            /** @description What the detail is, as a screen names it. */
             label: string;
+            /** @description What it was, in words. */
+            value: string;
         };
         /**
          * @description * `GradingSession` - Grading session
@@ -1697,32 +1748,56 @@ export interface components {
             readonly entity_type: components["schemas"]["AuditEntityEnum"];
             readonly entity_type_display: string;
             readonly entity_id: string;
-            /** Format: email */
-            readonly actor_email: string;
+            /** @description Who acted, as they were then: their rank and name, or their name and "(administrator)". Blank for an action with no person. */
             readonly actor_name: string;
             readonly summary: string;
             /** @description The current name of the student the event is about, read now: events hold no names. Blank once the student no longer exists. */
             readonly subject_name: string;
-            readonly metadata: unknown;
+            /** @description How the event reads at a glance, from its action and the outcome it records: success, warning, info or neutral. */
+            readonly tone: components["schemas"]["ToneEnum"];
+            /** @description The name of the grading outcome a proposal or final decision records; null for every other event. */
+            readonly outcome_display: string | null;
+            /** @description What the event recorded beyond its summary, as label and value pairs in words: no stored codes or ids. */
+            readonly details: components["schemas"]["AuditDetail"][];
         };
         /**
          * @description GET /api/audit-events/labels/: the names of the event and record
          *     types, so the audit screen's filters keep no list of their own.
          */
         AuditLabels: {
-            actions: components["schemas"]["AuditChoice"][];
-            entities: components["schemas"]["AuditChoice"][];
+            actions: components["schemas"]["Choice"][];
+            entities: components["schemas"]["Choice"][];
         };
         /** @description GET /api/audit-events/subject/: what a history is of, named as it is now. */
         AuditSubject: {
-            /** @description session, student, candidate or user. */
+            /** @description session, student, candidate or user; blank for a malformed subject. */
             kind: string;
+            /** @description The record's id. */
             id: string;
+            /** @description For a candidate, the grading it belongs to; null otherwise. */
+            session_id: number | null;
             /** @description The record's current name; blank once it no longer exists. */
             name: string;
-            /** @description Where to open the record in the app; blank when it is gone. */
-            path: string;
+            /** @description Whether the record still exists, so the app can open it. */
+            exists: boolean;
         };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        AuthorityChoice: {
+            value: components["schemas"]["AuthorityEnum"];
+            label: string;
+            description: string;
+        };
+        /**
+         * @description * `can_make_final_grading_decision` - can_make_final_grading_decision
+         *     * `can_promote_student` - can_promote_student
+         *     * `can_override_locked_session` - can_override_locked_session
+         *     * `can_view_grading_audit_log` - can_view_grading_audit_log
+         * @enum {string}
+         */
+        AuthorityEnum: "can_make_final_grading_decision" | "can_promote_student" | "can_override_locked_session" | "can_view_grading_audit_log";
         /**
          * @description * `WHITE` - White
          *     * `YELLOW` - Yellow
@@ -1739,6 +1814,7 @@ export interface components {
             candidates: number[];
         };
         BulkAssessmentGenerationResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
@@ -1748,6 +1824,7 @@ export interface components {
             assessments: number[];
         };
         BulkAssessmentStartResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
@@ -1764,11 +1841,12 @@ export interface components {
             generate_assessments?: boolean;
         };
         BulkCandidateRegistrationResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
             created: components["schemas"]["RegisteredCandidate"][];
-            /** @description The keys of `errors` whose student is already registered, for this session or for another grading that has not settled: nothing to retry, unlike the other failures. */
+            /** @description The students (keys of `errors`) already registered, for this session or for another grading that has not settled: nothing to retry, unlike the other failures. */
             already_registered: {
                 [key: string]: "THIS_SESSION" | "ANOTHER_GRADING";
             };
@@ -1780,6 +1858,7 @@ export interface components {
             withdrawal_note?: string;
         };
         BulkCandidateStatusUpdateResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
@@ -1798,10 +1877,16 @@ export interface components {
             outcomes: number[];
         };
         BulkPromotionResult: {
+            /** @description Each refused row's reasons, keyed by the id that row named: the student for a registration, the candidate, assessment or outcome otherwise. */
             errors: {
                 [key: string]: string[];
             };
             promoted: components["schemas"]["Promotion"][];
+        };
+        /** @description POST legacy-records/bulk-unlink/: let go of many records at once. */
+        BulkUnlinkLegacyRecordsRequest: {
+            /** @description The records to unlink from their students, all or nothing - the undo of a bulk link. Errors are keyed by record id. */
+            records: number[];
         };
         CandidateAssessment: {
             readonly id: number;
@@ -1809,8 +1894,8 @@ export interface components {
             readonly candidate_student_name: string;
             status?: components["schemas"]["CandidateAssessmentStatusEnum"];
             readonly status_display: string;
-            /** Format: email */
-            readonly generated_by_email: string;
+            /** @description Who generated by is, as the record names them: their rank then and their name. */
+            readonly generated_by_name: string;
             /** Format: date-time */
             readonly generated_at: string;
             /** Format: date-time */
@@ -1821,6 +1906,8 @@ export interface components {
             readonly overall: components["schemas"]["AssessmentSummaryCounts"];
             /** @description Whether the viewer may change this assessment's marks, or comment on its items, now: while the session is open, or once it is locked and the viewer is the authorised Master and the candidate's final decision is not yet recorded. */
             readonly marks_open: boolean;
+            /** @description Whether the assessment can be started now: not started, its candidate not withdrawn, and the session open. */
+            readonly can_start: boolean;
             /** @description Whether the viewer may permanently delete this assessment: an administrator, while its candidate's final decision is not recorded. */
             readonly can_delete: boolean;
         };
@@ -1840,12 +1927,16 @@ export interface components {
             readonly notation: string;
             result?: components["schemas"]["ResultEnum"];
             readonly result_display: string;
-            /** Format: email */
-            readonly assessor_email: string;
+            /** @description Who assessor is, as the record names them: their rank then and their name. */
+            readonly assessor_name: string;
             /** Format: date-time */
             readonly assessed_at: string | null;
             readonly comments: components["schemas"]["AssessmentItemComment"][];
             readonly changes: components["schemas"]["AssessmentItemResultChange"][];
+            /** @description Whether the next change to this mark must say why: every change after the first does, and after the lock every one does. */
+            readonly reason_required: boolean;
+            /** @description Whether this mark may be taken away: it has one, and a completed assessment keeps every required item marked. Whether the viewer may change marks at all is the assessment's marks_open. */
+            readonly can_clear: boolean;
         };
         /**
          * @description What a mark returns: the item, and the assessment's rollup as the save
@@ -1868,12 +1959,16 @@ export interface components {
             readonly notation: string;
             result?: components["schemas"]["ResultEnum"];
             readonly result_display: string;
-            /** Format: email */
-            readonly assessor_email: string;
+            /** @description Who assessor is, as the record names them: their rank then and their name. */
+            readonly assessor_name: string;
             /** Format: date-time */
             readonly assessed_at: string | null;
             readonly comments: components["schemas"]["AssessmentItemComment"][];
             readonly changes: components["schemas"]["AssessmentItemResultChange"][];
+            /** @description Whether the next change to this mark must say why: every change after the first does, and after the lock every one does. */
+            readonly reason_required: boolean;
+            /** @description Whether this mark may be taken away: it has one, and a completed assessment keeps every required item marked. Whether the viewer may change marks at all is the assessment's marks_open. */
+            readonly can_clear: boolean;
             /** @description The assessment's overall and per-category counts after this save, the same as GET assessments/<id>/summary/. */
             readonly assessment_summary: components["schemas"]["CandidateAssessmentSummary"];
         };
@@ -1886,6 +1981,8 @@ export interface components {
         CandidateAssessmentStatusEnum: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
         /** @description Overall plus per-category rollup for one assessment. */
         CandidateAssessmentSummary: {
+            /** @description Whether the assessment can be completed now, as these counts leave it: in progress, every required item marked, the candidate not withdrawn and the session open. */
+            readonly can_complete: boolean;
             readonly overall: components["schemas"]["AssessmentSummaryCounts"];
             readonly categories: components["schemas"]["AssessmentCategorySummary"][];
         };
@@ -1893,27 +1990,37 @@ export interface components {
             readonly id: number;
             readonly candidate: number;
             readonly status: components["schemas"]["CandidateOutcomeStatusEnum"];
+            readonly status_display: string;
             readonly proposed_outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
-            readonly proposed_outcome_display: string;
+            readonly proposed_outcome_display: string | null;
+            /** @description Who proposed by is, as the record names them: their rank then and their name. */
             readonly proposed_by_name: string;
             /** Format: date-time */
             readonly proposed_at: string | null;
             readonly proposal_notes: string;
             readonly final_outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
-            readonly final_outcome_display: string;
+            /** @description Null until the final decision is recorded. */
+            readonly final_outcome_display: string | null;
+            /** @description Who decided by is, as the record names them: their rank then and their name. */
             readonly decided_by_name: string;
             /** Format: date-time */
             readonly decided_at: string | null;
             readonly decision_notes: string;
             readonly conditional_requirements: string;
         };
+        /** @description The final decision. It is always given whole: final_outcome is required. */
+        CandidateOutcomeFinaliseRequest: {
+            final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            decision_notes?: string;
+            conditional_requirements?: string;
+        };
         /**
          * @description * `PASS` - Pass
-         *     * `FAIL` - Fail
          *     * `CONDITIONAL` - Conditional
+         *     * `FAIL` - Fail
          * @enum {string}
          */
-        CandidateOutcomeOutcomeEnum: "PASS" | "FAIL" | "CONDITIONAL";
+        CandidateOutcomeOutcomeEnum: "PASS" | "CONDITIONAL" | "FAIL";
         CandidateOutcomeProposalRequest: {
             proposed_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             proposal_notes?: string;
@@ -1928,6 +2035,14 @@ export interface components {
             notes?: string;
         };
         /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        CandidateStatusChoice: {
+            value: components["schemas"]["GradingCandidateStatusEnum"];
+            label: string;
+        };
+        /**
          * @description POST /api/auth/change-password/.
          *
          *     Self-service, unlike set-password: an administrator resetting someone
@@ -1940,6 +2055,32 @@ export interface components {
         ChangePasswordRequest: {
             current_password: string;
             new_password: string;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        Choice: {
+            value: string;
+            label: string;
+        };
+        Choices: {
+            session_statuses: components["schemas"]["SessionStatusChoice"][];
+            student_statuses: components["schemas"]["StudentStatusChoice"][];
+            candidate_statuses: components["schemas"]["CandidateStatusChoice"][];
+            assessment_statuses: components["schemas"]["AssessmentStatusChoice"][];
+            item_results: components["schemas"]["ItemResultChoice"][];
+            /** @description The grading outcomes, in the order the outcome controls offer them. */
+            outcomes: components["schemas"]["OutcomeChoice"][];
+            import_kinds: components["schemas"]["ImportKindChoice"][];
+            /** @description The states an import ends in; the one open state is left out. */
+            finished_import_statuses: components["schemas"]["ImportStatusChoice"][];
+            import_row_outcomes: components["schemas"]["ImportRowOutcomeChoice"][];
+            roles: components["schemas"]["RoleChoice"][];
+            /** @description The per-user authorities, keyed as the user record spells them. */
+            authorities: components["schemas"]["AuthorityChoice"][];
+            /** @description The ranks an instructor's account may hold, lowest first. */
+            staff_ranks: components["schemas"]["StaffRankChoice"][];
         };
         Credit: {
             name: string;
@@ -2046,6 +2187,7 @@ export interface components {
             session: number;
             readonly student: number;
             readonly student_display_name: string;
+            readonly student_first_name: string;
             readonly student_wksa_id: string;
             readonly from_rank: number;
             readonly from_rank_name: string;
@@ -2069,6 +2211,7 @@ export interface components {
             session: number;
             readonly student: number;
             readonly student_display_name: string;
+            readonly student_first_name: string;
             readonly student_wksa_id: string;
             readonly from_rank: number;
             readonly from_rank_name: string;
@@ -2090,6 +2233,10 @@ export interface components {
             readonly can_be_finalised: boolean;
             /** @description Whether the viewer may withdraw this candidate now: the session is locked, the candidate is not withdrawn and has no final decision, and the viewer holds the locked-session override. */
             readonly can_be_withdrawn_after_lock: boolean;
+            /** @description Whether the candidate can be withdrawn as a no-show now: registered, the session draft or open, and their assessment not started. */
+            readonly can_be_marked_absent: boolean;
+            /** @description Whether the candidate's assessment form can be prepared now: they have none, are not withdrawn, and the session is draft or open. */
+            readonly can_prepare_assessment: boolean;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -2143,6 +2290,24 @@ export interface components {
             readonly candidate_count: number;
             readonly completed_assessment_count: number;
             readonly awaiting_decision_count: number;
+            /** @description How many of its candidates have been withdrawn. */
+            readonly withdrawn_count: number;
+            /** @description Whether candidates can still be added, changed, removed and have their forms prepared: the session is draft or open. */
+            readonly roster_open: boolean;
+            /** @description Whether candidates are being graded now: assessments are started, marked and completed while the session is open. */
+            readonly marking_open: boolean;
+            /** @description Whether final decisions are being made now: the session is locked. */
+            readonly decisions_open: boolean;
+            /** @description Whether the viewer may open this session now. */
+            readonly can_open: boolean;
+            /** @description Whether the viewer may ask to lock this session now. Locking itself checks that every assessment is complete. */
+            readonly can_lock: boolean;
+            /** @description Whether the viewer may ask to complete this session now. Completing itself checks that every decision is recorded. */
+            readonly can_complete: boolean;
+            /** @description Whether the viewer may cancel this session now. */
+            readonly can_cancel: boolean;
+            /** @description Whether cancelling it now needs a written reason. */
+            readonly cancel_reason_required: boolean;
             /** @description Whether the requesting user may delete it, by the delete's own rule. */
             readonly can_be_deleted: boolean;
             /**
@@ -2206,8 +2371,10 @@ export interface components {
             readonly committed_by_name: string;
             /** Format: date-time */
             readonly cancelled_at: string | null;
-            /** @description Where the import is up to, so a screen can resume it. */
-            readonly next_step: components["schemas"]["NextStepEnum"];
+            /** @description Where the import is up to, so a screen can resume it: one of the steps its kind serves (site settings, imports.kinds). */
+            readonly next_step: components["schemas"]["ImportStepEnum"];
+            /** @description Where its review stands: REVIEW while rows need attention, otherwise CONFIRM. */
+            readonly review_step: components["schemas"]["ReviewStepEnum"];
             /** @description A roster's column headers, as in the file; empty otherwise. */
             readonly detected_headers: string[];
             /** @description A roster's chosen column for each KukGrade field. */
@@ -2232,10 +2399,8 @@ export interface components {
             };
             /** @description The fields a roster's columns are matched to; empty otherwise. */
             readonly target_fields: components["schemas"]["ImportField"][];
-            /** @description A historical import's chosen rank for each spelling, by the spelling lowercased; a spelling not here is left as written. */
-            readonly rank_mappings: {
-                [key: string]: string;
-            };
+            /** @description A roster's needed fields that no saved column holds and no whole-file value gives, so each row's value is typed in. */
+            readonly uncovered_fields: string[];
             /** @description A historical workbook's grading sheets that were read. */
             readonly grading_sheets: string[];
             /** @description What the reading of the file left out, such as an unknown sheet. */
@@ -2253,17 +2418,13 @@ export interface components {
             sheet?: string;
         };
         /**
-         * @description The new batch's id, plus one-shot creation-response extras: a
-         *     duplicate-hash warning and the file's own headers, so the frontend can
-         *     build its mapping step without a second request. Not persisted state.
+         * @description The new import's id, and whether this exact file was imported before -
+         *     the one thing only the upload knows. Everything else, its headers and
+         *     suggested matches included, is the import's own (batches/{id}/).
          */
         ImportBatchCreated: {
             readonly id: number;
             readonly already_imported_warning: boolean;
-            readonly detected_headers: string[];
-            readonly suggested_mapping: {
-                [key: string]: string;
-            };
         };
         /**
          * @description * `UPLOADED` - Uploaded
@@ -2283,12 +2444,29 @@ export interface components {
             /** @description It can be given once for the whole file. */
             whole_file: boolean;
         };
+        ImportKind: {
+            kind: components["schemas"]["KindEnum"];
+            /** @description The file types this kind of import reads: a suffix and its name. */
+            file_types: components["schemas"]["Choice"][];
+            /** @description The steps this kind of import runs through, in order, named. */
+            steps: components["schemas"]["ImportStep"][];
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ImportKindChoice: {
+            value: components["schemas"]["KindEnum"];
+            label: string;
+        };
         /**
          * @description POST /{id}/mapping/: how a roster maps onto KukGrade.
          *
          *     A column for each field, a whole-file value for a field the file lacks
          *     (current_rank or status only), and the columns to keep as extra
          *     information. A needed field with neither is typed into each row as a fix.
+         *     A refusal names the part it is about: column_mapping, defaults or
+         *     extra_columns.
          */
         ImportMappingRequest: {
             column_mapping: {
@@ -2301,7 +2479,6 @@ export interface components {
             /** @description The file's columns to keep as each student's extra information. */
             extra_columns?: string[];
         };
-        ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
         /** @description POST /{id}/void-records/: void every record a historical import made. */
         ImportRecordsVoidRequest: {
             /** @description Why, kept on every record. */
@@ -2311,7 +2488,6 @@ export interface components {
             /** @description How many records were voided. */
             voided: number;
         };
-        ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
         /** @description One stored row and what the last check made of it. */
         ImportRow: {
             readonly row_number: number;
@@ -2354,10 +2530,57 @@ export interface components {
             /** @description True leaves the row out of the import; false brings it back. */
             excluded: boolean;
         };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ImportRowOutcomeChoice: {
+            value: components["schemas"]["StudentImportRowOutcomeEnum"];
+            label: string;
+        };
+        ImportSecondLook: {
+            /** @description Added rows holding a fix of the importer's. */
+            corrected: number;
+            /** @description Added rows the file gave no status, so one was given them. */
+            given_status: number;
+            /** @description Added rows the file gave no rank, so the whole-file rank was used. */
+            given_rank: number;
+        };
+        ImportSettings: {
+            /** @description The maximum import file size enforced by this deployment, in bytes. */
+            max_bytes: number;
+            /** @description The most rows a roster file may have, blank rows included. */
+            max_rows: number;
+            /** @description How long a finished import's row-by-row list is kept. */
+            rows_kept_for_days: number;
+            /** @description The most past records one link or unlink request takes. */
+            bulk_link_limit: number;
+            kinds: components["schemas"]["ImportKind"][];
+            /** @description The header row of the standard roster template. */
+            template_headers: string[];
+        };
         /** @description POST /{id}/sheet/: read a roster from another sheet of its workbook. */
         ImportSheetRequest: {
             sheet: string;
         };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ImportStatusChoice: {
+            value: components["schemas"]["ImportBatchStatusEnum"];
+            label: string;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ImportStep: {
+            value: components["schemas"]["ImportStepEnum"];
+            label: string;
+        };
+        /** @enum {string} */
+        ImportStepEnum: "CHOOSE_FILE" | "MATCH" | "REVIEW" | "CONFIRM" | "RESULTS";
         /**
          * @description The account, with the temporary password just issued for it.
          *
@@ -2372,9 +2595,19 @@ export interface components {
             email: string;
             first_name?: string;
             last_name?: string;
+            /** @description Their name; never their email address. */
             readonly full_name: string;
             role?: components["schemas"]["RoleEnum"];
             readonly role_display: string;
+            /** @description An instructor's rank, one of the instructor ranks (`/api/choices/`); required when an instructor account is made. An administrator account has none. */
+            rank?: number | null;
+            /**
+             * @description The rank's name; blank for an account with no rank.
+             * @default
+             */
+            readonly rank_name: string;
+            /** @description What an account made before a rule still lacks: a name, or an instructor's rank. Empty when it is complete. */
+            readonly missing_details: components["schemas"]["MissingDetail"][];
             is_active?: boolean;
             readonly can_make_final_grading_decision: boolean;
             readonly can_promote_student: boolean;
@@ -2392,21 +2625,30 @@ export interface components {
             readonly temporary_password: string;
         };
         /**
-         * @description * `STUDENT_ROSTER` - Student roster
-         *     * `LEGACY_GRADINGS` - Historical grading records
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        ItemResultChoice: {
+            value: components["schemas"]["ResultEnum"];
+            label: string;
+        };
+        /**
+         * @description * `STUDENT_ROSTER` - Students
+         *     * `LEGACY_GRADINGS` - Past gradings
          * @enum {string}
          */
         KindEnum: "STUDENT_ROSTER" | "LEGACY_GRADINGS";
         /**
          * @description Read-mostly, matching PromotionSerializer's idiom - no ordinary
-         *     update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
-         *     the five reconciliation actions below.
+         *     update/delete exists (LegacyGradingRecord is kukgrade.kept), only
+         *     the reconciliation actions on LegacyGradingRecordViewSet.
          */
         LegacyGradingRecord: {
             readonly id: number;
             readonly student: number | null;
             readonly student_display_name: string | null;
             readonly record_kind: components["schemas"]["RecordKindEnum"];
+            readonly record_kind_display: string;
             readonly cycle_year: number;
             readonly cycle_month: number;
             readonly source_batch: number;
@@ -2428,8 +2670,8 @@ export interface components {
             readonly note: string;
             readonly is_void: boolean;
             readonly void_reason: string;
-            /** Format: email */
-            readonly voided_by_email: string | null;
+            /** @description Who voided by is, as the record names them: their rank then and their name. */
+            readonly voided_by_name: string;
         };
         LegacyImportPreview: {
             total: number;
@@ -2446,24 +2688,32 @@ export interface components {
             rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
         };
         /**
-         * @description Shared request shape for the historical preview and commit actions.
+         * @description The historical preview's request: the rank choices to save, if any.
          *
          *     Keys are the source rank text exactly as it appeared in the workbook
-         *     (case-insensitive on the service side); a null/omitted value explicitly
-         *     means "leave unresolved" - never a block on committing that row,
-         *     unlike the student roster importer's required rank.
+         *     (case-insensitive on the service side); a null value explicitly means
+         *     "leave unresolved" - never a block on committing that row, unlike the
+         *     student roster importer's required rank. Left out, the stored choices
+         *     are kept.
          */
         LegacyImportRequest: {
             rank_mappings?: {
                 [key: string]: string | null;
             };
         };
-        /** @description Names still to link, by how clear their suggested students are. */
+        /**
+         * @description Names still to link, by how clear their suggested students are, and the
+         *     other counts the linking screens show.
+         */
         LegacyPeopleSummary: {
             /** @description Names with a record still to link. */
             names: number;
             /** @description Names with every record linked; set_aside does not apply. */
             linked: number;
+            /** @description Names with any record linked; set_aside does not apply. */
+            with_a_link: number;
+            /** @description Names still to link that the viewer has put aside for now. */
+            set_aside: number;
             /** @description One student fits clearly. */
             clear: number;
             /** @description Several students fit equally well. */
@@ -2478,8 +2728,8 @@ export interface components {
             readonly record_ids: number[];
             /** @description How many records. */
             readonly records: number;
-            readonly first_period: string;
-            readonly last_period: string;
+            first_period: string;
+            last_period: string;
             /** @description The student every record here is linked to, if one is. */
             readonly linked_student: number | null;
             /** @description Several students fit equally well: a person has to choose. */
@@ -2487,9 +2737,9 @@ export interface components {
             /** @description That student's name, when every record here is linked to one. */
             readonly linked_student_name: string | null;
             /** @description The ranks the records give, as written, in date order. */
-            readonly ranks: string[];
+            ranks: string[];
             /** @description Whether a rank is written on a record but not matched to one yet. */
-            readonly needs_rank: boolean;
+            needs_rank: boolean;
             /**
              * @description How clear the suggested students are, from the candidates.
              *
@@ -2499,6 +2749,16 @@ export interface components {
              */
             suggestion: components["schemas"]["SuggestionEnum"];
             candidates: components["schemas"]["SuggestedStudent"][];
+        };
+        /**
+         * @description * `current_rank` - current rank
+         *     * `testing_for_rank` - testing-for rank
+         * @enum {string}
+         */
+        LegacyRankFieldEnum: "current_rank" | "testing_for_rank";
+        LegacyRecordCounts: {
+            /** @description Someone's records not yet linked to a student: not voided, not a sheet note. */
+            awaiting_link: number;
         };
         LegacyRecordLinkRequest: {
             record: number;
@@ -2522,6 +2782,20 @@ export interface components {
             password: string;
         };
         /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        MissingDetail: {
+            value: components["schemas"]["MissingDetailValueEnum"];
+            label: string;
+        };
+        /**
+         * @description * `name` - Needs a name
+         *     * `rank` - Needs a rank
+         * @enum {string}
+         */
+        MissingDetailValueEnum: "name" | "rank";
+        /**
          * @description * `PREPARE_ASSESSMENT` - Prepare assessment
          *     * `START_ASSESSMENT` - Start assessment
          *     * `CONTINUE_ASSESSMENT` - Continue assessment
@@ -2535,10 +2809,16 @@ export interface components {
          * @enum {string}
          */
         NextActionEnum: "PREPARE_ASSESSMENT" | "START_ASSESSMENT" | "CONTINUE_ASSESSMENT" | "VIEW_ASSESSMENT" | "PROPOSE_OUTCOME" | "REVIEW_PROPOSAL" | "REVIEW_DECISION" | "VIEW_DECISION" | "PROMOTION_LEDGER" | "NONE";
-        /** @enum {string} */
-        NextStepEnum: "MATCH_COLUMNS" | "REVIEW" | "CLOSED";
         /** @enum {unknown} */
         NullEnum: null;
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        OutcomeChoice: {
+            value: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            label: string;
+        };
         PaginatedAgeBandList: {
             /** @example 123 */
             count: number;
@@ -2786,11 +3066,6 @@ export interface components {
             status?: components["schemas"]["CandidateAssessmentStatusEnum"];
             notes?: string;
         };
-        PatchedCandidateOutcomeFinaliseRequest: {
-            final_outcome?: components["schemas"]["CandidateOutcomeOutcomeEnum"];
-            decision_notes?: string;
-            conditional_requirements?: string;
-        };
         PatchedGradingCandidateRequest: {
             session?: number;
         };
@@ -2875,6 +3150,8 @@ export interface components {
             first_name?: string;
             last_name?: string;
             role?: components["schemas"]["RoleEnum"];
+            /** @description An instructor's rank, one of the instructor ranks (`/api/choices/`); required when an instructor account is made. An administrator account has none. */
+            rank?: number | null;
             is_active?: boolean;
         };
         Pledge: {
@@ -2939,6 +3216,8 @@ export interface components {
             doubtful: boolean;
             /** @description How many rows use this text. */
             rows: number;
+            /** @description The rank chosen for this spelling, or null while it has none. */
+            chosen_rank_code: string | null;
         };
         /**
          * @description * `GRADING_RESULT` - Grading result
@@ -2951,8 +3230,12 @@ export interface components {
             candidate: components["schemas"]["GradingCandidate"];
             assessment: components["schemas"]["CandidateAssessment"] | null;
         };
-        /** @description `rank=null` explicitly leaves the mapping unresolved. */
+        /**
+         * @description Which of the record's ranks to map; `rank=null` explicitly leaves it
+         *     unresolved.
+         */
         ResolveLegacyRankRequest: {
+            field: components["schemas"]["LegacyRankFieldEnum"];
             rank: number | null;
         };
         /**
@@ -2962,6 +3245,16 @@ export interface components {
          * @enum {string}
          */
         ResultEnum: "NOT_ASSESSED" | "MET" | "NOT_MET";
+        /** @enum {string} */
+        ReviewStepEnum: "REVIEW" | "CONFIRM";
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        RoleChoice: {
+            value: components["schemas"]["RoleEnum"];
+            label: string;
+        };
         /**
          * @description * `instructor` - Instructor
          *     * `administrator` - Administrator
@@ -2972,6 +3265,14 @@ export interface components {
             club_name: string;
             /** @description The school's own prefix in student IDs, such as 123-4. */
             school_id_prefix: string;
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        SessionStatusChoice: {
+            value: components["schemas"]["GradingSessionStatusEnum"];
+            label: string;
         };
         /** @description Names put aside on the linking page, as group keys. */
         SetAsideNames: {
@@ -2990,8 +3291,8 @@ export interface components {
             code: string;
             /** Format: email */
             email: string;
-            first_name?: string;
-            last_name?: string;
+            first_name: string;
+            last_name: string;
             password: string;
         };
         /** @description GET /api/setup/. */
@@ -3003,19 +3304,23 @@ export interface components {
             club_name: string;
             /** @description The club's time zone (an IANA name). Times are shown in it, and 'today' is today there. */
             time_zone: string;
-            /** @description The maximum import file size enforced by this deployment, in bytes. */
-            import_upload_max_bytes: number;
+            imports: components["schemas"]["ImportSettings"];
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
             /** @description Present only on the public demo: its accounts and when it resets. */
             demo?: components["schemas"]["Demo"];
         };
         /**
-         * @description * `KUKGRADE` - KUKGRADE
-         *     * `LEGACY` - LEGACY
+         * @description * `KUKGRADE` - A grading in KukGrade
+         *     * `LEGACY` - A historical record
          * @enum {string}
          */
         SourceEnum: "KUKGRADE" | "LEGACY";
+        StaffRankChoice: {
+            /** @description The rank's id, as a user's `rank`. */
+            value: number;
+            label: string;
+        };
         /** @description A final decision chosen but not yet recorded, seen only by whoever chose it. */
         StagedDecision: {
             readonly outcome: number;
@@ -3057,6 +3362,14 @@ export interface components {
             readonly current_rank_name: string;
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
+            readonly can_be_graded: boolean;
+            /** @description The rank the student would be graded for next: their next active rank, when its syllabus is recorded. Null when there is none. */
+            readonly next_rank: number | null;
+            readonly next_rank_name: string | null;
+            /** @description Whether the viewer may delete this student now: they may delete students, and no grading the student is in is waiting for its final decision. */
+            readonly can_be_deleted: boolean;
+            /** @description Why the student cannot be deleted yet, naming the grading that waits for its decision; null when nothing stands in the way. */
+            readonly deletion_blocked_by: string | null;
             readonly age_band_display: string;
             /** Format: date-time */
             readonly deleted_at: string | null;
@@ -3076,32 +3389,6 @@ export interface components {
         StudentGradingHistory: {
             items: components["schemas"]["GradingHistoryItem"][];
         };
-        /** @description One row's corrected values, by target field; any may be left out. */
-        StudentImportCorrectionRequest: {
-            wksa_id?: string;
-            first_name?: string;
-            last_name?: string;
-            date_of_birth?: string;
-            current_rank?: string;
-            status?: string;
-        };
-        StudentImportPreview: {
-            total: number;
-            ready: number;
-            review_required: number;
-            skip_existing: number;
-            excluded: number;
-            rows: components["schemas"]["StudentImportRowResult"][];
-        };
-        /** @description Shared request shape for the preview and commit actions. */
-        StudentImportRequest: {
-            column_mapping: {
-                [key: string]: string;
-            };
-            corrections?: {
-                [key: string]: components["schemas"]["StudentImportCorrectionRequest"];
-            };
-        };
         /**
          * @description * `READY` - Ready
          *     * `REVIEW_REQUIRED` - Needs attention
@@ -3110,17 +3397,6 @@ export interface components {
          * @enum {string}
          */
         StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING" | "EXCLUDED";
-        StudentImportRowResult: {
-            row_number: number;
-            outcome: components["schemas"]["StudentImportRowOutcomeEnum"];
-            wksa_id: string;
-            first_name: string;
-            last_name: string;
-            date_of_birth_display: string;
-            current_rank_text: string;
-            status: string;
-            issues: string[];
-        };
         /**
          * @description The list representation. Deliberately excludes date of birth.
          *
@@ -3139,6 +3415,9 @@ export interface components {
             readonly status: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
             readonly can_be_graded: boolean;
+            /** @description The rank the student would be graded for next: their next active rank, when its syllabus is recorded. Null when there is none. */
+            readonly next_rank: number | null;
+            readonly next_rank_name: string | null;
             /**
              * @description On the session's grading date when the list is filtered by eligible_for_session, otherwise today.
              *
@@ -3173,6 +3452,16 @@ export interface components {
             date_of_birth: string;
             current_rank: number;
             status?: components["schemas"]["StudentStatusEnum"];
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        StudentStatusChoice: {
+            value: components["schemas"]["StudentStatusEnum"];
+            label: string;
+            /** @description What the status means. */
+            description: string;
         };
         /**
          * @description * `ACTIVE` - Active
@@ -3213,6 +3502,8 @@ export interface components {
          * @enum {string}
          */
         SyllabusItemCategoryEnum: "ETIQUETTE" | "FUNDAMENTALS" | "HAND_TECHNIQUES" | "KICKING" | "FALLING" | "BREAKING" | "TECHNIQUE_SET" | "FORM" | "WEAPONS" | "OTHER";
+        /** @enum {string} */
+        ToneEnum: "success" | "warning" | "info" | "neutral";
         User: {
             /** Format: uuid */
             readonly id: string;
@@ -3220,6 +3511,7 @@ export interface components {
             readonly email: string;
             readonly first_name: string;
             readonly last_name: string;
+            /** @description Their name; never their email address. */
             readonly full_name: string;
             readonly role_display: string;
             readonly can_make_final_grading_decision: boolean;
@@ -3251,9 +3543,19 @@ export interface components {
             email: string;
             first_name?: string;
             last_name?: string;
+            /** @description Their name; never their email address. */
             readonly full_name: string;
             role?: components["schemas"]["RoleEnum"];
             readonly role_display: string;
+            /** @description An instructor's rank, one of the instructor ranks (`/api/choices/`); required when an instructor account is made. An administrator account has none. */
+            rank?: number | null;
+            /**
+             * @description The rank's name; blank for an account with no rank.
+             * @default
+             */
+            readonly rank_name: string;
+            /** @description What an account made before a rule still lacks: a name, or an instructor's rank. Empty when it is complete. */
+            readonly missing_details: components["schemas"]["MissingDetail"][];
             is_active?: boolean;
             readonly can_make_final_grading_decision: boolean;
             readonly can_promote_student: boolean;
@@ -3284,15 +3586,17 @@ export interface components {
             first_name?: string;
             last_name?: string;
             role?: components["schemas"]["RoleEnum"];
+            /** @description An instructor's rank, one of the instructor ranks (`/api/choices/`); required when an instructor account is made. An administrator account has none. */
+            rank?: number | null;
             is_active?: boolean;
         };
         VoidLegacyRecordRequest: {
             reason: string;
         };
-        /** @description One withdrawal reason, from its code, and whether it needs a note. */
+        /** @description One withdrawal reason, and whether it needs a note. */
         WithdrawalReason: {
-            readonly code: components["schemas"]["WithdrawalReasonEnum"];
-            readonly name: string;
+            value: components["schemas"]["WithdrawalReasonEnum"];
+            label: string;
             readonly note_required: boolean;
         };
         /**
@@ -3423,7 +3727,7 @@ export interface operations {
     audit_events_list: {
         parameters: {
             query?: {
-                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "AUDIT_REDACTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_ARCHIVED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_RESTORED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
+                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "AUDIT_REDACTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_ARCHIVED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_RESTORED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
                 entity_id?: string;
                 entity_type?: "AuditLog" | "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
@@ -3604,9 +3908,30 @@ export interface operations {
             };
         };
     };
+    choices_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Choices"];
+                };
+            };
+        };
+    };
     data_imports_batches_list: {
         parameters: {
             query?: {
+                /** @description Only finished imports (imported, cancelled or expired), or only those still open. */
+                finished?: boolean;
                 kind?: "LEGACY_GRADINGS" | "STUDENT_ROSTER";
                 /** @description A page number within the paginated result set. */
                 page?: number;
@@ -3652,6 +3977,129 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportBatchCreated"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_list: {
+        parameters: {
+            query?: {
+                /** @description Only rows with (or without) a fix of the importer's. */
+                corrected?: boolean;
+                /** @description A roster's rows whose value for this field the file did not give and nobody typed in, so the whole-file value or KukGrade's default was used. */
+                filled?: "current_rank" | "status";
+                /** @description Only rows with this outcome. */
+                outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A historical import's rows that write a rank this way, held or tested for (any case). */
+                rank_text?: string;
+                /** @description A historical import's rows of these kinds. Comma-separated; one of AUXILIARY_NOTE, DID_NOT_ATTEND, GRADING_RESULT. */
+                record_kind?: string;
+                /** @description Any of the row's values. */
+                search?: string;
+                /** @description Only rows with (or without) issues: for a historical import, the records worth a look, left out or not. */
+                worth_a_look?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedImportRowList"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+                /** @description The row's number in the file. */
+                row_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedImportRowCorrectionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedImportRowCorrectionRequest"];
+                "multipart/form-data": components["schemas"]["PatchedImportRowCorrectionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_exclusion_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+                /** @description The row's number in the file. */
+                row_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRowExclusionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRowExclusionRequest"];
+                "multipart/form-data": components["schemas"]["ImportRowExclusionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_leave_out_attention_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
         };
@@ -3709,13 +4157,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportRequestRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportRequestRequest"];
-                "application/json": components["schemas"]["ImportRequestRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -3767,9 +4209,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "multipart/form-data": components["schemas"]["ImportRequestRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportRequestRequest"];
-                "application/json": components["schemas"]["ImportRequestRequest"];
+                "multipart/form-data": components["schemas"]["LegacyImportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LegacyImportRequest"];
+                "application/json": components["schemas"]["LegacyImportRequest"];
             };
         };
         responses: {
@@ -3778,111 +4220,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImportPreview"];
+                    "application/json": components["schemas"]["LegacyImportPreview"];
                 };
             };
         };
     };
-    data_imports_batches_rows_list: {
-        parameters: {
-            query?: {
-                /** @description Only rows with (or without) a fix of the importer's. */
-                corrected?: boolean;
-                /** @description A roster's rows whose value for this field the file did not give and nobody typed in, so the whole-file value or KukGrade's default was used. */
-                filled?: "current_rank" | "status";
-                /** @description Only rows with this outcome. */
-                outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-                /** @description A historical import's rows that write a rank this way, held or tested for (any case). */
-                rank_text?: string;
-                /** @description A historical import's rows of these kinds, comma-separated: GRADING_RESULT, AUXILIARY_NOTE, DID_NOT_ATTEND. */
-                record_kind?: string;
-                /** @description Matches any of the row's values. */
-                search?: string;
-                /** @description Only rows with (or without) issues. */
-                worth_a_look?: boolean;
-            };
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedImportRowList"];
-                };
-            };
-        };
-    };
-    data_imports_batches_rows_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-                row_number: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "multipart/form-data": components["schemas"]["PatchedImportRowCorrectionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedImportRowCorrectionRequest"];
-                "application/json": components["schemas"]["PatchedImportRowCorrectionRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportRow"];
-                };
-            };
-        };
-    };
-    data_imports_batches_rows_exclusion_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-                row_number: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportRowExclusionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportRowExclusionRequest"];
-                "application/json": components["schemas"]["ImportRowExclusionRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportRow"];
-                };
-            };
-        };
-    };
-    data_imports_batches_rows_leave_out_attention_create: {
+    data_imports_batches_second_look_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -3899,7 +4242,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImportBatch"];
+                    "application/json": components["schemas"]["ImportSecondLook"];
                 };
             };
         };
@@ -4175,6 +4518,8 @@ export interface operations {
                 /** @description A candidate's name, WKSA ID, ranks or status. */
                 search?: string;
                 session?: number;
+                /** @description Only withdrawn candidates, or only those still being graded. */
+                withdrawn?: boolean;
             };
             header?: never;
             path?: never;
@@ -4504,35 +4849,7 @@ export interface operations {
             };
         };
     };
-    gradings_legacy_records_resolve_current_rank_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this legacy grading record. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ResolveLegacyRankRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ResolveLegacyRankRequest"];
-                "multipart/form-data": components["schemas"]["ResolveLegacyRankRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyGradingRecord"];
-                };
-            };
-        };
-    };
-    gradings_legacy_records_resolve_testing_for_rank_create: {
+    gradings_legacy_records_resolve_rank_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -4631,6 +4948,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyGradingRecord"][];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_bulk_unlink_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
+                "multipart/form-data": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"][];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_counts_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Only this import's. */
+                batch?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyRecordCounts"];
                 };
             };
         };
@@ -4749,11 +5113,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
+                "application/json": components["schemas"]["CandidateOutcomeFinaliseRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandidateOutcomeFinaliseRequest"];
+                "multipart/form-data": components["schemas"]["CandidateOutcomeFinaliseRequest"];
             };
         };
         responses: {
@@ -4924,10 +5288,14 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Only sessions that accept candidates (draft or open), or only those that no longer do. */
+                roster_open?: boolean;
                 /** @description The title, location, notes, status and date of a session. */
                 search?: string;
                 /** @description Comma-separated; one of CANCELLED, COMPLETED, DRAFT, LOCKED, OPEN. */
                 status?: string;
+                /** @description Only sessions held in this year. */
+                year?: number;
             };
             header?: never;
             path?: never;
@@ -5437,7 +5805,13 @@ export interface operations {
     syllabus_requirements_effective_list: {
         parameters: {
             query: {
-                age_band: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
+                /**
+                 * @description * `AGE_8_AND_UNDER` - 8 and under
+                 *     * `AGE_9_TO_12` - 9-12
+                 *     * `AGE_13_TO_17` - 13-17
+                 *     * `AGE_18_AND_OVER` - 18+
+                 */
+                age_band: "AGE_8_AND_UNDER" | "AGE_9_TO_12" | "AGE_13_TO_17" | "AGE_18_AND_OVER";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */

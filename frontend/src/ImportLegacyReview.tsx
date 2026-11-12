@@ -1,12 +1,15 @@
+import { labelOf, useChoices } from "./choices";
 import { useState } from "react";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { type DataImportBatch, type LegacyImportPreview } from "./api";
 import { usePagedRows } from "./useImportRows";
-import { counted } from "./importSteps";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
 import { CountTiles, ExclusionButton, LastLook, ListHead, RowLines, RowsList } from "./ImportReviewParts";
-import { PAGE_SIZE, RowParams, Tile, useRowExclusion, where } from "./importReviewRows";
+import { PAGE_SIZE, RowParams, Tile, useRowExclusion } from "./importReviewRows";
+import { importKinds } from "./importKinds";
+import { counted } from "./plural";
+import { CheckIcon, ExclamationIcon, InfoIcon, MinusIcon } from "./Icons";
 
 type LegacyView = "attention" | "results" | "others" | "EXCLUDED" | "check";
 
@@ -44,17 +47,36 @@ export function LegacyReview({
   );
   const exclusion = useRowExclusion(batch, onRefresh, announce);
 
+  const leftOut = labelOf(useChoices().import_row_outcomes, "EXCLUDED");
   const tiles: Tile<LegacyView>[] = [
-    { key: "results", label: "Grading results", count: preview?.grading_result ?? 0, tone: "ix-success-text", mark: "✓" },
-    { key: "attention", label: "Worth a look", count: preview?.worth_a_look ?? 0, tone: "ix-warning-text", mark: "!" },
+    {
+      key: "results",
+      label: "Grading results",
+      count: preview?.grading_result ?? 0,
+      tone: "ix-success-text",
+      mark: <CheckIcon size={22} />,
+    },
+    {
+      key: "attention",
+      label: "Worth a look",
+      count: preview?.worth_a_look ?? 0,
+      tone: "ix-warning-text",
+      mark: <ExclamationIcon size={22} />,
+    },
     {
       key: "others",
       label: "Did not attend and notes",
       count: (preview?.did_not_attend ?? 0) + (preview?.auxiliary_note ?? 0),
       tone: "",
-      mark: "i",
+      mark: <InfoIcon size={22} />,
     },
-    { key: "EXCLUDED", label: "Left out", count: batch.row_counts.excluded, tone: "subtext", mark: "–" },
+    {
+      key: "EXCLUDED",
+      label: leftOut,
+      count: batch.row_counts.excluded,
+      tone: "subtext",
+      mark: <MinusIcon size={22} />,
+    },
   ];
   const heads: Record<LegacyView, [string, string]> = {
     attention: [
@@ -63,7 +85,7 @@ export function LegacyReview({
     ],
     results: ["Grading results", "One per student per grading, with the comments kept in full as the grading report."],
     others: ["Did not attend and notes", "Kept as they are: who did not attend, and notes written beside the tables."],
-    EXCLUDED: ["Left out", "These records will not be imported. Bring one back any time before you confirm."],
+    EXCLUDED: [leftOut, "These records will not be imported. Bring one back any time before you confirm."],
     check: [
       `${counted(ready, "record", "records")} will be imported`,
       "In workbook order, exactly as written, with the comments in full. Records you left out are not in this list.",
@@ -86,7 +108,8 @@ export function LegacyReview({
           title={heads[view][0]}
         />
         <RowsList
-          empty={view === "attention" ? "✓ Nothing to look at: every record reads as KukGrade expects." : undefined}
+          kind={batch.kind}
+          empty={view === "attention" ? "Nothing to look at: every record reads as KukGrade expects." : undefined}
           exclusion={exclusion}
           rows={rows}
         >
@@ -105,11 +128,12 @@ export function LegacyReview({
                       primary: true,
                       render: (row) => row.values.name || (row.values.note ? "Sheet note" : "(no name)"),
                     },
-                    { key: "where", header: "Sheet · row", render: (row) => where(row, batch.kind) },
+                    { key: "where", header: "Sheet · row", render: (row) => importKinds[batch.kind].where(row) },
                     {
                       key: "ranks",
                       header: "Ranks",
-                      render: (row) => [row.values.current_rank, row.values.testing_for_rank].filter(Boolean).join(" → "),
+                      render: (row) =>
+                        [row.values.current_rank, row.values.testing_for_rank].filter(Boolean).join(" → "),
                     },
                     { key: "outcome", header: "Outcome", render: (row) => row.values.outcome },
                     {

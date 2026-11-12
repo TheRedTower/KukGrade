@@ -6,13 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { ApiError, NETWORK_ERROR } from "./api";
-import type {
-  AuthUser,
-  CandidateOutcome,
-  GradingCandidate,
-  GradingSession,
-  Promotion,
-} from "./api";
+import type { AuthUser, CandidateOutcome, GradingCandidate, GradingSession, Promotion } from "./api";
+import { sessionServed } from "./appTestSupport";
 
 let mockCurrentUser: AuthUser = {
   id: "uuid-master",
@@ -89,12 +84,15 @@ const mockSession: GradingSession = {
   candidate_count: 0,
   completed_assessment_count: 0,
   awaiting_decision_count: 0,
-  can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+  ...sessionServed("LOCKED"),
+  can_be_deleted: false,
+  archived_at: null,
+  can_be_archived: false,
+  can_be_restored: false,
   grading_date: "2026-10-15",
   location: "Main Dojang",
   notes: "Annual autumn examination",
 };
-
 
 // A locked session: every candidate's assessment is completed.
 const mockCandidates: GradingCandidate[] = [
@@ -103,6 +101,7 @@ const mockCandidates: GradingCandidate[] = [
     session: 1,
     student: 50,
     student_display_name: "Alex Mercer",
+    student_first_name: "Alex",
     student_wksa_id: "K-88231",
     from_rank: 2,
     from_rank_name: "Yellow stripe",
@@ -121,6 +120,7 @@ const mockCandidates: GradingCandidate[] = [
     session: 1,
     student: 51,
     student_display_name: "Beth Harmon",
+    student_first_name: "Beth",
     student_wksa_id: "K-88232",
     from_rank: 3,
     from_rank_name: "Yellow",
@@ -139,6 +139,7 @@ const mockCandidates: GradingCandidate[] = [
     session: 1,
     student: 52,
     student_display_name: "Carlos Rivera",
+    student_first_name: "Carlos",
     student_wksa_id: "K-88233",
     from_rank: 2,
     from_rank_name: "Yellow stripe",
@@ -157,6 +158,7 @@ const mockCandidates: GradingCandidate[] = [
     session: 1,
     student: 53,
     student_display_name: "Diana Prince",
+    student_first_name: "Diana",
     student_wksa_id: "K-88234",
     from_rank: 2,
     from_rank_name: "Yellow stripe",
@@ -175,6 +177,7 @@ const mockCandidates: GradingCandidate[] = [
     session: 1,
     student: 54,
     student_display_name: "Ethan Hunt",
+    student_first_name: "Ethan",
     student_wksa_id: "K-88235",
     from_rank: 2,
     from_rank_name: "Yellow stripe",
@@ -193,6 +196,7 @@ const mockCandidates: GradingCandidate[] = [
     session: 1,
     student: 55,
     student_display_name: "Fiona Gallagher",
+    student_first_name: "Fiona",
     student_wksa_id: "K-88236",
     from_rank: 2,
     from_rank_name: "Yellow stripe",
@@ -218,6 +222,7 @@ const mockOutcomes: CandidateOutcome[] = [
     proposed_at: "2026-10-15T16:00:00Z",
     proposal_notes: "",
     status: "FINALISED",
+    status_display: "Finalised",
     final_outcome: "PASS",
     final_outcome_display: "Pass",
     decided_by_name: "In Hyuk Kim",
@@ -234,6 +239,7 @@ const mockOutcomes: CandidateOutcome[] = [
     proposed_at: "2026-10-15T16:00:00Z",
     proposal_notes: "",
     status: "FINALISED",
+    status_display: "Finalised",
     final_outcome: "PASS",
     final_outcome_display: "Pass",
     decided_by_name: "In Hyuk Kim",
@@ -250,6 +256,7 @@ const mockOutcomes: CandidateOutcome[] = [
     proposed_at: "2026-10-15T16:00:00Z",
     proposal_notes: "",
     status: "FINALISED",
+    status_display: "Finalised",
     final_outcome: "PASS",
     final_outcome_display: "Pass",
     decided_by_name: "In Hyuk Kim",
@@ -266,6 +273,7 @@ const mockOutcomes: CandidateOutcome[] = [
     proposed_at: "2026-10-15T16:00:00Z",
     proposal_notes: "",
     status: "FINALISED",
+    status_display: "Finalised",
     final_outcome: "CONDITIONAL",
     final_outcome_display: "Conditional",
     decided_by_name: "In Hyuk Kim",
@@ -282,6 +290,7 @@ const mockOutcomes: CandidateOutcome[] = [
     proposed_at: "2026-10-15T16:00:00Z",
     proposal_notes: "",
     status: "FINALISED",
+    status_display: "Finalised",
     final_outcome: "FAIL",
     final_outcome_display: "Fail",
     decided_by_name: "In Hyuk Kim",
@@ -298,8 +307,9 @@ const mockOutcomes: CandidateOutcome[] = [
     proposed_at: "2026-10-15T15:00:00Z",
     proposal_notes: "",
     status: "PROPOSED",
+    status_display: "Proposed",
     final_outcome: null,
-    final_outcome_display: "",
+    final_outcome_display: null,
     decided_by_name: "",
     decided_at: null,
     decision_notes: "",
@@ -333,10 +343,7 @@ const mockExistingPromotions: Promotion[] = [
   }),
 ];
 
-function renderScreen(
-  sessionId = 1,
-  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
-) {
+function renderScreen(sessionId = 1, queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/gradings/${sessionId}/promotions`]}>
@@ -403,33 +410,21 @@ describe("PromotionLedgerScreen", () => {
     ]);
   });
 
-  it("renders screen header, breadcrumbs, candidate rows, and summary banner", async () => {
+  it("renders screen header, the way back, candidate rows, and summary banner", async () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("heading", { name: "Autumn 2026 Grading — Promotion Ledger" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Autumn 2026 Grading — Promotion ledger" })).toBeInTheDocument();
     });
 
-    // Breadcrumb navigation
-    expect(screen.getByRole("link", { name: "Gradings" })).toHaveAttribute(
-      "href",
-      "/gradings",
-    );
-    expect(screen.getByRole("link", { name: "Autumn 2026 Grading" })).toHaveAttribute(
-      "href",
-      "/gradings/1",
-    );
-    expect(screen.getByText("Promotion Ledger", { selector: "[aria-current=\"page\"]" })).toBeInTheDocument();
+    // Back to the session the ledger belongs to.
+    expect(screen.getByRole("link", { name: "Autumn 2026 Grading" })).toHaveAttribute("href", "/gradings/1");
 
     // Summary banner (Alex and Beth are eligible, Carlos is already promoted)
-    expect(
-      screen.getByText("2 Candidates Finalised with Pass · Eligible for Promotion"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("2 candidates passed and ready to promote")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: /Promote Qualified Cohort \(2 Candidates\)/i,
+        name: /^Promote 2 candidates$/i,
       }),
     ).toBeInTheDocument();
 
@@ -444,7 +439,12 @@ describe("PromotionLedgerScreen", () => {
 
   it("uses the server's black-belt ID blocker instead of marking a pass eligible", async () => {
     mockGetPromotionEligibility.mockResolvedValue([
-      { candidate: 101, outcome: 101, eligible: false, reason: "Record Alex Mercer's black belt ID before promoting them to JKN." },
+      {
+        candidate: 101,
+        outcome: 101,
+        eligible: false,
+        reason: "Record Alex Mercer's black belt ID before promoting them to JKN.",
+      },
       { candidate: 102, outcome: 102, eligible: true, reason: "" },
       { candidate: 103, outcome: 103, eligible: false, reason: "Outcome already has a promotion." },
       { candidate: 104, outcome: 104, eligible: false, reason: "Only a pass can be promoted." },
@@ -456,7 +456,7 @@ describe("PromotionLedgerScreen", () => {
     const row = await screen.findByTestId("promotion-row-101");
     expect(row).toHaveTextContent("black belt ID");
     expect(screen.queryByTestId("promote-candidate-btn-101")).not.toBeInTheDocument();
-    expect(screen.getByText("1 Candidate Finalised with Pass · Eligible for Promotion")).toBeInTheDocument();
+    expect(screen.getByText("1 candidate passed and ready to promote")).toBeInTheDocument();
   });
 
   it("blocks promotion when the promotions could not be loaded, until a retry succeeds", async () => {
@@ -468,14 +468,13 @@ describe("PromotionLedgerScreen", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("could not be loaded");
     expect(screen.queryByText("Carlos Rivera")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Promote Qualified Cohort/i })).toBeDisabled();
+    // Nobody can be promoted from a ledger that did not load: no button is offered.
+    expect(screen.queryByRole("button", { name: /^Promote \d+ candidates?$/i })).not.toBeInTheDocument();
 
     await user.click(within(alert).getByRole("button", { name: "Try again" }));
 
     expect(await screen.findByText("Carlos Rivera")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Promote Qualified Cohort \(2 Candidates\)/i }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^Promote 2 candidates$/i })).toBeEnabled();
   });
 
   it("displays correct eligibility badges and action states across candidate statuses", async () => {
@@ -495,16 +494,14 @@ describe("PromotionLedgerScreen", () => {
     const row102 = screen.getByTestId("promotion-row-102");
     expect(row102).toHaveTextContent("Pass (Finalised)");
     expect(row102).toHaveTextContent("Eligible for Blue Stripe");
-    expect(screen.getByTestId("promote-candidate-btn-102")).toHaveTextContent(
-      "Promote to Blue Stripe",
-    );
+    expect(screen.getByTestId("promote-candidate-btn-102")).toHaveTextContent("Promote to Blue Stripe");
 
     // Row 103 (Carlos Rivera): Already promoted to Yellow
     const row103 = screen.getByTestId("promotion-row-103");
     expect(row103).toHaveTextContent("Pass (Finalised)");
-    expect(row103).toHaveTextContent("Promoted to Yellow ✓");
+    expect(row103).toHaveTextContent("Promoted to Yellow");
     expect(row103).toHaveTextContent("Effective 15 Oct 2026");
-    expect(row103).toHaveTextContent("Promoted ✓");
+    expect(row103).toHaveTextContent("Promoted");
     expect(screen.queryByTestId("promote-candidate-btn-103")).not.toBeInTheDocument();
 
     // Row 104 (Diana Prince): Conditional (Finalised)
@@ -537,6 +534,7 @@ describe("PromotionLedgerScreen", () => {
       id: 7,
       student: 3,
       student_display_name: "Ana Overlap",
+      student_first_name: "Ana",
       from_rank: 5,
       from_rank_name: "Blue",
       testing_for_rank: 6,
@@ -586,11 +584,9 @@ describe("PromotionLedgerScreen", () => {
 
     const anaRow = await screen.findByTestId("promotion-row-7");
     expect(anaRow).toHaveTextContent("Blue");
-    expect(anaRow).not.toHaveTextContent("Promoted ✓");
-    expect(screen.getByTestId("promote-candidate-btn-7")).toHaveTextContent(
-      "Promote to Red stripe",
-    );
-    expect(screen.getByTestId("promotion-row-9")).toHaveTextContent("Promoted ✓");
+    expect(anaRow).not.toHaveTextContent("Promoted");
+    expect(screen.getByTestId("promote-candidate-btn-7")).toHaveTextContent("Promote to Red stripe");
+    expect(screen.getByTestId("promotion-row-9")).toHaveTextContent("Promoted");
   });
 
   it("handles single candidate promotion confirmation dialog and API submission", async () => {
@@ -614,16 +610,12 @@ describe("PromotionLedgerScreen", () => {
     await user.click(screen.getByTestId("promote-candidate-btn-101"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Confirm Student Promotion" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Promote student" })).toBeInTheDocument();
     expect(screen.getByText("Alex Mercer", { selector: ".pl-modal-name" })).toBeInTheDocument();
-    expect(
-      screen.getByText("Effective date:", { exact: false }),
-    ).toHaveTextContent("15 Oct 2026");
+    expect(screen.getByText("Effective date:", { exact: false })).toHaveTextContent("15 Oct 2026");
 
     // Enter optional ceremonial remarks
-    const notesTextarea = screen.getByLabelText("Promotion Notes (Optional)");
+    const notesTextarea = screen.getByLabelText("Promotion notes (optional)");
     await user.type(notesTextarea, "Demonstrated great focus");
 
     // Confirm promotion
@@ -636,9 +628,7 @@ describe("PromotionLedgerScreen", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Successfully promoted Alex Mercer to Yellow!"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Successfully promoted Alex Mercer to Yellow!")).toBeInTheDocument();
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -661,9 +651,7 @@ describe("PromotionLedgerScreen", () => {
 
     renderScreen(1, queryClient);
     await user.click(await screen.findByTestId("promote-candidate-btn-101"));
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Promote to Yellow" }),
-    );
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Promote to Yellow" }));
 
     await waitFor(() => {
       expect(queryClient.getQueryState(["students", "detail", 50])?.isInvalidated).toBe(true);
@@ -750,7 +738,7 @@ describe("PromotionLedgerScreen", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: /Promote Qualified Cohort \(2 Candidates\)/i,
+          name: /^Promote 2 candidates$/i,
         }),
       ).toBeInTheDocument();
     });
@@ -758,7 +746,7 @@ describe("PromotionLedgerScreen", () => {
     // Open batch promotion summary
     await user.click(
       screen.getByRole("button", {
-        name: /Promote Qualified Cohort \(2 Candidates\)/i,
+        name: /^Promote 2 candidates$/i,
       }),
     );
 
@@ -766,16 +754,20 @@ describe("PromotionLedgerScreen", () => {
       name: "Promotion summary",
     });
     expect(tray).toBeInTheDocument();
-    expect(screen.getByText("2 Candidates Selected")).toBeInTheDocument();
+    expect(screen.getByText("2 candidates to promote")).toBeInTheDocument();
 
     // Check candidate pills
     expect(screen.getByText("1.")).toBeInTheDocument();
     expect(screen.getByText("Alex Mercer", { selector: ".pl-chip-name" })).toBeInTheDocument();
-    expect(screen.getByText("Yellow", { selector: ".pl-chip-target" })).toBeInTheDocument();
+    expect(screen.getByText("Alex Mercer", { selector: ".pl-chip-name" }).closest("li")).toHaveTextContent(
+      "promoted to: Yellow",
+    );
 
     expect(screen.getByText("2.")).toBeInTheDocument();
     expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" })).toBeInTheDocument();
-    expect(screen.getByText("Blue Stripe", { selector: ".pl-chip-target" })).toBeInTheDocument();
+    expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" }).closest("li")).toHaveTextContent(
+      "promoted to: Blue Stripe",
+    );
 
     // Metadata in right section: the session's grading date, labelled as such.
     expect(screen.getByText("15 Oct 2026", { selector: "dd" })).toBeInTheDocument();
@@ -793,9 +785,7 @@ describe("PromotionLedgerScreen", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Successfully promoted all 2 qualified candidates!"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Successfully promoted all 2 qualified candidates!")).toBeInTheDocument();
     });
     expect(screen.queryByRole("dialog", { name: "Promotion summary" })).not.toBeInTheDocument();
   });
@@ -807,28 +797,26 @@ describe("PromotionLedgerScreen", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: /Promote Qualified Cohort \(2 Candidates\)/i,
+          name: /^Promote 2 candidates$/i,
         }),
       ).toBeInTheDocument();
     });
 
     await user.click(
       screen.getByRole("button", {
-        name: /Promote Qualified Cohort \(2 Candidates\)/i,
+        name: /^Promote 2 candidates$/i,
       }),
     );
-    expect(
-      screen.getByRole("dialog", { name: "Promotion summary" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Promotion summary" })).toBeInTheDocument();
 
-    const closeBtn = screen.getByRole("button", {
-      name: "Close the promotion summary",
+    // A promotion cannot be taken back, so the summary starts on Cancel.
+    const cancelBtn = within(screen.getByRole("dialog", { name: "Promotion summary" })).getByRole("button", {
+      name: "Cancel",
     });
-    await user.click(closeBtn);
+    expect(cancelBtn).toHaveFocus();
+    await user.click(cancelBtn);
 
-    expect(
-      screen.queryByRole("dialog", { name: "Promotion summary" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Promotion summary" })).not.toBeInTheDocument();
     expect(mockBulkPromoteCandidateOutcomes).not.toHaveBeenCalled();
   });
 
@@ -841,19 +829,15 @@ describe("PromotionLedgerScreen", () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(
-        screen.queryByText("Loading candidate promotion ledger…"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading the promotion ledger…")).not.toBeInTheDocument();
     });
 
     expect(screen.getByText("Promotion authority needed")).toBeInTheDocument();
-    expect(
-      screen.getByText(/promoting students needs promotion authority/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/promoting students needs promotion authority/)).toBeInTheDocument();
 
     // Cohort promotion CTA is disabled
     const summaryBtn = screen.getByRole("button", {
-      name: /Promote Qualified Cohort \(2 Candidates\)/i,
+      name: /^Promote 2 candidates$/i,
     });
     expect(summaryBtn).toBeDisabled();
 
@@ -874,8 +858,8 @@ describe("PromotionLedgerScreen", () => {
           outcome: 101,
         }),
       ],
-      // The backend's shape: row index -> that row's messages.
-      errors: { "1": ["Outcome 102 cannot be promoted at this time"] },
+      // The backend's shape: the outcome each refused row sent -> its messages.
+      errors: { "102": ["Outcome 102 cannot be promoted at this time"] },
     });
 
     renderScreen(1);
@@ -883,14 +867,14 @@ describe("PromotionLedgerScreen", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: /Promote Qualified Cohort \(2 Candidates\)/i,
+          name: /^Promote 2 candidates$/i,
         }),
       ).toBeInTheDocument();
     });
 
     await user.click(
       screen.getByRole("button", {
-        name: /Promote Qualified Cohort \(2 Candidates\)/i,
+        name: /^Promote 2 candidates$/i,
       }),
     );
 
@@ -942,24 +926,14 @@ describe("PromotionLedgerScreen", () => {
     renderScreen(1);
 
     await waitFor(() => {
-      expect(
-        screen.queryByText("Loading candidate promotion ledger…"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading the promotion ledger…")).not.toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText("0 Candidates Finalised with Pass · Eligible for Promotion"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("0 candidates passed and ready to promote")).toBeInTheDocument();
 
-    expect(
-      screen.getByText(
-        "All qualified candidates in this cohort have already been promoted.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("All qualified candidates in this cohort have already been promoted.")).toBeInTheDocument();
 
-    const summaryBtn = screen.getByRole("button", {
-      name: /Promote Qualified Cohort \(0 Candidates\)/i,
-    });
-    expect(summaryBtn).toBeDisabled();
+    // Nobody waiting: no Promote button at all, rather than one that cannot be pressed.
+    expect(screen.queryByRole("button", { name: /^Promote \d+ candidates?$/i })).not.toBeInTheDocument();
   });
 });

@@ -4,15 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type {
-  AuthUser,
-} from "./api";
+import type { AuthUser } from "./api";
 import {
   authUser,
   jsonResponse,
   emptyResponse,
   authRequiredResponse,
   signedOutResponse,
+  CHOICES,
+  stubFetch,
 } from "./appTestSupport";
 
 /**
@@ -22,9 +22,9 @@ import {
  */
 function inOrderExceptSiteSettings(responses: Response[]) {
   const queue = [...responses];
-  return vi.fn().mockImplementation(async (url: string) =>
-    url.includes("/api/site/") ? jsonResponse(200, {}) : queue.shift(),
-  );
+  return vi
+    .fn()
+    .mockImplementation(async (url: string) => (url.includes("/api/site/") ? jsonResponse(200, {}) : queue.shift()));
 }
 
 describe("App authentication", () => {
@@ -43,7 +43,7 @@ describe("App authentication", () => {
 
   it("loads the authenticated application shell with the signed-in user", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, authUser));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -52,24 +52,20 @@ describe("App authentication", () => {
     });
 
     expect(screen.getByText("Instructor")).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: "Casey Instructor, Instructor: your account" }),
-    ).toBeVisible();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/auth/me/",
-      expect.objectContaining({ credentials: "include" }),
-    );
+    expect(screen.getByRole("link", { name: "Casey Instructor, Instructor: your account" })).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/me/", expect.objectContaining({ credentials: "include" }));
   });
 
   it("returns to sign-in when a screen's request finds the session has ended", async () => {
     window.history.replaceState({}, "", "/students");
     // Signed in when the app loads; the session then expires, so the
     // students request is the first to hear it.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) =>
-        url.includes("/api/auth/me/") ? jsonResponse(200, authUser) : signedOutResponse(url),
-      ),
+    stubFetch(
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/auth/me/") ? jsonResponse(200, authUser) : signedOutResponse(url),
+        ),
     );
 
     render(<App />);
@@ -80,13 +76,13 @@ describe("App authentication", () => {
   it("goes back, after signing in again, to the page the session ended on", async () => {
     window.history.replaceState({}, "", "/students?status=ACTIVE");
     let signedIn = false;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/login/")) {
           signedIn = true;
           return jsonResponse(200, authUser);
         }
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
         if (url.includes("/api/site/")) return jsonResponse(200, {});
         if (url.includes("/api/students/") || url.includes("/api/ranks/")) {
@@ -110,13 +106,13 @@ describe("App authentication", () => {
   it("follows only a path inside the app after signing in", async () => {
     window.history.replaceState({ usr: { from: "//evil.example/steal" }, key: "x", idx: 0 }, "", "/login");
     let signedIn = false;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/login/")) {
           signedIn = true;
           return jsonResponse(200, authUser);
         }
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
         if (url.includes("/api/site/")) return jsonResponse(200, {});
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -135,7 +131,7 @@ describe("App authentication", () => {
 
   it("protects authenticated routes from anonymous users", async () => {
     window.history.replaceState({}, "", "/sessions");
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -151,6 +147,7 @@ describe("App authentication", () => {
   it("logs in with a CSRF-protected session request", async () => {
     let signedIn = false;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
@@ -163,7 +160,7 @@ describe("App authentication", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -188,9 +185,7 @@ describe("App authentication", () => {
         method: "POST",
       }),
     );
-    const loginCall = fetchMock.mock.calls.find(([url]) =>
-      url.includes("/api/auth/login/"),
-    );
+    const loginCall = fetchMock.mock.calls.find(([url]) => url.includes("/api/auth/login/"));
     expect(loginCall).toBeDefined();
     const loginHeaders = (loginCall![1] as RequestInit).headers as Headers;
     expect(loginHeaders.get("X-CSRFToken")).toBe("test-csrf-token");
@@ -211,7 +206,7 @@ describe("App authentication", () => {
         },
       }),
     ]);
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -235,7 +230,7 @@ describe("App authentication", () => {
         },
       }),
     ]);
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -245,17 +240,14 @@ describe("App authentication", () => {
     await user.type(screen.getByLabelText("Password"), "wrong");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(
-      await screen.findByText(
-        "Request was throttled. Expected available in 42 seconds.",
-      ),
-    ).toBeVisible();
+    expect(await screen.findByText("Request was throttled. Expected available in 42 seconds.")).toBeVisible();
     expect(screen.queryByText("Email or password is incorrect.")).not.toBeInTheDocument();
   });
 
   it("logs out and returns to the login route", async () => {
     let signedIn = true;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
@@ -268,7 +260,7 @@ describe("App authentication", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -327,6 +319,8 @@ describe("App authentication", () => {
             status: "ACTIVE",
             status_display: "Active",
             can_be_graded: true,
+            next_rank: null,
+            next_rank_name: null,
             age_band: "AGE_18_AND_OVER",
             age_band_display: "18+",
           },
@@ -336,6 +330,7 @@ describe("App authentication", () => {
     let signedInAs: AuthUser | null = authUser;
     let rosterRequests = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedInAs ? jsonResponse(200, signedInAs) : signedOutResponse(url);
       }
@@ -347,13 +342,14 @@ describe("App authentication", () => {
         signedInAs = dana;
         return jsonResponse(200, dana);
       }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/students/")) {
         rosterRequests += 1;
         return rosterRequests === 1 ? caseyRosterInFlight : rosterOf("Dana-Only");
       }
       return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -391,8 +387,7 @@ describe("Connection failures are not sign-outs", () => {
   });
 
   it("shows a retryable error for a server fault instead of the login page", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockResolvedValue(
         jsonResponse(500, {
           error: { code: "error", message: "Internal Server Error" },
@@ -402,39 +397,23 @@ describe("Connection failures are not sign-outs", () => {
 
     render(<App />);
 
-    expect(
-      await screen.findByRole("heading", { name: "Can’t reach KukGrade" }),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole("heading", { name: "Welcome back" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "KukGrade is not responding",
-    );
+    expect(await screen.findByRole("heading", { name: "Can’t reach KukGrade" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Welcome back" })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("KukGrade is not responding");
   });
 
   it("shows a retryable error when the network is unreachable", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
-    );
+    stubFetch(vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     render(<App />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "KukGrade could not be reached",
-    );
-    expect(
-      screen.queryByRole("heading", { name: "Welcome back" }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("KukGrade could not be reached");
+    expect(screen.queryByRole("heading", { name: "Welcome back" })).not.toBeInTheDocument();
   });
 
   it("does not redirect to the login route on a connection failure", async () => {
     window.history.replaceState({}, "", "/sessions");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
-    );
+    stubFetch(vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     render(<App />);
 
@@ -447,7 +426,7 @@ describe("Connection failures are not sign-outs", () => {
       .fn()
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
       .mockResolvedValueOnce(jsonResponse(200, authUser));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -463,47 +442,45 @@ describe("Connection failures are not sign-outs", () => {
   it.each([
     ["succeeds", () => jsonResponse(200, authUser)],
     ["fails", () => jsonResponse(502, { error: { code: "error", message: "Bad gateway" } })],
-  ])(
-    "keeps the signed-in screen mounted when the reconnect re-check %s",
-    async (_outcome, recheckResponse) => {
-      let meCalls = 0;
-      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
-        if (url.includes("/api/auth/me/")) {
-          meCalls += 1;
-          if (meCalls === 1) return jsonResponse(200, authUser);
-          // A real re-check takes time; the screen must not change meanwhile.
-          await new Promise((settle) => setTimeout(settle, 20));
-          return recheckResponse();
-        }
-        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
-      });
-      vi.stubGlobal("fetch", fetchMock);
+  ])("keeps the signed-in screen mounted when the reconnect re-check %s", async (_outcome, recheckResponse) => {
+    let meCalls = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        meCalls += 1;
+        if (meCalls === 1) return jsonResponse(200, authUser);
+        // A real re-check takes time; the screen must not change meanwhile.
+        await new Promise((settle) => setTimeout(settle, 20));
+        return recheckResponse();
+      }
+      return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+    });
+    stubFetch(fetchMock);
 
-      render(<App />);
-      const heading = await screen.findByRole("heading", { name: "Overview" });
+    render(<App />);
+    const heading = await screen.findByRole("heading", { name: "Overview" });
 
-      // Losing and regaining the network makes TanStack Query refetch.
-      act(() => {
-        onlineManager.setOnline(false);
-        onlineManager.setOnline(true);
-      });
-      await waitFor(() => expect(meCalls).toBe(2));
-      await act(async () => {
-        await new Promise((settle) => setTimeout(settle, 50));
-      });
+    // Losing and regaining the network makes TanStack Query refetch.
+    act(() => {
+      onlineManager.setOnline(false);
+      onlineManager.setOnline(true);
+    });
+    await waitFor(() => expect(meCalls).toBe(2));
+    await act(async () => {
+      await new Promise((settle) => setTimeout(settle, 50));
+    });
 
-      // The same element, not a remounted copy: on-screen state survived.
-      expect(heading.isConnected).toBe(true);
-      expect(screen.queryByText("Loading KukGrade")).not.toBeInTheDocument();
-      expect(screen.queryByRole("heading", { name: "Can’t reach KukGrade" })).not.toBeInTheDocument();
-    },
-  );
+    // The same element, not a remounted copy: on-screen state survived.
+    expect(heading.isConnected).toBe(true);
+    expect(screen.queryByText("Loading KukGrade")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Can’t reach KukGrade" })).not.toBeInTheDocument();
+  });
 
   it("signs the viewer out when the reconnect re-check says the session has ended", async () => {
     let meCalls = 0;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
           meCalls += 1;
           return meCalls === 1 ? jsonResponse(200, authUser) : signedOutResponse(url);
@@ -524,17 +501,16 @@ describe("Connection failures are not sign-outs", () => {
   });
 
   it("still treats a genuine authentication answer as anonymous", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
-    expect(
-      await screen.findByRole("heading", { name: "Welcome back" }),
-    ).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
   });
 
   it("keeps the viewer signed in when sign-out fails", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -546,7 +522,7 @@ describe("Connection failures are not sign-outs", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -555,9 +531,7 @@ describe("Connection failures are not sign-outs", () => {
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     // The session may still be live, so a signed-out UI would be a lie.
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Could not sign out",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("You are still signed in");
     expect(screen.getByText("Casey")).toBeVisible();
     expect(window.location.pathname).toBe("/");
   });
@@ -575,7 +549,7 @@ describe("First-time login copy", () => {
   });
 
   it("greets a browser that has never signed in with 'Sign in', not 'Welcome back'", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -586,6 +560,7 @@ describe("First-time login copy", () => {
   it("says 'Welcome back' once this browser has signed in before", async () => {
     let signedIn = false;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
@@ -602,7 +577,7 @@ describe("First-time login copy", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -633,7 +608,7 @@ describe("Login theme toggle", () => {
   });
 
   it("defaults to following the system preference with no stored choice", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -642,10 +617,7 @@ describe("Login theme toggle", () => {
     // written, so component overrides keyed on data-theme apply. An effect
     // writes it, which can land after the heading.
     await waitFor(() => expect(document.documentElement.getAttribute("data-theme")).toBe("light"));
-    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
   });
 
   // Component overrides are written as [data-theme="dark"] .x; with a dark
@@ -654,10 +626,14 @@ describe("Login theme toggle", () => {
   it("writes a dark system preference to the page and follows it as it changes", async () => {
     window.localStorage.removeItem("kukgrade-theme");
     let listener: ((event: MediaQueryListEvent) => void) | null = null;
+    // As a browser does, the list's own `matches` changes with the system.
+    let systemDark = true;
     const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(
       (query: string) =>
         ({
-          matches: true,
+          get matches() {
+            return systemDark;
+          },
           media: query,
           addEventListener: (_: string, handler: (event: MediaQueryListEvent) => void) => {
             listener = handler;
@@ -665,7 +641,7 @@ describe("Login theme toggle", () => {
           removeEventListener: () => {},
         }) as unknown as MediaQueryList,
     );
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -673,13 +649,16 @@ describe("Login theme toggle", () => {
     // The theme is written by an effect, which can land after the heading.
     await waitFor(() => expect(document.documentElement.getAttribute("data-theme")).toBe("dark"));
 
-    act(() => listener?.({ matches: false } as MediaQueryListEvent));
+    act(() => {
+      systemDark = false;
+      listener?.({ matches: false } as MediaQueryListEvent);
+    });
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     matchMedia.mockRestore();
   });
 
   it("pins an explicit choice to the page and remembers it for next time", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
     const user = userEvent.setup();
 
     render(<App />);
@@ -689,14 +668,8 @@ describe("Login theme toggle", () => {
 
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
     expect(window.localStorage.getItem("kukgrade-theme")).toBe("dark");
-    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "false");
   });
 });
 
@@ -711,14 +684,12 @@ describe("Mandatory password change", () => {
   });
 
   it("renders mandatory password change view and blocks navigation when must_change_password is true", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, forcedUser)));
+    stubFetch(vi.fn().mockResolvedValue(jsonResponse(200, forcedUser)));
 
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Choose a new password" })).toBeVisible();
-    expect(
-      screen.getByText(/You signed in with a temporary password/),
-    ).toBeVisible();
+    expect(screen.getByText(/You signed in with a temporary password/)).toBeVisible();
     expect(screen.getByRole("img", { name: "KukGrade" })).toBeVisible();
 
     // Nav rail and main overview should NOT be visible
@@ -734,16 +705,14 @@ describe("Mandatory password change", () => {
             code: "validation_error",
             message: "Invalid input",
             fields: {
-              new_password: [
-                "This password is too short. It must contain at least 8 characters.",
-              ],
+              new_password: ["This password is too short. It must contain at least 8 characters."],
             },
           },
         });
       }
       return jsonResponse(200, forcedUser);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -756,9 +725,7 @@ describe("Mandatory password change", () => {
     await user.type(screen.getByLabelText(/^Confirm new password/i), "short");
     await user.click(screen.getByRole("button", { name: "Update password and continue" }));
 
-    expect(
-      await screen.findByText("This password is too short. It must contain at least 8 characters."),
-    ).toBeVisible();
+    expect(await screen.findByText("This password is too short. It must contain at least 8 characters.")).toBeVisible();
     const changeRequests = () =>
       fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/auth/change-password/"));
     expect(changeRequests()).toHaveLength(1);
@@ -770,12 +737,13 @@ describe("Mandatory password change", () => {
     await user.type(screen.getByLabelText(/^Confirm new password/i), "MismatchPass456!");
     await user.click(screen.getByRole("button", { name: "Update password and continue" }));
 
-    expect(await screen.findByText("New passwords do not match.")).toBeVisible();
+    expect(await screen.findByText("The passwords do not match.")).toBeVisible();
     expect(changeRequests()).toHaveLength(1);
   });
 
   it("submits change password, refetches user, and unlocks navigation on success", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, forcedUser);
       }
@@ -795,7 +763,7 @@ describe("Mandatory password change", () => {
       return jsonResponse(404, {});
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -813,9 +781,9 @@ describe("Mandatory password change", () => {
   });
 
   it("surfaces API field errors when current password is wrong", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
           return jsonResponse(200, forcedUser);
         }
@@ -849,6 +817,7 @@ describe("Mandatory password change", () => {
 
   it("allows user to sign out from the mandatory password change view", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, forcedUser);
       }
@@ -858,7 +827,7 @@ describe("Mandatory password change", () => {
       return jsonResponse(404, {});
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -871,8 +840,7 @@ describe("Mandatory password change", () => {
   });
 
   it("says so when signing out from the mandatory password change view fails", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/logout/")) throw new TypeError("Failed to fetch");
         return jsonResponse(200, forcedUser);
@@ -886,7 +854,9 @@ describe("Mandatory password change", () => {
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     expect(
-      await screen.findByText("Could not sign out. Check your connection and retry."),
+      await screen.findByText(
+        "You are still signed in: KukGrade could not be reached. Check your connection and try again.",
+      ),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeEnabled();
@@ -940,12 +910,13 @@ describe("App demo", () => {
         });
         return jsonResponse(200, authUser);
       }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
       }
       return jsonResponse(200, { results: [], count: 0 });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -957,14 +928,11 @@ describe("App demo", () => {
     expect(screen.getByText(/is reset at 1 Mar 2027/)).toBeVisible();
     await user.click(screen.getByRole("button", { name: /Sign in as Master/ }));
 
-    expect(await screen.findByRole("note")).toHaveTextContent(
-      "You are using a demo with made-up data.",
-    );
+    expect(await screen.findByRole("note")).toHaveTextContent("You are using a demo with made-up data.");
   });
 
   it("shows no demo card on an ordinary deployment", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/site/")) {
           return jsonResponse(200, { club_name: "Riverside", time_zone: "Europe/London" });

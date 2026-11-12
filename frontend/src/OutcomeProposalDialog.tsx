@@ -6,6 +6,8 @@
  * are served, never recounted. Proposing never finalises or
  * promotes; the Master decides on the board.
  */
+import { buttonClass } from "./buttonClass";
+import { outcomeTone } from "./badgeClass";
 import { useMutation } from "@tanstack/react-query";
 import React, { useState } from "react";
 
@@ -19,13 +21,14 @@ import {
 } from "./api";
 import { Dialog } from "./Dialog";
 import { ErrorText } from "./ErrorText";
-import { RankBelt } from "./Belt";
 import { CheckIcon } from "./Icons";
-import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { useChoices } from "./choices";
+import "./OutcomeControls.css";
 import { useSealedEvidenceLoaded } from "./queries";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 import "./OutcomeProposalDialog.css";
 import { Button } from "./Button";
+import { CandidateRanks } from "./RankTransition";
 
 export function OutcomeProposalDialog({
   candidate,
@@ -43,6 +46,7 @@ export function OutcomeProposalDialog({
   const [selectedOutcome, setSelectedOutcome] = useState<CandidateOutcomeOutcome>(
     existingOutcome?.proposed_outcome ?? "PASS",
   );
+  const outcomes = useChoices().outcomes;
   const [proposalNotes, setProposalNotes] = useState(existingOutcome?.proposal_notes ?? "");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -75,13 +79,9 @@ export function OutcomeProposalDialog({
       onClose={onClose}
       canClose={!isSubmitting}
     >
-      <p className="outcome-rank-line subtext">
+      <p className="row row--wrap outcome-rank-line subtext">
         <span className="opd-sub">{candidate.student_wksa_id}</span>
-        <RankBelt rankId={candidate.from_rank} />
-        {candidate.from_rank_name}
-        <span aria-hidden="true">→</span>
-        <RankBelt rankId={candidate.testing_for_rank} />
-        {candidate.testing_for_rank_name}
+        <CandidateRanks candidate={candidate} />
       </p>
 
       <form onSubmit={handleSubmit} className="stack">
@@ -92,13 +92,14 @@ export function OutcomeProposalDialog({
           candidateId={candidate.id}
         />
 
-        <fieldset className="opd-section opd-fieldset">
+        <fieldset className="opd-section stack stack--2 opd-fieldset">
           <legend>Proposed outcome</legend>
           <div className="outcome-segments">
-            {OUTCOME_CHOICES.map((option) => (
+            {outcomes.map((option) => (
               <label
                 key={option.value}
-                className={`outcome-segment outcome-segment-${option.value.toLowerCase()}`}
+                className={buttonClass({ small: true }, "outcome-segment")}
+                data-tone={selectedOutcome === option.value ? outcomeTone(option.value) : undefined}
               >
                 <input
                   type="radio"
@@ -128,25 +129,17 @@ export function OutcomeProposalDialog({
           </label>
         </div>
 
-        {submitError && (
-          <ErrorText field>
-            {submitError}
-          </ErrorText>
-        )}
+        {submitError && <ErrorText field>{submitError}</ErrorText>}
 
         <p className="opd-footer-text subtext">
-          A proposal does not finalise the grading or promote the candidate. An authorised
-          Master records the final decision.
+          A proposal does not finalise the grading or promote the candidate. An authorised Master records the final
+          decision.
         </p>
         <div className="action-row dialog__actions">
           <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isSubmitting || !evidenceLoaded}
-          >
+          <Button type="submit" variant="primary" disabled={isSubmitting || !evidenceLoaded}>
             {isSubmitting ? "Submitting…" : "Submit proposal"}
           </Button>
         </div>

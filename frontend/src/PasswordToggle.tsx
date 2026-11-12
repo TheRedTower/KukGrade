@@ -1,3 +1,5 @@
+import { Button } from "./Button";
+
 interface PasswordToggleProps {
   shown: boolean;
   onToggle: () => void;
@@ -5,11 +7,17 @@ interface PasswordToggleProps {
   noun?: "password" | "passwords";
 }
 
-/** The Show / Hide button beside a password box (see .password-toggle in App.css). */
+/** The Show / Hide button beside a password box (placed by .password-toggle in App.css). */
 export function PasswordToggle({ shown, onToggle, noun = "password" }: PasswordToggleProps) {
   return (
-    <button aria-label={`${shown ? "Hide" : "Show"} ${noun}`} className="password-toggle" onClick={onToggle} type="button">
+    <Button
+      aria-label={`${shown ? "Hide" : "Show"} ${noun}`}
+      className="password-toggle"
+      onClick={onToggle}
+      small
+      variant="link"
+    >
       {shown ? "Hide" : "Show"}
-    </button>
+    </Button>
   );
 }

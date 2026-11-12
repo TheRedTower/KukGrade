@@ -13,17 +13,20 @@ from gradings.models import (
 )
 from gradings.read_models import (
     GradingHistoryItem,
+    GradingHistorySource,
     GradingStage,
     StudentGradingHistory,
     StudentRankTimeline,
+    with_next_rank,
 )
+from kukgrade.serializers import ModelSerializer
 from students import wksa_ids
 from students.models import PreviousWksaId, Student, StudentExtraInfo
-from students.services import create_student, update_student
+from students.services import student_deletion_blocker
 from syllabus.models import AgeBand
 
 
-class PromotionRankHistorySerializer(serializers.ModelSerializer[Promotion]):
+class PromotionRankHistorySerializer(ModelSerializer[Promotion]):
     from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
     to_rank_name = serializers.CharField(source="to_rank.name", read_only=True)
     session_title = serializers.CharField(
@@ -53,7 +56,7 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
     # - same mypy collision as EffectiveSyllabusRequirementSerializer.required
     # elsewhere in this codebase, not a real conflict at runtime.
     source = serializers.ChoiceField(  # type: ignore[assignment]
-        choices=["KUKGRADE", "LEGACY"],
+        choices=GradingHistorySource.choices,
     )
     record_id = serializers.IntegerField()
     date = serializers.DateField(allow_null=True)
@@ -112,7 +115,39 @@ class CurrentGradingSerializer(serializers.Serializer):
     stage_display = serializers.CharField()
 
 
-class StudentListSerializer(serializers.ModelSerializer[Student]):
+class NextRankFields(serializers.Serializer):
+    """The rank a student would be graded for next, as the server rules it
+    (gradings.read_models.with_next_rank): their next active rank, while its
+    syllabus is recorded. Null when there is none to offer."""
+
+    next_rank = serializers.SerializerMethodField(
+        help_text=(
+            "The rank the student would be graded for next: their next active "
+            "rank, when its syllabus is recorded. Null when there is none."
+        ),
+    )
+    next_rank_name = serializers.SerializerMethodField()
+
+    def _next_rank(self, obj: Student) -> tuple[int, str] | None:
+        if not hasattr(obj, "next_rank_pk"):
+            # Not loaded through the annotated queryset (a record just saved).
+            fresh = with_next_rank(Student.objects.filter(pk=obj.pk)).get()
+            for name in ("next_rank_pk", "next_rank_name", "next_rank_has_syllabus"):
+                setattr(obj, name, getattr(fresh, name))
+        if obj.next_rank_pk is None or not obj.next_rank_has_syllabus:  # type: ignore[attr-defined]
+            return None
+        return obj.next_rank_pk, obj.next_rank_name  # type: ignore[attr-defined]
+
+    def get_next_rank(self, obj: Student) -> int | None:
+        found = self._next_rank(obj)
+        return None if found is None else found[0]
+
+    def get_next_rank_name(self, obj: Student) -> str | None:
+        found = self._next_rank(obj)
+        return None if found is None else found[1]
+
+
+class StudentListSerializer(NextRankFields, ModelSerializer[Student]):
     """The list representation. Deliberately excludes date of birth.
 
     Date of birth is the most sensitive field held, on people who may be
@@ -128,7 +163,7 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     can_be_graded = serializers.BooleanField(read_only=True)
-    # Annotated by the list view (gradings.age.with_age_band_on): on the
+    # Annotated by the list view (syllabus.age.with_age_band_on): on the
     # grading date when the list is filtered by eligible_for_session,
     # otherwise today.
     age_band = serializers.ChoiceField(
@@ -161,6 +196,8 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
             "status",
             "status_display",
             "can_be_graded",
+            "next_rank",
+            "next_rank_name",
             "age_band",
             "age_band_display",
             "current_grading",
@@ -185,21 +222,21 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
         return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]
 
 
-class PreviousWksaIdSerializer(serializers.ModelSerializer[PreviousWksaId]):
+class PreviousWksaIdSerializer(ModelSerializer[PreviousWksaId]):
     class Meta:
         model = PreviousWksaId
         fields = ("wksa_id", "replaced_at")
         read_only_fields = fields
 
 
-class StudentExtraInfoSerializer(serializers.ModelSerializer[StudentExtraInfo]):
+class StudentExtraInfoSerializer(ModelSerializer[StudentExtraInfo]):
     class Meta:
         model = StudentExtraInfo
         fields = ("label", "value")
         read_only_fields = fields
 
 
-class StudentSerializer(serializers.ModelSerializer[Student]):
+class StudentSerializer(NextRankFields, ModelSerializer[Student]):
     """Detail, create and update.
 
     One serializer rather than three: create and update share every field,
@@ -214,11 +251,25 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
         source="current_rank.name", read_only=True
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    can_be_graded = serializers.BooleanField(read_only=True)
     age_band_display = serializers.CharField(read_only=True)
     wksa_id_can_change = serializers.SerializerMethodField(
         help_text=(
             "Whether the ID is still a student ID, so the change to a black "
             "belt ID is still to come. Either form can be corrected."
+        ),
+    )
+    can_be_deleted = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may delete this student now: they may delete "
+            "students, and no grading the student is in is waiting for its "
+            "final decision."
+        ),
+    )
+    deletion_blocked_by = serializers.SerializerMethodField(
+        help_text=(
+            "Why the student cannot be deleted yet, naming the grading that "
+            "waits for its decision; null when nothing stands in the way."
         ),
     )
     previous_wksa_ids = PreviousWksaIdSerializer(many=True, read_only=True)
@@ -243,6 +294,11 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "current_rank_name",
             "status",
             "status_display",
+            "can_be_graded",
+            "next_rank",
+            "next_rank_name",
+            "can_be_deleted",
+            "deletion_blocked_by",
             "age_band_display",
             "deleted_at",
             "created_at",
@@ -251,18 +307,27 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "id",
             "current_rank_name",
             "status_display",
+            "can_be_graded",
             "age_band_display",
             "deleted_at",
             "created_at",
         )
 
+    def get_deletion_blocked_by(self, obj: Student) -> str | None:
+        # Asked by both fields; read once per record.
+        if not hasattr(obj, "_deletion_blocker"):
+            obj._deletion_blocker = (  # type: ignore[attr-defined]
+                None if obj.deleted_at is not None else student_deletion_blocker(obj)
+            )
+        return obj._deletion_blocker  # type: ignore[attr-defined,no-any-return]
+
+    def get_can_be_deleted(self, obj: Student) -> bool:
+        user = self.context["request"].user
+        return (
+            obj.deleted_at is None
+            and user.has_perm("students.delete_student")
+            and self.get_deletion_blocked_by(obj) is None
+        )
+
     def get_wksa_id_can_change(self, obj: Student) -> bool:
         return wksa_ids.can_change(obj.wksa_id)
-
-    def create(self, validated_data: dict[str, Any]) -> Student:
-        request = self.context["request"]
-        return create_student(actor=request.user, **validated_data)
-
-    def update(self, instance: Student, validated_data: dict[str, Any]) -> Student:
-        request = self.context["request"]
-        return update_student(instance, actor=request.user, **validated_data)

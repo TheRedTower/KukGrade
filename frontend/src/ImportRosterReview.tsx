@@ -1,16 +1,26 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { type DataImportBatch, type DataImportRow, correctDataImportRow, errorMessage, leaveOutDataImportRowsNeedingAttention } from "./api";
+import {
+  type DataImportBatch,
+  type DataImportRow,
+  correctDataImportRow,
+  errorMessage,
+  leaveOutDataImportRowsNeedingAttention,
+} from "./api";
 import { ErrorText } from "./ErrorText";
 import { ImportCellInput } from "./ImportCellInput";
 import { usePagedRows } from "./useImportRows";
-import { counted, importRowName } from "./importSteps";
+import { importKinds } from "./importKinds";
 import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { CountTiles, ExclusionButton, LastLook, ListHead, RowsList } from "./ImportReviewParts";
-import { Exclusion, PAGE_SIZE, RowParams, STATUSES, Tile, useRowExclusion } from "./importReviewRows";
+import { Exclusion, PAGE_SIZE, RowParams, Tile, useRowExclusion } from "./importReviewRows";
+import { labelOf, useChoices } from "./choices";
+import { counted } from "./plural";
+import { cx } from "./cx";
+import { CheckIcon, ExclamationIcon, MinusIcon, SkipIcon } from "./Icons";
 
 /** The same source-preserving correction controls in every roster review view. */
 function RosterRowEditor({
@@ -27,6 +37,7 @@ function RosterRowEditor({
   onEditStateChange: (key: string, dirty: boolean) => void;
 }) {
   const ranks = useRanksQuery().data?.results ?? [];
+  const statuses = useChoices().student_statuses;
   const fix = useMutation({
     mutationFn: ({ field, value }: { field: string; value: string | null }) =>
       correctDataImportRow(batch.id, row.row_number, { [field]: value }),
@@ -41,11 +52,11 @@ function RosterRowEditor({
   }
 
   return (
-    <div className={`ix-row${row.issues.length ? " ix-attention" : ""}`}>
-      <div className="ix-actions ix-actions-split ix-align-start">
+    <div className={cx("ix-row", row.issues.length > 0 && "ix-attention")}>
+      <div className="action-row ix-align-start">
         <div className="ix-row-main">
           <p className="item-title">
-            Row {row.row_number} · {importRowName(row, batch.kind)}
+            Row {row.row_number} · {importKinds[batch.kind].rowName(row)}
           </p>
           {row.issues.length ? <p className="ix-why error-text">{row.issues.join(" ")}</p> : null}
         </div>
@@ -58,10 +69,14 @@ function RosterRowEditor({
           >
             Leave this row out
           </Button>
-        ) : <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />}
+        ) : (
+          <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />
+        )}
       </div>
       {batch.extra_columns.length ? (
-        <p className="subtext">{batch.extra_columns.map((column) => `${column}: ${row.extra[column] ?? "(blank)"}`).join(" · ")}</p>
+        <p className="subtext">
+          {batch.extra_columns.map((column) => `${column}: ${row.extra[column] ?? "(blank)"}`).join(" · ")}
+        </p>
       ) : null}
       <div className="ix-field-grid">
         {batch.target_fields.map((field) => {
@@ -72,7 +87,7 @@ function RosterRowEditor({
           let control;
           if (field.field === "current_rank" || field.field === "status") {
             const options =
-              field.field === "current_rank" ? ranks.map((rank) => ({ value: rank.name, label: rank.name })) : STATUSES;
+              field.field === "current_rank" ? ranks.map((rank) => ({ value: rank.name, label: rank.name })) : statuses;
             const known = options.find((option) => option.value.toLowerCase() === value.toLowerCase());
             control = (
               <select
@@ -106,14 +121,18 @@ function RosterRowEditor({
           }
           return (
             <div key={field.field}>
-              <span aria-hidden="true" className={`ix-field-label item-title${bad ? " ix-label-invalid" : ""}`}>
+              <span aria-hidden="true" className={cx("ix-field-label item-title", bad && "ix-label-invalid")}>
                 {field.name}
               </span>
               {control}
               {corrected ? (
                 <span className="ix-fix-note meta">
                   File had “{row.file_values[field.field] || "nothing"}”
-                  <Button variant="link" aria-label={`Undo the fix to ${label}`} onClick={() => void save(field.field, null).catch(() => {})}>
+                  <Button
+                    variant="link"
+                    aria-label={`Undo the fix to ${label}`}
+                    onClick={() => void save(field.field, null).catch(() => {})}
+                  >
                     Undo
                   </Button>
                 </span>
@@ -123,9 +142,7 @@ function RosterRowEditor({
         })}
       </div>
       {fix.isError ? (
-        <ErrorText className="ix-flush">
-          {errorMessage(fix.error, "That fix could not be saved.")}
-        </ErrorText>
+        <ErrorText className="ix-flush">{errorMessage(fix.error, "That fix could not be saved.")}</ErrorText>
       ) : null}
     </div>
   );
@@ -171,11 +188,26 @@ export function RosterReview({
     await onRefresh();
   }
 
+  const outcomes = useChoices().import_row_outcomes;
+  const skipped = labelOf(outcomes, "SKIP_EXISTING");
+  const leftOut = labelOf(outcomes, "EXCLUDED");
   const tiles: Tile<RosterView>[] = [
-    { key: "READY", label: "Ready to add", count: counts.ready, tone: "ix-success-text", mark: "✓" },
-    { key: "attention", label: "Need attention", count: counts.review_required, tone: "ix-warning-text", mark: "!" },
-    { key: "SKIP_EXISTING", label: "Already in KukGrade", count: counts.skip_existing, tone: "", mark: "↷" },
-    { key: "EXCLUDED", label: "Left out", count: counts.excluded, tone: "subtext", mark: "–" },
+    {
+      key: "READY",
+      label: "Ready to add",
+      count: counts.ready,
+      tone: "ix-success-text",
+      mark: <CheckIcon size={22} />,
+    },
+    {
+      key: "attention",
+      label: "Need attention",
+      count: counts.review_required,
+      tone: "ix-warning-text",
+      mark: <ExclamationIcon size={22} />,
+    },
+    { key: "SKIP_EXISTING", label: skipped, count: counts.skip_existing, tone: "", mark: <SkipIcon size={22} /> },
+    { key: "EXCLUDED", label: leftOut, count: counts.excluded, tone: "subtext", mark: <MinusIcon size={22} /> },
   ];
   const heads: Record<RosterView, [string, string]> = {
     attention: [
@@ -184,10 +216,10 @@ export function RosterReview({
     ],
     READY: ["Ready to add", "These rows will be added as new students."],
     SKIP_EXISTING: [
-      "Already in KukGrade",
+      skipped,
       "A student with the same WKSA ID is already here, so the row is skipped. Nothing about that student changes.",
     ],
-    EXCLUDED: ["Left out", "These rows will not be imported. Bring one back any time before you confirm."],
+    EXCLUDED: [leftOut, "These rows will not be imported. Bring one back any time before you confirm."],
     check: [
       `${counted(counts.ready, "student", "students")} will be added`,
       "In file order, as KukGrade will save them. A fix of yours is marked. Rows already in KukGrade, left out or still needing attention are not in this list.",
@@ -211,12 +243,23 @@ export function RosterReview({
           title={heads[view][0]}
         />
         {view === "attention" && counts.review_required === 0 ? (
-          <p className="ix-row ix-success-text item-title">✓ Nothing needs attention. Every row will be imported or left out as shown.</p>
+          <p className="row ix-row ix-success-text item-title">
+            <CheckIcon /> Nothing needs attention. Every row will be imported or left out as shown.
+          </p>
         ) : (
-          <RowsList exclusion={exclusion} rows={rows}>
+          <RowsList kind={batch.kind} exclusion={exclusion} rows={rows}>
             {(list) =>
               view === "attention" ? (
-                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)
+                list.map((row) => (
+                  <RosterRowEditor
+                    batch={batch}
+                    exclusion={exclusion}
+                    key={row.row_number}
+                    row={row}
+                    onEditStateChange={onEditStateChange}
+                    onFixed={fixed}
+                  />
+                ))
               ) : view === "check" ? (
                 <div className="ix-ruled">
                   <ResponsiveTable
@@ -232,7 +275,9 @@ export function RosterReview({
                         render: (row: DataImportRow) => (
                           <>
                             {row.values[field.field] || <span className="subtext">(blank)</span>}
-                            {row.corrected_fields.includes(field.field) ? <span className="ix-fix-note meta">Your fix</span> : null}
+                            {row.corrected_fields.includes(field.field) ? (
+                              <span className="ix-fix-note meta">Your fix</span>
+                            ) : null}
                           </>
                         ),
                       })),
@@ -247,7 +292,11 @@ export function RosterReview({
                         actions: true,
                         render: (row) => (
                           <>
-                            <Button variant="link" aria-expanded={editing === row.row_number} onClick={() => setEditing(editing === row.row_number ? null : row.row_number)}>
+                            <Button
+                              variant="link"
+                              aria-expanded={editing === row.row_number}
+                              onClick={() => setEditing(editing === row.row_number ? null : row.row_number)}
+                            >
                               {editing === row.row_number ? "Close editor" : `Edit row ${row.row_number}`}
                             </Button>
                             <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />
@@ -257,13 +306,28 @@ export function RosterReview({
                     ]}
                     detail={(row) =>
                       editing === row.row_number ? (
-                        <RosterRowEditor batch={batch} exclusion={exclusion} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />
+                        <RosterRowEditor
+                          batch={batch}
+                          exclusion={exclusion}
+                          row={row}
+                          onEditStateChange={onEditStateChange}
+                          onFixed={fixed}
+                        />
                       ) : null
                     }
                   />
                 </div>
               ) : (
-                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)
+                list.map((row) => (
+                  <RosterRowEditor
+                    batch={batch}
+                    exclusion={exclusion}
+                    key={row.row_number}
+                    row={row}
+                    onEditStateChange={onEditStateChange}
+                    onFixed={fixed}
+                  />
+                ))
               )
             }
           </RowsList>
@@ -275,9 +339,10 @@ export function RosterReview({
           Back to matching
         </Button>
         {counts.review_required ? (
-          <div className="ix-actions">
+          <div className="row row--wrap">
             <span className="ix-why error-text">
-              Fix or leave out the {counted(counts.review_required, "row that needs", "rows that need")} attention first.
+              Fix or leave out the {counted(counts.review_required, "row that needs", "rows that need")} attention
+              first.
             </span>
             <Button variant="secondary" disabled={leaveRest.isPending} onClick={() => leaveRest.mutate()}>
               {leaveRest.isPending ? "Leaving out…" : `Leave out the ${counts.review_required} left`}
@@ -288,9 +353,7 @@ export function RosterReview({
         )}
       </div>
       {leaveRest.isError ? (
-        <ErrorText>
-          {errorMessage(leaveRest.error, "Those rows could not be left out.")}
-        </ErrorText>
+        <ErrorText>{errorMessage(leaveRest.error, "Those rows could not be left out.")}</ErrorText>
       ) : null}
     </>
   );

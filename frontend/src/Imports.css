@@ -30,8 +30,10 @@
   flex-basis: 100%;
 }
 
+/* Keeps a button its own width in a stack. */
 .ix-start {
   align-self: flex-start;
+  justify-self: start;
 }
 
 .ix-align-end {
@@ -51,12 +53,6 @@
   margin: 0;
 }
 
-.ix-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .ix-section-head {
   display: flex;
   flex-wrap: wrap;
@@ -72,10 +68,6 @@
 .ix-head-text {
   flex: 1 1 26rem;
   min-width: 0;
-}
-
-.ix-roomy {
-  gap: var(--space-4);
 }
 
 .ix-card-pad {
@@ -144,17 +136,6 @@
 
 .ix-kind {
   margin: 0 0 0.15rem;
-}
-
-.ix-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.ix-actions-split {
-  justify-content: space-between;
 }
 
 .ix-progress {
@@ -251,11 +232,6 @@
   margin: 0;
 }
 
-.ix-table-foot {
-  padding: var(--space-3) var(--card-pad);
-  border-top: 1px solid var(--color-border);
-}
-
 .ix-danger-text {
   color: var(--color-danger);
 }
@@ -298,12 +274,6 @@
   background: var(--color-surface);
 }
 
-.ix-checklist {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .ix-checklist li {
   display: flex;
   align-items: flex-start;
@@ -321,9 +291,6 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .ix-step {
@@ -345,17 +312,11 @@
   gap: var(--space-2);
 }
 
+/* A .mark--small, ringed until it is reached. */
 .ix-step-dot {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
   width: 1.5rem;
   height: 1.5rem;
   border: 1px solid var(--color-border);
-  border-radius: 50%;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
 }
 
 .ix-step-done,
@@ -374,10 +335,6 @@
   color: var(--color-success);
 }
 
-.ix-step-current {
-  font-weight: var(--font-weight-strong);
-}
-
 .ix-step-current .ix-step-dot {
   border-color: var(--color-gold);
   background: var(--color-gold);
@@ -394,14 +351,6 @@
 @media (max-width: 40rem) {
   .ix-step-label {
     justify-content: center;
-  }
-
-  .ix-step-name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
   }
 
   .ix-step-caption {
@@ -451,12 +400,6 @@
   min-width: 0;
 }
 
-.ix-guide-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .ix-guide-list li {
   display: flex;
   justify-content: space-between;
@@ -491,32 +434,6 @@
 .ix-fold {
   padding-top: var(--space-1);
   border-top: 1px solid var(--color-border);
-}
-
-.ix-fold-body {
-  padding-top: var(--space-2);
-}
-
-.ix-disclosure {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--target-min);
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--color-accent-text);
-  font: inherit;
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-}
-
-.ix-disclosure svg {
-  transition: transform var(--duration) ease;
-}
-
-.ix-disclosure[aria-expanded="true"] svg {
-  transform: rotate(90deg);
 }
 
 .ix-two-col {
@@ -558,27 +475,6 @@
 
 .ix-also p {
   margin: 0;
-}
-
-.ix-dialog-body p {
-  margin: 0;
-}
-
-.ix-dialog-body textarea {
-  width: 100%;
-  min-height: 6rem;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ix-disclosure svg {
-    transition: none;
-  }
 }
 
 /* Typing into a row. */
@@ -668,9 +564,12 @@
   text-decoration: line-through;
 }
 
-/* A line of its own under the row's name, so the fields share its width. */
+/* A line of its own under the row's name, so the fields share its width. The width
+   is stated, not only the flex basis: without it the browser sizes the grid's height
+   as if each field had its own line, and spreads that height between the rows. */
 .ix-field-grid {
   flex: 1 1 100%;
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
   gap: var(--space-2);
@@ -692,12 +591,6 @@
 
 .ix-label-invalid {
   color: var(--color-danger);
-}
-
-.ix-queue {
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .ix-queue-head {
@@ -810,12 +703,9 @@
 }
 
 .ix-detail-list {
-  margin: 0;
-  padding: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background: var(--color-surface);
-  list-style: none;
 }
 
 .ix-detail-item {
@@ -890,15 +780,12 @@
   border: 2px solid var(--color-gold);
 }
 
+/* The count with its icon beside it, centred on the figures. */
 .ix-tile-count {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
   line-height: var(--line-height-tight);
-}
-
-.ix-tile-count [aria-hidden="true"] {
-  font-size: var(--font-size-lg);
 }
 
 /* The seal on the review page. */

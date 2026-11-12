@@ -29,7 +29,8 @@ const RULES: Record<string, RegExp> = {
   // overflow-x, and the shorthand when it makes a box scroll.
   overflowX: /overflow(?:-x|-inline)?:\s*(?:auto|scroll)/g,
   // A fixed minimum (not 0, not a keyword), outside a query's parentheses.
-  fixedMinWidth: /(?<![-\w(])min-(?:width|inline-size):[ \t]*(?![ \t])(?!0(?:\.0+)?(?:px|rem|em|vw)?\s*[;}])[^;}]*\d[^;}]*/g,
+  fixedMinWidth:
+    /(?<![-\w(])min-(?:width|inline-size):[ \t]*(?![ \t])(?!0(?:\.0+)?(?:px|rem|em|vw)?\s*[;}])[^;}]*\d[^;}]*/g,
 };
 
 function countViolations(css: string): Record<string, number> {
@@ -38,7 +39,9 @@ function countViolations(css: string): Record<string, number> {
     const found = css.match(pattern)?.length ?? 0;
     if (found > 0) counts[name] = found;
   }
-  const widthQueries = (css.match(QUERY) ?? []).filter((query) => WIDTH_CONDITION.test(query) && offScale(query)).length;
+  const widthQueries = (css.match(QUERY) ?? []).filter(
+    (query) => WIDTH_CONDITION.test(query) && offScale(query),
+  ).length;
   if (widthQueries > 0) counts.widthQueries = widthQueries;
   return counts;
 }

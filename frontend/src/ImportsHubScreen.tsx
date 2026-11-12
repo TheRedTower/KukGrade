@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import {
   type DataImportBatch,
@@ -10,52 +10,32 @@ import {
   cancelDataImportBatch,
   errorMessage,
   getDataImportBatches,
-  getLegacyGradingRecords,
+  LARGEST_PAGE,
+  getLegacyRecordCounts,
 } from "./api";
 import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
-import { ImportDialog } from "./ImportDialog";
-import { ImportPager } from "./ImportPager";
-import { counted, importKindLabel, importStepIndex, importStepNames } from "./importSteps";
-import { downloadStandardTemplate } from "./importTemplate";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { Pagination } from "./Pagination";
+import { importKinds } from "./importKinds";
+import { useImportSteps } from "./importSteps";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
+import { useTemplateDownload } from "./importTemplate";
 import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { useChoices } from "./choices";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
 
 const PAST_PAGE_SIZE = 10;
-const FINISHED = "COMMITTED,CANCELLED,EXPIRED";
-
-/** What an unfinished import's rows look like so far, in a line. */
-function unfinishedCounts(batch: DataImportBatch): string {
-  const counts = batch.row_counts;
-  if (batch.kind === "LEGACY_GRADINGS") {
-    return `${counted(counts.total, "record", "records")} found`;
-  }
-  if (batch.next_step === "MATCH_COLUMNS") {
-    return `${counted(counts.total, "row", "rows")} read · columns still to match`;
-  }
-  return [
-    `${counts.ready} ready`,
-    counts.review_required ? `${counts.review_required} need attention` : null,
-    counts.skip_existing ? `${counts.skip_existing} already in KukGrade` : null,
-    counts.excluded ? `${counts.excluded} left out` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
 
 /** What a finished import did, in a line. */
 function finishedResult(batch: DataImportBatch): string {
-  if (batch.status !== "COMMITTED") return "Nothing saved";
-  const summary = batch.summary_json;
-  if (batch.kind === "LEGACY_GRADINGS") {
-    return counted(summary.total ?? 0, "record", "records");
-  }
-  const parts = [counted(summary.created ?? 0, "student added", "students added")];
-  if (summary.skipped_existing) parts.push(`${summary.skipped_existing} already here`);
-  return parts.join(" · ");
+  return batch.status === "COMMITTED" ? importKinds[batch.kind].finished(batch.summary_json) : "Nothing saved";
 }
 
 function statePill(batch: DataImportBatch) {
@@ -74,21 +54,21 @@ function UnfinishedImports({
   batches: DataImportBatch[];
   onCancel: (batch: DataImportBatch) => void;
 }) {
+  const stepsOf = useImportSteps();
   return (
-    <section aria-labelledby="ix-unfinished" className="ix-section">
+    <section aria-labelledby="ix-unfinished" className="stack stack--3">
       <div className="ix-section-head">
         <h2 id="ix-unfinished">Pick up where you left off</h2>
-        <span className="subtext">
-          An unfinished import is cleared a day after it was uploaded.
-        </span>
+        <span className="subtext">An unfinished import is cleared a day after it was uploaded.</span>
       </div>
       <div className="card card--flush">
         {batches.map((batch) => {
-          const step = importStepIndex(batch);
+          const steps = stepsOf(batch.kind);
+          const step = steps.findIndex((served) => served.value === batch.next_step);
           return (
             <div className="ix-row" key={batch.id}>
               <div className="ix-row-main">
-                <p className="ix-kind eyebrow--muted">{importKindLabel(batch.kind)}</p>
+                <p className="ix-kind eyebrow--muted">{batch.kind_display}</p>
                 <p className="item-title">{batch.original_filename}</p>
                 <p className="subtext">
                   Uploaded {formatShortDateTime(batch.uploaded_at)} by {batch.uploaded_by_name}
@@ -96,16 +76,16 @@ function UnfinishedImports({
               </div>
               <div className="ix-row-main">
                 <p className="item-title">
-                  Step {step + 1} of 5 · {importStepNames(batch.kind)[step]}
+                  Step {step + 1} of {steps.length} · {steps[step]?.label}
                 </p>
                 <div aria-hidden="true" className="ix-progress">
-                  {[0, 1, 2, 3, 4].map((index) => (
-                    <span className={index <= step ? "ix-filled" : undefined} key={index} />
+                  {steps.map((served, index) => (
+                    <span className={index <= step ? "ix-filled" : undefined} key={served.value} />
                   ))}
                 </div>
-                <p className="subtext">{unfinishedCounts(batch)}</p>
+                <p className="subtext">{importKinds[batch.kind].unfinished(batch)}</p>
               </div>
-              <div className="ix-actions">
+              <div className="row row--wrap">
                 <Link
                   aria-label={`Resume ${batch.original_filename}`}
                   className={buttonClass({ variant: "primary" })}
@@ -130,8 +110,9 @@ function UnfinishedImports({
 }
 
 function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefined; canLink: boolean }) {
+  const template = useTemplateDownload();
   return (
-    <section aria-labelledby="ix-start" className="ix-section">
+    <section aria-labelledby="ix-start" className="stack stack--3">
       <h2 className="section-title" id="ix-start">
         Start an import
       </h2>
@@ -139,14 +120,12 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
         <div className="card card--flush ix-panel">
           <div className="ix-panel-body">
             <h3>Students</h3>
-            <p className="subtext">
-              A list of students, one per row: name, date of birth, WKSA ID and rank.
-            </p>
-            <div className="ix-actions ix-push-down">
+            <p className="subtext">A list of students, one per row: name, date of birth, WKSA ID and rank.</p>
+            <div className="row row--wrap ix-push-down">
               <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=STUDENT_ROSTER">
                 Import students
               </Link>
-              <Button variant="link" onClick={downloadStandardTemplate}>
+              <Button variant="link" disabled={!template.ready} onClick={template.download}>
                 Download the template
               </Button>
             </div>
@@ -156,14 +135,17 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
           <div className="ix-panel-body">
             <h3>Past gradings</h3>
             <p className="subtext">
-              An old grading record workbook: who tested, for which rank, the outcome and the
-              comments.
+              An old grading record workbook: who tested, for which rank, the outcome and the comments.
             </p>
-            <div className="ix-actions ix-push-down">
+            <div className="row row--wrap ix-push-down">
               <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=LEGACY_GRADINGS">
                 Import past gradings
               </Link>
-              {canLink ? <Link className={buttonClass({ variant: "secondary" })} to="/imports/history">Browse and correct records</Link> : null}
+              {canLink ? (
+                <Link className={buttonClass({ variant: "secondary" })} to="/imports/history">
+                  Browse and correct records
+                </Link>
+              ) : null}
             </div>
           </div>
           {awaitingLink ? (
@@ -172,7 +154,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
                 <strong className="ix-warning-text">
                   {counted(awaitingLink, "imported record", "imported records")}
                 </strong>{" "}
-                {awaitingLink === 1 ? "is" : "are"} not linked to a student yet.
+                {agreeing(awaitingLink, "is", "are")} not linked to a student yet.
               </p>
               {canLink ? (
                 <Link className={buttonClass({ variant: "link" })} to="/imports/records">
@@ -188,59 +170,56 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
 }
 
 function PastImports() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const kind = (searchParams.get("kind") ?? "") as DataImportKind | "";
-  const state = searchParams.get("state") ?? "";
-  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const filters = useUrlFilters();
+  const kind = filters.value("kind") as DataImportKind | "";
+  const state = filters.value("state");
+  const page = filters.page;
+  const choices = useChoices();
 
-  const past = useQuery({
-    queryKey: ["imports", "past", kind, state, page],
+  const paged = usePagedQuery({
+    queryKey: keys.imports.past(kind, state, page),
     placeholderData: keepPreviousData,
     queryFn: () =>
       getDataImportBatches({
         kind: kind || undefined,
-        status: state || FINISHED,
+        status: state || undefined,
+        finished: true,
         page,
         page_size: PAST_PAGE_SIZE,
       }),
+    page,
+    pageSize: PAST_PAGE_SIZE,
+    onPage: filters.setPage,
   });
-
-  function setFilter(name: string, value: string) {
-    const next = new URLSearchParams(searchParams);
-    if (value) next.set(name, value);
-    else next.delete(name);
-    next.delete("page");
-    setSearchParams(next, { replace: true });
-  }
-
-  function setPage(next: number) {
-    const params = new URLSearchParams(searchParams);
-    params.set("page", String(next));
-    setSearchParams(params, { replace: true });
-  }
-
-  const batches = past.data?.results ?? [];
-  const total = past.data?.count ?? 0;
+  const past = paged.query;
+  const batches = paged.results;
 
   return (
-    <section aria-labelledby="ix-past" className="ix-section">
-      <h2 id="ix-past" className="section-title">Past imports</h2>
+    <section aria-labelledby="ix-past" className="stack stack--3">
+      <h2 id="ix-past" className="section-title">
+        Past imports
+      </h2>
       <div className="filter-bar" role="search" aria-label="Import filters">
         <label className="field">
           <span>What</span>
-          <select value={kind} onChange={(event) => setFilter("kind", event.target.value)}>
+          <select value={kind} onChange={(event) => filters.set({ kind: event.target.value })}>
             <option value="">Everything</option>
-            <option value="STUDENT_ROSTER">Students</option>
-            <option value="LEGACY_GRADINGS">Past gradings</option>
+            {choices.import_kinds.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
           </select>
         </label>
         <label className="field">
           <span>State</span>
-          <select value={state} onChange={(event) => setFilter("state", event.target.value)}>
+          <select value={state} onChange={(event) => filters.set({ state: event.target.value })}>
             <option value="">Any</option>
-            <option value="COMMITTED">Imported</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="EXPIRED">Expired</option>
+            {choices.finished_import_statuses.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
           </select>
         </label>
       </div>
@@ -271,7 +250,7 @@ function PastImports() {
                   primary: true,
                   render: (batch) => <strong>{batch.original_filename}</strong>,
                 },
-                { key: "what", header: "What", render: (batch) => importKindLabel(batch.kind) },
+                { key: "what", header: "What", render: (batch) => batch.kind_display },
                 { key: "state", header: "State", render: (batch) => statePill(batch) },
                 { key: "result", header: "Result", render: (batch) => finishedResult(batch) },
                 {
@@ -300,7 +279,7 @@ function PastImports() {
                 },
               ]}
             />
-            <ImportPager label="Pages of past imports" page={page} pages={Math.max(1, Math.ceil(total / PAST_PAGE_SIZE))} total={total} onPage={setPage} />
+            <Pagination flush label="Pages of past imports" noun={["import", "imports"]} {...paged.pager} />
           </>
         )}
       </div>
@@ -315,19 +294,19 @@ export function ImportsHubScreen() {
   const [cancelling, setCancelling] = useState<DataImportBatch | null>(null);
 
   const unfinished = useQuery({
-    queryKey: ["imports", "unfinished"],
-    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: 50 }),
+    queryKey: keys.imports.unfinished(),
+    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: LARGEST_PAGE }),
   });
   const awaitingLink = useQuery({
-    queryKey: ["legacyRecords", "awaitingLinkCount"],
-    queryFn: () => getLegacyGradingRecords({ awaiting_link: true, page_size: 1 }),
+    queryKey: keys.legacyRecords.awaitingLinkCount(),
+    queryFn: () => getLegacyRecordCounts(),
   });
 
   const cancel = useMutation({
     mutationFn: (batch: DataImportBatch) => cancelDataImportBatch(batch.id),
     onSuccess: async () => {
       setCancelling(null);
-      await queryClient.invalidateQueries({ queryKey: ["imports"] });
+      await queryClient.invalidateQueries({ queryKey: keys.imports.all() });
     },
   });
 
@@ -342,23 +321,20 @@ export function ImportsHubScreen() {
       />
 
       {unfinished.isError ? (
-        <ErrorText>
-          {errorMessage(unfinished.error, "Unfinished imports could not be loaded.")}
-        </ErrorText>
+        <ErrorText>{errorMessage(unfinished.error, "Unfinished imports could not be loaded.")}</ErrorText>
       ) : null}
-      {open.length > 0 ? (
-        <UnfinishedImports batches={open} onCancel={(batch) => setCancelling(batch)} />
-      ) : null}
+      {open.length > 0 ? <UnfinishedImports batches={open} onCancel={(batch) => setCancelling(batch)} /> : null}
 
       <StartPanels
-        awaitingLink={awaitingLink.data?.count}
+        awaitingLink={awaitingLink.data?.awaiting_link}
         canLink={Boolean(user?.can_reconcile_imported_history)}
       />
 
       <PastImports />
 
       {cancelling ? (
-        <ImportDialog
+        <ConfirmDialog
+          cancelLabel="Not yet"
           confirmLabel="Cancel the import"
           danger
           error={cancel.isError ? errorMessage(cancel.error, "The import could not be cancelled.") : null}
@@ -372,10 +348,10 @@ export function ImportsHubScreen() {
           onConfirm={() => cancel.mutate(cancelling)}
         >
           <p className="subtext">
-            The file and everything you did with it are removed, and nothing is imported. You can
-            start again with the file at any time.
+            The file and everything you did with it are removed, and nothing is imported. You can start again with the
+            file at any time.
           </p>
-        </ImportDialog>
+        </ConfirmDialog>
       ) : null}
     </section>
   );

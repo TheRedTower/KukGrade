@@ -1,6 +1,19 @@
-import type { GradingCandidateRoster, GradingSession } from "./api";
-import type { AttendanceCandidate } from "./GradingAttendanceDialogs";
-import type { EnrichedCandidate } from "./SessionParts";
+import type { CandidateAssessment, CandidateOutcome, GradingCandidateRoster, GradingSession } from "./api";
+import { counted } from "./plural";
+
+/** A candidate on the session screen, with what the roster carries about them. */
+export interface EnrichedCandidate {
+  candidate: GradingCandidateRoster;
+  assessment?: CandidateAssessment;
+  outcome?: CandidateOutcome;
+}
+
+/** A candidate as the attendance dialogs name them. */
+export type AttendanceCandidate = {
+  id: number;
+  name: string;
+  wksaId: string;
+};
 
 export type SessionAction = "LOCK" | "COMPLETE" | "CANCEL" | "DELETE" | "OPEN" | "ARCHIVE" | "RESTORE";
 
@@ -37,7 +50,8 @@ export function filterCandidates(
     const assessmentStatus = item.assessment?.status || "NOT_STARTED";
     const withdrawn = item.candidate.status === "WITHDRAWN";
     const matchesStatus =
-      statusFilter === "ALL" || (statusFilter === "WITHDRAWN" ? withdrawn : !withdrawn && assessmentStatus === statusFilter);
+      statusFilter === "ALL" ||
+      (statusFilter === "WITHDRAWN" ? withdrawn : !withdrawn && assessmentStatus === statusFilter);
 
     return matchesSearch && matchesStatus;
   });
@@ -54,23 +68,23 @@ export function nextActionFor(item: EnrichedCandidate, session: GradingSession) 
   const decisionsUrl = `/gradings/${session.id}/decisions?candidate=${candidateId}`;
   switch (item.candidate.next_action) {
     case "PREPARE_ASSESSMENT":
-      return { label: "Prepare assessment →", url: assessmentUrl, opensProposalDrawer: false };
+      return { label: "Prepare assessment", url: assessmentUrl, opensProposalDrawer: false };
     case "START_ASSESSMENT":
-      return { label: "Start assessment →", url: assessmentUrl, opensProposalDrawer: false };
+      return { label: "Start assessment", url: assessmentUrl, opensProposalDrawer: false };
     case "CONTINUE_ASSESSMENT":
-      return { label: "Continue assessment →", url: assessmentUrl, opensProposalDrawer: false };
+      return { label: "Continue assessment", url: assessmentUrl, opensProposalDrawer: false };
     case "VIEW_ASSESSMENT":
-      return { label: "View record →", url: `${assessmentUrl}/review`, opensProposalDrawer: false };
+      return { label: "View record", url: `${assessmentUrl}/review`, opensProposalDrawer: false };
     case "PROPOSE_OUTCOME":
-      return { label: "Propose outcome →", url: assessmentUrl, opensProposalDrawer: true };
+      return { label: "Propose outcome", url: assessmentUrl, opensProposalDrawer: true };
     case "REVIEW_PROPOSAL":
-      return { label: "Review proposal →", url: assessmentUrl, opensProposalDrawer: true };
+      return { label: "Review proposal", url: assessmentUrl, opensProposalDrawer: true };
     case "REVIEW_DECISION":
-      return { label: "Review decision →", url: decisionsUrl, opensProposalDrawer: false };
+      return { label: "Review decision", url: decisionsUrl, opensProposalDrawer: false };
     case "VIEW_DECISION":
-      return { label: "View record →", url: decisionsUrl, opensProposalDrawer: false };
+      return { label: "View record", url: decisionsUrl, opensProposalDrawer: false };
     case "PROMOTION_LEDGER":
-      return { label: "Promotion ledger →", url: `/gradings/${session.id}/promotions`, opensProposalDrawer: false };
+      return { label: "Promotion ledger", url: `/gradings/${session.id}/promotions`, opensProposalDrawer: false };
     case "NONE":
       return { label: "No further action", url: null, opensProposalDrawer: false };
   }
@@ -84,8 +98,8 @@ export function confirmDetails(action: SessionAction, session: GradingSession, r
         title: "Delete Grading Session",
         message:
           session.status === "DRAFT"
-            ? "Are you sure you want to permanently delete this grading session? This action cannot be undone."
-            : "Are you sure you want to permanently delete this grading session? This erases its registrations and every assessment recorded in it. This action cannot be undone.",
+            ? `Are you sure you want to permanently delete ${session.title}? This action cannot be undone.`
+            : `Are you sure you want to permanently delete ${session.title}? This erases its registrations and every assessment recorded in it. This action cannot be undone.`,
       };
     case "ARCHIVE":
       return {
@@ -103,12 +117,14 @@ export function confirmDetails(action: SessionAction, session: GradingSession, r
     case "LOCK":
       return {
         title: "Lock Grading Session",
-        message: "Locking ends grading. Every assessment must be completed first, and after locking only the authorised Master can correct a mark, with a reason, until a candidate's decision is recorded.",
+        message:
+          "Locking ends grading. Every assessment must be completed first, and after locking only the authorised Master can correct a mark, with a reason, until a candidate's decision is recorded.",
       };
     case "COMPLETE":
       return {
         title: "Complete Grading Session",
-        message: "Completing this session finalises all grading results and records. Ensure all candidate decisions have been made.",
+        message:
+          "Completing this session finalises all grading results and records. Ensure all candidate decisions have been made.",
       };
     case "OPEN":
       return {
@@ -116,7 +132,7 @@ export function confirmDetails(action: SessionAction, session: GradingSession, r
         message: `Opening starts the grading and cannot be undone: an open session does not go back to draft. ${
           registeredCount === 0
             ? "No candidates are registered."
-            : `${registeredCount} candidate${registeredCount === 1 ? " is" : "s are"} registered.`
+            : `${counted(registeredCount, "candidate is", "candidates are")} registered.`
         } Check the roster first. Once open, a candidate who already has an assessment can no longer be moved or removed; one who cannot attend can still be marked as a no-show.`,
       };
   }

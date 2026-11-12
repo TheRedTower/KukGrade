@@ -7,9 +7,11 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
+from drf_spectacular.settings import spectacular_settings
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from accounts.people import name_of
 from gradings.models import (
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -737,10 +739,10 @@ def test_candidate_outcome_api_workflow() -> None:
     # A second proposal revises the same record rather than opening another.
     assert revised_response.json()["id"] == outcome_id
     assert [response.status_code for response in retired] == [404, 404]
-    assert propose_response.json()["proposed_by_name"] == actor.get_full_name()
+    assert propose_response.json()["proposed_by_name"] == name_of(actor)
     assert forbidden_finalise.status_code == 403
     assert finalise_response.status_code == 200
-    assert finalise_response.json()["decided_by_name"] == master_user.get_full_name()
+    assert finalise_response.json()["decided_by_name"] == name_of(master_user)
     assert finalise_response.json()["final_outcome"] == CandidateOutcome.Outcome.PASS
     assert listing.status_code == 404
     assert delete_response.status_code == 404
@@ -762,7 +764,7 @@ def test_proposing_for_a_candidate_opens_the_record_once_and_then_revises_it() -
 
 
 def test_a_proposal_cannot_be_revised_once_the_session_is_cancelled() -> None:
-    """Review N-04 (2026-11-07): only the first proposal checked the session."""
+    """A revised proposal checks the session as the first one does."""
     session, built = locked_session_with_undecided_candidate()
     proposed = propose_for_candidate(
         built, "PASS", "", user("n04-proposer@example.com")
@@ -794,3 +796,41 @@ def test_proposing_for_a_candidate_who_cannot_have_an_outcome_is_refused() -> No
             user("propose-refused@example.com"),
         )
     assert not CandidateOutcome.objects.filter(candidate=built).exists()
+
+
+def test_finalising_with_no_outcome_is_refused_with_a_message() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "",
+        user("finalise-empty-proposer@example.com"),
+    )
+    client = APIClient()
+    client.force_authenticate(user=master("finalise-empty@example.com"))
+
+    response = client.patch(
+        f"/api/gradings/outcomes/{outcome.id}/finalise/", {}, format="json"
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "validation_error"
+    assert "final_outcome" in response.json()["error"]["fields"]
+    outcome.refresh_from_db()
+    assert outcome.status == CandidateOutcome.Status.PROPOSED
+
+
+def test_the_contract_says_a_final_decision_needs_its_outcome() -> None:
+    # Served as a PATCH, yet never partial: the schema states what the
+    # server refuses without (above), so a client's types require it too.
+    schema = spectacular_settings.DEFAULT_GENERATOR_CLASS().get_schema(
+        request=None,
+        public=True,
+    )
+    body = schema["paths"]["/api/gradings/outcomes/{id}/finalise/"]["patch"][
+        "requestBody"
+    ]
+    assert body["required"] is True
+    ref = body["content"]["application/json"]["schema"]["$ref"]
+    component = schema["components"]["schemas"][ref.rsplit("/", 1)[-1]]
+    assert component["required"] == ["final_outcome"]

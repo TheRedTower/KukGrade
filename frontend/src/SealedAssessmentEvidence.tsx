@@ -12,13 +12,14 @@ import { Link } from "react-router-dom";
 
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { formatShortDateTime, formatTime } from "./dates";
-import { isReasonedChange, RESULT_WORDS } from "./resultWords";
+import { formatTime } from "./dates";
+import { ItemRemarks } from "./ItemRemarks";
+import { hasRemarks } from "./remarks";
 import { ErrorText } from "./ErrorText";
 import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
 import "./SealedAssessmentEvidence.css";
-import { EmailAddress } from "./EmailAddress";
+import { cx } from "./cx";
 
 export function SealedAssessmentEvidence({
   assessmentId,
@@ -35,19 +36,14 @@ export function SealedAssessmentEvidence({
   const summaryQuery = useAssessmentSummaryQuery(assessmentId);
   const itemsQuery = useAssessmentItemsQuery(assessmentId);
 
-  const notedItems = (itemsQuery.data?.results ?? []).filter(
-    (item) =>
-      item.result === "NOT_MET" ||
-      item.comments.length > 0 ||
-      item.changes.some(isReasonedChange),
-  );
+  const notedItems = (itemsQuery.data?.results ?? []).filter((item) => item.result === "NOT_MET" || hasRemarks(item));
   const shortfalls = notedItems.filter((item) => item.result === "NOT_MET");
   const otherNotes = notedItems.filter((item) => item.result !== "NOT_MET");
   const overall = summaryQuery.data?.overall;
   const failed = summaryQuery.isError || itemsQuery.isError;
 
   return (
-    <section className={`evd ${className}`} aria-labelledby={titleId}>
+    <section className={cx("stack stack--2 evd", className)} aria-labelledby={titleId}>
       <h3 id={titleId}>Sealed assessment</h3>
       {assessmentId === undefined ? (
         <p className="evd-muted subtext">No assessment recorded.</p>
@@ -78,39 +74,18 @@ export function SealedAssessmentEvidence({
       {[shortfalls, otherNotes].map(
         (group, index) =>
           group.length > 0 && (
-            <ul key={index} className="evd-notes">
+            <ul key={index} className="stack stack--2 list-plain">
               {group.map((item) => {
                 const shortfall = item.result === "NOT_MET";
                 return (
                   <li key={item.id} className={shortfall ? "evd-note evd-note-shortfall" : "evd-note"}>
-                    <span className="evd-note-title item-title">
-                      {shortfall && <WarningIcon size={14} />} {item.item_name} ·{" "}
-                      {item.category_display}
+                    <span className="row row--inline row--1 evd-note-title item-title">
+                      {shortfall && <WarningIcon size={14} />} {item.item_name} · {item.category_display}
                       {!shortfall && ` · ${item.result_display}`}
                     </span>
-                    {item.changes
-                      .filter(isReasonedChange)
-                      .map((change) => (
-                        <span key={change.sequence} className="evd-comment" data-testid={`evd-change-${item.id}-${change.sequence}`}>
-                          <q>{change.reason}</q>
-                          <span className="evd-note-by subtext">
-                            Changed from {RESULT_WORDS[change.from_result]} to {RESULT_WORDS[change.to_result]} by{" "}
-                            {change.changed_by_name}, {formatShortDateTime(change.changed_at)}
-                            {change.after_lock ? ", after the lock" : ""}
-                          </span>
-                        </span>
-                      ))}
-                    {item.comments.map((comment) => (
-                      <span key={comment.id} className="evd-comment">
-                        <q>{comment.body}</q>
-                        <span className="evd-note-by subtext">
-                          {comment.author_name}, {formatShortDateTime(comment.created_at)}
-                          {comment.after_lock ? ", after the lock" : ""}
-                        </span>
-                      </span>
-                    ))}
+                    <ItemRemarks item={item} />
                     <span className="evd-note-by subtext">
-                      {item.assessor_email && <EmailAddress address={item.assessor_email} />}
+                      {item.assessor_name}
                       {item.assessed_at ? `, ${formatTime(item.assessed_at)}` : ""}
                     </span>
                   </li>

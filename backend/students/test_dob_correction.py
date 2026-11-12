@@ -42,7 +42,7 @@ def test_a_corrected_birth_date_moves_an_open_registration_to_its_band() -> None
 
 
 def test_a_correction_into_a_band_with_no_syllabus_for_the_rank_is_refused() -> None:
-    """Review N-08 (2026-11-07): the C-02 rule, on the re-banding path."""
+    """As registering checks: the new band must have a syllabus for the rank."""
     built = candidate()
     SyllabusRequirement.objects.filter(
         rank=built.testing_for_rank,

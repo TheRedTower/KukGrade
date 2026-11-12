@@ -28,7 +28,7 @@ const counts = {
   required_not_assessed: 0,
   all_required_assessed: true,
 };
-const summary: CandidateAssessmentSummary = { overall: counts, categories: [] };
+const summary: CandidateAssessmentSummary = { overall: counts, can_complete: false, categories: [] };
 
 function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentItem {
   return {
@@ -38,6 +38,8 @@ function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentI
     category: "KICKING",
     category_display: "Kicking",
     category_is_core: true,
+    reason_required: true,
+    can_clear: true,
     position: 1,
     required: true,
     display_range: "",
@@ -45,7 +47,7 @@ function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentI
     notation: "",
     result: "MET",
     result_display: "Met",
-    assessor_email: "reed@example.com",
+    assessor_name: "KSN Reed Hart",
     assessed_at: null,
     comments: [],
     changes: [],
@@ -82,16 +84,41 @@ describe("SealedAssessmentEvidence", () => {
       next: null,
       previous: null,
       results: [
-        item({ id: 1, result: "NOT_MET", result_display: "Not met", comments: [{ id: 1, author_name: "Casey Reed", body: "Chamber too low", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
-        item({ id: 2, item_name: "Stance", comments: [{ id: 2, author_name: "Lee Tan", body: "Crisp footwork", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
+        item({
+          id: 1,
+          result: "NOT_MET",
+          result_display: "Not met",
+          comments: [
+            {
+              id: 1,
+              author_name: "Casey Reed",
+              body: "Chamber too low",
+              created_at: "2026-09-18T10:20:00Z",
+              after_lock: false,
+            },
+          ],
+        }),
+        item({
+          id: 2,
+          item_name: "Stance",
+          comments: [
+            {
+              id: 2,
+              author_name: "Lee Tan",
+              body: "Crisp footwork",
+              created_at: "2026-09-18T10:20:00Z",
+              after_lock: false,
+            },
+          ],
+        }),
       ],
     });
 
     renderEvidence();
 
     expect(await screen.findByText("3 / 4 required met · 1 not met")).toBeVisible();
-    expect(screen.getByText("Chamber too low")).toBeVisible();
-    expect(screen.getByText("Crisp footwork")).toBeVisible();
+    expect(screen.getByText("“Chamber too low”")).toBeVisible();
+    expect(screen.getByText("“Crisp footwork”")).toBeVisible();
     expect(screen.getByRole("link", { name: "Open the full assessment record" })).toHaveAttribute(
       "href",
       "/gradings/10/assessments/102/review",
@@ -110,8 +137,28 @@ describe("SealedAssessmentEvidence", () => {
           result: "NOT_MET",
           result_display: "Not met",
           changes: [
-            { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
-            { sequence: 2, from_result: "MET", to_result: "NOT_MET", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on review.", after_lock: true },
+            {
+              sequence: 1,
+              from_result: "NOT_ASSESSED",
+              from_result_display: "Not assessed",
+              to_result: "MET",
+              to_result_display: "Met",
+              changed_by_name: "Casey Reed",
+              changed_at: "2026-09-18T10:00:00Z",
+              reason: "",
+              after_lock: false,
+            },
+            {
+              sequence: 2,
+              from_result: "MET",
+              from_result_display: "Met",
+              to_result: "NOT_MET",
+              to_result_display: "Not met",
+              changed_by_name: "Master Park",
+              changed_at: "2026-09-19T09:30:00Z",
+              reason: "Dropped the guard on review.",
+              after_lock: true,
+            },
           ],
         }),
       ],
@@ -119,11 +166,11 @@ describe("SealedAssessmentEvidence", () => {
 
     renderEvidence();
 
-    const change = await screen.findByTestId("evd-change-5-2");
+    const change = await screen.findByTestId("remark-change-5-2");
     expect(change).toHaveTextContent("Dropped the guard on review.");
     expect(change).toHaveTextContent("Master Park");
     expect(change).toHaveTextContent("after the lock");
-    expect(screen.queryByTestId("evd-change-5-1")).toBeNull();
+    expect(screen.queryByTestId("remark-change-5-1")).toBeNull();
   });
 
   it("shows a first mark made after the lock, even on a met item with no comments", async () => {
@@ -136,7 +183,17 @@ describe("SealedAssessmentEvidence", () => {
         item({
           id: 6,
           changes: [
-            { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Master Park", changed_at: "2026-09-19T09:30:00Z", reason: "Seen on the recording.", after_lock: true },
+            {
+              sequence: 1,
+              from_result: "NOT_ASSESSED",
+              from_result_display: "Not assessed",
+              to_result: "MET",
+              to_result_display: "Met",
+              changed_by_name: "Master Park",
+              changed_at: "2026-09-19T09:30:00Z",
+              reason: "Seen on the recording.",
+              after_lock: true,
+            },
           ],
         }),
       ],
@@ -144,7 +201,7 @@ describe("SealedAssessmentEvidence", () => {
 
     renderEvidence();
 
-    const change = await screen.findByTestId("evd-change-6-1");
+    const change = await screen.findByTestId("remark-change-6-1");
     expect(change).toHaveTextContent("Seen on the recording.");
     expect(change).toHaveTextContent("after the lock");
   });
@@ -164,9 +221,7 @@ describe("SealedAssessmentEvidence", () => {
 
     renderEvidence();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The sealed assessment could not be loaded.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("The sealed assessment could not be loaded.");
     expect(screen.queryByText("Loading the assessment…")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Try again" }));

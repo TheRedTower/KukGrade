@@ -211,6 +211,8 @@ def test_two_submissions_of_one_code_create_one_administrator() -> None:
                 code=code,
                 email=email,
                 password=CHOSEN,
+                first_name="First",
+                last_name="Owner",
             )
         finally:
             close_old_connections()
@@ -226,3 +228,15 @@ def test_two_submissions_of_one_code_create_one_administrator() -> None:
     assert list(User.objects.filter(is_superuser=True).values_list("email")) == [
         ("first@example.com",),
     ]
+
+
+def test_the_first_administrator_gives_a_name() -> None:
+    code = issue_setup_code()
+    assert code is not None
+    client = APIClient()
+
+    response = submit(client, details(code, first_name=" ", last_name=""))
+
+    assert response.status_code == 400
+    assert set(response.json()["error"]["fields"]) == {"first_name", "last_name"}
+    assert not User.objects.exists()

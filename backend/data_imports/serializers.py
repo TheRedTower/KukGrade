@@ -5,6 +5,7 @@ from typing import Any
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from accounts.people import named
 from data_imports.mappings import (
     STUDENT_FIELD_LABELS,
     STUDENT_OPTIONAL_FIELDS,
@@ -14,17 +15,18 @@ from data_imports.mappings import (
 )
 from data_imports.models import ImportBatch, ImportRow
 from data_imports.services import (
+    REVIEW_STEPS,
     ROW_COUNT_NAMES,
     CreateImportBatchResult,
     ImportStep,
-    StudentImportRowOutcome,
     extra_values,
     next_step,
+    review_step,
     roster_cells,
     roster_file_values,
-    row_counts,
+    uncovered_fields,
 )
-from students.models import Student
+from kukgrade.serializers import ModelSerializer
 
 
 class ImportRowCountsSerializer(serializers.Serializer):
@@ -46,7 +48,19 @@ class ImportFieldSerializer(serializers.Serializer):
     )
 
 
-class ImportBatchSerializer(serializers.ModelSerializer):
+class ImportSecondLookSerializer(serializers.Serializer):
+    corrected = serializers.IntegerField(
+        help_text="Added rows holding a fix of the importer's.",
+    )
+    given_status = serializers.IntegerField(
+        help_text="Added rows the file gave no status, so one was given them.",
+    )
+    given_rank = serializers.IntegerField(
+        help_text="Added rows the file gave no rank, so the whole-file rank was used.",
+    )
+
+
+class ImportBatchSerializer(ModelSerializer):
     """An import: what was uploaded, where it is up to, and its rows' counts."""
 
     kind_display = serializers.CharField(source="get_kind_display", read_only=True)
@@ -54,7 +68,16 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     uploaded_by_name = serializers.SerializerMethodField()
     committed_by_name = serializers.SerializerMethodField()
     next_step = serializers.SerializerMethodField(
-        help_text="Where the import is up to, so a screen can resume it.",
+        help_text=(
+            "Where the import is up to, so a screen can resume it: one of the "
+            "steps its kind serves (site settings, imports.kinds)."
+        ),
+    )
+    review_step = serializers.SerializerMethodField(
+        help_text=(
+            "Where its review stands: REVIEW while rows need attention, "
+            "otherwise CONFIRM."
+        ),
     )
     detected_headers = serializers.SerializerMethodField(
         help_text="A roster's column headers, as in the file; empty otherwise.",
@@ -85,10 +108,10 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     target_fields = serializers.SerializerMethodField(
         help_text="The fields a roster's columns are matched to; empty otherwise.",
     )
-    rank_mappings = serializers.SerializerMethodField(
+    uncovered_fields = serializers.SerializerMethodField(
         help_text=(
-            "A historical import's chosen rank for each spelling, by the "
-            "spelling lowercased; a spelling not here is left as written."
+            "A roster's needed fields that no saved column holds and no "
+            "whole-file value gives, so each row's value is typed in."
         ),
     )
     grading_sheets = serializers.SerializerMethodField(
@@ -120,6 +143,7 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             "committed_by_name",
             "cancelled_at",
             "next_step",
+            "review_step",
             "detected_headers",
             "column_mapping",
             "defaults",
@@ -129,7 +153,7 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             "sheet_error",
             "suggested_mapping",
             "target_fields",
-            "rank_mappings",
+            "uncovered_fields",
             "grading_sheets",
             "warnings",
             "row_counts",
@@ -138,36 +162,43 @@ class ImportBatchSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_uploaded_by_name(self, batch: ImportBatch) -> str:
-        return batch.uploaded_by.get_full_name() or batch.uploaded_by.email
+        return named(batch.uploaded_by, batch.uploaded_by_title)
 
     def get_committed_by_name(self, batch: ImportBatch) -> str:
-        user = batch.committed_by
-        return (user.get_full_name() or user.email) if user else ""
+        return named(batch.committed_by, batch.committed_by_title)
+
+    # Counted by ImportBatchViewSet's queryset (services.with_row_counts).
+    def _rows_needing_review(self, batch: ImportBatch) -> int:
+        return self.get_row_counts(batch)["review_required"]
 
     @extend_schema_field(serializers.ChoiceField(choices=ImportStep.choices))
     def get_next_step(self, batch: ImportBatch) -> str:
-        return next_step(batch)
+        return next_step(batch, rows_needing_review=self._rows_needing_review(batch))
+
+    @extend_schema_field(serializers.ChoiceField(choices=REVIEW_STEPS))
+    def get_review_step(self, batch: ImportBatch) -> str:
+        return review_step(batch, rows_needing_review=self._rows_needing_review(batch))
 
     def get_detected_headers(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("detected_headers", []))
+        return batch.configuration.detected_headers
 
     def get_column_mapping(self, batch: ImportBatch) -> dict[str, str]:
-        return dict(batch.configuration_json.get("column_mapping", {}))
+        return batch.configuration.column_mapping
 
     def get_defaults(self, batch: ImportBatch) -> dict[str, str]:
-        return dict(batch.configuration_json.get("defaults", {}))
+        return batch.configuration.defaults
 
     def get_extra_columns(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("extra_columns", []))
+        return batch.configuration.extra_columns
 
     def get_sheet(self, batch: ImportBatch) -> str:
-        return str(batch.configuration_json.get("sheet", ""))
+        return batch.configuration.sheet
 
     def get_sheet_names(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("sheet_names", []))
+        return batch.configuration.sheet_names
 
     def get_sheet_error(self, batch: ImportBatch) -> str:
-        return str(batch.configuration_json.get("sheet_error", ""))
+        return batch.configuration.sheet_error
 
     def get_suggested_mapping(self, batch: ImportBatch) -> dict[str, str]:
         if batch.kind != ImportBatch.Kind.STUDENT_ROSTER:
@@ -188,26 +219,23 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             for field in STUDENT_TARGET_FIELDS
         ]
 
-    def get_rank_mappings(self, batch: ImportBatch) -> dict[str, str]:
-        return dict(batch.configuration_json.get("rank_mappings", {}))
+    def get_uncovered_fields(self, batch: ImportBatch) -> list[str]:
+        return uncovered_fields(batch)
 
     def get_grading_sheets(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("grading_sheets", []))
+        return batch.configuration.grading_sheets
 
     def get_warnings(self, batch: ImportBatch) -> list[str]:
-        return list(batch.configuration_json.get("warnings", []))
+        return batch.configuration.warnings
 
     @extend_schema_field(ImportRowCountsSerializer)
     def get_row_counts(self, batch: ImportBatch) -> dict[str, int]:
-        # Annotated by the batch list and detail (ImportBatchViewSet), so a
-        # page of imports is counted in its one query.
-        annotated = getattr(batch, "row_counts_annotated", None)
-        if annotated is not None:
-            return {name: getattr(batch, f"rows_{name}") for name in ROW_COUNT_NAMES}
-        return row_counts(batch)
+        # Every batch served is read through ImportBatchViewSet's queryset,
+        # which counts them (services.with_row_counts).
+        return {name: getattr(batch, f"rows_{name}") for name in ROW_COUNT_NAMES}
 
 
-class ImportRowSerializer(serializers.ModelSerializer):
+class ImportRowSerializer(ModelSerializer):
     """One stored row and what the last check made of it."""
 
     outcome_display = serializers.CharField(
@@ -296,6 +324,8 @@ class ImportMappingSerializer(serializers.Serializer):
     A column for each field, a whole-file value for a field the file lacks
     (current_rank or status only), and the columns to keep as extra
     information. A needed field with neither is typed into each row as a fix.
+    A refusal names the part it is about: column_mapping, defaults or
+    extra_columns.
     """
 
     column_mapping = serializers.DictField(
@@ -314,28 +344,6 @@ class ImportMappingSerializer(serializers.Serializer):
         help_text="The file's columns to keep as each student's extra information.",
     )
 
-    def validate_defaults(self, value: dict[str, str]) -> dict[str, str]:
-        if set(value) - set(STUDENT_WHOLE_FILE_FIELDS):
-            raise serializers.ValidationError(
-                "Only current rank and status can be given for the whole file.",
-            )
-        status = value.get("status", "").strip().upper()
-        if status and status not in Student.Status.values:
-            raise serializers.ValidationError(f"Status {status!r} is not recognised.")
-        return value
-
-    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        mapping = attrs["column_mapping"]
-        unknown = sorted(set(mapping) - set(STUDENT_TARGET_FIELDS))
-        if unknown:
-            raise serializers.ValidationError(
-                {"column_mapping": [f"Unknown field(s): {', '.join(unknown)}."]},
-            )
-        # A needed field may have no column: each row's value is then typed in
-        # as a fix, and the row needs attention until it is (owner,
-        # 2026-10-20). Commit refuses while any row does.
-        return attrs
-
 
 class ImportRowExclusionSerializer(serializers.Serializer):
     excluded = serializers.BooleanField(
@@ -343,22 +351,18 @@ class ImportRowExclusionSerializer(serializers.Serializer):
     )
 
 
-class ImportBatchCreatedSerializer(serializers.ModelSerializer):
-    """The new batch's id, plus one-shot creation-response extras: a
-    duplicate-hash warning and the file's own headers, so the frontend can
-    build its mapping step without a second request. Not persisted state."""
+class ImportBatchCreatedSerializer(ModelSerializer):
+    """The new import's id, and whether this exact file was imported before -
+    the one thing only the upload knows. Everything else, its headers and
+    suggested matches included, is the import's own (batches/{id}/)."""
 
     already_imported_warning = serializers.SerializerMethodField()
-    detected_headers = serializers.SerializerMethodField()
-    suggested_mapping = serializers.SerializerMethodField()
 
     class Meta:
         model = ImportBatch
         fields = [
             "id",
             "already_imported_warning",
-            "detected_headers",
-            "suggested_mapping",
         ]
         read_only_fields = fields
 
@@ -368,12 +372,6 @@ class ImportBatchCreatedSerializer(serializers.ModelSerializer):
 
     def get_already_imported_warning(self, obj: Any) -> bool:
         return self._creation().already_imported_warning
-
-    def get_detected_headers(self, obj: Any) -> list[str]:
-        return self._creation().detected_headers
-
-    def get_suggested_mapping(self, obj: Any) -> dict[str, str]:
-        return self._creation().suggested_mapping
 
 
 class ImportBatchCreateSerializer(serializers.Serializer):
@@ -400,25 +398,6 @@ class ImportRecordsVoidSerializer(serializers.Serializer):
 
 class ImportRecordsVoidedSerializer(serializers.Serializer):
     voided = serializers.IntegerField(help_text="How many records were voided.")
-
-
-def _validate_column_mapping(value: dict[str, str]) -> None:
-    unknown = set(value) - set(STUDENT_TARGET_FIELDS)
-    if unknown:
-        raise serializers.ValidationError(
-            f"Unknown field(s): {', '.join(sorted(unknown))}."
-        )
-
-
-class StudentImportCorrectionSerializer(serializers.Serializer):
-    """One row's corrected values, by target field; any may be left out."""
-
-    wksa_id = serializers.CharField(required=False, allow_blank=True)
-    first_name = serializers.CharField(required=False, allow_blank=True)
-    last_name = serializers.CharField(required=False, allow_blank=True)
-    date_of_birth = serializers.CharField(required=False, allow_blank=True)
-    current_rank = serializers.CharField(required=False, allow_blank=True)
-    status = serializers.CharField(required=False, allow_blank=True)
 
 
 class ImportRowCorrectionSerializer(serializers.Serializer):
@@ -452,56 +431,19 @@ class ImportRowCorrectionSerializer(serializers.Serializer):
         return attrs
 
 
-class StudentImportSerializer(serializers.Serializer):
-    """Shared request shape for the preview and commit actions."""
-
-    column_mapping = serializers.DictField(
-        child=serializers.CharField(allow_blank=True),
-        validators=[_validate_column_mapping],
-    )
-    # Keyed by row number. Each correction declares the target fields it may
-    # carry, so the schema - and the generated frontend type - name them.
-    corrections = serializers.DictField(
-        child=StudentImportCorrectionSerializer(),
-        required=False,
-        default=dict,
-    )
-
-
-class StudentImportRowResultSerializer(serializers.Serializer):
-    row_number = serializers.IntegerField()
-    outcome = serializers.ChoiceField(choices=StudentImportRowOutcome.choices)
-    wksa_id = serializers.CharField()
-    first_name = serializers.CharField()
-    last_name = serializers.CharField()
-    date_of_birth_display = serializers.CharField()
-    current_rank_text = serializers.CharField()
-    status = serializers.CharField()
-    issues = serializers.ListField(child=serializers.CharField())
-
-
-class StudentImportPreviewSerializer(serializers.Serializer):
-    total = serializers.IntegerField()
-    ready = serializers.IntegerField()
-    review_required = serializers.IntegerField()
-    skip_existing = serializers.IntegerField()
-    excluded = serializers.IntegerField()
-    rows = StudentImportRowResultSerializer(many=True)
-
-
 class LegacyImportSerializer(serializers.Serializer):
-    """Shared request shape for the historical preview and commit actions.
+    """The historical preview's request: the rank choices to save, if any.
 
     Keys are the source rank text exactly as it appeared in the workbook
-    (case-insensitive on the service side); a null/omitted value explicitly
-    means "leave unresolved" - never a block on committing that row,
-    unlike the student roster importer's required rank.
+    (case-insensitive on the service side); a null value explicitly means
+    "leave unresolved" - never a block on committing that row, unlike the
+    student roster importer's required rank. Left out, the stored choices
+    are kept.
     """
 
     rank_mappings = serializers.DictField(
         child=serializers.CharField(allow_null=True, allow_blank=True, required=False),
         required=False,
-        default=dict,
     )
 
 
@@ -512,6 +454,10 @@ class RankMappingSuggestionSerializer(serializers.Serializer):
         help_text="The source marks its own doubt, as in 'Red stripe?'.",
     )
     rows = serializers.IntegerField(help_text="How many rows use this text.")
+    chosen_rank_code = serializers.CharField(
+        allow_null=True,
+        help_text="The rank chosen for this spelling, or null while it has none.",
+    )
 
 
 class LegacyImportPreviewSerializer(serializers.Serializer):

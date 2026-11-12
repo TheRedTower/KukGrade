@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import type { BulkCandidateRegistrationResponse, GradingSession, Rank, StudentListItem } from "./api";
@@ -7,10 +6,12 @@ import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { SessionFacts } from "./SessionParts";
 import { Button } from "./Button";
-import { CheckIcon, WarningIcon } from "./Icons";
+import { CheckIcon, ChevronRightIcon, WarningIcon } from "./Icons";
+import { CandidateRanks } from "./RankTransition";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
+import { counted } from "./plural";
 
 /** A student the registration refused, with why, as the resolver lists them. */
 export interface FlaggedCandidateItem {
@@ -45,7 +46,6 @@ export function CohortResolver({
   onRemove: (key: string) => void;
   onRetry: () => void;
 }) {
-  const [showSuccessfulList, setShowSuccessfulList] = useState(false);
   const createdCount = registrationResult.created.length;
   const flaggedCount = flaggedItems.length;
   const retryableCount = flaggedItems.filter((i) => !i.registered).length;
@@ -53,11 +53,7 @@ export function CohortResolver({
   return (
     <section aria-labelledby="bgc-resolver-title" className="page" data-testid="bgc-page">
       <PageHeader
-        crumbs={[
-          { label: "Gradings", to: "/gradings" },
-          { label: session.title, to: `/gradings/${session.id}` },
-          { label: "Resolve flagged candidates" },
-        ]}
+        back={{ to: `/gradings/${session.id}`, label: session.title }}
         title="Resolve flagged candidates"
         titleId="bgc-resolver-title"
         subtitle="Successful registrations are already saved."
@@ -77,24 +73,18 @@ export function CohortResolver({
         </p>
       </PageHeader>
 
-      {submitError && (
-        <Alert onDismiss={onDismissError}>{submitError}</Alert>
-      )}
+      {submitError && <Alert onDismiss={onDismissError}>{submitError}</Alert>}
 
       {/* Flagged items table section */}
-      <section className="bgc-section bgc-resolver-section">
+      <section className="stack stack--3 bgc-resolver-section">
         <div className="bgc-section-header">
           <div>
-            <h2 className="section-title">
-              {flaggedCount === 1 ? "1 candidate needs attention" : `${flaggedCount} candidates need attention`}
-            </h2>
+            <h2 className="section-title">{counted(flaggedCount, "candidate needs", "candidates need")} attention</h2>
             <p className="bgc-section-subtext">
-              These candidates could not be registered. Resolve the issues below, then retry only the flagged candidates.
+              These candidates could not be registered. Resolve the issues below, then retry only the flagged
+              candidates.
             </p>
           </div>
-          <span className="meta">
-            Showing {flaggedCount} of {flaggedCount} flagged candidates
-          </span>
         </div>
 
         <ResponsiveTable
@@ -109,9 +99,9 @@ export function CohortResolver({
               render: (item) => (
                 <>
                   <span className="item-title">
-                    {item.student?.first_name} {item.student?.last_name}
+                    {item.student.first_name} {item.student.last_name}
                   </span>
-                  <span className="bgc-student-id meta">{item.student?.wksa_id}</span>
+                  <span className="bgc-student-id meta">{item.student.wksa_id}</span>
                 </>
               ),
             },
@@ -126,7 +116,7 @@ export function CohortResolver({
                     {item.registered === "THIS_SESSION" ? "No retry needed" : "Registered for another grading"}
                   </Badge>
                 ) : (
-                  <StudentStatusBadge status={item.student?.status} label={item.student?.status_display} />
+                  <StudentStatusBadge status={item.student.status} label={item.student.status_display} />
                 ),
             },
             {
@@ -136,18 +126,14 @@ export function CohortResolver({
               render: (item) => (
                 <>
                   <Link
-                    to={`/students/${item.student?.id}`}
+                    to={`/students/${item.student.id}`}
                     className={buttonClass({ variant: "ghost", small: true })}
                     target="_blank"
                     rel="noreferrer"
                   >
                     View student<span className="visually-hidden"> (opens in a new tab)</span>
                   </Link>
-                  <Button
-                    variant="danger-quiet" small
-                    disabled={isSubmitting}
-                    onClick={() => onRemove(item.key)}
-                  >
+                  <Button variant="danger-quiet" small disabled={isSubmitting} onClick={() => onRemove(item.key)}>
                     Remove from list
                   </Button>
                 </>
@@ -159,39 +145,27 @@ export function CohortResolver({
 
       {/* Collapsible successful registrations */}
       {createdCount > 0 && (
-        <section className="bgc-successful-section">
-          <button
-            type="button"
-            className="bgc-accordion-toggle item-title"
-            onClick={() => setShowSuccessfulList((prev) => !prev)}
-            aria-expanded={showSuccessfulList}
-          >
-            <span className="bgc-accordion-chevron" aria-hidden="true">
-              {showSuccessfulList ? "▾" : "▸"}
-            </span>
-            <span>View {createdCount} successful registration{createdCount === 1 ? "" : "s"}</span>
+        <details className="disclosure bgc-successful-section">
+          <summary>
+            <ChevronRightIcon />
+            <span>View {counted(createdCount, "successful registration", "successful registrations")}</span>
             <span className="bgc-accordion-count meta">
               {createdCount} registered · {flaggedCount} flagged
             </span>
-          </button>
-
-          {showSuccessfulList && (
-            <div className="bgc-accordion-content">
-              <ul className="bgc-created-list">
-                {registrationResult.created.map((entry) => (
-                  <li key={entry.candidate.id} className="bgc-created-item">
-                    <span className="item-title">{entry.candidate.student_display_name}</span>
-                    <span className="meta">({entry.candidate.student_wksa_id})</span>
-                    <span className="bgc-created-rank item-title">➔ {entry.candidate.testing_for_rank_name}</span>
-                    {entry.assessment && (
-                      <Badge tone="info">Form created (Not started)</Badge>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
+          </summary>
+          <div className="disclosure__body bgc-accordion-content">
+            <ul className="stack stack--2 list-plain">
+              {registrationResult.created.map((entry) => (
+                <li key={entry.candidate.id} className="row row--wrap bgc-created-item">
+                  <span className="item-title">{entry.candidate.student_display_name}</span>
+                  <span className="meta">({entry.candidate.student_wksa_id})</span>
+                  <CandidateRanks candidate={entry.candidate} />
+                  {entry.assessment && <Badge tone="info">Form created (Not started)</Badge>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       )}
 
       {/* Footer actions */}
@@ -211,7 +185,7 @@ export function CohortResolver({
             disabled={isSubmitting || retryableCount === 0}
             data-testid="bgc-retry-flagged-btn"
           >
-            {isSubmitting ? "Retrying..." : `Save changes and retry ${retryableCount}`}
+            {isSubmitting ? "Retrying…" : `Save changes and retry ${retryableCount}`}
           </Button>
           <span className="meta">Only resolved candidates will be retried.</span>
         </div>

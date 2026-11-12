@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from data_imports.parsers import normalised_text
+
 STUDENT_TARGET_FIELDS: tuple[str, ...] = (
     "wksa_id",
     "first_name",
@@ -30,6 +32,17 @@ STUDENT_FIELD_LABELS: dict[str, str] = {
 }
 STUDENT_OPTIONAL_FIELDS: frozenset[str] = frozenset({"status"})
 
+# The header row of the standard roster template the import screen offers.
+# Each is one suggest_column_mapping recognises (data_imports/tests.py).
+STANDARD_TEMPLATE_HEADERS: dict[str, str] = {
+    "wksa_id": "WKSA ID",
+    "first_name": "First Name",
+    "last_name": "Last Name",
+    "date_of_birth": "Date of Birth",
+    "current_rank": "Current Rank",
+    "status": "Status",
+}
+
 # Fields one value can be given for the whole file, used where a row has
 # none (no column, or a blank cell). Never a field that is each person's own -
 # an ID, a name or a date of birth given for everyone would be invented.
@@ -48,13 +61,9 @@ _HEADER_ALIASES: dict[str, tuple[str, ...]] = {
 }
 
 
-def _normalise_header(header: str) -> str:
-    return " ".join(str(header).strip().lower().split())
-
-
 def suggest_column_mapping(headers: Sequence[str]) -> dict[str, str]:
     """Best-effort target field -> source header mapping, for pre-filling the UI."""
-    normalised = {header: _normalise_header(header) for header in headers}
+    normalised = {header: normalised_text(header) for header in headers}
     mapping: dict[str, str] = {}
     for field, aliases in _HEADER_ALIASES.items():
         for header, norm in normalised.items():

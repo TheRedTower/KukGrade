@@ -64,8 +64,9 @@
   background: var(--color-surface-sunken);
 }
 
-/* A button that stays down (aria-pressed): the choice in a row of choices. */
-.btn[aria-pressed="true"] {
+/* A button that stays down (aria-pressed): the choice in a row of choices.
+   One that carries a tone (a Pass, a Fail) shows that tone instead. */
+.btn[aria-pressed="true"]:not([data-tone]) {
   border-color: var(--color-gold-strong);
   background: var(--color-surface-sunken);
 }
@@ -113,9 +114,13 @@
   font-size: var(--font-size-sm);
 }
 
-/* The one badge (Badge.tsx): a short label with a tone. A tone is a meaning (success,
-   warning, danger, info, neutral) or one of a grading session's statuses; its colours
-   come from theme.css, so the same thing looks the same on every screen. */
+/* A button that is only an icon (its words are its aria-label): a square target. */
+.btn--icon {
+  width: var(--target-min);
+  padding: 0;
+}
+
+/* The one badge (Badge.tsx): a short label with a tone. */
 
 .badge {
   display: inline-flex;
@@ -147,69 +152,75 @@
   background: currentColor;
 }
 
-.badge--success {
+/* The tones, each written once. A tone is a meaning (success, warning, danger,
+   info, neutral) or one of a grading session's statuses, given as `data-tone`
+   (Badge, badgeProps, a .mark, a chosen outcome); its colours come from
+   theme.css, so the same thing looks the same on every screen. */
+[data-tone="success"] {
   border-color: var(--color-success);
   background: var(--color-success-surface);
   color: var(--color-success);
 }
 
-.badge--warning {
+[data-tone="warning"] {
   border-color: var(--color-warning);
   background: var(--color-warning-surface);
   color: var(--color-warning);
 }
 
-.badge--danger {
+[data-tone="danger"] {
   border-color: var(--color-danger);
   background: var(--color-danger-surface);
   color: var(--color-danger);
 }
 
-.badge--info {
+[data-tone="info"] {
   border-color: var(--color-info-border);
   background: var(--color-info-surface);
   color: var(--color-info);
 }
 
-.badge--neutral {
+[data-tone="neutral"] {
   border-color: var(--color-border);
   background: var(--color-surface-sunken);
   color: var(--color-text-muted);
 }
 
-.badge--draft {
+[data-tone="draft"] {
   border-color: var(--color-status-draft-border);
   background: var(--color-status-draft-surface);
   color: var(--color-status-draft);
 }
 
-.badge--open {
+[data-tone="open"] {
   border-color: var(--color-status-open-border);
   background: var(--color-status-open-surface);
   color: var(--color-status-open);
 }
 
-.badge--locked {
+[data-tone="locked"] {
   border-color: var(--color-status-locked-border);
   background: var(--color-status-locked-surface);
   color: var(--color-status-locked);
 }
 
-.badge--completed {
+[data-tone="completed"] {
   border-color: var(--color-status-completed-border);
   background: var(--color-status-completed-surface);
   color: var(--color-status-completed);
 }
 
-.badge--cancelled {
+[data-tone="cancelled"] {
   border-color: var(--color-status-cancelled-border);
   background: var(--color-status-cancelled-surface);
   color: var(--color-status-cancelled);
 }
 
 /* The one round mark: a single symbol (✓, ✕, !, –) in a circle, with a tone.
-   It is sized from its text, so it suits the line it sits on; `--small` and
-   `--large` set that text. Decorative: the words beside it say the same. */
+   It is sized from its text, so it suits the line it sits on; `--small`,
+   `--large` and `--display` set that text, and a screen may set the circle's
+   own size and colours (initials in an avatar, a step's number). Decorative:
+   the words beside it say the same. */
 .mark {
   display: inline-flex;
   flex: 0 0 auto;
@@ -230,24 +241,8 @@
   font-size: var(--font-size-xl);
 }
 
-.mark--success {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-}
-
-.mark--warning {
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
-}
-
-.mark--danger {
-  background: var(--color-danger-surface);
-  color: var(--color-danger);
-}
-
-.mark--neutral {
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
+.mark--display {
+  font-size: var(--font-size-3xl);
 }
 
 /* The one alert (Alert.tsx): a boxed message with a tone. Its colours come from theme.css,
@@ -398,6 +393,36 @@
 
 .empty-state > .btn {
   margin-top: var(--space-2);
+}
+
+/* ── Remarks on a requirement (ItemRemarks.tsx) ───────────────────────── */
+/* A comment on the sunken surface; a change of mark, with its reason, ruled in gold.
+   Text takes the size of where it is shown; who and when are muted. */
+
+.remarks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.remarks__item {
+  padding: 0.2rem var(--space-2);
+  border-left: 2px solid var(--color-border);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+
+.remarks__item--change {
+  border-left-color: var(--color-gold-strong);
+  background: none;
+}
+
+.remarks__by {
+  color: var(--color-text-muted);
 }
 
 /* ── Meter (Meter.tsx) ────────────────────────────────────────────────── */

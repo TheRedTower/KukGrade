@@ -15,13 +15,18 @@ interface ServerErrors {
  * as a whole, or with a field it does not show) goes in the banner, so a server
  * error is never left unsaid.
  */
+/** The fields of a staff account a form shows its errors beside. */
+export const ACCOUNT_FIELDS = ["first_name", "last_name", "email", "rank"] as const;
+
 export function splitServerErrors(err: unknown, shown: readonly string[], fallback: string): ServerErrors {
   if (!(err instanceof ApiError)) return { fields: {}, banner: errorMessage(err, fallback) };
 
   const fields: Record<string, string[]> = {};
   const rest: string[] = [];
   for (const [name, value] of Object.entries(err.fields ?? {})) {
-    const messages = Array.isArray(value) ? value.filter((message): message is string => typeof message === "string") : [];
+    const messages = Array.isArray(value)
+      ? value.filter((message): message is string => typeof message === "string")
+      : [];
     if (messages.length === 0) continue;
     if (shown.includes(name)) fields[name] = messages;
     else rest.push(...messages);

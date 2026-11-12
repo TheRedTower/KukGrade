@@ -1,4 +1,4 @@
-"""Django settings for the KukGrade backend foundation."""
+"""Django settings for KukGrade."""
 
 from __future__ import annotations
 
@@ -189,7 +189,9 @@ ROOT_URLCONF = "kukgrade.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [FRONTEND_DIST] if FRONTEND_DIST.is_dir() else [],
+        # The app's page is served as a file (kukgrade.views.frontend), not
+        # rendered, so only the apps' own templates are looked up.
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -345,7 +347,7 @@ REST_FRAMEWORK = {
     # Nth-from-last X-Forwarded-For entry (see PROXY_HOPS). Zero ignores
     # X-Forwarded-For altogether.
     "NUM_PROXIES": PROXY_HOPS,
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "kukgrade.schema.KukGradeAutoSchema",
 }
 
 # The frontend generates its TypeScript types from this schema rather than
@@ -382,10 +384,15 @@ SPECTACULAR_SETTINGS = {
         "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
         "AgeBandEnum": "syllabus.models.AgeBand",
         "GradingStageEnum": "gradings.read_models.GradingStage",
+        "LegacyRankFieldEnum": "gradings.models.LegacyRankField",
         "AuditEntityEnum": "audit.models.AuditEntity",
-        "StudentImportRowOutcomeEnum": (
-            "data_imports.services.StudentImportRowOutcome"
-        ),
+        "StudentImportRowOutcomeEnum": "data_imports.models.ImportRowOutcome",
+        "KindEnum": "data_imports.models.ImportBatch.Kind",
+        "ImportBatchStatusEnum": "data_imports.models.ImportBatch.Status",
+        "RoleEnum": "accounts.models.User.Role",
+        "AuthorityEnum": "accounts.permissions.AUTHORITY_KEYS",
+        "ImportStepEnum": "data_imports.services.ImportStep",
+        "ReviewStepEnum": "data_imports.services.REVIEW_STEPS",
     },
 }
 
@@ -411,7 +418,8 @@ except ValueError:
 ABOUT_DOCUMENTS_DIR = Path(os.environ.get("KUKGRADE_DOCUMENTS_DIR") or BASE_DIR.parent)
 CREDITS_DIR = Path(os.environ.get("KUKGRADE_CREDITS_DIR") or BASE_DIR / "credits")
 
-# The club this deployment serves, shown in the application's top bar.
+# The club this deployment serves, shown in the sidebar, on the About page and
+# on assessment records.
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"
 
 # The school's own prefix in its student IDs, such as 123-4
@@ -452,10 +460,10 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
     "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
     _SECURE_TRANSPORT,
 )
-# Preload is off by default: listing the domain in browsers' preload lists is
-# close to permanent for kukgrade.co.uk and every subdomain, and the header's
-# preload token alone lets anyone submit it. A year of HSTS plus Cloudflare's
-# HTTPS redirect covers the first visit well enough. Opt in deliberately.
+# Preload is off by default: listing a domain in browsers' preload lists is
+# close to permanent for it and every subdomain, and the header's preload
+# token alone lets anyone submit it. A year of HSTS plus the proxy's HTTPS
+# redirect covers the first visit well enough. Opt in deliberately.
 SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
 # check --deploy warns when preload is off; that is the decision above, not an
 # oversight.

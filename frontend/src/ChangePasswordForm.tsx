@@ -1,15 +1,15 @@
-import { ErrorText } from "./ErrorText";
+import { Field } from "./Field";
 import { PasswordToggle } from "./PasswordToggle";
 import { useServerForm } from "./forms";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 import { useAuth } from "./auth";
 import { PasswordRequirements } from "./PasswordRequirements";
 
 const FIELDS = ["current_password", "new_password", "confirm_password"] as const;
-type Field = (typeof FIELDS)[number];
 
 type ChangePasswordFormProps = {
   /** "Temporary password" on the forced screen, "Current password" in Settings. */
@@ -51,94 +51,83 @@ export function ChangePasswordForm({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPasswords, setShowPasswords] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useServerForm(FIELDS);
+  const submit = useMutation({
+    mutationFn: () => changePassword(currentPassword, newPassword),
+    onSuccess: () => onChanged?.(),
+    onError: (error) => form.handle(error, "The password could not be changed. Try again in a moment."),
+  });
+  const isSubmitting = submit.isPending;
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     form.reset();
-
     if (newPassword !== confirmPassword) {
-      form.setClientErrors({ confirm_password: ["New passwords do not match."] });
+      form.setClientErrors({ confirm_password: ["The passwords do not match."] });
       return;
     }
-
-    setIsSubmitting(true);
-    try {
-      await changePassword(currentPassword, newPassword);
-      onChanged?.();
-    } catch (submitError) {
-      form.handle(submitError, "Could not update password. Try again in a moment.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  function errorsFor(field: Field) {
-    return form.fields[field]?.map((message) => (
-      <ErrorText field announce={false} key={message}>
-        {message}
-      </ErrorText>
-    ));
+    submit.mutate();
   }
 
   const inputType = showPasswords ? "text" : "password";
 
   return (
     <form aria-labelledby={labelledBy} className={className} onSubmit={handleSubmit}>
-      <label className="field field--sentence">
-        <span>{currentPasswordLabel}</span>
-        <div className="password-field">
-          {/* Named here rather than by the label, which also holds the
-              Show button and would add its name to this field's. */}
-          <input
-            aria-label={currentPasswordLabel}
-            autoComplete="current-password"
-            name="current_password"
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            type={inputType}
-            value={currentPassword}
-          />
-          <PasswordToggle noun="passwords" onToggle={() => setShowPasswords((previous) => !previous)} shown={showPasswords} />
-        </div>
-        {errorsFor("current_password")}
-      </label>
+      <Field label={currentPasswordLabel} error={form.errorFor("current_password")}>
+        {(control) => (
+          <div className="password-field">
+            <input
+              {...control}
+              autoComplete="current-password"
+              name="current_password"
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              type={inputType}
+              value={currentPassword}
+            />
+            <PasswordToggle
+              noun="passwords"
+              onToggle={() => setShowPasswords((previous) => !previous)}
+              shown={showPasswords}
+            />
+          </div>
+        )}
+      </Field>
 
-      <label className="field field--sentence">
-        <span>New password</span>
-        <div className="password-field">
-          <input
-            autoComplete="new-password"
-            name="new_password"
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            type={inputType}
-            value={newPassword}
-          />
-        </div>
-        {errorsFor("new_password")}
-      </label>
+      <Field label="New password" error={form.errorFor("new_password")}>
+        {(control) => (
+          <div className="password-field">
+            <input
+              {...control}
+              autoComplete="new-password"
+              name="new_password"
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              type={inputType}
+              value={newPassword}
+            />
+          </div>
+        )}
+      </Field>
       <PasswordRequirements password={newPassword} />
 
-      <label className="field field--sentence">
-        <span>Confirm new password</span>
-        <div className="password-field">
-          <input
-            autoComplete="new-password"
-            name="confirm_password"
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            type={inputType}
-            value={confirmPassword}
-          />
-        </div>
-        {errorsFor("confirm_password")}
-      </label>
+      <Field label="Confirm new password" error={form.errorFor("confirm_password")}>
+        {(control) => (
+          <div className="password-field">
+            <input
+              {...control}
+              autoComplete="new-password"
+              name="confirm_password"
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              type={inputType}
+              value={confirmPassword}
+            />
+          </div>
+        )}
+      </Field>
 
-      {form.banner ? (
-        <Alert>{form.banner}</Alert>
-      ) : null}
+      {form.banner ? <Alert>{form.banner}</Alert> : null}
 
       <div className={actionsClassName}>
         <Button variant="primary" disabled={isSubmitting} type="submit">

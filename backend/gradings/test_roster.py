@@ -129,7 +129,7 @@ def test_a_final_decision_leads_to_the_ledger_or_the_record(
 
 
 def test_a_withdrawn_candidate_is_offered_nothing() -> None:
-    """Review N-06 (2026-11-07): the page used to work this out itself."""
+    """The server says what is offered; the page does not work it out."""
     built = candidate(
         session=grading_session(status=GradingSession.Status.OPEN),
         status=GradingCandidate.Status.WITHDRAWN,
@@ -142,7 +142,7 @@ def test_a_withdrawn_candidate_is_offered_nothing() -> None:
 
 
 def test_a_cancelled_session_offers_only_what_was_recorded() -> None:
-    """Review N-04/N-06: a cancelled session offered preparing and proposing."""
+    """Not preparing or proposing: a cancelled session's outcomes never move."""
     session, proposed = locked_session_with_undecided_candidate()
     propose_for_candidate(
         proposed, "PASS", "", user("roster-cancel-proposer@example.com")
@@ -170,7 +170,7 @@ def test_a_cancelled_session_offers_only_what_was_recorded() -> None:
 
 
 def test_the_roster_says_who_may_withdraw_a_candidate_after_lock() -> None:
-    """The page used to work this out from statuses and the viewer's flags."""
+    """Served, so the page does not work it out from statuses and flags."""
     built, _generated = locked_completed_candidate()
     row = f"/api/gradings/candidates/?session={built.session_id}"
 

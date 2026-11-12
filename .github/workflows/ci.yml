@@ -143,6 +143,15 @@ jobs:
       - name: Lint (ESLint, then Stylelint for the CSS)
         run: npm run lint
 
+      # Prettier formats the frontend as Ruff format does the backend; the
+      # version is pinned exactly so a release cannot reformat files unasked.
+      - name: Format (Prettier)
+        run: npm run format:check
+
+      # knip fails on a file, export or dependency nothing uses (knip.json).
+      - name: Unused code (knip)
+        run: npm run knip
+
       - name: Type check
         run: npm run typecheck
 
@@ -202,7 +211,8 @@ jobs:
         run: |
           cp .env.example .env
           printf '%s\n' KUKGRADE_DOMAIN=ci.example TRAEFIK_NETWORK=ci KUKGRADE_HOST=ci.example \
-            TUNNEL_TOKEN=ci PANGOLIN_ENDPOINT=https://ci.example NEWT_ID=ci NEWT_SECRET=ci POSTGRES_NETWORK=ci >> .env
+            TUNNEL_TOKEN=ci PANGOLIN_ENDPOINT=https://ci.example NEWT_ID=ci NEWT_SECRET=ci POSTGRES_NETWORK=ci \
+            KUKGRADE_VERSION=ci >> .env
           for file in compose*.yml; do docker compose -f "$file" config --quiet; done
           docker compose -f compose.yml -f compose.build.yml config --quiet
 

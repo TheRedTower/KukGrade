@@ -2,14 +2,14 @@ import { PageHeader } from "./PageHeader";
 import { keys, refresh } from "./queryKeys";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { outcomeTone } from "./badgeClass";
-import { OUTCOME_LABELS } from "./OutcomeControls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
 
 import {
   type CandidateOutcome,
@@ -25,10 +25,13 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { RankBelt } from "./Belt";
-import { Dialog } from "./Dialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import "./PromotionLedger.css";
 import { formatShortDate } from "./dates";
 import { Button } from "./Button";
+import { counted } from "./plural";
+import { CandidateRanks } from "./RankTransition";
+import { CheckIcon } from "./Icons";
 
 type PromotionRowItem = {
   candidate: GradingCandidate;
@@ -40,15 +43,14 @@ type PromotionRowItem = {
 };
 
 export function PromotionLedgerScreen(): React.ReactElement {
-  const { id } = useParams<{ id: string }>();
-  const sessionId = Number(id);
+  const id = useIdParam();
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
 
   const [isBatchSummaryOpen, setIsBatchSummaryOpen] = useState(false);
-  const [singlePromoteCandidate, setSinglePromoteCandidate] = useState<PromotionRowItem | null>(
-    null,
-  );
+  const [singlePromoteCandidate, setSinglePromoteCandidate] = useState<PromotionRowItem | null>(null);
   const [singlePromoteNotes, setSinglePromoteNotes] = useState("");
   const [actionFeedback, setActionFeedback] = useState<{
     type: "success" | "error";
@@ -58,22 +60,24 @@ export function PromotionLedgerScreen(): React.ReactElement {
   const canPromote = Boolean(currentUser?.can_promote_student);
 
   // Queries
-  const { data: session, isLoading: isLoadingSession } = useQuery({
+  const sessionQuery = useQuery({
     queryKey: keys.gradingSessions.detail(sessionId),
     queryFn: () => getGradingSession(sessionId),
-    enabled: !Number.isNaN(sessionId) && sessionId > 0,
+    enabled: id !== null,
   });
+  const session = sessionQuery.data;
+  const isLoadingSession = sessionQuery.isLoading;
 
   const candidatesQuery = useQuery({
     queryKey: keys.gradingCandidates.session(sessionId),
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
-    enabled: !Number.isNaN(sessionId) && sessionId > 0,
+    enabled: id !== null,
   });
 
   const eligibilityQuery = useQuery({
     queryKey: keys.promotionEligibility(sessionId),
     queryFn: () => getPromotionEligibility(sessionId),
-    enabled: !Number.isNaN(sessionId) && sessionId > 0,
+    enabled: id !== null,
   });
 
   const ledgerQueries = [candidatesQuery, eligibilityQuery];
@@ -85,7 +89,10 @@ export function PromotionLedgerScreen(): React.ReactElement {
   const candidatesData = ledgerLoaded ? candidatesQuery.data : undefined;
   const eligibilityData = ledgerLoaded ? eligibilityQuery.data : undefined;
 
-  const eligibilityMap = useMemo(() => new Map(eligibilityData?.map((item) => [item.candidate, item])), [eligibilityData]);
+  const eligibilityMap = useMemo(
+    () => new Map(eligibilityData?.map((item) => [item.candidate, item])),
+    [eligibilityData],
+  );
 
   // Enriched rows
   const rows = useMemo<PromotionRowItem[]>(() => {
@@ -130,7 +137,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     onError: (err: Error) => {
       setActionFeedback({
         type: "error",
-        message: errorMessage(err, "Failed to promote candidate."),
+        message: errorMessage(err, "The candidate could not be promoted."),
       });
     },
   });
@@ -140,24 +147,19 @@ export function PromotionLedgerScreen(): React.ReactElement {
     mutationFn: async (outcomes: number[]) => {
       return bulkPromoteCandidateOutcomes({ outcomes });
     },
-    onSuccess: (res, sentOutcomes) => {
+    onSuccess: (res) => {
       refresh.afterPromotion(queryClient, sessionId);
       setIsBatchSummaryOpen(false);
 
       const failures = Object.entries(res.errors);
       if (failures.length > 0) {
-        // Errors are keyed by the row's index in the request; name each
-        // candidate and say why, so the admin knows whom to look at rather
-        // than only how many.
-        const nameFor = (index: string) => {
-          const outcomeId = sentOutcomes[Number(index)];
-          return (
-            rows.find((r) => r.outcome?.id === outcomeId)?.candidate.student_display_name ??
-            "A candidate"
-          );
-        };
+        // Errors are keyed by the outcome each row sent; name each candidate
+        // and say why, so the admin knows whom to look at rather than only
+        // how many.
+        const nameFor = (outcomeId: string) =>
+          rows.find((r) => String(r.outcome?.id) === outcomeId)?.candidate.student_display_name ?? "A candidate";
         const details = failures
-          .map(([index, reasons]) => `${nameFor(index)}: ${reasons.join(" ")}`)
+          .map(([outcomeId, reasons]) => `${nameFor(outcomeId)}: ${reasons.join(" ")}`)
           .join("; ");
         setActionFeedback({
           type: "error",
@@ -173,15 +175,13 @@ export function PromotionLedgerScreen(): React.ReactElement {
     onError: (err: Error) => {
       setActionFeedback({
         type: "error",
-        message: errorMessage(err, "Could not promote the selected candidates."),
+        message: errorMessage(err, "The candidates could not be promoted."),
       });
     },
   });
 
   function handleConfirmBulkPromote() {
-    const outcomeIds = eligibleCohort
-      .map((r) => r.outcome?.id)
-      .filter((id): id is number => typeof id === "number");
+    const outcomeIds = eligibleCohort.map((r) => r.outcome?.id).filter((id): id is number => typeof id === "number");
 
     if (outcomeIds.length === 0) return;
     bulkPromoteMutation.mutate(outcomeIds);
@@ -207,15 +207,24 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
   const isLoading = isLoadingSession || (!ledgerLoaded && !ledgerFailed);
 
+  // A link to a session that is not there says so; the ledger's own
+  // loading and failures show inside the page below.
+  if (recordStatus(id, sessionQuery) === "missing") {
+    return (
+      <RecordPage
+        back={{ to: "/gradings", label: "Gradings" }}
+        label="Promotion ledger"
+        missing="Grading session not found"
+        status="missing"
+      />
+    );
+  }
+
   return (
     <section aria-labelledby="pl-title" className="page" data-testid="promotion-ledger-screen">
       <PageHeader
-        crumbs={[
-          { label: "Gradings", to: "/gradings" },
-          { label: session?.title || "Session", to: `/gradings/${sessionId}` },
-          { label: "Promotion Ledger" },
-        ]}
-        title={session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
+        back={{ to: `/gradings/${sessionId}`, label: session?.title || "Session" }}
+        title={session ? `${session.title} — Promotion ledger` : "Promotion ledger"}
         titleId="pl-title"
         subtitle="Review the candidates who passed, check their new ranks, and promote them. Every promotion is dated the grading day."
       />
@@ -223,46 +232,46 @@ export function PromotionLedgerScreen(): React.ReactElement {
       {/* Authority Disclaimer if user lacks permission */}
       {!canPromote && (
         <Alert tone="warning" title="Promotion authority needed" className="pl-alert">
-          You can review this ledger, but promoting students needs promotion authority, which an administrator can grant.
+          You can review this ledger, but promoting students needs promotion authority, which an administrator can
+          grant.
         </Alert>
       )}
 
       {!(isBatchSummaryOpen && eligibleCohort.length > 0) && !singlePromoteCandidate && feedbackBanner}
 
       {/* Top Cohort Promotion Summary Card */}
-      <section className="action-row pl-summary-card" aria-label="Cohort Promotion Summary">
-        <div className="pl-summary-info">
+      <section className="action-row pl-summary-card" aria-label="Promotion summary">
+        <div className="stack stack--1">
           <span className="pl-summary-count item-title">
-            {eligibleCohort.length} {eligibleCohort.length === 1 ? "Candidate" : "Candidates"} Finalised with Pass · Eligible for Promotion
+            {counted(eligibleCohort.length, "candidate", "candidates")} passed and ready to promote
           </span>
           {eligibleCohort.length === 0 && rows.some((r) => r.isPromoted) && (
-            <span className="meta">
-              All qualified candidates in this cohort have already been promoted.
-            </span>
+            <span className="meta">All qualified candidates in this cohort have already been promoted.</span>
           )}
         </div>
 
-        <Button
-          variant="primary"
-          onClick={() => {
-            setActionFeedback(null);
-            setIsBatchSummaryOpen(true);
-          }}
-          disabled={eligibleCohort.length === 0 || !canPromote}
-          title={
-            !canPromote
-              ? "Promotion authority required to promote cohort"
-              : eligibleCohort.length === 0
-              ? "No unpromoted candidates eligible"
-              : `Review and promote ${eligibleCohort.length} qualified candidates`
-          }
-        >
-          <span aria-hidden="true">✓</span>
-          <span>Promote Qualified Cohort ({eligibleCohort.length} Candidates)</span>
-        </Button>
+        {/* Offered only when someone is waiting: a button that can never be pressed is not shown. */}
+        {eligibleCohort.length > 0 && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              setActionFeedback(null);
+              setIsBatchSummaryOpen(true);
+            }}
+            disabled={!canPromote}
+            title={
+              canPromote
+                ? `Review and promote ${counted(eligibleCohort.length, "candidate", "candidates")}`
+                : "Promoting needs promotion authority"
+            }
+          >
+            <CheckIcon />
+            <span>Promote {counted(eligibleCohort.length, "candidate", "candidates")}</span>
+          </Button>
+        )}
       </section>
 
-      {/* Candidates Promotion Ledger Table */}
+      {/* The ledger: one row per candidate */}
       {ledgerFailed ? (
         <Alert
           action={
@@ -281,12 +290,12 @@ export function PromotionLedgerScreen(): React.ReactElement {
           The promotion ledger could not be loaded, so no one can be promoted from it yet.
         </Alert>
       ) : isLoading ? (
-        <LoadingState>Loading candidate promotion ledger…</LoadingState>
+        <LoadingState>Loading the promotion ledger…</LoadingState>
       ) : rows.length === 0 ? (
         <EmptyState framed title="No candidates registered in this grading session." />
       ) : (
         <ResponsiveTable
-          label="Student Promotion Ledger"
+          label="Promotion ledger"
           rows={rows}
           rowKey={(row) => row.candidate.id}
           rowTestId={(row) => `promotion-row-${row.candidate.id}`}
@@ -296,8 +305,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
               header: "Candidate",
               primary: true,
               render: (row) => (
-                <div className="pl-candidate-cell">
-                  <span className="pl-candidate-avatar" aria-hidden="true">
+                <div className="row row--3">
+                  <span className="mark pl-candidate-avatar" aria-hidden="true">
                     {row.candidate.student_display_name.charAt(0)}
                   </span>
                   <div className="pl-candidate-meta">
@@ -311,7 +320,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             },
             {
               key: "belt",
-              header: "Current Belt",
+              header: "Current rank",
               render: (row) => (
                 <div className="pl-belt-chip">
                   <RankBelt rankId={row.candidate.from_rank} />
@@ -326,27 +335,30 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 const outcome = row.outcome;
                 if (outcome?.status === "FINALISED") {
                   const result = outcome.final_outcome;
-                  if (result) return <Badge tone={outcomeTone(result)}>{OUTCOME_LABELS[result]} (Finalised)</Badge>;
+                  if (result)
+                    return (
+                      <Badge tone={outcomeTone(result)}>
+                        {outcome.final_outcome_display} ({outcome.status_display})
+                      </Badge>
+                    );
                 }
                 if (outcome?.status === "PROPOSED") {
                   return <Badge tone="neutral">Proposed: {outcome.proposed_outcome_display || "Pending"}</Badge>;
                 }
-                return <Badge tone="neutral">Pending Outcome</Badge>;
+                return <Badge tone="neutral">Outcome pending</Badge>;
               },
             },
             {
               key: "eligibility",
-              header: "Promotion Eligibility",
+              header: "Promotion",
               render: (row) =>
                 row.isPromoted ? (
                   <div className="pl-eligibility-promoted">
-                    <Badge tone="success">
-                      Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name} ✓
+                    <Badge tone="success" icon={<CheckIcon size={12} />}>
+                      Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name}
                     </Badge>
                     {row.promotion?.effective_date && (
-                      <span className="meta">
-                        Effective {formatShortDate(row.promotion.effective_date)}
-                      </span>
+                      <span className="meta">Effective {formatShortDate(row.promotion.effective_date)}</span>
                     )}
                   </div>
                 ) : row.isEligible ? (
@@ -362,7 +374,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               render: (row) =>
                 row.isPromoted ? (
                   <span className="pl-action-complete item-title" aria-label="Promotion completed">
-                    Promoted ✓
+                    <CheckIcon /> Promoted
                   </span>
                 ) : row.isEligible ? (
                   <Button
@@ -376,7 +388,6 @@ export function PromotionLedgerScreen(): React.ReactElement {
                     data-testid={`promote-candidate-btn-${row.candidate.id}`}
                   >
                     <span>Promote to {row.candidate.testing_for_rank_name}</span>
-                    <span aria-hidden="true">▾</span>
                   </Button>
                 ) : (
                   <span className="pl-action-disabled">—</span>
@@ -387,22 +398,24 @@ export function PromotionLedgerScreen(): React.ReactElement {
       )}
 
       {isBatchSummaryOpen && eligibleCohort.length > 0 && (
-        <Dialog
+        <ConfirmDialog
           title="Promotion summary"
-          closeLabel="Close the promotion summary"
+          confirmLabel="Confirm promotions"
+          pendingLabel="Promoting cohort…"
+          pending={bulkPromoteMutation.isPending}
+          confirmDisabled={!canPromote}
+          startOnCancel
           onClose={() => setIsBatchSummaryOpen(false)}
-          canClose={!bulkPromoteMutation.isPending}
+          onConfirm={handleConfirmBulkPromote}
         >
           {feedbackBanner}
-          <p className="pl-batch-count meta">{eligibleCohort.length} Candidates Selected</p>
-          <ol className="pl-batch-chips">
+          <p className="pl-batch-count meta">{counted(eligibleCohort.length, "candidate", "candidates")} to promote</p>
+          <ol className="row row--wrap list-plain">
             {eligibleCohort.map((r, i) => (
               <li key={r.candidate.id} className="pl-batch-chip">
                 <span className="pl-chip-num item-title">{i + 1}.</span>
                 <span className="pl-chip-name">{r.candidate.student_display_name}</span>
-                <span className="pl-chip-rank">({r.candidate.from_rank_name})</span>
-                <span className="pl-chip-arrow" aria-hidden="true">→</span>
-                <strong className="pl-chip-target">{r.candidate.testing_for_rank_name}</strong>
+                <CandidateRanks candidate={r.candidate} spoken="promoted to" />
               </li>
             ))}
           </ol>
@@ -413,39 +426,33 @@ export function PromotionLedgerScreen(): React.ReactElement {
             </div>
             <div>
               <dt>Promoter</dt>
-              <dd>
-                {currentUser?.full_name || currentUser?.first_name || "Authorised Master"}
-              </dd>
+              <dd>{currentUser?.full_name}</dd>
             </div>
           </dl>
-          <div className="action-row dialog__actions">
-            <Button
-              variant="primary"
-              onClick={handleConfirmBulkPromote}
-              disabled={bulkPromoteMutation.isPending || !canPromote}
-            >
-              {bulkPromoteMutation.isPending ? "Promoting cohort…" : "Confirm promotions"}
-            </Button>
-          </div>
-        </Dialog>
+        </ConfirmDialog>
       )}
 
       {singlePromoteCandidate && (
-        <Dialog
-          title="Confirm Student Promotion"
+        <ConfirmDialog
+          title="Promote student"
+          confirmLabel={`Promote to ${singlePromoteCandidate.candidate.testing_for_rank_name}`}
+          pendingLabel="Recording promotion…"
+          pending={singlePromoteMutation.isPending}
+          confirmDisabled={!canPromote}
+          startOnCancel
           onClose={() => setSinglePromoteCandidate(null)}
-          canClose={!singlePromoteMutation.isPending}
-          closeButton={false}
+          onConfirm={handleConfirmSinglePromote}
         >
           {feedbackBanner}
           <div className="pl-modal-candidate-info">
-            <span className="pl-modal-name section-title">
-              {singlePromoteCandidate.candidate.student_display_name}
-            </span>
-            <p className="pl-modal-ranks">
-              <span>Current: <strong>{singlePromoteCandidate.candidate.from_rank_name}</strong></span>
-              <span className="pl-modal-arrow" aria-hidden="true">→</span>
-              <span>Conferring: <strong className="pl-highlight-rank">{singlePromoteCandidate.candidate.testing_for_rank_name}</strong></span>
+            <span className="pl-modal-name section-title">{singlePromoteCandidate.candidate.student_display_name}</span>
+            <p className="row row--wrap pl-modal-ranks">
+              <CandidateRanks
+                candidate={singlePromoteCandidate.candidate}
+                fromLabel="Current"
+                toLabel="Conferring"
+                spoken="promoted to"
+              />
             </p>
             <p className="pl-modal-date-notice meta">
               Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (the grading day).
@@ -453,37 +460,17 @@ export function PromotionLedgerScreen(): React.ReactElement {
           </div>
 
           <div className="field">
-            <label htmlFor="single-promote-notes">Promotion Notes (Optional)</label>
+            <label htmlFor="single-promote-notes">Promotion notes (optional)</label>
             <textarea
               id="single-promote-notes"
               rows={2}
               value={singlePromoteNotes}
               onChange={(e) => setSinglePromoteNotes(e.target.value)}
-              placeholder="Official record notes or ceremonial remarks..."
+              placeholder="Official record notes or ceremonial remarks…"
               disabled={singlePromoteMutation.isPending}
             />
           </div>
-
-          <div className="action-row dialog__actions">
-            <Button
-              variant="ghost"
-              onClick={() => setSinglePromoteCandidate(null)}
-              disabled={singlePromoteMutation.isPending}
-              data-dialog-autofocus
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleConfirmSinglePromote}
-              disabled={singlePromoteMutation.isPending || !canPromote}
-            >
-              {singlePromoteMutation.isPending
-                ? "Recording promotion…"
-                : `Promote to ${singlePromoteCandidate.candidate.testing_for_rank_name}`}
-            </Button>
-          </div>
-        </Dialog>
+        </ConfirmDialog>
       )}
     </section>
   );

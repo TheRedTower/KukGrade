@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────────
-   Student Promotion Ledger
+   Promotion ledger
    ───────────────────────────────────────────────────────────────────────────── */
 
 /* Banners */
@@ -17,37 +17,17 @@
   border-radius: var(--radius);
 }
 
-.pl-summary-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .pl-summary-count {
   color: var(--color-warning);
 }
 
-/* Table Container & Table */
 /* Candidate Identity Cell */
-
-.pl-candidate-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
 
 .pl-candidate-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
   background: var(--color-warning-surface);
   color: var(--color-warning);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--font-weight-strong);
-  font-size: var(--font-size-base);
-  flex-shrink: 0;
   border: 1px solid var(--color-warning);
 }
 
@@ -96,15 +76,6 @@
   margin: 0;
 }
 
-.pl-batch-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .pl-batch-chip {
   display: inline-flex;
   flex-wrap: wrap;
@@ -116,19 +87,12 @@
   border-radius: var(--radius-pill);
 }
 
-.pl-chip-num,
-.pl-chip-rank,
-.pl-chip-arrow {
+.pl-chip-num {
   color: var(--color-text-muted);
 }
 
 .pl-chip-name {
   color: var(--color-text);
-}
-
-.pl-chip-target,
-.pl-highlight-rank {
-  color: var(--color-status-locked);
 }
 
 .pl-modal-candidate-info {
@@ -144,19 +108,9 @@
 }
 
 .pl-modal-ranks {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
   margin: 0 0 var(--space-2);
-}
-
-.pl-modal-arrow {
-  color: var(--color-text-muted);
 }
 
 .pl-modal-date-notice {
   margin: 0;
 }
-
-

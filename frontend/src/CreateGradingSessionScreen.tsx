@@ -5,11 +5,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import { ErrorText } from "./ErrorText";
+import { Field } from "./Field";
 import { Alert } from "./Alert";
 import { createGradingSession } from "./api";
 import { useServerForm } from "./forms";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { SessionStatusBadge } from "./StatusBadge";
+import { labelOf, useChoices } from "./choices";
 import "./GradingSessions.css";
 import { currentYear, formatSessionDate } from "./dates";
 import { Button } from "./Button";
@@ -53,6 +55,7 @@ function formatPreviewDate(year: string, month: string, day: string): string {
 export function CreateGradingSessionScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const sessionStatuses = useChoices().session_statuses;
 
   // Form State
   const [title, setTitle] = useState("");
@@ -71,7 +74,7 @@ export function CreateGradingSessionScreen() {
       await queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
       navigate("/gradings");
     },
-    onError: (err) => form.handle(err, "Failed to create grading session. Please check the form."),
+    onError: (err) => form.handle(err, "The grading session could not be created. Check the form."),
   });
   const isSubmitting = createMutation.isPending;
 
@@ -133,42 +136,34 @@ export function CreateGradingSessionScreen() {
   return (
     <section aria-labelledby="create-session-heading" className="page">
       <PageHeader
-        crumbs={[{ label: "Gradings", to: "/gradings" }, { label: "New session" }]}
+        back={{ to: "/gradings", label: "Gradings" }}
         title="Create grading session"
         titleId="create-session-heading"
         subtitle="Set the details, then add candidates."
       />
 
       {/* ── General Error Banner */}
-      {form.banner && (
-        <Alert>{form.banner}</Alert>
-      )}
+      {form.banner && <Alert>{form.banner}</Alert>}
 
       {/* ── Two-Column Layout */}
       <div className="split">
         {/* Left Column: Form */}
         <div>
-          <form className="cgs-form" noValidate onSubmit={handleSubmit}>
+          <form className="stack" noValidate onSubmit={handleSubmit}>
             {/* Session Title */}
-            <div className="field field--sentence">
-              <label htmlFor="cgs-title-input">
-                Session title <span className="required-star">*</span>
-              </label>
-              <input
-                aria-invalid={!!form.errorFor("title")}
-                aria-required="true"
-                disabled={isSubmitting}
-                id="cgs-title-input"
-                name="title"
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Winter Grading"
-                type="text"
-                value={title}
-              />
-              {form.errorFor("title") && (
-                <ErrorText field>{form.errorFor("title")}</ErrorText>
+            <Field label="Session title" required error={form.errorFor("title")}>
+              {(control) => (
+                <input
+                  {...control}
+                  disabled={isSubmitting}
+                  name="title"
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Winter Grading"
+                  type="text"
+                  value={title}
+                />
               )}
-            </div>
+            </Field>
 
             {/* Grading Date (Day / Month / Year) */}
             <div className="field field--sentence">
@@ -186,7 +181,9 @@ export function CreateGradingSessionScreen() {
                 >
                   <option value="">Day</option>
                   {daysList.map((d) => (
-                    <option key={d} value={d}>{d}</option>
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
                   ))}
                 </select>
 
@@ -200,7 +197,9 @@ export function CreateGradingSessionScreen() {
                 >
                   <option value="">Month</option>
                   {MONTHS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
                   ))}
                 </select>
 
@@ -214,77 +213,71 @@ export function CreateGradingSessionScreen() {
                 >
                   <option value="">Year</option>
                   {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
                   ))}
                 </select>
               </div>
-              {form.errorFor("grading_date") && (
-                <ErrorText field>{form.errorFor("grading_date")}</ErrorText>
-              )}
+              {form.errorFor("grading_date") && <ErrorText field>{form.errorFor("grading_date")}</ErrorText>}
             </div>
 
             {/* Location */}
-            <div className="field field--sentence">
-              <label htmlFor="cgs-location-input">
-                Location <small>(optional)</small>
-              </label>
-              <input
-                disabled={isSubmitting}
-                id="cgs-location-input"
-                name="location"
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Riverside Dojang"
-                type="text"
-                value={location}
-              />
-              {form.errorFor("location") && (
-                <ErrorText field>{form.errorFor("location")}</ErrorText>
+            <Field
+              label={
+                <>
+                  Location <small>(optional)</small>
+                </>
+              }
+              error={form.errorFor("location")}
+            >
+              {(control) => (
+                <input
+                  {...control}
+                  disabled={isSubmitting}
+                  name="location"
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Riverside Dojang"
+                  type="text"
+                  value={location}
+                />
               )}
-            </div>
+            </Field>
 
             {/* Staff Notes */}
-            <div className="field field--sentence">
-              <div>
-                <label htmlFor="cgs-notes-input">
+            <Field
+              label={
+                <>
                   Staff notes <small>(optional)</small>
-                </label>
-              </div>
-              <textarea
-                disabled={isSubmitting}
-                id="cgs-notes-input"
-                maxLength={500}
-                name="notes"
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add internal notes for grading staff"
-                rows={4}
-                value={notes}
-              />
-              <div className="cgs-char-counter meta">
-                <span className={notes.length >= 480 ? "cgs-char-near-limit" : ""}>
-                  {notes.length}/500
-                </span>
-              </div>
-              {form.errorFor("notes") && (
-                <ErrorText field>{form.errorFor("notes")}</ErrorText>
+                </>
+              }
+              error={form.errorFor("notes")}
+            >
+              {(control) => (
+                <>
+                  <textarea
+                    {...control}
+                    disabled={isSubmitting}
+                    maxLength={500}
+                    name="notes"
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add internal notes for grading staff"
+                    rows={4}
+                    value={notes}
+                  />
+                  <div className="cgs-char-counter meta">
+                    <span className={notes.length >= 480 ? "cgs-char-near-limit" : ""}>{notes.length}/500</span>
+                  </div>
+                </>
               )}
-            </div>
+            </Field>
 
             {/* Form Actions */}
-            <div className="action-row cgs-form-actions">
-              <Button
-                variant="ghost"
-                disabled={isSubmitting}
-                id="cgs-cancel-btn"
-                onClick={() => navigate("/gradings")}
-              >
+            <div className="action-row row row--4 cgs-form-actions">
+              <Button variant="ghost" disabled={isSubmitting} id="cgs-cancel-btn" onClick={() => navigate("/gradings")}>
                 Cancel
               </Button>
-              <Button
-                variant="primary"
-                disabled={isSubmitting}
-                id="cgs-submit-btn"
-                type="submit"
-              >
+              <Button variant="primary" disabled={isSubmitting} id="cgs-submit-btn" type="submit">
                 {isSubmitting ? "Creating…" : "Create draft session"}
               </Button>
             </div>
@@ -294,7 +287,9 @@ export function CreateGradingSessionScreen() {
         {/* Right Column: Session Preview */}
         <div className="split__aside">
           <div className="cgs-preview-card">
-            <h2 className="cgs-preview-title section-title" id="cgs-preview-heading">Session preview</h2>
+            <h2 className="cgs-preview-title section-title" id="cgs-preview-heading">
+              Session preview
+            </h2>
             <p className="cgs-preview-subtitle subtext">
               This is how the session will appear in the gradings list after creation.
             </p>
@@ -312,7 +307,11 @@ export function CreateGradingSessionScreen() {
                 },
                 { key: "date", header: "Date", render: () => previewFormattedDate },
                 { key: "location", header: "Location", render: () => location.trim() || "—" },
-                { key: "status", header: "Status", render: () => <SessionStatusBadge status="DRAFT" /> },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: () => <SessionStatusBadge status="DRAFT" label={labelOf(sessionStatuses, "DRAFT")} />,
+                },
                 { key: "candidates", header: "Candidates", align: "end", render: () => "0" },
               ]}
             />

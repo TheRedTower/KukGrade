@@ -29,6 +29,8 @@ OVERRIDE_LOCKED_SESSION_PERMISSION = "gradings.can_override_locked_session"
 GRADING_AUDIT_LOG_PERMISSION = "gradings.can_view_grading_audit_log"
 AUDIT_LOG_PERMISSION = "audit.view_auditevent"
 DELETE_ANY_SESSION_PERMISSION = "gradings.delete_any_gradingsession"
+# Managing people: the Administrator group's own grant (accounts.groups).
+USER_ADMINISTRATION_PERMISSION = "accounts.view_user"
 
 # The per-user authority flags, keyed the way /api/auth/me/ and the users
 # API's authority sub-resource spell them. Deliberately in no role group
@@ -39,6 +41,30 @@ AUTHORITY_PERMISSIONS: dict[str, str] = {
     "can_promote_student": PROMOTE_STUDENT_PERMISSION,
     "can_override_locked_session": OVERRIDE_LOCKED_SESSION_PERMISSION,
     "can_view_grading_audit_log": GRADING_AUDIT_LOG_PERMISSION,
+}
+
+# The authorities' keys, as a choice set the contract can name.
+AUTHORITY_KEYS: tuple[str, ...] = tuple(AUTHORITY_PERMISSIONS)
+
+# What each authority is called and does, as every screen words it.
+AUTHORITY_WORDS: dict[str, tuple[str, str]] = {
+    "can_make_final_grading_decision": (
+        "Make final grading decisions",
+        "Allow this user to make final decisions on student gradings.",
+    ),
+    "can_promote_student": (
+        "Promote students",
+        "Allow this user to promote students to the next rank.",
+    ),
+    "can_override_locked_session": (
+        "Override locked sessions",
+        "Allow this user to make authorised corrections after locking.",
+    ),
+    "can_view_grading_audit_log": (
+        "View grading audit log",
+        "Allow this user to see grading, syllabus and assessment audit events "
+        "(not user management).",
+    ),
 }
 
 
@@ -82,11 +108,18 @@ def can_view_audit_log(user: User) -> bool:
     The one statement of this rule: the API (`CanViewAuditLog`) and Django
     admin (`audit.admin.AuditEventAdmin`) both ask it.
     """
-    return user.is_active and (
+    # has_perm refuses a closed account everything, superusers included.
+    return (
         user.has_perm(AUDIT_LOG_PERMISSION)
         or user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
         or user.has_perm(GRADING_AUDIT_LOG_PERMISSION)
     )
+
+
+def can_see_school_settings(user: User) -> bool:
+    """Whoever administers the school's accounts also sees how it is set up
+    (the About page): the Administrator group's grant, not the role label."""
+    return user.has_perm(USER_ADMINISTRATION_PERMISSION)
 
 
 def _active_user(request: Request) -> User | None:
@@ -192,20 +225,3 @@ class CanViewAuditLog(BasePermission):
     def has_permission(self, request: Request, view: APIView) -> bool:
         user = _active_user(request)
         return user is not None and can_view_audit_log(user)
-
-
-__all__ = [
-    "AUDIT_LOG_PERMISSION",
-    "AUTHORITY_PERMISSIONS",
-    "DELETE_ANY_SESSION_PERMISSION",
-    "FINAL_GRADING_DECISION_PERMISSION",
-    "GRADING_AUDIT_LOG_PERMISSION",
-    "OVERRIDE_LOCKED_SESSION_PERMISSION",
-    "PROMOTE_STUDENT_PERMISSION",
-    "CanMakeFinalGradingDecision",
-    "CanOverrideLockedSession",
-    "CanPromoteStudent",
-    "CanViewAuditLog",
-    "HasRequiredPermissions",
-    "can_view_audit_log",
-]

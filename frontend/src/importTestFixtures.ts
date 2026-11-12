@@ -10,7 +10,7 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
   return {
     id: 7,
     kind: "STUDENT_ROSTER",
-    kind_display: "Student roster",
+    kind_display: "Students",
     status: "UPLOADED",
     status_display: "Uploaded",
     original_filename: "spring-roster.xlsx",
@@ -21,6 +21,7 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
     committed_by_name: "",
     cancelled_at: null,
     next_step: "REVIEW",
+    review_step: "REVIEW",
     detected_headers: ["WKSA No", "First", "Surname", "DOB", "Belt", "Parent phone", "Joined"],
     column_mapping: {},
     defaults: {},
@@ -29,6 +30,7 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
     sheet_names: ["Members"],
     sheet_error: "",
     suggested_mapping: {},
+    uncovered_fields: [],
     target_fields: [
       { field: "wksa_id", name: "WKSA ID", needed: true, whole_file: false },
       { field: "first_name", name: "First name", needed: true, whole_file: false },
@@ -37,7 +39,6 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
       { field: "current_rank", name: "Rank", needed: true, whole_file: true },
       { field: "status", name: "Status", needed: false, whole_file: true },
     ],
-    rank_mappings: {},
     grading_sheets: [],
     warnings: [],
     row_counts: { total: 212, ready: 198, review_required: 9, skip_existing: 5, excluded: 0 },
@@ -100,6 +101,7 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
     student: null,
     student_display_name: null,
     record_kind: "GRADING_RESULT",
+    record_kind_display: "Grading result",
     cycle_year: 2025,
     cycle_month: 3,
     source_batch: 7,
@@ -119,21 +121,28 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
     note: "",
     is_void: false,
     void_reason: "",
-    voided_by_email: null,
+    voided_by_name: "",
     ...overrides,
   };
 }
 
-export const RANKS: Rank[] = ["White", "Yellow stripe", "Yellow", "Blue stripe", "Blue", "Red stripe", "Red", "Brown stripe"].map(
-  (name, index) => ({
-    id: index + 1,
-    code: name.toUpperCase().replace(" ", "_"),
-    name,
-    order: index + 1,
-    belt_colour: "WHITE",
-    stripe_colour: "",
-    stripe_count: 0,
-    next_rank: index + 2,
-    has_syllabus: true,
-  }),
-);
+export const RANKS: Rank[] = [
+  "White",
+  "Yellow stripe",
+  "Yellow",
+  "Blue stripe",
+  "Blue",
+  "Red stripe",
+  "Red",
+  "Brown stripe",
+].map((name, index) => ({
+  id: index + 1,
+  code: name.toUpperCase().replace(" ", "_"),
+  name,
+  order: index + 1,
+  belt_colour: "WHITE",
+  stripe_colour: "",
+  stripe_count: 0,
+  next_rank: index + 2,
+  has_syllabus: true,
+}));

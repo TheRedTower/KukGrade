@@ -1,20 +1,25 @@
 import { useMemo, useState } from "react";
 import { keys } from "./queryKeys";
-import { Link, useParams } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { type AgeBandEnum, type Rank, type StudentListItem, errorMessage, getAllStudents, getGradingSession } from "./api";
+import { type AgeBandEnum, type Rank, type StudentListItem, getAllStudents, getGradingSession } from "./api";
 import { PageHeader } from "./PageHeader";
 import { SessionFacts } from "./SessionParts";
-import { EmptyState } from "./EmptyState";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { SessionStatusBadge } from "./StatusBadge";
 import "./BuildGradingCohort.css";
-import { buttonClass } from "./buttonClass";
 import { CohortResolver } from "./CohortResolver";
-import { type CohortItem, buildRankGroups, cohortBreakdown, newCohortItems, rankMaps } from "./cohortBuilder";
+import {
+  type CohortItem,
+  buildRankGroups,
+  cohortBreakdown,
+  destinationOf,
+  newCohortItems,
+  rankMapOf,
+} from "./cohortBuilder";
 import { CohortFindSection, type StatusFilter } from "./CohortFindSection";
 import { CohortRankGroupsSection } from "./CohortRankGroupsSection";
 import { CohortReviewDialog } from "./CohortReviewDialog";
@@ -22,9 +27,10 @@ import { CohortTray } from "./CohortTray";
 import { useCohortRegistration } from "./useCohortRegistration";
 
 export function BuildGradingCohortScreen() {
-  const { id } = useParams<{ id: string }>();
-  const sessionId = Number(id);
-  const valid = !isNaN(sessionId);
+  const id = useIdParam();
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
+  const valid = id !== null;
 
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState("ALL");
@@ -68,58 +74,45 @@ export function BuildGradingCohortScreen() {
   // list "Add all" would mean.
   const rosterUpdating = studentsQuery.isPlaceholderData || search.trim() !== debouncedSearch;
 
-  const ranks: Rank[] = useMemo(() => [...(ranksQuery.data?.results ?? [])].sort((a, b) => a.order - b.order), [ranksQuery.data]);
-  const { rankMap, nextRankMap } = useMemo(() => rankMaps(ranks), [ranks]);
-  const rankGroups = useMemo(() => buildRankGroups(eligibleStudents, ranks, nextRankMap, ageBands), [eligibleStudents, ranks, nextRankMap, ageBands]);
+  const ranks: Rank[] = useMemo(
+    () => [...(ranksQuery.data?.results ?? [])].sort((a, b) => a.order - b.order),
+    [ranksQuery.data],
+  );
+  const rankMap = useMemo(() => rankMapOf(ranks), [ranks]);
+  const rankGroups = useMemo(
+    () => buildRankGroups(eligibleStudents, ranks, rankMap, ageBands),
+    [eligibleStudents, ranks, rankMap, ageBands],
+  );
   const breakdown = useMemo(() => cohortBreakdown(cohort), [cohort]);
   const inCohort = useMemo(() => new Set(cohort.map((item) => item.student.id)), [cohort]);
 
   const rankFor = (student: StudentListItem) => ({
     currentRank: rankMap.get(student.current_rank) ?? null,
-    destinationRank: nextRankMap.get(student.current_rank) ?? null,
+    destinationRank: destinationOf(student, rankMap),
   });
   const addStudents = (students: StudentListItem[], ranksOf = rankFor) =>
     setCohort((prev) => [...prev, ...newCohortItems(prev, students, ranksOf)]);
-  const removeStudent = (studentId: number) => setCohort((prev) => prev.filter((item) => item.student.id !== studentId));
-  const removeRankGroup = (rankId: number) => setCohort((prev) => prev.filter((item) => item.student.current_rank !== rankId));
+  const removeStudent = (studentId: number) =>
+    setCohort((prev) => prev.filter((item) => item.student.id !== studentId));
+  const removeRankGroup = (rankId: number) =>
+    setCohort((prev) => prev.filter((item) => item.student.current_rank !== rankId));
 
   const registration = useCohortRegistration({ sessionId, session, cohort, setCohort, generateAssessments });
 
-  if (!valid) {
+  const status = recordStatus(id, sessionQuery);
+  if (status || !session) {
     return (
-      <section aria-labelledby="bgc-invalid-id-heading" className="page" data-testid="bgc-page">
-        <EmptyState
-          titleAs="h2"
-          titleId="bgc-invalid-id-heading"
-          title="Grading session not found"
-          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
-        >
-          Please return to the grading sessions list.
-        </EmptyState>
-      </section>
-    );
-  }
-
-  if (sessionQuery.isLoading) {
-    return (
-      <section aria-label="Build grading cohort" className="page" data-testid="bgc-page">
-        <LoadingState>Loading the grading session…</LoadingState>
-      </section>
-    );
-  }
-
-  if (sessionQuery.isError || !session) {
-    return (
-      <section aria-labelledby="bgc-error-heading" className="page" data-testid="bgc-page">
-        <EmptyState
-          titleAs="h2"
-          titleId="bgc-error-heading"
-          title="Failed to load grading session"
-          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
-        >
-          {errorMessage(sessionQuery.error, "Session not found.")}
-        </EmptyState>
-      </section>
+      <RecordPage
+        back={{ to: "/gradings", label: "Gradings" }}
+        error={sessionQuery.error}
+        failed="The grading session could not be loaded."
+        label="Build grading cohort"
+        loading="Loading the grading session…"
+        missing="Grading session not found"
+        status={status ?? "loading"}
+        testId="bgc-page"
+        onRetry={() => void sessionQuery.refetch()}
+      />
     );
   }
 
@@ -141,11 +134,7 @@ export function BuildGradingCohortScreen() {
   return (
     <section aria-labelledby="bgc-title" className="page" data-testid="bgc-page">
       <PageHeader
-        crumbs={[
-          { label: "Gradings", to: "/gradings" },
-          { label: session.title, to: `/gradings/${session.id}` },
-          { label: "Build grading cohort" },
-        ]}
+        back={{ to: `/gradings/${session.id}`, label: session.title }}
         title="Build grading cohort"
         titleId="bgc-title"
         subtitle="Add whole groups, then review any exceptions."
@@ -159,7 +148,7 @@ export function BuildGradingCohortScreen() {
       {registration.submitError && <Alert onDismiss={registration.clearError}>{registration.submitError}</Alert>}
 
       <div className="split">
-        <div className="bgc-left-column">
+        <div className="stack stack--6 bgc-left-column">
           <CohortFindSection
             search={search}
             onSearch={setSearch}
@@ -171,7 +160,6 @@ export function BuildGradingCohortScreen() {
             onStatusFilter={setStatusFilter}
             ranks={ranks}
             rankMap={rankMap}
-            nextRankMap={nextRankMap}
             ageBands={ageBands}
             students={eligibleStudents}
             updating={rosterUpdating}
@@ -206,7 +194,9 @@ export function BuildGradingCohortScreen() {
         </div>
       </div>
 
-      {reviewOpen && <CohortReviewDialog cohort={cohort} onRemove={removeStudent} onClose={() => setReviewOpen(false)} />}
+      {reviewOpen && (
+        <CohortReviewDialog cohort={cohort} onRemove={removeStudent} onClose={() => setReviewOpen(false)} />
+      )}
     </section>
   );
 }

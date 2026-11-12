@@ -15,7 +15,10 @@ decides every value, so a refusal here would be a defect, not a user's mistake.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from django.db import models
+from django.db.models import Q
 
 
 def clean_without_database_checks(instance: models.Model) -> None:
@@ -24,4 +27,27 @@ def clean_without_database_checks(instance: models.Model) -> None:
         exclude=relations,
         validate_unique=False,
         validate_constraints=False,
+    )
+
+
+def changed_since_saved(
+    instance: models.Model,
+    fields: Iterable[str],
+    *,
+    saved_where: Q | None = None,
+) -> list[str]:
+    """Which of `fields` differ from the row as saved: the one statement of a
+    model's "frozen once recorded" fields. Empty for a row not saved yet, and
+    for one whose saved copy does not match `saved_where` (a final decision
+    is frozen, a proposal is not)."""
+    if instance._state.adding or instance.pk is None:
+        return []
+    saved = type(instance)._base_manager.filter(pk=instance.pk)
+    if saved_where is not None:
+        saved = saved.filter(saved_where)
+    values = saved.values(*fields).first()
+    if values is None:
+        return []
+    return sorted(
+        field for field, value in values.items() if getattr(instance, field) != value
     )

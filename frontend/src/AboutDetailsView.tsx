@@ -1,8 +1,7 @@
-import { useState } from "react";
-
 import { Alert } from "./Alert";
 import { CopyIcon } from "./Icons";
 import { Button } from "./Button";
+import { useClipboard } from "./useClipboard";
 
 /** A code (a commit, a browser's name) may break after its own punctuation,
  * which splits no word, so a long one wraps on a phone instead of spilling. */
@@ -32,21 +31,12 @@ export function DetailsList({ details }: { details: [string, string][] }) {
 }
 
 export function CopyDetailsButton({ details }: { details: [string, string][] }) {
-  const [copied, setCopied] = useState<"done" | "failed" | null>(null);
-
-  async function copy() {
-    const text = ["KukGrade", ...details.map(([name, value]) => `${name}: ${value}`)].join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied("done");
-    } catch {
-      setCopied("failed");
-    }
-  }
+  const { copied, copy } = useClipboard();
+  const text = ["KukGrade", ...details.map(([name, value]) => `${name}: ${value}`)].join("\n");
 
   return (
     <>
-      <Button variant="primary" disabled={details.length === 0} onClick={copy}>
+      <Button variant="primary" disabled={details.length === 0} onClick={() => void copy(text)}>
         <CopyIcon />
         Copy details
       </Button>
@@ -55,11 +45,7 @@ export function CopyDetailsButton({ details }: { details: [string, string][] }) 
           Copied.
         </p>
       ) : null}
-      {copied === "failed" ? (
-        <Alert>
-          Could not copy. Select the details and copy them by hand.
-        </Alert>
-      ) : null}
+      {copied === "failed" ? <Alert>Could not copy. Select the details and copy them by hand.</Alert> : null}
     </>
   );
 }

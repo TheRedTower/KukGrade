@@ -11,7 +11,7 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from rest_framework.test import APIClient
 
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.models import User
 from accounts.services import delete_platform_user
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -37,6 +37,10 @@ from gradings.testing import (
     user,
 )
 from kukgrade.testing import results
+
+# Where migrations 0019 and 0024 credit a note with nobody else to credit; the
+# account itself goes in accounts migration 0011.
+DELETED_USER_PLACEHOLDER_EMAIL = "deleted-user@kukgrade.internal"
 
 pytestmark = pytest.mark.django_db
 
@@ -258,11 +262,11 @@ def test_the_same_person_can_add_a_second_comment_to_a_marked_item() -> None:
 def test_the_items_list_shows_every_persons_comment_on_a_marked_item() -> None:
     item = started_item()
     update_candidate_assessment_item(item, result="MET", assessor=user("m@example.com"))
-    for email, body in (
-        ("reviewer-one@example.com", "Technical point one."),
-        ("reviewer-two@example.com", "A different technical point."),
+    for email, last_name, body in (
+        ("reviewer-one@example.com", "One", "Technical point one."),
+        ("reviewer-two@example.com", "Two", "A different technical point."),
     ):
-        response = auth_client(email).post(
+        response = auth_client(email, first_name="Rae", last_name=last_name).post(
             f"/api/gradings/assessment-items/{item.pk}/comments/",
             {"body": body},
             format="json",
@@ -276,8 +280,8 @@ def test_the_items_list_shows_every_persons_comment_on_a_marked_item() -> None:
     [row] = [r for r in results(listed) if r["id"] == item.pk]
     assert row["result"] == "MET"
     assert [(c["author_name"], c["body"]) for c in row["comments"]] == [
-        ("reviewer-one@example.com", "Technical point one."),
-        ("reviewer-two@example.com", "A different technical point."),
+        ("Rae One", "Technical point one."),
+        ("Rae Two", "A different technical point."),
     ]
     assert all(c["created_at"] for c in row["comments"])
 
@@ -300,8 +304,8 @@ def test_the_api_adds_a_comment_and_the_items_list_carries_it() -> None:
 
     assert created.status_code == 201
     assert created.json()["body"] == "Needs a wider stance."
-    # A person with no name set is shown by their email, as elsewhere.
-    assert created.json()["author_name"] == "api-commenter@example.com"
+    # Never by email: an account made before names were required says so.
+    assert created.json()["author_name"] == "Unnamed account"
     [row] = [r for r in results(listed) if r["id"] == item.pk]
     assert [c["body"] for c in row["comments"]] == ["Needs a wider stance."]
     assert "assessor_notes" not in row
@@ -456,6 +460,13 @@ def test_old_notes_become_comments_credited_to_the_best_known_author() -> None:
 BEFORE_THE_DROP = [("gradings", "0023_archive_sessions")]
 
 
+def _before_the_drop(model: str) -> Any:
+    """`model` as it was before the drop: the current one has columns added
+    since, which that schema does not hold."""
+    state = MigrationExecutor(connection).loader.project_state(BEFORE_THE_DROP)
+    return state.apps.get_model(model)
+
+
 def _started_items(count: int) -> list[CandidateAssessmentItem]:
     generated = start_assessment(
         assessment(
@@ -505,7 +516,7 @@ def test_dropping_the_note_column_keeps_a_note_that_was_never_carried() -> None:
                 " result = 'MET', assessed_at = now() WHERE id = %s",
                 [marked_it.pk, stranded.pk],
             )
-        Comment = apps.get_model("gradings", "AssessmentItemComment")
+        Comment = _before_the_drop("gradings.AssessmentItemComment")
         Comment.objects.create(
             item_id=carried.pk,
             author_id=marked_it.pk,
@@ -578,7 +589,7 @@ def test_a_note_with_nobody_to_credit_stops_the_drop_and_nothing_is_lost() -> No
     try:
         MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
         _write_note(orphan, "Nobody wrote this down.")
-        User = apps.get_model("accounts", "User")
+        User = _before_the_drop("accounts.User")
         User.objects.filter(email=DELETED_USER_PLACEHOLDER_EMAIL).delete()
 
         with pytest.raises(RuntimeError, match="nobody to credit"):
@@ -587,7 +598,7 @@ def test_a_note_with_nobody_to_credit_stops_the_drop_and_nothing_is_lost() -> No
         assert "assessor_notes" in _columns()
     finally:
         # Restore the placeholder the migration needs, then finish.
-        User = apps.get_model("accounts", "User")
+        User = _before_the_drop("accounts.User")
         User.objects.get_or_create(
             email=DELETED_USER_PLACEHOLDER_EMAIL,
             defaults={"is_active": False},

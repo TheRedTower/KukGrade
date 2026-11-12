@@ -12,13 +12,14 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
-# The account deleted users' history is reassigned to. Kept in sync by hand
-# with the literal in accounts/migrations/0005_seed_deleted_user_placeholder.py
-# - migrations must not import application code.
-DELETED_USER_PLACEHOLDER_EMAIL = "deleted-user@kukgrade.internal"
-PLACEHOLDER_ACTIVE_MESSAGE = (
-    "The deleted-user placeholder holds history only and can never be active."
-)
+from ranks.models import Rank
+
+ADMINISTRATOR_RANK_MESSAGE = "An administrator account has no rank."
+STAFF_RANK_MESSAGE = "Choose one of the instructor ranks."
+
+
+# What an account without a name is called wherever it is named.
+UNNAMED = "Unnamed account"
 
 
 class UserManager(BaseUserManager["User"]):
@@ -83,6 +84,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         choices=Role.choices,
         default=Role.INSTRUCTOR,
     )
+    # An instructor's rank, chosen when the account is made, from the ranks
+    # held by staff (Rank.objects.staff(): JKN and above). An administrator account has
+    # none. What it was when they acted is kept on each record that names
+    # them (accounts.people), so a later promotion changes no record.
+    rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="staff_accounts",
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     must_change_password = models.BooleanField(default=False)
@@ -109,15 +121,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     def clean(self) -> None:
         super().clean()
         self.email = User.objects.normalize_email(self.email)
-        if self.is_deleted_user_placeholder and self.is_active:
-            raise ValidationError({"is_active": [PLACEHOLDER_ACTIVE_MESSAGE]})
+        if self.rank_id is None:
+            return
+        if self.role == User.Role.ADMINISTRATOR:
+            raise ValidationError({"rank": [ADMINISTRATOR_RANK_MESSAGE]})
+        if not Rank.objects.staff().filter(pk=self.rank_id).exists():
+            raise ValidationError({"rank": [STAFF_RANK_MESSAGE]})
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.email = User.objects.normalize_email(self.email)
-        # Enforced here as well as in clean(): an active placeholder could be
-        # signed into, and anything it did would read as "a deleted user".
-        if self.is_deleted_user_placeholder and self.is_active:
-            raise ValidationError({"is_active": [PLACEHOLDER_ACTIVE_MESSAGE]})
         super().save(*args, **kwargs)
 
     @property
@@ -125,19 +137,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         expires_at = self.temporary_password_expires_at
         return expires_at is not None and expires_at <= timezone.now()
 
-    @property
-    def is_deleted_user_placeholder(self) -> bool:
-        return self.email == DELETED_USER_PLACEHOLDER_EMAIL
-
     def __str__(self) -> str:
         return self.email
 
     def get_full_name(self) -> str:
-        full_name = f"{self.first_name} {self.last_name}".strip()
-        return full_name or self.email
+        """Their name as a record shows it, never their email address (owner,
+        2026-11-11): an account made before names were required is "Unnamed
+        account" until an administrator gives it one."""
+        return f"{self.first_name} {self.last_name}".strip() or UNNAMED
 
     def get_short_name(self) -> str:
-        return self.first_name or self.email
+        return self.first_name or self.get_full_name()
 
 
 class SetupCode(models.Model):

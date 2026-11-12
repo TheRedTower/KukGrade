@@ -11,8 +11,9 @@ import's rows go after
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import timedelta
-from typing import Any
+from typing import Any, overload
 
 from django.conf import settings
 from django.db import models
@@ -20,10 +21,66 @@ from django.db import models
 from data_imports.storage import import_upload_path, import_upload_storage
 
 
+class _Setting[T]:
+    """One key of an import's configuration_json, read with its default."""
+
+    def __init__(self, default: Callable[[], T]) -> None:
+        self.default = default
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        self.key = name
+
+    @overload
+    def __get__(self, configuration: None, owner: type) -> _Setting[T]: ...
+    @overload
+    def __get__(self, configuration: ImportConfiguration, owner: type) -> T: ...
+    def __get__(
+        self, configuration: ImportConfiguration | None, owner: type
+    ) -> T | _Setting[T]:
+        if configuration is None:
+            return self
+        value: T = configuration.stored.get(self.key, self.default())
+        return value
+
+    def __set__(self, configuration: ImportConfiguration, value: T) -> None:
+        configuration.stored[self.key] = value
+
+    def __delete__(self, configuration: ImportConfiguration) -> None:
+        configuration.stored.pop(self.key, None)
+
+
+class ImportConfiguration:
+    """An import's configuration_json, by name: what the file's reading found
+    and the importer's choices - never row content, which lives on ImportRow.
+    Reading a setting not stored gives its empty value; setting one writes
+    the stored JSON, which the caller saves."""
+
+    # Both kinds: what reading the file found.
+    detected_headers = _Setting[list[str]](list)
+    warnings = _Setting[list[str]](list)
+    # A roster: the workbook sheet read, every sheet, and why the opening
+    # one could not be read.
+    sheet = _Setting[str](str)
+    sheet_names = _Setting[list[str]](list)
+    sheet_error = _Setting[str](str)
+    # A roster: a column per KukGrade field, whole-file values, and the
+    # columns kept as extra information.
+    column_mapping = _Setting[dict[str, str]](dict)
+    defaults = _Setting[dict[str, str]](dict)
+    extra_columns = _Setting[list[str]](list)
+    # A historical workbook: its grading sheets, and the chosen rank code for
+    # each lower-cased spelling.
+    grading_sheets = _Setting[list[str]](list)
+    rank_mappings = _Setting[dict[str, str]](dict)
+
+    def __init__(self, stored: dict[str, Any]) -> None:
+        self.stored = stored
+
+
 class ImportBatch(models.Model):
     class Kind(models.TextChoices):
-        STUDENT_ROSTER = "STUDENT_ROSTER", "Student roster"
-        LEGACY_GRADINGS = "LEGACY_GRADINGS", "Historical grading records"
+        STUDENT_ROSTER = "STUDENT_ROSTER", "Students"
+        LEGACY_GRADINGS = "LEGACY_GRADINGS", "Past gradings"
 
     class Status(models.TextChoices):
         # The one open state; the other three are final.
@@ -64,6 +121,8 @@ class ImportBatch(models.Model):
         on_delete=models.PROTECT,
         related_name="import_batches_uploaded",
     )
+    # The rank (or "administrator") uploaded by held then (accounts.people).
+    uploaded_by_title = models.CharField(max_length=100, blank=True, editable=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     committed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -72,6 +131,8 @@ class ImportBatch(models.Model):
         blank=True,
         related_name="import_batches_committed",
     )
+    # The rank (or "administrator") committed by held then (accounts.people).
+    committed_by_title = models.CharField(max_length=100, blank=True, editable=False)
     committed_at = models.DateTimeField(null=True, blank=True)
     cancelled_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -84,8 +145,7 @@ class ImportBatch(models.Model):
 
     # Safe summary counts only - never raw row content, DOBs or comments.
     summary_json = models.JSONField(default=dict, blank=True)
-    # The file's headers, the column mapping and approved rank mappings -
-    # never row content, which lives on ImportRow.
+    # Read and written through `configuration` (ImportConfiguration).
     configuration_json = models.JSONField(default=dict, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -121,9 +181,26 @@ class ImportBatch(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    @property
+    def configuration(self) -> ImportConfiguration:
+        return ImportConfiguration(self.configuration_json)
+
+
+# The states an import ends in: every one but the one open state. The one
+# statement, for a filter and for the choices a screen offers.
+FINISHED_IMPORT_STATUSES: tuple[str, ...] = tuple(
+    status for status in ImportBatch.Status if status != ImportBatch.Status.UPLOADED
+)
 
 # How long a finished import's rows stay for its results page.
 COMMITTED_ROWS_KEPT_FOR = timedelta(days=30)
+
+
+class ImportRowOutcome(models.TextChoices):
+    READY = "READY", "Ready"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED", "Needs attention"
+    SKIP_EXISTING = "SKIP_EXISTING", "Already in KukGrade"
+    EXCLUDED = "EXCLUDED", "Left out"
 
 
 class ImportRow(models.Model):
@@ -137,11 +214,7 @@ class ImportRow(models.Model):
     is finished, `created_id` names what the row became.
     """
 
-    class Outcome(models.TextChoices):
-        READY = "READY", "Ready"
-        REVIEW_REQUIRED = "REVIEW_REQUIRED", "Needs attention"
-        SKIP_EXISTING = "SKIP_EXISTING", "Already in KukGrade"
-        EXCLUDED = "EXCLUDED", "Left out"
+    Outcome = ImportRowOutcome
 
     batch = models.ForeignKey(
         ImportBatch,
@@ -178,18 +251,12 @@ class ImportRow(models.Model):
                 name="import_row_unique_number",
             ),
             models.CheckConstraint(
-                condition=models.Q(
-                    outcome__in=[
-                        "READY",
-                        "REVIEW_REQUIRED",
-                        "SKIP_EXISTING",
-                        "EXCLUDED",
-                    ],
-                ),
+                condition=models.Q(outcome__in=ImportRowOutcome.values),
                 name="import_row_outcome_valid",
             ),
             models.CheckConstraint(
-                condition=models.Q(excluded=False) | models.Q(outcome="EXCLUDED"),
+                condition=models.Q(excluded=False)
+                | models.Q(outcome=ImportRowOutcome.EXCLUDED),
                 name="import_row_excluded_is_left_out",
             ),
         ]

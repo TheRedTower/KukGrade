@@ -5,11 +5,17 @@ import { Alert } from "./Alert";
 import { errorMessage } from "./api";
 import { useAboutDocumentQuery, useAboutQuery, usePledgeQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
+import { mediaMatches } from "./useMediaQuery";
+import { ExternalLink } from "./ExternalLink";
+import { ExternalLinkIcon } from "./Icons";
 
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 
 function slug(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function textOf(node: unknown): string {
@@ -51,7 +57,11 @@ function MarkdownText({ content, repositoryUrl }: { content: string; repositoryU
               : `${repositoryUrl}/blob/HEAD/${href.replace(/^\.?\//, "")}`;
           const opensTab = /^https?:/i.test(target);
           return (
-            <a href={target} rel={opensTab ? "noopener noreferrer" : undefined} target={opensTab ? "_blank" : undefined}>
+            <a
+              href={target}
+              rel={opensTab ? "noopener noreferrer" : undefined}
+              target={opensTab ? "_blank" : undefined}
+            >
               {children}
               {opensTab ? <span className="visually-hidden"> (opens in a new tab)</span> : null}
             </a>
@@ -72,20 +82,16 @@ function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitl
         {subtitle ? <p className="st-row-description subtext">{subtitle}</p> : null}
       </div>
       {sourceUrl ? (
-        <a className={buttonClass({ variant: "secondary" })} href={sourceUrl} rel="noopener noreferrer" target="_blank">
-          View on GitHub ↗<span className="visually-hidden"> (opens in a new tab)</span>
-        </a>
+        <ExternalLink className={buttonClass({ variant: "secondary" })} href={sourceUrl}>
+          View on GitHub <ExternalLinkIcon />
+        </ExternalLink>
       ) : null}
     </header>
   );
 }
 
 function Problem({ error }: { error: unknown }) {
-  return (
-    <Alert>
-      {errorMessage(error, "This page could not be loaded.")}
-    </Alert>
-  );
+  return <Alert>{errorMessage(error, "This page could not be loaded.")}</Alert>;
 }
 
 function ReadableDocument({ slugName, label }: { slugName: string; label: string }) {
@@ -97,7 +103,7 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
   function jump(id: string) {
     const heading = document.getElementById(id);
     if (!heading) return;
-    const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const calm = mediaMatches("(prefers-reduced-motion: reduce)");
     heading.scrollIntoView({ behavior: calm ? "auto" : "smooth" });
     // So the next Tab carries on from the section that was jumped to.
     heading.focus({ preventScroll: true });
@@ -112,7 +118,7 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
             <nav aria-label={`${label}, on this page`} className="card card--flush ab-contents">
               <p className="eyebrow--muted">On this page</p>
               {contents.map((entry) => (
-                <button key={entry.id} onClick={() => jump(entry.id)} type="button">
+                <button className="menu-link" key={entry.id} onClick={() => jump(entry.id)} type="button">
                   {entry.text}
                 </button>
               ))}
@@ -160,10 +166,10 @@ export function AboutConduct() {
         <section aria-labelledby="ab-pledge" className="card">
           <p className="st-eyebrow eyebrow--muted">Kuk Sool Won</p>
           <h2 id="ab-pledge">{pledge.data.title}</h2>
-          <ol className="ab-pledge">
+          <ol className="list-plain ab-pledge">
             {pledge.data.points.map((point, index) => (
               <li key={point.english}>
-                <span aria-hidden="true" className="ab-number">
+                <span aria-hidden="true" className="mark mark--small ab-number">
                   {index + 1}
                 </span>
                 <div className="ab-pledge-text">
@@ -205,8 +211,8 @@ export function AboutLicence() {
         <div>
           <h2 id="ab-plain">In plain words</h2>
           <p className="st-row-description subtext">
-            KukGrade is free software. This is a short guide, not legal advice: the full licence
-            below is the only text that counts.
+            KukGrade is free software. This is a short guide, not legal advice: the full licence below is the only text
+            that counts.
           </p>
         </div>
         <div className="ab-three">
@@ -236,9 +242,9 @@ export function AboutLicence() {
         </div>
         <div className="action-row">
           {about ? (
-            <a className={buttonClass({ variant: "primary" })} href={about.repository_url} rel="noopener noreferrer" target="_blank">
-              Get the source code ↗<span className="visually-hidden"> (opens in a new tab)</span>
-            </a>
+            <ExternalLink className={buttonClass({ variant: "primary" })} href={about.repository_url}>
+              Get the source code <ExternalLinkIcon />
+            </ExternalLink>
           ) : null}
         </div>
         {about ? <p className="st-row-description subtext">{about.copyright}</p> : null}
@@ -258,8 +264,8 @@ export function AboutLicence() {
       ) : null}
 
       <Alert tone="info" role="note">
-        Not sure what the licence means for your school? Ask on the{" "}
-        <Link to="/settings/about/support">Support</Link> page. The project cannot give legal advice.
+        Not sure what the licence means for your school? Ask on the <Link to="/settings/about/support">Support</Link>{" "}
+        page. The project cannot give legal advice.
       </Alert>
     </>
   );

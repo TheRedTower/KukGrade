@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { useNavigate } from "react-router-dom";
@@ -14,42 +14,27 @@ import {
 } from "./api";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
-import { Alert } from "./Alert";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
-import { Dialog } from "./Dialog";
-import { SESSION_STATUS_LABELS } from "./sessionStatus";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { confirmDetails } from "./sessionDetail";
+import { useChoices } from "./choices";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
-import { useDebouncedValue } from "./useDebouncedValue";
+import { SearchField } from "./SearchField";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
 import { Button } from "./Button";
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function PlusIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="18">
-      <line x1="12" x2="12" y1="5" y2="19" />
-      <line x1="5" x2="19" y1="12" y2="12" />
-    </svg>
-  );
-}
-
-function ArrowRightIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="16">
-      <line x1="5" x2="19" y1="12" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  );
-}
+import { ArrowRightIcon, PlusIcon } from "./Icons";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 10;
+function deleteDetails(session: GradingSession) {
+  return confirmDetails("DELETE", session, session.candidate_count ?? 0);
+}
 
-const STATUS_ORDER: GradingSessionStatus[] = ["OPEN", "DRAFT", "LOCKED", "COMPLETED", "CANCELLED"];
+const PAGE_SIZE = 10;
 
 // ─── Current Session Spotlight ────────────────────────────────────────────────
 
@@ -61,10 +46,16 @@ interface CurrentSessionCardProps {
   onOpen: () => void;
 }
 
-function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awaitingDecision, onOpen }: CurrentSessionCardProps) {
+function CurrentSessionCard({
+  session,
+  candidateCount,
+  assessmentsComplete,
+  awaitingDecision,
+  onOpen,
+}: CurrentSessionCardProps) {
   return (
     <section className="gs-current-card" aria-label="Current grading session">
-      <div className="gs-current-tag">Current</div>
+      <div className="eyebrow gs-current-tag">Current</div>
       <div className="gs-current-body">
         <div className="gs-current-info">
           <h2 className="gs-current-title">{session.title}</h2>
@@ -80,7 +71,9 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
             <span className="stat__label">Candidates</span>
           </div>
           <div className="stat">
-            <span className="stat__value">{assessmentsComplete} / {candidateCount}</span>
+            <span className="stat__value">
+              {assessmentsComplete} / {candidateCount}
+            </span>
             <span className="stat__label">Assessments complete</span>
           </div>
           <div className="stat">
@@ -104,11 +97,13 @@ export function GradingSessionsScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState<GradingSessionStatus | "ALL">("ALL");
-  const [yearFilter, setYearFilter] = useState<string>("ALL");
-  const [archivedOnly, setArchivedOnly] = useState(false);
-  const [page, setPage] = useState(1);
+  const filters = useUrlFilters();
+  const searchText = filters.value("search");
+  const statusFilter = filters.value("status") as GradingSessionStatus | "";
+  const yearFilter = filters.value("year");
+  const sessionStatuses = useChoices().session_statuses;
+  const archivedOnly = filters.value("archived") === "only";
+  const page = filters.page;
 
   const [deleteConfirmSession, setDeleteConfirmSession] = useState<GradingSession | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -121,7 +116,7 @@ export function GradingSessionsScreen() {
       setDeleteError(null);
     },
     onError: (err) => {
-      setDeleteError(errorMessage(err, "Failed to delete session."));
+      setDeleteError(errorMessage(err, "The grading session could not be deleted."));
     },
   });
 
@@ -143,14 +138,12 @@ export function GradingSessionsScreen() {
   const currentSession = currentSessionQuery.data?.results[0] ?? null;
 
   // Paginated sessions filtered by status on the server
-  const serverStatus = statusFilter !== "ALL" ? statusFilter : undefined;
-  const selectedYear = yearFilter !== "ALL" ? Number(yearFilter) : undefined;
-  const gradingDateFrom = selectedYear ? `${selectedYear}-01-01` : undefined;
-  const gradingDateTo = selectedYear ? `${selectedYear}-12-31` : undefined;
+  const serverStatus = statusFilter || undefined;
+  const selectedYear = yearFilter ? Number(yearFilter) : undefined;
   // Waits for a pause in typing; the last page stays while the next loads.
-  const serverSearch = useDebouncedValue(searchText.trim()) || undefined;
+  const serverSearch = searchText.trim() || undefined;
 
-  const sessionsQuery = useQuery({
+  const sessionsQuery = usePagedQuery({
     queryKey: keys.gradingSessions.page(page, serverStatus, selectedYear, serverSearch, archivedOnly),
     placeholderData: keepPreviousData,
     queryFn: () =>
@@ -159,74 +152,76 @@ export function GradingSessionsScreen() {
         page_size: PAGE_SIZE,
         status: serverStatus,
         search: serverSearch,
-        grading_date_from: gradingDateFrom,
-        grading_date_to: gradingDateTo,
+        year: selectedYear,
         archived: archivedOnly ? "only" : undefined,
       }),
+    page,
+    pageSize: PAGE_SIZE,
+    onPage: filters.setPage,
   });
+  const sessions: GradingSession[] = sessionsQuery.results;
 
-  const sessions: GradingSession[] = useMemo(
-    () => sessionsQuery.data?.results ?? [],
-    [sessionsQuery.data],
-  );
-  const totalCount = sessionsQuery.data?.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  function resetFilters() {
+    filters.clear("search", "status", "year", "archived");
+  }
 
-  function handleStatusFilter(value: GradingSessionStatus | "ALL") { setStatusFilter(value); setPage(1); }
-  function handleYearFilter(value: string) { setYearFilter(value); setPage(1); }
-  function handleArchived(value: boolean) { setArchivedOnly(value); setPage(1); }
-  function handleSearch(value: string) { setSearchText(value); setPage(1); }
-  function resetFilters() { setSearchText(""); setStatusFilter("ALL"); setYearFilter("ALL"); setArchivedOnly(false); setPage(1); }
-
-  const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL" || archivedOnly;
-  const isLoading = currentSessionQuery.isLoading || sessionsQuery.isLoading;
-  const showingFrom = sessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const showingTo = Math.min(page * PAGE_SIZE, totalCount);
-  const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL" && !archivedOnly;
+  const isFiltered = searchText.trim() !== "" || statusFilter !== "" || yearFilter !== "" || archivedOnly;
+  const isLoading = currentSessionQuery.isLoading || sessionsQuery.query.isLoading;
+  const showCurrentCard = currentSession !== null && !isFiltered;
 
   return (
     <section aria-labelledby="gradings-heading" className="page">
-
       <PageHeader
         title="Gradings"
         titleId="gradings-heading"
         subtitle="Plan and manage grading sessions"
         actions={
           <Button variant="primary" id="create-grading-btn" onClick={() => navigate("/gradings/new")}>
-            <PlusIcon /> Create grading
+            <PlusIcon size={18} /> Create grading
           </Button>
         }
       />
 
       {/* ── Filters */}
       <div className="filter-bar" role="search">
-        <label className="field field--search filter-bar__full">
-          <span className="visually-hidden">Search grading sessions</span>
-          <input
-            id="gs-search-input"
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search title, place, date or status…"
-            type="search"
-            value={searchText}
-          />
-        </label>
+        <SearchField
+          className="filter-bar__full"
+          hideLabel
+          id="gs-search-input"
+          label="Search grading sessions"
+          placeholder="Search title, place, date or status…"
+          value={searchText}
+          onChange={(value) => filters.set({ search: value })}
+        />
         <div className="field">
           <label htmlFor="gs-status-filter">Status</label>
-          <select id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
-            <option value="ALL">All statuses</option>
-            {STATUS_ORDER.map((s) => <option key={s} value={s}>{SESSION_STATUS_LABELS[s]}</option>)}
+          <select id="gs-status-filter" onChange={(e) => filters.set({ status: e.target.value })} value={statusFilter}>
+            <option value="">All statuses</option>
+            {sessionStatuses.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-year-filter">Year</label>
-          <select id="gs-year-filter" onChange={(e) => handleYearFilter(e.target.value)} value={yearFilter}>
-            <option value="ALL">All years</option>
-            {availableYears.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+          <select id="gs-year-filter" onChange={(e) => filters.set({ year: e.target.value })} value={yearFilter}>
+            <option value="">All years</option>
+            {availableYears.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}
+              </option>
+            ))}
           </select>
         </div>
         <div className="field">
           <label htmlFor="gs-archive-filter">Show</label>
-          <select id="gs-archive-filter" onChange={(e) => handleArchived(e.target.value === "ARCHIVED")} value={archivedOnly ? "ARCHIVED" : "CURRENT"}>
+          <select
+            id="gs-archive-filter"
+            onChange={(e) => filters.set({ archived: e.target.value === "ARCHIVED" ? "only" : null })}
+            value={archivedOnly ? "ARCHIVED" : "CURRENT"}
+          >
             <option value="CURRENT">Current gradings</option>
             <option value="ARCHIVED">Archived gradings</option>
           </select>
@@ -245,15 +240,15 @@ export function GradingSessionsScreen() {
       )}
 
       {/* ── Loading */}
-      {isLoading && (
-        <LoadingState>Loading grading sessions…</LoadingState>
-      )}
+      {isLoading && <LoadingState>Loading grading sessions…</LoadingState>}
 
       {/* ── Table + Empty States */}
       {!isLoading && (
         <>
-          <div className="gs-table-section">
-            <h2 className="gs-table-heading section-title">{archivedOnly ? "Archived grading sessions" : "All grading sessions"}</h2>
+          <div className="stack stack--3">
+            <h2 className="gs-table-heading section-title">
+              {archivedOnly ? "Archived grading sessions" : "All grading sessions"}
+            </h2>
             {sessions.length > 0 ? (
               <ResponsiveTable
                 label="Grading sessions"
@@ -263,7 +258,12 @@ export function GradingSessionsScreen() {
                   { key: "title", header: "Session", primary: true, render: (session) => session.title },
                   { key: "date", header: "Date", render: (session) => formatLongDate(session.grading_date) },
                   { key: "location", header: "Location", render: (session) => session.location || "—" },
-                  { key: "candidates", header: "Candidates", align: "end", render: (session) => session.candidate_count ?? "—" },
+                  {
+                    key: "candidates",
+                    header: "Candidates",
+                    align: "end",
+                    render: (session) => session.candidate_count ?? "—",
+                  },
                   {
                     key: "progress",
                     header: "Progress",
@@ -272,7 +272,11 @@ export function GradingSessionsScreen() {
                         ? `${session.completed_assessment_count ?? 0} of ${session.candidate_count} complete`
                         : "—",
                   },
-                  { key: "status", header: "Status", render: (session) => <SessionStatusBadge status={session.status} label={session.status_display} /> },
+                  {
+                    key: "status",
+                    header: "Status",
+                    render: (session) => <SessionStatusBadge status={session.status} label={session.status_display} />,
+                  },
                   {
                     key: "action",
                     header: "Action",
@@ -280,11 +284,12 @@ export function GradingSessionsScreen() {
                     render: (session) => (
                       <>
                         <Button variant="ghost" small onClick={() => navigate(`/gradings/${session.id}`)}>
-                          {session.status === "OPEN" ? "Open grading" : "View grading"} <ArrowRightIcon />
+                          {session.marking_open ? "Open grading" : "View grading"} <ArrowRightIcon />
                         </Button>
                         {session.can_be_deleted && (
                           <Button
-                            variant="danger-quiet" small
+                            variant="danger-quiet"
+                            small
                             onClick={() => {
                               setDeleteError(null);
                               setDeleteConfirmSession(session);
@@ -315,7 +320,7 @@ export function GradingSessionsScreen() {
                 framed
                 action={
                   <Button variant="primary" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")}>
-                    <PlusIcon /> Create grading
+                    <PlusIcon size={18} /> Create grading
                   </Button>
                 }
               >
@@ -325,54 +330,24 @@ export function GradingSessionsScreen() {
           </div>
 
           {/* ── Pagination */}
-          {sessions.length > 0 && (
-            <Pagination
-              label="Grading sessions pagination"
-              page={page}
-              totalPages={totalPages}
-              onPage={setPage}
-              summary={
-                totalPages > 1
-                  ? `Showing ${showingFrom}–${showingTo} of ${totalCount} sessions`
-                  : `Showing ${sessions.length} of ${totalCount} sessions`
-              }
-            />
-          )}
+          <Pagination label="Grading sessions pagination" noun={["session", "sessions"]} {...sessionsQuery.pager} />
         </>
       )}
 
-      {/* ── Delete Confirmation Modal */}
       {deleteConfirmSession && (
-        <Dialog
-          title="Delete Grading Session"
-          closeButton={false}
+        <ConfirmDialog
+          title={deleteDetails(deleteConfirmSession).title}
+          confirmLabel="Delete session"
+          pendingLabel="Deleting…"
+          pending={deleteSessionMutation.isPending}
+          error={deleteError}
+          danger
           onClose={closeDeleteConfirm}
-          canClose={!deleteSessionMutation.isPending}
+          onConfirm={() => deleteSessionMutation.mutate(deleteConfirmSession.id)}
         >
-          <p className="gsd-modal-message subtext">
-            Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
-          </p>
-          {deleteError && (
-            <Alert>{deleteError}</Alert>
-          )}
-          <div className="action-row dialog__actions">
-            <Button
-              variant="ghost"
-              onClick={closeDeleteConfirm}
-              disabled={deleteSessionMutation.isPending}
-              data-dialog-autofocus
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => deleteSessionMutation.mutate(deleteConfirmSession.id)}
-              disabled={deleteSessionMutation.isPending}
-            >
-              {deleteSessionMutation.isPending ? "Deleting…" : "Delete"}
-            </Button>
-          </div>
-        </Dialog>
+          {/* The same words as the session's own Delete. */}
+          <p className="subtext">{deleteDetails(deleteConfirmSession).message}</p>
+        </ConfirmDialog>
       )}
     </section>
   );

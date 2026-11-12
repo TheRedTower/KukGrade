@@ -5,7 +5,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserDetailScreen } from "./UserDetailScreen";
-import { NETWORK_ERROR, type AuthUser, type ManagedUser } from "./api";
+import { ApiError, NETWORK_ERROR, type AuthUser, type ManagedUser } from "./api";
+import { CHOICES } from "./appTestSupport";
 
 let currentUser: AuthUser;
 const mockGetManagedUser = vi.fn();
@@ -22,6 +23,7 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
+    getChoices: async () => CHOICES,
     getManagedUser: (...args: unknown[]) => mockGetManagedUser(...args),
     getAuditEvents: (...args: unknown[]) => mockGetAuditEvents(...args),
     updateManagedUser: (...args: unknown[]) => mockUpdateManagedUser(...args),
@@ -38,6 +40,8 @@ const managedUser: ManagedUser = {
   full_name: "Riley Khan",
   role: "instructor",
   role_display: "Instructor",
+  rank: 13,
+  rank_name: "KSN",
   is_active: true,
   can_make_final_grading_decision: false,
   can_promote_student: false,
@@ -46,6 +50,7 @@ const managedUser: ManagedUser = {
   must_change_password: false,
   temporary_password_expires_at: null,
   manageable: true,
+  missing_details: [],
   date_joined: "2025-02-14T09:00:00Z",
   last_login: "2026-09-14T18:43:00Z",
 };
@@ -91,20 +96,23 @@ describe("UserDetailScreen", () => {
       count: 1,
       next: null,
       previous: null,
-      results: [{
-        id: 9,
-        occurred_at: "2026-09-14T18:43:00Z",
-        action: "USER_AUTHORITY_CHANGED",
-        action_display: "User authority changed",
-        entity_type: "User",
-        entity_type_display: "User",
-        entity_id: "target-user",
-        actor: "admin-user",
-        actor_email: "admin@example.com",
-        actor_name: "Admin User",
-        summary: "User authority changed.",
-        metadata: {},
-      }],
+      results: [
+        {
+          id: 9,
+          occurred_at: "2026-09-14T18:43:00Z",
+          action: "USER_AUTHORITY_CHANGED",
+          action_display: "User authority changed",
+          entity_type: "User",
+          entity_type_display: "User",
+          entity_id: "target-user",
+          actor: "admin-user",
+          actor_name: "Admin User",
+          summary: "User authority changed.",
+          tone: "neutral",
+          outcome_display: null,
+          metadata: {},
+        },
+      ],
     });
     mockUpdateManagedUser.mockReset().mockResolvedValue(managedUser);
     mockUpdateManagedUserAuthority.mockReset().mockResolvedValue(managedUser);
@@ -138,14 +146,62 @@ describe("UserDetailScreen", () => {
     await user.click(screen.getByRole("button", { name: "Save account details" }));
 
     await waitFor(() => {
-      expect(mockUpdateManagedUser).toHaveBeenCalledWith("target-user", expect.objectContaining({
-        first_name: "Rina",
-        is_active: false,
-      }));
+      expect(mockUpdateManagedUser).toHaveBeenCalledWith(
+        "target-user",
+        expect.objectContaining({
+          first_name: "Rina",
+          is_active: false,
+        }),
+      );
     });
     expect(await screen.findByText("Account details saved.")).toBeInTheDocument();
     // The change is audited, so the page's activity list is read again.
     await waitFor(() => expect(mockGetAuditEvents.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("asks the administrator to fill in what an old account lacks", async () => {
+    mockGetManagedUser.mockResolvedValue({
+      ...managedUser,
+      first_name: "",
+      last_name: "",
+      full_name: "Unnamed account",
+      rank: null,
+      rank_name: "",
+      missing_details: [
+        { value: "name", label: "Needs a name" },
+        { value: "rank", label: "Needs a rank" },
+      ],
+    });
+    renderScreen();
+
+    expect(await screen.findByRole("heading", { name: "Unnamed account" })).toBeInTheDocument();
+    expect(screen.getByText("Needs a name")).toBeInTheDocument();
+    expect(screen.getByText("Needs a rank")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/missing details every account now needs/);
+    expect(screen.getByLabelText("First name")).toBeRequired();
+    expect(screen.getByLabelText("Last name")).toBeRequired();
+    expect(screen.getByLabelText("Rank")).toHaveValue("");
+  });
+
+  it("asks nothing of an account that has all it needs", async () => {
+    renderScreen();
+    await screen.findByRole("heading", { name: "Riley Khan" });
+    expect(screen.queryByText(/^Needs a/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/missing details/)).not.toBeInTheDocument();
+  });
+
+  it("says a missing name beside its box", async () => {
+    const user = userEvent.setup();
+    mockUpdateManagedUser.mockRejectedValue(
+      new ApiError("Validation failed.", 400, "validation_error", { first_name: ["Enter a first name."] }),
+    );
+    renderScreen();
+    await screen.findByRole("heading", { name: "Riley Khan" });
+
+    await user.click(screen.getByRole("button", { name: "Save account details" }));
+
+    expect(await screen.findByText("Enter a first name.")).toHaveClass("error-text--field");
+    expect(screen.getByLabelText("First name")).toHaveAccessibleDescription("Enter a first name.");
   });
 
   it("saves independent Master authority", async () => {
@@ -153,7 +209,7 @@ describe("UserDetailScreen", () => {
     renderScreen();
     await screen.findByRole("heading", { name: "Riley Khan" });
 
-    await user.click(screen.getByRole("checkbox", { name: /Promote students/ }));
+    await user.click(await screen.findByRole("checkbox", { name: /Promote students/ }));
     await user.click(screen.getByRole("button", { name: "Save authority" }));
 
     await waitFor(() => {
@@ -223,9 +279,7 @@ describe("UserDetailScreen", () => {
     });
     renderScreen();
 
-    expect(
-      await screen.findByText(/^Expired .*Reset the password to give them a new one\.$/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/^Expired .*Reset the password to give them a new one\.$/)).toBeInTheDocument();
   });
 
   it("cannot close the password dialog while the reset is in flight", async () => {
@@ -265,14 +319,12 @@ describe("UserDetailScreen", () => {
 
     expect(screen.getByLabelText("Role")).toBeDisabled();
     expect(screen.getByLabelText("Account status")).toBeDisabled();
-    expect(screen.getByRole("checkbox", { name: /Make final grading decisions/ })).toBeDisabled();
+    expect(await screen.findByRole("checkbox", { name: /Make final grading decisions/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save authority" })).toBeDisabled();
     expect(screen.getByText("You cannot change your own authority.")).toBeInTheDocument();
     // Your own password is changed in Settings, behind the current
-    // one; a reset - which asks for none - is not offered (audit F-04).
+    // one; a reset - which asks for none - is not offered.
     expect(screen.queryByRole("button", { name: "Reset password" })).not.toBeInTheDocument();
-    expect(
-      screen.getByText("Change your own password in Settings."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Change your own password in Settings.")).toBeInTheDocument();
   });
 });

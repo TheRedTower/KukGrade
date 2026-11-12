@@ -106,7 +106,6 @@ paths:
           - ASSESSMENT_COMPLETED
           - ASSESSMENT_DELETED
           - ASSESSMENT_GENERATED
-          - ASSESSMENT_REOPENED
           - ASSESSMENT_STARTED
           - ASSESSMENT_UPDATED
           - AUDIT_REDACTED
@@ -352,6 +351,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/choices/:
+    get:
+      operationId: choices_retrieve
+      description: Every list of choices the screens offer, each value with its name.
+      tags:
+      - choices
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Choices'
+          description: ''
   /api/data-imports/batches/:
     get:
       operationId: data_imports_batches_list
@@ -361,6 +375,13 @@ paths:
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
         `accounts.groups._DATA_IMPORT_PERMISSIONS`.
       parameters:
+      - name: finished
+        required: false
+        in: query
+        description: Only finished imports (imported, cancelled or expired), or only
+          those still open.
+        schema:
+          type: boolean
       - name: kind
         required: false
         in: query
@@ -429,6 +450,195 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportBatchCreated'
           description: ''
+  /api/data-imports/batches/{batch_pk}/rows/:
+    get:
+      operationId: data_imports_batches_rows_list
+      description: The import's rows, a page at a time, in file order.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - name: corrected
+        required: false
+        in: query
+        description: Only rows with (or without) a fix of the importer's.
+        schema:
+          type: boolean
+      - name: filled
+        required: false
+        in: query
+        description: A roster's rows whose value for this field the file did not give
+          and nobody typed in, so the whole-file value or KukGrade's default was used.
+        schema:
+          type: string
+          enum:
+          - current_rank
+          - status
+      - name: outcome
+        required: false
+        in: query
+        description: Only rows with this outcome.
+        schema:
+          type: string
+          enum:
+          - EXCLUDED
+          - READY
+          - REVIEW_REQUIRED
+          - SKIP_EXISTING
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: rank_text
+        required: false
+        in: query
+        description: A historical import's rows that write a rank this way, held or
+          tested for (any case).
+        schema:
+          type: string
+      - name: record_kind
+        required: false
+        in: query
+        description: A historical import's rows of these kinds. Comma-separated; one
+          of AUXILIARY_NOTE, DID_NOT_ATTEND, GRADING_RESULT.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: Any of the row's values.
+        schema:
+          type: string
+      - name: worth_a_look
+        required: false
+        in: query
+        description: 'Only rows with (or without) issues: for a historical import,
+          the records worth a look, left out or not.'
+        schema:
+          type: boolean
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedImportRowList'
+          description: ''
+  /api/data-imports/batches/{batch_pk}/rows/{row_number}/:
+    patch:
+      operationId: data_imports_batches_rows_partial_update
+      description: Fix a roster row's values; every row is checked again.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: integer
+        description: The row's number in the file.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
+          description: ''
+  /api/data-imports/batches/{batch_pk}/rows/{row_number}/exclusion/:
+    post:
+      operationId: data_imports_batches_rows_exclusion_create
+      description: Leave a row out of the import, or bring it back.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: integer
+        description: The row's number in the file.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
+          description: ''
+  /api/data-imports/batches/{batch_pk}/rows/leave-out-attention/:
+    post:
+      operationId: data_imports_batches_rows_leave_out_attention_create
+      description: Leave out every roster row still needing attention, in one go.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
   /api/data-imports/batches/{id}/:
     get:
       operationId: data_imports_batches_retrieve
@@ -481,8 +691,8 @@ paths:
     post:
       operationId: data_imports_batches_commit_create
       description: |-
-        Finish the import. With no body, the stored mapping, fixes and rank
-        choices are used; any given here replace them first.
+        Finish the import from what is stored: a roster's mapping and fixes,
+        or a historical import's rank choices.
       parameters:
       - in: path
         name: id
@@ -492,17 +702,6 @@ paths:
         required: true
       tags:
       - data-imports
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
       security:
       - cookieAuth: []
       responses:
@@ -551,10 +750,8 @@ paths:
     post:
       operationId: data_imports_batches_preview_create
       description: |-
-        Administrator-only bulk data import.
-
-        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+        A historical import's rank choices, saved when given, and what it
+        would do. A roster's columns are matched with mapping/ instead.
       parameters:
       - in: path
         name: id
@@ -568,13 +765,13 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
+              $ref: '#/components/schemas/LegacyImportRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
+              $ref: '#/components/schemas/LegacyImportRequest'
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportRequestRequest'
+              $ref: '#/components/schemas/LegacyImportRequest'
       security:
       - cookieAuth: []
       responses:
@@ -582,171 +779,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportPreview'
+                $ref: '#/components/schemas/LegacyImportPreview'
           description: ''
-  /api/data-imports/batches/{id}/rows/:
+  /api/data-imports/batches/{id}/second-look/:
     get:
-      operationId: data_imports_batches_rows_list
-      description: The import's rows, a page at a time, in file order.
-      parameters:
-      - in: query
-        name: corrected
-        schema:
-          type: boolean
-        description: Only rows with (or without) a fix of the importer's.
-      - in: query
-        name: filled
-        schema:
-          type: string
-          enum:
-          - current_rank
-          - status
-        description: A roster's rows whose value for this field the file did not give
-          and nobody typed in, so the whole-file value or KukGrade's default was used.
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      - in: query
-        name: outcome
-        schema:
-          type: string
-          enum:
-          - EXCLUDED
-          - READY
-          - REVIEW_REQUIRED
-          - SKIP_EXISTING
-        description: Only rows with this outcome.
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      - in: query
-        name: rank_text
-        schema:
-          type: string
-        description: A historical import's rows that write a rank this way, held or
-          tested for (any case).
-      - in: query
-        name: record_kind
-        schema:
-          type: string
-        description: 'A historical import''s rows of these kinds, comma-separated:
-          GRADING_RESULT, AUXILIARY_NOTE, DID_NOT_ATTEND.'
-      - in: query
-        name: search
-        schema:
-          type: string
-        description: Matches any of the row's values.
-      - in: query
-        name: worth_a_look
-        schema:
-          type: boolean
-        description: Only rows with (or without) issues.
-      tags:
-      - data-imports
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedImportRowList'
-          description: ''
-  /api/data-imports/batches/{id}/rows/{row_number}/:
-    patch:
-      operationId: data_imports_batches_rows_partial_update
-      description: Fix a roster row's values; every row is checked again.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      - in: path
-        name: row_number
-        schema:
-          type: string
-          pattern: ^[0-9]+$
-        required: true
-      tags:
-      - data-imports
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportRow'
-          description: ''
-  /api/data-imports/batches/{id}/rows/{row_number}/exclusion/:
-    post:
-      operationId: data_imports_batches_rows_exclusion_create
-      description: Leave a row out of the import, or bring it back.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      - in: path
-        name: row_number
-        schema:
-          type: string
-          pattern: ^[0-9]+$
-        required: true
-      tags:
-      - data-imports
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ImportRowExclusionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ImportRowExclusionRequest'
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImportRowExclusionRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportRow'
-          description: ''
-  /api/data-imports/batches/{id}/rows/leave-out-attention/:
-    post:
-      operationId: data_imports_batches_rows_leave_out_attention_create
-      description: Leave out every roster row still needing attention, in one go.
+      operationId: data_imports_batches_second_look_retrieve
+      description: What KukGrade filled in for a roster's added students, counted.
       parameters:
       - in: path
         name: id
@@ -763,7 +801,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportBatch'
+                $ref: '#/components/schemas/ImportSecondLook'
           description: ''
   /api/data-imports/batches/{id}/sheet/:
     post:
@@ -1114,6 +1152,12 @@ paths:
         description: ''
         schema:
           type: integer
+      - name: withdrawn
+        required: false
+        in: query
+        description: Only withdrawn candidates, or only those still being graded.
+        schema:
+          type: boolean
       tags:
       - gradings
       security:
@@ -1393,7 +1437,7 @@ paths:
         (link/unlink/resolve-rank/void) administrator-only. No ordinary
         create/update/delete: rows are only ever created by
         data_imports.services.commit_legacy_grading_import, and only ever changed
-        through the five gradings.legacy_services functions.
+        through gradings.legacy_services.
       parameters:
       - name: awaiting_link
         required: false
@@ -1475,7 +1519,7 @@ paths:
         (link/unlink/resolve-rank/void) administrator-only. No ordinary
         create/update/delete: rows are only ever created by
         data_imports.services.commit_legacy_grading_import, and only ever changed
-        through the five gradings.legacy_services functions.
+        through gradings.legacy_services.
       parameters:
       - in: path
         name: id
@@ -1502,7 +1546,7 @@ paths:
         (link/unlink/resolve-rank/void) administrator-only. No ordinary
         create/update/delete: rows are only ever created by
         data_imports.services.commit_legacy_grading_import, and only ever changed
-        through the five gradings.legacy_services functions.
+        through gradings.legacy_services.
       parameters:
       - in: path
         name: id
@@ -1533,54 +1577,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/LegacyGradingRecord'
           description: ''
-  /api/gradings/legacy-records/{id}/resolve-current-rank/:
+  /api/gradings/legacy-records/{id}/resolve-rank/:
     post:
-      operationId: gradings_legacy_records_resolve_current_rank_create
+      operationId: gradings_legacy_records_resolve_rank_create
       description: |-
         Historical import records - read for both roles, reconciliation
         (link/unlink/resolve-rank/void) administrator-only. No ordinary
         create/update/delete: rows are only ever created by
         data_imports.services.commit_legacy_grading_import, and only ever changed
-        through the five gradings.legacy_services functions.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this legacy grading record.
-        required: true
-      tags:
-      - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResolveLegacyRankRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ResolveLegacyRankRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ResolveLegacyRankRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LegacyGradingRecord'
-          description: ''
-  /api/gradings/legacy-records/{id}/resolve-testing-for-rank/:
-    post:
-      operationId: gradings_legacy_records_resolve_testing_for_rank_create
-      description: |-
-        Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only. No ordinary
-        create/update/delete: rows are only ever created by
-        data_imports.services.commit_legacy_grading_import, and only ever changed
-        through the five gradings.legacy_services functions.
+        through gradings.legacy_services.
       parameters:
       - in: path
         name: id
@@ -1619,7 +1624,7 @@ paths:
         (link/unlink/resolve-rank/void) administrator-only. No ordinary
         create/update/delete: rows are only ever created by
         data_imports.services.commit_legacy_grading_import, and only ever changed
-        through the five gradings.legacy_services functions.
+        through gradings.legacy_services.
       parameters:
       - in: path
         name: id
@@ -1646,7 +1651,7 @@ paths:
         (link/unlink/resolve-rank/void) administrator-only. No ordinary
         create/update/delete: rows are only ever created by
         data_imports.services.commit_legacy_grading_import, and only ever changed
-        through the five gradings.legacy_services functions.
+        through gradings.legacy_services.
       parameters:
       - in: path
         name: id
@@ -1708,6 +1713,58 @@ paths:
                 items:
                   $ref: '#/components/schemas/LegacyGradingRecord'
           description: ''
+  /api/gradings/legacy-records/bulk-unlink/:
+    post:
+      operationId: gradings_legacy_records_bulk_unlink_create
+      description: Unlink many records at once, all or nothing - Undo after a bulk
+        link.
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUnlinkLegacyRecordsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BulkUnlinkLegacyRecordsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BulkUnlinkLegacyRecordsRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/counts/:
+    get:
+      operationId: gradings_legacy_records_counts_retrieve
+      description: How many records still wait for a student, counted in one query.
+      parameters:
+      - name: batch
+        required: false
+        in: query
+        description: Only this import's.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyRecordCounts'
+          description: ''
   /api/gradings/legacy-records/people/:
     get:
       operationId: gradings_legacy_records_people_list
@@ -1719,16 +1776,18 @@ paths:
         Only the names on the page are scored for suggested students, unless
         the list is filtered by how clear those are, which needs them all.
       parameters:
-      - in: query
-        name: batch
+      - name: batch
+        required: false
+        in: query
+        description: Only records from this import.
         schema:
           type: integer
-        description: Only records from this import.
-      - in: query
-        name: linked
+      - name: linked
+        required: false
+        in: query
+        description: Only people whose records are (or are not) linked.
         schema:
           type: boolean
-        description: Only people whose records are (or are not) linked.
       - name: page
         required: false
         in: query
@@ -1741,28 +1800,31 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
-      - in: query
-        name: search
+      - name: search
+        required: false
+        in: query
+        description: Part of the name as written.
         schema:
           type: string
-        description: Part of the name as written.
-      - in: query
-        name: set_aside
+      - name: set_aside
+        required: false
+        in: query
+        description: Only, or all but, the names the viewer has put aside for now.
         schema:
           type: string
           enum:
           - exclude
           - only
-        description: Only, or all but, the names the viewer has put aside for now.
-      - in: query
-        name: suggestion
+      - name: suggestion
+        required: false
+        in: query
+        description: Only people whose suggested students are this clear.
         schema:
           type: string
           enum:
           - choose
           - clear
           - none
-        description: Only people whose suggested students are this clear.
       tags:
       - gradings
       security:
@@ -1778,22 +1840,25 @@ paths:
     get:
       operationId: gradings_legacy_records_people_summary_retrieve
       description: |-
-        How many names still wait, by how clear their suggestions are, and
-        how many have every record linked.
+        How many names still wait, by how clear their suggestions are; how
+        many have every record linked, or any; and how many the viewer has put
+        aside.
       parameters:
-      - in: query
-        name: batch
+      - name: batch
+        required: false
+        in: query
+        description: Only records from this import.
         schema:
           type: integer
-        description: Only records from this import.
-      - in: query
-        name: set_aside
+      - name: set_aside
+        required: false
+        in: query
+        description: Only, or all but, the names the viewer has put aside for now.
         schema:
           type: string
           enum:
           - exclude
           - only
-        description: Only, or all but, the names the viewer has put aside for now.
       tags:
       - gradings
       security:
@@ -1865,13 +1930,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
+              $ref: '#/components/schemas/CandidateOutcomeFinaliseRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
+              $ref: '#/components/schemas/CandidateOutcomeFinaliseRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
+              $ref: '#/components/schemas/CandidateOutcomeFinaliseRequest'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -1998,6 +2064,7 @@ paths:
         name: session
         schema:
           type: integer
+          minimum: 1
         required: true
       tags:
       - gradings
@@ -2021,6 +2088,7 @@ paths:
         name: session
         schema:
           type: integer
+          minimum: 1
         required: true
       tags:
       - gradings
@@ -2085,6 +2153,13 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: roster_open
+        required: false
+        in: query
+        description: Only sessions that accept candidates (draft or open), or only
+          those that no longer do.
+        schema:
+          type: boolean
       - name: search
         required: false
         in: query
@@ -2098,6 +2173,12 @@ paths:
           OPEN.
         schema:
           type: string
+      - name: year
+        required: false
+        in: query
+        description: Only sessions held in this year.
+        schema:
+          type: integer
       tags:
       - gradings
       security:
@@ -2663,12 +2744,18 @@ paths:
       - in: query
         name: age_band
         schema:
-          type: string
           enum:
-          - AGE_13_TO_17
-          - AGE_18_AND_OVER
           - AGE_8_AND_UNDER
           - AGE_9_TO_12
+          - AGE_13_TO_17
+          - AGE_18_AND_OVER
+          type: string
+          minLength: 1
+        description: |-
+          * `AGE_8_AND_UNDER` - 8 and under
+          * `AGE_9_TO_12` - 9-12
+          * `AGE_13_TO_17` - 13-17
+          * `AGE_18_AND_OVER` - 18+
         required: true
       - name: page
         required: false
@@ -2686,6 +2773,7 @@ paths:
         name: rank_code
         schema:
           type: string
+          minLength: 1
         required: true
       tags:
       - syllabus
@@ -2708,7 +2796,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - name: is_active
         required: false
@@ -2763,7 +2850,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       tags:
       - users
       requestBody:
@@ -2797,7 +2883,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2826,7 +2911,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2866,7 +2950,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -2892,7 +2975,6 @@ paths:
         destroy(), gated to accounts.delete_user (Administrator group only),
         removes an account that recorded nothing and closes one that did, so
         their name stays on their records (accounts.services.delete_platform_user).
-        No PUT: partial_update covers every real edit.
       parameters:
       - in: path
         name: id
@@ -3032,7 +3114,6 @@ components:
       - ASSESSMENT_STARTED
       - ASSESSMENT_UPDATED
       - ASSESSMENT_COMPLETED
-      - ASSESSMENT_REOPENED
       - ASSESSMENT_DELETED
       - ITEM_RESULT_RECORDED
       - ITEM_COMMENT_ADDED
@@ -3072,7 +3153,6 @@ components:
         * `ASSESSMENT_STARTED` - Assessment started
         * `ASSESSMENT_UPDATED` - Assessment notes updated
         * `ASSESSMENT_COMPLETED` - Assessment completed
-        * `ASSESSMENT_REOPENED` - Assessment reopened
         * `ASSESSMENT_DELETED` - Assessment deleted
         * `ITEM_RESULT_RECORDED` - Assessment item result recorded
         * `ITEM_COMMENT_ADDED` - Assessment item comment added
@@ -3192,6 +3272,8 @@ components:
         author_name:
           type: string
           readOnly: true
+          description: 'Who author is, as the record names them: their rank then and
+            their name.'
         body:
           type: string
           readOnly: true
@@ -3229,13 +3311,21 @@ components:
           allOf:
           - $ref: '#/components/schemas/ResultEnum'
           readOnly: true
+        from_result_display:
+          type: string
+          readOnly: true
         to_result:
           allOf:
           - $ref: '#/components/schemas/ResultEnum'
           readOnly: true
+        to_result_display:
+          type: string
+          readOnly: true
         changed_by_name:
           type: string
           readOnly: true
+          description: 'Who changed by is, as the record names them: their rank then
+            and their name.'
         changed_at:
           type: string
           format: date-time
@@ -3252,9 +3342,24 @@ components:
       - changed_at
       - changed_by_name
       - from_result
+      - from_result_display
       - reason
       - sequence
       - to_result
+      - to_result_display
+    AssessmentStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     AssessmentSummaryCounts:
       type: object
       description: |-
@@ -3308,13 +3413,15 @@ components:
         * `ATTENDED` - Attended
         * `DID_NOT_ATTEND` - Did not attend
         * `UNKNOWN` - Unknown
-    AuditChoice:
+    AuditDetail:
       type: object
       properties:
-        value:
-          type: string
         label:
           type: string
+          description: What the detail is, as a screen names it.
+        value:
+          type: string
+          description: What it was, in words.
       required:
       - label
       - value
@@ -3371,13 +3478,11 @@ components:
         entity_id:
           type: string
           readOnly: true
-        actor_email:
-          type: string
-          format: email
-          readOnly: true
         actor_name:
           type: string
           readOnly: true
+          description: 'Who acted, as they were then: their rank and name, or their
+            name and "(administrator)". Blank for an action with no person.'
         summary:
           type: string
           readOnly: true
@@ -3386,21 +3491,39 @@ components:
           readOnly: true
           description: 'The current name of the student the event is about, read now:
             events hold no names. Blank once the student no longer exists.'
-        metadata:
+        tone:
+          allOf:
+          - $ref: '#/components/schemas/ToneEnum'
+          description: 'How the event reads at a glance, from its action and the outcome
+            it records: success, warning, info or neutral.'
           readOnly: true
+        outcome_display:
+          type: string
+          nullable: true
+          readOnly: true
+          description: The name of the grading outcome a proposal or final decision
+            records; null for every other event.
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditDetail'
+          readOnly: true
+          description: 'What the event recorded beyond its summary, as label and value
+            pairs in words: no stored codes or ids.'
       required:
       - action
       - action_display
-      - actor_email
       - actor_name
+      - details
       - entity_id
       - entity_type
       - entity_type_display
       - id
-      - metadata
       - occurred_at
+      - outcome_display
       - subject_name
       - summary
+      - tone
     AuditLabels:
       type: object
       description: |-
@@ -3410,11 +3533,11 @@ components:
         actions:
           type: array
           items:
-            $ref: '#/components/schemas/AuditChoice'
+            $ref: '#/components/schemas/Choice'
         entities:
           type: array
           items:
-            $ref: '#/components/schemas/AuditChoice'
+            $ref: '#/components/schemas/Choice'
       required:
       - actions
       - entities
@@ -3425,20 +3548,55 @@ components:
       properties:
         kind:
           type: string
-          description: session, student, candidate or user.
+          description: session, student, candidate or user; blank for a malformed
+            subject.
         id:
           type: string
+          description: The record's id.
+        session_id:
+          type: integer
+          nullable: true
+          description: For a candidate, the grading it belongs to; null otherwise.
         name:
           type: string
           description: The record's current name; blank once it no longer exists.
-        path:
-          type: string
-          description: Where to open the record in the app; blank when it is gone.
+        exists:
+          type: boolean
+          description: Whether the record still exists, so the app can open it.
       required:
+      - exists
       - id
       - kind
       - name
-      - path
+      - session_id
+    AuthorityChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/AuthorityEnum'
+        label:
+          type: string
+        description:
+          type: string
+      required:
+      - description
+      - label
+      - value
+    AuthorityEnum:
+      enum:
+      - can_make_final_grading_decision
+      - can_promote_student
+      - can_override_locked_session
+      - can_view_grading_audit_log
+      type: string
+      description: |-
+        * `can_make_final_grading_decision` - can_make_final_grading_decision
+        * `can_promote_student` - can_promote_student
+        * `can_override_locked_session` - can_override_locked_session
+        * `can_view_grading_audit_log` - can_view_grading_audit_log
     BeltColourEnum:
       enum:
       - WHITE
@@ -3476,6 +3634,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         created:
           type: array
           items:
@@ -3501,6 +3661,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         started:
           type: array
           items:
@@ -3541,6 +3703,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         created:
           type: array
           items:
@@ -3553,11 +3717,11 @@ components:
             - ANOTHER_GRADING
             type: string
             description: |-
-              * `THIS_SESSION` - THIS_SESSION
-              * `ANOTHER_GRADING` - ANOTHER_GRADING
-          description: 'The keys of `errors` whose student is already registered,
-            for this session or for another grading that has not settled: nothing
-            to retry, unlike the other failures.'
+              * `THIS_SESSION` - For this session
+              * `ANOTHER_GRADING` - For another grading not yet settled
+          description: 'The students (keys of `errors`) already registered, for this
+            session or for another grading that has not settled: nothing to retry,
+            unlike the other failures.'
       required:
       - already_registered
       - created
@@ -3587,6 +3751,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         updated:
           type: array
           items:
@@ -3626,6 +3792,8 @@ components:
             type: array
             items:
               type: string
+          description: 'Each refused row''s reasons, keyed by the id that row named:
+            the student for a registration, the candidate, assessment or outcome otherwise.'
         promoted:
           type: array
           items:
@@ -3633,6 +3801,20 @@ components:
       required:
       - errors
       - promoted
+    BulkUnlinkLegacyRecordsRequest:
+      type: object
+      description: 'POST legacy-records/bulk-unlink/: let go of many records at once.'
+      properties:
+        records:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: The records to unlink from their students, all or nothing -
+            the undo of a bulk link. Errors are keyed by record id.
+          maxItems: 500
+      required:
+      - records
     CandidateAssessment:
       type: object
       properties:
@@ -3650,10 +3832,11 @@ components:
         status_display:
           type: string
           readOnly: true
-        generated_by_email:
+        generated_by_name:
           type: string
-          format: email
           readOnly: true
+          description: 'Who generated by is, as the record names them: their rank
+            then and their name.'
         generated_at:
           type: string
           format: date-time
@@ -3681,6 +3864,11 @@ components:
             comment on its items, now: while the session is open, or once it is locked
             and the viewer is the authorised Master and the candidate''s final decision
             is not yet recorded.'
+        can_start:
+          type: boolean
+          readOnly: true
+          description: 'Whether the assessment can be started now: not started, its
+            candidate not withdrawn, and the session open.'
         can_delete:
           type: boolean
           readOnly: true
@@ -3688,11 +3876,12 @@ components:
             an administrator, while its candidate''s final decision is not recorded.'
       required:
       - can_delete
+      - can_start
       - candidate
       - candidate_student_name
       - completed_at
       - generated_at
-      - generated_by_email
+      - generated_by_name
       - id
       - marks_open
       - overall
@@ -3745,10 +3934,11 @@ components:
         result_display:
           type: string
           readOnly: true
-        assessor_email:
+        assessor_name:
           type: string
-          format: email
           readOnly: true
+          description: 'Who assessor is, as the record names them: their rank then
+            and their name.'
         assessed_at:
           type: string
           format: date-time
@@ -3764,9 +3954,21 @@ components:
           items:
             $ref: '#/components/schemas/AssessmentItemResultChange'
           readOnly: true
+        reason_required:
+          type: boolean
+          readOnly: true
+          description: 'Whether the next change to this mark must say why: every change
+            after the first does, and after the lock every one does.'
+        can_clear:
+          type: boolean
+          readOnly: true
+          description: 'Whether this mark may be taken away: it has one, and a completed
+            assessment keeps every required item marked. Whether the viewer may change
+            marks at all is the assessment''s marks_open.'
       required:
       - assessed_at
-      - assessor_email
+      - assessor_name
+      - can_clear
       - category
       - category_display
       - category_is_core
@@ -3778,6 +3980,7 @@ components:
       - korean_name
       - notation
       - position
+      - reason_required
       - required
       - requirement_notes
       - result_display
@@ -3832,10 +4035,11 @@ components:
         result_display:
           type: string
           readOnly: true
-        assessor_email:
+        assessor_name:
           type: string
-          format: email
           readOnly: true
+          description: 'Who assessor is, as the record names them: their rank then
+            and their name.'
         assessed_at:
           type: string
           format: date-time
@@ -3851,6 +4055,17 @@ components:
           items:
             $ref: '#/components/schemas/AssessmentItemResultChange'
           readOnly: true
+        reason_required:
+          type: boolean
+          readOnly: true
+          description: 'Whether the next change to this mark must say why: every change
+            after the first does, and after the lock every one does.'
+        can_clear:
+          type: boolean
+          readOnly: true
+          description: 'Whether this mark may be taken away: it has one, and a completed
+            assessment keeps every required item marked. Whether the viewer may change
+            marks at all is the assessment''s marks_open.'
         assessment_summary:
           allOf:
           - $ref: '#/components/schemas/CandidateAssessmentSummary'
@@ -3860,7 +4075,8 @@ components:
       required:
       - assessed_at
       - assessment_summary
-      - assessor_email
+      - assessor_name
+      - can_clear
       - category
       - category_display
       - category_is_core
@@ -3872,6 +4088,7 @@ components:
       - korean_name
       - notation
       - position
+      - reason_required
       - required
       - requirement_notes
       - result_display
@@ -3889,6 +4106,12 @@ components:
       type: object
       description: Overall plus per-category rollup for one assessment.
       properties:
+        can_complete:
+          type: boolean
+          readOnly: true
+          description: 'Whether the assessment can be completed now, as these counts
+            leave it: in progress, every required item marked, the candidate not withdrawn
+            and the session open.'
         overall:
           allOf:
           - $ref: '#/components/schemas/AssessmentSummaryCounts'
@@ -3899,6 +4122,7 @@ components:
             $ref: '#/components/schemas/AssessmentCategorySummary'
           readOnly: true
       required:
+      - can_complete
       - categories
       - overall
     CandidateOutcome:
@@ -3914,6 +4138,9 @@ components:
           allOf:
           - $ref: '#/components/schemas/CandidateOutcomeStatusEnum'
           readOnly: true
+        status_display:
+          type: string
+          readOnly: true
         proposed_outcome:
           readOnly: true
           nullable: true
@@ -3923,9 +4150,12 @@ components:
         proposed_outcome_display:
           type: string
           readOnly: true
+          nullable: true
         proposed_by_name:
           type: string
           readOnly: true
+          description: 'Who proposed by is, as the record names them: their rank then
+            and their name.'
         proposed_at:
           type: string
           format: date-time
@@ -3943,9 +4173,13 @@ components:
         final_outcome_display:
           type: string
           readOnly: true
+          nullable: true
+          description: Null until the final decision is recorded.
         decided_by_name:
           type: string
           readOnly: true
+          description: 'Who decided by is, as the record names them: their rank then
+            and their name.'
         decided_at:
           type: string
           format: date-time
@@ -3972,16 +4206,30 @@ components:
       - proposed_outcome
       - proposed_outcome_display
       - status
+      - status_display
+    CandidateOutcomeFinaliseRequest:
+      type: object
+      description: 'The final decision. It is always given whole: final_outcome is
+        required.'
+      properties:
+        final_outcome:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        decision_notes:
+          type: string
+        conditional_requirements:
+          type: string
+      required:
+      - final_outcome
     CandidateOutcomeOutcomeEnum:
       enum:
       - PASS
-      - FAIL
       - CONDITIONAL
+      - FAIL
       type: string
       description: |-
         * `PASS` - Pass
-        * `FAIL` - Fail
         * `CONDITIONAL` - Conditional
+        * `FAIL` - Fail
     CandidateOutcomeProposalRequest:
       type: object
       properties:
@@ -4004,6 +4252,19 @@ components:
       properties:
         notes:
           type: string
+    CandidateStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/GradingCandidateStatusEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     ChangePasswordRequest:
       type: object
       description: |-
@@ -4027,6 +4288,88 @@ components:
       required:
       - current_password
       - new_password
+    Choice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+      - label
+      - value
+    Choices:
+      type: object
+      properties:
+        session_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionStatusChoice'
+        student_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentStatusChoice'
+        candidate_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateStatusChoice'
+        assessment_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentStatusChoice'
+        item_results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemResultChoice'
+        outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutcomeChoice'
+          description: The grading outcomes, in the order the outcome controls offer
+            them.
+        import_kinds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportKindChoice'
+        finished_import_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportStatusChoice'
+          description: The states an import ends in; the one open state is left out.
+        import_row_outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRowOutcomeChoice'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleChoice'
+        authorities:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorityChoice'
+          description: The per-user authorities, keyed as the user record spells them.
+        staff_ranks:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffRankChoice'
+          description: The ranks an instructor's account may hold, lowest first.
+      required:
+      - assessment_statuses
+      - authorities
+      - candidate_statuses
+      - finished_import_statuses
+      - import_kinds
+      - import_row_outcomes
+      - item_results
+      - outcomes
+      - roles
+      - session_statuses
+      - staff_ranks
+      - student_statuses
     Credit:
       type: object
       properties:
@@ -4259,6 +4602,9 @@ components:
         student_display_name:
           type: string
           readOnly: true
+        student_first_name:
+          type: string
+          readOnly: true
         student_wksa_id:
           type: string
           readOnly: true
@@ -4309,6 +4655,7 @@ components:
       - status
       - student
       - student_display_name
+      - student_first_name
       - student_wksa_id
       - testing_for_rank
       - testing_for_rank_name
@@ -4331,6 +4678,9 @@ components:
           type: integer
           readOnly: true
         student_display_name:
+          type: string
+          readOnly: true
+        student_first_name:
           type: string
           readOnly: true
         student_wksa_id:
@@ -4405,13 +4755,25 @@ components:
           description: 'Whether the viewer may withdraw this candidate now: the session
             is locked, the candidate is not withdrawn and has no final decision, and
             the viewer holds the locked-session override.'
+        can_be_marked_absent:
+          type: boolean
+          readOnly: true
+          description: 'Whether the candidate can be withdrawn as a no-show now: registered,
+            the session draft or open, and their assessment not started.'
+        can_prepare_assessment:
+          type: boolean
+          readOnly: true
+          description: 'Whether the candidate''s assessment form can be prepared now:
+            they have none, are not withdrawn, and the session is draft or open.'
       required:
       - age_band_display
       - assessment
       - can_be_finalised
+      - can_be_marked_absent
       - can_be_moved
       - can_be_removed
       - can_be_withdrawn_after_lock
+      - can_prepare_assessment
       - from_rank
       - from_rank_name
       - id
@@ -4422,6 +4784,7 @@ components:
       - status
       - student
       - student_display_name
+      - student_first_name
       - student_wksa_id
       - testing_for_rank
       - testing_for_rank_name
@@ -4553,6 +4916,47 @@ components:
         awaiting_decision_count:
           type: integer
           readOnly: true
+        withdrawn_count:
+          type: integer
+          readOnly: true
+          description: How many of its candidates have been withdrawn.
+        roster_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether candidates can still be added, changed, removed and
+            have their forms prepared: the session is draft or open.'
+        marking_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether candidates are being graded now: assessments are started,
+            marked and completed while the session is open.'
+        decisions_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether final decisions are being made now: the session is
+            locked.'
+        can_open:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may open this session now.
+        can_lock:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may ask to lock this session now. Locking
+            itself checks that every assessment is complete.
+        can_complete:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may ask to complete this session now. Completing
+            itself checks that every decision is recorded.
+        can_cancel:
+          type: boolean
+          readOnly: true
+          description: Whether the viewer may cancel this session now.
+        cancel_reason_required:
+          type: boolean
+          readOnly: true
+          description: Whether cancelling it now needs a written reason.
         can_be_deleted:
           type: boolean
           description: Whether the requesting user may delete it, by the delete's
@@ -4579,12 +4983,21 @@ components:
       - can_be_archived
       - can_be_deleted
       - can_be_restored
+      - can_cancel
+      - can_complete
+      - can_lock
+      - can_open
+      - cancel_reason_required
       - candidate_count
       - completed_assessment_count
+      - decisions_open
       - grading_date
       - id
+      - marking_open
+      - roster_open
       - status_display
       - title
+      - withdrawn_count
     GradingSessionRequest:
       type: object
       properties:
@@ -4706,8 +5119,15 @@ components:
           nullable: true
         next_step:
           allOf:
-          - $ref: '#/components/schemas/NextStepEnum'
-          description: Where the import is up to, so a screen can resume it.
+          - $ref: '#/components/schemas/ImportStepEnum'
+          description: 'Where the import is up to, so a screen can resume it: one
+            of the steps its kind serves (site settings, imports.kinds).'
+          readOnly: true
+        review_step:
+          allOf:
+          - $ref: '#/components/schemas/ReviewStepEnum'
+          description: 'Where its review stands: REVIEW while rows need attention,
+            otherwise CONFIRM.'
           readOnly: true
         detected_headers:
           type: array
@@ -4760,13 +5180,13 @@ components:
             $ref: '#/components/schemas/ImportField'
           readOnly: true
           description: The fields a roster's columns are matched to; empty otherwise.
-        rank_mappings:
-          type: object
-          additionalProperties:
+        uncovered_fields:
+          type: array
+          items:
             type: string
           readOnly: true
-          description: A historical import's chosen rank for each spelling, by the
-            spelling lowercased; a spelling not here is left as written.
+          description: A roster's needed fields that no saved column holds and no
+            whole-file value gives, so each row's value is typed in.
         grading_sheets:
           type: array
           items:
@@ -4803,7 +5223,7 @@ components:
       - kind_display
       - next_step
       - original_filename
-      - rank_mappings
+      - review_step
       - row_counts
       - sheet
       - sheet_error
@@ -4813,6 +5233,7 @@ components:
       - suggested_mapping
       - summary_json
       - target_fields
+      - uncovered_fields
       - uploaded_at
       - uploaded_by_name
       - warnings
@@ -4833,9 +5254,9 @@ components:
     ImportBatchCreated:
       type: object
       description: |-
-        The new batch's id, plus one-shot creation-response extras: a
-        duplicate-hash warning and the file's own headers, so the frontend can
-        build its mapping step without a second request. Not persisted state.
+        The new import's id, and whether this exact file was imported before -
+        the one thing only the upload knows. Everything else, its headers and
+        suggested matches included, is the import's own (batches/{id}/).
       properties:
         id:
           type: integer
@@ -4843,21 +5264,9 @@ components:
         already_imported_warning:
           type: boolean
           readOnly: true
-        detected_headers:
-          type: array
-          items:
-            type: string
-          readOnly: true
-        suggested_mapping:
-          type: object
-          additionalProperties:
-            type: string
-          readOnly: true
       required:
       - already_imported_warning
-      - detected_headers
       - id
-      - suggested_mapping
     ImportBatchStatusEnum:
       enum:
       - UPLOADED
@@ -4890,6 +5299,39 @@ components:
       - name
       - needed
       - whole_file
+    ImportKind:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        file_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/Choice'
+          description: 'The file types this kind of import reads: a suffix and its
+            name.'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportStep'
+          description: The steps this kind of import runs through, in order, named.
+      required:
+      - file_types
+      - kind
+      - steps
+    ImportKindChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/KindEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     ImportMappingRequest:
       type: object
       description: |-
@@ -4898,6 +5340,8 @@ components:
         A column for each field, a whole-file value for a field the file lacks
         (current_rank or status only), and the columns to keep as extra
         information. A needed field with neither is typed into each row as a fix.
+        A refusal names the part it is about: column_mapping, defaults or
+        extra_columns.
       properties:
         column_mapping:
           type: object
@@ -4916,10 +5360,6 @@ components:
           description: The file's columns to keep as each student's extra information.
       required:
       - column_mapping
-    ImportPreview:
-      oneOf:
-      - $ref: '#/components/schemas/StudentImportPreview'
-      - $ref: '#/components/schemas/LegacyImportPreview'
     ImportRecordsVoidRequest:
       type: object
       description: 'POST /{id}/void-records/: void every record a historical import
@@ -4939,10 +5379,6 @@ components:
           description: How many records were voided.
       required:
       - voided
-    ImportRequestRequest:
-      oneOf:
-      - $ref: '#/components/schemas/StudentImportRequest'
-      - $ref: '#/components/schemas/LegacyImportRequest'
     ImportRow:
       type: object
       description: One stored row and what the last check made of it.
@@ -5052,6 +5488,68 @@ components:
           description: True leaves the row out of the import; false brings it back.
       required:
       - excluded
+    ImportRowOutcomeChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/StudentImportRowOutcomeEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
+    ImportSecondLook:
+      type: object
+      properties:
+        corrected:
+          type: integer
+          description: Added rows holding a fix of the importer's.
+        given_status:
+          type: integer
+          description: Added rows the file gave no status, so one was given them.
+        given_rank:
+          type: integer
+          description: Added rows the file gave no rank, so the whole-file rank was
+            used.
+      required:
+      - corrected
+      - given_rank
+      - given_status
+    ImportSettings:
+      type: object
+      properties:
+        max_bytes:
+          type: integer
+          description: The maximum import file size enforced by this deployment, in
+            bytes.
+        max_rows:
+          type: integer
+          description: The most rows a roster file may have, blank rows included.
+        rows_kept_for_days:
+          type: integer
+          description: How long a finished import's row-by-row list is kept.
+        bulk_link_limit:
+          type: integer
+          description: The most past records one link or unlink request takes.
+        kinds:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportKind'
+        template_headers:
+          type: array
+          items:
+            type: string
+          description: The header row of the standard roster template.
+      required:
+      - bulk_link_limit
+      - kinds
+      - max_bytes
+      - max_rows
+      - rows_kept_for_days
+      - template_headers
     ImportSheetRequest:
       type: object
       description: 'POST /{id}/sheet/: read a roster from another sheet of its workbook.'
@@ -5061,6 +5559,40 @@ components:
           minLength: 1
       required:
       - sheet
+    ImportStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/ImportBatchStatusEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
+    ImportStep:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/ImportStepEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
+    ImportStepEnum:
+      enum:
+      - CHOOSE_FILE
+      - MATCH
+      - REVIEW
+      - CONFIRM
+      - RESULTS
+      type: string
     IssuedTemporaryPassword:
       type: object
       description: |-
@@ -5087,11 +5619,30 @@ components:
         full_name:
           type: string
           readOnly: true
+          description: Their name; never their email address.
         role:
           $ref: '#/components/schemas/RoleEnum'
         role_display:
           type: string
           readOnly: true
+        rank:
+          type: integer
+          nullable: true
+          description: An instructor's rank, one of the instructor ranks (`/api/choices/`);
+            required when an instructor account is made. An administrator account
+            has none.
+        rank_name:
+          type: string
+          readOnly: true
+          default: ''
+          description: The rank's name; blank for an account with no rank.
+        missing_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissingDetail'
+          readOnly: true
+          description: 'What an account made before a rule still lacks: a name, or
+            an instructor''s rank. Empty when it is complete.'
         is_active:
           type: boolean
         can_make_final_grading_decision:
@@ -5142,24 +5693,39 @@ components:
       - id
       - last_login
       - manageable
+      - missing_details
       - must_change_password
+      - rank_name
       - role_display
       - temporary_password
       - temporary_password_expires_at
+    ItemResultChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/ResultEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     KindEnum:
       enum:
       - STUDENT_ROSTER
       - LEGACY_GRADINGS
       type: string
       description: |-
-        * `STUDENT_ROSTER` - Student roster
-        * `LEGACY_GRADINGS` - Historical grading records
+        * `STUDENT_ROSTER` - Students
+        * `LEGACY_GRADINGS` - Past gradings
     LegacyGradingRecord:
       type: object
       description: |-
         Read-mostly, matching PromotionSerializer's idiom - no ordinary
-        update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
-        the five reconciliation actions below.
+        update/delete exists (LegacyGradingRecord is kukgrade.kept), only
+        the reconciliation actions on LegacyGradingRecordViewSet.
       properties:
         id:
           type: integer
@@ -5175,6 +5741,9 @@ components:
         record_kind:
           allOf:
           - $ref: '#/components/schemas/RecordKindEnum'
+          readOnly: true
+        record_kind_display:
+          type: string
           readOnly: true
         cycle_year:
           type: integer
@@ -5242,11 +5811,11 @@ components:
         void_reason:
           type: string
           readOnly: true
-        voided_by_email:
+        voided_by_name:
           type: string
-          format: email
           readOnly: true
-          nullable: true
+          description: 'Who voided by is, as the record names them: their rank then
+            and their name.'
       required:
       - attendance_status_display
       - current_rank
@@ -5259,6 +5828,7 @@ components:
       - note
       - outcome_display
       - record_kind
+      - record_kind_display
       - report
       - source_batch
       - source_current_rank_text
@@ -5271,7 +5841,7 @@ components:
       - testing_for_rank_code
       - testing_for_rank_name
       - void_reason
-      - voided_by_email
+      - voided_by_name
     LegacyImportPreview:
       type: object
       properties:
@@ -5317,12 +5887,13 @@ components:
     LegacyImportRequest:
       type: object
       description: |-
-        Shared request shape for the historical preview and commit actions.
+        The historical preview's request: the rank choices to save, if any.
 
         Keys are the source rank text exactly as it appeared in the workbook
-        (case-insensitive on the service side); a null/omitted value explicitly
-        means "leave unresolved" - never a block on committing that row,
-        unlike the student roster importer's required rank.
+        (case-insensitive on the service side); a null value explicitly means
+        "leave unresolved" - never a block on committing that row, unlike the
+        student roster importer's required rank. Left out, the stored choices
+        are kept.
       properties:
         rank_mappings:
           type: object
@@ -5331,7 +5902,9 @@ components:
             nullable: true
     LegacyPeopleSummary:
       type: object
-      description: Names still to link, by how clear their suggested students are.
+      description: |-
+        Names still to link, by how clear their suggested students are, and the
+        other counts the linking screens show.
       properties:
         names:
           type: integer
@@ -5339,6 +5912,12 @@ components:
         linked:
           type: integer
           description: Names with every record linked; set_aside does not apply.
+        with_a_link:
+          type: integer
+          description: Names with any record linked; set_aside does not apply.
+        set_aside:
+          type: integer
+          description: Names still to link that the viewer has put aside for now.
         clear:
           type: integer
           description: One student fits clearly.
@@ -5354,6 +5933,8 @@ components:
       - linked
       - names
       - none
+      - set_aside
+      - with_a_link
     LegacyPerson:
       type: object
       description: The records that name one person the same way, and who they may
@@ -5374,10 +5955,8 @@ components:
           description: How many records.
         first_period:
           type: string
-          readOnly: true
         last_period:
           type: string
-          readOnly: true
         linked_student:
           type: integer
           nullable: true
@@ -5395,11 +5974,9 @@ components:
           type: array
           items:
             type: string
-          readOnly: true
           description: The ranks the records give, as written, in date order.
         needs_rank:
           type: boolean
-          readOnly: true
           description: Whether a rank is written on a record but not matched to one
             yet.
         suggestion:
@@ -5429,6 +6006,23 @@ components:
       - shared
       - source_name
       - suggestion
+    LegacyRankFieldEnum:
+      enum:
+      - current_rank
+      - testing_for_rank
+      type: string
+      description: |-
+        * `current_rank` - current rank
+        * `testing_for_rank` - testing-for rank
+    LegacyRecordCounts:
+      type: object
+      properties:
+        awaiting_link:
+          type: integer
+          description: 'Someone''s records not yet linked to a student: not voided,
+            not a sheet note.'
+      required:
+      - awaiting_link
     LegacyRecordLinkRequest:
       type: object
       properties:
@@ -5474,6 +6068,27 @@ components:
       required:
       - email
       - password
+    MissingDetail:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/MissingDetailValueEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
+    MissingDetailValueEnum:
+      enum:
+      - name
+      - rank
+      type: string
+      description: |-
+        * `name` - Needs a name
+        * `rank` - Needs a rank
     NextActionEnum:
       enum:
       - PREPARE_ASSESSMENT
@@ -5498,15 +6113,22 @@ components:
         * `VIEW_DECISION` - View the final decision
         * `PROMOTION_LEDGER` - Promotion ledger
         * `NONE` - No further action
-    NextStepEnum:
-      enum:
-      - MATCH_COLUMNS
-      - REVIEW
-      - CLOSED
-      type: string
     NullEnum:
       enum:
       - null
+    OutcomeChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     PaginatedAgeBandList:
       type: object
       required:
@@ -5905,15 +6527,6 @@ components:
           $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
         notes:
           type: string
-    PatchedCandidateOutcomeFinaliseRequest:
-      type: object
-      properties:
-        final_outcome:
-          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
-        decision_notes:
-          type: string
-        conditional_requirements:
-          type: string
     PatchedGradingCandidateRequest:
       type: object
       properties:
@@ -6052,6 +6665,12 @@ components:
           maxLength: 150
         role:
           $ref: '#/components/schemas/RoleEnum'
+        rank:
+          type: integer
+          nullable: true
+          description: An instructor's rank, one of the instructor ranks (`/api/choices/`);
+            required when an instructor account is made. An administrator account
+            has none.
         is_active:
           type: boolean
     Pledge:
@@ -6230,7 +6849,12 @@ components:
         rows:
           type: integer
           description: How many rows use this text.
+        chosen_rank_code:
+          type: string
+          nullable: true
+          description: The rank chosen for this spelling, or null while it has none.
       required:
+      - chosen_rank_code
       - doubtful
       - rows
       - source_text
@@ -6259,12 +6883,17 @@ components:
       - candidate
     ResolveLegacyRankRequest:
       type: object
-      description: '`rank=null` explicitly leaves the mapping unresolved.'
+      description: |-
+        Which of the record's ranks to map; `rank=null` explicitly leaves it
+        unresolved.
       properties:
+        field:
+          $ref: '#/components/schemas/LegacyRankFieldEnum'
         rank:
           type: integer
           nullable: true
       required:
+      - field
       - rank
     ResultEnum:
       enum:
@@ -6276,6 +6905,24 @@ components:
         * `NOT_ASSESSED` - Not assessed
         * `MET` - Met
         * `NOT_MET` - Not met
+    ReviewStepEnum:
+      enum:
+      - REVIEW
+      - CONFIRM
+      type: string
+    RoleChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/RoleEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     RoleEnum:
       enum:
       - instructor
@@ -6295,6 +6942,19 @@ components:
       required:
       - club_name
       - school_id_prefix
+    SessionStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/GradingSessionStatusEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     SetAsideNames:
       type: object
       description: Names put aside on the linking page, as group keys.
@@ -6341,10 +7001,12 @@ components:
         first_name:
           type: string
           writeOnly: true
+          minLength: 1
           maxLength: 150
         last_name:
           type: string
           writeOnly: true
+          minLength: 1
           maxLength: 150
         password:
           type: string
@@ -6353,6 +7015,8 @@ components:
       required:
       - code
       - email
+      - first_name
+      - last_name
       - password
     SetupStatus:
       type: object
@@ -6372,10 +7036,8 @@ components:
           type: string
           description: The club's time zone (an IANA name). Times are shown in it,
             and 'today' is today there.
-        import_upload_max_bytes:
-          type: integer
-          description: The maximum import file size enforced by this deployment, in
-            bytes.
+        imports:
+          $ref: '#/components/schemas/ImportSettings'
         password_policy:
           $ref: '#/components/schemas/PasswordPolicy'
         wksa_id:
@@ -6387,7 +7049,7 @@ components:
             resets.'
       required:
       - club_name
-      - import_upload_max_bytes
+      - imports
       - password_policy
       - time_zone
       - wksa_id
@@ -6397,8 +7059,19 @@ components:
       - LEGACY
       type: string
       description: |-
-        * `KUKGRADE` - KUKGRADE
-        * `LEGACY` - LEGACY
+        * `KUKGRADE` - A grading in KukGrade
+        * `LEGACY` - A historical record
+    StaffRankChoice:
+      type: object
+      properties:
+        value:
+          type: integer
+          description: The rank's id, as a user's `rank`.
+        label:
+          type: string
+      required:
+      - label
+      - value
     StagedDecision:
       type: object
       description: A final decision chosen but not yet recorded, seen only by whoever
@@ -6487,6 +7160,30 @@ components:
         status_display:
           type: string
           readOnly: true
+        can_be_graded:
+          type: boolean
+          readOnly: true
+        next_rank:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: 'The rank the student would be graded for next: their next
+            active rank, when its syllabus is recorded. Null when there is none.'
+        next_rank_name:
+          type: string
+          nullable: true
+          readOnly: true
+        can_be_deleted:
+          type: boolean
+          readOnly: true
+          description: 'Whether the viewer may delete this student now: they may delete
+            students, and no grading the student is in is waiting for its final decision.'
+        deletion_blocked_by:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Why the student cannot be deleted yet, naming the grading that
+            waits for its decision; null when nothing stands in the way.
         age_band_display:
           type: string
           readOnly: true
@@ -6501,15 +7198,20 @@ components:
           readOnly: true
       required:
       - age_band_display
+      - can_be_deleted
+      - can_be_graded
       - created_at
       - current_rank
       - current_rank_name
       - date_of_birth
       - deleted_at
+      - deletion_blocked_by
       - extra_information
       - first_name
       - id
       - last_name
+      - next_rank
+      - next_rank_name
       - previous_wksa_ids
       - status_display
       - wksa_id
@@ -6540,60 +7242,6 @@ components:
             $ref: '#/components/schemas/GradingHistoryItem'
       required:
       - items
-    StudentImportCorrectionRequest:
-      type: object
-      description: One row's corrected values, by target field; any may be left out.
-      properties:
-        wksa_id:
-          type: string
-        first_name:
-          type: string
-        last_name:
-          type: string
-        date_of_birth:
-          type: string
-        current_rank:
-          type: string
-        status:
-          type: string
-    StudentImportPreview:
-      type: object
-      properties:
-        total:
-          type: integer
-        ready:
-          type: integer
-        review_required:
-          type: integer
-        skip_existing:
-          type: integer
-        excluded:
-          type: integer
-        rows:
-          type: array
-          items:
-            $ref: '#/components/schemas/StudentImportRowResult'
-      required:
-      - excluded
-      - ready
-      - review_required
-      - rows
-      - skip_existing
-      - total
-    StudentImportRequest:
-      type: object
-      description: Shared request shape for the preview and commit actions.
-      properties:
-        column_mapping:
-          type: object
-          additionalProperties:
-            type: string
-        corrections:
-          type: object
-          additionalProperties:
-            $ref: '#/components/schemas/StudentImportCorrectionRequest'
-      required:
-      - column_mapping
     StudentImportRowOutcomeEnum:
       enum:
       - READY
@@ -6606,39 +7254,6 @@ components:
         * `REVIEW_REQUIRED` - Needs attention
         * `SKIP_EXISTING` - Already in KukGrade
         * `EXCLUDED` - Left out
-    StudentImportRowResult:
-      type: object
-      properties:
-        row_number:
-          type: integer
-        outcome:
-          $ref: '#/components/schemas/StudentImportRowOutcomeEnum'
-        wksa_id:
-          type: string
-        first_name:
-          type: string
-        last_name:
-          type: string
-        date_of_birth_display:
-          type: string
-        current_rank_text:
-          type: string
-        status:
-          type: string
-        issues:
-          type: array
-          items:
-            type: string
-      required:
-      - current_rank_text
-      - date_of_birth_display
-      - first_name
-      - issues
-      - last_name
-      - outcome
-      - row_number
-      - status
-      - wksa_id
     StudentList:
       type: object
       description: |-
@@ -6679,6 +7294,16 @@ components:
         can_be_graded:
           type: boolean
           readOnly: true
+        next_rank:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: 'The rank the student would be graded for next: their next
+            active rank, when its syllabus is recorded. Null when there is none.'
+        next_rank_name:
+          type: string
+          nullable: true
+          readOnly: true
         age_band:
           allOf:
           - $ref: '#/components/schemas/AgeBandEnum'
@@ -6711,6 +7336,8 @@ components:
       - first_name
       - id
       - last_name
+      - next_rank
+      - next_rank_name
       - status
       - status_display
       - wksa_id
@@ -6761,6 +7388,23 @@ components:
       - first_name
       - last_name
       - wksa_id
+    StudentStatusChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/StudentStatusEnum'
+        label:
+          type: string
+        description:
+          type: string
+          description: What the status means.
+      required:
+      - description
+      - label
+      - value
     StudentStatusEnum:
       enum:
       - ACTIVE
@@ -6834,6 +7478,13 @@ components:
         * `FORM` - Form
         * `WEAPONS` - Weapons
         * `OTHER` - Other
+    ToneEnum:
+      enum:
+      - success
+      - warning
+      - info
+      - neutral
+      type: string
     User:
       type: object
       properties:
@@ -6854,6 +7505,7 @@ components:
         full_name:
           type: string
           readOnly: true
+          description: Their name; never their email address.
         role_display:
           type: string
           readOnly: true
@@ -6940,11 +7592,30 @@ components:
         full_name:
           type: string
           readOnly: true
+          description: Their name; never their email address.
         role:
           $ref: '#/components/schemas/RoleEnum'
         role_display:
           type: string
           readOnly: true
+        rank:
+          type: integer
+          nullable: true
+          description: An instructor's rank, one of the instructor ranks (`/api/choices/`);
+            required when an instructor account is made. An administrator account
+            has none.
+        rank_name:
+          type: string
+          readOnly: true
+          default: ''
+          description: The rank's name; blank for an account with no rank.
+        missing_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissingDetail'
+          readOnly: true
+          description: 'What an account made before a rule still lacks: a name, or
+            an instructor''s rank. Empty when it is complete.'
         is_active:
           type: boolean
         can_make_final_grading_decision:
@@ -6992,7 +7663,9 @@ components:
       - id
       - last_login
       - manageable
+      - missing_details
       - must_change_password
+      - rank_name
       - role_display
       - temporary_password_expires_at
     UserManagementRequest:
@@ -7019,6 +7692,12 @@ components:
           maxLength: 150
         role:
           $ref: '#/components/schemas/RoleEnum'
+        rank:
+          type: integer
+          nullable: true
+          description: An instructor's rank, one of the instructor ranks (`/api/choices/`);
+            required when an instructor account is made. An administrator account
+            has none.
         is_active:
           type: boolean
       required:
@@ -7033,22 +7712,19 @@ components:
       - reason
     WithdrawalReason:
       type: object
-      description: One withdrawal reason, from its code, and whether it needs a note.
+      description: One withdrawal reason, and whether it needs a note.
       properties:
-        code:
-          allOf:
-          - $ref: '#/components/schemas/WithdrawalReasonEnum'
-          readOnly: true
-        name:
+        value:
+          $ref: '#/components/schemas/WithdrawalReasonEnum'
+        label:
           type: string
-          readOnly: true
         note_required:
           type: boolean
           readOnly: true
       required:
-      - code
-      - name
+      - label
       - note_required
+      - value
     WithdrawalReasonEnum:
       enum:
       - INJURY

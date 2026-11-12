@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from kukgrade.serializers import ModelSerializer
 from ranks.models import BeltColour, Rank
 
 
-class RankSerializer(serializers.ModelSerializer):
+class RankSerializer(ModelSerializer):
     # The rank a student at this rank is graded for next, or null at the top.
     # Served so the frontend never works out rank progression itself.
     # Declared so the schema says blank - no stripe - is a served value.

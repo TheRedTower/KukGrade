@@ -15,6 +15,7 @@ from pytest_django.fixtures import DjangoAssertNumQueries
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from audit.details import RankNames, event_details
 from audit.models import AuditAction, AuditEvent
 from gradings.models import GradingCandidate, GradingSession
 from gradings.outcome_services import promote_candidate
@@ -51,8 +52,14 @@ PERSONAL = [
 
 
 def everything_recorded() -> str:
+    """Every event as stored and as the audit screen shows its details."""
+    ranks = RankNames.read()
     return " ".join(
-        event.summary + " " + json.dumps(event.metadata)
+        event.summary
+        + " "
+        + json.dumps(event.metadata)
+        + " "
+        + json.dumps(event_details(event, ranks))
         for event in AuditEvent.objects.all()
     )
 

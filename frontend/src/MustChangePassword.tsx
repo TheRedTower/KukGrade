@@ -1,10 +1,12 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 import { Alert } from "./Alert";
-import { useAuth } from "./auth";
+import { SIGN_OUT_ERROR, useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { KukGradeLogo } from "./KukGradeLogo";
 import { Button } from "./Button";
+import { LockIcon } from "./Icons";
 
 type MustChangePasswordProps = {
   themeToggle?: ReactNode;
@@ -12,22 +14,11 @@ type MustChangePasswordProps = {
 
 export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
   const { user, logout } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-  const [signOutError, setSignOutError] = useState<string | null>(null);
-
-  async function handleSignOut() {
-    setSignOutError(null);
-    setIsSigningOut(true);
-    try {
-      await logout();
-    } catch {
-      // The session may still be live, so the page stays rather than
-      // showing a signed-out screen backed by a valid cookie.
-      setSignOutError("Could not sign out. Check your connection and retry.");
-    } finally {
-      setIsSigningOut(false);
-    }
-  }
+  // On failure the session may still be live, so the page stays rather
+  // than showing a signed-out screen backed by a valid cookie.
+  const signOut = useMutation({ mutationFn: logout });
+  const isSigningOut = signOut.isPending;
+  const signOutError = signOut.isError ? SIGN_OUT_ERROR : null;
 
   return (
     <div className="must-change-password-page">
@@ -38,56 +29,37 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
 
       <main className="must-change-password-card">
         <div className="security-icon-badge" aria-hidden="true">
-          <svg
-            fill="none"
-            height="28"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            width="28"
-          >
-            <rect height="11" rx="2" ry="2" width="18" x="3" y="11" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
+          <LockIcon size={28} />
         </div>
 
         <h1 id="change-password-title">Choose a new password</h1>
         <p className="must-change-password-subtitle subtext">
-          You signed in with a temporary password. Choose your own password to
-          continue.
+          You signed in with a temporary password. Choose your own password to continue.
         </p>
 
         {user ? (
           <div className="account-pill" aria-label={`Account: ${user.email}`}>
-            <span className="item-title">{user.full_name || user.email}</span>
-            <span className="account-pill-role">{user.role_display}</span>
+            <span className="item-title">{user.full_name}</span>
+            <span className="eyebrow account-pill-role">{user.role_display}</span>
           </div>
         ) : null}
 
         {/* Succeeding refetches the current user, whose cleared
             must_change_password lets the app open. */}
         <ChangePasswordForm
-          actionsClassName="must-change-password-actions"
-          className="must-change-password-form"
+          actionsClassName="stack stack--2 must-change-password-actions"
+          className="stack stack--4 must-change-password-form"
           currentPasswordLabel="Temporary password"
           labelledBy="change-password-title"
           secondaryAction={(isSubmitting) => (
-            <Button
-              variant="secondary"
-              disabled={isSubmitting || isSigningOut}
-              onClick={() => void handleSignOut()}
-            >
+            <Button variant="secondary" disabled={isSubmitting || isSigningOut} onClick={() => signOut.mutate()}>
               Sign out
             </Button>
           )}
           submitLabel="Update password and continue"
-          submittingLabel="Updating password..."
+          submittingLabel="Updating password…"
         />
-        {signOutError ? (
-          <Alert>{signOutError}</Alert>
-        ) : null}
+        {signOutError ? <Alert>{signOutError}</Alert> : null}
       </main>
     </div>
   );

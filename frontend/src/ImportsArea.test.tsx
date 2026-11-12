@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AuthUser, type CreateDataImportBatchResponse, type SiteSettings } from "./api";
-import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
+import { ApiError, type AuthUser, type CreateDataImportBatchResponse } from "./api";
+import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, SITE } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
 import { batch, page, person, row } from "./importTestFixtures";
 import { ImportStartScreen } from "./ImportStartScreen";
@@ -20,19 +20,19 @@ const api = vi.hoisted(() => ({
   chooseDataImportSheet: vi.fn(),
   voidDataImportRecords: vi.fn(),
   getLegacyGradingRecords: vi.fn(),
+  getLegacyRecordCounts: vi.fn(),
+  getDataImportSecondLook: vi.fn(),
   getLegacyPeople: vi.fn(),
   getSiteSettings: vi.fn(),
+  getChoices: vi.fn(),
   bulkLinkLegacyRecords: vi.fn(),
-  unlinkLegacyGradingRecord: vi.fn(),
+  bulkUnlinkLegacyRecords: vi.fn(),
 }));
 
 vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   const mocked = Object.fromEntries(
-    Object.keys(api).map((name) => [
-      name,
-      (...args: unknown[]) => api[name as keyof typeof api](...args),
-    ]),
+    Object.keys(api).map((name) => [name, (...args: unknown[]) => api[name as keyof typeof api](...args)]),
   );
   return { ...actual, ...mocked };
 });
@@ -41,14 +41,6 @@ const auth = vi.hoisted(() => ({ user: null as AuthUser | null }));
 vi.mock("./auth", () => ({
   useAuth: () => ({ user: auth.user, status: "authenticated" }),
 }));
-
-const servedSite = {
-  club_name: "Test club",
-  time_zone: "Europe/London",
-  import_upload_max_bytes: 5 * 1024 * 1024,
-  password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
-  wksa_id: { hint: "", forms: [] },
-} satisfies SiteSettings;
 
 function Where() {
   const location = useLocation();
@@ -78,7 +70,10 @@ beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   auth.user = { ...authUser, ...ADMINISTRATOR_CAPABILITIES };
   api.getLegacyGradingRecords.mockResolvedValue(page([], 0));
-  api.getSiteSettings.mockResolvedValue(servedSite);
+  api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 0 });
+  api.getDataImportSecondLook.mockResolvedValue({ corrected: 0, given_status: 0, given_rank: 0 });
+  api.getSiteSettings.mockResolvedValue(SITE);
+  api.getChoices.mockResolvedValue(CHOICES);
 });
 
 describe("Imports hub", () => {
@@ -92,10 +87,7 @@ describe("Imports hub", () => {
     expect(await screen.findByRole("heading", { name: "Pick up where you left off" })).toBeInTheDocument();
     expect(screen.getByText("Step 3 of 5 · Review rows")).toBeInTheDocument();
     expect(screen.getByText("198 ready · 9 need attention · 5 already in KukGrade")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Resume spring-roster.xlsx" })).toHaveAttribute(
-      "href",
-      "/imports/7",
-    );
+    expect(screen.getByRole("link", { name: "Resume spring-roster.xlsx" })).toHaveAttribute("href", "/imports/7");
     expect(await screen.findByText("No imports have finished yet.")).toBeInTheDocument();
   });
 
@@ -148,9 +140,7 @@ describe("Imports hub", () => {
     renderAt("/imports");
 
     expect(await screen.findByText("186 students added · 4 already here")).toBeInTheDocument();
-    expect(api.getDataImportBatches).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "COMMITTED,CANCELLED,EXPIRED", page: 1 }),
-    );
+    expect(api.getDataImportBatches).toHaveBeenCalledWith(expect.objectContaining({ finished: true, page: 1 }));
     await user.selectOptions(screen.getByLabelText("What"), "LEGACY_GRADINGS");
     await user.selectOptions(screen.getByLabelText("State"), "CANCELLED");
 
@@ -163,12 +153,11 @@ describe("Imports hub", () => {
 
   it("says how many imported records still wait for a student", async () => {
     api.getDataImportBatches.mockResolvedValue(page([]));
-    api.getLegacyGradingRecords.mockResolvedValue(page([], 48));
+    api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 48 });
 
     renderAt("/imports");
 
     expect(await screen.findByText("48 imported records")).toBeInTheDocument();
-    expect(api.getLegacyGradingRecords).toHaveBeenCalledWith({ awaiting_link: true, page_size: 1 });
     expect(screen.getByRole("link", { name: "Link records" })).toBeInTheDocument();
   });
 });
@@ -177,8 +166,6 @@ describe("Choosing the file", () => {
   const created: CreateDataImportBatchResponse = {
     id: 7,
     already_imported_warning: true,
-    detected_headers: [],
-    suggested_mapping: {},
   };
 
   function xlsx(name = "spring-roster.xlsx", size = 1000) {
@@ -190,15 +177,13 @@ describe("Choosing the file", () => {
   it("shows the guide until a file is chosen, then what KukGrade found", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue(created);
-    api.getDataImportBatch.mockResolvedValue(
-      batch({ next_step: "MATCH_COLUMNS", sheet_names: ["Members", "Leavers"] }),
-    );
+    api.getDataImportBatch.mockResolvedValue(batch({ next_step: "MATCH", sheet_names: ["Members", "Leavers"] }));
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
 
     expect(screen.getByRole("heading", { name: "What KukGrade looks for" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue to match columns" })).toBeDisabled();
-    expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Choose file");
+    expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Choose file");
 
     await user.upload(screen.getByLabelText("Choose a file"), xlsx());
 
@@ -207,9 +192,8 @@ describe("Choosing the file", () => {
     expect(screen.getByText("7 columns")).toBeInTheDocument();
     expect(screen.getByText("This exact file has been imported before")).toBeInTheDocument();
     // The guide folds away once the file is read.
-    expect(screen.getByRole("button", { name: "What KukGrade looks for" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
+    expect(screen.getByText("What KukGrade looks for", { selector: "summary" }).closest("details")).not.toHaveAttribute(
+      "open",
     );
     await user.click(screen.getByRole("button", { name: "Continue to match columns" }));
     expect(screen.getByTestId("where")).toHaveTextContent("/imports/7");
@@ -221,9 +205,7 @@ describe("Choosing the file", () => {
     renderAt("/imports/new?kind=LEGACY_GRADINGS");
 
     await user.upload(screen.getByLabelText("Choose a file"), xlsx("record.csv"));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Choose the workbook as an Excel (.xlsx) file.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Choose the workbook saved as Excel (.xlsx).");
     await user.upload(screen.getByLabelText("Choose a file"), xlsx("record.xlsx", 6 * 1024 * 1024));
     expect(screen.getByRole("alert")).toHaveTextContent("The file is larger than 5 MB.");
     expect(api.createDataImportBatch).not.toHaveBeenCalled();
@@ -231,7 +213,7 @@ describe("Choosing the file", () => {
 
   it("uses the server's configured upload limit rather than a browser copy", async () => {
     const user = userEvent.setup();
-    api.getSiteSettings.mockResolvedValue({ ...servedSite, import_upload_max_bytes: 10 * 1024 * 1024 });
+    api.getSiteSettings.mockResolvedValue({ ...SITE, imports: { ...SITE.imports, max_bytes: 10 * 1024 * 1024 } });
     api.createDataImportBatch.mockResolvedValue(created);
     api.getDataImportBatch.mockResolvedValue(batch());
 
@@ -245,7 +227,7 @@ describe("Choosing the file", () => {
 
   it("refuses files above a smaller server limit", async () => {
     const user = userEvent.setup();
-    api.getSiteSettings.mockResolvedValue({ ...servedSite, import_upload_max_bytes: 2 * 1024 * 1024 });
+    api.getSiteSettings.mockResolvedValue({ ...SITE, imports: { ...SITE.imports, max_bytes: 2 * 1024 * 1024 } });
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
     expect(await screen.findByText(/up to 2 MB and 1,000 rows/)).toBeInTheDocument();
@@ -272,7 +254,11 @@ describe("Choosing the file", () => {
     api.createDataImportBatch.mockResolvedValue({ ...created, already_imported_warning: false });
     api.getDataImportBatch.mockResolvedValue(batch({ sheet_names: ["Members", "Leavers"] }));
     api.chooseDataImportSheet.mockResolvedValue(
-      batch({ sheet: "Leavers", sheet_names: ["Members", "Leavers"], row_counts: { total: 2, ready: 2, review_required: 0, skip_existing: 0, excluded: 0 } }),
+      batch({
+        sheet: "Leavers",
+        sheet_names: ["Members", "Leavers"],
+        row_counts: { total: 2, ready: 2, review_required: 0, skip_existing: 0, excluded: 0 },
+      }),
     );
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
@@ -286,11 +272,15 @@ describe("Choosing the file", () => {
   it("keeps a blank opening sheet recoverable and blocks continuation until another is read", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue({ ...created, already_imported_warning: false });
-    api.getDataImportBatch.mockResolvedValue(batch({
-      sheet: "Cover", sheet_names: ["Cover", "Members"], detected_headers: [],
-      sheet_error: "The file has no header row.",
-      row_counts: { total: 0, ready: 0, review_required: 0, skip_existing: 0, excluded: 0 },
-    }));
+    api.getDataImportBatch.mockResolvedValue(
+      batch({
+        sheet: "Cover",
+        sheet_names: ["Cover", "Members"],
+        detected_headers: [],
+        sheet_error: "The file has no header row.",
+        row_counts: { total: 0, ready: 0, review_required: 0, skip_existing: 0, excluded: 0 },
+      }),
+    );
     api.chooseDataImportSheet.mockResolvedValue(batch({ sheet: "Members", sheet_names: ["Cover", "Members"] }));
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
@@ -321,6 +311,9 @@ describe("Choosing the file", () => {
     api.getDataImportBatch.mockResolvedValue(
       batch({
         kind: "LEGACY_GRADINGS",
+        kind_display: "Past gradings",
+        next_step: "MATCH",
+        review_step: "CONFIRM",
         original_filename: "grading-record-2025.xlsx",
         grading_sheets: ["03-2025", "06-2025"],
         warnings: ["Unknown sheet 'Notes' was not imported."],
@@ -342,7 +335,7 @@ describe("An import's results", () => {
   const roster = batch({
     status: "COMMITTED",
     status_display: "Imported",
-    next_step: "CLOSED",
+    next_step: "RESULTS",
     committed_at: "2026-10-20T10:18:00Z",
     committed_by_name: "Sam Taylor",
     defaults: { status: "ACTIVE" },
@@ -353,11 +346,15 @@ describe("An import's results", () => {
   it("shows what a roster import did, with a second look and every row", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(roster);
+    api.getDataImportSecondLook.mockResolvedValue({ corrected: 5, given_status: 2, given_rank: 0 });
     api.getDataImportRows.mockImplementation((_id: number, params: { corrected?: boolean }) =>
       Promise.resolve(
         params.corrected
           ? page([row({ row_number: 4, corrected_fields: ["date_of_birth"] })], 5)
-          : page([row(), row({ row_number: 12, outcome: "SKIP_EXISTING", created_id: "" })]),
+          : page([
+              row(),
+              row({ row_number: 12, outcome: "SKIP_EXISTING", outcome_display: "Already in KukGrade", created_id: "" }),
+            ]),
       ),
     );
 
@@ -365,18 +362,17 @@ describe("An import's results", () => {
 
     expect(await screen.findByText("203 students added")).toBeInTheDocument();
     expect(
-      screen.getByText(/5 students already in KukGrade were skipped and not changed\. 4 rows you left out were not imported\./),
+      screen.getByText(
+        /5 students already in KukGrade were skipped and not changed\. 4 rows you left out were not imported\./,
+      ),
     ).toBeInTheDocument();
     expect(await screen.findByText("5 students with your fixes")).toBeInTheDocument();
     expect(screen.getByText("“Parent phone” kept")).toBeInTheDocument();
     expect(await screen.findByText("2 students given the status Active")).toBeInTheDocument();
-    expect(api.getDataImportRows).toHaveBeenCalledWith(7, { outcome: "READY", filled: "status", page_size: 1 });
+    expect(api.getDataImportSecondLook).toHaveBeenCalledWith(7);
     expect(screen.getByRole("link", { name: "Open Mia Reynolds" })).toHaveAttribute("href", "/students/31");
     expect(screen.getByText("Already in KukGrade", { selector: ".badge" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to Students" })).toHaveAttribute(
-      "href",
-      "/students?source_import=7",
-    );
+    expect(screen.getByRole("link", { name: "Go to Students" })).toHaveAttribute("href", "/students?source_import=7");
 
     await user.click(screen.getByRole("button", { name: "See the 5" }));
     await waitFor(() =>
@@ -400,10 +396,12 @@ describe("An import's results", () => {
   describe("of past gradings", () => {
     const gradings = batch({
       kind: "LEGACY_GRADINGS",
+      kind_display: "Past gradings",
+      review_step: "CONFIRM",
       original_filename: "grading-record-2025.xlsx",
       status: "COMMITTED",
       status_display: "Imported",
-      next_step: "CLOSED",
+      next_step: "RESULTS",
       committed_at: "2026-10-20T10:24:00Z",
       committed_by_name: "Sam Taylor",
       summary_json: { total: 229, excluded: 2, unresolved_current_rank: 1, unresolved_testing_for_rank: 2 },
@@ -412,14 +410,14 @@ describe("An import's results", () => {
     beforeEach(() => {
       api.getDataImportBatch.mockResolvedValue(gradings);
       api.getDataImportRows.mockResolvedValue(page([]));
-      api.getLegacyGradingRecords.mockResolvedValue(page([], 196));
+      api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 196 });
     });
 
     it("links a name's records to the suggested student, and can undo it", async () => {
       const user = userEvent.setup();
       api.getLegacyPeople.mockResolvedValue(page([person()], 61));
       api.bulkLinkLegacyRecords.mockResolvedValue([]);
-      api.unlinkLegacyGradingRecord.mockResolvedValue({});
+      api.bulkUnlinkLegacyRecords.mockResolvedValue([]);
 
       renderAt("/imports/7");
 
@@ -436,34 +434,30 @@ describe("An import's results", () => {
           { record: 103, student: 31 },
         ]),
       );
-      expect(await screen.findByText("✓ Linked to Mia Reynolds")).toBeInTheDocument();
+      expect(await screen.findByText("Linked to Mia Reynolds")).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
-      await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
+      await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledWith([101, 102, 103]));
+      expect(await screen.findByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" })).toBeVisible();
     });
 
-    it("retries only records still linked after a partial undo failure", async () => {
+    it("keeps the link and its Undo when the undo is refused, unlinking none", async () => {
       const user = userEvent.setup();
-      let failOnce = true;
       api.getLegacyPeople.mockResolvedValue(page([person()], 61));
       api.bulkLinkLegacyRecords.mockResolvedValue([]);
-      api.unlinkLegacyGradingRecord.mockImplementation((id: number) => {
-        if (id === 102 && failOnce) {
-          failOnce = false;
-          return Promise.reject(new Error("temporary failure"));
-        }
-        return Promise.resolve({});
-      });
+      api.bulkUnlinkLegacyRecords.mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValue([]);
 
       renderAt("/imports/7");
       await user.click(await screen.findByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" }));
       await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("Some records were unlinked. Try Undo again for the rest.");
-      await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Those records could not be unlinked.");
+      expect(screen.getByText("Linked to Mia Reynolds")).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
-      await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(4));
-      expect(api.unlinkLegacyGradingRecord.mock.calls.map(([id]) => id)).toEqual([101, 102, 103, 102]);
-      expect(api.getLegacyPeople).toHaveBeenCalledTimes(4);
+      await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledTimes(2));
+      expect(api.bulkUnlinkLegacyRecords.mock.calls.map(([ids]) => ids)).toEqual([
+        [101, 102, 103],
+        [101, 102, 103],
+      ]);
     });
 
     it("asks a person to choose where students share a name", async () => {
@@ -485,9 +479,7 @@ describe("An import's results", () => {
       renderAt("/imports/7");
       await user.click(await screen.findByRole("button", { name: "Theo Lane · White" }));
 
-      await waitFor(() =>
-        expect(api.bulkLinkLegacyRecords).toHaveBeenCalledWith([{ record: 201, student: 41 }]),
-      );
+      await waitFor(() => expect(api.bulkLinkLegacyRecords).toHaveBeenCalledWith([{ record: 201, student: 41 }]));
     });
 
     it("voids a wrong workbook only with a reason", async () => {
@@ -504,9 +496,7 @@ describe("An import's results", () => {
       await user.type(within(dialog).getByLabelText("Why"), "The wrong year's workbook");
       await user.click(confirm);
 
-      await waitFor(() =>
-        expect(api.voidDataImportRecords).toHaveBeenCalledWith(7, "The wrong year's workbook"),
-      );
+      await waitFor(() => expect(api.voidDataImportRecords).toHaveBeenCalledWith(7, "The wrong year's workbook"));
     });
 
     it("leaves linking to administrators", async () => {
@@ -522,7 +512,7 @@ describe("An import's results", () => {
 
   it("says plainly that a cancelled import saved nothing", async () => {
     api.getDataImportBatch.mockResolvedValue(
-      batch({ status: "CANCELLED", status_display: "Cancelled", next_step: "CLOSED" }),
+      batch({ status: "CANCELLED", status_display: "Cancelled", next_step: "RESULTS" }),
     );
 
     renderAt("/imports/7");

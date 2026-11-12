@@ -4,7 +4,7 @@ import { join } from "node:path";
 /**
  * What the style checks (layoutRules.test.ts, tokenRules.test.ts) share: one way
  * of reading the stylesheets and one way of counting what is in them, so the
- * numbers in the baselines mean the same thing everywhere.
+ * counts mean the same thing everywhere.
  */
 
 export const SRC = __dirname;
@@ -12,7 +12,7 @@ export const SRC = __dirname;
 /** The two files that define the design: tokens, and layout (widths, gutters, shared pieces). */
 export const DEFINITION_FILES = ["theme.css", "layout.css"];
 
-export function strip(css: string): string {
+function strip(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, "");
 }
 

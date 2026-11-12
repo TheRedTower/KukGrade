@@ -6,25 +6,28 @@ from typing import Any, ClassVar
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import User
+from accounts.people import MissingDetail, missing_details, name_of
 from accounts.permissions import (
-    AUTHORITY_PERMISSIONS,
     DELETE_ANY_SESSION_PERMISSION,
     FINAL_GRADING_DECISION_PERMISSION,
     GRADING_AUDIT_LOG_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
+    USER_ADMINISTRATION_PERMISSION,
     can_view_audit_log,
     prime_permission_cache,
 )
 from accounts.services import (
+    DELETED_ACCOUNT_EMAIL_MESSAGE,
     can_manage,
-    change_own_password,
-    set_user_authority,
-    update_platform_user,
+    email_holder,
 )
+from kukgrade.serializers import ChoiceSerializer, ModelSerializer
+from ranks.models import Rank
 
 security_logger = logging.getLogger("kukgrade.security")
 
@@ -63,13 +66,15 @@ class AuthorityFields(serializers.Serializer):
     can_view_grading_audit_log = HasPermission(GRADING_AUDIT_LOG_PERMISSION)
 
 
-class UserSerializer(AuthorityFields, serializers.ModelSerializer):
-    full_name = serializers.CharField(source="get_full_name", read_only=True)
+class UserSerializer(AuthorityFields, ModelSerializer):
+    full_name = serializers.SerializerMethodField(
+        help_text="Their name; never their email address.",
+    )
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     # What the signed-in user may do beyond ordinary grading, from the exact
     # permission each action checks - so the UI offers a control only when
     # the server will accept it, and never decides that from role.
-    can_manage_users = HasPermission("accounts.view_user")
+    can_manage_users = HasPermission(USER_ADMINISTRATION_PERMISSION)
     can_import_data = HasPermission("data_imports.add_importbatch")
     can_reconcile_imported_history = HasPermission(
         "gradings.can_reconcile_imported_history",
@@ -80,6 +85,9 @@ class UserSerializer(AuthorityFields, serializers.ModelSerializer):
     # Not a single permission: the audit-log rule, computed by the same
     # function the API and admin enforce it with.
     can_read_audit_log = serializers.SerializerMethodField()
+
+    def get_full_name(self, user: User) -> str:
+        return name_of(user)
 
     def get_can_read_audit_log(self, user: User) -> bool:
         return can_view_audit_log(user)
@@ -126,10 +134,6 @@ class SelfProfileSerializer(UserSerializer):
             if field not in {"first_name", "last_name"}
         )
 
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        return update_platform_user(instance, actor=request.user, **validated_data)
-
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(write_only=True)
@@ -168,7 +172,11 @@ class PermissionPrimedListSerializer(serializers.ListSerializer[User]):
         return super().to_representation(users)
 
 
-class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
+class MissingDetailSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=MissingDetail.choices)
+
+
+class UserManagementSerializer(AuthorityFields, ModelSerializer):
     """List, retrieve, create and update for the administrator-facing API.
 
     Deliberately separate from UserSerializer, which is a fixed read-only
@@ -178,8 +186,33 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
     meant for one endpoint to the other.
     """
 
-    full_name = serializers.CharField(source="get_full_name", read_only=True)
+    full_name = serializers.SerializerMethodField(
+        help_text="Their name; never their email address.",
+    )
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    rank = serializers.PrimaryKeyRelatedField(
+        queryset=Rank.objects.staff(),
+        required=False,
+        # Null for an account with no rank; sending null changes nothing.
+        allow_null=True,
+        help_text=(
+            "An instructor's rank, one of the instructor ranks (`/api/choices/`); "
+            "required when an instructor account is made. An administrator "
+            "account has none."
+        ),
+    )
+    missing_details = serializers.SerializerMethodField(
+        help_text=(
+            "What an account made before a rule still lacks: a name, or an "
+            "instructor's rank. Empty when it is complete."
+        ),
+    )
+    rank_name = serializers.CharField(
+        source="rank.name",
+        read_only=True,
+        default="",
+        help_text="The rank's name; blank for an account with no rank.",
+    )
     # From the rule the services enforce (accounts.services.can_manage), so
     # the screen offers no change the server would refuse.
     manageable = serializers.SerializerMethodField(
@@ -202,6 +235,9 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "full_name",
             "role",
             "role_display",
+            "rank",
+            "rank_name",
+            "missing_details",
             "is_active",
             "can_make_final_grading_decision",
             "can_promote_student",
@@ -225,6 +261,7 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "id",
             "full_name",
             "role_display",
+            "rank_name",
             "can_make_final_grading_decision",
             "can_promote_student",
             "can_override_locked_session",
@@ -235,29 +272,28 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "last_login",
         )
 
+    def get_full_name(self, user: User) -> str:
+        return name_of(user)
+
+    @extend_schema_field(MissingDetailSerializer(many=True))
+    def get_missing_details(self, user: User) -> list[dict[str, str]]:
+        return [
+            {"value": value, "label": str(MissingDetail(value).label)}
+            for value in missing_details(user)
+        ]
+
     def get_manageable(self, user: User) -> bool:
         return can_manage(user, self.context["request"].user)
 
     def validate_email(self, value: str) -> str:
         # Uniqueness checked here, not by the field's own validator, so an
         # email a deleted account keeps can say why it is taken.
-        email = User.objects.normalize_email(value)
-        taken = User.objects.filter(email__iexact=email)
-        if self.instance is not None:
-            taken = taken.exclude(pk=self.instance.pk)
-        holder = taken.first()
+        holder = email_holder(value, exclude=self.instance)
         if holder is None:
-            return email
+            return User.objects.normalize_email(value)
         if holder.deleted_at is not None:
-            raise serializers.ValidationError(
-                "This email belonged to an account that was deleted. Its "
-                "records still carry it, so use another email."
-            )
+            raise serializers.ValidationError(DELETED_ACCOUNT_EMAIL_MESSAGE)
         raise serializers.ValidationError("An account with this email already exists.")
-
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        return update_platform_user(instance, actor=request.user, **validated_data)
 
 
 class UserAuthoritySerializer(serializers.Serializer):
@@ -271,14 +307,6 @@ class UserAuthoritySerializer(serializers.Serializer):
     can_promote_student = serializers.BooleanField(required=False)
     can_override_locked_session = serializers.BooleanField(required=False)
     can_view_grading_audit_log = serializers.BooleanField(required=False)
-
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        return set_user_authority(
-            instance,
-            actor=request.user,
-            **{name: validated_data.get(name) for name in AUTHORITY_PERMISSIONS},
-        )
 
 
 class IssuedTemporaryPasswordSerializer(UserManagementSerializer):
@@ -331,9 +359,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_new_password(self, value: str) -> str:
         return _validated_password(value, self.instance)
 
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        return change_own_password(instance, password=validated_data["new_password"])
-
 
 class SetupStatusSerializer(serializers.Serializer):
     """GET /api/setup/."""
@@ -352,18 +377,8 @@ class SetupSerializer(serializers.Serializer):
         help_text="The one-time setup code from the server's log.",
     )
     email = serializers.EmailField(write_only=True)
-    first_name = serializers.CharField(
-        write_only=True,
-        required=False,
-        allow_blank=True,
-        max_length=150,
-    )
-    last_name = serializers.CharField(
-        write_only=True,
-        required=False,
-        allow_blank=True,
-        max_length=150,
-    )
+    first_name = serializers.CharField(write_only=True, max_length=150)
+    last_name = serializers.CharField(write_only=True, max_length=150)
     # Untrimmed, as sign-in reads it.
     password = serializers.CharField(
         write_only=True,

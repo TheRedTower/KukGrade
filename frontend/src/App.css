@@ -81,19 +81,11 @@ textarea {
 /* A text box takes the theme - its fill, text and a thin border instead of the
    browser's white inset one - so none glares in dark mode. :where() gives it no
    weight, so any screen's own rule for its inputs still wins. */
-:where(
-  input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="file"]),
-  select,
-  textarea
-) {
+:where(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="file"]), select, textarea) {
   background-color: var(--color-field);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
 }
 
 button {
@@ -120,7 +112,6 @@ textarea:not(.visually-hidden) {
 button:not(.theme-toggle-option, .visually-hidden) {
   min-width: var(--target-min);
 }
-
 
 .auth-page {
   min-height: 100vh;
@@ -181,10 +172,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
 .auth-brand-tagline {
   margin: 0 0 var(--space-5);
   color: var(--color-text-on-ink-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
 }
 
 .auth-brand-values {
@@ -192,10 +180,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   border-top: 2px solid var(--color-gold);
   padding-top: var(--space-4);
   color: var(--color-text-on-ink);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
 }
 
 .auth-brand-footer {
@@ -293,16 +278,12 @@ button:not(.theme-toggle-option, .visually-hidden) {
   padding-right: 3.75rem;
 }
 
+/* A small link button (btn btn--link btn--sm) set inside the box's end. */
 .password-toggle {
   position: absolute;
   top: 50%;
   right: 0.4rem;
-  min-height: auto;
-  border: none;
-  background: none;
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-strong);
   padding: var(--space-1) var(--space-2);
   transform: translateY(-50%);
 }
@@ -398,51 +379,6 @@ h1,
 h2,
 p {
   margin-top: 0;
-}
-
-h1 {
-  margin-bottom: var(--space-4);
-  color: var(--color-text);
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-title);
-  letter-spacing: var(--tracking-tight);
-}
-
-h2 {
-  margin-bottom: var(--space-3);
-  font-size: var(--font-size-xl);
-}
-
-/* Every heading below a section's title: a card's or a row's own heading. */
-h3 {
-  font-size: var(--font-size-lg);
-}
-
-h4 {
-  font-size: var(--font-size-base);
-}
-
-h1,
-h2,
-h3,
-h4 {
-  color: var(--color-text);
-  line-height: var(--line-height-tight);
-  /* Every letter carries a little space before it, about 0.05em in this
-     font, which at heading sizes shows: a heading above a box looked set in
-     from the box's border. Pulling the first line back puts the letters
-     themselves on the edge. */
-  text-indent: -0.05em;
-}
-
-/* text-indent is inherited; a badge or button inside a heading keeps its own. */
-:is(h1, h2, h3, h4) * {
-  text-indent: 0;
-}
-
-.login-form {
-  display: grid;
-  gap: var(--space-4);
 }
 
 .app-layout {
@@ -547,25 +483,15 @@ h4 {
 }
 
 .account-pill-role {
-  text-transform: uppercase;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-title);
-  letter-spacing: var(--tracking-label);
   color: var(--color-accent);
 }
 
 .must-change-password-form {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
   text-align: left;
 }
 
 .must-change-password-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   margin-top: var(--space-2);
 }
 
@@ -575,23 +501,6 @@ h4 {
   flex-shrink: 0;
 }
 
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-/* Feedback & Helper Text */
-
-/* ── Error Banner ────────────────────────────────────────────────────────── */
-
-.gsd-modal-message {
-  line-height: var(--line-height-body);
-  margin: 0;
-}
-
-/* ── Loading and Error States ────────────────────────────────────────────── */
 /* A scrolling table wrapper a keyboard can reach (tabIndex 0): show it has
    focus like any other control. */
 [role="region"][tabindex="0"]:focus-visible,

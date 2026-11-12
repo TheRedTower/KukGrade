@@ -23,6 +23,8 @@ class Persona:
     first_name: str
     last_name: str
     role: str
+    # An instructor's rank code; an administrator account has none.
+    rank: str
     label: str
     description: str
     authority: dict[str, bool]
@@ -35,6 +37,7 @@ PERSONAS = (
         first_name="Ian",
         last_name="Instructor",
         role=User.Role.INSTRUCTOR,
+        rank="SBN",
         label="Instructor",
         description=(
             "Builds a grading, assesses candidates and recommends a verdict. "
@@ -48,6 +51,7 @@ PERSONAS = (
         first_name="Mia",
         last_name="Master",
         role=User.Role.INSTRUCTOR,
+        rank="PKJN",
         label="Master",
         description=(
             "Makes the final decision on each candidate, promotes students, "
@@ -67,6 +71,7 @@ PERSONAS = (
         first_name="Alex",
         last_name="Administrator",
         role=User.Role.ADMINISTRATOR,
+        rank="",
         label="Administrator",
         description=(
             "Looks after students, staff accounts and the audit log. Cannot "

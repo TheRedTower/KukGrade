@@ -4,7 +4,7 @@ import type { StudentDetail, updateStudent } from "./api";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
-import { ErrorText } from "./ErrorText";
+import { Field } from "./Field";
 import { todayIsoDate } from "./dates";
 import type { useServerForm } from "./forms";
 
@@ -59,118 +59,80 @@ export function StudentEditDialog({
 
   return (
     <Dialog title="Edit student record" closeLabel="Close dialog" onClose={onClose} canClose={!saving}>
+      {form.banner && <Alert className="form-alert">{form.banner}</Alert>}
 
-        {form.banner && (
-          <Alert className="form-alert">{form.banner}</Alert>
-        )}
-
-        <form className="stack" onSubmit={save} noValidate>
-          <div className="stack">
-            <div className="field field--sentence">
-              <label htmlFor="edit-wksa-id">
-                WKSA ID
-              </label>
+      <form className="stack" onSubmit={save} noValidate>
+        <div className="stack">
+          <Field
+            label="WKSA ID"
+            error={form.errorFor("wksa_id")}
+            hint={
+              student.wksa_id_can_change
+                ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
+                : "Correct a mistyped black belt ID. It never goes back to a student ID."
+            }
+          >
+            {(control) => (
               <input
-                id="edit-wksa-id"
+                {...control}
                 type="text"
                 value={wksaId}
                 onChange={(e) => setWksaId(e.target.value)}
                 disabled={saving}
-                aria-invalid={!!form.errorFor("wksa_id")}
-                aria-describedby={form.errorFor("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
               />
-              {form.errorFor("wksa_id") ? (
-                <ErrorText field id="edit-wksa-id-error">
-                  {form.errorFor("wksa_id")}
-                </ErrorText>
-              ) : (
-                <p className="field__hint" id="edit-wksa-id-help">
-                  {student.wksa_id_can_change
-                    ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
-                    : "Correct a mistyped black belt ID. It never goes back to a student ID."}
-                </p>
-              )}
-            </div>
+            )}
+          </Field>
 
-            <div className="form-row-grid-2">
-              <div className="field field--sentence">
-                <label htmlFor="edit-first-name">
-                  First name <span className="required-star">*</span>
-                </label>
+          <div className="form-row-grid-2">
+            <Field label="First name" required error={form.errorFor("first_name")}>
+              {(control) => (
                 <input
-                  id="edit-first-name"
+                  {...control}
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   disabled={saving}
-                  aria-required="true"
-                  aria-invalid={!!form.errorFor("first_name")}
-                  aria-describedby={form.errorFor("first_name") ? "edit-first-name-error" : undefined}
                   data-dialog-autofocus
                 />
-                {form.errorFor("first_name") && (
-                  <ErrorText field id="edit-first-name-error">{form.errorFor("first_name")}</ErrorText>
-                )}
-              </div>
+              )}
+            </Field>
 
-              <div className="field field--sentence">
-                <label htmlFor="edit-last-name">
-                  Last name <span className="required-star">*</span>
-                </label>
+            <Field label="Last name" required error={form.errorFor("last_name")}>
+              {(control) => (
                 <input
-                  id="edit-last-name"
+                  {...control}
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   disabled={saving}
-                  aria-required="true"
-                  aria-invalid={!!form.errorFor("last_name")}
-                  aria-describedby={form.errorFor("last_name") ? "edit-last-name-error" : undefined}
                 />
-                {form.errorFor("last_name") && (
-                  <ErrorText field id="edit-last-name-error">{form.errorFor("last_name")}</ErrorText>
-                )}
-              </div>
-            </div>
+              )}
+            </Field>
+          </div>
 
-            <div className="field field--sentence">
-              <label htmlFor="edit-dob">
-                Date of birth <span className="required-star">*</span>
-              </label>
+          <Field label="Date of birth" required error={form.errorFor("date_of_birth")}>
+            {(control) => (
               <input
-                id="edit-dob"
+                {...control}
                 type="date"
                 value={dob}
                 max={todayIsoDate()}
                 onChange={(e) => setDob(e.target.value)}
                 disabled={saving}
-                aria-required="true"
-                aria-invalid={!!form.errorFor("date_of_birth")}
-                aria-describedby={form.errorFor("date_of_birth") ? "edit-dob-error" : undefined}
               />
-              {form.errorFor("date_of_birth") && (
-                <ErrorText field id="edit-dob-error">{form.errorFor("date_of_birth")}</ErrorText>
-              )}
-            </div>
-          </div>
+            )}
+          </Field>
+        </div>
 
-          <div className="action-row action-row--end">
-            <Button
-              variant="secondary"
-              onClick={onClose}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save changes"}
-            </Button>
-          </div>
-        </form>
+        <div className="action-row action-row--end">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
+      </form>
     </Dialog>
   );
 }

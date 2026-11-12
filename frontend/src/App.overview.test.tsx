@@ -3,18 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type {
-  AuditEvent,
-  AuthUser,
-  CandidateAssessment,
-  GradingSession,
-} from "./api";
+import type { AuditEvent, AuthUser, CandidateAssessment, GradingSession } from "./api";
 import {
   authUser,
   ADMINISTRATOR_CAPABILITIES,
   jsonResponse,
   assessmentSummaryFor,
   sessionsResponse,
+  sessionServed,
+  CHOICES,
+  stubFetch,
 } from "./appTestSupport";
 
 describe("Overview screen (Operational Ledger)", () => {
@@ -31,6 +29,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
   it("renders authentic empty states when no active sessions or events exist", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -45,7 +44,7 @@ describe("Overview screen (Operational Ledger)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -59,48 +58,44 @@ describe("Overview screen (Operational Ledger)", () => {
 
     // Needs attention card empty state
     expect(screen.getByText("All clear")).toBeVisible();
-    expect(
-      screen.getByText("No candidate assessments currently requiring review."),
-    ).toBeVisible();
+    expect(screen.getByText("No candidate assessments currently requiring review.")).toBeVisible();
 
     // Upcoming card empty state
     expect(screen.getByText("No upcoming gradings")).toBeVisible();
-    expect(
-      screen.getByText("No future grading sessions are currently scheduled."),
-    ).toBeVisible();
+    expect(screen.getByText("No future grading sessions are currently scheduled.")).toBeVisible();
 
     // Recent activity is the audit log's feed: someone who may not read the
     // log is shown no section at all, not an empty one.
     expect(screen.queryByText("Recent activity")).not.toBeInTheDocument();
     expect(screen.queryByText("No recent activity recorded.")).not.toBeInTheDocument();
-    expect(
-      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/audit-events/")),
-    ).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/audit-events/"))).toBe(false);
   });
 
   it("shows an audit reader that there is no recent activity", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, { ...authUser, can_read_audit_log: true });
       }
       return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
     expect(await screen.findByText("No recent activity recorded.")).toBeVisible();
   });
 
-  // An event's status comes from its action and structured outcome,
-  // never from words in its summary.
-  it("labels activity by what happened, not by words in the summary", async () => {
+  // The server says how each event reads and which outcome it records;
+  // the overview shows that, never words from the summary.
+  it("labels activity with the tone and outcome the server serves", async () => {
     const event = (
       id: number,
       action: AuditEvent["action"],
       action_display: string,
       summary: string,
-      metadata: Record<string, unknown> = {},
+      tone: AuditEvent["tone"],
+      outcome_display: string | null = null,
     ) =>
       ({
         id,
@@ -111,37 +106,39 @@ describe("Overview screen (Operational Ledger)", () => {
         entity_type_display: "Outcome",
         subject_name: "",
         entity_id: String(id),
-        actor_email: "master@example.com",
         actor_name: "Morgan Master",
         summary,
-        metadata,
+        tone,
+        outcome_display,
+        details: [],
       }) satisfies AuditEvent;
     const events = [
-      event(1, "USER_UPDATED", "User updated", "Password reset for someone@example.com."),
-      event(2, "OUTCOME_PROPOSED", "Outcome proposed", "Outcome proposed as PASS.", {
-        after: { proposed_outcome: "PASS" },
-      }),
-      event(3, "OUTCOME_FINALISED", "Outcome finalised", "Final decision FAIL, overriding a proposed PASS.", {
-        final_outcome: "FAIL",
-      }),
-      event(4, "OUTCOME_FINALISED", "Outcome finalised", "Final decision CONDITIONAL.", {
-        final_outcome: "CONDITIONAL",
-      }),
-      event(5, "CANDIDATE_WITHDRAWN", "Candidate withdrawn", "Withdrawn: did not attend."),
-      event(6, "PROMOTION_RECORDED", "Promotion recorded", "Promoted to Yellow."),
-      event(7, "SESSION_UPDATED", "Grading session updated", "Notes: everyone should pass."),
+      event(1, "USER_UPDATED", "User updated", "Password reset for KSN Jane Smith.", "neutral"),
+      event(2, "OUTCOME_PROPOSED", "Outcome proposed", "Outcome proposed as PASS.", "info", "Pass"),
+      event(
+        3,
+        "OUTCOME_FINALISED",
+        "Outcome finalised",
+        "Final decision FAIL, overriding a proposed PASS.",
+        "warning",
+        "Fail",
+      ),
+      event(4, "OUTCOME_FINALISED", "Outcome finalised", "Final decision CONDITIONAL.", "warning", "Conditional"),
+      event(5, "CANDIDATE_WITHDRAWN", "Candidate withdrawn", "Withdrawn: did not attend.", "warning"),
+      event(6, "PROMOTION_RECORDED", "Promotion recorded", "Promoted to Yellow.", "success"),
+      event(7, "SESSION_UPDATED", "Grading session updated", "Notes: everyone should pass.", "neutral"),
     ];
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/me/")) return jsonResponse(200, { ...authUser, can_read_audit_log: true });
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/gradings/sessions/")) {
           return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
         }
         if (url.includes("/api/audit-events/labels/")) {
-        return jsonResponse(200, { actions: [], entities: [] });
-      }
-      if (url.includes("/api/audit-events/")) {
+          return jsonResponse(200, { actions: [], entities: [] });
+        }
+        if (url.includes("/api/audit-events/")) {
           return jsonResponse(200, { count: events.length, next: null, previous: null, results: events });
         }
         return jsonResponse(404, {});
@@ -151,19 +148,18 @@ describe("Overview screen (Operational Ledger)", () => {
     render(<App />);
 
     const ledger = await screen.findByRole("table", { name: "Recent activity" });
-    const statusOf = (summary: string) =>
-      within(ledger).getByText(summary).closest("tr")!.querySelector(".badge")!;
-    expect(statusOf("Password reset for someone@example.com.")).toHaveTextContent("User updated");
-    expect(statusOf("Password reset for someone@example.com.")).toHaveClass("badge--neutral");
+    const statusOf = (summary: string) => within(ledger).getByText(summary).closest("tr")!.querySelector(".badge")!;
+    expect(statusOf("Password reset for KSN Jane Smith.")).toHaveTextContent("User updated");
+    expect(statusOf("Password reset for KSN Jane Smith.")).toHaveAttribute("data-tone", "neutral");
     expect(statusOf("Outcome proposed as PASS.")).toHaveTextContent("Outcome proposed · Pass");
-    expect(statusOf("Outcome proposed as PASS.")).toHaveClass("badge--info");
+    expect(statusOf("Outcome proposed as PASS.")).toHaveAttribute("data-tone", "info");
     const overridden = statusOf("Final decision FAIL, overriding a proposed PASS.");
     expect(overridden).toHaveTextContent("Outcome finalised · Fail");
-    expect(overridden).toHaveClass("badge--warning");
+    expect(overridden).toHaveAttribute("data-tone", "warning");
     expect(statusOf("Final decision CONDITIONAL.")).toHaveTextContent("Outcome finalised · Conditional");
-    expect(statusOf("Withdrawn: did not attend.")).toHaveClass("badge--warning");
-    expect(statusOf("Promoted to Yellow.")).toHaveClass("badge--success");
-    expect(statusOf("Notes: everyone should pass.")).toHaveClass("badge--neutral");
+    expect(statusOf("Withdrawn: did not attend.")).toHaveAttribute("data-tone", "warning");
+    expect(statusOf("Promoted to Yellow.")).toHaveAttribute("data-tone", "success");
+    expect(statusOf("Notes: everyone should pass.")).toHaveAttribute("data-tone", "neutral");
     expect(within(ledger).queryByText("Approved")).not.toBeInTheDocument();
     expect(within(ledger).getAllByText("Morgan Master")).toHaveLength(events.length);
   });
@@ -180,7 +176,11 @@ describe("Overview screen (Operational Ledger)", () => {
       candidate_count: 2,
       completed_assessment_count: 1,
       awaiting_decision_count: 0,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("OPEN"),
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
     } satisfies GradingSession;
 
@@ -193,7 +193,11 @@ describe("Overview screen (Operational Ledger)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("DRAFT"),
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Ipswich Central",
     } satisfies GradingSession;
 
@@ -204,9 +208,10 @@ describe("Overview screen (Operational Ledger)", () => {
         candidate_student_name: "Student One",
         status: "COMPLETED",
         status_display: "Completed",
-        generated_by_email: authUser.email,
+        generated_by_name: `KSN ${authUser.full_name}`,
         overall: assessmentSummaryFor([]).overall,
         marks_open: true,
+        can_start: false,
         can_delete: false,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:00:00Z",
@@ -218,9 +223,10 @@ describe("Overview screen (Operational Ledger)", () => {
         candidate_student_name: "Student Two",
         status: "IN_PROGRESS",
         status_display: "In Progress",
-        generated_by_email: authUser.email,
+        generated_by_name: `KSN ${authUser.full_name}`,
         overall: assessmentSummaryFor([]).overall,
         marks_open: true,
+        can_start: false,
         can_delete: false,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:30:00Z",
@@ -238,10 +244,11 @@ describe("Overview screen (Operational Ledger)", () => {
         entity_type_display: "Assessment",
         subject_name: "",
         entity_id: "401",
-        actor_email: authUser.email,
         actor_name: "Casey Instructor",
         summary: "Assessment complete (ready for review)",
-        metadata: {},
+        tone: "neutral",
+        outcome_display: null,
+        details: [],
       },
       {
         id: 502,
@@ -252,14 +259,16 @@ describe("Overview screen (Operational Ledger)", () => {
         entity_type_display: "Assessment",
         subject_name: "",
         entity_id: "402",
-        actor_email: authUser.email,
         actor_name: "Casey Instructor",
         summary: "Assessment started on the mat",
-        metadata: {},
+        tone: "info",
+        outcome_display: null,
+        details: [],
       },
     ] satisfies AuditEvent[];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, { ...authUser, ...ADMINISTRATOR_CAPABILITIES });
       }
@@ -287,7 +296,7 @@ describe("Overview screen (Operational Ledger)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -296,9 +305,7 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(screen.getByText("Riverside Dojang")).toBeVisible();
     expect(await screen.findByText("1 / 2")).toBeVisible(); // 1 of 2 completed
     expect(screen.getByText("2")).toBeVisible(); // candidates count
-    expect(screen.getByText("Awaiting final decision").previousElementSibling).toHaveTextContent(
-      "0",
-    );
+    expect(screen.getByText("Awaiting final decision").previousElementSibling).toHaveTextContent("0");
     expect(screen.getByRole("button", { name: /Open session/i })).toBeVisible();
 
     // Needs attention card
@@ -313,15 +320,16 @@ describe("Overview screen (Operational Ledger)", () => {
 
     // The rows are real links, so they can be opened in a new tab.
     expect(screen.getByRole("link", { name: /Summer Grading 2026/ })).toHaveAttribute("href", "/gradings/102");
-    expect(screen.getByRole("link", { name: /Student One/ })).toHaveAttribute("href", expect.stringMatching(/^\/gradings\//));
+    expect(screen.getByRole("link", { name: /Student One/ })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/gradings\//),
+    );
 
     // Two small requests for the two sessions shown, never the whole history.
     const requested = fetchMock.mock.calls.map(([url]) => String(url));
     expect(requested.some((url) => url.includes("page_size=200"))).toBe(false);
     expect(requested.some((url) => url.includes("status=OPEN") && url.includes("page_size=1"))).toBe(true);
-    expect(
-      requested.some((url) => url.includes("ordering=grading_date") && url.includes("page_size=2")),
-    ).toBe(true);
+    expect(requested.some((url) => url.includes("ordering=grading_date") && url.includes("page_size=2"))).toBe(true);
 
     // Recent activity table
     expect(await screen.findByText("Assessment complete (ready for review)")).toBeVisible();
@@ -337,6 +345,7 @@ describe("Overview screen (Operational Ledger)", () => {
   it("offers the audit feed by audit-log grant, not by staff flags", async () => {
     async function auditRequested(user: AuthUser): Promise<boolean> {
       const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
           return jsonResponse(200, user);
         }
@@ -345,7 +354,7 @@ describe("Overview screen (Operational Ledger)", () => {
         }
         return jsonResponse(404, {});
       });
-      vi.stubGlobal("fetch", fetchMock);
+      stubFetch(fetchMock);
       const view = render(<App />);
       expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
       await screen.findByText("No upcoming gradings");
@@ -368,11 +377,16 @@ describe("Overview screen (Operational Ledger)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("OPEN"),
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
     } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, { ...authUser, ...ADMINISTRATOR_CAPABILITIES });
       }
@@ -390,12 +404,12 @@ describe("Overview screen (Operational Ledger)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
 
-    // Click "Open session →"
+    // Click "Open session"
     const openSessionButton = await screen.findByRole("button", { name: /Open session/i });
     await user.click(openSessionButton);
     expect(window.location.pathname).toBe("/gradings/101");
@@ -404,7 +418,7 @@ describe("Overview screen (Operational Ledger)", () => {
     window.history.replaceState({}, "", "/");
     await user.click(screen.getByRole("link", { name: "Overview" }));
 
-    // Click "View all activity →"
+    // Click "View all activity"
     const viewAllButton = await screen.findByRole("link", { name: /View all activity/i });
     await user.click(viewAllButton);
     expect(window.location.pathname).toBe("/audit");

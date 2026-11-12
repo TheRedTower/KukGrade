@@ -17,13 +17,14 @@
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
 import { useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "./EmptyState";
 import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { Alert } from "./Alert";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Button } from "./Button";
 import { getAllGradingCandidates, getGradingSession } from "./api";
 import { buildRows } from "./adjudicationBoard";
@@ -36,10 +37,12 @@ import { CohortFocusPane } from "./CohortFocusPane";
 import { CohortRecordBar } from "./CohortRecordBar";
 import { useSealedEvidenceLoaded } from "./queries";
 import { useStagedDecisions } from "./useStagedDecisions";
+import { agreeing } from "./plural";
 
 export function CohortAdjudicationScreen() {
-  const { id } = useParams<{ id: string }>();
-  const sessionId = Number(id);
+  const id = useIdParam();
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
@@ -49,7 +52,7 @@ export function CohortAdjudicationScreen() {
   });
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
 
-  const enabled = !Number.isNaN(sessionId) && sessionId > 0;
+  const enabled = id !== null;
 
   const sessionQuery = useQuery({
     queryKey: keys.gradingSessions.detail(sessionId),
@@ -57,18 +60,21 @@ export function CohortAdjudicationScreen() {
     enabled,
   });
   const candidatesQuery = useQuery({
-    queryKey: keys.gradingCandidates.session(sessionId),
-    queryFn: () => getAllGradingCandidates({ session: sessionId }),
+    // Withdrawn candidates are not decided: the server leaves them out.
+    queryKey: keys.gradingCandidates.board(sessionId),
+    queryFn: () => getAllGradingCandidates({ session: sessionId, withdrawn: false }),
     enabled,
   });
 
   const session = sessionQuery.data;
   const rows = buildRows(candidatesQuery.data?.results ?? []);
-  const canDecide = Boolean(user?.can_make_final_grading_decision) && session?.status === "LOCKED";
+  // Each row says whether a decision can be recorded for it now; whether this
+  // viewer may record one is their own authority.
+  const canDecide = Boolean(user?.can_make_final_grading_decision) && rows.some((row) => row.decidable);
 
   const decisions = useStagedDecisions({ sessionId, enabled, canDecide, onFocus: setFocusId });
 
-  const withdrawnCount = (candidatesQuery.data?.results ?? []).length - rows.length;
+  const withdrawnCount = session?.withdrawn_count ?? 0;
   const finalisedCount = rows.filter((row) => row.outcome?.status === "FINALISED").length;
 
   const focusRow = rows.find((row) => row.candidate.id === focusId) ?? rows.find((row) => row.decidable) ?? rows[0];
@@ -88,41 +94,33 @@ export function CohortAdjudicationScreen() {
     });
   };
 
-  if (sessionQuery.isLoading || candidatesQuery.isLoading) {
-    return (
-      <section aria-label="Final decisions" className="page">
-        <LoadingState>Loading final decisions…</LoadingState>
-      </section>
-    );
-  }
-
   // Either request failing would otherwise render as a real, empty cohort (no
   // rows, or "No assessment" on every row).
-  const failedQueries = [sessionQuery, candidatesQuery].filter(
-    (query) => query.isError,
-  );
-  if (!session || failedQueries.length > 0) {
+  const failedQueries = [sessionQuery, candidatesQuery].filter((query) => query.isError);
+  const status =
+    recordStatus(id, sessionQuery) ??
+    (candidatesQuery.isError ? "failed" : candidatesQuery.isPending ? "loading" : null);
+  if (status || !session) {
     return (
-      <section aria-label="Final decisions" className="page">
-        <Alert
-          action={
-            failedQueries.length > 0 ? (
-              <Button variant="secondary" onClick={() => failedQueries.forEach((query) => void query.refetch())}>
-                Try again
-              </Button>
-            ) : undefined
-          }
-        >
-          The final decisions could not be loaded.
-        </Alert>
-      </section>
+      <RecordPage
+        back={{
+          to: id ? `/gradings/${id}` : "/gradings",
+          label: session?.title ?? (id ? "Grading session" : "Gradings"),
+        }}
+        failed="The final decisions could not be loaded."
+        label="Final decisions"
+        loading="Loading final decisions…"
+        missing="Grading session not found"
+        status={status ?? "loading"}
+        onRetry={() => failedQueries.forEach((query) => void query.refetch())}
+      />
     );
   }
 
   return (
     <section aria-labelledby="cab-title" className="page">
       <PageHeader
-        back={{ to: `/gradings/${session.id}`, label: "Back to session" }}
+        back={{ to: `/gradings/${session.id}`, label: session.title }}
         title={`Final decisions · ${session.title}`}
         titleId="cab-title"
         subtitle={`${session.status_display} · ${formatSessionDate(session.grading_date)}${session.location ? ` · ${session.location}` : ""}`}
@@ -133,7 +131,7 @@ export function CohortAdjudicationScreen() {
         }
       />
 
-      {session.status !== "LOCKED" && (
+      {!session.decisions_open && (
         <p className="cab-notice" role="status">
           {session.status === "COMPLETED"
             ? "This session is completed. Its decisions are the permanent record."
@@ -151,14 +149,14 @@ export function CohortAdjudicationScreen() {
           Your staged decisions could not be loaded. Staging is paused until they are, so none is overwritten.
         </Alert>
       )}
-      {session.status === "LOCKED" && !user?.can_make_final_grading_decision && (
+      {session.decisions_open && !user?.can_make_final_grading_decision && (
         <p className="cab-notice" role="status">
           Final decisions are made by an authorised Master. You can review the cohort here.
         </p>
       )}
       {withdrawnCount > 0 && (
         <p className="subtext">
-          {withdrawnCount} withdrawn {withdrawnCount === 1 ? "candidate is" : "candidates are"} not shown.
+          {withdrawnCount} withdrawn {agreeing(withdrawnCount, "candidate is", "candidates are")} not shown.
         </p>
       )}
 

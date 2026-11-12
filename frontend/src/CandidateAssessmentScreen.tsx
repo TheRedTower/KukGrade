@@ -1,16 +1,23 @@
-import { useRef, useState } from "react";
+import { type ComponentProps, useState } from "react";
 import { keys } from "./queryKeys";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { Link, useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { BackLink } from "./BackLink";
 import { EmptyState } from "./EmptyState";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { type RecordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
-import { addAssessmentItemComment, CandidateAssessmentItem, CandidateAssessmentItemResult, deleteCandidateAssessment, generateCandidateAssessment, updateCandidateAssessment, updateCandidateAssessmentItem, errorMessage } from "./api";
-import { RankBelt } from "./Belt";
+import {
+  addAssessmentItemComment,
+  CandidateAssessmentItemResult,
+  deleteCandidateAssessment,
+  generateCandidateAssessment,
+  updateCandidateAssessment,
+  errorMessage,
+} from "./api";
 import { forgetDeletedAssessment, useCandidateAssessmentData } from "./candidateAssessmentData";
 import { formatDayMonth, formatTime } from "./dates";
-import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
+import { ArrowRightIcon, CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { Meter } from "./Meter";
@@ -18,15 +25,41 @@ import { buttonClass } from "./buttonClass";
 import { assessmentTone } from "./badgeClass";
 import { AssessmentItemRow, CategoryHeader, DeleteAssessmentDialog } from "./AssessmentParts";
 import "./CandidateAssessment.css";
-import { EmailAddress } from "./EmailAddress";
+import { counted } from "./plural";
+import { CandidateRanks } from "./RankTransition";
+import { type ItemWriteOptions, useItemWrites } from "./useItemWrites";
+
+/** An item's row with a mutation of its own, so its writes queue in that item's scope. */
+function ScoredItemRow({
+  write,
+  onMark,
+  ...row
+}: Omit<ComponentProps<typeof AssessmentItemRow>, "onMark" | "onChangeResult"> & {
+  write: ItemWriteOptions;
+  /** Called as a first mark is sent. */
+  onMark: () => void;
+}) {
+  const mutation = useMutation(write);
+  return (
+    <AssessmentItemRow
+      {...row}
+      onMark={(result) => {
+        onMark();
+        mutation.mutate({ result });
+      }}
+      onChangeResult={(result, reason) => mutation.mutateAsync({ result, reason })}
+    />
+  );
+}
 
 export function CandidateAssessmentScreen() {
-  const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
+  const sessionId = useIdParam("sessionId");
+  const candidateId = useIdParam("candidateId");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const numSessionId = sessionId ? Number(sessionId) : undefined;
-  const numCandidateId = candidateId ? Number(candidateId) : undefined;
+  const numSessionId = sessionId ?? undefined;
+  const numCandidateId = candidateId ?? undefined;
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -36,28 +69,20 @@ export function CandidateAssessmentScreen() {
   const [changing, setChanging] = useState<{ itemId: number; result: CandidateAssessmentItemResult } | null>(null);
   const [openCommentId, setOpenCommentId] = useState<number | null>(null);
 
-  const {
-    session,
-    candidate,
-    assessment,
-    categoryGroups,
-    stats,
-    isLoading,
-    hasLoadError,
-  } = useCandidateAssessmentData(numSessionId, numCandidateId);
+  const { session, candidate, assessment, categoryGroups, stats, isLoading, hasLoadError } = useCandidateAssessmentData(
+    numSessionId,
+    numCandidateId,
+  );
 
   const generateAssessmentMutation = useMutation({
-    mutationFn: () => {
-      if (!candidate) throw new Error("Candidate not found");
-      return generateCandidateAssessment(candidate.id);
-    },
+    mutationFn: (candidateId: number) => generateCandidateAssessment(candidateId),
     onSuccess: (generated) => {
       setActionError(null);
       queryClient.setQueryData(keys.candidateAssessments.byCandidate(numCandidateId), generated);
       queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     },
     onError: (err) => {
-      setActionError(errorMessage(err, "Failed to prepare the assessment form."));
+      setActionError(errorMessage(err, "The assessment form could not be prepared."));
     },
   });
 
@@ -72,41 +97,21 @@ export function CandidateAssessmentScreen() {
       queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     },
     onError: (err) => {
-      setActionError(errorMessage(err, "Failed to start assessment."));
+      setActionError(errorMessage(err, "The assessment could not be started."));
     },
   });
 
-  // Item writes. Several can be in flight at once - scoring is fast -
-  // so each keeps to its own item: writes to one item go out in the order
-  // they were made, so the server keeps the last; each confirms or rolls back
-  // only that item, and only if nothing newer was written to it since; and
-  // the item list and rollup are refetched once, when every write has landed,
-  // because a refetch between writes would overwrite those still in flight.
   const itemsKey = keys.candidateAssessmentItems(assessment?.id);
-  const itemWriteKey = ["assessmentItemWrite", assessment?.id];
-  const pendingItemWrites = useIsMutating({ mutationKey: itemWriteKey });
-  const itemWriteChains = useRef(new Map<number, Promise<unknown>>());
-  const itemWriteSeq = useRef(new Map<number, number>());
-  // Whether two writes were ever in flight together since the rollup was last
-  // read. A write's answer carries the counts as its own save left them, which
-  // is the whole truth only when nothing else was being saved; with overlap the
-  // last answer to arrive may not be the last save to land, so the rollup is
-  // read again instead.
-  const writesOverlapped = useRef(false);
-  const writesInFlight = useRef(0);
-
-  const patchItem = (
-    itemId: number,
-    change: (item: CandidateAssessmentItem) => CandidateAssessmentItem,
-  ) => {
-    queryClient.setQueryData<{ results: CandidateAssessmentItem[] }>(itemsKey, (data) =>
-      data
-        ? { ...data, results: data.results.map((item) => (item.id === itemId ? change(item) : item)) }
-        : data,
-    );
-  };
-  const isLatestWrite = (itemId: number, seq: number) =>
-    itemWriteSeq.current.get(itemId) === seq;
+  const {
+    writeKey: itemWriteKey,
+    isSaving: isSavingItems,
+    patchItem,
+    writeOptions,
+  } = useItemWrites({
+    assessmentId: assessment?.id,
+    candidateId: numCandidateId,
+    onError: (err) => setActionError(errorMessage(err, "This mark could not be saved.")),
+  });
 
   // A comment is added, never changed, so it needs none of the write ordering
   // above: it is shown as soon as the server has it.
@@ -121,87 +126,8 @@ export function CandidateAssessmentScreen() {
         queryClient.invalidateQueries({ queryKey: itemsKey });
       }
     },
-    onError: (err) => setActionError(errorMessage(err, "Could not add this comment.")),
+    onError: (err) => setActionError(errorMessage(err, "The comment could not be added.")),
   });
-
-  const updateItemMutation = useMutation({
-    mutationKey: itemWriteKey,
-    mutationFn: ({
-      itemId,
-      result,
-      reason,
-    }: {
-      itemId: number;
-      result: CandidateAssessmentItemResult;
-      reason?: string;
-    }) => {
-      const payload = reason ? { result, reason } : { result };
-      const previous = itemWriteChains.current.get(itemId) ?? Promise.resolve();
-      const write = previous
-        .catch(() => undefined)
-        .then(() => updateCandidateAssessmentItem(itemId, payload));
-      itemWriteChains.current.set(itemId, write);
-      return write;
-    },
-    onMutate: async ({ itemId, result }) => {
-      if (writesInFlight.current > 0) writesOverlapped.current = true;
-      writesInFlight.current += 1;
-      await queryClient.cancelQueries({ queryKey: itemsKey });
-      const seq = (itemWriteSeq.current.get(itemId) ?? 0) + 1;
-      itemWriteSeq.current.set(itemId, seq);
-      const before = queryClient
-        .getQueryData<{ results: CandidateAssessmentItem[] }>(itemsKey)
-        ?.results.find((item) => item.id === itemId);
-      patchItem(itemId, (item) => ({
-        ...item,
-        result,
-      }));
-      return { itemId, seq, before };
-    },
-    onSuccess: (saved, _vars, context) => {
-      if (context && isLatestWrite(context.itemId, context.seq)) {
-        // The item as the list serves it, without the counts that came with it.
-        const { assessment_summary: counts, ...item } = saved;
-        void counts;
-        patchItem(context.itemId, () => item);
-      }
-    },
-    onError: (err, _vars, context) => {
-      if (context?.before && isLatestWrite(context.itemId, context.seq)) {
-        const before = context.before;
-        patchItem(context.itemId, () => before);
-      }
-      setActionError(errorMessage(err, "Could not save this result."));
-    },
-    onSettled: (saved) => {
-      // Counted here rather than asked of the cache: two answers that land in the
-      // same moment both still count as pending there, and neither would then
-      // see itself as the last.
-      writesInFlight.current -= 1;
-      if (writesInFlight.current > 0) return;
-      queryClient.invalidateQueries({ queryKey: itemsKey });
-      // The rollup is served, so a scored item has to refresh it or the mat
-      // bar and category headers go stale. A lone write brought the counts back
-      // with it, so they are used as they are; after overlapping writes, or
-      // a failed one, they are read again.
-      const counts = writesOverlapped.current ? undefined : saved?.assessment_summary;
-      writesOverlapped.current = false;
-      if (counts) {
-        // A read of the counts still in flight (from an earlier overlap or a
-        // failed save) would land after these and put older counts over them,
-        // with nothing left to correct it: it is cancelled first. Not awaited,
-        // so the write does not stay pending while it is.
-        const summaryKey = keys.candidateAssessmentSummary(assessment?.id);
-        void queryClient
-          .cancelQueries({ queryKey: summaryKey })
-          .then(() => queryClient.setQueryData(summaryKey, counts));
-      } else {
-        queryClient.invalidateQueries({ queryKey: keys.candidateAssessmentSummary(assessment?.id) });
-      }
-      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.byCandidate(numCandidateId) });
-    },
-  });
-  const isSavingItems = pendingItemWrites > 0;
 
   const deleteAssessmentMutation = useMutation({
     mutationFn: () => {
@@ -222,35 +148,31 @@ export function CandidateAssessmentScreen() {
     ? errorMessage(deleteAssessmentMutation.error, "The assessment could not be deleted.")
     : null;
 
-  if (isLoading) {
+  const status: RecordStatus | null = isLoading
+    ? "loading"
+    : hasLoadError
+      ? "failed"
+      : !session || !candidate
+        ? "missing"
+        : null;
+  if (status || !session || !candidate) {
     return (
-      <section aria-label="Candidate assessment" className="page" data-testid="caw-loading">
-        <LoadingState>Loading the assessment…</LoadingState>
-      </section>
-    );
-  }
-
-  if (hasLoadError) {
-    return (
-      <section aria-label="Candidate assessment" className="page" data-testid="caw-load-error">
-        <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
-            ← Return to session roster
-          </Link>}>
-          The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again.
-        </Alert>
-      </section>
-    );
-  }
-
-  if (!session || !candidate) {
-    return (
-      <section aria-label="Candidate assessment" className="page" data-testid="caw-not-found">
-        <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
-            ← Return to session roster
-          </Link>}>
-          Candidate or grading session not found.
-        </Alert>
-      </section>
+      <RecordPage
+        back={
+          status === "failed"
+            ? { to: `/gradings/${sessionId}`, label: "Grading session" }
+            : {
+                to: sessionId ? `/gradings/${sessionId}` : "/gradings",
+                label: sessionId ? "Grading session" : "Gradings",
+              }
+        }
+        failed="The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again."
+        label="Candidate assessment"
+        loading="Loading the assessment…"
+        missing="Candidate or grading session not found"
+        status={status ?? "loading"}
+        testId="caw"
+      />
     );
   }
 
@@ -263,54 +185,35 @@ export function CandidateAssessmentScreen() {
   const canComplete = stats.canComplete && !isSavingItems;
   const isAssessmentCompleted = assessment?.status === "COMPLETED";
   const isAssessmentMissing = assessment === null;
-  // The statuses assessment generation accepts (ASSESSMENT_GENERATION_SESSION_
-  // STATUSES); a candidate registered after opening is prepared here too.
-  const canPrepare = session.status === "DRAFT" || session.status === "OPEN";
+  // Whether the form can be prepared, the assessment started or completed is
+  // served, by the rules those writes check.
+  const canPrepare = candidate.can_prepare_assessment;
+  const canStart = Boolean(assessment?.can_start);
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
   // Whether this viewer may change marks and comment now is the server's call
   // (the session is open, or it is locked and they are the authorised Master
   // and this candidate's final decision is not yet recorded): it is served,
   // not worked out here.
   const canEdit = !!assessment?.marks_open;
-  // After the lock every correction says why, the first mark included.
-  const afterLock = session.status === "LOCKED";
+  // Marks still open once grading has ended: the Master correcting after the lock.
+  const correctingAfterLock = canEdit && !session.marking_open;
 
   const metWidth = stats.totalItems > 0 ? (stats.metCount / stats.totalItems) * 100 : 0;
   const notMetWidth = stats.totalItems > 0 ? (stats.notMetCount / stats.totalItems) * 100 : 0;
 
   return (
     <section aria-labelledby="caw-title" className="page caw-run" data-testid="caw-workspace">
-      <Breadcrumbs
-        items={[
-          { label: "Gradings", to: "/gradings" },
-          { label: session.title, to: `/gradings/${session.id}` },
-          { label: candidate.student_display_name },
-        ]}
-      />
+      <BackLink to={`/gradings/${session.id}`}>{session.title}</BackLink>
 
       <header className="caw-identity">
-        <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>
-        {candidate.student_wksa_id && (
-          <span className="caw-candidate-wksa meta">{candidate.student_wksa_id}</span>
-        )}
+        <h1 className="caw-candidate-name" id="caw-title">
+          {candidate.student_display_name}
+        </h1>
+        {candidate.student_wksa_id && <span className="caw-candidate-wksa meta">{candidate.student_wksa_id}</span>}
         <span aria-hidden="true" className="caw-identity-divider" />
-        <Badge tone="neutral">
-          {candidate && <RankBelt rankId={candidate.from_rank} />}
-          <span>{candidate?.from_rank_name ?? ""}</span>
-        </Badge>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
-          <path d="M4 12h15M14 7l5 5-5 5" />
-        </svg>
-        <Badge tone="neutral">
-          <RankBelt rankId={candidate.testing_for_rank} />
-          <span>{candidate.testing_for_rank_name}</span>
-        </Badge>
+        <CandidateRanks candidate={candidate} badges />
         <Badge tone="info">{candidate.age_band_display}</Badge>
-        <Badge
-          tone={assessmentTone(assessment?.status)}
-          dot
-          data-testid="caw-status-pill"
-        >
+        <Badge tone={assessmentTone(assessment?.status)} dot data-testid="caw-status-pill">
           {assessment?.status_display || "Not started"}
           {assessment?.started_at && ` · started ${formatTime(assessment.started_at)}`}
         </Badge>
@@ -318,57 +221,50 @@ export function CandidateAssessmentScreen() {
         <div className="caw-identity-spacer" />
 
         {/* Provenance: who prepared the snapshot, and when it was frozen. */}
-        {assessment?.generated_by_email && (
+        {assessment?.generated_by_name && (
           <span className="meta">
-            Form prepared by <EmailAddress address={assessment.generated_by_email} />
+            Form prepared by {assessment.generated_by_name}
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
         )}
         {assessment?.can_delete && (
-          <Button
-            variant="danger"
-            small
-            onClick={() => setDeleteOpen(true)}
-            data-testid="caw-delete-assessment-btn"
-          >
+          <Button variant="danger" small onClick={() => setDeleteOpen(true)} data-testid="caw-delete-assessment-btn">
             Delete assessment
           </Button>
         )}
       </header>
 
-      {actionError && (
-        <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>
-      )}
+      {actionError && <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>}
 
       {isAssessmentMissing && (
         <div className="action-row caw-not-started-banner" data-testid="caw-missing-assessment-banner">
           <div className="caw-not-started-content">
             <h2>Prepare assessment form</h2>
             <p className="subtext">
-              Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as it is today, so later changes to the syllabus never alter it.
+              Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as
+              it is today, so later changes to the syllabus never alter it.
             </p>
           </div>
           <Button
             variant="primary"
-            onClick={() => generateAssessmentMutation.mutate()}
+            onClick={() => generateAssessmentMutation.mutate(candidate.id)}
             disabled={generateAssessmentMutation.isPending || !canPrepare}
             data-testid="generate-assessment-btn"
           >
             {generateAssessmentMutation.isPending
-              ? "Preparing..."
+              ? "Preparing…"
               : !canPrepare
-              ? "Session must be draft or open to prepare"
-              : "Prepare assessment form"}
+                ? "The form cannot be prepared now"
+                : "Prepare assessment form"}
           </Button>
         </div>
       )}
 
       {/* After the lock only the authorised Master corrects a record, until their decision is made. */}
-      {afterLock && canEdit && (
+      {correctingAfterLock && (
         <Alert tone="warning" role="status" data-testid="caw-locked-correction-note">
-          This session is locked. As the authorised Master you can still correct a mark or add a
-          comment, with a reason, until this candidate&rsquo;s final decision is recorded. Each
-          correction is kept and shown with the decision.
+          This session is locked. As the authorised Master you can still correct a mark or add a comment, with a reason,
+          until this candidate&rsquo;s final decision is recorded. Each correction is kept and shown with the decision.
         </Alert>
       )}
 
@@ -378,21 +274,20 @@ export function CandidateAssessmentScreen() {
           <div className="caw-not-started-content">
             <h2>Assessment ready to begin</h2>
             <p className="subtext">
-              Candidates must have their assessment started before individual syllabus items
-              can be scored.
+              Candidates must have their assessment started before individual syllabus items can be scored.
             </p>
           </div>
           <Button
             variant="primary"
             onClick={() => startAssessmentMutation.mutate()}
-            disabled={startAssessmentMutation.isPending || session.status !== "OPEN"}
+            disabled={startAssessmentMutation.isPending || !canStart}
             data-testid="start-assessment-btn"
           >
             {startAssessmentMutation.isPending
-              ? "Starting..."
-              : session.status !== "OPEN"
-              ? "Session must be Open to start"
-              : "Start assessment"}
+              ? "Starting…"
+              : !canStart
+                ? "Session must be Open to start"
+                : "Start assessment"}
           </Button>
         </div>
       )}
@@ -406,18 +301,14 @@ export function CandidateAssessmentScreen() {
             <div key={group.category}>
               <CategoryHeader group={group} />
               {group.items.map((item) => (
-                <AssessmentItemRow
+                <ScoredItemRow
                   key={item.id}
+                  write={writeOptions(item.id)}
                   item={item}
                   canEdit={canEdit}
-                  reasonAlways={afterLock}
-                  assessmentCompleted={isAssessmentCompleted}
                   pendingResult={changing?.itemId === item.id ? changing.result : null}
                   isCommentOpen={openCommentId === item.id}
-                  onMark={(result) => {
-                    setChanging(null);
-                    updateItemMutation.mutate({ itemId: item.id, result });
-                  }}
+                  onMark={() => setChanging(null)}
                   onAskChange={(result) => {
                     setOpenCommentId(null);
                     setChanging({ itemId: item.id, result });
@@ -427,16 +318,11 @@ export function CandidateAssessmentScreen() {
                     // on to another item must not close that item's.
                     setChanging((current) => (current?.itemId === item.id ? null : current))
                   }
-                  onChangeResult={(result, reason) =>
-                    updateItemMutation.mutateAsync({ itemId: item.id, result, reason })
-                  }
                   onToggleComment={() => {
                     setChanging(null);
                     setOpenCommentId((current) => (current === item.id ? null : item.id));
                   }}
-                  onCloseComment={() =>
-                    setOpenCommentId((current) => (current === item.id ? null : current))
-                  }
+                  onCloseComment={() => setOpenCommentId((current) => (current === item.id ? null : current))}
                   onAddComment={(body) => addCommentMutation.mutateAsync({ itemId: item.id, body })}
                 />
               ))}
@@ -446,8 +332,7 @@ export function CandidateAssessmentScreen() {
 
         {categoryGroups.length > 0 && (
           <p className="caw-run-end meta">
-            End of assessment form · {categoryGroups.length}{" "}
-            {categoryGroups.length === 1 ? "category" : "categories"}
+            End of assessment form · {counted(categoryGroups.length, "category", "categories")}
             {assessment?.generated_at && ` · prepared ${formatDayMonth(assessment.generated_at)}`} from{" "}
             {candidate.age_band_display}
           </p>
@@ -469,23 +354,21 @@ export function CandidateAssessmentScreen() {
           ]}
         />
 
-        <span className="caw-mat-tally caw-mat-tally-met">
+        <span className="row row--inline row--1 caw-mat-tally-met">
           <CheckIcon size={13} />
           {`${stats.metCount} met`}
         </span>
-        <span className="caw-mat-tally caw-mat-tally-not-met">
+        <span className="row row--inline row--1 caw-mat-tally-not-met">
           <CrossIcon size={13} />
           {`${stats.notMetCount} not met`}
         </span>
-        <span className="caw-mat-tally caw-mat-tally-remaining">
-          {`${stats.remainingRequired} remaining`}
-        </span>
+        <span className="row row--inline row--1 caw-mat-tally-remaining">{`${stats.remainingRequired} remaining`}</span>
 
         <div className="caw-identity-spacer" />
 
         {isAssessmentCompleted ? (
           <Link className={buttonClass({ variant: "secondary" })} to={reviewPath} data-testid="caw-view-review-btn">
-            View completion record →
+            View completion record <ArrowRightIcon />
           </Link>
         ) : (
           <Button
@@ -496,16 +379,20 @@ export function CandidateAssessmentScreen() {
               isSavingItems
                 ? "Saving the last result"
                 : stats.canComplete
-                ? "Proceed to completion review"
-                : `${stats.remainingRequired} required items remain unassessed`
+                  ? "Proceed to completion review"
+                  : `${stats.remainingRequired} required items remain unassessed`
             }
             data-testid="caw-complete-assessment-btn"
           >
-            {isSavingItems
-              ? "Saving..."
-              : stats.canComplete
-              ? "Complete assessment →"
-              : `Complete assessment (${stats.remainingRequired} required remaining)`}
+            {isSavingItems ? (
+              "Saving…"
+            ) : stats.canComplete ? (
+              <>
+                Complete assessment <ArrowRightIcon />
+              </>
+            ) : (
+              `Complete assessment (${stats.remainingRequired} required remaining)`
+            )}
           </Button>
         )}
       </div>

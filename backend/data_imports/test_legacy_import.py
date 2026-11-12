@@ -23,6 +23,7 @@ from data_imports.testing import (
 )
 from data_imports.tests import admin_user, instructor_user, rank
 from gradings.models import LegacyGradingRecord, LegacyOutcome, LegacyRecordKind
+from ranks.models import Rank
 
 pytestmark = pytest.mark.django_db
 
@@ -95,6 +96,27 @@ def test_preview_suggests_an_exact_rank_match() -> None:
     assert suggestion.suggested_rank_code == "YELLOW"
 
 
+def test_each_spelling_says_the_rank_chosen_for_it_however_it_was_written() -> None:
+    content = standard_workbook(
+        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
+    )
+    batch = legacy_batch(content)
+
+    before = preview_legacy_grading_import(batch)
+    assert {s.source_text: s.chosen_rank_code for s in before.rank_suggestions} == {
+        "Blue Stripe": None,
+        "Yellow Belt": None,
+    }
+    # The choice is matched to the spelling whatever its case or spacing.
+    after = preview_legacy_grading_import(
+        batch, rank_mappings={" yellow belt ": "YELLOW"}
+    )
+    assert {s.source_text: s.chosen_rank_code for s in after.rank_suggestions} == {
+        "Blue Stripe": None,
+        "Yellow Belt": "YELLOW",
+    }
+
+
 @pytest.mark.parametrize(
     ("text", "code", "doubtful"),
     [
@@ -153,9 +175,34 @@ def test_preview_counts_unresolved_ranks_until_a_mapping_is_supplied() -> None:
     assert mapped.unresolved_current_rank == 0
 
 
+def test_every_preview_judges_each_record_against_the_ranks_as_they_are_now() -> None:
+    # The rank choices are saved once, but each preview reads them against
+    # the active ranks again: a rank switched off since is "not matched",
+    # on the row and in the counts alike, as the commit would find it.
+    content = standard_workbook(
+        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
+    )
+    batch = legacy_batch(content)
+    yellow = rank("YELLOW")
+    not_matched = "Rank 'Yellow Belt' is not matched to a KukGrade rank yet."
+
+    chosen = preview_legacy_grading_import(
+        batch,
+        rank_mappings={"Yellow Belt": yellow.code},
+    )
+    assert chosen.unresolved_current_rank == 0
+    assert not_matched not in batch.rows.get().issues
+
+    Rank.objects.filter(pk=yellow.pk).update(active=False)
+    again = preview_legacy_grading_import(batch)
+
+    assert again.unresolved_current_rank == 1
+    assert not_matched in batch.rows.get().issues
+
+
 def test_preview_counts_unresolved_free_form_outcomes() -> None:
     content = standard_workbook(
-        [["A. Example", "White", "Yellow Stripe", "Testing? JKN Adi: No", ""]],
+        [["A. Example", "White", "Yellow Stripe", "Testing? JKN Example: No", ""]],
     )
     batch = legacy_batch(content)
 
@@ -200,7 +247,7 @@ def test_commit_creates_one_legacy_record_per_row() -> None:
     assert AuditEvent.objects.count() == events_before + 1
 
 
-def test_commit_applies_approved_rank_mappings() -> None:
+def test_commit_applies_the_saved_rank_choices() -> None:
     admin = admin_user()
     content = standard_workbook(
         [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
@@ -208,11 +255,8 @@ def test_commit_applies_approved_rank_mappings() -> None:
     batch = legacy_batch(content, uploaded_by=admin)
     yellow = rank("YELLOW")
 
-    commit_legacy_grading_import(
-        batch,
-        actor=admin,
-        rank_mappings={"Yellow Belt": yellow.code},
-    )
+    preview_legacy_grading_import(batch, rank_mappings={"Yellow Belt": yellow.code})
+    commit_legacy_grading_import(batch, actor=admin)
 
     record = LegacyGradingRecord.objects.get(source_batch=batch)
     assert record.current_rank_id == yellow.pk
@@ -293,11 +337,7 @@ def test_instructor_cannot_preview_or_commit_a_legacy_batch() -> None:
     )
     assert preview_response.status_code == 403
 
-    commit_response = client.post(
-        f"/api/data-imports/batches/{batch.pk}/commit/",
-        {"rank_mappings": {}},
-        format="json",
-    )
+    commit_response = client.post(f"/api/data-imports/batches/{batch.pk}/commit/")
     assert commit_response.status_code == 403
 
 
@@ -332,11 +372,13 @@ def test_admin_completes_the_full_legacy_flow_via_the_api() -> None:
     assert any(s["source_text"] == "Yellow Belt" for s in body["rank_suggestions"])
 
     yellow = rank("YELLOW")
-    commit_response = client.post(
-        f"/api/data-imports/batches/{batch_id}/commit/",
+    chosen = client.post(
+        f"/api/data-imports/batches/{batch_id}/preview/",
         {"rank_mappings": {"Yellow Belt": yellow.code}},
         format="json",
     )
+    assert chosen.status_code == 200
+    commit_response = client.post(f"/api/data-imports/batches/{batch_id}/commit/")
     assert commit_response.status_code == 200
     assert commit_response.json()["id"] == batch_id
     assert ImportBatch.objects.get(pk=batch_id).status == ImportBatch.Status.COMMITTED

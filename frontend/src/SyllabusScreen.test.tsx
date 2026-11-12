@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SyllabusScreen } from "./SyllabusScreen";
 import { NETWORK_ERROR } from "./api";
 import type { AgeBand, EffectiveSyllabusRequirement, Rank } from "./api";
+import { jsonResponse, stubFetch } from "./appTestSupport";
 
 function renderScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -16,11 +17,41 @@ function renderScreen() {
   );
 }
 
+/** The screen opens on Yellow Stripe, the first rank with a syllabus; these tests read Yellow. */
+async function renderOnYellow() {
+  renderScreen();
+  await userEvent.setup().click(await screen.findByRole("button", { name: "Yellow" }));
+}
+
 const mockAgeBands: AgeBand[] = [
-  { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
-  { code: "AGE_9_TO_12", name: "9-12", description: "Junior ages 9-12", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
-  { code: "AGE_13_TO_17", name: "13-17", description: "Youth ages 13-17", programme: "ADULT", programme_display: "Adult & Youth" },
-  { code: "AGE_18_AND_OVER", name: "18+", description: "Adult ages 18+", programme: "ADULT", programme_display: "Adult & Youth" },
+  {
+    code: "AGE_8_AND_UNDER",
+    name: "8 and under",
+    description: "Little Dragon ages 8 and under",
+    programme: "JUNIOR",
+    programme_display: "Junior & Little Dragon",
+  },
+  {
+    code: "AGE_9_TO_12",
+    name: "9-12",
+    description: "Junior ages 9-12",
+    programme: "JUNIOR",
+    programme_display: "Junior & Little Dragon",
+  },
+  {
+    code: "AGE_13_TO_17",
+    name: "13-17",
+    description: "Youth ages 13-17",
+    programme: "ADULT",
+    programme_display: "Adult & Youth",
+  },
+  {
+    code: "AGE_18_AND_OVER",
+    name: "18+",
+    description: "Adult ages 18+",
+    programme: "ADULT",
+    programme_display: "Adult & Youth",
+  },
 ];
 
 const mockRanks: Rank[] = [
@@ -92,9 +123,7 @@ const mockRanks: Rank[] = [
   },
 ];
 
-function effectiveRow(
-  overrides: Partial<EffectiveSyllabusRequirement>,
-): EffectiveSyllabusRequirement {
+function effectiveRow(overrides: Partial<EffectiveSyllabusRequirement>): EffectiveSyllabusRequirement {
   return {
     item_code: "KI_BOHN_SOO",
     item_name: "Ki Bohn Soo",
@@ -236,24 +265,15 @@ const mockJknEffective: EffectiveSyllabusRequirement[] = [
   ),
 ];
 
-function jsonResponse(status: number, body: unknown): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  } as Response;
-}
-
 function paginated<T>(results: T[]) {
   return { count: results.length, next: null, previous: null, results };
 }
 
-function stubFetch(
+function serveSyllabus(
   effectiveByRank: Record<string, EffectiveSyllabusRequirement[]>,
   { effectiveFails = false, ranks = mockRanks }: { effectiveFails?: boolean; ranks?: Rank[] } = {},
 ) {
-  vi.stubGlobal(
-    "fetch",
+  stubFetch(
     vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/syllabus/age-bands/")) {
@@ -268,9 +288,7 @@ function stubFetch(
         }
         const match = /rank_code=([^&]+)/.exec(url);
         const rankCode = match ? match[1] : "";
-        return Promise.resolve(
-          jsonResponse(200, paginated(effectiveByRank[rankCode] ?? [])),
-        );
+        return Promise.resolve(jsonResponse(200, paginated(effectiveByRank[rankCode] ?? [])));
       }
       return Promise.resolve(jsonResponse(200, paginated([])));
     }),
@@ -282,10 +300,10 @@ describe("SyllabusScreen", () => {
     vi.restoreAllMocks();
   });
 
-  // Which categories are core areas is the server's to say (audit F-31): a
+  // Which categories are core areas is the server's to say: a
   // category the browser has never heard of follows the served flag.
   it("places rows by the served core flag, not by a category list of its own", async () => {
-    stubFetch({
+    serveSyllabus({
       YELLOW: [
         ...coreAreas,
         effectiveRow({
@@ -300,7 +318,7 @@ describe("SyllabusScreen", () => {
       ],
     });
 
-    renderScreen();
+    await renderOnYellow();
 
     const coreHeading = await screen.findByRole("heading", { name: "Core grading areas" });
     const coreStrip = coreHeading.closest("section, div") as HTMLElement;
@@ -309,9 +327,9 @@ describe("SyllabusScreen", () => {
   });
 
   it("renders header, filters, belt rail, core areas and a cumulative ledger per category", async () => {
-    stubFetch({ YELLOW: mockYellowEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective });
 
-    renderScreen();
+    await renderOnYellow();
 
     // Header
     expect(await screen.findByRole("heading", { name: "Syllabus" })).toBeVisible();
@@ -327,10 +345,7 @@ describe("SyllabusScreen", () => {
 
     // Belt track
     expect(screen.getByRole("region", { name: "Ranks" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Yellow" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: "Yellow" })).toHaveAttribute("aria-pressed", "true");
 
     // Rank title, subtitle and the "everything examinable" note
     expect(screen.getByRole("heading", { name: "Yellow", level: 2 })).toBeVisible();
@@ -340,7 +355,7 @@ describe("SyllabusScreen", () => {
     ).toBeVisible();
 
     // Next rank button
-    expect(screen.getByRole("button", { name: "Next rank: Blue Stripe →" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Next rank: Blue Stripe" })).toBeVisible();
 
     // Core grading areas: the core-category rows of the same response
     expect(screen.getByRole("heading", { name: "Core grading areas" })).toBeVisible();
@@ -365,17 +380,13 @@ describe("SyllabusScreen", () => {
     expect(screen.queryByRole("table", { name: "Weapons for this rank" })).not.toBeInTheDocument();
 
     // Footer
-    expect(
-      screen.getByText("Past assessments keep the wording they were graded on."),
-    ).toBeVisible();
-    expect(
-      screen.getByText("Preliminary reference: WKSA curriculum chart, 2014"),
-    ).toBeVisible();
+    expect(screen.getByText("Past assessments keep the wording they were graded on.")).toBeVisible();
+    expect(screen.getByText("Preliminary reference: WKSA curriculum chart, 2014")).toBeVisible();
   });
 
   it("shows carried-forward provenance and part notation for the Blue Stripe worked example", async () => {
     const user = userEvent.setup();
-    stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
     renderScreen();
 
@@ -391,9 +402,7 @@ describe("SyllabusScreen", () => {
     // Ki Bohn Soo: extended at Yellow, not new at Blue Stripe.
     const kiBohnSooRow = within(techniquesTable).getByText("1-15").closest("tr");
     expect(kiBohnSooRow).not.toBeNull();
-    expect(
-      within(kiBohnSooRow as HTMLElement).getByText("From Yellow Stripe, extended at Yellow"),
-    ).toBeVisible();
+    expect(within(kiBohnSooRow as HTMLElement).getByText("From Yellow Stripe, extended at Yellow")).toBeVisible();
     expect(within(kiBohnSooRow as HTMLElement).queryByText("NEW")).not.toBeInTheDocument();
     // Sohn Mohk Soo: introduced and effective at Blue Stripe itself.
     const sohnMohkSooRow = within(techniquesTable).getByText("Sohn Mohk Soo").closest("tr");
@@ -406,7 +415,7 @@ describe("SyllabusScreen", () => {
 
   it("lists weapons in their own ledger where the rank has them", async () => {
     const user = userEvent.setup();
-    stubFetch({ YELLOW: mockYellowEffective, JKN: mockJknEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective, JKN: mockJknEffective });
 
     renderScreen();
 
@@ -418,9 +427,7 @@ describe("SyllabusScreen", () => {
     expect(within(weaponsTable).getByText("Bohng Dol-li-ki")).toBeVisible();
     expect(within(weaponsTable).getByText("1-15")).toBeVisible();
     // Ledgers follow the served order: techniques, forms, then weapons.
-    expect(
-      screen.getAllByRole("table").map((table) => table.getAttribute("aria-label")),
-    ).toEqual([
+    expect(screen.getAllByRole("table").map((table) => table.getAttribute("aria-label"))).toEqual([
       "Technique set for this rank",
       "Form for this rank",
       "Weapons for this rank",
@@ -429,7 +436,7 @@ describe("SyllabusScreen", () => {
 
   it("switches rank when belt button or testing for selector is changed", async () => {
     const user = userEvent.setup();
-    stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
     renderScreen();
 
@@ -439,7 +446,7 @@ describe("SyllabusScreen", () => {
     expect(blueStripeBtn).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Testing for")).toHaveValue("BLUE_STRIPE");
     expect(await screen.findByRole("heading", { name: "Blue Stripe", level: 2 })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Next rank: Blue →" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Next rank: Blue" })).toBeVisible();
 
     const techniquesTable = await screen.findByRole("table", {
       name: "Technique set for this rank",
@@ -447,14 +454,14 @@ describe("SyllabusScreen", () => {
     expect(await within(techniquesTable).findByText("Sohn Mohk Soo")).toBeVisible();
   });
 
-  it("advances to next rank when clicking 'Next rank: ... →'", async () => {
+  it("advances to next rank when clicking 'Next rank: ...'", async () => {
     const user = userEvent.setup();
-    stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
-    renderScreen();
+    await renderOnYellow();
 
     const nextRankBtn = await screen.findByRole("button", {
-      name: "Next rank: Blue Stripe →",
+      name: "Next rank: Blue Stripe",
     });
     await user.click(nextRankBtn);
 
@@ -462,9 +469,19 @@ describe("SyllabusScreen", () => {
     expect(screen.getByLabelText("Testing for")).toHaveValue("BLUE_STRIPE");
   });
 
+  it("opens on the first served rank that has a syllabus, and the first served age band", async () => {
+    serveSyllabus({});
+
+    renderScreen();
+
+    await waitFor(() => expect(screen.getByLabelText("Testing for")).toHaveValue("YELLOW_STRIPE"));
+    expect(screen.getByLabelText("Age group")).toHaveValue("AGE_8_AND_UNDER");
+    expect(screen.getByLabelText("Curriculum")).toHaveValue("JUNIOR");
+  });
+
   it("synchronizes curriculum track and age band selections", async () => {
     const user = userEvent.setup();
-    stubFetch({});
+    serveSyllabus({});
 
     renderScreen();
 
@@ -499,7 +516,10 @@ describe("SyllabusScreen", () => {
       next_rank: null,
       has_syllabus: false,
     };
-    stubFetch({ YELLOW: mockYellowEffective }, { ranks: [...mockRanks.map((rank) => (rank === jkn ? { ...rank, next_rank: 99 } : rank)), notRecorded] });
+    serveSyllabus(
+      { YELLOW: mockYellowEffective },
+      { ranks: [...mockRanks.map((rank) => (rank === jkn ? { ...rank, next_rank: 99 } : rank)), notRecorded] },
+    );
 
     renderScreen();
 
@@ -512,13 +532,13 @@ describe("SyllabusScreen", () => {
   });
 
   it("says so when no syllabus is recorded for the rank, rather than showing earlier ranks' content", async () => {
-    stubFetch({});
+    serveSyllabus({});
 
     renderScreen();
 
     expect(
       await screen.findByText(
-        "No syllabus is recorded for Yellow in this age group yet, so nobody can be assessed for it.",
+        "No syllabus is recorded for Yellow Stripe in this age group yet, so nobody can be assessed for it.",
       ),
     ).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Core grading areas" })).not.toBeInTheDocument();
@@ -527,7 +547,7 @@ describe("SyllabusScreen", () => {
   });
 
   it("renders error banner when the effective-requirements fetch fails", async () => {
-    stubFetch({}, { effectiveFails: true });
+    serveSyllabus({}, { effectiveFails: true });
 
     renderScreen();
 

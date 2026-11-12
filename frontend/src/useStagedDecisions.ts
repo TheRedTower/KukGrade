@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -13,9 +13,13 @@ import {
 } from "./api";
 import { type BoardRow, type StagedDecision, fromServer, missingRequirements, without } from "./adjudicationBoard";
 import { keys, refresh } from "./queryKeys";
+import { agreeing, counted } from "./plural";
+import { useDebouncedValue } from "./useDebouncedValue";
 
 // How long typing settles before a staged decision is kept on the server.
 const KEEP_DELAY_MS = 600;
+// Stands for a row whose last save failed: no staged decision matches it.
+const UNKNOWN = "";
 
 interface Options {
   sessionId: number;
@@ -40,12 +44,11 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   const [failures, setFailures] = useState<Record<number, string>>({});
   const [lastResult, setLastResult] = useState<string | null>(null);
   const resultRef = useRef<HTMLParagraphElement>(null);
-  // What the server holds for each staged row, so only changes are sent.
-  // What the server has acknowledged for each staged row, what the screen
-  // wants it to hold once typing settles, and the one write in flight per row.
-  const keptOnServer = useRef<Record<number, string> | null>(null);
-  const wanted = useRef<Record<number, string>>({});
-  const saving = useRef<Record<number, Promise<void>>>({});
+  // What the server will hold for each staged row once the writes sent so
+  // far land, so only changes are sent, and which write to each row is the
+  // latest, so only its answer counts.
+  const sent = useRef<Record<number, string> | null>(null);
+  const writeSeq = useRef<Record<number, number>>({});
   const [restored, setRestored] = useState<ApiStagedDecision[] | null>(null);
   const [keepFailures, setKeepFailures] = useState<Record<number, string>>({});
 
@@ -71,8 +74,13 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   }
   const canStage = restored !== null && !isRecording;
 
+  // Keeping and recording share one queue, so writes land in the order they
+  // were made: a row's last edit is its last write, and a decision is
+  // recorded only after every save before it has landed.
+  const scope = { id: JSON.stringify(keys.stagedDecisions(sessionId)) };
   // Each write goes through the mutation cache, so an expired session signs the viewer out.
   const keepMutation = useMutation({
+    scope,
     mutationFn: async ({ outcomeId, decision }: { outcomeId: number; decision: StagedDecision | null }) => {
       if (!decision) return discardStagedDecision(outcomeId);
       await stageDecision(outcomeId, {
@@ -84,53 +92,42 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   });
   const keep = keepMutation.mutateAsync;
 
-  // Sends a row's wanted state, one write at a time, so the last edit is the
-  // last write; a change made meanwhile is sent when the write in flight ends.
-  const flush = useCallback(
-    function flush(outcomeId: number) {
-      const kept = keptOnServer.current;
-      if (!kept || outcomeId in saving.current) return;
-      const json = wanted.current[outcomeId];
-      if (json === kept[outcomeId]) return;
-      const decision = json === undefined ? null : (JSON.parse(json) as StagedDecision);
-      saving.current[outcomeId] = keep({ outcomeId, decision }).then(
+  // Every change to what is staged is kept once typing settles. Not while
+  // recording (recording removes the server's copy itself), and not until the
+  // settled value has caught up with what is staged now.
+  const settled = useDebouncedValue(staged, KEEP_DELAY_MS);
+  useEffect(() => {
+    if (restored === null || isRecording || settled !== staged) return;
+    sent.current ??= Object.fromEntries(
+      Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
+    );
+    const onServer = sent.current;
+    new Set([...Object.keys(settled), ...Object.keys(onServer)].map(Number)).forEach((outcomeId) => {
+      const decision = settled[outcomeId];
+      const json = decision === undefined ? undefined : JSON.stringify(decision);
+      if (json === onServer[outcomeId]) return;
+      if (json === undefined) delete onServer[outcomeId];
+      else onServer[outcomeId] = json;
+      const seq = (writeSeq.current[outcomeId] ?? 0) + 1;
+      writeSeq.current[outcomeId] = seq;
+      const isLatest = () => writeSeq.current[outcomeId] === seq;
+      keep({ outcomeId, decision: decision ?? null }).then(
         () => {
-          delete saving.current[outcomeId];
-          if (json === undefined) delete kept[outcomeId];
-          else kept[outcomeId] = json;
-          setKeepFailures((current) => without(current, outcomeId));
-          flush(outcomeId);
+          if (isLatest()) setKeepFailures((current) => without(current, outcomeId));
         },
         (err: unknown) => {
-          delete saving.current[outcomeId];
-          // Changed, recorded or unstaged since: what is wanted now is tried instead.
-          if (wanted.current[outcomeId] !== json) return flush(outcomeId);
+          // A later change is queued behind this one and is kept instead.
+          if (!isLatest()) return;
+          // What the server holds is now unknown, so the next change is sent whatever it is.
+          onServer[outcomeId] = UNKNOWN;
           setKeepFailures((current) => ({
             ...current,
             [outcomeId]: errorMessage(err, "Your staged decisions could not be kept."),
           }));
         },
       );
-    },
-    [keep],
-  );
-
-  // Every change to what is staged is kept once typing settles. Not while
-  // recording: recording removes the server's copy itself.
-  useEffect(() => {
-    if (restored === null || isRecording) return;
-    keptOnServer.current ??= Object.fromEntries(
-      Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
-    );
-    const kept = keptOnServer.current;
-    const timer = window.setTimeout(() => {
-      wanted.current = Object.fromEntries(
-        Object.entries(staged).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
-      );
-      new Set([...Object.keys(staged), ...Object.keys(kept)].map(Number)).forEach(flush);
-    }, KEEP_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [staged, restored, isRecording, flush]);
+    });
+  }, [settled, staged, restored, isRecording, keep]);
 
   function stage(row: BoardRow, outcome: CandidateOutcomeOutcome) {
     const outcomeId = row.outcome?.id;
@@ -157,9 +154,9 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     );
   }
 
-
   // Each write goes through the mutation cache, so a session that expired mid-way signs the viewer out.
   const finaliseMutation = useMutation({
+    scope,
     mutationFn: (write: { outcomeId: number; payload: Parameters<typeof finaliseCandidateOutcome>[1] }) =>
       finaliseCandidateOutcome(write.outcomeId, write.payload),
   });
@@ -170,8 +167,6 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     }
     setIsRecording(true);
     setLastResult(null);
-    // A save still in flight would otherwise land after its decision is recorded.
-    await Promise.allSettled(Object.values(saving.current));
     const failed: Record<number, string> = {};
     const recorded = new Set<number>();
     // One candidate at a time: each row stands or falls on its own.
@@ -183,8 +178,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
           payload: {
             final_outcome: decision.outcome,
             decision_notes: decision.notes.trim(),
-            conditional_requirements:
-              decision.outcome === "CONDITIONAL" ? decision.conditionalRequirements.trim() : "",
+            conditional_requirements: decision.outcome === "CONDITIONAL" ? decision.conditionalRequirements.trim() : "",
           },
         });
         recorded.add(outcomeId);
@@ -200,10 +194,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
       return next;
     });
     // Recording removed the server's copies.
-    recorded.forEach((oid) => {
-      delete keptOnServer.current?.[oid];
-      delete wanted.current[oid];
-    });
+    recorded.forEach((oid) => delete sent.current?.[oid]);
     setKeepFailures((current) => [...recorded].reduce(without, current));
     setFailures((current) => {
       const next = { ...current };
@@ -214,8 +205,8 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     const kept = outcomeIds.length - recorded.size;
     setLastResult(
       kept === 0
-        ? `${recorded.size} ${recorded.size === 1 ? "decision" : "decisions"} recorded.`
-        : `${recorded.size} recorded, ${kept} could not be recorded and ${kept === 1 ? "remains" : "remain"} staged.`,
+        ? `${counted(recorded.size, "decision", "decisions")} recorded.`
+        : `${recorded.size} recorded, ${kept} could not be recorded and ${agreeing(kept, "remains", "remain")} staged.`,
     );
     setIsRecording(false);
     // The roster carries each outcome, so recording reads it (and the lists that still hold outcomes) again.
@@ -224,7 +215,9 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
 
   const stagedIds = Object.keys(staged).map(Number);
   const incomplete = stagedIds.filter((outcomeId) => missingRequirements(staged[outcomeId]));
-  const failedIds = Object.keys(failures).map(Number).filter((oid) => oid in staged);
+  const failedIds = Object.keys(failures)
+    .map(Number)
+    .filter((oid) => oid in staged);
 
   return {
     staged,

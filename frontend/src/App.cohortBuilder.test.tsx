@@ -12,10 +12,7 @@ import type {
   Rank,
   StudentListItem,
 } from "./api";
-import {
-  ADMINISTRATOR_CAPABILITIES,
-  jsonResponse,
-} from "./appTestSupport";
+import { ADMINISTRATOR_CAPABILITIES, jsonResponse, sessionServed, CHOICES, stubFetch } from "./appTestSupport";
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/register)
@@ -47,7 +44,11 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
-    can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+    ...sessionServed("DRAFT"),
+    can_be_deleted: false,
+    archived_at: null,
+    can_be_archived: false,
+    can_be_restored: false,
     notes: "",
   };
 
@@ -98,6 +99,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "White",
       status: "ACTIVE",
       can_be_graded: true,
+      next_rank: 2,
+      next_rank_name: "Yellow stripe",
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -113,6 +116,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "White",
       status: "INACTIVE",
       can_be_graded: true,
+      next_rank: 2,
+      next_rank_name: "Yellow stripe",
       status_display: "Inactive",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -128,6 +133,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "Yellow stripe",
       status: "ACTIVE",
       can_be_graded: true,
+      next_rank: 3,
+      next_rank_name: "Yellow",
       status_display: "Active",
       age_band: "AGE_13_TO_17",
       age_band_display: "13-17",
@@ -143,6 +150,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "White",
       status: "LEFT",
       can_be_graded: false,
+      next_rank: 2,
+      next_rank_name: "Yellow stripe",
       status_display: "Left",
       age_band: "AGE_8_AND_UNDER",
       age_band_display: "8 and under",
@@ -158,6 +167,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "Yellow stripe",
       status: "ACTIVE",
       can_be_graded: true,
+      next_rank: 3,
+      next_rank_name: "Yellow",
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -170,6 +181,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     session: 10,
     student: 105,
     student_display_name: "Eve Existing",
+    student_first_name: "Eve",
     student_wksa_id: "KG-0105",
     from_rank: 2,
     from_rank_name: "Yellow stripe",
@@ -210,16 +222,39 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   const mockAgeBands: AgeBand[] = [
-    { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
-    { code: "AGE_9_TO_12", name: "9-12", description: "Junior ages 9-12", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
-    { code: "AGE_13_TO_17", name: "13-17", description: "Youth ages 13-17", programme: "ADULT", programme_display: "Adult & Youth" },
-    { code: "AGE_18_AND_OVER", name: "18+", description: "Adult ages 18+", programme: "ADULT", programme_display: "Adult & Youth" },
+    {
+      code: "AGE_8_AND_UNDER",
+      name: "8 and under",
+      description: "Little Dragon ages 8 and under",
+      programme: "JUNIOR",
+      programme_display: "Junior & Little Dragon",
+    },
+    {
+      code: "AGE_9_TO_12",
+      name: "9-12",
+      description: "Junior ages 9-12",
+      programme: "JUNIOR",
+      programme_display: "Junior & Little Dragon",
+    },
+    {
+      code: "AGE_13_TO_17",
+      name: "13-17",
+      description: "Youth ages 13-17",
+      programme: "ADULT",
+      programme_display: "Adult & Youth",
+    },
+    {
+      code: "AGE_18_AND_OVER",
+      name: "18+",
+      description: "Adult ages 18+",
+      programme: "ADULT",
+      programme_display: "Adult & Youth",
+    },
   ];
 
-  function setupCohortMock(options?: {
-    bulkRegisterHandler?: (body: unknown) => Response;
-  }) {
+  function setupCohortMock(options?: { bulkRegisterHandler?: (body: unknown) => Response }) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/candidates/bulk-register/") && init?.method === "POST") {
         if (options?.bulkRegisterHandler) {
@@ -262,7 +297,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   }
 
   it("renders cohort builder workspace layout, session info, and eligible rank groups", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
 
     render(<App />);
 
@@ -299,7 +334,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("adds whole rank groups to cohort and updates selected count and progression", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -317,14 +352,14 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(registerBtn).toHaveTextContent("Register 2 candidates");
     expect(registerBtn).toBeEnabled();
 
-    // Left table White group button and individual student rows should now show "Added ✓"
-    expect(screen.getByTestId("bgc-group-added-1")).toHaveTextContent("Added ✓");
-    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added ✓");
-    expect(screen.getByTestId("bgc-student-added-102")).toHaveTextContent("Added ✓");
+    // Left table White group button and individual student rows should now show "Added"
+    expect(screen.getByTestId("bgc-group-added-1")).toHaveTextContent("Added");
+    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added");
+    expect(screen.getByTestId("bgc-student-added-102")).toHaveTextContent("Added");
   });
 
   it("renders matching eligible students table with details and individual add/remove buttons", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -351,16 +386,16 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
 
     // Right tray updates to 1 candidate selected
     expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("1 candidate selected");
-    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added ✓");
+    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added");
 
-    // Click "Added ✓" on Alice to remove her
+    // Click "Added" on Alice to remove her
     await user.click(screen.getByTestId("bgc-student-added-101"));
     expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("0 candidates selected");
     expect(screen.getByTestId("bgc-add-student-101")).toHaveTextContent("+ Add");
   });
 
   it("filters eligible students by age group and updates matching student records and rank groups", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -376,7 +411,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(screen.getByTestId("bgc-empty-filtered")).toHaveTextContent(
       "No eligible students match the selected filters.",
     );
-    expect(screen.getByText("No eligible students match the selected filters.", { selector: ".rtable__empty" })).toBeVisible();
+    expect(
+      screen.getByText("No eligible students match the selected filters.", { selector: ".rtable__empty" }),
+    ).toBeVisible();
 
     // Filter to "13-17" (AGE_13_TO_17) - Charlie Brown (103) matches
     await user.selectOptions(ageSelect, "AGE_13_TO_17");
@@ -400,7 +437,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
 
   it("asks the server for the eligible students matching the filters instead of downloading the roster", async () => {
     const fetchMock = setupCohortMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -427,7 +464,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("filters eligible students and adds filtered students to cohort", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -451,7 +488,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("opens review exceptions modal and allows removing an individual candidate", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -462,12 +499,12 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     await user.click(screen.getByTestId("bgc-add-group-1"));
     expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("2 candidates selected");
 
-    // Click "Review exceptions →"
+    // Click "Review candidates"
     const reviewExceptionsButton = screen.getByTestId("bgc-review-exceptions-btn");
     await user.click(reviewExceptionsButton);
 
     // Modal opens
-    expect(screen.getByRole("heading", { name: "Review cohort candidates (2)" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Review candidates (2)" })).toBeVisible();
     expect(screen.getByTestId("bgc-modal-done-btn")).toHaveFocus();
     expect(screen.getByText("Alice Smith", { selector: ".item-title" })).toBeVisible();
     expect(screen.getByText("Bob Jones", { selector: ".item-title" })).toBeVisible();
@@ -496,7 +533,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
         } satisfies BulkCandidateRegistrationResponse);
       },
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -531,13 +568,13 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
         return jsonResponse(200, {
           created: [{ candidate: registeredRow(101), assessment: null }],
           errors: {
-            "1": ["Student is already registered for this session."],
+            "102": ["Student is already registered for this session."],
           },
-          already_registered: { "1": "THIS_SESSION" },
+          already_registered: { "102": "THIS_SESSION" },
         } satisfies BulkCandidateRegistrationResponse);
       },
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -569,14 +606,19 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   it("counts what a retry registers and keeps the rows it did not send", async () => {
     const heldElsewhere = "This student is already registered for 'Summer Grading'.";
     const responses: BulkCandidateRegistrationResponse[] = [
-      { created: [], errors: { "0": [heldElsewhere], "1": ["Temporary problem."], "2": ["Another problem."] }, already_registered: { "0": "ANOTHER_GRADING" } },
-      { created: [{ candidate: registeredRow(102), assessment: null }], errors: { "1": ["Still a problem."] }, already_registered: {} },
+      {
+        created: [],
+        errors: { "101": [heldElsewhere], "102": ["Temporary problem."], "103": ["Another problem."] },
+        already_registered: { "101": "ANOTHER_GRADING" },
+      },
+      {
+        created: [{ candidate: registeredRow(102), assessment: null }],
+        errors: { "103": ["Still a problem."] },
+        already_registered: {},
+      },
       { created: [{ candidate: registeredRow(103), assessment: null }], errors: {}, already_registered: {} },
     ];
-    vi.stubGlobal(
-      "fetch",
-      setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }),
-    );
+    stubFetch(setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -597,7 +639,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
 
     expect(await screen.findByText("2 registered")).toBeVisible();
     expect(screen.getByText("1 flagged")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: /View 2 successful registrations/ }));
+    await user.click(screen.getByText(/View 2 successful registrations/));
     expect(screen.getByText("Bob Jones")).toBeVisible();
     expect(screen.getByText(/Charlie/)).toBeVisible();
   });
@@ -605,13 +647,14 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   it("stays on the flagged list when a retry succeeds but rows it did not send remain", async () => {
     const heldElsewhere = "This student is already registered for 'Summer Grading'.";
     const responses: BulkCandidateRegistrationResponse[] = [
-      { created: [], errors: { "0": [heldElsewhere], "1": ["Temporary problem."] }, already_registered: { "0": "ANOTHER_GRADING" } },
+      {
+        created: [],
+        errors: { "101": [heldElsewhere], "102": ["Temporary problem."] },
+        already_registered: { "101": "ANOTHER_GRADING" },
+      },
       { created: [{ candidate: registeredRow(102), assessment: null }], errors: {}, already_registered: {} },
     ];
-    vi.stubGlobal(
-      "fetch",
-      setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }),
-    );
+    stubFetch(setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -629,13 +672,12 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("goes on to the session once the last flagged row is removed", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       setupCohortMock({
         bulkRegisterHandler: () =>
           jsonResponse(200, {
             created: [{ candidate: registeredRow(101), assessment: null }],
-            errors: { "1": ["Temporary problem."] },
+            errors: { "102": ["Temporary problem."] },
             already_registered: {},
           } satisfies BulkCandidateRegistrationResponse),
       }),
@@ -654,11 +696,14 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("returns to an empty cohort when nothing was registered and the last row is removed", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       setupCohortMock({
         bulkRegisterHandler: () =>
-          jsonResponse(200, { created: [], errors: { "0": ["This student cannot be registered."] }, already_registered: {} }),
+          jsonResponse(200, {
+            created: [],
+            errors: { "101": ["This student cannot be registered."] },
+            already_registered: {},
+          }),
       }),
     );
     const user = userEvent.setup();
@@ -680,11 +725,14 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       "This student is already registered for 'Summer Grading', which has not reached its " +
       "result yet. A student is registered for one grading at a time; an administrator can " +
       "correct a registration made in error.";
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       setupCohortMock({
         bulkRegisterHandler: () =>
-          jsonResponse(200, { created: [], errors: { "0": [heldElsewhere] }, already_registered: { "0": "ANOTHER_GRADING" } }),
+          jsonResponse(200, {
+            created: [],
+            errors: { "101": [heldElsewhere] },
+            already_registered: { "101": "ANOTHER_GRADING" },
+          }),
       }),
     );
     const user = userEvent.setup();

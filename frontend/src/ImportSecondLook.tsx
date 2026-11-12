@@ -1,35 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
-import { type DataImportBatch, getDataImportRows } from "./api";
-import { counted } from "./importSteps";
+import { labelOf, useChoices } from "./choices";
+import { type DataImportBatch, getDataImportSecondLook } from "./api";
 import { Button } from "./Button";
 import type { RowFilter } from "./ImportRowsLedger";
-
-/** How many of a roster's added rows match a filter, for the second look. */
-function useAddedCount(batch: DataImportBatch, filter: "corrected" | "status" | "current_rank") {
-  return useQuery({
-    queryKey: ["imports", "rows", batch.id, "addedCount", filter],
-    queryFn: () =>
-      getDataImportRows(batch.id, {
-        outcome: "READY",
-        ...(filter === "corrected" ? { corrected: true } : { filled: filter }),
-        page_size: 1,
-      }),
-  }).data?.count;
-}
+import { keys } from "./queryKeys";
+import { counted } from "./plural";
 
 /** Students: what KukGrade filled in, for a second look. */
 export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: (filter: RowFilter) => void }) {
-  const fixed = useAddedCount(batch, "corrected") ?? 0;
-  const givenStatus = useAddedCount(batch, "status") ?? 0;
-  const givenRank = useAddedCount(batch, "current_rank") ?? 0;
+  const statuses = useChoices().student_statuses;
+  const counts = useQuery({
+    queryKey: keys.imports.secondLook(batch.id),
+    queryFn: () => getDataImportSecondLook(batch.id),
+  }).data;
+  const fixed = counts?.corrected ?? 0;
+  const givenStatus = counts?.given_status ?? 0;
+  const givenRank = counts?.given_rank ?? 0;
   const items: { title: string; body: string; show?: RowFilter; count?: number }[] = [];
   if (givenStatus) {
     const status = batch.defaults.status ?? "ACTIVE";
     items.push({
-      title: `${counted(givenStatus, "student", "students")} given the status ${status.charAt(0)}${status.slice(1).toLowerCase()}`,
+      title: `${counted(givenStatus, "student", "students")} given the status ${labelOf(statuses, status)}`,
       body: batch.defaults.status
         ? "The file gave them no status, so the status you set for the whole file was used."
-        : "The file gave them no status, so KukGrade used Active.",
+        : `The file gave them no status, so KukGrade used ${labelOf(statuses, status)}.`,
       show: "status",
       count: givenStatus,
     });
@@ -66,8 +60,7 @@ export function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: 
             What KukGrade filled in for you
           </h2>
           <p className="subtext">
-            Everything was imported. These are the details that did not all come straight from
-            the file.
+            Everything was imported. These are the details that did not all come straight from the file.
           </p>
         </div>
       </div>

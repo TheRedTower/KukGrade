@@ -24,7 +24,10 @@ export async function findOverflow(page: Page, width: number): Promise<string[]>
     const screenWidth = Math.min(document.documentElement.clientWidth, width);
     const label = (el: Element): string => {
       const id = el.id ? `#${el.id}` : "";
-      const cls = [...el.classList].slice(0, 2).map((c) => `.${c}`).join("");
+      const cls = [...el.classList]
+        .slice(0, 2)
+        .map((c) => `.${c}`)
+        .join("");
       const text = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 32);
       return `${el.tagName.toLowerCase()}${id}${cls}${text ? ` "${text}"` : ""}`;
     };
@@ -37,8 +40,7 @@ export async function findOverflow(page: Page, width: number): Promise<string[]>
       }
       return false;
     };
-    const skipped = (el: Element) =>
-      el.closest("[data-scroll-ok], svg") !== null || hiddenOnPurpose(el);
+    const skipped = (el: Element) => el.closest("[data-scroll-ok], svg") !== null || hiddenOnPurpose(el);
 
     if (document.documentElement.scrollWidth > screenWidth) {
       pageScrolls = `the page scrolls sideways (${document.documentElement.scrollWidth} > ${screenWidth})`;
@@ -54,7 +56,12 @@ export async function findOverflow(page: Page, width: number): Promise<string[]>
       if (style.visibility === "hidden" || style.opacity === "0") continue;
       if (html.clientWidth > 2 && html.scrollWidth > html.clientWidth + 1) {
         const overflowX = style.overflowX;
-        const how = overflowX === "visible" ? "spills out of" : overflowX === "auto" || overflowX === "scroll" ? "scrolls sideways inside" : "is cut off inside";
+        const how =
+          overflowX === "visible"
+            ? "spills out of"
+            : overflowX === "auto" || overflowX === "scroll"
+              ? "scrolls sideways inside"
+              : "is cut off inside";
         found.push({ el, why: `content ${how} its box` });
       } else if (rect.right > screenWidth + 1 || rect.left < -1) {
         found.push({ el, why: "sits outside the screen" });
@@ -86,7 +93,8 @@ export async function findOverflow(page: Page, width: number): Promise<string[]>
     if (!pageScrolls) return culprits;
     // The page is wider than the screen: name the innermost boxes that stick out.
     const sticking = [...document.body.querySelectorAll("*")].filter(
-      (el) => !skipped(el) && el.getBoundingClientRect().right > screenWidth + 1 && el.getBoundingClientRect().width > 0,
+      (el) =>
+        !skipped(el) && el.getBoundingClientRect().right > screenWidth + 1 && el.getBoundingClientRect().width > 0,
     );
     const innermost = sticking.filter((el) => !sticking.some((other) => other !== el && el.contains(other)));
     return [pageScrolls, ...innermost.slice(0, 5).map((el) => `sticks out: ${label(el)}`), ...culprits];
@@ -118,10 +126,18 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
       const rect = target.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
       if (el instanceof HTMLSelectElement && style.backgroundImage === "none") {
-        out.push(`select${[...el.classList].slice(0, 1).map((c) => `.${c}`).join("")} has no arrow, so it does not look like a dropdown`);
+        out.push(
+          `select${[...el.classList]
+            .slice(0, 1)
+            .map((c) => `.${c}`)
+            .join("")} has no arrow, so it does not look like a dropdown`,
+        );
       }
       if (rect.height >= min - 0.5 && rect.width >= min - 0.5) continue;
-      const cls = [...el.classList].slice(0, 2).map((c) => `.${c}`).join("");
+      const cls = [...el.classList]
+        .slice(0, 2)
+        .map((c) => `.${c}`)
+        .join("");
       const text = (target.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 24);
       const key = `${el.tagName.toLowerCase()}${cls} "${text}" ${Math.round(rect.width)}x${Math.round(rect.height)}`;
       if (!seen.has(key)) {
@@ -148,7 +164,10 @@ export async function findLayoutFaults(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const out: string[] = [];
     const label = (el: Element): string => {
-      const cls = [...el.classList].slice(0, 2).map((c) => `.${c}`).join("");
+      const cls = [...el.classList]
+        .slice(0, 2)
+        .map((c) => `.${c}`)
+        .join("");
       const text = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 32);
       return `${el.tagName.toLowerCase()}${cls}${text ? ` "${text}"` : ""}`;
     };
@@ -156,7 +175,8 @@ export async function findLayoutFaults(page: Page): Promise<string[]> {
       for (let up: Element | null = el; up; up = up.parentElement) {
         if (up.matches(".visually-hidden, [data-scroll-ok], [data-clip-ok], svg")) return false;
         const style = getComputedStyle(up);
-        if (style.display === "none" || style.visibility === "hidden" || style.clipPath.startsWith("inset(50%")) return false;
+        if (style.display === "none" || style.visibility === "hidden" || style.clipPath.startsWith("inset(50%"))
+          return false;
       }
       return true;
     };
@@ -168,7 +188,8 @@ export async function findLayoutFaults(page: Page): Promise<string[]> {
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = node.textContent ?? "";
       const parent = node.parentElement;
-      if (!parent || !/\S{2}/.test(text) || ["SCRIPT", "STYLE", "TEXTAREA", "OPTION"].includes(parent.tagName)) continue;
+      if (!parent || !/\S{2}/.test(text) || ["SCRIPT", "STYLE", "TEXTAREA", "OPTION"].includes(parent.tagName))
+        continue;
       if (!shown(parent)) continue;
       // A run of text too long for any box on this screen (a long web
       // address) has nowhere whole to go. Its own box is not the measure: a

@@ -6,18 +6,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StudentDetailScreen } from "./StudentDetailScreen";
 import { ApiError } from "./api";
-import type {
-  AuthUser,
-  StudentDetail,
-  StudentGradingHistory,
-  StudentRankHistory,
-} from "./api";
+import { CHOICES } from "./appTestSupport";
+import type { AuthUser, StudentDetail, StudentGradingHistory, StudentRankHistory } from "./api";
 
 let currentUser: AuthUser;
 const mockGetStudent = vi.fn();
 const mockGetStudentRankHistory = vi.fn();
 const mockGetStudentGradingHistory = vi.fn();
-const mockGetRanks = vi.fn();
 const mockDeleteStudent = vi.fn();
 
 vi.mock("./auth", () => ({
@@ -28,12 +23,10 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
+    getChoices: async () => CHOICES,
     getStudent: (...args: unknown[]) => mockGetStudent(...args),
-    getStudentRankHistory: (...args: unknown[]) =>
-      mockGetStudentRankHistory(...args),
-    getStudentGradingHistory: (...args: unknown[]) =>
-      mockGetStudentGradingHistory(...args),
-    getRanks: (...args: unknown[]) => mockGetRanks(...args),
+    getStudentRankHistory: (...args: unknown[]) => mockGetStudentRankHistory(...args),
+    getStudentGradingHistory: (...args: unknown[]) => mockGetStudentGradingHistory(...args),
     deleteStudent: (...args: unknown[]) => mockDeleteStudent(...args),
   };
 });
@@ -51,6 +44,11 @@ const student = {
   current_rank_name: "Yellow Stripe",
   status: "ACTIVE",
   status_display: "Active",
+  can_be_graded: true,
+  next_rank: null,
+  next_rank_name: null,
+  can_be_deleted: false,
+  deletion_blocked_by: null,
   age_band_display: "9-12",
   deleted_at: null,
   created_at: "2025-01-01T00:00:00Z",
@@ -85,9 +83,6 @@ describe("StudentDetailScreen delete action", () => {
     mockGetStudent.mockReset().mockResolvedValue(student);
     mockGetStudentRankHistory.mockReset().mockResolvedValue(rankHistory);
     mockGetStudentGradingHistory.mockReset().mockResolvedValue(gradingHistory);
-    mockGetRanks
-      .mockReset()
-      .mockResolvedValue({ count: 0, next: null, previous: null, results: [] });
     mockDeleteStudent.mockReset().mockResolvedValue(undefined);
   });
 
@@ -114,15 +109,9 @@ describe("StudentDetailScreen delete action", () => {
     };
 
     renderScreen();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "Alex Kim" }),
-      ).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Alex Kim" })).toBeInTheDocument());
 
-    expect(
-      screen.queryByRole("button", { name: "Delete student" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete student" })).not.toBeInTheDocument();
   });
 
   function signInAsAdministrator() {
@@ -150,6 +139,7 @@ describe("StudentDetailScreen delete action", () => {
 
   it("lets an administrator delete the student after confirming", async () => {
     signInAsAdministrator();
+    mockGetStudent.mockResolvedValue({ ...student, can_be_deleted: true });
     const user = userEvent.setup();
 
     renderScreen();
@@ -161,18 +151,29 @@ describe("StudentDetailScreen delete action", () => {
     });
     expect(dialog).toHaveTextContent("past gradings, marks and decisions stay as recorded");
 
-    await user.click(
-      within(dialog).getByRole("button", { name: "Delete student" }),
-    );
+    await user.click(within(dialog).getByRole("button", { name: "Delete student" }));
 
     await waitFor(() => expect(mockDeleteStudent).toHaveBeenCalledWith(42));
-    await waitFor(() =>
-      expect(screen.getByText("Students list")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Students list")).toBeInTheDocument());
   });
 
-  it("shows the server's reason when a student cannot be deleted yet", async () => {
+  it("says why a student cannot be deleted yet and offers no delete", async () => {
     signInAsAdministrator();
+    mockGetStudent.mockResolvedValue({
+      ...student,
+      deletion_blocked_by:
+        "This student is in the grading 'Spring grading', which has not reached its final decision for them yet.",
+    });
+
+    renderScreen();
+
+    expect(await screen.findByTestId("student-delete-blocked")).toHaveTextContent("'Spring grading'");
+    expect(screen.queryByRole("button", { name: "Delete student" })).not.toBeInTheDocument();
+  });
+
+  it("shows the server's reason when a delete is refused after the page loaded", async () => {
+    signInAsAdministrator();
+    mockGetStudent.mockResolvedValue({ ...student, can_be_deleted: true });
     mockDeleteStudent.mockRejectedValue(
       new ApiError(
         "This student is in the grading 'Spring grading', which has not reached its final decision for them yet.",
@@ -204,15 +205,71 @@ describe("StudentDetailScreen delete action", () => {
     expect(screen.queryByRole("button", { name: "Change status" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete student" })).not.toBeInTheDocument();
   });
+
+  it("does not offer a deleted student for registration, whatever their status", async () => {
+    signInAsAdministrator();
+    // A deleted student keeps the status they had; the server says they
+    // cannot be graded, and the page follows it.
+    mockGetStudent.mockResolvedValue({
+      ...student,
+      status: "ACTIVE",
+      can_be_graded: false,
+      next_rank: null,
+      next_rank_name: null,
+      deleted_at: "2026-11-07T10:00:00Z",
+    });
+
+    renderScreen();
+
+    expect(await screen.findByText("Deleted on 7 November 2026")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Grading readiness" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Can be registered")).not.toBeInTheDocument();
+  });
+});
+
+describe("StudentDetailScreen grading readiness", () => {
+  beforeEach(() => {
+    mockGetStudentRankHistory.mockReset().mockResolvedValue(rankHistory);
+    mockGetStudentGradingHistory.mockReset().mockResolvedValue(gradingHistory);
+  });
+
+  it("says a student can be registered when the server says so", async () => {
+    mockGetStudent.mockReset().mockResolvedValue({
+      ...student,
+      status: "INACTIVE",
+      status_display: "Inactive",
+      can_be_graded: true,
+      next_rank: null,
+      next_rank_name: null,
+    });
+
+    renderScreen();
+
+    expect(await screen.findByText("Can be registered")).toBeVisible();
+    expect(screen.getByText(/Inactive blocks nothing/)).toBeVisible();
+  });
+
+  it("says a student cannot be registered when the server says not", async () => {
+    mockGetStudent.mockReset().mockResolvedValue({
+      ...student,
+      status: "LEFT",
+      status_display: "Left",
+      can_be_graded: false,
+      next_rank: null,
+      next_rank_name: null,
+    });
+
+    renderScreen();
+
+    expect(await screen.findByText("Cannot be registered")).toBeVisible();
+    expect(screen.queryByText("Can be registered")).not.toBeInTheDocument();
+  });
 });
 
 describe("StudentDetailScreen extra information", () => {
   beforeEach(() => {
     mockGetStudentRankHistory.mockReset().mockResolvedValue(rankHistory);
     mockGetStudentGradingHistory.mockReset().mockResolvedValue(gradingHistory);
-    mockGetRanks
-      .mockReset()
-      .mockResolvedValue({ count: 0, next: null, previous: null, results: [] });
   });
 
   it("shows what an import kept that KukGrade has no field for", async () => {
@@ -226,9 +283,7 @@ describe("StudentDetailScreen extra information", () => {
 
     renderScreen();
 
-    const card = (await screen.findByRole("heading", { name: "Extra information" })).closest(
-      ".card",
-    ) as HTMLElement;
+    const card = (await screen.findByRole("heading", { name: "Extra information" })).closest(".card") as HTMLElement;
     expect(within(card).getByText("Parent phone")).toBeVisible();
     expect(within(card).getByText("07700 900001")).toBeVisible();
     expect(within(card).getByText("Left-handed")).toBeVisible();

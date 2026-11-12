@@ -18,17 +18,3 @@ export function EmailAddress({ address }: { address: string }) {
     </>
   );
 }
-
-/** Several addresses as one line, separated by commas. */
-export function EmailList({ addresses }: { addresses: string[] }) {
-  return (
-    <>
-      {addresses.map((address, index) => (
-        <Fragment key={address}>
-          {index > 0 && ", "}
-          <EmailAddress address={address} />
-        </Fragment>
-      ))}
-    </>
-  );
-}

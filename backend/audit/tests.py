@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Any
 
@@ -16,7 +17,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
-from accounts.testing import grant_permission
+from accounts.testing import grant_permission, instructor_rank
 from audit.admin import AuditEventAdmin
 from audit.models import (
     USER_MANAGEMENT_ACTIONS,
@@ -30,6 +31,9 @@ from audit.testing import (
     locked_completed_candidate_with_outcome,
 )
 from gradings.models import CandidateOutcome, GradingSession
+from gradings.outcome_services import finalise_candidate_outcome
+from students.models import Student
+from students.services import update_student
 
 pytestmark = pytest.mark.django_db
 
@@ -142,7 +146,41 @@ def test_revising_a_proposal_records_what_it_said_before() -> None:
     assert proposals[1].metadata["before"]["proposal_notes"] == "Looked strong."
     assert proposals[1].metadata["after"]["proposed_outcome"] == "FAIL"
     assert proposals[1].actor == second
-    assert "revising an earlier PASS" in proposals[1].summary
+    assert proposals[1].summary.startswith(
+        "Outcome proposed as Fail, revising an earlier Pass"
+    )
+
+
+def test_summaries_name_statuses_marks_and_outcomes_as_the_screens_do() -> None:
+    # A summary is read by people: "moved from Draft to Open", never the
+    # stored code ("DRAFT"), for every kind of value a summary names.
+    outcome, _, _ = locked_completed_candidate_with_outcome()
+    decider = master("audit-summary-master@example.com")
+    finalise_candidate_outcome(
+        outcome,
+        CandidateOutcome.Outcome.CONDITIONAL,
+        "",
+        "Retest the first form.",
+        decider,
+    )
+    student = outcome.candidate.student
+    update_student(student, status=Student.Status.INACTIVE, actor=decider)
+
+    summaries = list(AuditEvent.objects.values_list("summary", flat=True))
+    joined = "\n".join(summaries)
+    assert "Grading session moved from Draft to Open." in summaries
+    assert "Grading session moved from Open to Locked." in summaries
+    assert "recorded as Met for student 123-4-901." in joined
+    assert "Outcome proposed as Pass." in summaries
+    assert "Final decision Conditional recorded for student 123-4-901" in joined
+    assert "overriding a proposed Pass." in joined
+    assert "Student 123-4-901 status changed from Active to Inactive." in summaries
+    # No stored code anywhere: an upper-case word with an underscore, or one
+    # of the bare codes these summaries carried.
+    assert not re.search(
+        r"\b[A-Z]+_[A-Z_]+\b|\b(DRAFT|OPEN|LOCKED|PASS|FAIL|CONDITIONAL|MET|ACTIVE)\b",
+        joined,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +257,59 @@ def test_a_full_grading_writes_the_expected_trail() -> None:
         assert expected in recorded, f"{expected} was not recorded"
 
     assert outcome.pk is not None
+
+
+def test_each_event_says_how_it_reads_and_names_the_outcome_it_records() -> None:
+    from gradings.outcome_services import finalise_candidate_outcome
+
+    outcome, _first, _second = locked_completed_candidate_with_outcome()
+    finalise_candidate_outcome(
+        outcome,
+        CandidateOutcome.Outcome.FAIL,
+        "Forms were not ready.",
+        "",
+        master("audit-tone-master@example.com"),
+    )
+    client = APIClient()
+    client.force_authenticate(
+        user=User.objects.create_user(
+            email="audit-tone-reader@example.com",
+            role=User.Role.ADMINISTRATOR,
+        ),
+    )
+
+    response = client.get("/api/audit-events/", {"page_size": 100})
+
+    assert response.status_code == 200
+    read = {
+        event["action"]: (event["tone"], event["outcome_display"])
+        for event in response.json()["results"]
+    }
+    # A failed final decision needs a look, and says which outcome it was.
+    assert read[AuditAction.OUTCOME_FINALISED] == ("warning", "Fail")
+    assert read[AuditAction.OUTCOME_PROPOSED] == ("info", "Pass")
+    assert read[AuditAction.ASSESSMENT_STARTED] == ("info", None)
+    assert read[AuditAction.SESSION_CREATED] == ("neutral", None)
+
+
+def test_a_passing_decision_and_a_promotion_read_as_done() -> None:
+    from audit.tones import Tone, outcome_display, tone
+
+    passed = AuditEvent(
+        action=AuditAction.OUTCOME_FINALISED,
+        metadata={"final_outcome": "PASS"},
+    )
+    promoted = AuditEvent(action=AuditAction.PROMOTION_RECORDED, metadata={})
+    withdrawn = AuditEvent(action=AuditAction.CANDIDATE_WITHDRAWN, metadata={})
+    unreadable = AuditEvent(
+        action=AuditAction.OUTCOME_PROPOSED,
+        metadata={"after": "not a mapping"},
+    )
+
+    assert (tone(passed), outcome_display(passed)) == (Tone.SUCCESS, "Pass")
+    assert tone(promoted) == Tone.SUCCESS
+    assert tone(withdrawn) == Tone.WARNING
+    assert (tone(unreadable), outcome_display(unreadable)) == (Tone.INFO, None)
 
 
 def test_every_event_names_who_did_it() -> None:
@@ -378,6 +469,9 @@ def test_master_authority_instructor_cannot_see_user_management_events_in_the_lo
     admin_actor = administrator("audit-user-mgmt-admin@example.com")
     created = create_platform_user(
         email="audit-user-mgmt-target@example.com",
+        first_name="Target",
+        last_name="Person",
+        rank=instructor_rank(),
         actor=admin_actor,
     ).user
     client = APIClient()
@@ -398,6 +492,9 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     admin_actor = administrator("audit-user-mgmt-admin-2@example.com")
     create_platform_user(
         email="audit-user-mgmt-target-2@example.com",
+        first_name="Target",
+        last_name="Person",
+        rank=instructor_rank(),
         actor=admin_actor,
     )
     client = APIClient()
@@ -442,6 +539,9 @@ def user_created_event() -> AuditEvent:
 
     created = create_platform_user(
         email="audit-parity-target@example.com",
+        first_name="Target",
+        last_name="Person",
+        rank=instructor_rank(),
         actor=administrator("audit-parity-admin@example.com"),
     ).user
     return AuditEvent.objects.get(

@@ -104,6 +104,21 @@ def test_the_browser_packages_come_from_the_lock_file_without_the_dev_tools(
     assert [package.name for package in everything] == ["react", "scheduler"]
 
 
+def test_a_browser_package_whose_licence_is_in_its_dist_folder_ships_it(
+    tmp_path: Path,
+) -> None:
+    # A font package (Pretendard) keeps its licence beside the font files.
+    make_frontend(tmp_path)
+    react = tmp_path / "node_modules" / "react"
+    (react / "LICENSE").unlink()
+    (react / "dist").mkdir()
+    (react / "dist" / "LICENSE.txt").write_text("SIL Open Font License")
+
+    direct, _ = node_packages(tmp_path)
+
+    assert direct[0].texts == ["SIL Open Font License"]
+
+
 def test_a_browser_package_without_a_home_page_is_linked_to_its_repository(
     tmp_path: Path,
 ) -> None:

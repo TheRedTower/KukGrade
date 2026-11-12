@@ -5,15 +5,17 @@ from typing import Any, cast
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from accounts.models import User
+from accounts.people import PersonNameField
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.assessment_services import (
-    assessment_holds_final_decision,
+    assessment_can_be_prepared,
+    assessment_can_start,
     assessment_marks_open,
-    update_candidate_assessment,
-    update_candidate_assessment_item,
+    holds_final_decision,
+    item_change_needs_reason,
+    item_mark_can_be_cleared,
 )
-from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
+from gradings.legacy_matching import Suggestion
 from gradings.models import (
     AssessmentItemComment,
     AssessmentItemResultChange,
@@ -23,14 +25,12 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
+    LegacyRankField,
     Promotion,
     StagedDecision,
 )
 from gradings.outcome_services import (
-    finalise_candidate_outcome,
     outcome_can_be_finalised,
-    promote_candidate,
-    stage_final_decision,
 )
 from gradings.read_models import (
     CandidateNextAction,
@@ -41,19 +41,20 @@ from gradings.read_models import (
 )
 from gradings.services import (
     WITHDRAWAL_REASON_REQUIRED_MESSAGE,
-    apply_candidate_update,
+    AlreadyRegistered,
+    cancelling_needs_reason,
     candidate_can_be_deleted,
+    candidate_can_be_marked_absent,
     candidate_can_be_withdrawn_after_lock,
     candidate_can_change_session,
-    create_grading_session,
     may_override_locked_session,
     session_can_be_archived,
     session_can_be_restored,
     session_deletion_blocker,
-    update_grading_session,
+    session_may_move_to,
     with_session_progress,
-    withdraw_locked_candidate,
 )
+from kukgrade.serializers import ChoiceSerializer, ModelSerializer
 from ranks.models import Rank
 from students.models import Student
 from syllabus.models import CORE_CATEGORIES, SyllabusItem
@@ -63,12 +64,58 @@ class GradingYearsSerializer(serializers.Serializer[dict[str, list[int]]]):
     years = serializers.ListField(child=serializers.IntegerField(), read_only=True)
 
 
-class GradingSessionSerializer(serializers.ModelSerializer):
+class GradingSessionSerializer(ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     # Counted by gradings.services.with_session_progress.
     candidate_count = serializers.IntegerField(read_only=True)
     completed_assessment_count = serializers.IntegerField(read_only=True)
     awaiting_decision_count = serializers.IntegerField(read_only=True)
+    withdrawn_count = serializers.IntegerField(
+        read_only=True,
+        help_text="How many of its candidates have been withdrawn.",
+    )
+    roster_open = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether candidates can still be added, changed, removed and have "
+            "their forms prepared: the session is draft or open."
+        ),
+    )
+    marking_open = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether candidates are being graded now: assessments are started, "
+            "marked and completed while the session is open."
+        ),
+    )
+    decisions_open = serializers.BooleanField(
+        source="is_locked",
+        read_only=True,
+        help_text=(
+            "Whether final decisions are being made now: the session is locked."
+        ),
+    )
+    can_open = serializers.SerializerMethodField(
+        help_text="Whether the viewer may open this session now.",
+    )
+    can_lock = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may ask to lock this session now. Locking "
+            "itself checks that every assessment is complete."
+        ),
+    )
+    can_complete = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may ask to complete this session now. "
+            "Completing itself checks that every decision is recorded."
+        ),
+    )
+    can_cancel = serializers.SerializerMethodField(
+        help_text="Whether the viewer may cancel this session now.",
+    )
+    cancel_reason_required = serializers.SerializerMethodField(
+        help_text="Whether cancelling it now needs a written reason.",
+    )
     can_be_deleted = serializers.SerializerMethodField()
     can_be_archived = serializers.SerializerMethodField(
         help_text="Whether the viewer may archive this session now.",
@@ -91,6 +138,15 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             "candidate_count",
             "completed_assessment_count",
             "awaiting_decision_count",
+            "withdrawn_count",
+            "roster_open",
+            "marking_open",
+            "decisions_open",
+            "can_open",
+            "can_lock",
+            "can_complete",
+            "can_cancel",
+            "cancel_reason_required",
             "can_be_deleted",
             "archived_at",
             "can_be_archived",
@@ -119,6 +175,24 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             is None
         )
 
+    def _may_move(self, obj: GradingSession, target: str) -> bool:
+        return session_may_move_to(obj, target, self.context["request"].user)
+
+    def get_can_open(self, obj: GradingSession) -> bool:
+        return self._may_move(obj, GradingSession.Status.OPEN)
+
+    def get_can_lock(self, obj: GradingSession) -> bool:
+        return self._may_move(obj, GradingSession.Status.LOCKED)
+
+    def get_can_complete(self, obj: GradingSession) -> bool:
+        return self._may_move(obj, GradingSession.Status.COMPLETED)
+
+    def get_can_cancel(self, obj: GradingSession) -> bool:
+        return self._may_move(obj, GradingSession.Status.CANCELLED)
+
+    def get_cancel_reason_required(self, obj: GradingSession) -> bool:
+        return cancelling_needs_reason(obj)
+
     def get_can_be_archived(self, obj: GradingSession) -> bool:
         return session_can_be_archived(obj, self.context["request"].user)
 
@@ -134,34 +208,8 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             ).get()
         return super().to_representation(instance)
 
-    def create(self, validated_data: dict[str, Any]) -> GradingSession:
-        request = self.context["request"]
-        return create_grading_session(
-            title=str(validated_data["title"]),
-            grading_date=validated_data["grading_date"],
-            location=str(validated_data.get("location", "")),
-            notes=str(validated_data.get("notes", "")),
-            created_by=cast(User, request.user),
-            status=cast(str | None, validated_data.get("status")),
-        )
 
-    def update(
-        self,
-        instance: GradingSession,
-        validated_data: dict[str, Any],
-    ) -> GradingSession:
-        target_status = cast(str | None, validated_data.pop("status", None))
-        reason = cast(str, validated_data.pop("cancellation_reason", ""))
-        return update_grading_session(
-            instance,
-            changes=validated_data,
-            target_status=target_status,
-            reason=reason,
-            actor=self.context["request"].user,
-        )
-
-
-class GradingCandidateSerializer(serializers.ModelSerializer):
+class GradingCandidateSerializer(ModelSerializer):
     age_band_display = serializers.CharField(
         source="get_age_band_display", read_only=True
     )
@@ -172,6 +220,10 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     student_display_name = serializers.SerializerMethodField()
+    student_first_name = serializers.CharField(
+        source="student.first_name",
+        read_only=True,
+    )
     student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
     from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
     testing_for_rank_name = serializers.CharField(
@@ -203,6 +255,7 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "session",
             "student",
             "student_display_name",
+            "student_first_name",
             "student_wksa_id",
             "from_rank",
             "from_rank_name",
@@ -232,17 +285,6 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "testing_for_rank_name",
             "age_band_display",
             "withdrawal_reason_display",
-        )
-
-    def update(
-        self,
-        instance: GradingCandidate,
-        validated_data: dict[str, Any],
-    ) -> GradingCandidate:
-        return apply_candidate_update(
-            instance,
-            session=cast(GradingSession | None, validated_data.get("session")),
-            actor=cast(User, self.context["request"].user),
         )
 
 
@@ -346,20 +388,26 @@ class AssessmentCategorySummarySerializer(AssessmentSummaryCountsSerializer):
 class CandidateAssessmentSummarySerializer(serializers.Serializer):
     """Overall plus per-category rollup for one assessment."""
 
+    can_complete = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether the assessment can be completed now, as these counts leave "
+            "it: in progress, every required item marked, the candidate not "
+            "withdrawn and the session open."
+        ),
+    )
+
     overall = AssessmentSummaryCountsSerializer(read_only=True)
     categories = AssessmentCategorySummarySerializer(many=True, read_only=True)
 
 
-class CandidateAssessmentSerializer(serializers.ModelSerializer):
+class CandidateAssessmentSerializer(ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     candidate_student_name = serializers.CharField(
         source="candidate.student",
         read_only=True,
     )
-    generated_by_email = serializers.EmailField(
-        source="generated_by.email",
-        read_only=True,
-    )
+    generated_by_name = PersonNameField("generated_by")
     # The served overall counts, so a list of assessments needs no
     # per-assessment summary request.
     overall = serializers.SerializerMethodField()
@@ -372,6 +420,12 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
         ),
     )
 
+    can_start = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the assessment can be started now: not started, its "
+            "candidate not withdrawn, and the session open."
+        ),
+    )
     can_delete = serializers.SerializerMethodField(
         help_text=(
             "Whether the viewer may permanently delete this assessment: an "
@@ -387,13 +441,14 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
             "candidate_student_name",
             "status",
             "status_display",
-            "generated_by_email",
+            "generated_by_name",
             "generated_at",
             "started_at",
             "completed_at",
             "notes",
             "overall",
             "marks_open",
+            "can_start",
             "can_delete",
         )
         read_only_fields = (
@@ -401,7 +456,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
             "candidate",
             "candidate_student_name",
             "status_display",
-            "generated_by_email",
+            "generated_by_name",
             "generated_at",
             "started_at",
             "completed_at",
@@ -414,27 +469,18 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
     def get_marks_open(self, obj: CandidateAssessment) -> bool:
         return assessment_marks_open(obj, self.context["request"].user)
 
+    def get_can_start(self, obj: CandidateAssessment) -> bool:
+        return assessment_can_start(obj)
+
     def get_can_delete(self, obj: CandidateAssessment) -> bool:
         user = self.context["request"].user
         return user.has_perm("gradings.delete_candidateassessment") and not (
-            assessment_holds_final_decision(obj)
-        )
-
-    def update(
-        self,
-        instance: CandidateAssessment,
-        validated_data: dict[str, Any],
-    ) -> CandidateAssessment:
-        return update_candidate_assessment(
-            instance,
-            status=cast(str | None, validated_data.get("status")),
-            notes=cast(str | None, validated_data.get("notes")),
-            actor=cast(User, self.context["request"].user),
+            holds_final_decision(obj.candidate)
         )
 
 
-class AssessmentItemCommentSerializer(serializers.ModelSerializer):
-    author_name = serializers.CharField(source="author.get_full_name", read_only=True)
+class AssessmentItemCommentSerializer(ModelSerializer):
+    author_name = PersonNameField("author")
 
     class Meta:
         model = AssessmentItemComment
@@ -446,18 +492,25 @@ COMMENT_MAX_LENGTH = 2000
 REASON_MAX_LENGTH = 2000
 
 
-class AssessmentItemResultChangeSerializer(serializers.ModelSerializer):
-    changed_by_name = serializers.CharField(
-        source="changed_by.get_full_name",
+class AssessmentItemResultChangeSerializer(ModelSerializer):
+    from_result_display = serializers.CharField(
+        source="get_from_result_display",
         read_only=True,
     )
+    to_result_display = serializers.CharField(
+        source="get_to_result_display",
+        read_only=True,
+    )
+    changed_by_name = PersonNameField("changed_by")
 
     class Meta:
         model = AssessmentItemResultChange
         fields = (
             "sequence",
             "from_result",
+            "from_result_display",
             "to_result",
+            "to_result_display",
             "changed_by_name",
             "changed_at",
             "reason",
@@ -481,7 +534,7 @@ class AssessmentItemCommentRequestSerializer(serializers.Serializer):
     )
 
 
-class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
+class CandidateAssessmentItemSerializer(ModelSerializer):
     category_display = serializers.CharField(
         source="get_category_display",
         read_only=True,
@@ -502,12 +555,25 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "max_length": (f"A reason can be at most {REASON_MAX_LENGTH} characters."),
         },
     )
-    assessor_email = serializers.EmailField(source="assessor.email", read_only=True)
+    assessor_name = PersonNameField("assessor")
     display_range = serializers.CharField(read_only=True)
     category_is_core = serializers.SerializerMethodField(
         help_text=(
             "Whether the category is one of the six core grading areas every "
             "rank shares, rather than rank-specific content."
+        ),
+    )
+    reason_required = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the next change to this mark must say why: every change "
+            "after the first does, and after the lock every one does."
+        ),
+    )
+    can_clear = serializers.SerializerMethodField(
+        help_text=(
+            "Whether this mark may be taken away: it has one, and a completed "
+            "assessment keeps every required item marked. Whether the viewer "
+            "may change marks at all is the assessment's marks_open."
         ),
     )
 
@@ -527,11 +593,13 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "notation",
             "result",
             "result_display",
-            "assessor_email",
+            "assessor_name",
             "assessed_at",
             "comments",
             "changes",
             "reason",
+            "reason_required",
+            "can_clear",
         )
         read_only_fields = (
             "id",
@@ -546,25 +614,19 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "requirement_notes",
             "notation",
             "result_display",
-            "assessor_email",
+            "assessor_name",
             "assessed_at",
         )
 
     def get_category_is_core(self, obj: CandidateAssessmentItem) -> bool:
         return obj.category in CORE_CATEGORIES
 
-    def update(
-        self,
-        instance: CandidateAssessmentItem,
-        validated_data: dict[str, Any],
-    ) -> CandidateAssessmentItem:
-        request = self.context["request"]
-        return update_candidate_assessment_item(
-            instance,
-            result=cast(str | None, validated_data.get("result")),
-            reason=str(validated_data.get("reason", "")),
-            assessor=request.user,
-        )
+    def get_reason_required(self, obj: CandidateAssessmentItem) -> bool:
+        # The served log, so a list of items asks nothing more of the database.
+        return item_change_needs_reason(obj, has_changes=bool(obj.changes.all()))
+
+    def get_can_clear(self, obj: CandidateAssessmentItem) -> bool:
+        return item_mark_can_be_cleared(obj)
 
 
 class CandidateAssessmentItemSavedSerializer(CandidateAssessmentItemSerializer):
@@ -592,23 +654,21 @@ class CandidateAssessmentItemSavedSerializer(CandidateAssessmentItemSerializer):
         return cast(dict[str, Any], data)
 
 
-class CandidateOutcomeSerializer(serializers.ModelSerializer):
+class CandidateOutcomeSerializer(ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
     proposed_outcome_display = serializers.CharField(
         source="get_proposed_outcome_display",
         read_only=True,
+        allow_null=True,
     )
     final_outcome_display = serializers.CharField(
         source="get_final_outcome_display",
         read_only=True,
+        allow_null=True,
+        help_text="Null until the final decision is recorded.",
     )
-    proposed_by_name = serializers.CharField(
-        source="proposed_by.get_full_name",
-        read_only=True,
-    )
-    decided_by_name = serializers.CharField(
-        source="decided_by.get_full_name",
-        read_only=True,
-    )
+    proposed_by_name = PersonNameField("proposed_by")
+    decided_by_name = PersonNameField("decided_by")
 
     class Meta:
         model = CandidateOutcome
@@ -616,6 +676,7 @@ class CandidateOutcomeSerializer(serializers.ModelSerializer):
             "id",
             "candidate",
             "status",
+            "status_display",
             "proposed_outcome",
             "proposed_outcome_display",
             "proposed_by_name",
@@ -631,7 +692,7 @@ class CandidateOutcomeSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class PromotionSerializer(serializers.ModelSerializer):
+class PromotionSerializer(ModelSerializer):
     student_display_name = serializers.CharField(source="student", read_only=True)
     to_rank_name = serializers.CharField(source="to_rank.name", read_only=True)
 
@@ -668,6 +729,18 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "may make it is their own authority."
         ),
     )
+    can_be_marked_absent = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the candidate can be withdrawn as a no-show now: registered, "
+            "the session draft or open, and their assessment not started."
+        ),
+    )
+    can_prepare_assessment = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the candidate's assessment form can be prepared now: they "
+            "have none, are not withdrawn, and the session is draft or open."
+        ),
+    )
     can_be_withdrawn_after_lock = serializers.SerializerMethodField(
         help_text=(
             "Whether the viewer may withdraw this candidate now: the session is "
@@ -685,6 +758,8 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "next_action",
             "can_be_finalised",
             "can_be_withdrawn_after_lock",
+            "can_be_marked_absent",
+            "can_prepare_assessment",
         )
 
     @extend_schema_field(PromotionSerializer(allow_null=True))
@@ -698,6 +773,12 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
     def get_can_be_finalised(self, instance: GradingCandidate) -> bool:
         outcome = getattr(instance, "outcome", None)
         return outcome is not None and outcome_can_be_finalised(outcome)
+
+    def get_can_be_marked_absent(self, instance: GradingCandidate) -> bool:
+        return candidate_can_be_marked_absent(instance)
+
+    def get_can_prepare_assessment(self, instance: GradingCandidate) -> bool:
+        return assessment_can_be_prepared(instance)
 
     def get_can_be_withdrawn_after_lock(self, instance: GradingCandidate) -> bool:
         # Asked once for the whole list: the context is shared by every row.
@@ -728,7 +809,7 @@ class CandidateOutcomeProposalSerializer(serializers.Serializer):
     )
 
 
-class StagedDecisionSerializer(serializers.ModelSerializer):
+class StagedDecisionSerializer(ModelSerializer):
     """A final decision chosen but not yet recorded, seen only by whoever chose it."""
 
     # Kept as typed, so it comes back as it was left; recording trims it.
@@ -754,27 +835,10 @@ class StagedDecisionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["outcome", "updated_at"]
 
-    def update(
-        self,
-        instance: StagedDecision,
-        validated_data: dict[str, Any],
-    ) -> StagedDecision:
-        raise NotImplementedError
-
-    def create(self, validated_data: dict[str, Any]) -> StagedDecision:
-        request = self.context["request"]
-        return stage_final_decision(
-            self.context["outcome"],
-            final_outcome=str(validated_data["final_outcome"]),
-            decision_notes=str(validated_data.get("decision_notes", "")),
-            conditional_requirements=str(
-                validated_data.get("conditional_requirements", ""),
-            ),
-            actor=cast(User, request.user),
-        )
-
 
 class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
+    """The final decision. It is always given whole: final_outcome is required."""
+
     final_outcome = serializers.ChoiceField(choices=CandidateOutcome.Outcome.choices)
     decision_notes = serializers.CharField(
         allow_blank=True,
@@ -787,21 +851,16 @@ class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
         trim_whitespace=True,
     )
 
-    def update(
-        self,
-        instance: CandidateOutcome,
-        validated_data: dict[str, Any],
-    ) -> CandidateOutcome:
-        request = self.context["request"]
-        return finalise_candidate_outcome(
-            instance,
-            final_outcome=str(validated_data["final_outcome"]),
-            decision_notes=str(validated_data.get("decision_notes", "")),
-            conditional_requirements=str(
-                validated_data.get("conditional_requirements", ""),
-            ),
-            actor=cast(User, request.user),
-        )
+    # Never a partial update, though it arrives as a PATCH: the schema
+    # generator reads every PATCH body as partial (dropping final_outcome's
+    # "required") unless the serializer refuses to be.
+    @property
+    def partial(self) -> bool:
+        return False
+
+    @partial.setter
+    def partial(self, value: bool) -> None:
+        pass
 
 
 class CandidatePromotionSerializer(serializers.Serializer):
@@ -811,30 +870,21 @@ class CandidatePromotionSerializer(serializers.Serializer):
         trim_whitespace=True,
     )
 
-    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
-        forbidden_fields = {"effective_date", "promoted_by", "promoted_at"} & set(
-            self.initial_data,
-        )
-        if forbidden_fields:
-            raise serializers.ValidationError(
-                {
-                    field: ["KukGrade sets this; it cannot be changed here."]
-                    for field in sorted(forbidden_fields)
-                },
-            )
-        return attrs
 
-    def update(
-        self,
-        instance: CandidateOutcome,
-        validated_data: dict[str, Any],
-    ) -> Promotion:
-        request = self.context["request"]
-        return promote_candidate(
-            instance,
-            actor=cast(User, request.user),
-            notes=str(validated_data.get("notes", "")),
-        )
+_CHOOSE_A_SESSION = "Choose a grading session."
+
+
+class SessionQuerySerializer(serializers.Serializer):
+    """The grading session a session-wide read is about."""
+
+    session = serializers.IntegerField(
+        min_value=1,
+        error_messages={
+            "required": _CHOOSE_A_SESSION,
+            "invalid": _CHOOSE_A_SESSION,
+            "min_value": _CHOOSE_A_SESSION,
+        },
+    )
 
 
 class PromotionEligibilitySerializer(serializers.Serializer):
@@ -853,14 +903,19 @@ class BulkPromotionSerializer(serializers.Serializer):
 
 
 # The response of every bulk endpoint: what succeeded, under an
-# endpoint-specific key, plus `errors` mapping row index -> that row's
-# messages. A comment rather than a docstring, which drf-spectacular would
-# inherit as each subclass's description.
+# endpoint-specific key, plus `errors` mapping the id each refused row named
+# -> that row's messages. A comment rather than a docstring, which
+# drf-spectacular would inherit as each subclass's description.
 class BulkResultSerializer(serializers.Serializer):
     # Collides with Serializer.errors only in the type stubs: the serializer
     # metaclass lifts declared fields out of the class namespace.
     errors = serializers.DictField(  # type: ignore[assignment]
         child=serializers.ListField(child=serializers.CharField()),
+        help_text=(
+            "Each refused row's reasons, keyed by the id that row named: the "
+            "student for a registration, the candidate, assessment or outcome "
+            "otherwise."
+        ),
     )
 
 
@@ -872,9 +927,9 @@ class RegisteredCandidateSerializer(serializers.Serializer):
 class BulkCandidateRegistrationResultSerializer(BulkResultSerializer):
     created = RegisteredCandidateSerializer(many=True)
     already_registered = serializers.DictField(
-        child=serializers.ChoiceField(choices=["THIS_SESSION", "ANOTHER_GRADING"]),
+        child=serializers.ChoiceField(choices=AlreadyRegistered.choices),
         help_text=(
-            "The keys of `errors` whose student is already registered, for this "
+            "The students (keys of `errors`) already registered, for this "
             "session or for another grading that has not settled: nothing to "
             "retry, unlike the other failures."
         ),
@@ -907,24 +962,11 @@ class LockedCandidateWithdrawalSerializer(serializers.Serializer):
         trim_whitespace=True,
     )
 
-    def update(
-        self,
-        instance: GradingCandidate,
-        validated_data: dict[str, Any],
-    ) -> GradingCandidate:
-        request = self.context["request"]
-        return withdraw_locked_candidate(
-            instance,
-            reason=str(validated_data["withdrawal_reason"]),
-            note=str(validated_data.get("withdrawal_note", "")),
-            actor=cast(User, request.user),
-        )
 
-
-class LegacyGradingRecordSerializer(serializers.ModelSerializer):
+class LegacyGradingRecordSerializer(ModelSerializer):
     """Read-mostly, matching PromotionSerializer's idiom - no ordinary
-    update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
-    the five reconciliation actions below."""
+    update/delete exists (LegacyGradingRecord is kukgrade.kept), only
+    the reconciliation actions on LegacyGradingRecordViewSet."""
 
     outcome_display = serializers.CharField(
         source="get_outcome_display",
@@ -933,6 +975,10 @@ class LegacyGradingRecordSerializer(serializers.ModelSerializer):
     )
     attendance_status_display = serializers.CharField(
         source="get_attendance_status_display",
+        read_only=True,
+    )
+    record_kind_display = serializers.CharField(
+        source="get_record_kind_display",
         read_only=True,
     )
     student_display_name = serializers.CharField(
@@ -952,12 +998,7 @@ class LegacyGradingRecordSerializer(serializers.ModelSerializer):
         allow_null=True,
         default=None,
     )
-    voided_by_email = serializers.EmailField(
-        source="voided_by.email",
-        read_only=True,
-        allow_null=True,
-        default=None,
-    )
+    voided_by_name = PersonNameField("voided_by")
     current_rank_name = serializers.CharField(
         source="current_rank.name",
         read_only=True,
@@ -988,6 +1029,7 @@ class LegacyGradingRecordSerializer(serializers.ModelSerializer):
             "student",
             "student_display_name",
             "record_kind",
+            "record_kind_display",
             "cycle_year",
             "cycle_month",
             "source_batch",
@@ -1007,7 +1049,7 @@ class LegacyGradingRecordSerializer(serializers.ModelSerializer):
             "note",
             "is_void",
             "void_reason",
-            "voided_by_email",
+            "voided_by_name",
         )
         read_only_fields = fields
 
@@ -1019,19 +1061,6 @@ class LinkLegacyRecordSerializer(serializers.Serializer):
         default=False,
         help_text="Move a record already linked to another student.",
     )
-
-    def update(
-        self,
-        instance: LegacyGradingRecord,
-        validated_data: dict[str, Any],
-    ) -> LegacyGradingRecord:
-        request = self.context["request"]
-        return link_legacy_record_to_student(
-            instance,
-            validated_data["student"],
-            actor=cast(User, request.user),
-            replace=validated_data["replace"],
-        )
 
 
 class LegacyRecordLinkSerializer(serializers.Serializer):
@@ -1063,6 +1092,20 @@ class BulkLinkLegacyRecordsSerializer(serializers.Serializer):
         return value
 
 
+class BulkUnlinkLegacyRecordsSerializer(serializers.Serializer):
+    """POST legacy-records/bulk-unlink/: let go of many records at once."""
+
+    records = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        max_length=BULK_LINK_LIMIT,
+        help_text=(
+            "The records to unlink from their students, all or nothing - "
+            "the undo of a bulk link. Errors are keyed by record id."
+        ),
+    )
+
+
 class SuggestedStudentSerializer(serializers.Serializer):
     student = serializers.IntegerField(source="student.pk")
     full_name = serializers.CharField(source="student.full_name")
@@ -1083,8 +1126,8 @@ class LegacyPersonSerializer(serializers.Serializer):
     group_key = serializers.CharField(source="key")
     record_ids = serializers.SerializerMethodField()
     records = serializers.SerializerMethodField(help_text="How many records.")
-    first_period = serializers.SerializerMethodField()
-    last_period = serializers.SerializerMethodField()
+    first_period = serializers.CharField()
+    last_period = serializers.CharField()
     linked_student = serializers.SerializerMethodField(
         help_text="The student every record here is linked to, if one is.",
     )
@@ -1094,18 +1137,16 @@ class LegacyPersonSerializer(serializers.Serializer):
     linked_student_name = serializers.SerializerMethodField(
         help_text="That student's name, when every record here is linked to one.",
     )
-    ranks = serializers.SerializerMethodField(
+    ranks = serializers.ListField(
+        child=serializers.CharField(),
+        source="ranks_written",
         help_text="The ranks the records give, as written, in date order.",
     )
-    needs_rank = serializers.SerializerMethodField(
+    needs_rank = serializers.BooleanField(
         help_text="Whether a rank is written on a record but not matched to one yet.",
     )
     suggestion = serializers.ChoiceField(
-        choices=[
-            ("clear", "One student fits clearly"),
-            ("choose", "Several students fit equally well"),
-            ("none", "No student fits"),
-        ],
+        choices=Suggestion.choices,
         help_text="How clear the suggested students are, from the candidates.",
     )
     candidates = SuggestedStudentSerializer(many=True)
@@ -1116,44 +1157,10 @@ class LegacyPersonSerializer(serializers.Serializer):
     def get_records(self, group: Any) -> int:
         return len(group.records)
 
-    def _periods(self, group: Any) -> list[str]:
-        return sorted(
-            f"{record.cycle_year}-{record.cycle_month:02d}" for record in group.records
-        )
-
-    def get_first_period(self, group: Any) -> str:
-        return self._periods(group)[0]
-
-    def get_last_period(self, group: Any) -> str:
-        return self._periods(group)[-1]
-
     @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_linked_student(self, group: Any) -> int | None:
         student = group.linked_student
         return student.pk if student else None
-
-    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
-    def get_ranks(self, group: Any) -> list[str]:
-        """Each distinct "held → testing for" the records write, oldest first."""
-        written = []
-        for record in sorted(
-            group.records,
-            key=lambda r: (r.cycle_year, r.cycle_month, r.pk),
-        ):
-            held = record.source_current_rank_text
-            testing = record.source_testing_for_rank_text
-            text = f"{held or '(blank)'} → {testing}" if testing else held
-            if text and text not in written:
-                written.append(text)
-        return written
-
-    def get_needs_rank(self, group: Any) -> bool:
-        # The same rule as the record list's needs_rank filter (views).
-        return any(
-            (r.source_current_rank_text and r.current_rank_id is None)
-            or (r.source_testing_for_rank_text and r.testing_for_rank_id is None)
-            for r in group.records
-        )
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_linked_student_name(self, group: Any) -> str | None:
@@ -1171,21 +1178,40 @@ class SetAsideNamesSerializer(serializers.Serializer):
     )
 
 
+class LegacyRecordCountsSerializer(serializers.Serializer):
+    awaiting_link = serializers.IntegerField(
+        help_text=(
+            "Someone's records not yet linked to a student: not voided, not a "
+            "sheet note."
+        ),
+    )
+
+
 class LegacyPeopleSummarySerializer(serializers.Serializer):
-    """Names still to link, by how clear their suggested students are."""
+    """Names still to link, by how clear their suggested students are, and the
+    other counts the linking screens show."""
 
     names = serializers.IntegerField(help_text="Names with a record still to link.")
     linked = serializers.IntegerField(
         help_text="Names with every record linked; set_aside does not apply.",
     )
+    with_a_link = serializers.IntegerField(
+        help_text="Names with any record linked; set_aside does not apply.",
+    )
+    set_aside = serializers.IntegerField(
+        help_text="Names still to link that the viewer has put aside for now.",
+    )
+
     clear = serializers.IntegerField(help_text="One student fits clearly.")
     choose = serializers.IntegerField(help_text="Several students fit equally well.")
     none = serializers.IntegerField(help_text="No student fits.")
 
 
 class ResolveLegacyRankSerializer(serializers.Serializer):
-    """`rank=null` explicitly leaves the mapping unresolved."""
+    """Which of the record's ranks to map; `rank=null` explicitly leaves it
+    unresolved."""
 
+    field = serializers.ChoiceField(choices=LegacyRankField.choices)
     rank = serializers.PrimaryKeyRelatedField(
         queryset=Rank.objects.filter(active=True),
         allow_null=True,
@@ -1195,32 +1221,12 @@ class ResolveLegacyRankSerializer(serializers.Serializer):
 class VoidLegacyRecordSerializer(serializers.Serializer):
     reason = serializers.CharField()
 
-    def update(
-        self,
-        instance: LegacyGradingRecord,
-        validated_data: dict[str, Any],
-    ) -> LegacyGradingRecord:
-        request = self.context["request"]
-        return void_legacy_record(
-            instance,
-            reason=str(validated_data["reason"]),
-            actor=cast(User, request.user),
-        )
 
+class WithdrawalReasonSerializer(ChoiceSerializer):
+    """One withdrawal reason, and whether it needs a note."""
 
-class WithdrawalReasonSerializer(serializers.Serializer[str]):
-    """One withdrawal reason, from its code, and whether it needs a note."""
-
-    code = serializers.ChoiceField(
-        choices=GradingCandidate.WithdrawalReason.choices,
-        source="*",
-        read_only=True,
-    )
-    name = serializers.SerializerMethodField()
+    value = serializers.ChoiceField(choices=GradingCandidate.WithdrawalReason.choices)
     note_required = serializers.SerializerMethodField()
 
-    def get_name(self, code: str) -> str:
-        return str(GradingCandidate.WithdrawalReason(code).label)
-
-    def get_note_required(self, code: str) -> bool:
-        return code == GradingCandidate.WithdrawalReason.OTHER
+    def get_note_required(self, reason: dict[str, str]) -> bool:
+        return reason["value"] == GradingCandidate.WithdrawalReason.OTHER

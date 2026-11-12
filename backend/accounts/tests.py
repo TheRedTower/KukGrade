@@ -26,12 +26,14 @@ from rest_framework.views import APIView
 from accounts.admin import ISSUED_PASSWORD_ATTR, UserAdmin
 from accounts.groups import ADMINISTRATOR_GROUP, INSTRUCTOR_GROUP
 from accounts.middleware import EXEMPT_URL_NAMES
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.models import User
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
+    can_see_school_settings,
+    can_view_audit_log,
 )
 from accounts.services import (
     delete_platform_user,
@@ -40,9 +42,8 @@ from accounts.services import (
     set_user_authority,
     update_platform_user,
 )
-from accounts.testing import grant_permission
+from accounts.testing import grant_permission, instructor_rank
 from audit.models import AuditAction, AuditEvent
-from audit.recording import record
 from kukgrade.testing import render_admin_pages, results
 
 pytestmark = pytest.mark.django_db
@@ -466,7 +467,12 @@ def test_change_password_enforces_the_configured_validators() -> None:
 
 
 def test_change_password_succeeds_and_is_audited_without_leaking_the_value() -> None:
-    user = create_user(email="change-pw-ok@example.com", password="OldPassw0rd!")
+    user = create_user(
+        email="change-pw-ok@example.com",
+        password="OldPassw0rd!",
+        first_name="Casey",
+        last_name="Park",
+    )
     client = APIClient()
     client.force_authenticate(user=user)
 
@@ -485,7 +491,9 @@ def test_change_password_succeeds_and_is_audited_without_leaking_the_value() -> 
         action=AuditAction.USER_UPDATED, entity_id=str(user.pk)
     )
     assert event.actor == user
-    assert event.summary == "Password changed by change-pw-ok@example.com."
+    assert event.summary == "Password changed by Casey Park."
+    assert "change-pw-ok@example.com" not in event.summary
+    assert event.metadata["email"] == "change-pw-ok@example.com"
     assert "BrandNewPassw0rd" not in event.summary
     assert "BrandNewPassw0rd" not in str(event.metadata)
 
@@ -663,6 +671,13 @@ def test_inactive_users_fail_every_permission_check() -> None:
     view.action = "list"  # type: ignore[attr-defined]
     view.permission_map = {"list": ()}  # type: ignore[attr-defined]
     assert HasRequiredPermissions().has_permission(request, view) is False
+    # The audit log asks has_perm alone, which refuses a closed account -
+    # a superuser's too.
+    assert can_view_audit_log(inactive) is False
+    closed_superuser = User.objects.create_superuser("closed-super@example.com")
+    closed_superuser.is_active = False
+    assert can_view_audit_log(closed_superuser) is False
+    assert can_see_school_settings(closed_superuser) is False
 
 
 def test_configured_user_model_is_custom_user() -> None:
@@ -768,6 +783,8 @@ def create_user_via_api(client: APIClient, **overrides: object) -> dict[str, Any
         "first_name": "Created",
         "last_name": "User",
     }
+    if overrides.get("role", User.Role.INSTRUCTOR) == User.Role.INSTRUCTOR:
+        payload["rank"] = instructor_rank().pk
     payload.update(overrides)
     response = client.post("/api/users/", payload, format="json")
     assert response.status_code == 201, response.json()
@@ -934,8 +951,7 @@ def test_put_is_not_allowed() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Hard delete: accounts.delete_user, administrator-gated, placeholder
-# reassignment for PROTECT attribution.
+# Deleting a user: administrator-gated; one with history is closed, not removed.
 # ---------------------------------------------------------------------------
 
 
@@ -983,51 +999,9 @@ def test_administrator_cannot_delete_their_own_account() -> None:
     assert User.objects.filter(pk=admin.id).exists()
 
 
-def test_deleted_user_placeholder_is_hidden_from_the_users_api() -> None:
-    client, _admin = admin_client("placeholder-visibility-admin@example.com")
-
-    list_response = client.get("/api/users/")
-
-    assert DELETED_USER_PLACEHOLDER_EMAIL not in {
-        row["email"] for row in list_response.json()["results"]
-    }
-
-
-def test_deleted_user_placeholder_can_never_be_reactivated() -> None:
-    from django.core.exceptions import ValidationError
-
-    placeholder = User.objects.get(email=DELETED_USER_PLACEHOLDER_EMAIL)
-    placeholder.is_active = True
-
-    with pytest.raises(ValidationError):
-        placeholder.full_clean(exclude=["password"])
-    with pytest.raises(ValidationError):
-        placeholder.save()
-    placeholder.refresh_from_db()
-    assert placeholder.is_active is False
-
-
-def test_deleted_user_placeholder_is_hidden_from_django_admin() -> None:
-    from django.contrib.admin.sites import site
-    from django.test import RequestFactory
-
-    from accounts.admin import UserAdmin
-
-    request = RequestFactory().get("/admin/accounts/user/")
-    request.user = User.objects.create_superuser(
-        email="placeholder-admin-view@example.com",
-        password="a-long-test-password-123",
-    )
-
-    emails = UserAdmin(User, site).get_queryset(request).values_list("email", flat=True)
-
-    assert "placeholder-admin-view@example.com" in emails
-    assert DELETED_USER_PLACEHOLDER_EMAIL not in emails
-
-
 def test_deleting_a_user_who_recorded_something_keeps_their_name_on_it() -> None:
     """Owner, 2026-11-07: a deleted staff member's name stays on their records,
-    so who made each decision is always known (review N-02)."""
+    so who made each decision is always known."""
     from gradings.models import GradingSession
 
     client, admin = admin_client("delete-history-admin@example.com")
@@ -1345,7 +1319,9 @@ def test_password_reset_is_recorded_without_leaking_the_password() -> None:
         entity_id=created["id"],
         action=AuditAction.USER_UPDATED,
     ).latest("pk")
-    assert event.summary == "Password reset for reset-audit-target@example.com."
+    assert event.summary == f"Password reset for {instructor_rank().name} Created User."
+    assert "reset-audit-target@example.com" not in event.summary
+    assert event.metadata["email"] == "reset-audit-target@example.com"
     assert issued not in event.summary
     assert issued not in str(event.metadata)
 
@@ -1430,6 +1406,7 @@ def test_admin_created_user_is_persisted_and_audited() -> None:
         first_name="New",
         last_name="Person",
         role=User.Role.INSTRUCTOR,
+        rank=instructor_rank(),
         is_active=True,
     )
     model_admin = UserAdmin(User, admin.site)
@@ -1537,7 +1514,7 @@ def test_user_created_via_api_has_must_change_password_flag() -> None:
 
 def test_admin_cannot_reset_their_own_password() -> None:
     # A reset asks for no current password, so on your own account a
-    # signed-in session alone could replace it (audit F-04). Your own is
+    # signed-in session alone could replace it. Your own is
     # changed through change-password.
     client, admin = admin_client("reset-own-admin@example.com")
     admin.set_password("kg-OriginalOwn123!")
@@ -1866,66 +1843,33 @@ def test_admin_cannot_edit_groups_or_per_user_permissions() -> None:
     assert "user_permissions" not in form.base_fields
 
 
-def test_admin_user_delete_goes_through_the_service() -> None:
-    model_admin = UserAdmin(User, admin.site)
-    request = admin_operator_request("admin-delete-operator@example.com")
-    target = create_user(email="admin-delete-target@example.com")
-    record(AuditAction.USER_UPDATED, target, "History to keep.", actor=target)
-
-    assert model_admin.get_deleted_objects([target], request)[3] == []
-    model_admin.delete_model(request, target)
-
-    target.refresh_from_db()
-    assert target.deleted_at is not None
-    kept = AuditEvent.objects.get(summary="History to keep.")
-    assert kept.actor == target
-    assert AuditEvent.objects.filter(
-        action=AuditAction.USER_DELETED,
-        actor=request.user,
-    ).exists()
-
-
-def test_admin_offers_no_way_to_delete_your_own_account() -> None:
-    request = admin_operator_request("admin-self-delete@example.com")
-
-    model_admin = UserAdmin(User, admin.site)
-
-    assert model_admin.has_delete_permission(request, request.user) is False
-
-
-# ---------------------------------------------------------------------------
-# A refused admin delete is a message, not a server error
-# ---------------------------------------------------------------------------
-
-
-def _bulk_delete(client: Client, url: str, ids: list[object]) -> Any:
-    return client.post(
-        url,
-        {"action": "delete_selected", "_selected_action": ids, "post": "yes"},
-        follow=True,
-    )
-
-
-def test_bulk_admin_delete_that_includes_yourself_is_refused_with_a_message(
-    settings: Any,
-) -> None:
+def test_the_admin_cannot_delete_a_user(settings: Any) -> None:
+    # Accounts are recovered in the emergency admin, never deleted there:
+    # deleting one is done in KukGrade, which closes an account with history.
     render_admin_pages(settings)
-    me = create_user(email="bulk-self@example.com", is_staff=True, is_superuser=True)
-    other = create_user(email="bulk-other@example.com")
+    me = create_user(
+        email="admin-no-delete@example.com", is_staff=True, is_superuser=True
+    )
+    target = create_user(email="admin-no-delete-target@example.com")
     client = Client()
     client.force_login(me)
 
-    response = _bulk_delete(client, "/admin/accounts/user/", [me.pk, other.pk])
+    single = client.post(f"/admin/accounts/user/{target.pk}/delete/", {"post": "yes"})
+    bulk = client.post(
+        "/admin/accounts/user/",
+        {"action": "delete_selected", "_selected_action": [target.pk], "post": "yes"},
+    )
 
-    assert response.status_code == 200
-    assert "cannot delete your own account" in response.content.decode()
-    # All or nothing: the refusal rolled back the other deletion too.
-    assert User.objects.filter(pk__in=[me.pk, other.pk]).count() == 2
-    # Including admin's own history: Django logs a deletion before it deletes,
-    # and a refused delete must not leave "deleted" entries behind.
-    from django.contrib.admin.models import DELETION, LogEntry
-
-    assert not LogEntry.objects.filter(action_flag=DELETION).exists()
+    assert single.status_code == 403
+    assert bulk.status_code in {200, 302}
+    assert (
+        UserAdmin(User, admin.site).has_delete_permission(
+            admin_operator_request("admin-no-delete-operator@example.com"), target
+        )
+        is False
+    )
+    target.refresh_from_db()
+    assert target.deleted_at is None
 
 
 def test_a_superusers_unchanged_administrator_role_can_be_resent() -> None:

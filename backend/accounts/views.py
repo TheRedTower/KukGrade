@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Any, cast
 
 from django.contrib.auth import login, logout, update_session_auth_hash
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -15,11 +15,15 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
-from rest_framework.viewsets import GenericViewSet
 
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
-from accounts.permissions import HasRequiredPermissions
+from accounts.models import User
+from accounts.permissions import (
+    AUTHORITY_PERMISSIONS,
+    USER_ADMINISTRATION_PERMISSION,
+    HasRequiredPermissions,
+)
 from accounts.serializers import (
     ChangePasswordSerializer,
     IssuedTemporaryPasswordSerializer,
@@ -33,13 +37,17 @@ from accounts.serializers import (
 )
 from accounts.services import (
     TemporaryPassword,
+    change_own_password,
     create_platform_user,
     delete_platform_user,
     reset_password,
+    set_user_authority,
+    update_platform_user,
 )
 from accounts.setup import complete_setup, setup_needed
 from kukgrade.filtering import boolean, choice
 from kukgrade.search import ExactOnly, full_name_of, label_of, search
+from kukgrade.viewsets import KukGradeViewSet, ServiceDestroyMixin
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -115,7 +123,11 @@ class CurrentUserView(APIView):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
+        updated = update_platform_user(
+            cast(User, request.user),
+            actor=cast(User, request.user),
+            **serializer.validated_data,
+        )
         return Response(UserSerializer(updated).data)
 
 
@@ -133,7 +145,10 @@ class ChangePasswordView(APIView):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
+        updated = change_own_password(
+            cast(User, request.user),
+            password=serializer.validated_data["new_password"],
+        )
         # Changing a password rotates the session auth hash, which would sign
         # the caller straight back out. That is the wrong end of the forced
         # change on a new account: pick a password, get ejected to the sign-in
@@ -147,7 +162,8 @@ class UserViewSet(
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
-    GenericViewSet[User],
+    ServiceDestroyMixin,
+    KukGradeViewSet[User],
 ):
     """The administrator-facing users API.
 
@@ -155,15 +171,14 @@ class UserViewSet(
     destroy(), gated to accounts.delete_user (Administrator group only),
     removes an account that recorded nothing and closes one that did, so
     their name stays on their records (accounts.services.delete_platform_user).
-    No PUT: partial_update covers every real edit.
     """
 
-    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    delete_service = staticmethod(delete_platform_user)
     permission_classes = [HasRequiredPermissions]
     serializer_class = UserManagementSerializer
     permission_map = {
-        "list": ("accounts.view_user",),
-        "retrieve": ("accounts.view_user",),
+        "list": (USER_ADMINISTRATION_PERMISSION,),
+        "retrieve": (USER_ADMINISTRATION_PERMISSION,),
         "create": ("accounts.add_user",),
         "partial_update": ("accounts.change_user",),
         "destroy": ("accounts.delete_user",),
@@ -199,14 +214,9 @@ class UserViewSet(
         add_never_cache_headers(response)
         return response
 
-    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
-        instance = self.get_object()
-        delete_platform_user(instance, cast(User, request.user))
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     query_filters = (
         choice("role", "role", User.Role.values),
-        boolean("is_active", "is_active"),
+        boolean("is_active", Q(is_active=True)),
         search(
             "search",
             (
@@ -220,17 +230,16 @@ class UserViewSet(
         ),
     )
 
-    def get_queryset(self) -> QuerySet[User]:
-        # The "Deleted User" placeholder (see accounts.services) is internal
-        # bookkeeping, not an account anyone administers - hidden from the
-        # users API entirely so it can never show up in the list, be edited,
-        # or be deleted itself through this endpoint.
-        # A deleted account kept for its records (deleted_at) is gone too.
-        return (
-            User.objects.exclude(email=DELETED_USER_PLACEHOLDER_EMAIL)
-            .filter(deleted_at__isnull=True)
-            .order_by("email")
+    def perform_update(self, serializer: BaseSerializer[User]) -> None:
+        serializer.instance = update_platform_user(
+            cast(User, serializer.instance),
+            actor=self.actor,
+            **serializer.validated_data,
         )
+
+    def get_queryset(self) -> QuerySet[User]:
+        # A deleted account kept for its records (deleted_at) is gone.
+        return User.objects.filter(deleted_at__isnull=True).order_by("email")
 
     @extend_schema(
         request=UserAuthoritySerializer,
@@ -251,7 +260,14 @@ class UserViewSet(
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
+        updated = set_user_authority(
+            target,
+            actor=self.actor,
+            **{
+                name: serializer.validated_data.get(name)
+                for name in AUTHORITY_PERMISSIONS
+            },
+        )
         return Response(
             UserManagementSerializer(updated, context={"request": request}).data,
         )

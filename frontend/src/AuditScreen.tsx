@@ -2,12 +2,13 @@ import { useRef, useState } from "react";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import {
   type AuditAction,
   type AuditEntity,
   type AuditEvent,
+  type AuditSubject,
   getAuditEvents,
   getAuditLabels,
   getAuditSubject,
@@ -23,6 +24,12 @@ import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./AuditScreen.css";
 import { calendarDaysAgo, currentYear, formatApiDate, formatDateTime, formatTime } from "./dates";
+import { keys } from "./queryKeys";
+import { counted } from "./plural";
+import { SearchField } from "./SearchField";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
+import { ArrowRightIcon } from "./Icons";
 
 const PAGE_SIZE = 10;
 
@@ -45,60 +52,51 @@ function eventTime(value: string): { date: string; time: string } {
 }
 
 function actorLabel(event: AuditEvent): string {
-  return event.actor_name.trim() || event.actor_email || "System";
+  return event.actor_name || "System";
 }
 
-function eventMetadata(event: AuditEvent): string {
-  if (
-    event.metadata === null ||
-    event.metadata === undefined ||
-    (typeof event.metadata === "object" && Object.keys(event.metadata).length === 0)
-  ) {
-    return "No further details recorded.";
+/** Where the app opens the record a history is of: the routes are the app's own. */
+function subjectPath(subject: AuditSubject): string {
+  switch (subject.kind) {
+    case "session":
+      return `/gradings/${subject.id}`;
+    case "candidate":
+      return `/gradings/${subject.session_id}/assessments/${subject.id}/review`;
+    case "student":
+      return `/students/${subject.id}`;
+    default:
+      return `/users/${subject.id}`;
   }
-  return JSON.stringify(event.metadata, null, 2);
 }
 
 export function AuditScreen(): React.ReactElement {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = useUrlFilters();
   const [selectedEvent, setSelectedEvent] = useState<AuditEvent | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const eventTriggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const page = Math.max(1, Number(searchParams.get("page")) || 1);
-  const action = (searchParams.get("action") ?? "") as AuditAction | "";
-  const entityType = (searchParams.get("entity_type") ?? "") as AuditEntity | "";
+  const page = filters.page;
+  const action = filters.value("action") as AuditAction | "";
+  const entityType = filters.value("entity_type") as AuditEntity | "";
   // The names come from the server, which owns the list (audit/models.py).
-  const labels = useQuery({ queryKey: ["auditLabels"], queryFn: getAuditLabels });
+  const labels = useQuery({ queryKey: keys.auditLabels(), queryFn: getAuditLabels });
   const entityLabel = labels.data?.entities.find((option) => option.value === entityType)?.label;
-  const occurredFrom = searchParams.get("occurred_from") ?? "";
-  const occurredTo = searchParams.get("occurred_to") ?? "";
-  const appliedSearch = searchParams.get("search") ?? "";
+  const occurredFrom = filters.value("occurred_from");
+  const occurredTo = filters.value("occurred_to");
+  const search = filters.value("search");
+  const appliedSearch = search.trim();
   // Set by links from a record ("View audit events"); no control edits it.
-  const entityId = searchParams.get("entity_id") ?? "";
+  const entityId = filters.value("entity_id");
   // A record's history: its own events and everything that belongs to it
   // ("session:3", "student:5", "candidate:9", "user:<id>"), from a link on that record.
-  const subject = searchParams.get("subject") ?? "";
+  const subject = filters.value("subject");
   const subjectQuery = useQuery({
-    queryKey: ["auditSubject", subject],
+    queryKey: keys.auditSubject(subject),
     queryFn: () => getAuditSubject(subject),
     enabled: subject !== "",
   });
 
-
-  const updateFilters = (updates: Record<string, string>, preservePage = false) => {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value) next.set(key, value);
-      else next.delete(key);
-    });
-    if (!preservePage) next.delete("page");
-    setSearchParams(next, { replace: true });
-  };
-
-  const query = useQuery({
-    queryKey: [
-      "auditEvents",
+  const paged = usePagedQuery({
+    queryKey: keys.auditEvents.log(
       page,
       action,
       entityType,
@@ -107,7 +105,7 @@ export function AuditScreen(): React.ReactElement {
       occurredFrom,
       occurredTo,
       appliedSearch,
-    ],
+    ),
     queryFn: () =>
       getAuditEvents({
         page,
@@ -120,14 +118,14 @@ export function AuditScreen(): React.ReactElement {
         occurred_to: occurredTo || undefined,
         search: appliedSearch || undefined,
       }),
+    page,
+    pageSize: PAGE_SIZE,
+    onPage: filters.setPage,
   });
-
-  const events = query.data?.results ?? [];
-  const totalCount = query.data?.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const hasFilters = Boolean(
-    action || entityType || entityId || subject || occurredFrom || occurredTo || appliedSearch,
-  );
+  const query = paged.query;
+  const events = paged.results;
+  const totalCount = paged.count;
+  const hasFilters = Boolean(action || entityType || entityId || subject || occurredFrom || occurredTo || search);
 
   // The trigger is restored explicitly: a clicked button is not focused in
   // every browser, so the hook's "whatever had focus" may not be it.
@@ -153,67 +151,50 @@ export function AuditScreen(): React.ReactElement {
         <Alert tone="info" data-testid="audit-subject">
           {subjectQuery.isLoading ? (
             "Finding the record…"
-          ) : subjectQuery.data?.name ? (
+          ) : subjectQuery.data?.exists ? (
             <>
-              <strong>History of {subjectQuery.data.name}</strong>: the record itself and everything
-              that belongs to it.{" "}
-              <Link to={subjectQuery.data.path}>
-                Open the record <span aria-hidden="true">→</span>
+              <strong>History of {subjectQuery.data.name}</strong>: the record itself and everything that belongs to it.{" "}
+              <Link to={subjectPath(subjectQuery.data)}>
+                Open the record <ArrowRightIcon />
               </Link>
             </>
           ) : (
             <>
-              <strong>History of a record that no longer exists</strong>: what was recorded about it
-              is kept.
+              <strong>History of a record that no longer exists</strong>: what was recorded about it is kept.
             </>
           )}
         </Alert>
       )}
 
-      <form
-        className="filter-bar"
-        aria-label="Audit filters"
-        onSubmit={(event) => {
-          event.preventDefault();
-          updateFilters({ search: searchInputRef.current?.value.trim() ?? "" });
-        }}
-      >
-        <label className="field field--search filter-bar__full">
-          <span>Search student name, record number or summary</span>
-          <div className="field__row">
-            <input
-              key={appliedSearch}
-              ref={searchInputRef}
-              type="search"
-              defaultValue={appliedSearch}
-              placeholder="Search by number or keyword…"
-            />
-            <button type="submit">Search</button>
-          </div>
-        </label>
+      <div className="filter-bar" role="search" aria-label="Audit filters">
+        <SearchField
+          className="filter-bar__full"
+          label="Search student name, record number or summary"
+          placeholder="Search by number or keyword…"
+          value={search}
+          onChange={(value) => filters.set({ search: value })}
+        />
 
         <label className="field">
           <span>Action</span>
-          <select
-            value={action}
-            onChange={(event) => updateFilters({ action: event.target.value })}
-          >
+          <select value={action} onChange={(event) => filters.set({ action: event.target.value })}>
             <option value="">All actions</option>
             {labels.data?.actions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </label>
 
         <label className="field">
           <span>Record type</span>
-          <select
-            value={entityType}
-            onChange={(event) => updateFilters({ entity_type: event.target.value })}
-          >
+          <select value={entityType} onChange={(event) => filters.set({ entity_type: event.target.value })}>
             <option value="">All record types</option>
             {labels.data?.entities.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </label>
@@ -224,7 +205,7 @@ export function AuditScreen(): React.ReactElement {
             type="date"
             value={occurredFrom}
             max={occurredTo || undefined}
-            onChange={(event) => updateFilters({ occurred_from: event.target.value })}
+            onChange={(event) => filters.set({ occurred_from: event.target.value })}
           />
         </label>
 
@@ -234,13 +215,13 @@ export function AuditScreen(): React.ReactElement {
             type="date"
             value={occurredTo}
             min={occurredFrom || undefined}
-            onChange={(event) => updateFilters({ occurred_to: event.target.value })}
+            onChange={(event) => filters.set({ occurred_to: event.target.value })}
           />
         </label>
 
         <div className="action-row filter-bar__full audit-filter-summary meta">
           <span>
-            {totalCount} event{totalCount === 1 ? "" : "s"}
+            {counted(totalCount, "event", "events")}
             {entityId && (
               <>
                 {" "}
@@ -251,17 +232,17 @@ export function AuditScreen(): React.ReactElement {
           {hasFilters && (
             <Button
               variant="link"
-              onClick={() => {
-                setSearchParams({}, { replace: true });
-              }}
+              onClick={() =>
+                filters.clear("action", "entity_type", "entity_id", "subject", "occurred_from", "occurred_to", "search")
+              }
             >
               Clear filters
             </Button>
           )}
         </div>
-      </form>
+      </div>
 
-      <div className="audit-ledger" aria-live="polite">
+      <div className="stack stack--4" aria-live="polite">
         {query.isLoading ? (
           <LoadingState>Loading audit events…</LoadingState>
         ) : query.isError ? (
@@ -293,14 +274,20 @@ export function AuditScreen(): React.ReactElement {
                     return (
                       <>
                         <span className="audit-date">{time.date}</span>
-                        <time className="audit-time meta" dateTime={event.occurred_at}>{time.time}</time>
+                        <time className="audit-time meta" dateTime={event.occurred_at}>
+                          {time.time}
+                        </time>
                       </>
                     );
                   },
                 },
                 { key: "action", header: "Action", primary: true, render: (event) => event.action_display },
                 { key: "summary", header: "Summary", render: (event) => eventSummary(event) },
-                { key: "actor", header: "Actor", render: (event) => <span className="audit-actor">{actorLabel(event)}</span> },
+                {
+                  key: "actor",
+                  header: "Actor",
+                  render: (event) => <span className="audit-actor">{actorLabel(event)}</span>,
+                },
                 {
                   key: "record",
                   header: "Record",
@@ -332,13 +319,7 @@ export function AuditScreen(): React.ReactElement {
               ]}
             />
 
-            <Pagination
-              label="Audit event pages"
-              page={page}
-              totalPages={totalPages}
-              onPage={(next) => updateFilters({ page: String(next) }, true)}
-              summary={`Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount} events`}
-            />
+            <Pagination label="Audit event pages" noun={["event", "events"]} {...paged.pager} />
           </>
         )}
       </div>
@@ -353,9 +334,20 @@ export function AuditScreen(): React.ReactElement {
           onClose={closeDetails}
         >
           <dl className="facts">
-            <div><dt>Occurred</dt><dd>{formatDateTime(selectedEvent.occurred_at)}</dd></div>
-            <div><dt>Actor</dt><dd>{actorLabel(selectedEvent)}</dd></div>
-            <div><dt>Record</dt><dd>{selectedEvent.entity_type_display} #{selectedEvent.entity_id}</dd></div>
+            <div>
+              <dt>Occurred</dt>
+              <dd>{formatDateTime(selectedEvent.occurred_at)}</dd>
+            </div>
+            <div>
+              <dt>Actor</dt>
+              <dd>{actorLabel(selectedEvent)}</dd>
+            </div>
+            <div>
+              <dt>Record</dt>
+              <dd>
+                {selectedEvent.entity_type_display} #{selectedEvent.entity_id}
+              </dd>
+            </div>
           </dl>
           <div className="audit-detail-section">
             <h3>Summary</h3>
@@ -363,7 +355,18 @@ export function AuditScreen(): React.ReactElement {
           </div>
           <div className="audit-detail-section">
             <h3>Recorded details</h3>
-            <pre className="code-block">{eventMetadata(selectedEvent)}</pre>
+            {selectedEvent.details.length === 0 ? (
+              <p className="meta">No further details recorded.</p>
+            ) : (
+              <dl className="facts">
+                {selectedEvent.details.map((detail) => (
+                  <div key={detail.label}>
+                    <dt>{detail.label}</dt>
+                    <dd>{detail.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
         </Dialog>
       )}

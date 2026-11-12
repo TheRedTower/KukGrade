@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { keys } from "./queryKeys";
 import { useDebouncedValue } from "./useDebouncedValue";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   GradingSession,
@@ -14,10 +14,10 @@ import {
   updateGradingSession,
 } from "./api";
 import { PageHeader } from "./PageHeader";
-import { EmptyState } from "./EmptyState";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
-import { WarningIcon } from "./Icons";
+import { ArrowRightIcon, WarningIcon } from "./Icons";
 import { useAuth } from "./auth";
 import { CandidateDialogs } from "./CandidateDialogs";
 import { SessionActionsMenu } from "./SessionActionsMenu";
@@ -37,15 +37,16 @@ import {
 } from "./sessionDetail";
 import { useActionsMenu } from "./useActionsMenu";
 import { useCandidateWork } from "./useCandidateWork";
+import { counted } from "./plural";
 
 export function GradingSessionDetailScreen(): React.ReactElement {
-  const { id } = useParams<{ id: string }>();
+  const id = useIdParam();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Number(), not parseInt: "12abc" is no session, not session 12.
-  const sessionId = Number(id);
-  const valid = !isNaN(sessionId);
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
+  const valid = id !== null;
   const { user: currentUser } = useAuth();
 
   const [search, setSearch] = useState("");
@@ -70,16 +71,18 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   const session = sessionQuery.data;
 
-  // A finished session may leave this viewer nothing to do: then there is no menu.
+  // A finished session may leave this viewer nothing to do: then there is no
+  // menu. What it offers is the server's to say (SessionActionsMenu).
   const hasSessionActions = Boolean(
     session &&
-      (session.status === "DRAFT" ||
-        session.status === "OPEN" ||
-        session.status === "LOCKED" ||
-        currentUser?.can_read_audit_log ||
-        session.can_be_deleted ||
-        session.can_be_archived ||
-        session.can_be_restored),
+    (session.can_open ||
+      session.can_lock ||
+      session.can_complete ||
+      session.can_cancel ||
+      currentUser?.can_read_audit_log ||
+      session.can_be_deleted ||
+      session.can_be_archived ||
+      session.can_be_restored),
   );
   // Finishing a session can take the menu's button away with focus still on it.
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -90,7 +93,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     }
     hadSessionActions.current = hasSessionActions;
   }, [hasSessionActions]);
-  const cancelReasonRequired = session?.status === "LOCKED";
+  const cancelReasonRequired = Boolean(session?.cancel_reason_required);
 
   const updateSessionMutation = useMutation({
     mutationFn: (payload: Parameters<typeof updateGradingSession>[1]) => updateGradingSession(sessionId, payload),
@@ -111,7 +114,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setCancellationReason("");
       setActionError(null);
     },
-    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to update session.")),
+    onError: (err: unknown) => setActionError(errorMessage(err, "The grading session could not be updated.")),
   });
 
   // Archiving or restoring changes what the lists show, never the session.
@@ -127,7 +130,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setConfirm(null);
       setActionError(null);
     },
-    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to update the archive.")),
+    onError: (err: unknown) =>
+      setActionError(errorMessage(err, "The grading session could not be archived or restored.")),
   });
 
   const deleteSessionMutation = useMutation({
@@ -136,7 +140,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       void queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
       void navigate("/gradings");
     },
-    onError: (err: unknown) => setActionError(errorMessage(err, "Failed to delete session.")),
+    onError: (err: unknown) => setActionError(errorMessage(err, "The grading session could not be deleted.")),
   });
   const confirmPending =
     updateSessionMutation.isPending || deleteSessionMutation.isPending || archiveMutation.isPending;
@@ -151,7 +155,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // counts and actions need every row), and the search says which of them fit.
   const searchTerm = useDebouncedValue(search.trim());
   const searchQuery = useQuery({
-    queryKey: [...keys.gradingCandidates.session(sessionId), "search", searchTerm],
+    queryKey: keys.gradingCandidates.search(sessionId, searchTerm),
     queryFn: () => getAllGradingCandidates({ session: sessionId, search: searchTerm }),
     // No carrying of an earlier term's answer over to the next: until the
     // server has answered this one, the screen says it is searching.
@@ -162,10 +166,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const searchStatus: "idle" | "searching" | "failed" =
     searchTerm === "" ? "idle" : searchQuery.data ? "idle" : searchQuery.isError ? "failed" : "searching";
   const matching = useMemo(
-    () =>
-      searchTerm === ""
-        ? null
-        : new Set((searchQuery.data?.results ?? []).map((row) => row.id)),
+    () => (searchTerm === "" ? null : new Set((searchQuery.data?.results ?? []).map((row) => row.id))),
     [searchTerm, searchQuery.data],
   );
   const filteredCandidates = useMemo(
@@ -177,53 +178,32 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // with_session_progress), the same number Overview and Gradings show. A
   // decision can only be made once the session is locked, so the banner
   // waits for that.
-  const awaitingDecisionCount = session?.status === "LOCKED" ? session.awaiting_decision_count : 0;
+  const awaitingDecisionCount = session?.decisions_open ? session.awaiting_decision_count : 0;
 
-  const active = enrichedCandidates.filter((item) => item.candidate.status !== "WITHDRAWN");
-  const unpreparedIds = active.filter((item) => !item.assessment).map((item) => item.candidate.id);
-  const preparedIds = active.filter((item) => item.assessment?.status === "NOT_STARTED").map((item) => item.assessment!.id);
-  // A no-show is a candidate who never started: the server refuses to
-  // withdraw one whose assessment work has begun (that needs a locked-session
-  // withdrawal), so only those are offered.
+  // Who can be prepared, started or marked a no-show now is served on each
+  // row, by the same rules the writes check.
+  const unpreparedIds = enrichedCandidates
+    .filter((item) => item.candidate.can_prepare_assessment)
+    .map((item) => item.candidate.id);
+  const preparedIds = enrichedCandidates.flatMap((item) => (item.assessment?.can_start ? [item.assessment.id] : []));
   const attendanceCandidates = enrichedCandidates
-    .filter((item) => item.candidate.status === "REGISTERED" && (!item.assessment || item.assessment.status === "NOT_STARTED"))
+    .filter((item) => item.candidate.can_be_marked_absent)
     .map(toAttendanceCandidate);
 
-  if (!valid) {
+  const status = recordStatus(id, sessionQuery);
+  if (status || !session) {
     return (
-      <section aria-labelledby="gsd-invalid-id-heading" className="page" data-testid="gsd-page">
-        <EmptyState
-          titleAs="h2"
-          titleId="gsd-invalid-id-heading"
-          title="Grading session not found"
-          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
-        >
-          Please return to the sessions list.
-        </EmptyState>
-      </section>
-    );
-  }
-
-  if (sessionQuery.isLoading) {
-    return (
-      <section aria-label="Grading session" className="page" data-testid="gsd-page">
-        <LoadingState>Loading grading session…</LoadingState>
-      </section>
-    );
-  }
-
-  if (sessionQuery.isError || !session) {
-    return (
-      <section aria-labelledby="gsd-error-heading" className="page" data-testid="gsd-page">
-        <EmptyState
-          titleAs="h2"
-          titleId="gsd-error-heading"
-          title="Failed to load grading session"
-          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
-        >
-          {errorMessage(sessionQuery.error, "Session not found.")}
-        </EmptyState>
-      </section>
+      <RecordPage
+        back={{ to: "/gradings", label: "Gradings" }}
+        error={sessionQuery.error}
+        failed="The grading session could not be loaded."
+        label="Grading session"
+        loading="Loading grading session…"
+        missing="Grading session not found"
+        status={status ?? "loading"}
+        testId="gsd-page"
+        onRetry={() => void sessionQuery.refetch()}
+      />
     );
   }
 
@@ -235,14 +215,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     // document.body as "previously focused" unless focus is moved onto the
     // still-mounted trigger button before that happens.
     menu.buttonRef.current?.focus();
-    setConfirm({ action, ...confirmDetails(action, session, active.length) });
+    setConfirm({ action, ...confirmDetails(action, session, session.candidate_count ?? 0) });
   };
 
   const handleConfirm = () => {
     if (!confirm) return;
     if (confirm.action === "DELETE") deleteSessionMutation.mutate();
     else if (confirm.action === "ARCHIVE" || confirm.action === "RESTORE") archiveMutation.mutate(confirm.action);
-    else if (confirm.action === "CANCEL") updateSessionMutation.mutate({ status: "CANCELLED", cancellation_reason: cancellationReason });
+    else if (confirm.action === "CANCEL")
+      updateSessionMutation.mutate({ status: "CANCELLED", cancellation_reason: cancellationReason });
     else if (confirm.action === "OPEN") updateSessionMutation.mutate({ status: "OPEN" });
     else if (confirm.action === "LOCK") updateSessionMutation.mutate({ status: "LOCKED" });
     else updateSessionMutation.mutate({ status: "COMPLETED" });
@@ -253,7 +234,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   return (
     <section aria-labelledby="gsd-title" className="page" data-testid="gsd-page">
       <PageHeader
-        crumbs={[{ label: "Gradings", to: "/gradings" }, { label: session.title }]}
+        back={{ to: "/gradings", label: "Gradings" }}
         title={session.title}
         titleId="gsd-title"
         titleRef={headingRef}
@@ -262,19 +243,33 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         actions={
           <>
             {decided && (
-              <Link to={`/gradings/${session.id}/decisions`} className={buttonClass({ variant: "secondary" })} data-testid="gsd-final-decisions-btn">
-                Final decisions →
+              <Link
+                to={`/gradings/${session.id}/decisions`}
+                className={buttonClass({ variant: "secondary" })}
+                data-testid="gsd-final-decisions-btn"
+              >
+                Final decisions <ArrowRightIcon />
               </Link>
             )}
             {decided && (
-              <Link to={`/gradings/${session.id}/promotions`} className={buttonClass({ variant: "secondary" })} data-testid="gsd-promotion-ledger-btn">
-                Promotion ledger →
+              <Link
+                to={`/gradings/${session.id}/promotions`}
+                className={buttonClass({ variant: "secondary" })}
+                data-testid="gsd-promotion-ledger-btn"
+              >
+                Promotion ledger <ArrowRightIcon />
               </Link>
             )}
-            {hasSessionActions && <SessionActionsMenu session={session} user={currentUser} menu={menu} onAction={handleAction} />}
-            {(session.status === "DRAFT" || session.status === "OPEN") && (
-              <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })} data-testid="gsd-add-candidate-btn">
-                Add candidate <span aria-hidden="true">→</span>
+            {hasSessionActions && (
+              <SessionActionsMenu session={session} user={currentUser} menu={menu} onAction={handleAction} />
+            )}
+            {session.roster_open && (
+              <Link
+                to={`/gradings/${session.id}/register`}
+                className={buttonClass({ variant: "primary" })}
+                data-testid="gsd-add-candidate-btn"
+              >
+                Add candidate <ArrowRightIcon />
               </Link>
             )}
           </>
@@ -290,8 +285,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {session.archived_at && (
         <Alert tone="info" data-testid="gsd-archived-note">
-          This session is archived, so it is left out of the list of gradings. Its results, decisions and
-          promotions are kept.
+          This session is archived, so it is left out of the list of gradings. Its results, decisions and promotions are
+          kept.
         </Alert>
       )}
 
@@ -304,12 +299,16 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           aria-label="Action required"
           icon={<WarningIcon size={18} />}
           action={
-            <Link to={`/gradings/${session.id}/decisions`} className={buttonClass({ variant: "ghost", small: true })} data-testid="gsd-review-decisions-btn">
-              Review <span aria-hidden="true">→</span>
+            <Link
+              to={`/gradings/${session.id}/decisions`}
+              className={buttonClass({ variant: "ghost", small: true })}
+              data-testid="gsd-review-decisions-btn"
+            >
+              Review <ArrowRightIcon />
             </Link>
           }
         >
-          {awaitingDecisionCount} candidate{awaitingDecisionCount === 1 ? "" : "s"} awaiting final decision
+          {counted(awaitingDecisionCount, "candidate", "candidates")} awaiting final decision
         </Alert>
       )}
 
@@ -344,7 +343,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         <SessionConfirmDialog
           confirm={confirm}
           pending={confirmPending}
-          deleting={deleteSessionMutation.isPending}
           reasonRequired={cancelReasonRequired}
           reason={cancellationReason}
           onReason={setCancellationReason}

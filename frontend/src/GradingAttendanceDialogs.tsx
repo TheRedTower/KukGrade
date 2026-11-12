@@ -1,16 +1,10 @@
 import { useState } from "react";
 
-import { Alert } from "./Alert";
 import type { LockedCandidateWithdrawal, WithdrawalReason } from "./api";
-import { Dialog } from "./Dialog";
+import { ConfirmDialog } from "./ConfirmDialog";
+import type { AttendanceCandidate } from "./sessionDetail";
 import "./GradingAttendance.css";
-import { Button } from "./Button";
-
-export type AttendanceCandidate = {
-  id: number;
-  name: string;
-  wksaId: string;
-};
+import { counted } from "./plural";
 
 type NoShowDialogProps = {
   candidates: AttendanceCandidate[];
@@ -20,24 +14,23 @@ type NoShowDialogProps = {
   onConfirm: (candidateIds: number[]) => void;
 };
 
-export function NoShowDialog({
-  candidates,
-  pending,
-  error,
-  onClose,
-  onConfirm,
-}: NoShowDialogProps) {
+export function NoShowDialog({ candidates, pending, error, onClose, onConfirm }: NoShowDialogProps) {
   const [selected, setSelected] = useState<number[]>([]);
 
   return (
-    <Dialog
+    <ConfirmDialog
       title="Confirm attendance"
       eyebrow="Before assessment"
-      closeButton={false}
+      confirmLabel="Mark selected as no-show"
+      pendingLabel="Confirming…"
+      pending={pending}
+      error={error}
+      confirmDisabled={selected.length === 0}
+      danger
       onClose={onClose}
-      canClose={!pending}
+      onConfirm={() => onConfirm(selected)}
     >
-      <p className="attendance-dialog-copy">
+      <p className="subtext">
         Select only the candidates who did not attend. Everyone else remains registered and unchanged.
       </p>
       <fieldset className="attendance-candidate-list">
@@ -50,9 +43,7 @@ export function NoShowDialog({
               checked={selected.includes(candidate.id)}
               onChange={(event) => {
                 setSelected((current) =>
-                  event.target.checked
-                    ? [...current, candidate.id]
-                    : current.filter((id) => id !== candidate.id),
+                  event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id),
                 );
               }}
             />
@@ -63,25 +54,10 @@ export function NoShowDialog({
           </label>
         ))}
       </fieldset>
-      <div className="attendance-dialog-summary subtext" aria-live="polite">
-        {selected.length === 0
-          ? "No no-shows selected"
-          : `${selected.length} no-show${selected.length === 1 ? "" : "s"} selected`}
+      <div className="subtext" aria-live="polite">
+        {selected.length === 0 ? "No no-shows selected" : `${counted(selected.length, "no-show", "no-shows")} selected`}
       </div>
-      {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
-      <div className="attendance-dialog-actions">
-        <Button variant="ghost" onClick={onClose} disabled={pending}>
-          Cancel
-        </Button>
-        <Button
-          variant="danger"
-          onClick={() => onConfirm(selected)}
-          disabled={pending || selected.length === 0}
-        >
-          {pending ? "Confirming…" : "Mark selected as no-show"}
-        </Button>
-      </div>
-    </Dialog>
+    </ConfirmDialog>
   );
 }
 
@@ -107,70 +83,56 @@ export function LockedWithdrawalDialog({
   const noteMissing = Boolean(reason?.note_required) && !note.trim();
 
   return (
-    <Dialog
+    <ConfirmDialog
       title={`Withdraw ${candidate.name}`}
       eyebrow="Locked-session override"
-      closeButton={false}
+      confirmLabel="Withdraw candidate"
+      pendingLabel="Withdrawing…"
+      pending={pending}
+      error={error}
+      confirmDisabled={!reason || noteMissing}
+      danger
       onClose={onClose}
-      canClose={!pending}
+      onConfirm={() => {
+        if (reason) onConfirm({ withdrawal_reason: reason.value, withdrawal_note: note.trim() });
+      }}
     >
-      <p className="attendance-dialog-copy">
-        Use this only when the candidate cannot finish the locked grading. Existing assessment work remains on record; any unfinalised outcome proposal is removed.
+      <p className="subtext">
+        Use this only when the candidate cannot finish the locked grading. Existing assessment work remains on record;
+        any unfinalised outcome proposal is removed.
       </p>
-      <form
-        className="attendance-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!reason || noteMissing) return;
-          onConfirm({ withdrawal_reason: reason.code, withdrawal_note: note.trim() });
-        }}
-      >
-        <fieldset className="attendance-candidate-list">
-          <legend className="field__legend">Reason</legend>
-          {reasons.map((option, index) => (
-            <label key={option.code} className="attendance-candidate-option">
-              <input
-                type="radio"
-                name="withdrawal-reason"
-                value={option.code}
-                data-dialog-autofocus={index === 0 ? "true" : undefined}
-                checked={reason?.code === option.code}
-                onChange={() => setReason(option)}
-              />
-              <span>
-                <strong>{option.name}</strong>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-        <label className="field field--sentence">
-          <span>
-            {reason?.note_required ? "What happened" : "Additional note"}{" "}
-            <small>{reason?.note_required ? "(required)" : "(optional)"}</small>
-          </span>
-          <textarea
-            rows={4}
-            required={reason?.note_required}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Record any useful context without adding unnecessary personal detail."
-          />
-        </label>
-        {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
-        <div className="attendance-dialog-actions">
-          <Button variant="ghost" onClick={onClose} disabled={pending}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="danger"
-            disabled={pending || !reason || noteMissing}
-          >
-            {pending ? "Withdrawing…" : "Withdraw candidate"}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
+      <fieldset className="attendance-candidate-list">
+        <legend className="field__legend">Reason</legend>
+        {reasons.map((option, index) => (
+          <label key={option.value} className="attendance-candidate-option">
+            <input
+              type="radio"
+              name="withdrawal-reason"
+              value={option.value}
+              data-dialog-autofocus={index === 0 ? "true" : undefined}
+              checked={reason?.value === option.value}
+              onChange={() => setReason(option)}
+            />
+            <span>
+              <strong>{option.label}</strong>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      <label className="field field--sentence">
+        <span>
+          {reason?.note_required ? "What happened" : "Additional note"}{" "}
+          <small>{reason?.note_required ? "(required)" : "(optional)"}</small>
+        </span>
+        <textarea
+          rows={4}
+          required={reason?.note_required}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          placeholder="Record any useful context without adding unnecessary personal detail."
+        />
+      </label>
+    </ConfirmDialog>
   );
 }
 
@@ -194,53 +156,38 @@ export function MoveRegistrationDialog({
   const [sessionId, setSessionId] = useState("");
 
   return (
-    <Dialog
+    <ConfirmDialog
       title={`Move ${candidate.name}`}
       eyebrow="Registration"
-      closeButton={false}
+      confirmLabel="Move registration"
+      pendingLabel="Moving…"
+      pending={pending}
+      error={error}
+      confirmDisabled={!sessionId}
       onClose={onClose}
-      canClose={!pending}
+      onConfirm={() => onConfirm(Number(sessionId))}
     >
-      <p className="attendance-dialog-copy">
+      <p className="subtext">
         Moves this registration to another draft or open session. It is refused once an assessment has been prepared.
       </p>
-      <form
-        className="attendance-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (sessionId) onConfirm(Number(sessionId));
-        }}
-      >
-        <label className="field field--sentence">
-          <span>Move to</span>
-          <select
-            required
-            data-dialog-autofocus="true"
-            value={sessionId}
-            onChange={(event) => setSessionId(event.target.value)}
-          >
-            <option value="">Select a session</option>
-            {sessions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {sessions.length === 0 && (
-          <p className="attendance-dialog-copy">No other draft or open session to move to.</p>
-        )}
-        {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
-        <div className="attendance-dialog-actions">
-          <Button variant="ghost" onClick={onClose} disabled={pending}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" disabled={pending || !sessionId}>
-            {pending ? "Moving…" : "Move registration"}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
+      <label className="field field--sentence">
+        <span>Move to</span>
+        <select
+          required
+          data-dialog-autofocus="true"
+          value={sessionId}
+          onChange={(event) => setSessionId(event.target.value)}
+        >
+          <option value="">Select a session</option>
+          {sessions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {sessions.length === 0 && <p className="subtext">No other draft or open session to move to.</p>}
+    </ConfirmDialog>
   );
 }
 
@@ -260,34 +207,21 @@ export function RemoveRegistrationDialog({
   onConfirm,
 }: RemoveRegistrationDialogProps) {
   return (
-    <Dialog
+    <ConfirmDialog
       title={`Remove ${candidate.name}`}
       eyebrow="Registration"
-      closeButton={false}
+      confirmLabel="Remove registration"
+      pendingLabel="Removing…"
+      pending={pending}
+      error={error}
+      danger
       onClose={onClose}
-      canClose={!pending}
+      onConfirm={onConfirm}
     >
-      <p className="attendance-dialog-copy">
-        Removes this registration and its assessment, which has not been started. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
+      <p className="subtext">
+        Removes this registration and its assessment, which has not been started. Use it for a registration made in
+        error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
       </p>
-      {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
-      <div className="attendance-dialog-actions">
-        <Button
-          variant="ghost"
-          data-dialog-autofocus="true"
-          onClick={onClose}
-          disabled={pending}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="danger"
-          onClick={onConfirm}
-          disabled={pending}
-        >
-          {pending ? "Removing…" : "Remove registration"}
-        </Button>
-      </div>
-    </Dialog>
+    </ConfirmDialog>
   );
 }

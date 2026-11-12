@@ -302,10 +302,10 @@ def test_withdrawal_reasons_are_served_with_which_needs_a_note() -> None:
 
     assert response.status_code == 200
     assert results(response) == [
-        {"code": "INJURY", "name": "Injured during grading", "note_required": False},
-        {"code": "WITHDREW", "name": "Withdrew voluntarily", "note_required": False},
-        {"code": "ABSENT", "name": "Did not attend", "note_required": False},
-        {"code": "OTHER", "name": "Other", "note_required": True},
+        {"value": "INJURY", "label": "Injured during grading", "note_required": False},
+        {"value": "WITHDREW", "label": "Withdrew voluntarily", "note_required": False},
+        {"value": "ABSENT", "label": "Did not attend", "note_required": False},
+        {"value": "OTHER", "label": "Other", "note_required": True},
     ]
 
 
@@ -336,7 +336,7 @@ def test_an_other_withdrawal_needs_a_note() -> None:
     )
 
     assert refused.status_code == 200
-    assert refused.json()["errors"]["0"] == ["Say what the other reason is."]
+    assert refused.json()["errors"][str(built.pk)] == ["Say what the other reason is."]
     assert accepted.status_code == 200
     assert accepted.json()["errors"] == {}
     built.refresh_from_db()
@@ -432,3 +432,19 @@ def test_the_api_refuses_to_cancel_a_session_with_a_final_decision() -> None:
         GradingSession.objects.get(pk=built.session_id).status
         == GradingSession.Status.LOCKED
     )
+
+
+def test_withdrawing_with_no_reason_is_refused_with_a_message() -> None:
+    _session, built = locked_session_with_undecided_candidate()
+    client = APIClient()
+    client.force_authenticate(user=override_master("withdraw-empty@example.com"))
+
+    response = client.post(
+        f"/api/gradings/candidates/{built.id}/withdraw/", {}, format="json"
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "validation_error"
+    assert "withdrawal_reason" in response.json()["error"]["fields"]
+    built.refresh_from_db()
+    assert built.status != GradingCandidate.Status.WITHDRAWN

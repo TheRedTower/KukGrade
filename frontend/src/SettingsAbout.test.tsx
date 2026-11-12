@@ -12,6 +12,7 @@ import {
   fetchSignedInAs,
   jsonResponse,
   signedInResponse,
+  stubFetch,
 } from "./appTestSupport";
 
 const administrator = {
@@ -26,8 +27,7 @@ function visit(path: string) {
 
 /** Signed in, with some `/api/about/` answers replaced. */
 function stubAbout(replacements: Record<string, unknown>, user: AuthUser = authUser) {
-  vi.stubGlobal(
-    "fetch",
+  stubFetch(
     vi.fn().mockImplementation(async (url: string) => {
       const path = new URL(url, "http://localhost").pathname;
       return path in replacements ? jsonResponse(200, replacements[path]) : signedInResponse(url, user);
@@ -43,7 +43,7 @@ describe("About: the overview", () => {
   beforeEach(() => visit("/settings/about"));
 
   it("shows the version and what to quote when asking for help", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -58,13 +58,8 @@ describe("About: the overview", () => {
   it("names a release candidate by its number, in the page, the sidebar and the support text", async () => {
     const candidate = { ...ABOUT, release: "0.2.0-rc.4" };
     const signedIn = fetchSignedInAs(authUser);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) =>
-        url.endsWith("/api/about/")
-          ? jsonResponse(200, candidate)
-          : signedIn(url),
-      ),
+    stubFetch(
+      vi.fn(async (url: string) => (url.endsWith("/api/about/") ? jsonResponse(200, candidate) : signedIn(url))),
     );
 
     render(<App />);
@@ -75,7 +70,7 @@ describe("About: the overview", () => {
   });
 
   it("takes the links from the server, each opening in a new tab", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -89,7 +84,7 @@ describe("About: the overview", () => {
   });
 
   it("names the licence and the copyright holder in the section list", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -102,7 +97,7 @@ describe("About: the overview", () => {
   });
 
   it("copies the details to paste into a request for help", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -119,13 +114,14 @@ describe("About: the overview", () => {
   });
 
   it("says so when the details cannot be loaded", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) =>
-        url.includes("/api/about/")
-          ? jsonResponse(500, { error: { code: "server_error", message: "Server error." } })
-          : signedInResponse(url, authUser),
-      ),
+    stubFetch(
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/about/")
+            ? jsonResponse(500, { error: { code: "server_error", message: "Server error." } })
+            : signedInResponse(url, authUser),
+        ),
     );
 
     render(<App />);
@@ -148,7 +144,7 @@ describe("About: the overview", () => {
     expect(school.getByText("Administrators only")).toBeVisible();
     unmount();
 
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
     render(<App />);
     await screen.findByRole("region", { name: "Version details" });
     expect(screen.queryByRole("region", { name: "Your school" })).not.toBeInTheDocument();
@@ -159,7 +155,7 @@ describe("About: the licence", () => {
   beforeEach(() => visit("/settings/about/licence"));
 
   it("gives a short guide, then the licence file exactly as served", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -184,7 +180,7 @@ describe("About: the code of conduct", () => {
   beforeEach(() => visit("/settings/about/conduct"));
 
   it("shows the pledge in English and Korean, then the code as the repository holds it", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
     const user = userEvent.setup();
     const scrollIntoView = vi.fn();
     window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
@@ -210,7 +206,7 @@ describe("About: security", () => {
   beforeEach(() => visit("/settings/about/security"));
 
   it("points a link to another file at the repository, and opens outside links in a new tab", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -228,13 +224,14 @@ describe("About: security", () => {
   });
 
   it("says so when the document cannot be loaded", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) =>
-        url.includes("/documents/")
-          ? jsonResponse(404, { error: { code: "not_found", message: "Not found." } })
-          : signedInResponse(url, authUser),
-      ),
+    stubFetch(
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/documents/")
+            ? jsonResponse(404, { error: { code: "not_found", message: "Not found." } })
+            : signedInResponse(url, authUser),
+        ),
     );
 
     render(<App />);
@@ -247,7 +244,7 @@ describe("About: support", () => {
   beforeEach(() => visit("/settings/about/support"));
 
   it("takes the contact addresses from the server", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -264,7 +261,7 @@ describe("About: support", () => {
   });
 
   it("copies the version, the browser and the role, and no student data", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -286,7 +283,7 @@ describe("About: credits", () => {
   beforeEach(() => visit("/settings/about/credits"));
 
   it("lists the projects the server and the screens are built on, with their licences", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 

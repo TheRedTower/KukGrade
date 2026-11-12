@@ -8,11 +8,14 @@ from django.db.models import Max
 from django.utils import timezone
 
 from accounts.models import User
+from accounts.people import title_of
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from audit.models import AuditAction
 from audit.recording import grading_context, record, student_label
 from gradings.locking import (
-    lock_in_session,
+    lock_assessment,
+    lock_candidate,
+    lock_item,
     lock_sessions_of,
     require_pinned,
 )
@@ -23,7 +26,6 @@ from gradings.models import (
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
-    GradingSession,
 )
 from gradings.service_support import each_independently, unique_violation_on
 from syllabus.models import AgeBand
@@ -32,12 +34,6 @@ from syllabus.services import (
     effective_syllabus_requirements,
 )
 
-ASSESSMENT_GENERATION_SESSION_STATUSES = {
-    GradingSession.Status.DRAFT,
-    GradingSession.Status.OPEN,
-}
-
-
 ASSESSMENT_HOLDS_FINAL_DECISION = (
     "This assessment holds a final decision, which is never erased."
 )
@@ -45,17 +41,31 @@ ASSESSMENT_HOLDS_FINAL_DECISION = (
 STUDENT_DELETED_MESSAGE = (
     "This student has been deleted, so their assessment is kept as recorded."
 )
+ALREADY_HAS_FORM_MESSAGE = "This candidate already has an assessment form."
+WITHDRAWN_MESSAGE = "Withdrawn candidates cannot be assessed."
+MARK_STARTED_MESSAGE = "Assessment must be started before item results can be changed."
+MARK_CLOSED_MESSAGE = "Assessment results can only be entered in an open session."
+COMMENT_STARTED_MESSAGE = (
+    "Assessment must be started before an item can be commented on."
+)
+COMMENT_CLOSED_MESSAGE = "Items can only be commented on in an open session."
 
 
-def assessment_holds_final_decision(assessment: CandidateAssessment) -> bool:
-    # Read through the candidate, which a list already joins (one outcome per
-    # candidate, the same row as the assessment's).
-    outcome = getattr(assessment.candidate, "outcome", None)
+def holds_final_decision(candidate: GradingCandidate) -> bool:
+    """Whether the candidate's final decision is recorded. Read through the
+    candidate, which a list already joins (one outcome per candidate, the same
+    row as their assessment's)."""
+    outcome = getattr(candidate, "outcome", None)
     return outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED
 
 
 def _status_label(status: str) -> str:
     return str(CandidateAssessment.Status(status).label).lower()
+
+
+def _result_label(result: str) -> str:
+    """A mark as the screens name it ("Met"), for an audit summary."""
+    return str(CandidateAssessmentItem.Result(result).label)
 
 
 @transaction.atomic
@@ -72,17 +82,9 @@ def delete_candidate_assessment(
     goes through the unbound base QuerySet.delete, the one sanctioned bypass
     (administrator-gated, see accounts.groups._DATA_CLEANUP_PERMISSIONS).
     """
-    locked = lock_in_session(
-        CandidateAssessment.objects.select_related(
-            "candidate__student",
-            "candidate__session",
-        ),
-        assessment.pk,
-        session_path="candidate__session_id",
-        name="assessment",
-    )
+    locked = lock_assessment(assessment.pk)
     outcome = getattr(locked, "outcome", None)
-    if assessment_holds_final_decision(locked):
+    if holds_final_decision(locked.candidate):
         raise ValidationError({"assessment": [ASSESSMENT_HOLDS_FINAL_DECISION]})
     if outcome is not None:
         models.QuerySet.delete(CandidateOutcome.objects.filter(pk=outcome.pk))
@@ -92,7 +94,8 @@ def delete_candidate_assessment(
         locked,
         (
             f"Assessment for {student_label(locked.candidate.student)} in "
-            f"'{locked.candidate.session.title}' deleted while {locked.status}."
+            f"'{locked.candidate.session.title}' deleted while "
+            f"{_status_label(locked.status)}."
         ),
         actor=actor,
         metadata={
@@ -113,7 +116,7 @@ def delete_candidate_assessment(
 
 
 def validate_assessment_generation_candidate(candidate: GradingCandidate) -> None:
-    if candidate.session.status not in ASSESSMENT_GENERATION_SESSION_STATUSES:
+    if not candidate.session.roster_open:
         raise ValidationError(
             {
                 "session": [
@@ -126,6 +129,18 @@ def validate_assessment_generation_candidate(candidate: GradingCandidate) -> Non
         raise ValidationError(
             {"candidate": ["Cannot generate an assessment for a withdrawn candidate."]},
         )
+
+
+def assessment_can_be_prepared(candidate: GradingCandidate) -> bool:
+    """Whether this candidate's assessment form can be prepared now: they
+    have none yet, and the generation's own rule allows it."""
+    if getattr(candidate, "assessment", None) is not None:
+        return False
+    try:
+        validate_assessment_generation_candidate(candidate)
+    except ValidationError:
+        return False
+    return True
 
 
 def _snapshot_item(
@@ -160,18 +175,11 @@ def generate_candidate_assessment(
     candidate: GradingCandidate,
     generated_by: User,
 ) -> CandidateAssessment:
-    locked_candidate = lock_in_session(
-        GradingCandidate.objects.select_related(
-            "session", "student", "testing_for_rank"
-        ),
-        candidate.pk,
-        session_path="session_id",
-        name="candidate",
-    )
+    locked_candidate = lock_candidate(candidate.pk)
     validate_assessment_generation_candidate(locked_candidate)
     if hasattr(locked_candidate, "assessment"):
         raise ValidationError(
-            {"candidate": ["This candidate already has an assessment form."]},
+            {"candidate": [ALREADY_HAS_FORM_MESSAGE]},
         )
 
     # The cumulative syllabus, exactly as the syllabus screen shows it: every
@@ -196,6 +204,7 @@ def generate_candidate_assessment(
         assessment = CandidateAssessment.objects.create(
             candidate=locked_candidate,
             generated_by=generated_by,
+            generated_by_title=title_of(generated_by),
         )
         CandidateAssessmentItem.objects.bulk_create(
             [
@@ -214,7 +223,7 @@ def generate_candidate_assessment(
         if not unique_violation_on(exc, CandidateAssessment):
             raise
         raise ValidationError(
-            {"candidate": ["This candidate already has an assessment form."]},
+            {"candidate": [ALREADY_HAS_FORM_MESSAGE]},
         ) from exc
     record(
         AuditAction.ASSESSMENT_GENERATED,
@@ -253,7 +262,7 @@ def bulk_generate_candidate_assessments(
         require_pinned(candidate.pk, pinned, "candidate")
         return generate_candidate_assessment(candidate, generated_by)
 
-    return each_independently(candidates, generate)
+    return each_independently(candidates, generate, key=lambda candidate: candidate.pk)
 
 
 def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
@@ -261,22 +270,36 @@ def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
         raise ValidationError(
             {"status": ["Only not-started assessments can be started."]},
         )
-    if assessment.candidate.session.status != GradingSession.Status.OPEN:
+    if not assessment.candidate.session.marking_open:
         raise ValidationError(
             {"session": ["Assessments can only be started in open sessions."]},
         )
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
-            {"candidate": ["Withdrawn candidates cannot be assessed."]},
+            {"candidate": [WITHDRAWN_MESSAGE]},
         )
 
 
-def validate_assessment_can_complete(assessment: CandidateAssessment) -> None:
+def assessment_can_start(assessment: CandidateAssessment) -> bool:
+    try:
+        validate_assessment_can_start(assessment)
+    except ValidationError:
+        return False
+    return True
+
+
+def validate_assessment_can_complete(
+    assessment: CandidateAssessment,
+    *,
+    required_not_assessed: int | None = None,
+) -> None:
+    """Whether the assessment may be completed now. `required_not_assessed`
+    is the count when the caller already holds it (the served summary)."""
     if assessment.status != CandidateAssessment.Status.IN_PROGRESS:
         raise ValidationError(
             {"status": ["Only in-progress assessments can be completed."]},
         )
-    if assessment.candidate.session.status != GradingSession.Status.OPEN:
+    if not assessment.candidate.session.marking_open:
         raise ValidationError(
             {"session": ["Assessments can only be completed in an open session."]},
         )
@@ -284,10 +307,14 @@ def validate_assessment_can_complete(assessment: CandidateAssessment) -> None:
         raise ValidationError(
             {"candidate": ["Withdrawn candidates cannot be completed."]},
         )
-    missing_required_result = assessment.items.filter(
-        required=True,
-        result=CandidateAssessmentItem.Result.NOT_ASSESSED,
-    ).exists()
+    missing_required_result = (
+        assessment.items.filter(
+            required=True,
+            result=CandidateAssessmentItem.Result.NOT_ASSESSED,
+        ).exists()
+        if required_not_assessed is None
+        else required_not_assessed > 0
+    )
     if missing_required_result:
         raise ValidationError(
             {
@@ -299,6 +326,21 @@ def validate_assessment_can_complete(assessment: CandidateAssessment) -> None:
         )
 
 
+def assessment_can_complete(
+    assessment: CandidateAssessment,
+    *,
+    required_not_assessed: int,
+) -> bool:
+    try:
+        validate_assessment_can_complete(
+            assessment,
+            required_not_assessed=required_not_assessed,
+        )
+    except ValidationError:
+        return False
+    return True
+
+
 @transaction.atomic
 def update_candidate_assessment(
     assessment: CandidateAssessment,
@@ -307,15 +349,7 @@ def update_candidate_assessment(
     notes: str | None = None,
     actor: User | None = None,
 ) -> CandidateAssessment:
-    locked_assessment = lock_in_session(
-        CandidateAssessment.objects.select_related(
-            "candidate__session",
-            "candidate__student",
-        ),
-        assessment.pk,
-        session_path="candidate__session_id",
-        name="assessment",
-    )
+    locked_assessment = lock_assessment(assessment.pk)
     if locked_assessment.status == CandidateAssessment.Status.COMPLETED:
         raise ValidationError({"status": ["A completed assessment cannot be changed."]})
     if locked_assessment.candidate.student.deleted_at is not None:
@@ -420,7 +454,7 @@ def bulk_start_candidate_assessments(
             actor=actor,
         )
 
-    return each_independently(assessments, start)
+    return each_independently(assessments, start, key=lambda assessment: assessment.pk)
 
 
 def _validate_assessment_open_for_item_work(
@@ -445,7 +479,7 @@ def _validate_assessment_open_for_item_work(
         # A deleted student's assessment is kept as recorded, never changed.
         raise ValidationError({"student": [STUDENT_DELETED_MESSAGE]})
     session = assessment.candidate.session
-    if session.status == GradingSession.Status.LOCKED:
+    if session.is_locked:
         if not actor.has_perm(FINAL_GRADING_DECISION_PERMISSION):
             raise ValidationError(
                 {
@@ -455,8 +489,7 @@ def _validate_assessment_open_for_item_work(
                     ],
                 },
             )
-        outcome = getattr(assessment.candidate, "outcome", None)
-        if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
+        if holds_final_decision(assessment.candidate):
             raise ValidationError(
                 {
                     "candidate": [
@@ -465,20 +498,12 @@ def _validate_assessment_open_for_item_work(
                     ],
                 },
             )
-    elif session.status != GradingSession.Status.OPEN:
+    elif not session.marking_open:
         raise ValidationError({"session": [closed_message]})
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
-            {"candidate": ["Withdrawn candidates cannot be assessed."]},
+            {"candidate": [WITHDRAWN_MESSAGE]},
         )
-
-
-MARK_STARTED_MESSAGE = "Assessment must be started before item results can be changed."
-MARK_CLOSED_MESSAGE = "Assessment results can only be entered in an open session."
-COMMENT_STARTED_MESSAGE = (
-    "Assessment must be started before an item can be commented on."
-)
-COMMENT_CLOSED_MESSAGE = "Items can only be commented on in an open session."
 
 
 def validate_assessment_item_can_be_changed(
@@ -511,6 +536,40 @@ def assessment_marks_open(assessment: CandidateAssessment, actor: User) -> bool:
     return True
 
 
+def _is_later_change(
+    item: CandidateAssessmentItem,
+    *,
+    has_changes: bool | None,
+) -> bool:
+    """Not the item's first change: it is marked, or has been and was cleared.
+    `has_changes` is given when the caller already holds the item's log."""
+    if item.result != CandidateAssessmentItem.Result.NOT_ASSESSED:
+        return True
+    return item.changes.exists() if has_changes is None else has_changes
+
+
+def item_change_needs_reason(
+    item: CandidateAssessmentItem,
+    *,
+    has_changes: bool | None = None,
+) -> bool:
+    """Whether the next change to this item's mark must say why: every change
+    after the first does, and after the lock every one does, the first mark
+    included."""
+    return (
+        _is_later_change(item, has_changes=has_changes)
+        or item.assessment.candidate.session.is_locked
+    )
+
+
+def item_mark_can_be_cleared(item: CandidateAssessmentItem) -> bool:
+    """Whether the item's mark may be taken away: it has one, and a completed
+    assessment keeps every required item marked - changed, not emptied."""
+    return item.result != CandidateAssessmentItem.Result.NOT_ASSESSED and not (
+        item.required and item.assessment.status == CandidateAssessment.Status.COMPLETED
+    )
+
+
 @transaction.atomic
 def update_candidate_assessment_item(
     item: CandidateAssessmentItem,
@@ -527,15 +586,7 @@ def update_candidate_assessment_item(
     so a screen that still shows an item as unmarked cannot quietly overwrite
     what someone else has marked since.
     """
-    locked_item = lock_in_session(
-        CandidateAssessmentItem.objects.select_related(
-            "assessment__candidate__session",
-            "assessment__candidate__student",
-        ),
-        item.pk,
-        session_path="assessment__candidate__session_id",
-        name="item",
-    )
+    locked_item = lock_item(item.pk)
     validate_assessment_item_can_be_changed(locked_item, assessor)
     previous_result = locked_item.result
     # A call that changes nothing writes and records nothing.
@@ -544,19 +595,13 @@ def update_candidate_assessment_item(
     if result not in CandidateAssessmentItem.Result.values:
         raise ValidationError({"result": ["That is not a valid result."]})
     reason = (reason or "").strip()
-    already_marked = previous_result != CandidateAssessmentItem.Result.NOT_ASSESSED
-    # Not the item's first change: it is marked, or has been and was cleared.
-    is_later_change = already_marked or locked_item.changes.exists()
-    # After the lock every correction says why, the first mark included.
-    after_lock = locked_item.assessment.candidate.session.status == (
-        GradingSession.Status.LOCKED
-    )
-    if (is_later_change or after_lock) and not reason:
+    is_later_change = _is_later_change(locked_item, has_changes=None)
+    after_lock = locked_item.assessment.candidate.session.is_locked
+    if item_change_needs_reason(locked_item) and not reason:
         raise ValidationError({"reason": ["Say why the mark is changing."]})
     if (
         result == CandidateAssessmentItem.Result.NOT_ASSESSED
-        and locked_item.required
-        and locked_item.assessment.status == CandidateAssessment.Status.COMPLETED
+        and not item_mark_can_be_cleared(locked_item)
     ):
         raise ValidationError(
             {
@@ -569,9 +614,11 @@ def update_candidate_assessment_item(
     locked_item.result = result
     if result == CandidateAssessmentItem.Result.NOT_ASSESSED:
         locked_item.assessor = None
+        locked_item.assessor_title = ""
         locked_item.assessed_at = None
     else:
         locked_item.assessor = assessor
+        locked_item.assessor_title = title_of(assessor)
         locked_item.assessed_at = timezone.now()
     locked_item.save()
     last = AssessmentItemResultChange.objects.filter(item=locked_item).aggregate(
@@ -583,6 +630,7 @@ def update_candidate_assessment_item(
         from_result=previous_result,
         to_result=result,
         changed_by=assessor,
+        changed_by_title=title_of(assessor),
         reason=reason,
         after_lock=after_lock,
     )
@@ -592,10 +640,11 @@ def update_candidate_assessment_item(
         AuditAction.ITEM_RESULT_RECORDED,
         locked_item,
         (
-            f"{locked_item.item_name} changed from {previous_result} to {result} "
+            f"{locked_item.item_name} changed from {_result_label(previous_result)} "
+            f"to {_result_label(result)} "
             f"for {student_label(locked_item.assessment.candidate.student)}."
             if is_later_change
-            else f"{locked_item.item_name} recorded as {result} "
+            else f"{locked_item.item_name} recorded as {_result_label(result)} "
             f"for {student_label(locked_item.assessment.candidate.student)}."
         ),
         actor=assessor,
@@ -628,22 +677,13 @@ def add_item_comment(
     body: str,
     author: User,
 ) -> AssessmentItemComment:
-    locked_item = lock_in_session(
-        CandidateAssessmentItem.objects.select_related(
-            "assessment__candidate__session",
-            "assessment__candidate__student",
-        ),
-        item.pk,
-        session_path="assessment__candidate__session_id",
-        name="item",
-    )
+    locked_item = lock_item(item.pk)
     validate_item_can_be_commented(locked_item, author)
-    after_lock = locked_item.assessment.candidate.session.status == (
-        GradingSession.Status.LOCKED
-    )
+    after_lock = locked_item.assessment.candidate.session.is_locked
     comment = AssessmentItemComment.objects.create(
         item=locked_item,
         author=author,
+        author_title=title_of(author),
         body=body,
         after_lock=after_lock,
     )

@@ -26,6 +26,7 @@ from data_imports.services import (
     save_import_mapping,
     void_import_records,
 )
+from data_imports.storage import import_upload_storage
 from data_imports.testing import standard_workbook, workbook_bytes
 from data_imports.tests import (
     CLEAN_ROW,
@@ -153,8 +154,8 @@ def test_a_sheet_can_be_named_at_upload() -> None:
     )
 
     assert response.status_code == 201, response.json()
-    assert response.json()["detected_headers"] == HEADERS
     batch = ImportBatch.objects.get(pk=response.json()["id"])
+    assert batch.configuration.detected_headers == HEADERS
     assert batch.rows.count() == 2
 
 
@@ -214,7 +215,7 @@ def test_choosing_another_sheet_reads_it_and_forgets_the_old_matches() -> None:
     assert body["sheet"] == "Roster"
     assert body["detected_headers"] == HEADERS
     assert body["column_mapping"] == {}
-    assert body["next_step"] == "MATCH_COLUMNS"
+    assert body["next_step"] == "MATCH"
     assert body["row_counts"]["total"] == 2
     save_import_mapping(batch, column_mapping=STANDARD_MAPPING)
     commit_student_import(batch, actor=admin)
@@ -240,6 +241,14 @@ def test_choosing_a_sheet_needs_one_the_workbook_has_and_an_open_import() -> Non
     commit_student_import(batch, actor=admin)
     with pytest.raises(ValidationError, match="already imported"):
         choose_import_sheet(batch, sheet="Notes")
+
+
+def test_choosing_a_sheet_once_the_file_has_gone_says_so() -> None:
+    batch = upload_batch(content=two_sheet_workbook())
+    import_upload_storage().delete(batch.source_file.name)
+
+    with pytest.raises(ValidationError, match="no longer available"):
+        choose_import_sheet(batch, sheet="Roster")
 
 
 # --- voiding a wrong historical import ----------------------------------------------
@@ -279,6 +288,9 @@ def test_a_wrong_import_is_voided_as_a_whole_each_record_audited() -> None:
     events = AuditEvent.objects.filter(action=AuditAction.LEGACY_GRADING_VOIDED)
     assert events.count() == 3
     assert {event.metadata["whole_import"] for event in events} == {True}
+    assert {event.summary for event in events} == {
+        "Historical grading record voided with its whole import: Wrong workbook",
+    }
 
 
 def test_a_voided_import_leaves_its_students_history() -> None:

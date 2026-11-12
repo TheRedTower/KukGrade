@@ -7,7 +7,9 @@ function renderRail() {
   return render(
     <ScrollRail label="Ranks" watch="B">
       {["A", "B", "C", "D"].map((name) => (
-        <button key={name} type="button" aria-pressed={name === "B"}>{name}</button>
+        <button key={name} type="button" aria-pressed={name === "B"}>
+          {name}
+        </button>
       ))}
     </ScrollRail>,
   );
@@ -79,9 +81,22 @@ describe("ScrollRail", () => {
     expect(scrollBy).toHaveBeenCalledWith({ left: 200, behavior: "smooth" });
   });
   it("brings the chosen item in clear of the track's padding, so its focus outline is not clipped", () => {
-    vi.spyOn(window, "getComputedStyle").mockReturnValue({ paddingLeft: "4px", getPropertyValue: () => "" } as unknown as CSSStyleDeclaration);
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      paddingLeft: "4px",
+      getPropertyValue: () => "",
+    } as unknown as CSSStyleDeclaration);
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
-      const box = (left: number, width: number) => ({ left, right: left + width, width, top: 0, bottom: 40, height: 40, x: left, y: 0, toJSON: () => ({}) });
+      const box = (left: number, width: number) => ({
+        left,
+        right: left + width,
+        width,
+        top: 0,
+        bottom: 40,
+        height: 40,
+        x: left,
+        y: 0,
+        toJSON: () => ({}),
+      });
       if (this.classList.contains("rail__track")) return box(0, 250);
       return box(this.textContent === "B" ? 260 : 0, 100);
     });

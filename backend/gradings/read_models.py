@@ -18,18 +18,23 @@ from django.db.models import (
     When,
 )
 
+from gradings.assessment_services import assessment_can_complete, holds_final_decision
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    LegacyAttendance,
+    LegacyDatePrecision,
     LegacyGradingRecord,
     Promotion,
 )
 from gradings.services import unsettled_registrations
+from ranks.models import Rank
 from students.models import Student
 from syllabus.models import CATEGORY_ORDER
+from syllabus.services import rank_has_syllabus
 
 
 class GradingStage(models.TextChoices):
@@ -40,6 +45,13 @@ class GradingStage(models.TextChoices):
     ASSESSED = "ASSESSED", "Assessed"
     AWAITING_DECISION = "AWAITING_DECISION", "Awaiting final decision"
     AWAITING_PROMOTION = "AWAITING_PROMOTION", "Passed, awaiting promotion"
+
+
+class GradingHistorySource(models.TextChoices):
+    """Where an entry in a student's grading history comes from."""
+
+    KUKGRADE = "KUKGRADE", "A grading in KukGrade"
+    LEGACY = "LEGACY", "A historical record"
 
 
 class CandidateNextAction(models.TextChoices):
@@ -69,9 +81,7 @@ def candidate_next_action(
         return CandidateNextAction.NONE
     assessment = getattr(candidate, "assessment", None)
     outcome = getattr(candidate, "outcome", None)
-    finalised = (
-        outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED
-    )
+    finalised = holds_final_decision(candidate)
     # A cancelled or completed session moves no further: what was recorded can
     # be looked at, and nothing else is offered.
     if not finalised and candidate.session.status in {
@@ -99,7 +109,7 @@ def candidate_next_action(
         return CandidateNextAction.REVIEW_PROPOSAL
     # An outcome can only be opened once the session is locked; until then the
     # completed record can still be looked at.
-    if candidate.session.status == GradingSession.Status.LOCKED:
+    if candidate.session.is_locked:
         return CandidateNextAction.PROPOSE_OUTCOME
     return CandidateNextAction.VIEW_ASSESSMENT
 
@@ -150,6 +160,21 @@ def with_current_grading(students: QuerySet[Student]) -> QuerySet[Student]:
     )
 
 
+def with_next_rank(students: QuerySet[Student]) -> QuerySet[Student]:
+    """Annotate the rank each student would be graded for next: their next
+    active rank (Rank.objects.next_active_after, the rule registration
+    holds them to), and whether its syllabus is recorded yet - a rank whose
+    charts are not in the app is not offered (`next_rank_pk`,
+    `next_rank_name`, `next_rank_has_syllabus`)."""
+    following = Rank.objects.next_active_after(OuterRef("current_rank__order"))
+    return students.annotate(
+        next_rank_pk=Subquery(following.values("pk")[:1]),
+        next_rank_name=Subquery(following.values("name")[:1]),
+    ).annotate(
+        next_rank_has_syllabus=rank_has_syllabus(rank=OuterRef("next_rank_pk")),
+    )
+
+
 class OverallAssessmentSummary(TypedDict):
     total: int
     required: int
@@ -168,6 +193,7 @@ class CategoryAssessmentSummary(OverallAssessmentSummary):
 class CandidateAssessmentSummary(TypedDict):
     overall: OverallAssessmentSummary
     categories: list[CategoryAssessmentSummary]
+    can_complete: bool
 
 
 class StudentRankTimeline(TypedDict):
@@ -175,12 +201,12 @@ class StudentRankTimeline(TypedDict):
 
 
 class GradingHistoryItem(TypedDict):
-    source: str  # "KUKGRADE" | "LEGACY"
+    source: GradingHistorySource
     record_id: int
     date: date | None
     cycle_year: int | None
     cycle_month: int | None
-    date_precision: str  # "DAY" | "MONTH"
+    date_precision: str  # LegacyDatePrecision
     testing_for_rank_name: str | None
     source_testing_for_rank_text: str
     outcome: str | None
@@ -237,16 +263,16 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
         session = outcome.candidate.session
         testing_for_rank = outcome.candidate.testing_for_rank
         native_item: GradingHistoryItem = {
-            "source": "KUKGRADE",
+            "source": GradingHistorySource.KUKGRADE,
             "record_id": outcome.pk,
             "date": session.grading_date,
             "cycle_year": session.grading_date.year,
             "cycle_month": session.grading_date.month,
-            "date_precision": "DAY",
+            "date_precision": LegacyDatePrecision.DAY,
             "testing_for_rank_name": testing_for_rank.name,
             "source_testing_for_rank_text": "",
             "outcome": outcome.final_outcome,
-            "attendance_status": "ATTENDED",
+            "attendance_status": LegacyAttendance.ATTENDED,
             "comments": outcome.decision_notes,
             "note": "",
             "conditional_requirements": outcome.conditional_requirements,
@@ -269,7 +295,7 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             1,
         )
         legacy_item: GradingHistoryItem = {
-            "source": "LEGACY",
+            "source": GradingHistorySource.LEGACY,
             "record_id": legacy.pk,
             "date": legacy.grading_date,
             "cycle_year": legacy.cycle_year,
@@ -362,12 +388,10 @@ def assessment_overall(assessment: CandidateAssessment) -> OverallAssessmentSumm
                 )
             },
         )
-    return candidate_assessment_summary(assessment)["overall"]
+    return _summary_from_tally(sum(_category_tallies(assessment).values(), Counter()))
 
 
-def candidate_assessment_summary(
-    assessment: CandidateAssessment,
-) -> CandidateAssessmentSummary:
+def _category_tallies(assessment: CandidateAssessment) -> dict[str, Counter[str]]:
     # Unordered, so a list view's prefetched items are used as they are; the
     # counts do not depend on order and the categories are sorted below.
     tallies: dict[str, Counter[str]] = {}
@@ -382,13 +406,24 @@ def candidate_assessment_summary(
             tally["not_met"] += 1
         else:
             tally["required_not_assessed"] += item.required
+    return tallies
 
+
+def candidate_assessment_summary(
+    assessment: CandidateAssessment,
+) -> CandidateAssessmentSummary:
+    tallies = _category_tallies(assessment)
     categories: list[CategoryAssessmentSummary] = [
         {**_summary_from_tally(tally), "category": category}
         for category, tally in tallies.items()
     ]
+    overall = _summary_from_tally(sum(tallies.values(), Counter()))
     return {
-        "overall": _summary_from_tally(sum(tallies.values(), Counter())),
+        "overall": overall,
+        "can_complete": assessment_can_complete(
+            assessment,
+            required_not_assessed=overall["required_not_assessed"],
+        ),
         "categories": sorted(
             categories,
             key=lambda summary: (

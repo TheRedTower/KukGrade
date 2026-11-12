@@ -17,12 +17,24 @@ test("findLayoutFaults reports a split word, a ragged column and unstyled contro
     <p style="width: 60px; overflow-wrap: anywhere">Administrator</p>
   </body>`);
   const faults = await findLayoutFaults(page);
-  expect(faults.some((f) => f.includes('split across lines: "Administrator"')), faults.join("\n")).toBe(true);
-  expect(faults.some((f) => f.includes('does not start at one edge: "Name"')), faults.join("\n")).toBe(true);
-  expect(faults.some((f) => f.startsWith("a link has no style")), faults.join("\n")).toBe(true);
+  expect(
+    faults.some((f) => f.includes('split across lines: "Administrator"')),
+    faults.join("\n"),
+  ).toBe(true);
+  expect(
+    faults.some((f) => f.includes('does not start at one edge: "Name"')),
+    faults.join("\n"),
+  ).toBe(true);
+  expect(
+    faults.some((f) => f.startsWith("a link has no style")),
+    faults.join("\n"),
+  ).toBe(true);
   // A bare button is known by the grey Chrome and Firefox give it; WebKit
   // draws its own, so that check is proved in Chrome, which runs every screen.
   const bareButton = browserName === "chromium";
-  expect(faults.some((f) => f.startsWith("a button has no style")), faults.join("\n")).toBe(bareButton);
+  expect(
+    faults.some((f) => f.startsWith("a button has no style")),
+    faults.join("\n"),
+  ).toBe(bareButton);
   expect(faults).toHaveLength(bareButton ? 4 : 3);
 });

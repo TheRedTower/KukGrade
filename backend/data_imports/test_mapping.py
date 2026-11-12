@@ -72,6 +72,29 @@ def test_a_whole_file_rank_fills_a_missing_column() -> None:
     }
 
 
+def test_the_import_names_the_needed_fields_nothing_covers_yet() -> None:
+    admin = admin_user("uncovered@example.com")
+    batch = club_file(row("123-4-001"), admin=admin)
+    detail = f"{BASE}{batch.pk}/"
+    client = client_for(admin)
+
+    # Nothing is said before the columns are first saved.
+    assert client.get(detail).json()["uncovered_fields"] == []
+    save_import_mapping(batch, column_mapping=MAPPING)
+    assert client.get(detail).json()["uncovered_fields"] == ["current_rank"]
+    save_import_mapping(
+        batch, column_mapping=MAPPING, defaults={"current_rank": "White"}
+    )
+    assert client.get(detail).json()["uncovered_fields"] == []
+    save_import_mapping(batch, column_mapping={"wksa_id": "ID"})
+    assert client.get(detail).json()["uncovered_fields"] == [
+        "first_name",
+        "last_name",
+        "date_of_birth",
+        "current_rank",
+    ]
+
+
 def test_a_whole_file_value_fills_only_blank_cells() -> None:
     batch = club_file(row("123-4-001", belt="Yellow"), row("123-4-002"))
 
@@ -165,6 +188,29 @@ def test_only_rank_and_status_can_be_given_for_everyone(
 
     assert response.status_code == 400
     assert message in str(response.json()["error"]["fields"]["defaults"])
+
+
+def test_a_mapping_to_a_field_kukgrade_lacks_is_refused_where_it_is_saved() -> None:
+    # Every rule of a mapping lives in the service that saves it, so the
+    # endpoint and a direct call refuse it alike.
+    admin = admin_user()
+    batch = club_file(row("123-4-001"), admin=admin)
+
+    response = client_for(admin).post(
+        f"{BASE}{batch.pk}/mapping/",
+        {"column_mapping": {**MAPPING, "nickname": "Notes"}},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["fields"]["column_mapping"] == [
+        "Unknown field(s): nickname.",
+    ]
+    with pytest.raises(ValidationError) as refused:
+        save_import_mapping(batch, column_mapping={**MAPPING, "nickname": "Notes"})
+    assert "column_mapping" in refused.value.message_dict
+    batch.refresh_from_db()
+    assert not batch.configuration.column_mapping
 
 
 def test_a_whole_file_rank_must_be_a_rank_kukgrade_knows() -> None:
@@ -338,16 +384,16 @@ def test_extra_information_goes_with_the_student() -> None:
 
 
 def test_the_current_screens_check_keeps_the_whole_file_values() -> None:
-    from data_imports.services import preview_student_import
+    from data_imports.testing import check_roster
 
     batch = club_file(row("123-4-001"))
     save_import_mapping(
         batch, column_mapping=MAPPING, defaults={"current_rank": "White"}
     )
 
-    preview: Any = preview_student_import(batch, column_mapping=MAPPING)
+    preview: Any = check_roster(batch, column_mapping=MAPPING)
 
-    assert preview.ready == 1
+    assert preview.counts["ready"] == 1
 
 
 @pytest.mark.parametrize(

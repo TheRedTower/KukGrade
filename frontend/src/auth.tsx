@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -17,9 +10,14 @@ import {
   getCurrentUser,
   loginUser,
   logoutUser,
+  NETWORK_ERROR,
   type SetupDetails,
   updateCurrentUser,
 } from "./api";
+import { keys } from "./queryKeys";
+
+/** A sign-out that did not reach the server: the session may still be live. */
+export const SIGN_OUT_ERROR = `You are still signed in: ${NETWORK_ERROR}`;
 
 type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
 
@@ -40,7 +38,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const CURRENT_USER_QUERY_KEY = ["currentUser"] as const;
+const CURRENT_USER_QUERY_KEY = keys.currentUser();
 
 // Per-device, not per-account: lets the login screen say "Welcome back"
 // instead of "Sign in" once this browser has ever seen a signed-in session,
@@ -63,7 +61,7 @@ function describeAuthFailure(error: unknown): string {
     }
     return error.message;
   }
-  return "KukGrade could not be reached. Check your connection and try again.";
+  return NETWORK_ERROR;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -94,8 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const loginMutation = useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      loginUser(email, password),
+    mutationFn: ({ email, password }: { email: string; password: string }) => loginUser(email, password),
     onSuccess: (authenticatedUser) => {
       // Signing out clears the cache, but only if the logout request
       // succeeded. Closing the tab, losing the network, or an expiry the
@@ -116,13 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const changePasswordMutation = useMutation({
-    mutationFn: ({
-      currentPassword,
-      newPassword,
-    }: {
-      currentPassword: string;
-      newPassword: string;
-    }) => changePasswordApi(currentPassword, newPassword),
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      changePasswordApi(currentPassword, newPassword),
     onSuccess: async () => {
       await currentUserQuery.refetch();
     },
@@ -196,8 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status = "anonymous";
   }
 
-  const error =
-    status === "error" ? describeAuthFailure(currentUserQuery.error) : null;
+  const error = status === "error" ? describeAuthFailure(currentUserQuery.error) : null;
 
   const refetchCurrentUser = currentUserQuery.refetch;
   const retry = useCallback(() => {

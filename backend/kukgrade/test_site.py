@@ -6,6 +6,12 @@ from typing import Any
 
 from rest_framework.test import APIClient
 
+from data_imports.mappings import STANDARD_TEMPLATE_HEADERS, suggest_column_mapping
+from data_imports.models import COMMITTED_ROWS_KEPT_FOR
+from data_imports.parsers import MAX_ROWS
+from data_imports.services import ALLOWED_SUFFIXES, IMPORT_STEP_NAMES, ImportStep
+from gradings.serializers import BULK_LINK_LIMIT
+
 
 def test_site_settings_serve_the_configured_club_name(settings: Any) -> None:
     settings.CLUB_NAME = "Kuk Sool Won Riverside"
@@ -27,7 +33,33 @@ def test_site_settings_serve_the_effective_import_upload_limit(settings: Any) ->
 
     response = APIClient().get("/api/site/")
 
-    assert response.json()["import_upload_max_bytes"] == 10 * 1024 * 1024
+    assert response.json()["imports"]["max_bytes"] == 10 * 1024 * 1024
+
+
+def test_site_settings_serve_the_import_limits_the_server_enforces() -> None:
+    # The import screens word these; they are the constants the checks use.
+    imports = APIClient().get("/api/site/").json()["imports"]
+
+    assert imports["max_rows"] == MAX_ROWS
+    assert imports["rows_kept_for_days"] == COMMITTED_ROWS_KEPT_FOR.days
+    assert imports["bulk_link_limit"] == BULK_LINK_LIMIT
+    assert imports["template_headers"] == list(STANDARD_TEMPLATE_HEADERS.values())
+    assert {
+        served["kind"]: [kind["value"] for kind in served["file_types"]]
+        for served in imports["kinds"]
+    } == {kind: list(suffixes) for kind, suffixes in ALLOWED_SUFFIXES.items()}
+    # Every kind runs through every step, in order, named its own way.
+    for served in imports["kinds"]:
+        assert [step["value"] for step in served["steps"]] == ImportStep.values
+        assert [step["label"] for step in served["steps"]] == list(
+            IMPORT_STEP_NAMES[served["kind"]].values()
+        )
+
+
+def test_the_template_headers_are_the_ones_the_import_recognises() -> None:
+    assert suggest_column_mapping(list(STANDARD_TEMPLATE_HEADERS.values())) == {
+        field: header for field, header in STANDARD_TEMPLATE_HEADERS.items()
+    }
 
 
 def test_site_settings_serve_the_password_policy_the_server_enforces() -> None:

@@ -65,26 +65,44 @@ AGE_BAND_PROGRAMME: dict[str, Programme] = {
     AgeBand.AGE_13_TO_17: Programme.ADULT,
     AgeBand.AGE_18_AND_OVER: Programme.ADULT,
 }
-AGE_BAND_DESCRIPTION: dict[str, str] = {
-    AgeBand.AGE_8_AND_UNDER: "Little Dragon ages 8 and under",
-    AgeBand.AGE_9_TO_12: "Junior ages 9-12",
-    AgeBand.AGE_13_TO_17: "Youth ages 13-17",
-    AgeBand.AGE_18_AND_OVER: "Adult ages 18+",
+AGE_BAND_STUDENTS: dict[str, str] = {
+    AgeBand.AGE_8_AND_UNDER: "Little Dragon",
+    AgeBand.AGE_9_TO_12: "Junior",
+    AgeBand.AGE_13_TO_17: "Youth",
+    AgeBand.AGE_18_AND_OVER: "Adult",
+}
+# Each age band's oldest age, youngest band first; None is no upper bound.
+# The one statement of the boundaries: syllabus.age bands a date of birth by
+# it, and each band's label says the same (a test holds them together).
+AGE_BAND_OLDEST: dict[str, int | None] = {
+    AgeBand.AGE_8_AND_UNDER: 8,
+    AgeBand.AGE_9_TO_12: 12,
+    AgeBand.AGE_13_TO_17: 17,
+    AgeBand.AGE_18_AND_OVER: None,
 }
 
 
+def age_band_description(band: str) -> str:
+    """What the syllabus calls the band's students, and their ages: "Junior
+    ages 9-12"."""
+    return f"{AGE_BAND_STUDENTS[band]} ages {AgeBand(band).label}"
+
+
+class SyllabusCategory(models.TextChoices):
+    ETIQUETTE = "ETIQUETTE", "Etiquette"
+    FUNDAMENTALS = "FUNDAMENTALS", "Fundamentals"
+    HAND_TECHNIQUES = "HAND_TECHNIQUES", "Hand techniques"
+    KICKING = "KICKING", "Kicking"
+    FALLING = "FALLING", "Falling"
+    BREAKING = "BREAKING", "Breaking"
+    TECHNIQUE_SET = "TECHNIQUE_SET", "Technique set"
+    FORM = "FORM", "Form"
+    WEAPONS = "WEAPONS", "Weapons"
+    OTHER = "OTHER", "Other"
+
+
 class SyllabusItem(models.Model):
-    class Category(models.TextChoices):
-        ETIQUETTE = "ETIQUETTE", "Etiquette"
-        FUNDAMENTALS = "FUNDAMENTALS", "Fundamentals"
-        HAND_TECHNIQUES = "HAND_TECHNIQUES", "Hand techniques"
-        KICKING = "KICKING", "Kicking"
-        FALLING = "FALLING", "Falling"
-        BREAKING = "BREAKING", "Breaking"
-        TECHNIQUE_SET = "TECHNIQUE_SET", "Technique set"
-        FORM = "FORM", "Form"
-        WEAPONS = "WEAPONS", "Weapons"
-        OTHER = "OTHER", "Other"
+    Category = SyllabusCategory
 
     code = models.CharField(max_length=80, unique=True)
     name = models.CharField(max_length=160)
@@ -110,20 +128,7 @@ class SyllabusItem(models.Model):
                 name="syllabus_item_name_not_blank",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    category__in=[
-                        "ETIQUETTE",
-                        "FUNDAMENTALS",
-                        "HAND_TECHNIQUES",
-                        "KICKING",
-                        "FALLING",
-                        "BREAKING",
-                        "TECHNIQUE_SET",
-                        "FORM",
-                        "WEAPONS",
-                        "OTHER",
-                    ],
-                ),
+                condition=Q(category__in=SyllabusCategory.values),
                 name="syllabus_item_category_valid",
             ),
         ]
@@ -159,8 +164,7 @@ CATEGORY_ORDER: dict[str, int] = {
 
 # The six universal core grading areas, which every rank shares;
 # Techniques, Forms, Weapons and Other are rank-specific content. Served as
-# `category_is_core` so screens group by it without keeping their own list
-# (audit F-31).
+# `category_is_core` so screens group by it without keeping their own list.
 CORE_CATEGORIES: frozenset[str] = frozenset(
     {
         SyllabusItem.Category.ETIQUETTE,
@@ -212,14 +216,7 @@ class SyllabusRequirement(models.Model):
                 name="unique_syllabus_requirement_rank_age_item",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    age_band__in=[
-                        "AGE_8_AND_UNDER",
-                        "AGE_9_TO_12",
-                        "AGE_13_TO_17",
-                        "AGE_18_AND_OVER",
-                    ],
-                ),
+                condition=Q(age_band__in=AgeBand.values),
                 name="syllabus_requirement_age_band_valid",
             ),
             models.CheckConstraint(

@@ -1,3 +1,4 @@
+import { labelOf, useChoices } from "./choices";
 import { Link } from "react-router-dom";
 
 import type { GradingSession } from "./api";
@@ -6,8 +7,11 @@ import { buttonClass } from "./buttonClass";
 import { Alert } from "./Alert";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
-import { type EnrichedCandidate, type NextAction, SessionCandidateTable } from "./SessionParts";
+import { type NextAction, SessionCandidateTable } from "./SessionParts";
+import type { EnrichedCandidate } from "./sessionDetail";
 import type { useCandidateWork } from "./useCandidateWork";
+import { counted } from "./plural";
+import { ArrowRightIcon } from "./Icons";
 
 interface SessionCandidatesSectionProps {
   session: GradingSession;
@@ -48,28 +52,32 @@ export function SessionCandidatesSection({
   nextActionFor,
   onConfirmAttendance,
 }: SessionCandidatesSectionProps) {
-  const editable = session.status === "DRAFT" || session.status === "OPEN";
+  const choices = useChoices();
   const { bulkPrepare, bulkStart } = work;
 
   return (
-    <section className="gsd-candidates-section" aria-labelledby="candidates-heading">
+    <section className="stack stack--3 gsd-candidates-section" aria-labelledby="candidates-heading">
       <div className="action-row">
         <h2 id="candidates-heading" className="section-title">
           Candidates
         </h2>
 
         <div className="action-row">
-          {editable && attendanceCount > 0 && (
+          {attendanceCount > 0 && (
             <Button variant="secondary" onClick={onConfirmAttendance}>
               Confirm attendance
             </Button>
           )}
-          {editable && unpreparedIds.length > 0 && (
-            <Button variant="secondary" onClick={() => bulkPrepare.mutate(unpreparedIds)} disabled={bulkPrepare.isPending}>
+          {unpreparedIds.length > 0 && (
+            <Button
+              variant="secondary"
+              onClick={() => bulkPrepare.mutate(unpreparedIds)}
+              disabled={bulkPrepare.isPending}
+            >
               {bulkPrepare.isPending ? "Preparing…" : `Prepare all (${unpreparedIds.length})`}
             </Button>
           )}
-          {session.status === "OPEN" && preparedIds.length > 0 && (
+          {preparedIds.length > 0 && (
             <Button variant="primary" onClick={() => bulkStart.mutate(preparedIds)} disabled={bulkStart.isPending}>
               {bulkStart.isPending ? "Starting…" : `Start all prepared (${preparedIds.length})`}
             </Button>
@@ -91,21 +99,17 @@ export function SessionCandidatesSection({
 
         <label className="field">
           <span>Assessment</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => onStatusFilter(e.target.value)}
-            data-testid="gsd-status-filter"
-          >
+          <select value={statusFilter} onChange={(e) => onStatusFilter(e.target.value)} data-testid="gsd-status-filter">
             <option value="ALL">Any status</option>
-            <option value="NOT_STARTED">Not started</option>
-            <option value="IN_PROGRESS">In progress</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="WITHDRAWN">Withdrawn</option>
+            {choices.assessment_statuses.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+            <option value="WITHDRAWN">{labelOf(choices.candidate_statuses, "WITHDRAWN")}</option>
           </select>
         </label>
-        <p className="filter-bar__count">
-          {shown.length} candidate{shown.length === 1 ? "" : "s"}
-        </p>
+        <p className="filter-bar__count">{counted(shown.length, "candidate", "candidates")}</p>
       </div>
 
       {all.length === 0 ? (
@@ -114,9 +118,11 @@ export function SessionCandidatesSection({
           data-testid="gsd-empty-roster"
           title="No candidates registered in this grading session yet."
           action={
-            <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })}>
-              Add candidate <span aria-hidden="true">→</span>
-            </Link>
+            session.roster_open ? (
+              <Link to={`/gradings/${session.id}/register`} className={buttonClass({ variant: "primary" })}>
+                Add candidate <ArrowRightIcon />
+              </Link>
+            ) : undefined
           }
         >
           Add students to begin curriculum assessment and outcome tracking.

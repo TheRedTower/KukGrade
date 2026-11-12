@@ -11,17 +11,24 @@ import {
   getLegacyPeopleSummary,
 } from "./api";
 import { ErrorText } from "./ErrorText";
-import { ImportPager } from "./ImportPager";
-import { counted } from "./importSteps";
+import { Pagination } from "./Pagination";
+import { SearchField } from "./SearchField";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
 import { type NameItem, type NameView, NamesTable } from "./LinkNameRow";
-import { BULK_LINK_LIMIT, type Chosen, recordsToLink } from "./linkRecords";
-import { useDebouncedValue } from "./useDebouncedValue";
+import { type Chosen, recordsToLink } from "./linkRecords";
+import { useSiteSettingsQuery } from "./queries";
 import { useLeftNames } from "./useLeftNames";
-import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
+import { useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
 import { Button } from "./Button";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
+import { CheckIcon } from "./Icons";
 
 const PAGE_SIZE = 50;
+
+const NAME_VIEWS: readonly NameView[] = ["todo", "clear", "choose", "none", "left", "done"];
 
 const VIEWS: { view: NameView; label: string }[] = [
   { view: "todo", label: "To link" },
@@ -46,11 +53,15 @@ function chosenFor(person: LegacyPerson, picks: Record<string, Chosen>): Chosen 
  */
 export function LinkRecordsScreen() {
   const { link, undo } = useLegacyLinking();
+  // The most records one link request takes, as the server serves it.
+  const linkLimit = useSiteSettingsQuery().data?.imports.bulk_link_limit;
   const { leave, putBack, error: leftError, reset: resetLeft } = useLeftNames();
-  const [view, setView] = useState<NameView>("todo");
-  const [batch, setBatch] = useState("");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const filters = useUrlFilters();
+  const view = filters.oneOf("view", NAME_VIEWS, "todo");
+  const batch = filters.value("batch");
+  const search = filters.value("search");
+  const page = filters.page;
+  const setPage = filters.setPage;
   const [open, setOpen] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [picks, setPicks] = useState<Record<string, Chosen>>({});
@@ -59,29 +70,27 @@ export function LinkRecordsScreen() {
   const [notice, setNotice] = useState("");
   // The open row a link was started from, so its failure shows in that row.
   const [linkedFrom, setLinkedFrom] = useState<string | null>(null);
-  const debouncedSearch = useDebouncedValue(search.trim());
+  const debouncedSearch = search.trim();
 
   const batchId = batch ? Number(batch) : undefined;
 
   const imports = useQuery({
-    queryKey: ["imports", "historical"],
+    queryKey: keys.imports.historical(),
     queryFn: () => getAllDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED" }),
   });
   const summary = useQuery({
-    queryKey: ["legacyPeople", "summary", batchId],
+    queryKey: keys.legacyPeople.summary(batchId),
     queryFn: () => getLegacyPeopleSummary({ batch: batchId, set_aside: "exclude" }),
   });
-  const leftCount = useQuery({
-    queryKey: ["legacyPeople", "count", "left", batchId],
-    queryFn: () => getLegacyPeople({ batch: batchId, linked: false, set_aside: "only", page_size: 1 }),
-  });
-  const linkedCount = useQuery({
-    queryKey: ["legacyPeople", "count", "linked", batchId],
-    queryFn: () => getLegacyPeople({ batch: batchId, linked: true, page_size: 1 }),
-  });
-  const people = useQuery({
-    queryKey: ["legacyPeople", "list", view, batchId, debouncedSearch, page],
+  const paged = usePagedQuery({
+    queryKey: keys.legacyPeople.list(view, batchId, debouncedSearch, page),
     placeholderData: keepPreviousData,
+    page,
+    pageSize: PAGE_SIZE,
+    onPage: (next) => {
+      setPage(next);
+      resetRows();
+    },
     queryFn: () =>
       getLegacyPeople({
         batch: batchId,
@@ -93,27 +102,28 @@ export function LinkRecordsScreen() {
         ...(view === "clear" || view === "choose" || view === "none" ? { suggestion: view } : {}),
       }),
   });
+  const people = paged.query;
 
   const counts: Record<NameView, number | undefined> = {
     todo: summary.data?.names,
     clear: summary.data?.clear,
     choose: summary.data?.choose,
     none: summary.data?.none,
-    left: leftCount.data?.count,
-    done: linkedCount.data?.count,
+    left: summary.data?.set_aside,
+    done: summary.data?.with_a_link,
   };
   // Disjoint, so a name partly linked counts once, as still to link.
   const linkedNames = summary.data?.linked ?? 0;
   const totalNames = linkedNames + (counts.todo ?? 0) + (counts.left ?? 0);
 
   const loading = people.isPending || people.isPlaceholderData;
-  const rows = loading ? [] : people.data?.results ?? [];
-  const listed = people.data?.count ?? 0;
+  const rows = loading ? [] : (people.data?.results ?? []);
   const pageSelected = rows.filter(
-    (person) => selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
+    (person) =>
+      selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
   );
   const selectedRecords = pageSelected.reduce((total, person) => total + recordsToLink(person, unticked).length, 0);
-  const tooMany = selectedRecords > BULK_LINK_LIMIT;
+  const tooMany = linkLimit !== undefined && selectedRecords > linkLimit;
   const clearOnPage = rows.filter((person) => view !== "done" && person.suggestion === "clear");
 
   // Selection and an open row belong to the rows on screen.
@@ -122,11 +132,15 @@ export function LinkRecordsScreen() {
     setSelected([]);
   }
 
-  function show(next: NameView) {
-    setView(next);
-    setPage(1);
+  // A filter changed: the first page of what it shows, nothing carried over.
+  function refilter(updates: Parameters<typeof filters.set>[0]) {
+    filters.set(updates);
     setNotice("");
     resetRows();
+  }
+
+  function show(next: NameView) {
+    refilter({ view: next === "todo" ? null : next });
   }
 
   function linkNames(names: LegacyPerson[], from: string | null = null) {
@@ -187,28 +201,18 @@ export function LinkRecordsScreen() {
       </PageHeader>
 
       <div className="filter-bar" role="search" aria-label="Name filters">
-        <label className="field">
-          <span>Find a name</span>
-          <input
-            placeholder="Name as written"
-            type="search"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-              resetRows();
-            }}
-          />
-        </label>
+        <SearchField
+          label="Find a name"
+          placeholder="Name as written"
+          value={search}
+          onChange={(value) => {
+            filters.set({ search: value });
+            resetRows();
+          }}
+        />
         <label className="field">
           <span>Import</span>
-          <select
-            value={batch}
-            onChange={(event) => {
-              setBatch(event.target.value);
-              show(view);
-            }}
-          >
+          <select value={batch} onChange={(event) => refilter({ batch: event.target.value })}>
             <option value="">Every import</option>
             {(imports.data?.results ?? []).map((item) => (
               <option key={item.id} value={item.id}>
@@ -232,22 +236,32 @@ export function LinkRecordsScreen() {
           <p className="ix-flush">
             <strong>{counted(pageSelected.length, "name", "names")} selected.</strong>{" "}
             <span className="subtext">
-              {pageSelected.length > 0 ? "Each is linked to the student shown on its row." : "Tick rows, or select every clear suggestion on this page."}
+              {pageSelected.length > 0
+                ? "Each is linked to the student shown on its row."
+                : "Tick rows, or select every clear suggestion on this page."}
             </span>
           </p>
-          <div className="ix-actions">
+          <div className="row row--wrap">
             <Button
               variant="ghost"
               disabled={clearOnPage.length === 0}
               onClick={() => setSelected([...new Set([...selected, ...clearOnPage.map((person) => person.group_key)])])}
             >
-              Select the {clearOnPage.length} clear {clearOnPage.length === 1 ? "suggestion" : "suggestions"}
+              Select the {clearOnPage.length} clear {agreeing(clearOnPage.length, "suggestion", "suggestions")}
             </Button>
             <Button variant="ghost" disabled={pageSelected.length === 0} onClick={() => setSelected([])}>
               Clear selection
             </Button>
-            <Button variant="primary" disabled={pageSelected.length === 0 || tooMany || link.isPending} onClick={() => linkNames(pageSelected)}>
-              {link.isPending ? "Linking…" : pageSelected.length > 0 ? `Link ${counted(pageSelected.length, "name", "names")} to their students` : "Link selected"}
+            <Button
+              variant="primary"
+              disabled={pageSelected.length === 0 || tooMany || link.isPending}
+              onClick={() => linkNames(pageSelected)}
+            >
+              {link.isPending
+                ? "Linking…"
+                : pageSelected.length > 0
+                  ? `Link ${counted(pageSelected.length, "name", "names")} to their students`
+                  : "Link selected"}
             </Button>
           </div>
         </div>
@@ -255,7 +269,7 @@ export function LinkRecordsScreen() {
 
       {tooMany ? (
         <p className="ix-warning-text item-title ix-flush" role="status">
-          {`${selectedRecords} records are selected; link at most ${BULK_LINK_LIMIT} at a time. Untick some names.`}
+          {`${selectedRecords} records are selected; link at most ${linkLimit} at a time. Untick some names.`}
         </p>
       ) : null}
       {notice ? (
@@ -267,15 +281,9 @@ export function LinkRecordsScreen() {
         <ErrorText>{errorMessage(leftError, "That name could not be left for now or put back. Try again.")}</ErrorText>
       ) : null}
       {link.isError && !(linkedFrom && linkedFrom === open) ? (
-        <ErrorText>
-          {errorMessage(link.error, "Those records could not be linked.")}
-        </ErrorText>
+        <ErrorText>{errorMessage(link.error, "Those records could not be linked.")}</ErrorText>
       ) : null}
-      {undo.isError ? (
-        <ErrorText>
-          {undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "That link could not be undone.")}
-        </ErrorText>
-      ) : null}
+      {undo.isError ? <ErrorText>{errorMessage(undo.error, "That link could not be undone.")}</ErrorText> : null}
 
       <div className="card card--flush">
         {loading ? (
@@ -283,7 +291,7 @@ export function LinkRecordsScreen() {
             Loading the names…
           </p>
         ) : people.isError ? (
-          <div className="ix-card-pad ix-section">
+          <div className="ix-card-pad stack stack--3">
             <ErrorText className="ix-flush">
               {errorMessage(people.error, "The names could not be loaded. Try again in a moment.")}
             </ErrorText>
@@ -296,7 +304,9 @@ export function LinkRecordsScreen() {
         ) : rows.length === 0 ? (
           <div className="ix-card-pad">
             {everyNameLinked ? (
-              <p className="ix-success-text item-title ix-flush">✓ Every imported record is linked to a student.</p>
+              <p className="row ix-success-text item-title ix-flush">
+                <CheckIcon /> Every imported record is linked to a student.
+              </p>
             ) : (
               <p className="subtext ix-flush">
                 {view === "todo" && !debouncedSearch && (counts.left ?? 0) > 0
@@ -320,7 +330,9 @@ export function LinkRecordsScreen() {
                 open: open === person.group_key,
                 pending: link.isPending || undo.isPending,
                 person,
-                sameAs: chosen ? (linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null : null,
+                sameAs: chosen
+                  ? ((linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null)
+                  : null,
                 selected: selected.includes(person.group_key),
                 unticked,
                 view,
@@ -333,10 +345,14 @@ export function LinkRecordsScreen() {
                 },
                 onSelect: () =>
                   setSelected((current) =>
-                    current.includes(person.group_key) ? current.filter((key) => key !== person.group_key) : [...current, person.group_key],
+                    current.includes(person.group_key)
+                      ? current.filter((key) => key !== person.group_key)
+                      : [...current, person.group_key],
                   ),
                 onTick: (record) =>
-                  setUnticked((current) => (current.includes(record) ? current.filter((id) => id !== record) : [...current, record])),
+                  setUnticked((current) =>
+                    current.includes(record) ? current.filter((id) => id !== record) : [...current, record],
+                  ),
                 onToggle: () => {
                   if (!link.isPending) link.reset();
                   setOpen(open === person.group_key ? null : person.group_key);
@@ -349,16 +365,7 @@ export function LinkRecordsScreen() {
             })}
           />
         )}
-        <ImportPager
-          label="Pages of names"
-          page={page}
-          pages={Math.ceil(listed / PAGE_SIZE)}
-          total={listed}
-          onPage={(next) => {
-            setPage(next);
-            resetRows();
-          }}
-        />
+        <Pagination flush label="Pages of names" noun={["name", "names"]} {...paged.pager} />
       </div>
     </section>
   );

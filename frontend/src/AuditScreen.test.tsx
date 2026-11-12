@@ -39,10 +39,14 @@ const auditEvent: AuditEvent = {
   entity_type_display: "Outcome",
   subject_name: "",
   entity_id: "103",
-  actor_email: "master.kim@kuksoolwon.test",
   actor_name: "In Hyuk Kim",
   summary: "Finalised Carlos Rivera's grading outcome as Pass.",
-  metadata: { result: "PASS", previous_result: null },
+  tone: "success",
+  outcome_display: "Pass",
+  details: [
+    { label: "Final decision", value: "Pass" },
+    { label: "Overrode the proposal", value: "No" },
+  ],
 };
 
 function renderScreen(initialEntry = "/audit") {
@@ -80,15 +84,16 @@ describe("AuditScreen", () => {
     });
     renderScreen();
 
-    expect(await screen.findByText("Student 123-4-001 created. (Alex Kim)")).toBeVisible();
+    expect(await screen.findByText("Student 123-4-001 created (Alex Kim).")).toBeVisible();
   });
 
   it("says whose history it is, by name, and asks the server for exactly that history", async () => {
     mockGetAuditSubject.mockResolvedValue({
       kind: "session",
       id: "3",
+      session_id: null,
       name: "Spring Grading (25 October 2026)",
-      path: "/gradings/3",
+      exists: true,
     });
     renderScreen("/audit?subject=session:3");
 
@@ -101,15 +106,38 @@ describe("AuditScreen", () => {
     );
   });
 
+  it("opens a registration inside the grading it belongs to", async () => {
+    mockGetAuditSubject.mockResolvedValue({
+      kind: "candidate",
+      id: "9",
+      session_id: 3,
+      name: "Alex Kim - Spring Grading",
+      exists: true,
+    });
+    renderScreen("/audit?subject=candidate:9");
+
+    const banner = await screen.findByTestId("audit-subject");
+    expect(await within(banner).findByRole("link", { name: /Open the record/ })).toHaveAttribute(
+      "href",
+      "/gradings/3/assessments/9/review",
+    );
+  });
+
   it("says so when the record the history is of no longer exists", async () => {
-    mockGetAuditSubject.mockResolvedValue({ kind: "student", id: "9", name: "", path: "" });
+    mockGetAuditSubject.mockResolvedValue({ kind: "student", id: "9", session_id: null, name: "", exists: false });
     renderScreen("/audit?subject=student:9");
 
     expect(await screen.findByText(/History of a record that no longer exists/)).toBeVisible();
   });
 
   it("shows no history banner on the whole log, and clearing the filters leaves a history", async () => {
-    mockGetAuditSubject.mockResolvedValue({ kind: "user", id: "u", name: "Riley Khan", path: "/users/u" });
+    mockGetAuditSubject.mockResolvedValue({
+      kind: "user",
+      id: "u",
+      session_id: null,
+      name: "Riley Khan",
+      exists: true,
+    });
     const user = userEvent.setup();
     renderScreen("/audit?subject=user:u");
     await screen.findByTestId("audit-subject");
@@ -133,7 +161,11 @@ describe("AuditScreen", () => {
     const dialog = screen.getByRole("dialog", { name: "Outcome finalised" });
     // The internal action code is not shown; the summary says what happened.
     expect(within(dialog).queryByText("OUTCOME_FINALISED")).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/"result": "PASS"/)).toBeInTheDocument();
+    // What the event recorded, as the server names it: labels and words.
+    const recorded = within(dialog).getByText("Overrode the proposal").closest("dl")!;
+    expect(within(recorded).getByText("Final decision")).toBeInTheDocument();
+    expect(within(recorded).getByText("Pass")).toBeInTheDocument();
+    expect(within(recorded).getByText("No")).toBeInTheDocument();
     const closeButton = within(dialog).getByRole("button", { name: "Close event details" });
     expect(closeButton).toHaveFocus();
     await user.tab();
@@ -155,8 +187,9 @@ describe("AuditScreen", () => {
     await user.selectOptions(screen.getByLabelText("Record type"), "CandidateOutcome");
     fireEvent.change(screen.getByLabelText("Date from"), { target: { value: "2026-09-01" } });
     fireEvent.change(screen.getByLabelText("Date to"), { target: { value: "2026-09-30" } });
+    // The list follows as you type: there is no Search button.
     await user.type(screen.getByLabelText("Search student name, record number or summary"), "Carlos");
-    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.queryByRole("button", { name: "Search" })).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockGetAuditEvents).toHaveBeenLastCalledWith({
@@ -185,9 +218,7 @@ describe("AuditScreen", () => {
     await user.click(screen.getByRole("button", { name: "Next page" }));
 
     await waitFor(() => {
-      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
-        expect.objectContaining({ page: 2, page_size: 10 }),
-      );
+      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, page_size: 10 }));
     });
     expect(screen.getByText("Showing 11–20 of 25 events")).toBeInTheDocument();
   });
@@ -206,9 +237,7 @@ describe("AuditScreen", () => {
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
 
     await waitFor(() => {
-      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
-        expect.objectContaining({ action: undefined, page: 1 }),
-      );
+      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(expect.objectContaining({ action: undefined, page: 1 }));
     });
   });
 
@@ -224,9 +253,7 @@ describe("AuditScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
     await waitFor(() => {
-      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
-        expect.objectContaining({ entity_id: undefined }),
-      );
+      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(expect.objectContaining({ entity_id: undefined }));
     });
   });
 });

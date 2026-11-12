@@ -3,16 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type {
-  Rank,
-  StudentDetail,
-  StudentListItem,
-  StudentRankHistory,
-} from "./api";
-import {
-  authUser,
-  jsonResponse,
-} from "./appTestSupport";
+import type { Rank, StudentDetail, StudentListItem, StudentRankHistory } from "./api";
+import { authUser, jsonResponse, CHOICES, stubFetch } from "./appTestSupport";
 
 describe("Students registry screen (/students)", () => {
   beforeEach(() => {
@@ -28,6 +20,7 @@ describe("Students registry screen (/students)", () => {
 
   it("renders authentic empty state when no students exist in database", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -39,29 +32,28 @@ describe("Students registry screen (/students)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();
     expect(screen.getByText("Manage student records and grading history")).toBeVisible();
     expect(await screen.findByText("No students registered yet")).toBeVisible();
-    expect(
-      screen.getByText("Add your first student to get started."),
-    ).toBeVisible();
+    expect(screen.getByText("Add your first student to get started.")).toBeVisible();
     expect(screen.getByRole("button", { name: /Add student/i })).toBeVisible();
   });
 
   it("shows only one import's students when an import's results link here", async () => {
     window.history.replaceState({}, "", "/students?source_import=7");
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/ranks/") || url.includes("/api/students/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -76,11 +68,77 @@ describe("Students registry screen (/students)", () => {
     expect(screen.queryByText("Only the students one import added")).not.toBeInTheDocument();
   });
 
+  it("keeps its filters and page in the address, so a reload shows the same list", async () => {
+    window.history.replaceState({}, "", "/students?search=Ava&status=LEFT&page=2");
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/ranks/") || url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByPlaceholderText("Search name or WKSA ID")).toHaveValue("Ava");
+    expect(screen.getByLabelText("Status")).toHaveValue("LEFT");
+    const listed = () =>
+      fetchMock.mock.calls
+        .map(([url]) => new URL(String(url), "http://localhost"))
+        .filter((url) => url.pathname === "/api/students/");
+    await waitFor(() =>
+      expect(
+        listed().some(
+          (url) =>
+            url.searchParams.get("search") === "Ava" &&
+            url.searchParams.get("status") === "LEFT" &&
+            url.searchParams.get("page") === "2",
+        ),
+      ).toBe(true),
+    );
+    // Changing a filter goes back to the first page.
+    await user.selectOptions(screen.getByLabelText("Status"), "");
+    expect(window.location.search).toBe("?search=Ava");
+  });
+
   it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
     const testRanks = [
-      { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
-      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5, has_syllabus: true },
-      { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
+      {
+        id: 1,
+        code: "W",
+        name: "White Belt",
+        order: 1,
+        belt_colour: "WHITE",
+        stripe_colour: "",
+        stripe_count: 0,
+        next_rank: 2,
+        has_syllabus: true,
+      },
+      {
+        id: 2,
+        code: "YS",
+        name: "Yellow Stripe",
+        order: 2,
+        belt_colour: "WHITE",
+        stripe_colour: "YELLOW",
+        stripe_count: 1,
+        next_rank: 5,
+        has_syllabus: true,
+      },
+      {
+        id: 5,
+        code: "B",
+        name: "Blue Belt",
+        order: 5,
+        belt_colour: "BLUE",
+        stripe_colour: "",
+        stripe_count: 0,
+        next_rank: null,
+        has_syllabus: true,
+      },
     ] satisfies Rank[];
 
     const testStudents = [
@@ -95,6 +153,8 @@ describe("Students registry screen (/students)", () => {
         status: "ACTIVE",
         status_display: "Active",
         can_be_graded: true,
+        next_rank: 2,
+        next_rank_name: "Yellow Stripe",
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
         current_grading: {
@@ -115,6 +175,8 @@ describe("Students registry screen (/students)", () => {
         status: "INACTIVE",
         status_display: "Inactive",
         can_be_graded: true,
+        next_rank: 5,
+        next_rank_name: "Blue Belt",
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
         current_grading: null,
@@ -130,6 +192,8 @@ describe("Students registry screen (/students)", () => {
         status: "LEFT",
         status_display: "Left",
         can_be_graded: false,
+        next_rank: null,
+        next_rank_name: null,
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
         current_grading: null,
@@ -137,6 +201,7 @@ describe("Students registry screen (/students)", () => {
     ] satisfies StudentListItem[];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -159,7 +224,7 @@ describe("Students registry screen (/students)", () => {
           ...testStudents[0],
           wksa_id_can_change: true,
           previous_wksa_ids: [],
-    extra_information: [],
+          extra_information: [],
         });
       }
       if (url.includes("/api/students/")) {
@@ -167,7 +232,7 @@ describe("Students registry screen (/students)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -186,10 +251,7 @@ describe("Students registry screen (/students)", () => {
     expect(tableScope.getByText("Active")).toBeVisible();
     // Current grading is the served registration and its stage, linked to
     // the session; a student with none says so.
-    expect(tableScope.getByRole("link", { name: "Spring Grading 2027" })).toHaveAttribute(
-      "href",
-      "/gradings/42",
-    );
+    expect(tableScope.getByRole("link", { name: "Spring Grading 2027" })).toHaveAttribute("href", "/gradings/42");
     expect(tableScope.getByText("Awaiting final decision")).toBeVisible();
     expect(tableScope.getAllByText("Not registered")).toHaveLength(2);
     expect(screen.queryByRole("columnheader", { name: "Next action" })).not.toBeInTheDocument();
@@ -208,7 +270,7 @@ describe("Students registry screen (/students)", () => {
     // Privacy verification: Date of birth must NOT be rendered in table
     expect(screen.queryByText(/199[0-9]|200[0-9]/)).not.toBeInTheDocument();
 
-    // Navigate to student profile via "View student →"
+    // Navigate to student profile via "View student"
     const viewBruceButton = tableScope.getByRole("button", { name: /View record for Bruce Wayne/i });
     await user.click(viewBruceButton);
     expect(window.location.pathname).toBe("/students/1");
@@ -216,6 +278,7 @@ describe("Students registry screen (/students)", () => {
 
   it("handles filter changes and clears filters back to initial state", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -224,7 +287,19 @@ describe("Students registry screen (/students)", () => {
           count: 1,
           next: null,
           previous: null,
-          results: [{ id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true } satisfies Rank],
+          results: [
+            {
+              id: 1,
+              code: "W",
+              name: "White Belt",
+              order: 1,
+              belt_colour: "WHITE",
+              stripe_colour: "",
+              stripe_count: 0,
+              next_rank: null,
+              has_syllabus: true,
+            } satisfies Rank,
+          ],
         });
       }
       if (url.includes("/api/students/")) {
@@ -236,25 +311,29 @@ describe("Students registry screen (/students)", () => {
           count: 1,
           next: null,
           previous: null,
-          results: [{
-            id: 1,
-            wksa_id: "UK-1001",
-            first_name: "Bruce",
-            last_name: "Wayne",
-            current_rank: 1,
-            current_rank_code: "W",
-            current_rank_name: "White Belt",
-            status: "ACTIVE",
-            status_display: "Active",
-            can_be_graded: true,
-            age_band: "AGE_18_AND_OVER",
-            age_band_display: "18+",
-          }],
+          results: [
+            {
+              id: 1,
+              wksa_id: "UK-1001",
+              first_name: "Bruce",
+              last_name: "Wayne",
+              current_rank: 1,
+              current_rank_code: "W",
+              current_rank_name: "White Belt",
+              status: "ACTIVE",
+              status_display: "Active",
+              can_be_graded: true,
+              next_rank: null,
+              next_rank_name: null,
+              age_band: "AGE_18_AND_OVER",
+              age_band_display: "18+",
+            },
+          ],
         });
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -285,9 +364,39 @@ describe("Students registry screen (/students)", () => {
 
 describe("Add student screen (/students/new)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5, has_syllabus: true },
-    { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
+    {
+      id: 1,
+      code: "W",
+      name: "White Belt",
+      order: 1,
+      belt_colour: "WHITE",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: 2,
+      has_syllabus: true,
+    },
+    {
+      id: 2,
+      code: "YS",
+      name: "Yellow Stripe",
+      order: 2,
+      belt_colour: "WHITE",
+      stripe_colour: "YELLOW",
+      stripe_count: 1,
+      next_rank: 5,
+      has_syllabus: true,
+    },
+    {
+      id: 5,
+      code: "B",
+      name: "Blue Belt",
+      order: 5,
+      belt_colour: "BLUE",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: null,
+      has_syllabus: true,
+    },
   ] satisfies Rank[];
 
   beforeEach(() => {
@@ -301,8 +410,9 @@ describe("Add student screen (/students/new)", () => {
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
 
-  it("renders the add student form with breadcrumbs, inputs, ranks, and privacy notice", async () => {
+  it("renders the add student form with the way back, inputs, ranks, and privacy notice", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -311,15 +421,14 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
-    // Header & breadcrumbs
+    // Header and the way back
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
     expect(screen.getByText("Create a staff-only student record")).toBeVisible();
-    expect(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Students" })).toBeVisible();
-    expect(screen.getByText("Add student", { selector: "[aria-current=\"page\"]" })).toBeVisible();
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Students" })).toBeVisible();
 
     // Section 1: Identity
     expect(screen.getByRole("heading", { name: "Identity" })).toBeVisible();
@@ -352,6 +461,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("blocks submission and shows client-side validation errors when required fields are empty", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -360,7 +470,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -385,8 +495,8 @@ describe("Add student screen (/students/new)", () => {
     expect(firstNameInput).toHaveAttribute("aria-invalid", "true");
 
     // Ensure no POST request was dispatched
-    const postCalls = fetchMock.mock.calls.filter(([url, options]) =>
-      url.includes("/api/students/") && (options as RequestInit)?.method === "POST"
+    const postCalls = fetchMock.mock.calls.filter(
+      ([url, options]) => url.includes("/api/students/") && (options as RequestInit)?.method === "POST",
     );
     expect(postCalls.length).toBe(0);
   });
@@ -394,6 +504,7 @@ describe("Add student screen (/students/new)", () => {
   it("successfully creates a student and navigates to the student detail page", async () => {
     let createdPayload: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -428,6 +539,8 @@ describe("Add student screen (/students/new)", () => {
           status: "ACTIVE",
           status_display: "Active",
           can_be_graded: true,
+          next_rank: null,
+          next_rank_name: null,
           age_band: "AGE_18_AND_OVER",
           age_band_display: "18+",
           created_at: "2026-09-17T12:00:00Z",
@@ -450,6 +563,10 @@ describe("Add student screen (/students/new)", () => {
           status: "ACTIVE",
           status_display: "Active",
           can_be_graded: true,
+          next_rank: null,
+          next_rank_name: null,
+          can_be_deleted: false,
+          deletion_blocked_by: null,
           age_band: "AGE_18_AND_OVER",
           age_band_display: "18+",
           created_at: "2026-09-17T12:00:00Z",
@@ -458,7 +575,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -470,9 +587,7 @@ describe("Add student screen (/students/new)", () => {
     await user.type(screen.getByLabelText(/Last name/i), "Carter");
     // The forms come from the server; the ID goes as typed, for it to tidy.
     expect(
-      await screen.findByText(
-        /Use a student ID such as 123-4-150 or a black belt ID such as A-20819\./,
-      ),
+      await screen.findByText(/Use a student ID such as 123-4-150 or a black belt ID such as A-20819\./),
     ).toBeVisible();
     await user.type(screen.getByLabelText(/WKSA ID/i), " a-20819");
     await user.type(screen.getByLabelText(/Date of birth/i), "2005-04-12");
@@ -500,6 +615,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("surfaces server validation errors (e.g. duplicate WKSA ID)", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -519,7 +635,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -549,6 +665,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("says what the server said when it has no field to put it against", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
@@ -564,7 +681,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
@@ -576,6 +693,7 @@ describe("Add student screen (/students/new)", () => {
 
   it("returns to sign-in when the session ends while the student is being saved", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
@@ -587,7 +705,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
@@ -596,8 +714,9 @@ describe("Add student screen (/students/new)", () => {
     expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
   });
 
-  it("navigates back to /students when Cancel or breadcrumb is clicked", async () => {
+  it("navigates back to /students when Cancel or the back link is clicked", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -609,7 +728,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -622,20 +741,50 @@ describe("Add student screen (/students/new)", () => {
 
     expect(window.location.pathname).toBe("/students");
 
-    // And the breadcrumb, from the form again
+    // And the back link, from the form again
     window.history.pushState({}, "", "/students/new");
     window.dispatchEvent(new PopStateEvent("popstate"));
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
-    await user.click(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Students" }));
+    await user.click(within(screen.getByRole("main")).getByRole("link", { name: "Students" }));
     expect(window.location.pathname).toBe("/students");
   });
 });
 
 describe("Student detail screen (/students/:id)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 3, has_syllabus: true },
-    { id: 3, code: "Y", name: "Yellow Belt", order: 3, belt_colour: "YELLOW", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
+    {
+      id: 1,
+      code: "W",
+      name: "White Belt",
+      order: 1,
+      belt_colour: "WHITE",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: 2,
+      has_syllabus: true,
+    },
+    {
+      id: 2,
+      code: "YS",
+      name: "Yellow Stripe",
+      order: 2,
+      belt_colour: "WHITE",
+      stripe_colour: "YELLOW",
+      stripe_count: 1,
+      next_rank: 3,
+      has_syllabus: true,
+    },
+    {
+      id: 3,
+      code: "Y",
+      name: "Yellow Belt",
+      order: 3,
+      belt_colour: "YELLOW",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: null,
+      has_syllabus: true,
+    },
   ] satisfies Rank[];
 
   const testStudent = {
@@ -651,6 +800,11 @@ describe("Student detail screen (/students/:id)", () => {
     current_rank_name: "Yellow Stripe",
     status: "ACTIVE",
     status_display: "Active",
+    can_be_graded: true,
+    next_rank: 3,
+    next_rank_name: "Yellow Belt",
+    can_be_deleted: false,
+    deletion_blocked_by: null,
     age_band_display: "13-17",
     deleted_at: null,
     created_at: "2021-01-08T10:00:00Z",
@@ -669,6 +823,7 @@ describe("Student detail screen (/students/:id)", () => {
 
   it("renders student profile with personal details, age band, readiness, and empty history", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -691,7 +846,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -700,9 +855,8 @@ describe("Student detail screen (/students/:id)", () => {
     expect(screen.getByText("UK-5001")).toBeVisible();
     expect(screen.getByRole("button", { name: "Edit student" })).toBeVisible();
 
-    // Breadcrumb
-    expect(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Students" })).toBeVisible();
-    expect(screen.getByText("Alex Carter", { selector: "[aria-current=\"page\"]" })).toBeVisible();
+    // The way back
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Students" })).toBeVisible();
 
     // Student details card
     expect(screen.getByRole("heading", { name: "Student details" })).toBeVisible();
@@ -739,12 +893,21 @@ describe("Student detail screen (/students/:id)", () => {
   describe("the history link", () => {
     function studentMock(viewer: Record<string, unknown>) {
       return vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, viewer);
         if (url.includes("/grading-history/")) {
           return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
         }
         if (url.includes("/rank-history/")) {
-          return jsonResponse(200, { student: 10, current_rank: 2, current_rank_code: "YS", current_rank_name: "Yellow Stripe", promotions: [], student_display_name: "Alex Carter (UK-5001)", student_wksa_id: "UK-5001" });
+          return jsonResponse(200, {
+            student: 10,
+            current_rank: 2,
+            current_rank_code: "YS",
+            current_rank_name: "Yellow Stripe",
+            promotions: [],
+            student_display_name: "Alex Carter (UK-5001)",
+            student_wksa_id: "UK-5001",
+          });
         }
         if (url.includes("/api/students/10/")) return jsonResponse(200, testStudent);
         return jsonResponse(404, {});
@@ -752,7 +915,7 @@ describe("Student detail screen (/students/:id)", () => {
     }
 
     it("opens that student's own history for someone who may read the audit log", async () => {
-      vi.stubGlobal("fetch", studentMock({ ...authUser, can_read_audit_log: true }));
+      stubFetch(studentMock({ ...authUser, can_read_audit_log: true }));
 
       render(<App />);
 
@@ -761,7 +924,7 @@ describe("Student detail screen (/students/:id)", () => {
     });
 
     it("is not offered to someone who may not", async () => {
-      vi.stubGlobal("fetch", studentMock({ ...authUser, can_read_audit_log: false }));
+      stubFetch(studentMock({ ...authUser, can_read_audit_log: false }));
 
       render(<App />);
 
@@ -770,14 +933,14 @@ describe("Student detail screen (/students/:id)", () => {
     });
   });
 
-  it("does not offer a next rank whose syllabus is not recorded", async () => {
-    const ranks = testRanks.map((rank) => (rank.id === 3 ? { ...rank, has_syllabus: false } : rank));
-    vi.stubGlobal(
-      "fetch",
+  it("shows no next rank when the server offers none", async () => {
+    // The server withholds a next rank that has no syllabus recorded.
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/ranks/")) {
-          return jsonResponse(200, { count: 3, next: null, previous: null, results: ranks });
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
         }
         if (url.includes("/api/students/10/rank-history/")) {
           return jsonResponse(200, {
@@ -790,7 +953,9 @@ describe("Student detail screen (/students/:id)", () => {
             promotions: [],
           });
         }
-        if (url.includes("/api/students/10/")) return jsonResponse(200, testStudent);
+        if (url.includes("/api/students/10/")) {
+          return jsonResponse(200, { ...testStudent, next_rank: null, next_rank_name: null });
+        }
         return jsonResponse(404, {});
       }),
     );
@@ -815,6 +980,7 @@ describe("Student detail screen (/students/:id)", () => {
     ] satisfies StudentRankHistory["promotions"];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -878,7 +1044,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -906,6 +1072,7 @@ describe("Student detail screen (/students/:id)", () => {
     let currentStatus = "ACTIVE";
 
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -941,7 +1108,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -977,6 +1144,7 @@ describe("Student detail screen (/students/:id)", () => {
     let patchPayload: unknown = null;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1006,7 +1174,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1048,9 +1216,9 @@ describe("Student detail screen (/students/:id)", () => {
   it("records the black belt ID, which can still be corrected after", async () => {
     let student: StudentDetail = { ...testStudent };
     const sent: unknown[] = [];
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/ranks/")) {
           return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
@@ -1090,13 +1258,12 @@ describe("Student detail screen (/students/:id)", () => {
     await user.click(await screen.findByRole("button", { name: "Edit student" }));
     // A mistyped ID of either form can be corrected.
     expect(await screen.findByLabelText("WKSA ID")).toBeEnabled();
-    expect(
-      screen.getByText("Correct a mistyped black belt ID. It never goes back to a student ID."),
-    ).toBeVisible();
+    expect(screen.getByText("Correct a mistyped black belt ID. It never goes back to a student ID.")).toBeVisible();
   });
 
   it("announces edit-student field errors and associates them with their input", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1119,7 +1286,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1138,8 +1305,9 @@ describe("Student detail screen (/students/:id)", () => {
     expect(firstNameInput).toHaveAttribute("aria-invalid", "true");
   });
 
-  it("navigates back to /students when clicking breadcrumb", async () => {
+  it("navigates back to /students when clicking the back link", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1165,16 +1333,60 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
 
-    const breadcrumbBtn = within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Students" });
-    await user.click(breadcrumbBtn);
+    const backLink = within(screen.getByRole("main")).getByRole("link", { name: "Students" });
+    await user.click(backLink);
 
     expect(window.location.pathname).toBe("/students");
+  });
+});
+
+describe("A student record that is not there", () => {
+  beforeEach(() => {
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function serveRecordPages() {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      return jsonResponse(404, { detail: "Not found." });
+    });
+    stubFetch(fetchMock);
+    return fetchMock;
+  }
+
+  it("says so for an address that names no record, without asking the server", async () => {
+    window.history.replaceState({}, "", "/students/12abc");
+    const fetchMock = serveRecordPages();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Student record not found" })).toBeVisible();
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Students" })).toHaveAttribute(
+      "href",
+      "/students",
+    );
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/students/12"))).toBe(false);
+  });
+
+  it("says so for a record the server does not have", async () => {
+    window.history.replaceState({}, "", "/students/99");
+    serveRecordPages();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Student record not found" })).toBeVisible();
   });
 });

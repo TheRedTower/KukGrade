@@ -1,13 +1,13 @@
 """How many queries the hot paths cost, as ceilings, with the baseline recorded.
 
-Measured 2026-11-05 on dev (audit P3-1, P3-2). A ceiling is the measured count
+Measured 2026-11-05 on dev. A ceiling is the measured count
 plus a little room, so an unrelated change does not break these but a path that
 quietly gets heavier does. When a change lowers a path, lower its ceiling in the
 same change and update docs/development.md.
 
 The item write was the heavy one: 76 statements per tap, about fifty of them the
-database re-checking constraints that `Model.save()` had just validated in Python
-(audit hypothesis H-01). The hot writes now skip those re-checks
+database re-checking constraints that `Model.save()` had just validated in Python.
+The hot writes now skip those re-checks
 (kukgrade/modelchecks.py) and cost 17; the constraints themselves are unchanged
 and still refuse bad data (test_hot_writes_still_refused.py).
 """
@@ -44,7 +44,7 @@ def test_marking_an_item_stays_within_its_baseline(
     django_assert_max_num_queries: DjangoAssertNumQueries,
 ) -> None:
     # Baseline 17 for a first mark and for a later change with a reason
-    # (76 before P3-2).
+    # (76 before).
     _generated, items = started_assessment()
     client = auth_client("baseline-marker@example.com")
     url = f"/api/gradings/assessment-items/{items[0]}/"
@@ -65,7 +65,7 @@ def test_marking_an_item_stays_within_its_baseline(
 def test_commenting_stays_within_its_baseline(
     django_assert_max_num_queries: DjangoAssertNumQueries,
 ) -> None:
-    # Baseline 11 (26 before P3-2).
+    # Baseline 11 (26 before).
     _generated, items = started_assessment()
     client = auth_client("baseline-commenter@example.com")
     url = f"/api/gradings/assessment-items/{items[0]}/comments/"

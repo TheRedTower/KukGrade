@@ -3,15 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type {
-  AuthUser,
-  GradingSession,
-} from "./api";
+import type { AuthUser, GradingSession } from "./api";
 import {
   authUser,
   ADMINISTRATOR_CAPABILITIES,
+  CHOICES,
   jsonResponse,
   sessionsResponse,
+  sessionServed,
+  stubFetch,
 } from "./appTestSupport";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,7 +29,11 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 5,
       completed_assessment_count: 3,
       awaiting_decision_count: 1,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("OPEN"),
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -42,7 +46,11 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("LOCKED"),
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -55,7 +63,11 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("COMPLETED"),
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -63,6 +75,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   function makeFetch(sessions: GradingSession[] = testSessions) {
     return vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -75,15 +88,13 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   it("shows each session's served progress without asking for its candidates", async () => {
     const fetchMock = makeFetch();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
     const card = await screen.findByRole("region", { name: "Current grading session" });
     expect(within(card).getByText("3 / 5")).toBeVisible();
-    expect(within(card).getByText("Awaiting final decision").previousElementSibling).toHaveTextContent(
-      "1",
-    );
+    expect(within(card).getByText("Awaiting final decision").previousElementSibling).toHaveTextContent("1");
     const table = await screen.findByRole("table", { name: "Grading sessions" });
     expect(within(table).getByText("3 of 5 complete")).toBeVisible();
     const requested = fetchMock.mock.calls.map(([url]) => String(url));
@@ -112,10 +123,13 @@ describe("Grading Sessions List Screen (/gradings)", () => {
         title: "Draft Yet Kept",
         status: "DRAFT",
         status_display: "Draft",
-        can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+        can_be_deleted: false,
+        archived_at: null,
+        can_be_archived: false,
+        can_be_restored: false,
       },
     ] satisfies GradingSession[];
-    vi.stubGlobal("fetch", makeFetch(sessions));
+    stubFetch(makeFetch(sessions));
 
     render(<App />);
 
@@ -127,7 +141,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   it("asks for archived sessions only when the viewer chooses to see them", async () => {
     const fetchMock = makeFetch(testSessions);
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
     render(<App />);
 
@@ -147,17 +161,17 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       ...testSessions,
       { ...testSessions[2], id: 4, title: "Old Grading", grading_date: "2024-03-01" },
     ]);
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
     const years = await screen.findByRole("combobox", { name: "Year" });
     await waitFor(() =>
-      expect(within(years).getAllByRole("option").map((option) => option.textContent)).toEqual([
-        "All years",
-        "2026",
-        "2024",
-      ]),
+      expect(
+        within(years)
+          .getAllByRole("option")
+          .map((option) => option.textContent),
+      ).toEqual(["All years", "2026", "2024"]),
     );
     const card = await screen.findByRole("region", { name: "Current grading session" });
     expect(within(card).getByText("Autumn Grading")).toBeVisible();
@@ -168,7 +182,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
   });
 
   it("renders gradings page heading and subtitle", async () => {
-    vi.stubGlobal("fetch", makeFetch());
+    stubFetch(makeFetch());
 
     render(<App />);
 
@@ -177,7 +191,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
   });
 
   it("renders session table rows from API with title, date, and status", async () => {
-    vi.stubGlobal("fetch", makeFetch());
+    stubFetch(makeFetch());
 
     render(<App />);
 
@@ -192,7 +206,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
   });
 
   it("renders the current (open) session spotlight card", async () => {
-    vi.stubGlobal("fetch", makeFetch());
+    stubFetch(makeFetch());
 
     render(<App />);
 
@@ -208,6 +222,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   it("renders authentic empty state when no sessions exist", async () => {
     const emptyFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -217,7 +232,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", emptyFetch);
+    stubFetch(emptyFetch);
 
     render(<App />);
 
@@ -235,6 +250,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       role_display: "Administrator",
     } satisfies AuthUser;
     const emptyAdminFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
@@ -244,7 +260,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", emptyAdminFetch);
+    stubFetch(emptyAdminFetch);
 
     render(<App />);
 
@@ -265,13 +281,14 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   it("allows an instructor to create a grading session", async () => {
     const emptyFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", emptyFetch);
+    stubFetch(emptyFetch);
     const user = userEvent.setup();
 
     render(<App />);
@@ -293,19 +310,24 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("CANCELLED"),
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
 
     const filterFetch = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/gradings/sessions/")) {
         return sessionsResponse(url, [...testSessions, cancelledSession]);
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", filterFetch);
+    stubFetch(filterFetch);
     const user = userEvent.setup();
 
     render(<App />);
@@ -319,11 +341,9 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     // A status nothing has: the screen says so and offers a reset.
     await user.selectOptions(statusSelect, "DRAFT");
-    expect(
-      await screen.findByText("No grading sessions match the selected filters."),
-    ).toBeVisible();
+    expect(await screen.findByText("No grading sessions match the selected filters.")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Reset filters" }));
-    expect(statusSelect).toHaveValue("ALL");
+    expect(statusSelect).toHaveValue("");
     expect(await screen.findByText("Summer Grading")).toBeVisible();
   });
 
@@ -337,12 +357,17 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("CANCELLED"),
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
 
     const deleteFetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE") {
         return new Response(null, { status: 204 });
@@ -352,7 +377,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", deleteFetch);
+    stubFetch(deleteFetch);
     const user = userEvent.setup();
 
     render(<App />);
@@ -368,12 +393,12 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     expect(screen.getByText(/Are you sure you want to permanently delete/)).toBeVisible();
 
     // Confirm delete in modal
-    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    const confirmBtn = screen.getByRole("button", { name: "Delete session" });
     await user.click(confirmBtn);
 
     // Verify DELETE fetch call
-    const deleteCalls = deleteFetch.mock.calls.filter(([url, init]) =>
-      url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE"
+    const deleteCalls = deleteFetch.mock.calls.filter(
+      ([url, init]) => url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE",
     );
     expect(deleteCalls.length).toBe(1);
   });
@@ -388,19 +413,24 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("CANCELLED"),
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/")) {
         return sessionsResponse(url, [cancelledSession]);
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -410,7 +440,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     expect(await screen.findByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
     const cancelBtn = screen.getByRole("button", { name: "Cancel" });
-    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    const confirmBtn = screen.getByRole("button", { name: "Delete session" });
     expect(cancelBtn).toHaveFocus();
 
     await user.tab({ shift: true });
@@ -434,7 +464,11 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("CANCELLED"),
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -445,6 +479,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     });
 
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE") {
         await deletePending;
@@ -455,7 +490,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -464,7 +499,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     await user.click(deleteBtn);
     expect(await screen.findByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
 
-    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete session" }));
     expect(await screen.findByRole("button", { name: "Deleting…" })).toBeDisabled();
 
     // Escape and backdrop clicks are ignored while the deletion is in flight.
@@ -515,10 +550,11 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
   it("renders the creation form for an instructor", async () => {
     const instructorUser = { ...authUser, email: "instructor@example.com" } satisfies AuthUser;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, instructorUser);
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -526,18 +562,19 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     expect(screen.getByRole("button", { name: "Create draft session" })).toBeEnabled();
   });
 
-  it("renders create grading session form with breadcrumbs, inputs, and preview card", async () => {
+  it("renders create grading session form with the way back, inputs, and preview card", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Create grading session" })).toBeVisible();
     expect(screen.getByText("Set the details, then add candidates.")).toBeVisible();
-    expect(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Gradings" })).toBeVisible();
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Gradings" })).toBeVisible();
     expect(screen.getByLabelText(/session title/i)).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Grading day" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Grading month" })).toBeVisible();
@@ -551,10 +588,11 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("updates session preview card live as the user enters title, date, and location", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -587,10 +625,11 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("blocks submission and shows client validation errors when required fields are empty", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -610,6 +649,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
   it("says what the server said when it has no field to put it against", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/") && options?.method === "POST") {
         return jsonResponse(400, {
@@ -622,7 +662,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -646,13 +686,18 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+      ...sessionServed("DRAFT"),
+      can_be_deleted: false,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
       location: "Riverside Central Dojang",
       notes: "High rank candidates expected",
     } satisfies GradingSession;
 
     let postBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/") && init?.method === "POST") {
         postBody = JSON.parse(init.body as string);
@@ -666,7 +711,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -697,15 +742,16 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     });
   });
 
-  it("navigates back to /gradings when Cancel or the breadcrumb link is clicked", async () => {
+  it("navigates back to /gradings when Cancel or the back link is clicked", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -716,16 +762,17 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(window.location.pathname).toBe("/gradings");
 
-    // And the breadcrumb, from the form again
+    // And the back link, from the form again
     window.history.pushState({}, "", "/gradings/new");
     window.dispatchEvent(new PopStateEvent("popstate"));
     await screen.findByRole("heading", { name: "Create grading session" });
-    await user.click(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Gradings" }));
+    await user.click(within(screen.getByRole("main")).getByRole("link", { name: "Gradings" }));
     expect(window.location.pathname).toBe("/gradings");
   });
 
   it("surfaces server validation error messages on submission failure", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/") && init?.method === "POST") {
         return jsonResponse(400, {
@@ -740,7 +787,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);

@@ -18,10 +18,10 @@ flowchart LR
 | Layer | Technology |
 | --- | --- |
 | Backend | Python 3.14, Django 5.2 (LTS), Django REST Framework, drf-spectacular |
-| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, plain CSS on design tokens |
+| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, openapi-fetch, plain CSS on design tokens, one shipped typeface (Pretendard) |
 | Database | PostgreSQL 17 |
 | Testing | pytest, Vitest and React Testing Library; Playwright for the width check (dev only) |
-| Quality | Ruff, mypy, ESLint, GitHub Actions |
+| Quality | Ruff, mypy, ESLint, Stylelint, Prettier, GitHub Actions |
 | Packaging | One multi-stage `Dockerfile`; WhiteNoise serves the built frontend |
 
 ## Repository layout
@@ -58,8 +58,12 @@ and never hard-codes a rule.
 
 **Services own every state change.** Each app has a `services.py` that validates a
 change, writes it in a transaction, and records its audit event in that same
-transaction. Views and serializers call the services, so a change is validated and
-audited the same way every time. The Django admin does not write grading or student
+transaction. The view calls the service: a serializer reads and checks the request
+and never saves (`kukgrade.serializers.ModelSerializer` refuses to), and the view hands
+what it checked to the service with the acting user, so a change is validated and
+audited the same way every time. Every viewset is a `KukGradeViewSet`
+(`kukgrade/viewsets.py`): no PUT, so an edit is a PATCH of what changes; a delete goes
+through the app's own delete service; and every bulk action has one shape (`run_bulk`). The Django admin does not write grading or student
 data at all: it shows it, and recovers accounts.
 
 **Models refuse the worst mistakes themselves.** Deletion rules, and the immutability of
@@ -73,13 +77,16 @@ refuses an invalid status; a registration is always the same student's, and a fi
 never changes.
 
 **Permissions fail closed.** Every API viewset declares a `permission_map` per action;
-an action that is not declared is denied. Django permissions are the authority; the
+an action that is not declared is denied. The two gates applied to every request (a required password
+change, and the demo's closed changes) are decided on the resolved view's name, never
+its path (`kukgrade/middleware.py`). Django permissions are the authority; the
 `role` field is only a label that decides group membership.
 
 **History is reproducible.** Generating an assessment copies every requirement's text
 into immutable per-candidate rows, so editing the syllabus later cannot change a past
-grading. Promotions, finalised outcomes and audit events are immutable; imported
-records are voided, never deleted.
+grading. Promotions, finalised outcomes, item comments, mark changes and audit events
+are immutable, by one guard (`kukgrade/kept.py`); imported records are voided, never
+deleted.
 
 **One lock protocol.** Concurrent grading writes lock the grading session first, then
 any students in ascending id order, and validate only against rows re-read under those
@@ -95,14 +102,20 @@ generated from it, and CI fails if either drifts. See [api.md](api.md).
 React with React Router and TanStack Query; styling is one stylesheet per feature on
 the design tokens in `frontend/src/theme.css` (a warm gold-on-charcoal palette with
 light and dark themes). API types are generated into `frontend/src/api/schema.ts`, and
-`frontend/src/api.ts` holds the fetch functions. `frontend/src/queryKeys.ts` names every
-grading, student and audit list (`keys`) and says what to read again after the changes
-several screens make (`refresh`), so a screen that changes data and one that shows it agree.
+`frontend/src/api.ts` holds the fetch functions. They call one `openapi-fetch` client typed
+from those paths, so each call's path, parameters, body and answer are the schema's and
+none is written by hand; the client adds the CSRF token and turns the error envelope into
+an `ApiError`. Tests stand in for the server with `stubFetch` (`appTestSupport.ts`).
+`frontend/src/queryKeys.ts` names every
+query and mutation the app keeps (`keys`; a lint rule refuses a key written anywhere else)
+and says what to read again after the changes several screens make (`refresh`), so a screen
+that changes data and one that shows it agree.
 
 Two behaviours worth knowing:
 
 - **Sign-in state has four values**, not three: `loading`, `authenticated`, `anonymous`
-  and `error`. `anonymous` needs a real answer from the server (a 401). A dropped
+  and `error`. `anonymous` needs a real answer from the server that nobody is signed in (a 401, or a
+  403 with `authentication_required`). A dropped
   connection or a 5xx is `error`, with a retry, so a backend hiccup never signs
   someone out mid-grading. Signing out clears local state only after the server
   confirms.

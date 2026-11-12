@@ -5,18 +5,20 @@ import { Link } from "react-router-dom";
 import { type DataImportBatch } from "./api";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
-import { counted, importKindLabel } from "./importSteps";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { LinkPanel } from "./ImportLinkPanel";
 import { type RowFilter, RowsLedger } from "./ImportRowsLedger";
 import { SecondLook } from "./ImportSecondLook";
 import { VoidDialog } from "./ImportVoidDialog";
+import { importKinds } from "./importKinds";
+import { counted } from "./plural";
+import { CheckIcon } from "./Icons";
 
 /** One more thing to do from the results page, in the side panel. */
 function AlsoItem({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
-    <div className="ix-section ix-also">
+    <div className="stack stack--3 ix-also">
       <p className="item-title">{title}</p>
       <p className="subtext">{body}</p>
       {children}
@@ -27,32 +29,12 @@ function AlsoItem({ title, body, children }: { title: string; body: string; chil
 /** An import's results: its own page, with the next job on top. */
 export function ImportResults({ batch }: { batch: DataImportBatch }) {
   const { user } = useAuth();
-  const roster = batch.kind === "STUDENT_ROSTER";
+  const { addsStudents, results } = importKinds[batch.kind];
   const [filter, setFilter] = useState<RowFilter>("all");
   const [voiding, setVoiding] = useState(false);
   const summary = batch.summary_json;
-  const created = summary.created ?? 0;
-  const total = summary.total ?? 0;
-
-  const headline = roster
-    ? `${counted(created, "student", "students")} added`
-    : `${counted(total, "historical record", "historical records")} imported`;
-  const banner = (
-    roster
-      ? [
-          summary.skipped_existing
-            ? `${counted(summary.skipped_existing, "student", "students")} already in KukGrade ${summary.skipped_existing === 1 ? "was" : "were"} skipped and not changed.`
-            : null,
-          summary.excluded
-            ? `${counted(summary.excluded, "row", "rows")} you left out ${summary.excluded === 1 ? "was" : "were"} not imported.`
-            : null,
-        ]
-      : [
-          summary.excluded
-            ? `${counted(summary.excluded, "record", "records")} you left out ${summary.excluded === 1 ? "was" : "were"} not imported.`
-            : null,
-        ]
-  ).filter(Boolean);
+  const headline = results.headline(summary);
+  const banner = results.banner(summary).filter(Boolean);
   const unresolvedRanks = (summary.unresolved_current_rank ?? 0) + (summary.unresolved_testing_for_rank ?? 0);
 
   return (
@@ -62,12 +44,12 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
         title={batch.original_filename}
         titleId="ix-results-title"
         tag={<Badge tone="success">Imported</Badge>}
-        subtitle={`${importKindLabel(batch.kind)} · imported by ${batch.committed_by_name} on ${formatShortDateTime(batch.committed_at)}`}
+        subtitle={`${batch.kind_display} · imported by ${batch.committed_by_name} on ${formatShortDateTime(batch.committed_at)}`}
       />
 
       <div className="ix-banner ix-banner-success" role="status">
-        <span aria-hidden="true" className="mark mark--large mark--success ix-mark-on-surface">
-          ✓
+        <span aria-hidden="true" className="mark mark--large ix-mark-on-surface" data-tone="success">
+          <CheckIcon size={22} />
         </span>
         <p>
           <strong className="section-title">{headline}</strong>
@@ -75,23 +57,32 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
         </p>
       </div>
 
-      {roster ? <SecondLook batch={batch} onShow={setFilter} /> : <LinkPanel batch={batch} />}
+      {addsStudents ? <SecondLook batch={batch} onShow={setFilter} /> : <LinkPanel batch={batch} />}
 
       <div className="ix-two-col">
         <RowsLedger batch={batch} filter={filter} onFilter={setFilter} />
-        <aside aria-labelledby="ix-also-h" className="card ix-section">
+        <aside aria-labelledby="ix-also-h" className="card stack stack--3">
           <h2 className="ix-minor" id="ix-also-h">
             Also
           </h2>
-          {roster ? (
+          {addsStudents ? (
             <>
               <AlsoItem body="The Students page, showing only those this import added." title="See the new students">
-                <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to={`/students?source_import=${batch.id}`}>
+                <Link
+                  className={buttonClass({ variant: "secondary" }, "ix-start")}
+                  to={`/students?source_import=${batch.id}`}
+                >
                   Go to Students
                 </Link>
               </AlsoItem>
-              <AlsoItem body="Import the grading record workbook, then link it to these students." title="Bring in their past gradings">
-                <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to="/imports/new?kind=LEGACY_GRADINGS">
+              <AlsoItem
+                body="Import the grading record workbook, then link it to these students."
+                title="Bring in their past gradings"
+              >
+                <Link
+                  className={buttonClass({ variant: "secondary" }, "ix-start")}
+                  to="/imports/new?kind=LEGACY_GRADINGS"
+                >
                   Import past gradings
                 </Link>
               </AlsoItem>
@@ -99,14 +90,20 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
           ) : (
             <>
               {unresolvedRanks ? (
-                <AlsoItem body={`${counted(unresolvedRanks, "rank is", "ranks are")} still as written in the workbook.`} title="Match the last ranks">
+                <AlsoItem
+                  body={`${counted(unresolvedRanks, "rank is", "ranks are")} still as written in the workbook.`}
+                  title="Match the last ranks"
+                >
                   <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to="/imports/records">
                     Match ranks
                   </Link>
                 </AlsoItem>
               ) : null}
               {user?.can_reconcile_imported_history ? (
-                <AlsoItem body="Void the whole import. Its records are kept, marked void, with your reason." title="Wrong workbook?">
+                <AlsoItem
+                  body="Void the whole import. Its records are kept, marked void, with your reason."
+                  title="Wrong workbook?"
+                >
                   <Button variant="ghost" className="ix-danger-text ix-start" onClick={() => setVoiding(true)}>
                     Void this import
                   </Button>

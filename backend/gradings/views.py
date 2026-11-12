@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any, cast
 
-from django.db.models import Prefetch, Q, QuerySet
+from django.db.models import Prefetch, Q, QuerySet, prefetch_related_objects
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -11,7 +10,6 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
-from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from accounts.models import User
 from accounts.permissions import (
@@ -27,24 +25,30 @@ from gradings.assessment_services import (
     bulk_start_candidate_assessments,
     delete_candidate_assessment,
     generate_candidate_assessment,
+    update_candidate_assessment,
+    update_candidate_assessment_item,
 )
 from gradings.legacy_matching import (
+    SET_ASIDE_CHOICES,
     SHEET_NOTE_NAME,
-    PersonGroup,
+    Suggestion,
     group_key,
-    group_records,
+    people_groups,
     suggest_for_groups,
 )
 from gradings.legacy_services import (
     bulk_link_legacy_records,
+    bulk_unlink_legacy_records,
+    link_legacy_record_to_student,
     put_back_name,
-    resolve_legacy_current_rank,
-    resolve_legacy_testing_for_rank,
+    resolve_legacy_rank,
     set_aside_keys,
     set_aside_names,
     unlink_legacy_record_from_student,
+    void_legacy_record,
 )
 from gradings.models import (
+    ROSTER_OPEN,
     AssessmentItemComment,
     AssessmentItemResultChange,
     CandidateAssessment,
@@ -57,8 +61,11 @@ from gradings.models import (
 from gradings.outcome_services import (
     bulk_promote_candidates,
     discard_staged_decision,
+    finalise_candidate_outcome,
+    promote_candidate,
     promotion_eligibility_for_session,
     propose_for_candidate,
+    stage_final_decision,
     staged_decisions_for_session,
 )
 from gradings.read_models import candidate_assessment_summary, with_overall_counts
@@ -76,6 +83,7 @@ from gradings.serializers import (
     BulkLinkLegacyRecordsSerializer,
     BulkPromotionResultSerializer,
     BulkPromotionSerializer,
+    BulkUnlinkLegacyRecordsSerializer,
     CandidateAssessmentItemSavedSerializer,
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
@@ -91,11 +99,13 @@ from gradings.serializers import (
     LegacyGradingRecordSerializer,
     LegacyPeopleSummarySerializer,
     LegacyPersonSerializer,
+    LegacyRecordCountsSerializer,
     LinkLegacyRecordSerializer,
     LockedCandidateWithdrawalSerializer,
     PromotionEligibilitySerializer,
     PromotionSerializer,
     ResolveLegacyRankSerializer,
+    SessionQuerySerializer,
     SetAsideNamesSerializer,
     StagedDecisionSerializer,
     VoidLegacyRecordSerializer,
@@ -104,13 +114,18 @@ from gradings.serializers import (
 from gradings.services import (
     ALREADY_IN_SESSION,
     REGISTERED_ELSEWHERE,
+    AlreadyRegistered,
+    apply_candidate_update,
     archive_grading_session,
     bulk_register_candidates,
     bulk_update_candidate_status,
+    create_grading_session,
     delete_candidate,
     delete_grading_session,
     restore_grading_session,
+    update_grading_session,
     with_session_progress,
+    withdraw_locked_candidate,
 )
 from kukgrade.filtering import (
     QueryFilter,
@@ -118,42 +133,44 @@ from kukgrade.filtering import (
     by_id,
     choices_in,
     exact,
+    in_year,
     on_date,
     ordered_by,
+    read_by_view,
+    read_query,
 )
 from kukgrade.search import (
     ExactOnly,
-    apply_search,
     date_words,
     full_name_of,
     label_of,
     search,
     squashed,
 )
+from kukgrade.viewsets import KukGradeViewSet, ServiceDestroyMixin, run_bulk
 
-_PEOPLE_PARAMETERS = frozenset(
-    {
-        "batch",
-        "linked",
-        "search",
-        "suggestion",
-        "set_aside",
-        "page",
-        "page_size",
-        "format",
-    },
-)
-_PEOPLE_SUMMARY_PARAMETERS = frozenset({"batch", "set_aside", "format"})
-_PEOPLE_SUGGESTIONS = ("clear", "choose", "none")
-_PEOPLE_BATCH = OpenApiParameter(
-    "batch", int, description="Only records from this import."
-)
-_PEOPLE_SET_ASIDE = OpenApiParameter(
+_PEOPLE_BATCH = by_id("batch", "source_batch_id", "Only records from this import.")
+_PEOPLE_SET_ASIDE = read_by_view(
     "set_aside",
-    str,
-    enum=["only", "exclude"],
-    description="Only, or all but, the names the viewer has put aside for now.",
+    {"type": "string", "enum": list(SET_ASIDE_CHOICES)},
+    "Only, or all but, the names the viewer has put aside for now.",
 )
+_PEOPLE_FILTERS = (
+    _PEOPLE_BATCH,
+    boolean(
+        "linked",
+        Q(student__isnull=False),
+        "Only people whose records are (or are not) linked.",
+    ),
+    read_by_view("search", description="Part of the name as written."),
+    read_by_view(
+        "suggestion",
+        {"type": "string", "enum": sorted(Suggestion.values)},
+        "Only people whose suggested students are this clear.",
+    ),
+    _PEOPLE_SET_ASIDE,
+)
+_PEOPLE_SUMMARY_FILTERS = (_PEOPLE_BATCH, _PEOPLE_SET_ASIDE)
 
 
 def _records_for_group(
@@ -167,7 +184,7 @@ def _records_for_group(
     return queryset.filter(source_name__in=matching)
 
 
-class WithdrawalReasonViewSet(GenericViewSet):
+class WithdrawalReasonViewSet(KukGradeViewSet[GradingCandidate]):
     """The reasons a candidate can be withdrawn for, as every withdrawal
     control lists them."""
 
@@ -177,8 +194,11 @@ class WithdrawalReasonViewSet(GenericViewSet):
 
     def list(self, request: Request) -> Response:
         # Paginated like every list endpoint, as the syllabus age bands are.
-        page: list[str] | None = self.paginate_queryset(
-            GradingCandidate.WithdrawalReason.values,  # type: ignore[arg-type]
+        page: list[dict[str, str]] | None = self.paginate_queryset(
+            [  # type: ignore[arg-type]
+                {"value": value, "label": label}
+                for value, label in GradingCandidate.WithdrawalReason.choices
+            ],
         )
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
@@ -193,9 +213,39 @@ def _apply_archived(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     return queryset.none()
 
 
-class GradingSessionViewSet(ModelViewSet):
-    # No PUT: partial_update covers every real edit.
-    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+class GradingSessionViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    ServiceDestroyMixin,
+    KukGradeViewSet[GradingSession],
+):
+    delete_service = staticmethod(delete_grading_session)
+
+    def perform_create(self, serializer: BaseSerializer[GradingSession]) -> None:
+        asked = serializer.validated_data
+        serializer.instance = create_grading_session(
+            title=str(asked["title"]),
+            grading_date=asked["grading_date"],
+            location=str(asked.get("location", "")),
+            notes=str(asked.get("notes", "")),
+            created_by=self.actor,
+            status=cast(str | None, asked.get("status")),
+        )
+
+    def perform_update(self, serializer: BaseSerializer[GradingSession]) -> None:
+        changes = dict(serializer.validated_data)
+        target_status = cast(str | None, changes.pop("status", None))
+        reason = cast(str, changes.pop("cancellation_reason", ""))
+        serializer.instance = update_grading_session(
+            cast(GradingSession, serializer.instance),
+            changes=changes,
+            target_status=target_status,
+            reason=reason,
+            actor=self.actor,
+        )
+
     serializer_class = GradingSessionSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
@@ -212,8 +262,15 @@ class GradingSessionViewSet(ModelViewSet):
 
     query_filters = (
         choices_in("status", "status", GradingSession.Status.values),
+        boolean(
+            "roster_open",
+            ROSTER_OPEN,
+            "Only sessions that accept candidates (draft or open), or only "
+            "those that no longer do.",
+        ),
         on_date("grading_date_from", "grading_date__gte"),
         on_date("grading_date_to", "grading_date__lte"),
+        in_year("year", "grading_date", "Only sessions held in this year."),
         search(
             "search",
             (
@@ -256,30 +313,19 @@ class GradingSessionViewSet(ModelViewSet):
             return with_session_progress(sessions)
         return sessions
 
-    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
-        instance = self.get_object()
-        delete_grading_session(instance, actor=cast(User, request.user))
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     @extend_schema(request=None, responses=GradingSessionSerializer)
     @action(detail=True, methods=["post"])
     def archive(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Hide a finished session from the lists. Nothing is erased."""
-        archive_grading_session(self.get_object(), cast(User, request.user))
-        return Response(self._read(request, cast(str, kwargs["pk"])))
+        archived = archive_grading_session(self.get_object(), cast(User, request.user))
+        return Response(self.get_serializer(archived).data)
 
     @extend_schema(request=None, responses=GradingSessionSerializer)
     @action(detail=True, methods=["post"])
     def restore(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Bring an archived session back into the lists."""
-        restore_grading_session(self.get_object(), cast(User, request.user))
-        return Response(self._read(request, cast(str, kwargs["pk"])))
-
-    def _read(self, request: Request, pk: int | str) -> Any:
-        instance = with_session_progress(
-            GradingSession.objects.filter(pk=pk),
-        ).get()
-        return GradingSessionSerializer(instance, context={"request": request}).data
+        restored = restore_grading_session(self.get_object(), cast(User, request.user))
+        return Response(self.get_serializer(restored).data)
 
     @extend_schema(
         request=None,
@@ -299,14 +345,24 @@ class GradingCandidateViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    GenericViewSet,
+    ServiceDestroyMixin,
+    KukGradeViewSet[GradingCandidate],
 ):
     """Registrations are created by bulk-register only. PATCH and DELETE
     change or remove one while its session is draft or open."""
 
-    # No PUT: partial_update covers every real edit.
-    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    delete_service = staticmethod(delete_candidate)
+
+    def perform_update(self, serializer: BaseSerializer[GradingCandidate]) -> None:
+        serializer.instance = apply_candidate_update(
+            cast(GradingCandidate, serializer.instance),
+            session=cast(
+                GradingSession | None,
+                serializer.validated_data.get("session"),
+            ),
+            actor=self.actor,
+        )
+
     serializer_class = GradingCandidateSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
@@ -331,6 +387,11 @@ class GradingCandidateViewSet(
 
     query_filters = (
         by_id("session", "session_id"),
+        boolean(
+            "withdrawn",
+            Q(status=GradingCandidate.Status.WITHDRAWN),
+            "Only withdrawn candidates, or only those still being graded.",
+        ),
         search(
             "search",
             (
@@ -388,11 +449,6 @@ class GradingCandidateViewSet(
             "student__first_name",
         )
 
-    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
-        instance = self.get_object()
-        delete_candidate(instance, actor=cast(User, request.user))
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     @extend_schema(request=None, responses={201: CandidateAssessmentSerializer})
     @action(detail=True, methods=["post"], url_path="generate-assessment")
     def generate_assessment(
@@ -420,36 +476,36 @@ class GradingCandidateViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        input_serializer = BulkCandidateRegistrationSerializer(data=request.data)
-        input_serializer.is_valid(raise_exception=True)
-        codes: dict[str, set[str]] = {}
-        created, errors = bulk_register_candidates(
-            session=input_serializer.validated_data["session"],
-            rows=input_serializer.validated_data["candidates"],
-            actor=cast(User, request.user),
-            generate_assessments=input_serializer.validated_data[
-                "generate_assessments"
-            ],
-            codes=codes,
-        )
-        result = BulkCandidateRegistrationResultSerializer(
-            {
+        def register(asked: dict[str, Any]) -> dict[str, Any]:
+            codes: dict[str, set[str]] = {}
+            created, errors = bulk_register_candidates(
+                session=asked["session"],
+                rows=asked["candidates"],
+                actor=self.actor,
+                generate_assessments=asked["generate_assessments"],
+                codes=codes,
+            )
+            return {
                 "created": [
                     {"candidate": candidate, "assessment": assessment}
                     for candidate, assessment in created
                 ],
                 "errors": errors,
                 "already_registered": {
-                    index: "THIS_SESSION"
+                    student: AlreadyRegistered.THIS_SESSION
                     if ALREADY_IN_SESSION in row_codes
-                    else "ANOTHER_GRADING"
-                    for index, row_codes in codes.items()
+                    else AlreadyRegistered.ANOTHER_GRADING
+                    for student, row_codes in codes.items()
                     if row_codes & {ALREADY_IN_SESSION, REGISTERED_ELSEWHERE}
                 },
-            },
-            context={"request": request},
+            }
+
+        return run_bulk(
+            request,
+            request_serializer=BulkCandidateRegistrationSerializer,
+            result_serializer=BulkCandidateRegistrationResultSerializer,
+            run=register,
         )
-        return Response(result.data)
 
     @extend_schema(
         request=BulkAssessmentGenerationSerializer,
@@ -462,17 +518,19 @@ class GradingCandidateViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        input_serializer = BulkAssessmentGenerationSerializer(data=request.data)
-        input_serializer.is_valid(raise_exception=True)
-        created, errors = bulk_generate_candidate_assessments(
-            candidates=input_serializer.validated_data["candidates"],
-            generated_by=cast(User, request.user),
+        def generate(asked: dict[str, Any]) -> dict[str, Any]:
+            created, errors = bulk_generate_candidate_assessments(
+                candidates=asked["candidates"],
+                generated_by=self.actor,
+            )
+            return {"created": created, "errors": errors}
+
+        return run_bulk(
+            request,
+            request_serializer=BulkAssessmentGenerationSerializer,
+            result_serializer=BulkAssessmentGenerationResultSerializer,
+            run=generate,
         )
-        result = BulkAssessmentGenerationResultSerializer(
-            {"created": created, "errors": errors},
-            context={"request": request},
-        )
-        return Response(result.data)
 
     @extend_schema(
         request=BulkCandidateStatusUpdateSerializer,
@@ -485,20 +543,22 @@ class GradingCandidateViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        input_serializer = BulkCandidateStatusUpdateSerializer(data=request.data)
-        input_serializer.is_valid(raise_exception=True)
-        updated, errors = bulk_update_candidate_status(
-            candidates=input_serializer.validated_data["candidates"],
-            new_status=input_serializer.validated_data["status"],
-            withdrawal_reason=input_serializer.validated_data.get("withdrawal_reason"),
-            withdrawal_note=input_serializer.validated_data.get("withdrawal_note"),
-            actor=cast(User, request.user),
+        def update(asked: dict[str, Any]) -> dict[str, Any]:
+            updated, errors = bulk_update_candidate_status(
+                candidates=asked["candidates"],
+                new_status=asked["status"],
+                withdrawal_reason=asked.get("withdrawal_reason"),
+                withdrawal_note=asked.get("withdrawal_note"),
+                actor=self.actor,
+            )
+            return {"updated": updated, "errors": errors}
+
+        return run_bulk(
+            request,
+            request_serializer=BulkCandidateStatusUpdateSerializer,
+            result_serializer=BulkCandidateStatusUpdateResultSerializer,
+            run=update,
         )
-        result = BulkCandidateStatusUpdateResultSerializer(
-            {"updated": updated, "errors": errors},
-            context={"request": request},
-        )
-        return Response(result.data)
 
     @extend_schema(
         request=LockedCandidateWithdrawalSerializer,
@@ -519,11 +579,15 @@ class GradingCandidateViewSet(
         serializer = LockedCandidateWithdrawalSerializer(
             candidate,
             data=request.data,
-            partial=True,
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
+        updated = withdraw_locked_candidate(
+            candidate,
+            reason=str(serializer.validated_data["withdrawal_reason"]),
+            note=str(serializer.validated_data.get("withdrawal_note", "")),
+            actor=self.actor,
+        )
         return Response(
             GradingCandidateSerializer(updated, context={"request": request}).data,
         )
@@ -556,11 +620,21 @@ class GradingCandidateViewSet(
 class CandidateAssessmentViewSet(
     mixins.ListModelMixin,
     mixins.UpdateModelMixin,
-    GenericViewSet,
+    ServiceDestroyMixin,
+    KukGradeViewSet[CandidateAssessment],
 ):
     serializer_class = CandidateAssessmentSerializer
     permission_classes = [HasRequiredPermissions]
-    http_method_names = ["get", "patch", "post", "delete", "head", "options"]
+    delete_service = staticmethod(delete_candidate_assessment)
+
+    def perform_update(self, serializer: BaseSerializer[CandidateAssessment]) -> None:
+        serializer.instance = update_candidate_assessment(
+            cast(CandidateAssessment, serializer.instance),
+            status=cast(str | None, serializer.validated_data.get("status")),
+            notes=cast(str | None, serializer.validated_data.get("notes")),
+            actor=self.actor,
+        )
+
     permission_map = {
         "list": ("gradings.view_candidateassessment",),
         "partial_update": ("gradings.change_candidateassessment",),
@@ -595,11 +669,6 @@ class CandidateAssessmentViewSet(
             "candidate__student__first_name",
         )
 
-    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
-        instance = self.get_object()
-        delete_candidate_assessment(instance, cast(User, request.user))
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
     @extend_schema(responses=CandidateAssessmentSummarySerializer)
     @action(detail=True, methods=["get"])
     def summary(
@@ -627,27 +696,41 @@ class CandidateAssessmentViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        input_serializer = BulkAssessmentStartSerializer(data=request.data)
-        input_serializer.is_valid(raise_exception=True)
-        started, errors = bulk_start_candidate_assessments(
-            assessments=input_serializer.validated_data["assessments"],
-            actor=cast(User, request.user),
+        def start(asked: dict[str, Any]) -> dict[str, Any]:
+            started, errors = bulk_start_candidate_assessments(
+                assessments=asked["assessments"],
+                actor=self.actor,
+            )
+            return {"started": started, "errors": errors}
+
+        return run_bulk(
+            request,
+            request_serializer=BulkAssessmentStartSerializer,
+            result_serializer=BulkAssessmentStartResultSerializer,
+            run=start,
         )
-        result = BulkAssessmentStartResultSerializer(
-            {"started": started, "errors": errors},
-            context={"request": request},
-        )
-        return Response(result.data)
+
+
+def _item_remarks() -> tuple[Prefetch[Any], ...]:
+    return (
+        Prefetch(
+            "comments",
+            queryset=AssessmentItemComment.objects.select_related("author"),
+        ),
+        Prefetch(
+            "changes",
+            queryset=AssessmentItemResultChange.objects.select_related("changed_by"),
+        ),
+    )
 
 
 class CandidateAssessmentItemViewSet(
     mixins.ListModelMixin,
     mixins.UpdateModelMixin,
-    GenericViewSet,
+    KukGradeViewSet[CandidateAssessmentItem],
 ):
     serializer_class = CandidateAssessmentItemSerializer
     permission_classes = [HasRequiredPermissions]
-    http_method_names = ["get", "patch", "post", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateassessmentitem",),
         "partial_update": ("gradings.change_candidateassessmentitem",),
@@ -655,6 +738,20 @@ class CandidateAssessmentItemViewSet(
     }
 
     query_filters = (by_id("assessment", "assessment_id"),)
+
+    def perform_update(
+        self,
+        serializer: BaseSerializer[CandidateAssessmentItem],
+    ) -> None:
+        saved = update_candidate_assessment_item(
+            cast(CandidateAssessmentItem, serializer.instance),
+            result=cast(str | None, serializer.validated_data.get("result")),
+            reason=str(serializer.validated_data.get("reason", "")),
+            assessor=self.actor,
+        )
+        # Served as the list serves it: its comments and changes read once each.
+        prefetch_related_objects([saved], *_item_remarks())
+        serializer.instance = saved
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
         # A mark returns the assessment's counts too; the list does not.
@@ -672,19 +769,13 @@ class CandidateAssessmentItemViewSet(
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
         return (
-            CandidateAssessmentItem.objects.select_related("assessor")
-            .prefetch_related(
-                Prefetch(
-                    "comments",
-                    queryset=AssessmentItemComment.objects.select_related("author"),
-                ),
-                Prefetch(
-                    "changes",
-                    queryset=AssessmentItemResultChange.objects.select_related(
-                        "changed_by",
-                    ),
-                ),
+            # The assessment and its session decide whether a change needs a
+            # reason and whether a mark can be cleared (reason_required, can_clear).
+            CandidateAssessmentItem.objects.select_related(
+                "assessor",
+                "assessment__candidate__session",
             )
+            .prefetch_related(*_item_remarks())
             .order_by("assessment_id", "position")
         )
 
@@ -713,10 +804,11 @@ class CandidateAssessmentItemViewSet(
         )
 
 
-class CandidateOutcomeViewSet(GenericViewSet):
+class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
     serializer_class = CandidateOutcomeSerializer
     permission_classes = [HasRequiredPermissions]
-    http_method_names = ["get", "patch", "post", "put", "delete", "head", "options"]
+    # A Master's staged decision is a draft kept whole: PUT replaces it.
+    http_method_names = [*KukGradeViewSet.http_method_names, "put"]
     permission_map = {
         "staged_decision": ("gradings.view_candidateoutcome",),
         "staged_decisions": ("gradings.view_candidateoutcome",),
@@ -735,7 +827,7 @@ class CandidateOutcomeViewSet(GenericViewSet):
         )
 
     @extend_schema(
-        parameters=[OpenApiParameter("session", int, required=True)],
+        parameters=[SessionQuerySerializer],
         responses=PromotionEligibilitySerializer(many=True),
     )
     @action(
@@ -748,14 +840,12 @@ class CandidateOutcomeViewSet(GenericViewSet):
     def promotion_eligibility(
         self, request: Request, *args: object, **kwargs: object
     ) -> Response:
-        raw_session = request.query_params.get("session", "")
-        if not raw_session.isdecimal() or int(raw_session) < 1:
-            raise ValidationError({"session": ["Choose a grading session."]})
-        rows = promotion_eligibility_for_session(int(raw_session))
+        session = read_query(request, SessionQuerySerializer)["session"]
+        rows = promotion_eligibility_for_session(session)
         return Response(PromotionEligibilitySerializer(rows, many=True).data)
 
     @extend_schema(
-        parameters=[OpenApiParameter("session", int, required=True)],
+        parameters=[SessionQuerySerializer],
         responses=StagedDecisionSerializer(many=True),
     )
     @action(
@@ -770,13 +860,8 @@ class CandidateOutcomeViewSet(GenericViewSet):
         self, request: Request, *args: object, **kwargs: object
     ) -> Response:
         """The viewer's own decisions staged in a session and not yet recorded."""
-        raw_session = request.query_params.get("session", "")
-        if not raw_session.isdecimal() or int(raw_session) < 1:
-            raise ValidationError({"session": ["Choose a grading session."]})
-        staged = staged_decisions_for_session(
-            int(raw_session),
-            cast(User, request.user),
-        )
+        session = read_query(request, SessionQuerySerializer)["session"]
+        staged = staged_decisions_for_session(session, cast(User, request.user))
         return Response(StagedDecisionSerializer(staged, many=True).data)
 
     @extend_schema(
@@ -804,7 +889,16 @@ class CandidateOutcomeViewSet(GenericViewSet):
             context={"request": request, "outcome": outcome},
         )
         serializer.is_valid(raise_exception=True)
-        return Response(StagedDecisionSerializer(serializer.save()).data)
+        staged = stage_final_decision(
+            outcome,
+            final_outcome=str(serializer.validated_data["final_outcome"]),
+            decision_notes=str(serializer.validated_data.get("decision_notes", "")),
+            conditional_requirements=str(
+                serializer.validated_data.get("conditional_requirements", ""),
+            ),
+            actor=self.actor,
+        )
+        return Response(StagedDecisionSerializer(staged).data)
 
     @extend_schema(
         request=CandidateOutcomeFinaliseSerializer,
@@ -825,11 +919,18 @@ class CandidateOutcomeViewSet(GenericViewSet):
         serializer = CandidateOutcomeFinaliseSerializer(
             outcome,
             data=request.data,
-            partial=True,
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
+        updated = finalise_candidate_outcome(
+            outcome,
+            final_outcome=str(serializer.validated_data["final_outcome"]),
+            decision_notes=str(serializer.validated_data.get("decision_notes", "")),
+            conditional_requirements=str(
+                serializer.validated_data.get("conditional_requirements", ""),
+            ),
+            actor=self.actor,
+        )
         response_serializer = CandidateOutcomeSerializer(
             updated,
             context={"request": request},
@@ -855,11 +956,14 @@ class CandidateOutcomeViewSet(GenericViewSet):
         serializer = CandidatePromotionSerializer(
             outcome,
             data=request.data,
-            partial=True,
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        promotion = serializer.save()
+        promotion = promote_candidate(
+            outcome,
+            actor=self.actor,
+            notes=str(serializer.validated_data.get("notes", "")),
+        )
         response_serializer = PromotionSerializer(
             promotion,
             context={"request": request},
@@ -882,53 +986,35 @@ class CandidateOutcomeViewSet(GenericViewSet):
         *args: object,
         **kwargs: object,
     ) -> Response:
-        input_serializer = BulkPromotionSerializer(data=request.data)
-        input_serializer.is_valid(raise_exception=True)
-        promoted, errors = bulk_promote_candidates(
-            outcomes=input_serializer.validated_data["outcomes"],
-            actor=cast(User, request.user),
+        def promote(asked: dict[str, Any]) -> dict[str, Any]:
+            promoted, errors = bulk_promote_candidates(
+                outcomes=asked["outcomes"],
+                actor=self.actor,
+            )
+            return {"promoted": promoted, "errors": errors}
+
+        return run_bulk(
+            request,
+            request_serializer=BulkPromotionSerializer,
+            result_serializer=BulkPromotionResultSerializer,
+            run=promote,
         )
-        result = BulkPromotionResultSerializer(
-            {"promoted": promoted, "errors": errors},
-            context={"request": request},
-        )
-        return Response(result.data)
 
 
-def _needs_rank(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
-    unresolved = Q(~Q(source_current_rank_text=""), current_rank__isnull=True) | Q(
-        ~Q(source_testing_for_rank_text=""),
-        testing_for_rank__isnull=True,
-    )
-    if value == "true":
-        return queryset.filter(unresolved)
-    if value == "false":
-        return queryset.exclude(unresolved)
-    return queryset.none()
-
-
-def _awaiting_link(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
-    # Someone's record, not yet linked: a voided record and a sheet note are
-    # no one's, so neither waits (legacy_matching leaves both out too).
-    awaiting = Q(student__isnull=True, is_void=False) & ~Q(source_name=SHEET_NOTE_NAME)
-    if value == "true":
-        return queryset.filter(awaiting)
-    if value == "false":
-        return queryset.exclude(awaiting)
-    return queryset.none()
-
-
-_AWAITING_LINK = QueryFilter(
+# Someone's record, not yet linked: a voided record and a sheet note are
+# no one's, so neither waits (legacy_matching leaves both out too).
+_AWAITING_LINK_Q = Q(student__isnull=True, is_void=False) & ~Q(
+    source_name=SHEET_NOTE_NAME
+)
+_AWAITING_LINK = boolean(
     "awaiting_link",
-    _awaiting_link,
-    {"type": "boolean"},
+    _AWAITING_LINK_Q,
     "Someone's record not yet linked to a student: not voided, not a sheet note.",
 )
 
-_NEEDS_RANK = QueryFilter(
+_NEEDS_RANK = boolean(
     "needs_rank",
-    _needs_rank,
-    {"type": "boolean"},
+    LegacyGradingRecord.rank_unmatched(),
     "Records with a rank written but not yet matched to one of KukGrade's.",
 )
 
@@ -936,13 +1022,13 @@ _NEEDS_RANK = QueryFilter(
 class LegacyGradingRecordViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
-    GenericViewSet,
+    KukGradeViewSet[LegacyGradingRecord],
 ):
     """Historical import records - read for both roles, reconciliation
     (link/unlink/resolve-rank/void) administrator-only. No ordinary
     create/update/delete: rows are only ever created by
     data_imports.services.commit_legacy_grading_import, and only ever changed
-    through the five gradings.legacy_services functions."""
+    through gradings.legacy_services."""
 
     serializer_class = LegacyGradingRecordSerializer
     permission_classes = [HasRequiredPermissions]
@@ -951,18 +1037,19 @@ class LegacyGradingRecordViewSet(
         "retrieve": ("gradings.view_legacygradingrecord",),
         "link_student": ("gradings.can_reconcile_imported_history",),
         "unlink_student": ("gradings.can_reconcile_imported_history",),
-        "resolve_current_rank": ("gradings.can_reconcile_imported_history",),
-        "resolve_testing_for_rank": ("gradings.can_reconcile_imported_history",),
+        "resolve_rank": ("gradings.can_reconcile_imported_history",),
         "void": ("gradings.can_reconcile_imported_history",),
         "people": ("gradings.can_reconcile_imported_history",),
         "people_summary": ("gradings.can_reconcile_imported_history",),
+        "counts": ("gradings.view_legacygradingrecord",),
         "bulk_link": ("gradings.can_reconcile_imported_history",),
+        "bulk_unlink": ("gradings.can_reconcile_imported_history",),
         "set_aside": ("gradings.can_reconcile_imported_history",),
     }
 
     query_filters = (
-        boolean("linked", "student__isnull", invert=True),
-        boolean("voided", "is_void"),
+        boolean("linked", Q(student__isnull=False)),
+        boolean("voided", Q(is_void=True)),
         by_id("batch", "source_batch_id", "Records from this import."),
         _NEEDS_RANK,
         _AWAITING_LINK,
@@ -1000,7 +1087,12 @@ class LegacyGradingRecordViewSet(
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
+        updated = link_legacy_record_to_student(
+            record_,
+            serializer.validated_data["student"],
+            actor=self.actor,
+            replace=serializer.validated_data["replace"],
+        )
         return Response(LegacyGradingRecordSerializer(updated).data)
 
     @extend_schema(request=None, responses=LegacyGradingRecordSerializer)
@@ -1022,8 +1114,8 @@ class LegacyGradingRecordViewSet(
         request=ResolveLegacyRankSerializer,
         responses=LegacyGradingRecordSerializer,
     )
-    @action(detail=True, methods=["post"], url_path="resolve-current-rank")
-    def resolve_current_rank(
+    @action(detail=True, methods=["post"], url_path="resolve-rank")
+    def resolve_rank(
         self,
         request: Request,
         *args: object,
@@ -1032,125 +1124,33 @@ class LegacyGradingRecordViewSet(
         record_ = self.get_object()
         serializer = ResolveLegacyRankSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        updated = resolve_legacy_current_rank(
+        updated = resolve_legacy_rank(
             record_,
+            serializer.validated_data["field"],
             serializer.validated_data["rank"],
             actor=cast(User, request.user),
         )
         return Response(LegacyGradingRecordSerializer(updated).data)
 
-    @extend_schema(
-        request=ResolveLegacyRankSerializer,
-        responses=LegacyGradingRecordSerializer,
-    )
-    @action(detail=True, methods=["post"], url_path="resolve-testing-for-rank")
-    def resolve_testing_for_rank(
-        self,
-        request: Request,
-        *args: object,
-        **kwargs: object,
-    ) -> Response:
-        record_ = self.get_object()
-        serializer = ResolveLegacyRankSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        updated = resolve_legacy_testing_for_rank(
-            record_,
-            serializer.validated_data["rank"],
-            actor=cast(User, request.user),
+    def _people_records(self) -> QuerySet[LegacyGradingRecord]:
+        """The records the people list is about, narrowed by its filters:
+        voided records are no one's."""
+        return self.filter_queryset(
+            LegacyGradingRecord.objects.select_related(
+                "student",
+                "current_rank",
+                "testing_for_rank",
+            ).filter(is_void=False),
         )
-        return Response(LegacyGradingRecordSerializer(updated).data)
 
-    def _people_groups(
-        self,
-        params: Mapping[str, str],
-        allowed: frozenset[str],
-        *,
-        linked: str | None = None,
-        viewer: User | None = None,
-    ) -> list[PersonGroup]:
-        """The name groups the people list and its summary are both about."""
-        unknown = sorted(set(params) - allowed)
-        if unknown:
-            raise ValidationError(
-                {name: ["This list cannot be filtered that way."] for name in unknown},
-            )
-        suggestion = params.get("suggestion", "")
-        if suggestion and suggestion not in _PEOPLE_SUGGESTIONS:
-            raise ValidationError({"suggestion": ["Choose clear, choose or none."]})
-        set_aside = params.get("set_aside", "")
-        if set_aside not in ("", "only", "exclude"):
-            raise ValidationError({"set_aside": ["Choose only or exclude."]})
-        records = LegacyGradingRecord.objects.select_related(
-            "student",
-            "current_rank",
-            "testing_for_rank",
-        ).filter(is_void=False)
-        batch = params.get("batch", "")
-        if batch:
-            records = (
-                records.filter(source_batch_id=int(batch))
-                if batch.isdecimal()
-                else records.none()
-            )
-        linked = params.get("linked", "") if linked is None else linked
-        if linked == "true":
-            records = records.filter(student__isnull=False)
-        elif linked == "false":
-            records = records.filter(student__isnull=True)
-        elif linked:
-            records = records.none()
-        groups = group_records(records.order_by("pk"))
-        if set_aside and viewer is not None:
-            aside = set(set_aside_keys(viewer))
-            groups = [
-                group
-                for group in groups
-                if (group.key in aside) == (set_aside == "only")
-            ]
-        term = params.get("search", "")
-        if term.strip():
-            # The same search every list uses, on the names as written; a
-            # person is kept whole, so one record matching keeps the group.
-            matching = set(
-                apply_search(records, term, ("source_name",)).values_list(
-                    "pk",
-                    flat=True,
-                ),
-            )
-            groups = [
-                group
-                for group in groups
-                if any(record.pk in matching for record in group.records)
-            ]
-        if suggestion:
-            suggest_for_groups(groups)
-            groups = [group for group in groups if group.suggestion == suggestion]
-        return groups
+    def _aside(self) -> list[str]:
+        """The names the viewer has put aside, when the list asks about them."""
+        if not self.request.query_params.get("set_aside"):
+            return []
+        return set_aside_keys(cast(User, self.request.user))
 
-    @extend_schema(
-        parameters=[
-            _PEOPLE_BATCH,
-            OpenApiParameter(
-                "linked",
-                bool,
-                description="Only people whose records are (or are not) linked.",
-            ),
-            OpenApiParameter(
-                "search",
-                str,
-                description="Part of the name as written.",
-            ),
-            OpenApiParameter(
-                "suggestion",
-                str,
-                enum=list(_PEOPLE_SUGGESTIONS),
-                description="Only people whose suggested students are this clear.",
-            ),
-            _PEOPLE_SET_ASIDE,
-        ],
-        responses=LegacyPersonSerializer(many=True),
-    )
-    @action(detail=False, methods=["get"], filter_backends=[])
+    @extend_schema(responses=LegacyPersonSerializer(many=True))
+    @action(detail=False, methods=["get"], query_filters=_PEOPLE_FILTERS)
     def people(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Records grouped by the name as written, with suggested students.
 
@@ -1159,27 +1159,43 @@ class LegacyGradingRecordViewSet(
         Only the names on the page are scored for suggested students, unless
         the list is filtered by how clear those are, which needs them all.
         """
-        groups = self._people_groups(
-            request.query_params,
-            _PEOPLE_PARAMETERS,
-            viewer=cast(User, request.user),
+        params = request.query_params
+        groups = people_groups(
+            self._people_records(),
+            search_term=params.get("search", ""),
+            suggestion=params.get("suggestion", ""),
+            set_aside=params.get("set_aside", ""),
+            aside=self._aside(),
         )
         page: list[Any] | None = self.paginate_queryset(groups)  # type: ignore[arg-type]
         assert page is not None
-        if page and not request.query_params.get("suggestion"):
+        if page and not params.get("suggestion"):
             suggest_for_groups(page)
         return self.get_paginated_response(LegacyPersonSerializer(page, many=True).data)
 
-    @extend_schema(
-        parameters=[_PEOPLE_BATCH, _PEOPLE_SET_ASIDE],
-        responses=LegacyPeopleSummarySerializer,
+    @extend_schema(responses=LegacyRecordCountsSerializer)
+    @action(
+        detail=False,
+        methods=["get"],
+        pagination_class=None,
+        query_filters=(by_id("batch", "source_batch_id", "Only this import's."),),
     )
+    def counts(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """How many records still wait for a student, counted in one query."""
+        records = self.filter_queryset(LegacyGradingRecord.objects.all())
+        return Response(
+            LegacyRecordCountsSerializer(
+                {"awaiting_link": records.filter(_AWAITING_LINK_Q).count()},
+            ).data,
+        )
+
+    @extend_schema(responses=LegacyPeopleSummarySerializer)
     @action(
         detail=False,
         methods=["get"],
         url_path="people-summary",
-        filter_backends=[],
         pagination_class=None,
+        query_filters=_PEOPLE_SUMMARY_FILTERS,
     )
     def people_summary(
         self,
@@ -1187,33 +1203,43 @@ class LegacyGradingRecordViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        """How many names still wait, by how clear their suggestions are, and
-        how many have every record linked."""
-        groups = self._people_groups(
-            request.query_params.dict(),
-            _PEOPLE_SUMMARY_PARAMETERS,
-            linked="false",
-            viewer=cast(User, request.user),
+        """How many names still wait, by how clear their suggestions are; how
+        many have every record linked, or any; and how many the viewer has put
+        aside."""
+        records = self._people_records()
+        waiting = people_groups(
+            records.filter(student__isnull=True),
+            set_aside=request.query_params.get("set_aside", ""),
+            aside=self._aside(),
         )
-        suggest_for_groups(groups)
-        counts = {kind: 0 for kind in _PEOPLE_SUGGESTIONS}
-        for group in groups:
+        suggest_for_groups(waiting)
+        counts = {kind: 0 for kind in Suggestion.values}
+        for group in waiting:
             counts[group.suggestion] += 1
         # Every name, linked or not, to find the ones with nothing left to
         # link: a name partly linked counts once, as still to link.
-        everyone = self._people_groups(
-            {"batch": request.query_params.get("batch", "")},
-            _PEOPLE_SUMMARY_PARAMETERS,
-            linked="",
-        )
         linked = sum(
             1
-            for group in everyone
+            for group in people_groups(records)
             if all(record.student_id is not None for record in group.records)
+        )
+        unlinked = records.filter(student__isnull=True)
+        put_aside = people_groups(
+            unlinked,
+            set_aside="only",
+            aside=set_aside_keys(cast(User, request.user)),
         )
         return Response(
             LegacyPeopleSummarySerializer(
-                {"names": len(groups), "linked": linked, **counts},
+                {
+                    "names": len(waiting),
+                    "linked": linked,
+                    "with_a_link": len(
+                        people_groups(records.filter(student__isnull=False))
+                    ),
+                    "set_aside": len(put_aside),
+                    **counts,
+                },
             ).data,
         )
 
@@ -1282,6 +1308,34 @@ class LegacyGradingRecordViewSet(
         return Response(LegacyGradingRecordSerializer(fresh, many=True).data)
 
     @extend_schema(
+        request=BulkUnlinkLegacyRecordsSerializer,
+        responses=LegacyGradingRecordSerializer(many=True),
+    )
+    # Not paginated: the response is the records just unlinked, as a list.
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="bulk-unlink",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def bulk_unlink(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Unlink many records at once, all or nothing - Undo after a bulk link."""
+        payload = BulkUnlinkLegacyRecordsSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        unlinked = bulk_unlink_legacy_records(
+            payload.validated_data["records"],
+            actor=cast(User, request.user),
+        )
+        fresh = self.get_queryset().filter(pk__in=[record.pk for record in unlinked])
+        return Response(LegacyGradingRecordSerializer(fresh, many=True).data)
+
+    @extend_schema(
         request=VoidLegacyRecordSerializer,
         responses=LegacyGradingRecordSerializer,
     )
@@ -1294,5 +1348,9 @@ class LegacyGradingRecordViewSet(
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        updated = serializer.save()
+        updated = void_legacy_record(
+            record_,
+            reason=str(serializer.validated_data["reason"]),
+            actor=self.actor,
+        )
         return Response(LegacyGradingRecordSerializer(updated).data)

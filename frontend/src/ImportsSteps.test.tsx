@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AuthUser, type DataImportBatch, type DataImportRow } from "./api";
-import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
+import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, SITE } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
 import { ImportReview } from "./ImportReview";
 import { batch, legacyRecord as record, page, person, RANKS, row } from "./importTestFixtures";
@@ -29,21 +29,19 @@ const api = vi.hoisted(() => ({
   getLegacyPeople: vi.fn(),
   getLegacyPeopleSummary: vi.fn(),
   bulkLinkLegacyRecords: vi.fn(),
-  unlinkLegacyGradingRecord: vi.fn(),
-  resolveLegacyCurrentRank: vi.fn(),
-  resolveLegacyTestingForRank: vi.fn(),
+  bulkUnlinkLegacyRecords: vi.fn(),
+  resolveLegacyRank: vi.fn(),
   voidLegacyGradingRecord: vi.fn(),
   setAsideNames: vi.fn(),
   putBackSetAsideName: vi.fn(),
+  getChoices: vi.fn(),
+  getSiteSettings: vi.fn(),
 }));
 
 vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   const mocked = Object.fromEntries(
-    Object.keys(api).map((name) => [
-      name,
-      (...args: unknown[]) => api[name as keyof typeof api](...args),
-    ]),
+    Object.keys(api).map((name) => [name, (...args: unknown[]) => api[name as keyof typeof api](...args)]),
   );
   return { ...actual, ...mocked };
 });
@@ -85,28 +83,67 @@ beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   auth.user = { ...authUser, ...ADMINISTRATOR_CAPABILITIES };
   api.getRanks.mockResolvedValue(page(RANKS));
+  api.getChoices.mockResolvedValue(CHOICES);
+  api.getSiteSettings.mockResolvedValue(SITE);
 });
 
 describe("Matching a roster's columns", () => {
-  const fresh = batch({ next_step: "MATCH_COLUMNS", suggested_mapping: MAPPING });
-  const saved = batch({ next_step: "REVIEW", suggested_mapping: MAPPING, column_mapping: MAPPING });
+  const fresh = batch({ next_step: "MATCH", suggested_mapping: MAPPING });
+  const saved = batch({
+    next_step: "REVIEW",
+    suggested_mapping: MAPPING,
+    column_mapping: MAPPING,
+    uncovered_fields: ["current_rank"],
+  });
   const rows = [
     row({
       row_number: 2,
-      cells: { "WKSA No": "104-2-311", First: "Mia", Surname: "Reynolds", DOB: "14/03/2015", Belt: "Yellow", "Parent phone": "07700 900123", Joined: "Sep 2021" },
-      values: { wksa_id: "104-2-311", first_name: "Mia", last_name: "Reynolds", date_of_birth: "14/03/2015", current_rank: "", status: "ACTIVE" },
+      cells: {
+        "WKSA No": "104-2-311",
+        First: "Mia",
+        Surname: "Reynolds",
+        DOB: "14/03/2015",
+        Belt: "Yellow",
+        "Parent phone": "07700 900123",
+        Joined: "Sep 2021",
+      },
+      values: {
+        wksa_id: "104-2-311",
+        first_name: "Mia",
+        last_name: "Reynolds",
+        date_of_birth: "14/03/2015",
+        current_rank: "",
+        status: "ACTIVE",
+      },
       file_values: { date_of_birth: "14/03/2015" },
       outcome: "REVIEW_REQUIRED",
+      outcome_display: "Needs attention",
       issues: ["Current rank is required."],
       issue_fields: ["current_rank"],
     }),
     row({
       row_number: 4,
-      cells: { "WKSA No": "104-2-318", First: "Priya", Surname: "Shah", DOB: "31/02/2010", Belt: "Red", "Parent phone": "", Joined: "" },
-      values: { wksa_id: "104-2-318", first_name: "Priya", last_name: "Shah", date_of_birth: "31/02/2010", current_rank: "", status: "ACTIVE" },
+      cells: {
+        "WKSA No": "104-2-318",
+        First: "Priya",
+        Surname: "Shah",
+        DOB: "31/02/2010",
+        Belt: "Red",
+        "Parent phone": "",
+        Joined: "",
+      },
+      values: {
+        wksa_id: "104-2-318",
+        first_name: "Priya",
+        last_name: "Shah",
+        date_of_birth: "31/02/2010",
+        current_rank: "",
+        status: "ACTIVE",
+      },
       file_values: { date_of_birth: "31/02/2010" },
       outcome: "REVIEW_REQUIRED",
-      issues: ["Date of birth '31/02/2010' could not be parsed."],
+      outcome_display: "Needs attention",
+      issues: ["Date of birth '31/02/2010' is not a valid date."],
       issue_fields: ["date_of_birth", "current_rank"],
     }),
   ];
@@ -129,7 +166,7 @@ describe("Matching a roster's columns", () => {
     expect(await screen.findByLabelText("Date of birth, row 4")).toHaveAttribute("aria-invalid", "true");
     expect(await screen.findByLabelText("Date of birth, row 2")).toHaveAttribute("aria-invalid", "false");
     expect(await screen.findAllByText("Needs attention", { selector: ".badge" })).toHaveLength(2);
-    expect(screen.getByText("Date of birth '31/02/2010' could not be parsed.")).toBeInTheDocument();
+    expect(screen.getByText("Date of birth '31/02/2010' is not a valid date.")).toBeInTheDocument();
     expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Match columns");
   });
 
@@ -181,14 +218,16 @@ describe("Matching a roster's columns", () => {
   it("saves a typed fix when the cell is left, and undoes it", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(saved);
-    api.getDataImportRows
-      .mockResolvedValueOnce(page(rows))
-      .mockResolvedValue(
-        page([
-          rows[0],
-          { ...rows[1], values: { ...rows[1].values, date_of_birth: "13/02/2010" }, corrected_fields: ["date_of_birth"] },
-        ]),
-      );
+    api.getDataImportRows.mockResolvedValueOnce(page(rows)).mockResolvedValue(
+      page([
+        rows[0],
+        {
+          ...rows[1],
+          values: { ...rows[1].values, date_of_birth: "13/02/2010" },
+          corrected_fields: ["date_of_birth"],
+        },
+      ]),
+    );
     api.correctDataImportRow.mockResolvedValue(rows[1]);
 
     renderAt("/imports/7?step=match");
@@ -196,9 +235,7 @@ describe("Matching a roster's columns", () => {
     await user.clear(cell);
     await user.type(cell, "13/02/2010{Enter}");
 
-    await waitFor(() =>
-      expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 4, { date_of_birth: "13/02/2010" }),
-    );
+    await waitFor(() => expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 4, { date_of_birth: "13/02/2010" }));
     expect(await screen.findByText(/Your fix · file had “31\/02\/2010”/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Undo the fix to Date of birth, row 4" }));
     await waitFor(() => expect(api.correctDataImportRow).toHaveBeenLastCalledWith(7, 4, { date_of_birth: null }));
@@ -218,7 +255,9 @@ describe("Matching a roster's columns", () => {
     await waitFor(() => expect(api.saveDataImportMapping).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled());
     expect(api.saveDataImportMapping).toHaveBeenLastCalledWith(7, {
-      column_mapping: MAPPING, defaults: {}, extra_columns: ["Joined"],
+      column_mapping: MAPPING,
+      defaults: {},
+      extra_columns: ["Joined"],
     });
   });
 
@@ -227,7 +266,12 @@ describe("Matching a roster's columns", () => {
     api.getDataImportBatch.mockResolvedValue(saved);
     api.getDataImportRows.mockResolvedValue(page(rows));
     let acknowledge!: (value: DataImportBatch) => void;
-    api.saveDataImportMapping.mockImplementation(() => new Promise<DataImportBatch>((resolve) => { acknowledge = resolve; }));
+    api.saveDataImportMapping.mockImplementation(
+      () =>
+        new Promise<DataImportBatch>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
 
     renderAt("/imports/7?step=match");
     await user.selectOptions(await screen.findByLabelText("What “Joined” holds"), "extra");
@@ -255,7 +299,12 @@ describe("Matching a roster's columns", () => {
     api.getDataImportBatch.mockResolvedValue(saved);
     api.getDataImportRows.mockResolvedValue(page(rows));
     let acknowledge!: (value: DataImportRow) => void;
-    api.correctDataImportRow.mockImplementation(() => new Promise<DataImportRow>((resolve) => { acknowledge = resolve; }));
+    api.correctDataImportRow.mockImplementation(
+      () =>
+        new Promise<DataImportRow>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
 
     renderAt("/imports/7?step=match");
     const cell = await screen.findByLabelText("Date of birth, row 4");
@@ -271,11 +320,23 @@ describe("Matching a roster's columns", () => {
 });
 
 describe("Typing into a roster's rows", () => {
-  const saved = batch({ next_step: "REVIEW", suggested_mapping: MAPPING, column_mapping: MAPPING });
+  const saved = batch({
+    next_step: "REVIEW",
+    suggested_mapping: MAPPING,
+    column_mapping: MAPPING,
+    uncovered_fields: ["current_rank"],
+  });
   const typedIn = row({
     row_number: 2,
     cells: { "WKSA No": "104-2-311", First: "Mia", Surname: "Reynolds", DOB: "14/03/2015" },
-    values: { wksa_id: "104-2-311", first_name: "Mia", last_name: "Reynolds", date_of_birth: "14/03/2015", current_rank: "Yellow", status: "ACTIVE" },
+    values: {
+      wksa_id: "104-2-311",
+      first_name: "Mia",
+      last_name: "Reynolds",
+      date_of_birth: "14/03/2015",
+      current_rank: "Yellow",
+      status: "ACTIVE",
+    },
     file_values: { date_of_birth: "14/03/2015" },
     corrected_fields: ["current_rank"],
   });
@@ -308,7 +369,14 @@ describe("Typing into a roster's rows", () => {
 });
 
 describe("Matching a historical workbook's ranks", () => {
-  const gradings = batch({ kind: "LEGACY_GRADINGS", original_filename: "grading-record-2025.xlsx", grading_sheets: ["03-2025"], rank_mappings: { "white belt": "WHITE" } });
+  const gradings = batch({
+    kind: "LEGACY_GRADINGS",
+    kind_display: "Past gradings",
+    next_step: "MATCH",
+    review_step: "CONFIRM",
+    original_filename: "grading-record-2025.xlsx",
+    grading_sheets: ["03-2025"],
+  });
   const preview = {
     total: 3,
     grading_result: 3,
@@ -320,9 +388,15 @@ describe("Matching a historical workbook's ranks", () => {
     excluded: 0,
     warnings: [],
     rank_suggestions: [
-      { source_text: "White Belt", suggested_rank_code: "WHITE", doubtful: false, rows: 42 },
-      { source_text: "Brn stripe", suggested_rank_code: null, doubtful: false, rows: 2 },
-      { source_text: "Blue stripe?", suggested_rank_code: "BLUE_STRIPE", doubtful: true, rows: 3 },
+      { source_text: "White Belt", suggested_rank_code: "WHITE", doubtful: false, rows: 42, chosen_rank_code: "WHITE" },
+      { source_text: "Brn stripe", suggested_rank_code: null, doubtful: false, rows: 2, chosen_rank_code: null },
+      {
+        source_text: "Blue stripe?",
+        suggested_rank_code: "BLUE_STRIPE",
+        doubtful: true,
+        rows: 3,
+        chosen_rank_code: null,
+      },
     ],
   };
 
@@ -331,7 +405,12 @@ describe("Matching a historical workbook's ranks", () => {
     api.getDataImportBatch.mockResolvedValue(gradings);
     api.previewLegacyGradingImport.mockResolvedValue(preview);
     api.getDataImportRows.mockResolvedValue(
-      page([row({ source_locator: "06-2025!R14", values: { name: "Leo", current_rank: "Red Belt", testing_for_rank: "Brn stripe", outcome: "Pass" } })]),
+      page([
+        row({
+          source_locator: "06-2025!R14",
+          values: { name: "Leo", current_rank: "Red Belt", testing_for_rank: "Brn stripe", outcome: "Pass" },
+        }),
+      ]),
     );
 
     renderAt("/imports/7");
@@ -371,12 +450,22 @@ describe("Reviewing and confirming a roster", () => {
   const sorted = batch({
     ...needing,
     row_counts: { total: 212, ready: 203, review_required: 0, skip_existing: 5, excluded: 4 },
+    next_step: "CONFIRM",
+    review_step: "CONFIRM",
     extra_columns: ["Parent phone"],
   });
   const attention = row({
     row_number: 6,
     outcome: "REVIEW_REQUIRED",
-    values: { wksa_id: "", first_name: "Ella", last_name: "Moss", date_of_birth: "30/05/2016", current_rank: "Purple", status: "ACTIVE" },
+    outcome_display: "Needs attention",
+    values: {
+      wksa_id: "",
+      first_name: "Ella",
+      last_name: "Moss",
+      date_of_birth: "30/05/2016",
+      current_rank: "Purple",
+      status: "ACTIVE",
+    },
     issues: ["WKSA ID: This field cannot be blank.", "Rank 'Purple' is not a rank KukGrade recognises."],
     issue_fields: ["current_rank", "wksa_id"],
   });
@@ -390,7 +479,10 @@ describe("Reviewing and confirming a roster", () => {
     renderAt("/imports/7");
 
     expect(await screen.findByText("Row 6 · Ella Moss")).toBeInTheDocument();
-    expect(api.getDataImportRows).toHaveBeenCalledWith(7, expect.objectContaining({ outcome: "REVIEW_REQUIRED", page: 1 }));
+    expect(api.getDataImportRows).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ outcome: "REVIEW_REQUIRED", page: 1 }),
+    );
     expect(screen.getByLabelText("WKSA ID, row 6")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByLabelText("First name, row 6")).toHaveAttribute("aria-invalid", "false");
     expect(screen.getByRole("option", { name: "Purple (not recognised)" })).toBeInTheDocument();
@@ -409,7 +501,7 @@ describe("Reviewing and confirming a roster", () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(needing);
     api.getDataImportRows.mockResolvedValue(page([attention]));
-    api.setDataImportRowExcluded.mockResolvedValue({ ...attention, outcome: "EXCLUDED" });
+    api.setDataImportRowExcluded.mockResolvedValue({ ...attention, outcome: "EXCLUDED", outcome_display: "Left out" });
     api.leaveOutDataImportRowsNeedingAttention.mockResolvedValue(sorted);
 
     renderAt("/imports/7");
@@ -426,7 +518,20 @@ describe("Reviewing and confirming a roster", () => {
     api.getDataImportRows.mockImplementation((_id: number, params: { outcome?: string }) =>
       Promise.resolve(
         params.outcome === "READY"
-          ? page([row({ row_number: 4, values: { wksa_id: "104-2-318", first_name: "Priya", last_name: "Shah", date_of_birth: "13/02/2010", current_rank: "Red", status: "ACTIVE" }, corrected_fields: ["date_of_birth"] })])
+          ? page([
+              row({
+                row_number: 4,
+                values: {
+                  wksa_id: "104-2-318",
+                  first_name: "Priya",
+                  last_name: "Shah",
+                  date_of_birth: "13/02/2010",
+                  current_rank: "Red",
+                  status: "ACTIVE",
+                },
+                corrected_fields: ["date_of_birth"],
+              }),
+            ])
           : page([attention]),
       ),
     );
@@ -442,12 +547,35 @@ describe("Reviewing and confirming a roster", () => {
   it("corrects a valid seventh row in the last look and reopens the saved fix", async () => {
     const user = userEvent.setup();
     let savedFix = false;
-    const seventh = row({ row_number: 7, values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", date_of_birth: "14/03/2015", current_rank: "Yellow", status: "ACTIVE" }, file_values: { first_name: "Miaa" } });
+    const seventh = row({
+      row_number: 7,
+      values: {
+        wksa_id: "104-2-307",
+        first_name: "Miaa",
+        last_name: "Reynolds",
+        date_of_birth: "14/03/2015",
+        current_rank: "Yellow",
+        status: "ACTIVE",
+      },
+      file_values: { first_name: "Miaa" },
+    });
     api.getDataImportBatch.mockResolvedValue(sorted);
-    api.getDataImportRows.mockImplementation(() => Promise.resolve(page([savedFix ? { ...seventh, values: { ...seventh.values, first_name: "Mia" }, corrected_fields: ["first_name"] } : seventh])));
+    api.getDataImportRows.mockImplementation(() =>
+      Promise.resolve(
+        page([
+          savedFix
+            ? { ...seventh, values: { ...seventh.values, first_name: "Mia" }, corrected_fields: ["first_name"] }
+            : seventh,
+        ]),
+      ),
+    );
     api.correctDataImportRow.mockImplementation(() => {
       savedFix = true;
-      return Promise.resolve({ ...seventh, values: { ...seventh.values, first_name: "Mia" }, corrected_fields: ["first_name"] });
+      return Promise.resolve({
+        ...seventh,
+        values: { ...seventh.values, first_name: "Mia" },
+        corrected_fields: ["first_name"],
+      });
     });
 
     const first = renderAt("/imports/7?step=review");
@@ -466,13 +594,25 @@ describe("Reviewing and confirming a roster", () => {
 
   it("keeps roster confirmation closed until a row correction is saved", async () => {
     const user = userEvent.setup();
-    const seventh = row({ row_number: 7, values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", current_rank: "Yellow" } });
-    const corrected = { ...seventh, values: { ...seventh.values, first_name: "Mia" }, corrected_fields: ["first_name"] };
+    const seventh = row({
+      row_number: 7,
+      values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", current_rank: "Yellow" },
+    });
+    const corrected = {
+      ...seventh,
+      values: { ...seventh.values, first_name: "Mia" },
+      corrected_fields: ["first_name"],
+    };
     let acknowledge!: (value: DataImportRow) => void;
     let saved = false;
     api.getDataImportBatch.mockResolvedValue(sorted);
     api.getDataImportRows.mockImplementation(() => Promise.resolve(page([saved ? corrected : seventh])));
-    api.correctDataImportRow.mockImplementation(() => new Promise<DataImportRow>((resolve) => { acknowledge = resolve; }));
+    api.correctDataImportRow.mockImplementation(
+      () =>
+        new Promise<DataImportRow>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
 
     renderAt("/imports/7?step=review");
     await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
@@ -494,7 +634,10 @@ describe("Reviewing and confirming a roster", () => {
 
   it("keeps roster confirmation closed after a failed row correction until retry succeeds", async () => {
     const user = userEvent.setup();
-    const seventh = row({ row_number: 7, values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", current_rank: "Yellow" } });
+    const seventh = row({
+      row_number: 7,
+      values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", current_rank: "Yellow" },
+    });
     api.getDataImportBatch.mockResolvedValue(sorted);
     api.getDataImportRows.mockResolvedValue(page([seventh]));
     api.correctDataImportRow.mockRejectedValueOnce(new Error("Save failed")).mockResolvedValue(seventh);
@@ -517,9 +660,13 @@ describe("Reviewing and confirming a roster", () => {
   it("offers the same correction editor on a later review page", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(sorted);
-    api.getDataImportRows.mockImplementation((_id: number, params: { page: number }) => Promise.resolve(
-      params.page === 1 ? { ...page([row({ row_number: 2 })], 21), next: "?page=2" } : page([row({ row_number: 27 })], 21),
-    ));
+    api.getDataImportRows.mockImplementation((_id: number, params: { page: number }) =>
+      Promise.resolve(
+        params.page === 1
+          ? { ...page([row({ row_number: 2 })], 21), next: "?page=2" }
+          : page([row({ row_number: 27 })], 21),
+      ),
+    );
 
     renderAt("/imports/7?step=review");
     await user.click(await screen.findByRole("button", { name: "Next page" }));
@@ -538,26 +685,47 @@ describe("Reviewing and confirming a roster", () => {
     await screen.findByRole("button", { name: "Next page" });
     await user.click(screen.getByRole("button", { name: "Next page" }));
     await user.click(screen.getByRole("button", { name: "Next page" }));
-    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 3 })));
+    await waitFor(() =>
+      expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 3 })),
+    );
 
     await user.click(screen.getByRole("button", { name: /Already in KukGrade/ }));
-    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "SKIP_EXISTING", page: 1 })));
+    await waitFor(() =>
+      expect(api.getDataImportRows).toHaveBeenLastCalledWith(
+        7,
+        expect.objectContaining({ outcome: "SKIP_EXISTING", page: 1 }),
+      ),
+    );
     await user.click(screen.getByRole("button", { name: /Ready to add/ }));
-    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 1 })));
+    await waitFor(() =>
+      expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 1 })),
+    );
   });
 
   it("confirms the import on the same page once every row is sorted", async () => {
     const user = userEvent.setup();
-    const committed: DataImportBatch = { ...sorted, status: "COMMITTED", status_display: "Imported", next_step: "CLOSED", committed_by_name: "Sam Taylor", committed_at: "2026-10-20T10:18:00Z", summary_json: { total: 212, created: 203, skipped_existing: 5, excluded: 4 } };
+    const committed: DataImportBatch = {
+      ...sorted,
+      status: "COMMITTED",
+      status_display: "Imported",
+      next_step: "RESULTS",
+      committed_by_name: "Sam Taylor",
+      committed_at: "2026-10-20T10:18:00Z",
+      summary_json: { total: 212, created: 203, skipped_existing: 5, excluded: 4 },
+    };
     api.getDataImportBatch.mockResolvedValueOnce(sorted).mockResolvedValue(committed);
     api.getDataImportRows.mockResolvedValue(page([]));
     api.commitDataImport.mockResolvedValue(committed);
 
     renderAt("/imports/7?step=review");
 
-    expect(await screen.findByRole("heading", { name: "Everything is sorted · ready to add 203 students" })).toBeInTheDocument();
-    expect(screen.getByText(/5 already in KukGrade are skipped, 4 you left out, “Parent phone” kept as extra information/)).toBeInTheDocument();
-    expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Confirm");
+    expect(
+      await screen.findByRole("heading", { name: "Everything is sorted · ready to add 203 students" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/5 already in KukGrade are skipped, 4 you left out, “Parent phone” kept as extra information/),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Confirm");
     await user.click(screen.getByRole("button", { name: "Add 203 students" }));
     const dialog = screen.getByRole("dialog", { name: "Add 203 students to KukGrade?" });
     expect(api.commitDataImport).not.toHaveBeenCalled();
@@ -587,10 +755,41 @@ describe("Reviewing and confirming a roster", () => {
   });
 
   it("lets a historical workbook be imported whatever is still unmatched", async () => {
-    const gradings = batch({ kind: "LEGACY_GRADINGS", original_filename: "grading-record-2025.xlsx", row_counts: { total: 231, ready: 229, review_required: 0, skip_existing: 0, excluded: 2 } });
+    const gradings = batch({
+      kind: "LEGACY_GRADINGS",
+      kind_display: "Past gradings",
+      next_step: "MATCH",
+      review_step: "CONFIRM",
+      original_filename: "grading-record-2025.xlsx",
+      row_counts: { total: 231, ready: 229, review_required: 0, skip_existing: 0, excluded: 2 },
+    });
     api.getDataImportBatch.mockResolvedValue(gradings);
-    api.getDataImportRows.mockResolvedValue(page([row({ source_locator: "06-2025!R3", values: { name: "Theo", current_rank: "Yellow Belt", testing_for_rank: "Blue stripe?", outcome: "Pass.", report: "Needs work on falls." } })]));
-    api.previewLegacyGradingImport.mockResolvedValue({ total: 229, grading_result: 190, auxiliary_note: 33, did_not_attend: 6, unresolved_current_rank: 1, unresolved_testing_for_rank: 2, unresolved_outcome: 0, excluded: 2, warnings: [], rank_suggestions: [] });
+    api.getDataImportRows.mockResolvedValue(
+      page([
+        row({
+          source_locator: "06-2025!R3",
+          values: {
+            name: "Theo",
+            current_rank: "Yellow Belt",
+            testing_for_rank: "Blue stripe?",
+            outcome: "Pass.",
+            report: "Needs work on falls.",
+          },
+        }),
+      ]),
+    );
+    api.previewLegacyGradingImport.mockResolvedValue({
+      total: 229,
+      grading_result: 190,
+      auxiliary_note: 33,
+      did_not_attend: 6,
+      unresolved_current_rank: 1,
+      unresolved_testing_for_rank: 2,
+      unresolved_outcome: 0,
+      excluded: 2,
+      warnings: [],
+      rank_suggestions: [],
+    });
 
     renderAt("/imports/7?step=review");
 
@@ -602,11 +801,28 @@ describe("Reviewing and confirming a roster", () => {
 
   it("does not refetch a historical preview after the batch is committed", async () => {
     const user = userEvent.setup();
-    const gradings = batch({ kind: "LEGACY_GRADINGS", row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 } });
-    const committed = { ...gradings, status: "COMMITTED" as const, next_step: "CLOSED" as const };
+    const gradings = batch({
+      kind: "LEGACY_GRADINGS",
+      kind_display: "Past gradings",
+      next_step: "MATCH",
+      review_step: "CONFIRM",
+      row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 },
+    });
+    const committed = { ...gradings, status: "COMMITTED" as const, next_step: "RESULTS" as const };
     const onCommitted = vi.fn();
     api.getDataImportRows.mockResolvedValue(page([row({ values: { name: "Theo" } })]));
-    api.previewLegacyGradingImport.mockResolvedValue({ total: 1, grading_result: 1, auxiliary_note: 0, did_not_attend: 0, unresolved_current_rank: 0, unresolved_testing_for_rank: 0, unresolved_outcome: 0, excluded: 0, warnings: [], rank_suggestions: [] });
+    api.previewLegacyGradingImport.mockResolvedValue({
+      total: 1,
+      grading_result: 1,
+      auxiliary_note: 0,
+      did_not_attend: 0,
+      unresolved_current_rank: 0,
+      unresolved_testing_for_rank: 0,
+      unresolved_outcome: 0,
+      excluded: 0,
+      warnings: [],
+      rank_suggestions: [],
+    });
     api.commitDataImport.mockResolvedValue(committed);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -626,7 +842,13 @@ describe("Reviewing and confirming a roster", () => {
 
   it("opens a workbook's review on the records worth a look, saying why", async () => {
     const user = userEvent.setup();
-    const gradings = batch({ kind: "LEGACY_GRADINGS", row_counts: { total: 231, ready: 231, review_required: 0, skip_existing: 0, excluded: 0 } });
+    const gradings = batch({
+      kind: "LEGACY_GRADINGS",
+      kind_display: "Past gradings",
+      next_step: "MATCH",
+      review_step: "CONFIRM",
+      row_counts: { total: 231, ready: 231, review_required: 0, skip_existing: 0, excluded: 0 },
+    });
     const theo = row({
       row_number: 9,
       source_locator: "03-2025!R9",
@@ -635,8 +857,25 @@ describe("Reviewing and confirming a roster", () => {
     });
     api.getDataImportBatch.mockResolvedValue(gradings);
     api.getDataImportRows.mockResolvedValue(page([theo]));
-    api.setDataImportRowExcluded.mockResolvedValue({ ...theo, excluded: true, outcome: "EXCLUDED" });
-    api.previewLegacyGradingImport.mockResolvedValue({ total: 231, grading_result: 196, auxiliary_note: 4, did_not_attend: 31, unresolved_current_rank: 0, unresolved_testing_for_rank: 0, unresolved_outcome: 0, excluded: 0, worth_a_look: 1, warnings: [], rank_suggestions: [] });
+    api.setDataImportRowExcluded.mockResolvedValue({
+      ...theo,
+      excluded: true,
+      outcome: "EXCLUDED",
+      outcome_display: "Left out",
+    });
+    api.previewLegacyGradingImport.mockResolvedValue({
+      total: 231,
+      grading_result: 196,
+      auxiliary_note: 4,
+      did_not_attend: 31,
+      unresolved_current_rank: 0,
+      unresolved_testing_for_rank: 0,
+      unresolved_outcome: 0,
+      excluded: 0,
+      worth_a_look: 1,
+      warnings: [],
+      rank_suggestions: [],
+    });
 
     renderAt("/imports/7?step=review");
 
@@ -649,7 +888,12 @@ describe("Reviewing and confirming a roster", () => {
 
     await user.click(screen.getByRole("button", { name: /Grading results/ }));
     await waitFor(() =>
-      expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, { record_kind: "GRADING_RESULT", outcome: "READY", page: 1, page_size: 20 }),
+      expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, {
+        record_kind: "GRADING_RESULT",
+        outcome: "READY",
+        page: 1,
+        page_size: 20,
+      }),
     );
   });
 });
@@ -663,7 +907,15 @@ describe("Linking historical records", () => {
     record_ids: [301],
     records: 1,
     ranks: ["Yellow → Yellow stripe"],
-    candidates: [{ ...candidate, student: 50, full_name: "Zac Whitfield", current_rank_name: "Yellow stripe", reasons: ["Same first name"] }],
+    candidates: [
+      {
+        ...candidate,
+        student: 50,
+        full_name: "Zac Whitfield",
+        current_rank_name: "Yellow stripe",
+        reasons: ["Same first name"],
+      },
+    ],
   });
   const miaAgain = person({ source_name: "Mia", group_key: "mia", record_ids: [401], records: 1 });
   const theo = person({
@@ -704,14 +956,27 @@ describe("Linking historical records", () => {
     waiting = [mia, zac, theo, noah];
     api.getDataImportBatches.mockResolvedValue(page([]));
     api.getAllDataImportBatches.mockResolvedValue(page([]));
-    api.getLegacyPeopleSummary.mockResolvedValue({ names: 4, linked: 5, clear: 2, choose: 1, none: 1 });
+    api.getLegacyPeopleSummary.mockImplementation(() =>
+      Promise.resolve({
+        names: 4,
+        linked: 5,
+        with_a_link: 5,
+        set_aside: names({ set_aside: "only" }).length,
+        clear: 2,
+        choose: 1,
+        none: 1,
+      }),
+    );
     api.getLegacyPeople.mockImplementation((params: Parameters<typeof names>[0]) =>
       Promise.resolve(params.linked ? page([], 5) : page(names(params))),
     );
     api.getAllLegacyGradingRecords.mockImplementation((params: { group_key: string }) =>
       Promise.resolve(
         params.group_key === "mia r"
-          ? page([record(), record({ id: 102, cycle_month: 6, source_testing_for_rank_text: "Brn stripe", testing_for_rank: null })])
+          ? page([
+              record(),
+              record({ id: 102, cycle_month: 6, source_testing_for_rank_text: "Brn stripe", testing_for_rank: null }),
+            ])
           : page([record({ id: 201, source_name: "Theo" })]),
       ),
     );
@@ -730,7 +995,9 @@ describe("Linking historical records", () => {
     renderAt("/imports/records");
 
     expect(await screen.findByText("“Mia R”")).toBeInTheDocument();
-    expect(screen.getByText((_, element) => element?.tagName === "P" && element.textContent === "5 of 9 names linked")).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.tagName === "P" && element.textContent === "5 of 9 names linked"),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^To link\s*4$/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /^Clear suggestion\s*2$/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Linked\s*5$/ })).toBeInTheDocument();
@@ -739,7 +1006,13 @@ describe("Linking historical records", () => {
     expect(screen.getByText("2 students could be this person")).toBeInTheDocument();
     expect(screen.getByText("A rank is not matched yet")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Select “Theo”" })).toBeDisabled();
-    expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50, set_aside: "exclude" });
+    expect(api.getLegacyPeople).toHaveBeenCalledWith({
+      batch: undefined,
+      linked: false,
+      page: 1,
+      page_size: 50,
+      set_aside: "exclude",
+    });
   });
 
   it("links every ticked clear suggestion in one go, each name to its own student", async () => {
@@ -805,7 +1078,17 @@ describe("Linking historical records", () => {
   it("finds a student by search for a name nobody was suggested for", async () => {
     const user = userEvent.setup();
     api.getStudents.mockResolvedValue(
-      page([{ id: 77, wksa_id: "104-2-777", first_name: "Noah", last_name: "Eze", current_rank_name: "Yellow", age_band_display: "9–12", status_display: "Active" }]),
+      page([
+        {
+          id: 77,
+          wksa_id: "104-2-777",
+          first_name: "Noah",
+          last_name: "Eze",
+          current_rank_name: "Yellow",
+          age_band_display: "9–12",
+          status_display: "Active",
+        },
+      ]),
     );
     renderAt("/imports/records");
 
@@ -821,25 +1104,46 @@ describe("Linking historical records", () => {
   it("filters by how clear the suggestion is, by name, and by import", async () => {
     const user = userEvent.setup();
     api.getAllDataImportBatches.mockResolvedValue(
-      page(Array.from({ length: 51 }, (_, index) => batch({ id: index + 1, kind: "LEGACY_GRADINGS", original_filename: `History ${index + 1}.xlsx` }))),
+      page(
+        Array.from({ length: 51 }, (_, index) =>
+          batch({ id: index + 1, kind: "LEGACY_GRADINGS", original_filename: `History ${index + 1}.xlsx` }),
+        ),
+      ),
     );
     renderAt("/imports/records");
 
     await user.click(await screen.findByRole("button", { name: /^Choose between/ }));
     await waitFor(() =>
-      expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50, set_aside: "exclude", suggestion: "choose" }),
+      expect(api.getLegacyPeople).toHaveBeenCalledWith({
+        batch: undefined,
+        linked: false,
+        page: 1,
+        page_size: 50,
+        set_aside: "exclude",
+        suggestion: "choose",
+      }),
     );
     expect(await screen.findByText("“Theo”")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^To link/ }));
     await user.type(screen.getByLabelText("Find a name"), "zac");
     await waitFor(() =>
-      expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50, search: "zac", set_aside: "exclude" }),
+      expect(api.getLegacyPeople).toHaveBeenCalledWith({
+        batch: undefined,
+        linked: false,
+        page: 1,
+        page_size: 50,
+        search: "zac",
+        set_aside: "exclude",
+      }),
     );
-    await user.selectOptions(await screen.findByLabelText("Import"), await screen.findByRole("option", { name: "History 51.xlsx" }));
+    await user.selectOptions(
+      await screen.findByLabelText("Import"),
+      await screen.findByRole("option", { name: "History 51.xlsx" }),
+    );
     await waitFor(() => expect(api.getLegacyPeopleSummary).toHaveBeenCalledWith({ batch: 51, set_aside: "exclude" }));
   });
 
-  it("puts a name aside on the server, not in this browser, and puts it back", async () => {
+  it("puts a name aside on the server and puts it back", async () => {
     const user = userEvent.setup();
     renderAt("/imports/records");
 
@@ -848,7 +1152,6 @@ describe("Linking historical records", () => {
 
     await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r"]));
     await waitFor(() => expect(screen.queryByText("“Mia R”")).not.toBeInTheDocument());
-    expect(window.localStorage.getItem("kukgrade-left-names")).toBeNull();
     await user.click(screen.getByRole("button", { name: /^Left for now/ }));
     expect(await screen.findByText("“Mia R”")).toBeInTheDocument();
     expect(api.getLegacyPeople).toHaveBeenCalledWith(expect.objectContaining({ set_aside: "only", linked: false }));
@@ -870,82 +1173,59 @@ describe("Linking historical records", () => {
     expect(screen.getByRole("button", { name: "Leave for now" })).toBeVisible();
   });
 
-  it("moves names an earlier version kept in this browser to the server, then forgets them", async () => {
-    window.localStorage.setItem("kukgrade-left-names", JSON.stringify(["mia r", 7, "theo"]));
-    renderAt("/imports/records");
-
-    await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r", "theo"]));
-    await waitFor(() => expect(window.localStorage.getItem("kukgrade-left-names")).toBeNull());
-  });
-
-  it("keeps the browser's old names if the server could not take them, to try again", async () => {
-    window.localStorage.setItem("kukgrade-left-names", JSON.stringify(["mia r"]));
-    api.setAsideNames.mockRejectedValueOnce(new ApiError("Server error.", 500));
-    renderAt("/imports/records");
-
-    await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r"]));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(window.localStorage.getItem("kukgrade-left-names")).toBe('["mia r"]');
-  });
-
   it("lists names already linked, and can undo one", async () => {
     const user = userEvent.setup();
-    const linked = person({ record_ids: [101, 102], records: 2, linked_student: 31, linked_student_name: "Mia Reynolds" });
+    const linked = person({
+      record_ids: [101, 102],
+      records: 2,
+      linked_student: 31,
+      linked_student_name: "Mia Reynolds",
+    });
     api.getLegacyPeople.mockImplementation((params: { linked?: boolean }) =>
       Promise.resolve(params.linked ? page([linked], 5) : page([])),
     );
-    api.unlinkLegacyGradingRecord.mockResolvedValue(record());
+    api.bulkUnlinkLegacyRecords.mockResolvedValue([record()]);
     renderAt("/imports/records");
 
     await user.click(await screen.findByRole("button", { name: /^Linked/ }));
     expect(await screen.findByRole("link", { name: "Mia Reynolds" })).toHaveAttribute("href", "/students/31");
     await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
 
-    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(2));
-    expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledWith(101);
+    await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledWith([101, 102]));
   });
 
-  it("retries only the records still linked after a partial undo failure", async () => {
+  it("says so when an undo is refused, and unlinks none of the records", async () => {
     const user = userEvent.setup();
-    let failOnce = true;
-    let linkedIds = [101, 102];
-    api.getLegacyPeople.mockImplementation((params: { linked?: boolean }) =>
-      Promise.resolve(
-        params.linked
-          ? page(linkedIds.length ? [person({ record_ids: linkedIds, records: linkedIds.length, linked_student: 31, linked_student_name: "Mia Reynolds" })] : [], linkedIds.length ? 1 : 0)
-          : page([]),
-      ),
-    );
-    api.unlinkLegacyGradingRecord.mockImplementation((id: number) => {
-      if (id === 102 && failOnce) {
-        failOnce = false;
-        return Promise.reject(new Error("temporary failure"));
-      }
-      linkedIds = linkedIds.filter((other) => other !== id);
-      return Promise.resolve(record({ id }));
+    const linked = person({
+      record_ids: [101, 102],
+      records: 2,
+      linked_student: 31,
+      linked_student_name: "Mia Reynolds",
     });
+    api.getLegacyPeople.mockImplementation((params: { linked?: boolean }) =>
+      Promise.resolve(params.linked ? page([linked], 1) : page([])),
+    );
+    api.bulkUnlinkLegacyRecords.mockRejectedValue(new Error("temporary failure"));
     renderAt("/imports/records");
 
     await user.click(await screen.findByRole("button", { name: /^Linked/ }));
     await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Some records were unlinked. Try Undo again for the rest.");
-    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(2));
-
-    await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
-    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
-    expect(api.unlinkLegacyGradingRecord.mock.calls.map(([id]) => id)).toEqual([101, 102, 102]);
+    expect(await screen.findByRole("alert")).toHaveTextContent("That link could not be undone.");
+    expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledTimes(1);
+    expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledWith([101, 102]);
+    expect(screen.getByRole("button", { name: "Undo linking “Mia R”" })).toBeVisible();
   });
 
   it("matches a rank still as written, and voids a record only with a reason", async () => {
     const user = userEvent.setup();
-    api.resolveLegacyTestingForRank.mockResolvedValue(record());
+    api.resolveLegacyRank.mockResolvedValue(record());
     api.voidLegacyGradingRecord.mockResolvedValue(record({ is_void: true }));
     renderAt("/imports/records");
 
     await user.click(await screen.findByRole("button", { name: "Review “Mia R”" }));
     await screen.findAllByRole("option", { name: "Brown stripe" });
     await user.selectOptions(await screen.findByLabelText(/“Brn stripe” is not matched/), "8");
-    await waitFor(() => expect(api.resolveLegacyTestingForRank).toHaveBeenCalledWith(102, 8));
+    await waitFor(() => expect(api.resolveLegacyRank).toHaveBeenCalledWith(102, "testing_for_rank", 8));
 
     await user.click(screen.getByRole("button", { name: "Void the Mar\u00a02025 record" }));
     const dialog = screen.getByRole("dialog");
@@ -967,16 +1247,30 @@ describe("Linking historical records", () => {
     await user.click(screen.getByRole("button", { name: "Next page" }));
 
     expect(await screen.findByText("“Noah”")).toBeInTheDocument();
-    expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 2, page_size: 50, set_aside: "exclude" });
+    expect(api.getLegacyPeople).toHaveBeenCalledWith({
+      batch: undefined,
+      linked: false,
+      page: 2,
+      page_size: 50,
+      set_aside: "exclude",
+    });
   });
 
   it("says when every record is linked", async () => {
-    api.getLegacyPeopleSummary.mockResolvedValue({ names: 0, linked: 0, clear: 0, choose: 0, none: 0 });
+    api.getLegacyPeopleSummary.mockResolvedValue({
+      names: 0,
+      linked: 0,
+      with_a_link: 0,
+      set_aside: 0,
+      clear: 0,
+      choose: 0,
+      none: 0,
+    });
     api.getLegacyPeople.mockResolvedValue(page([]));
 
     renderAt("/imports/records");
 
-    expect(await screen.findByText("✓ Every imported record is linked to a student.")).toBeInTheDocument();
+    expect(await screen.findByText("Every imported record is linked to a student.")).toBeInTheDocument();
   });
 
   it("shows a failed link inside the open row it came from", async () => {
@@ -1024,14 +1318,20 @@ describe("Linking historical records", () => {
 
     await user.click(await screen.findByRole("button", { name: "Select the 1 clear suggestion" }));
 
-    expect(screen.getByText("501 records are selected; link at most 500 at a time. Untick some names.")).toBeInTheDocument();
+    expect(
+      screen.getByText("501 records are selected; link at most 500 at a time. Untick some names."),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Link 1 name to their students" })).toBeDisabled();
   });
 
   it("offers the first page when the page being shown no longer exists", async () => {
     const user = userEvent.setup();
     api.getLegacyPeople.mockImplementation((params: { linked?: boolean; page?: number }) =>
-      params.linked ? Promise.resolve(page([], 0)) : params.page === 2 ? Promise.reject(new ApiError("Invalid page.", 404)) : Promise.resolve({ ...page(waiting, 51), next: "?page=2" }),
+      params.linked
+        ? Promise.resolve(page([], 0))
+        : params.page === 2
+          ? Promise.reject(new ApiError("Invalid page.", 404))
+          : Promise.resolve({ ...page(waiting, 51), next: "?page=2" }),
     );
     renderAt("/imports/records");
 

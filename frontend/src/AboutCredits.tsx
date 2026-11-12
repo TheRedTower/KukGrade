@@ -3,6 +3,7 @@ import { creditsNoticesUrl, errorMessage, type Credit } from "./api";
 import { useCreditsQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { ExternalLink } from "./ExternalLink";
 
 function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) {
   return (
@@ -19,10 +20,7 @@ function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) 
           render: (credit) => (
             <>
               {credit.homepage ? (
-                <a href={credit.homepage} rel="noopener noreferrer" target="_blank">
-                  {credit.name}
-                  <span className="visually-hidden"> (opens in a new tab)</span>
-                </a>
+                <ExternalLink href={credit.homepage}>{credit.name}</ExternalLink>
               ) : (
                 <strong>{credit.name}</strong>
               )}
@@ -48,21 +46,16 @@ export function AboutCredits() {
       <header>
         <h2>Credits</h2>
         <p className="st-row-description subtext">
-          KukGrade stands on the work of many open source projects. This list is written when each
-          version is built, so it matches what is running.
+          KukGrade stands on the work of many open source projects. This list is written when each version is built, so
+          it matches what is running.
         </p>
       </header>
 
-      {query.isError ? (
-        <Alert>
-          {errorMessage(query.error, "The credits could not be loaded.")}
-        </Alert>
-      ) : null}
+      {query.isError ? <Alert>{errorMessage(query.error, "The credits could not be loaded.")}</Alert> : null}
 
       {credits && !credits.available ? (
         <Alert tone="info" role="note">
-          This copy of KukGrade was not packaged for release, so it has no credits list. Releases
-          have one.
+          This copy of KukGrade was not packaged for release, so it has no credits list. Releases have one.
         </Alert>
       ) : null}
 
@@ -96,9 +89,9 @@ export function AboutCredits() {
                   Every other Python and browser package, with its licence and copyright notice, in one file.
                 </p>
               </div>
-              <a className={buttonClass({ variant: "secondary" })} href={creditsNoticesUrl()} rel="noopener noreferrer" target="_blank">
-                Open the full list<span className="visually-hidden"> (opens in a new tab)</span>
-              </a>
+              <ExternalLink className={buttonClass({ variant: "secondary" })} href={creditsNoticesUrl()}>
+                Open the full list
+              </ExternalLink>
             </div>
           </section>
         </>

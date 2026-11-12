@@ -6,7 +6,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   type AuditEvent,
   type CandidateAssessment,
-  type CandidateOutcomeOutcome,
   type GradingSession,
   getCandidateAssessments,
   getGradingSessions,
@@ -20,154 +19,31 @@ import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { formatRecentTime, formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
-import { CheckIcon } from "./Icons";
-import { OUTCOME_LABELS } from "./OutcomeControls";
+import { AlertCircleIcon, CalendarIcon, CheckCircleIcon, CheckIcon, ClockIcon, ExclamationIcon } from "./Icons";
 import { eventSummary } from "./auditText";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { PageHeader } from "./PageHeader";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Badge } from "./Badge";
-import type { BadgeTone } from "./badgeClass";
-
-function CalendarIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="20"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="20"
-    >
-      <rect height="18" rx="2" ry="2" width="18" x="3" y="4" />
-      <line x1="16" x2="16" y1="2" y2="6" />
-      <line x1="8" x2="8" y1="2" y2="6" />
-      <line x1="3" x2="21" y1="10" y2="10" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="20"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="20"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="9 12 11 14 15 10" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
-function AlertIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" x2="12" y1="8" y2="12" />
-      <line x1="12" x2="12.01" y1="16" y2="16" />
-    </svg>
-  );
-}
-
-/** A badge tone: done, needs a look, under way, or neither. */
-type ActivityStatus = Extract<BadgeTone, "success" | "warning" | "info" | "neutral">;
 
 type FormattedActivityItem = {
   id: number;
   timeDisplay: string;
   actorName: string;
   summary: string;
-  statusType: ActivityStatus;
+  statusType: AuditEvent["tone"];
   statusLabel: string;
 };
 
-
-function metadataString(event: AuditEvent, ...path: string[]): string | undefined {
-  let value: unknown = event.metadata;
-  for (const key of path) {
-    value = value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
-  }
-  return typeof value === "string" ? value : undefined;
-}
-
-/**
- * An event's status, from its action and structured outcome - never from
- * words in the prose summary, which labelled a password reset or a failed
- * grading "Approved". Unknown actions stay neutral under the
- * server's own label.
- */
-function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: string } {
-  switch (event.action) {
-    case "PROMOTION_RECORDED":
-      return { type: "success" };
-    case "OUTCOME_FINALISED": {
-      const outcome = metadataString(event, "final_outcome");
-      return { type: outcome === "PASS" ? "success" : "warning", outcome };
-    }
-    case "OUTCOME_PROPOSED":
-      return { type: "info", outcome: metadataString(event, "after", "proposed_outcome") };
-    case "ASSESSMENT_STARTED":
-      return { type: "info" };
-    case "CANDIDATE_WITHDRAWN":
-      return { type: "warning" };
-    default:
-      return { type: "neutral" };
-  }
-}
-
+/** The server says how an event reads and which outcome it records. */
 function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
-  const { type, outcome } = activityStatus(event);
-  const outcomeLabel = outcome ? OUTCOME_LABELS[outcome as CandidateOutcomeOutcome] : undefined;
   return {
     id: event.id,
     timeDisplay: formatRecentTime(event.occurred_at),
-    actorName: event.actor_name || event.actor_email || "System",
+    actorName: event.actor_name || "System",
     summary: eventSummary(event),
-    statusType: type,
-    statusLabel: outcomeLabel ? `${event.action_display} · ${outcomeLabel}` : event.action_display,
+    statusType: event.tone,
+    statusLabel: event.outcome_display ? `${event.action_display} · ${event.outcome_display}` : event.action_display,
   };
 }
 
@@ -197,8 +73,7 @@ export function OverviewScreen() {
   });
 
   const openSession: GradingSession | undefined = openQuery.data?.results[0];
-  const upcomingSession: GradingSession | undefined =
-    upcomingQuery.data?.results.find((s) => s.id !== openSession?.id);
+  const upcomingSession: GradingSession | undefined = upcomingQuery.data?.results.find((s) => s.id !== openSession?.id);
 
   // 2. Fetch assessments for open session
   const assessmentsQuery = useQuery({
@@ -221,9 +96,7 @@ export function OverviewScreen() {
   });
 
   const assessments = useMemo<CandidateAssessment[]>(() => {
-    return Array.isArray(assessmentsQuery.data?.results)
-      ? assessmentsQuery.data.results
-      : [];
+    return assessmentsQuery.data?.results ?? [];
   }, [assessmentsQuery.data]);
 
   // Counted on the server, so they agree with every other screen.
@@ -255,8 +128,7 @@ export function OverviewScreen() {
 
   // Recent activity items
   const recentActivities: FormattedActivityItem[] = useMemo(() => {
-    if (!Array.isArray(auditQuery.data?.results)) return [];
-    return auditQuery.data.results.map(formatAuditEvent);
+    return (auditQuery.data?.results ?? []).map(formatAuditEvent);
   }, [auditQuery.data]);
 
   const isInitialLoading =
@@ -266,10 +138,7 @@ export function OverviewScreen() {
     (!!openSession && assessmentsQuery.isLoading);
 
   return (
-    <section
-      aria-labelledby="overview-heading"
-      className="page"
-    >
+    <section aria-labelledby="overview-heading" className="page">
       <PageHeader
         title="Overview"
         titleId="overview-heading"
@@ -284,8 +153,8 @@ export function OverviewScreen() {
 
       {openQuery.isError || upcomingQuery.isError ? (
         <div className="workspace-alert">
-            <Alert>The overview could not be loaded. Check your connection and try again.</Alert>
-          </div>
+          <Alert>The overview could not be loaded. Check your connection and try again.</Alert>
+        </div>
       ) : null}
 
       {/* Top 3-Column Grid */}
@@ -349,16 +218,12 @@ export function OverviewScreen() {
               {attentionItems.map((item) => (
                 <div key={item.id} role="listitem">
                   <Link className="attention-item-row" to={item.path}>
-                    <span aria-hidden="true" className="mark mark--warning">
-                      !
+                    <span aria-hidden="true" className="mark" data-tone="warning">
+                      <ExclamationIcon />
                     </span>
                     <div className="attention-item-info">
-                      <strong className="item-title">
-                        {item.candidate_student_name}
-                      </strong>
-                      <span className="meta">
-                        {item.statusDescription}
-                      </span>
+                      <strong className="item-title">{item.candidate_student_name}</strong>
+                      <span className="meta">{item.statusDescription}</span>
                     </div>
                     <span aria-hidden="true" className="chevron-icon">
                       &rsaquo;
@@ -368,7 +233,15 @@ export function OverviewScreen() {
               ))}
             </div>
           ) : (
-            <EmptyState fill icon={<span className="all-clear-icon"><CheckCircleIcon /></span>} title="All clear">
+            <EmptyState
+              fill
+              icon={
+                <span className="all-clear-icon">
+                  <CheckCircleIcon className="overview-icon" size={20} />
+                </span>
+              }
+              title="All clear"
+            >
               No candidate assessments currently requiring review.
             </EmptyState>
           )}
@@ -381,18 +254,12 @@ export function OverviewScreen() {
           {upcomingSession ? (
             <Link className="upcoming-session-row" to={`/gradings/${upcomingSession.id}`}>
               <div aria-hidden="true" className="calendar-icon-box">
-                <CalendarIcon />
+                <CalendarIcon className="overview-icon" size={20} />
               </div>
               <div className="upcoming-session-info">
-                <strong className="item-title">
-                  {upcomingSession.title}
-                </strong>
-                <span className="upcoming-session-date meta">
-                  {formatSessionDate(upcomingSession.grading_date)}
-                </span>
-                {upcomingSession.location && (
-                  <span className="meta">{upcomingSession.location}</span>
-                )}
+                <strong className="item-title">{upcomingSession.title}</strong>
+                <span className="upcoming-session-date meta">{formatSessionDate(upcomingSession.grading_date)}</span>
+                {upcomingSession.location && <span className="meta">{upcomingSession.location}</span>}
               </div>
               <span aria-hidden="true" className="chevron-icon">
                 &rsaquo;
@@ -418,53 +285,55 @@ export function OverviewScreen() {
           so only for someone who may read it; nobody else is told there is
           nothing. */}
       {canViewAudit && (
-      <section className="stack">
-        <div className="action-row">
-          <h2 className="section-title">Recent activity</h2>
-          <Link className={buttonClass({ variant: "link" })} to="/audit">
-            View all activity <span aria-hidden="true">&rarr;</span>
-          </Link>
-        </div>
+        <section className="stack">
+          <div className="action-row">
+            <h2 className="section-title">Recent activity</h2>
+            <Link className={buttonClass({ variant: "link" })} to="/audit">
+              View all activity <span aria-hidden="true">&rarr;</span>
+            </Link>
+          </div>
 
-        {recentActivities.length > 0 ? (
-          <ResponsiveTable
-            label="Recent activity"
-            rows={recentActivities}
-            rowKey={(activity) => activity.id}
-            columns={[
-              { key: "time", header: "Time", render: (activity) => <span className="meta">{activity.timeDisplay}</span> },
-              { key: "actor", header: "By", render: (activity) => <strong>{activity.actorName}</strong> },
-              { key: "event", header: "Event", primary: true, render: (activity) => activity.summary },
-              {
-                key: "status",
-                header: "Status",
-                render: (activity) => (
-                  <Badge
-                    tone={activity.statusType}
-                    icon={
-                      activity.statusType === "success" ? (
-                        <CheckIcon size={14} />
-                      ) : activity.statusType === "warning" ? (
-                        <AlertIcon />
-                      ) : activity.statusType === "info" ? (
-                        <ClockIcon />
-                      ) : null
-                    }
-                  >
-                    {activity.statusLabel}
-                  </Badge>
-                ),
-              },
-            ]}
-          />
-        ) : (
-          isInitialLoading ? (
+          {recentActivities.length > 0 ? (
+            <ResponsiveTable
+              label="Recent activity"
+              rows={recentActivities}
+              rowKey={(activity) => activity.id}
+              columns={[
+                {
+                  key: "time",
+                  header: "Time",
+                  render: (activity) => <span className="meta">{activity.timeDisplay}</span>,
+                },
+                { key: "actor", header: "By", render: (activity) => <strong>{activity.actorName}</strong> },
+                { key: "event", header: "Event", primary: true, render: (activity) => activity.summary },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (activity) => (
+                    <Badge
+                      tone={activity.statusType}
+                      icon={
+                        activity.statusType === "success" ? (
+                          <CheckIcon size={14} />
+                        ) : activity.statusType === "warning" ? (
+                          <AlertCircleIcon className="overview-icon" size={14} />
+                        ) : activity.statusType === "info" ? (
+                          <ClockIcon className="overview-icon" size={14} />
+                        ) : null
+                      }
+                    >
+                      {activity.statusLabel}
+                    </Badge>
+                  ),
+                },
+              ]}
+            />
+          ) : isInitialLoading ? (
             <LoadingState>Loading recent activity…</LoadingState>
           ) : (
             <EmptyState title="No recent activity recorded." />
-          )
-        )}
-      </section>
+          )}
+        </section>
       )}
     </section>
   );

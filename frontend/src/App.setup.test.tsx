@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import { authRequiredResponse, authUser, jsonResponse, signedInResponse } from "./appTestSupport";
+import { authRequiredResponse, authUser, jsonResponse, signedInResponse, stubFetch } from "./appTestSupport";
 
 const owner = {
   ...authUser,
@@ -66,7 +66,7 @@ describe("First-time setup", () => {
   });
 
   it("shows only the setup page, on any path, until it is done", async () => {
-    vi.stubGlobal("fetch", newDeployment(() => jsonResponse(500, {})));
+    stubFetch(newDeployment(() => jsonResponse(500, {})));
 
     render(<App />);
 
@@ -77,7 +77,7 @@ describe("First-time setup", () => {
   });
 
   it("lets the first choice of theme stick", async () => {
-    vi.stubGlobal("fetch", newDeployment(() => jsonResponse(500, {})));
+    stubFetch(newDeployment(() => jsonResponse(500, {})));
     const user = userEvent.setup();
 
     render(<App />);
@@ -94,7 +94,7 @@ describe("First-time setup", () => {
       sent.push(body);
       return jsonResponse(201, owner);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -114,14 +114,11 @@ describe("First-time setup", () => {
     ]);
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
     expect((post![1] as RequestInit).headers).toBeInstanceOf(Headers);
-    expect(((post![1] as RequestInit).headers as Headers).get("X-CSRFToken")).toBe(
-      "test-csrf-token",
-    );
+    expect(((post![1] as RequestInit).headers as Headers).get("X-CSRFToken")).toBe("test-csrf-token");
   });
 
   it("puts the server's refusal beside the field it is about", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       newDeployment(() =>
         jsonResponse(400, {
           error: {
@@ -139,16 +136,13 @@ describe("First-time setup", () => {
     await fillIn(user);
     await user.click(screen.getByRole("button", { name: "Create administrator" }));
 
-    expect(
-      await screen.findByText("That setup code is not right. Use the one in the server's log."),
-    ).toBeVisible();
+    expect(await screen.findByText("That setup code is not right. Use the one in the server's log.")).toBeVisible();
     expect(screen.getByLabelText("Setup code")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("heading", { name: "Set up KukGrade" })).toBeVisible();
   });
 
   it("says a refusal no field shows, even beside a field's own", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       newDeployment(() =>
         jsonResponse(400, {
           error: {
@@ -173,9 +167,19 @@ describe("First-time setup", () => {
     expect(screen.getByText("Setup is already under way in another browser.")).toBeVisible();
   });
 
+  it("asks the first administrator for both names", async () => {
+    stubFetch(newDeployment(() => jsonResponse(201, owner)));
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Set up KukGrade" });
+
+    expect(screen.getByLabelText("First name")).toBeRequired();
+    expect(screen.getByLabelText("Last name")).toBeRequired();
+  });
+
   it("checks the confirmation before sending anything", async () => {
     const fetchMock = newDeployment(() => jsonResponse(201, owner));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -188,16 +192,12 @@ describe("First-time setup", () => {
   });
 
   it("never asks a signed-in visitor", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(async (url: string) => signedInResponse(url, authUser));
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => signedInResponse(url, authUser));
+    stubFetch(fetchMock);
 
     render(<App />);
 
     await waitFor(() => expect(screen.getByText("Casey")).toBeVisible());
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/setup/"))).toBe(
-      false,
-    );
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/setup/"))).toBe(false);
   });
 });

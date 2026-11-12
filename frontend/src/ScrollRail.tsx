@@ -1,4 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { mediaMatches } from "./useMediaQuery";
+import { cx } from "./cx";
 
 interface ScrollRailProps {
   /** Names the rail, and its arrows, for assistive technology. */
@@ -61,7 +63,7 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
   function page(direction: -1 | 1) {
     const el = track.current;
     if (!el || (direction === -1 ? edges.atStart : edges.atEnd)) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = mediaMatches("(prefers-reduced-motion: reduce)");
     el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: reduced ? "auto" : "smooth" });
   }
 
@@ -70,7 +72,7 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
   // An arrow at its edge is only marked as spent: a disabled button would drop
   // the keyboard focus of whoever just pressed it to get there.
   return (
-    <div className={`rail${className ? ` ${className}` : ""}`}>
+    <div className={cx("rail", className)}>
       <button
         type="button"
         className="rail__arrow"

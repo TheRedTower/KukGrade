@@ -17,26 +17,27 @@ export interface RankGroup {
   programmeCounts: { label: string; count: number }[];
 }
 
-/** The ranks by id, and each one's next rank as the server defines it (Rank.next_rank). */
-export function rankMaps(ranks: Rank[]) {
-  const rankMap = new Map(ranks.map((rank) => [rank.id, rank]));
-  const nextRankMap = new Map<number, Rank>();
-  for (const rank of ranks) {
-    const next = rank.next_rank === null ? undefined : rankMap.get(rank.next_rank);
-    if (next) nextRankMap.set(rank.id, next);
-  }
-  return { rankMap, nextRankMap };
+/** The ranks by id. */
+export function rankMapOf(ranks: Rank[]) {
+  return new Map(ranks.map((rank) => [rank.id, rank]));
+}
+
+/** The rank a student would test for, as the server serves it on their row (next_rank). */
+export function destinationOf(student: StudentListItem, rankMap: Map<number, Rank>): Rank | null {
+  return student.next_rank === null ? null : (rankMap.get(student.next_rank) ?? null);
 }
 
 /** The students grouped by the rank they hold, in the order of the ranks. */
 export function buildRankGroups(
   students: StudentListItem[],
   ranks: Rank[],
-  nextRankMap: Map<number, Rank>,
+  rankMap: Map<number, Rank>,
   ageBands: AgeBand[],
 ): RankGroup[] {
   // One count per programme, in the order the server lists the age bands.
-  const programmes = ageBands.filter((band, index) => ageBands.findIndex((other) => other.programme === band.programme) === index);
+  const programmes = ageBands.filter(
+    (band, index) => ageBands.findIndex((other) => other.programme === band.programme) === index,
+  );
 
   const byRank = new Map<number, StudentListItem[]>();
   for (const student of students) {
@@ -49,13 +50,15 @@ export function buildRankGroups(
     if (!inRank?.length) continue;
     groups.push({
       rank,
-      destinationRank: nextRankMap.get(rank.id) ?? null,
+      // Everyone in the group holds the same rank, so tests for the same next one.
+      destinationRank: destinationOf(inRank[0], rankMap),
       students: inRank,
       activeCount: inRank.filter((s) => s.status === "ACTIVE").length,
       inactiveCount: inRank.filter((s) => s.status === "INACTIVE").length,
       programmeCounts: programmes.map((band) => ({
         label: band.programme_display,
-        count: inRank.filter((s) => ageBands.some((b) => b.code === s.age_band && b.programme === band.programme)).length,
+        count: inRank.filter((s) => ageBands.some((b) => b.code === s.age_band && b.programme === band.programme))
+          .length,
       })),
     });
   }
@@ -64,10 +67,18 @@ export function buildRankGroups(
 
 /** The cohort counted by the rank its students hold. */
 export function cohortBreakdown(cohort: CohortItem[]) {
-  const byRank = new Map<number, { rankId: number; currentRank: Rank | null; destinationRank: Rank | null; count: number }>();
+  const byRank = new Map<
+    number,
+    { rankId: number; currentRank: Rank | null; destinationRank: Rank | null; count: number }
+  >();
   for (const item of cohort) {
     const rankId = item.student.current_rank;
-    const entry = byRank.get(rankId) ?? { rankId, currentRank: item.currentRank, destinationRank: item.destinationRank, count: 0 };
+    const entry = byRank.get(rankId) ?? {
+      rankId,
+      currentRank: item.currentRank,
+      destinationRank: item.destinationRank,
+      count: 0,
+    };
     entry.count += 1;
     byRank.set(rankId, entry);
   }

@@ -22,7 +22,8 @@ Want something here, or something that is missing? Open an
 - [ ] **Put the demo site online**: it is built (see [demo.md](demo.md)); what is left is to run it
       on its own machine behind a tunnel, first from a release candidate and then following
       `latest` (the newest stable release, cut from `prod`), and to link it from the repository's
-      About box.
+      About box. Until `latest` exists, `deploy/compose.demo.yml` asks for `KUKGRADE_VERSION`;
+      give it the default `latest` again with the first stable release.
 - [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check
       (`frontend/src/layout.css`, Playwright width check, `frontend/e2e/widthDebt.json` empty).
       Done when the owner has checked the demo site on a real phone and tablet.
@@ -49,10 +50,7 @@ Want something here, or something that is missing? Open an
 - [ ] **Search refinements** (deferred, to be done alongside instructor groups, if at all). The
       search every list uses ([features.md](features.md#search)) already matches every word in any
       order, ignores accents and capitals, finds part of a word, forgives a slip in a longer word of
-      letters and ranks the best match first. Not yet done:
-      - *Search as you type in every box.* Gradings, students, historical records and the import
-        screens update as you type; the Audit and Users boxes still wait for Search, and the
-        candidate box inside a grading, the cohort builder and the import review are unchecked.
+      letters and ranks the best match first, as you type. Not yet done:
       - *Sound-alike matching* for names ("Smyth" for Smith, "Catherine" for Katherine) with
         PostgreSQL's built-in `fuzzystrmatch` (double metaphone); to be tried on real data first
         so it does not add noise.

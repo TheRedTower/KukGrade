@@ -13,17 +13,22 @@ Docker Compose v2 (`docker compose version`), about 1 GB of free memory, and git
 git clone https://github.com/TheRedTower/KukGrade.git
 cd KukGrade/deploy
 cp .env.example .env
+```
+
+> **Until the first stable release there is no `latest` image**, so the compose file's
+> `image:` line cannot be pulled yet. Change it to the newest release candidate listed under
+> [Releases](https://github.com/TheRedTower/KukGrade/releases), for example
+> `ghcr.io/theredtower/kukgrade:0.2.0-rc.10`. (A release candidate is a build to try; see the
+> [roadmap](roadmap.md) for what a first stable release needs.)
+
+Then start it:
+
+```sh
 docker compose up -d
 ```
 
 The first run downloads the image from the GitHub Container Registry
 (`ghcr.io/theredtower/kukgrade`), which takes a minute or two.
-
-> **Until the first stable release there is no `latest` image**, so the compose file's
-> `image:` line cannot be pulled yet. Change it to the newest release candidate listed under
-> [Releases](https://github.com/TheRedTower/KukGrade/releases), for example
-> `ghcr.io/theredtower/kukgrade:0.2.0-rc.6`, before `docker compose up -d`. (A release
-> candidate is a build to try; see the [roadmap](roadmap.md) for what a first stable release needs.)
 
 When it finishes:
 

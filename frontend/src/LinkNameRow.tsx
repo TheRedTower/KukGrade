@@ -5,12 +5,13 @@ import { Link } from "react-router-dom";
 
 import { ErrorText } from "./ErrorText";
 import { type LegacyGradingRecord, type LegacyPerson, errorMessage, getAllLegacyGradingRecords } from "./api";
-import { counted } from "./importSteps";
 import { type Chosen, periodRange, recordMonth, recordsToLink } from "./linkRecords";
 import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
 import { useLegacyLinking } from "./useLegacyLinking";
 import { Button } from "./Button";
 import { type Column, ResponsiveTable } from "./ResponsiveTable";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
 
 export type NameView = "todo" | "clear" | "choose" | "none" | "left" | "done";
 
@@ -55,30 +56,28 @@ function NameDetails({
   const { refresh } = useLegacyLinking();
   const [voiding, setVoiding] = useState<LegacyGradingRecord | null>(null);
   const records = useQuery({
-    queryKey: ["legacyRecords", "group", person.group_key, batch],
+    queryKey: keys.legacyRecords.group(person.group_key, batch),
     queryFn: () => getAllLegacyGradingRecords({ group_key: person.group_key, batch, linked: false, voided: false }),
   });
   const ticked = recordsToLink(person, unticked).length;
   const everyRecord = ticked === person.record_ids.length;
   const linkLabel = chosen
-    ? `Link ${everyRecord ? (ticked === 1 ? "it" : `all ${ticked}`) : `${ticked} of ${person.record_ids.length}`} to ${chosen.name}`
+    ? `Link ${everyRecord ? agreeing(ticked, "it", `all ${ticked}`) : `${ticked} of ${person.record_ids.length}`} to ${chosen.name}`
     : "Choose a student first";
 
   return (
     <div className="ix-name-detail">
-      <div className="ix-section ix-name-records">
+      <div className="stack stack--3 ix-name-records">
         <h3 className="ix-minor">
           Records <span className="subtext">· tick the ones to link</span>
         </h3>
-        <ul className="ix-detail-list">
+        <ul className="list-plain ix-detail-list">
           {records.isPending ? (
             <li className="subtext" role="status">
               Loading the records…
             </li>
           ) : records.isError ? (
-            <ErrorText as="li">
-              {errorMessage(records.error, "The records could not be loaded.")}
-            </ErrorText>
+            <ErrorText as="li">{errorMessage(records.error, "The records could not be loaded.")}</ErrorText>
           ) : (
             records.data.results.map((record) => (
               <li className="ix-detail-item" key={record.id}>
@@ -102,7 +101,8 @@ function NameDetails({
                 </div>
                 <Button
                   aria-label={`Void the ${recordMonth(record)} record`}
-                  variant="ghost" className="ix-danger-text"
+                  variant="ghost"
+                  className="ix-danger-text"
                   onClick={() => setVoiding(record)}
                 >
                   Void…
@@ -113,7 +113,7 @@ function NameDetails({
         </ul>
       </div>
 
-      <div className="ix-section ix-name-students">
+      <div className="stack stack--3 ix-name-students">
         <h3 className="ix-minor">Which student?</h3>
         {person.candidates.length > 0 ? (
           <div className="ix-student-list">
@@ -142,12 +142,8 @@ function NameDetails({
           <p className="subtext ix-flush">No student looks like this. Search every student below.</p>
         )}
         <SomeoneElse chosen={chosen} onChoose={onChoose} />
-        {error ? (
-          <ErrorText>
-            {errorMessage(error, "Those records could not be linked.")}
-          </ErrorText>
-        ) : null}
-        <div className="ix-actions ix-actions-split">
+        {error ? <ErrorText>{errorMessage(error, "Those records could not be linked.")}</ErrorText> : null}
+        <div className="action-row">
           {onLeave ? (
             <Button variant="ghost" onClick={onLeave}>
               Leave for now
@@ -241,7 +237,19 @@ function NameStudent(item: NameItem) {
 }
 
 /** What can be done with a name from its row. */
-function NameActions({ person, view, chosen, open, left, unticked, pending, onLink, onPutBack, onToggle, onUndo }: NameItem) {
+function NameActions({
+  person,
+  view,
+  chosen,
+  open,
+  left,
+  unticked,
+  pending,
+  onLink,
+  onPutBack,
+  onToggle,
+  onUndo,
+}: NameItem) {
   if (view === "done") {
     return (
       <Button aria-label={`Undo linking “${person.source_name}”`} variant="ghost" disabled={pending} onClick={onUndo}>
@@ -317,7 +325,9 @@ const NAME_COLUMNS: readonly Column<NameItem>[] = [
     render: ({ person }) => (
       <>
         {person.ranks.join(" · ")}
-        {person.needs_rank ? <span className="ix-warning-text item-title ix-block">A rank is not matched yet</span> : null}
+        {person.needs_rank ? (
+          <span className="ix-warning-text item-title ix-block">A rank is not matched yet</span>
+        ) : null}
       </>
     ),
   },

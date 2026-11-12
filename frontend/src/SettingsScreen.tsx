@@ -19,7 +19,7 @@ export function SettingsScreen() {
       <PageHeader title="Settings" titleId="st-title" />
       <nav aria-label="Settings sections" className="st-tabs">
         {TABS.map((tab) => (
-          <NavLink className={({ isActive }) => `st-tab${isActive ? " active" : ""}`} key={tab.to} to={tab.to}>
+          <NavLink className="menu-link st-tab" key={tab.to} to={tab.to}>
             {tab.label}
           </NavLink>
         ))}

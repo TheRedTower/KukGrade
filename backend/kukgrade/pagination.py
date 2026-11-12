@@ -12,8 +12,9 @@ from rest_framework.pagination import PageNumberPagination
 
 
 class DefaultPagination(PageNumberPagination):
-    # 50 is chosen so a single candidate's assessment, typically around 40
-    # snapshot items, fits on one page.
+    # The default page. A screen that needs a whole list, such as an
+    # assessment's items, asks for pages of up to max_page_size and reads
+    # every page.
     page_size = 50
     page_size_query_param = "page_size"
     max_page_size = 200

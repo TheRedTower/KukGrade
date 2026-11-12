@@ -14,14 +14,13 @@ import {
 } from "./api";
 import { formatSessionDate } from "./dates";
 import { keys, refresh } from "./queryKeys";
-import type { EnrichedCandidate } from "./SessionParts";
+import type { EnrichedCandidate } from "./sessionDetail";
+import { counted } from "./plural";
 
 interface Feedback {
   setError: (message: string | null) => void;
   setMessage: (message: string | null) => void;
 }
-
-const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
 
 /**
  * Everything a session page does to its candidates: prepare and start assessments in
@@ -33,9 +32,11 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
   const refreshCandidateWork = () => refresh.sessionWork(queryClient, sessionId);
 
   /** The message after a bulk action: how many worked, and the server's reasons for the rest. */
-  const reportBulk = (count: number, noun: string, verb: string, errors: Record<string, string[]>) => {
+  const reportBulk = (count: number, verb: string, errors: Record<string, string[]>) => {
     const failed = Object.keys(errors).length;
-    setMessage(`${plural(count, noun)} ${verb}${failed ? `; ${failed} could not be ${verb}` : ""}.`);
+    setMessage(
+      `${counted(count, "assessment", "assessments")} ${verb}${failed ? `; ${failed} could not be ${verb}` : ""}.`,
+    );
     setError(failed ? Object.values(errors).flat().join(" ") : null);
   };
 
@@ -43,18 +44,18 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
     mutationFn: (candidateIds: number[]) => bulkGenerateCandidateAssessments(candidateIds),
     onSuccess: ({ created, errors }) => {
       refreshCandidateWork();
-      reportBulk(created.length, "assessment", "prepared", errors);
+      reportBulk(created.length, "prepared", errors);
     },
-    onError: (err: unknown) => setError(errorMessage(err, "Failed to prepare assessments.")),
+    onError: (err: unknown) => setError(errorMessage(err, "The assessments could not be prepared.")),
   });
 
   const bulkStart = useMutation({
     mutationFn: (assessmentIds: number[]) => bulkStartCandidateAssessments(assessmentIds),
     onSuccess: ({ started, errors }) => {
       refreshCandidateWork();
-      reportBulk(started.length, "assessment", "started", errors);
+      reportBulk(started.length, "started", errors);
     },
-    onError: (err: unknown) => setError(errorMessage(err, "Failed to start assessments.")),
+    onError: (err: unknown) => setError(errorMessage(err, "The assessments could not be started.")),
   });
 
   const [attendanceOpen, setAttendanceOpen] = useState(false);
@@ -66,17 +67,24 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       refreshCandidateWork();
       setAttendanceOpen(false);
       const failed = Object.keys(errors).length;
-      setMessage(`${plural(updated.length, "candidate")} marked as no-show${failed ? `; ${failed} could not be updated` : ""}.`);
+      setMessage(
+        `${counted(updated.length, "candidate", "candidates")} marked as no-show${failed ? `; ${failed} could not be updated` : ""}.`,
+      );
       setError(failed ? Object.values(errors).flat().join(" ") : null);
     },
-    onError: (err: unknown) => setError(errorMessage(err, "Failed to confirm attendance.")),
+    onError: (err: unknown) => setError(errorMessage(err, "Attendance could not be confirmed.")),
   });
 
   const [withdrawing, setWithdrawing] = useState<EnrichedCandidate | null>(null);
   const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
   const withdrawal = useMutation({
-    mutationFn: ({ candidateId, payload }: { candidateId: number; payload: Parameters<typeof withdrawLockedCandidate>[1] }) =>
-      withdrawLockedCandidate(candidateId, payload),
+    mutationFn: ({
+      candidateId,
+      payload,
+    }: {
+      candidateId: number;
+      payload: Parameters<typeof withdrawLockedCandidate>[1];
+    }) => withdrawLockedCandidate(candidateId, payload),
     onSuccess: (updated) => {
       refreshCandidateWork();
       setWithdrawing(null);
@@ -84,7 +92,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       setError(null);
       setMessage(`${updated.student_display_name} was withdrawn from the locked session.`);
     },
-    onError: (err: unknown) => setWithdrawalError(errorMessage(err, "Failed to withdraw the candidate.")),
+    onError: (err: unknown) => setWithdrawalError(errorMessage(err, "The candidate could not be withdrawn.")),
   });
   const withdrawalReasons = useQuery({
     queryKey: keys.withdrawalReasons(),
@@ -92,7 +100,10 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
     enabled: withdrawing !== null,
   });
 
-  const [registrationAction, setRegistrationAction] = useState<{ kind: "move" | "remove"; item: EnrichedCandidate } | null>(null);
+  const [registrationAction, setRegistrationAction] = useState<{
+    kind: "move" | "remove";
+    item: EnrichedCandidate;
+  } | null>(null);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const closeRegistrationAction = () => {
     setRegistrationAction(null);
@@ -101,14 +112,22 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
   // Sessions a registration can move to; loaded only when the move dialog opens.
   const moveTargetsQuery = useQuery({
     queryKey: keys.gradingSessions.moveTargets(),
-    queryFn: () => getAllGradingSessions({ status: "DRAFT,OPEN" }),
+    queryFn: () => getAllGradingSessions({ roster_open: true }),
     enabled: registrationAction?.kind === "move",
   });
   const moveTargets = (moveTargetsQuery.data?.results ?? [])
     .filter((target) => target.id !== sessionId)
     .map((target) => ({ id: target.id, label: `${target.title} · ${formatSessionDate(target.grading_date)}` }));
   const registration = useMutation({
-    mutationFn: async ({ kind, candidateId, targetSessionId }: { kind: "move" | "remove"; candidateId: number; targetSessionId?: number }) => {
+    mutationFn: async ({
+      kind,
+      candidateId,
+      targetSessionId,
+    }: {
+      kind: "move" | "remove";
+      candidateId: number;
+      targetSessionId?: number;
+    }) => {
       if (kind === "move") await moveGradingCandidate(candidateId, targetSessionId as number);
       else await deleteGradingCandidate(candidateId);
     },
@@ -120,7 +139,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
       setError(null);
       setMessage(kind === "move" ? `${name} was moved to another session.` : `${name} was removed from this session.`);
     },
-    onError: (err: unknown) => setRegistrationError(errorMessage(err, "Failed to change the registration.")),
+    onError: (err: unknown) => setRegistrationError(errorMessage(err, "The registration could not be changed.")),
   });
 
   const [proposing, setProposing] = useState<EnrichedCandidate | null>(null);

@@ -19,6 +19,8 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import { ScrollRail } from "./ScrollRail";
 import { RequirementBadge } from "./StatusBadge";
 import "./Syllabus.css";
+import { keys } from "./queryKeys";
+import { ArrowRightIcon } from "./Icons";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -57,13 +59,7 @@ function ledgersByCategory(rows: EffectiveSyllabusRequirement[]): Ledger[] {
   return [...ledgers.values()];
 }
 
-function SyllabusLedgerTable({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: EffectiveSyllabusRequirement[];
-}) {
+function SyllabusLedgerTable({ title, rows }: { title: string; rows: EffectiveSyllabusRequirement[] }) {
   return (
     <ResponsiveTable
       label={`${title} for this rank`}
@@ -80,11 +76,15 @@ function SyllabusLedgerTable({
             const noteText = !row.notation && row.notes && row.notes !== rangeDisplay ? row.notes : "";
             return (
               <div className="syl-cell-curriculum">
-                <div className="syl-item-name item-title">
+                <div className="row row--wrap item-title">
                   {row.item_name}
                   {isNew && <Badge tone="info">NEW</Badge>}
                 </div>
-                {row.item_korean_name && <div className="meta" lang="ko">{row.item_korean_name}</div>}
+                {row.item_korean_name && (
+                  <div className="meta" lang="ko">
+                    {row.item_korean_name}
+                  </div>
+                )}
                 {noteText && <div className="syl-item-notes meta">{noteText}</div>}
               </div>
             );
@@ -93,15 +93,16 @@ function SyllabusLedgerTable({
         {
           key: "range",
           header: "Range",
-          render: (row) => <span className="syl-range-value item-title">{row.display_range || row.notation || "—"}</span>,
+          render: (row) => (
+            <span className="syl-range-value item-title">{row.display_range || row.notation || "—"}</span>
+          ),
         },
         { key: "since", header: "Since", render: (row) => <span className="subtext">{provenance(row).text}</span> },
         {
           key: "requirement",
           header: "Requirement",
           align: "end",
-          render: (row) =>
-            <RequirementBadge required={row.required} />,
+          render: (row) => <RequirementBadge required={row.required} />,
         },
       ]}
     />
@@ -112,28 +113,21 @@ export function SyllabusScreen() {
   const ranksQuery = useRanksQuery();
   const ageBandsQuery = useAgeBandsQuery();
   // Only the ranks whose syllabus is recorded; the server says which.
-  const ranks = useMemo(
-    () => (ranksQuery.data?.results ?? []).filter((rank) => rank.has_syllabus),
-    [ranksQuery.data],
-  );
+  const ranks = useMemo(() => (ranksQuery.data?.results ?? []).filter((rank) => rank.has_syllabus), [ranksQuery.data]);
   const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
 
-  // Until the viewer picks, the screen opens on the first rank that has a
-  // syllabus of its own (Yellow, or the first served rank if Yellow is
-  // absent) and the first age band the server lists.
+  // Until the viewer picks, the screen opens on the first served rank that
+  // has a syllabus of its own and the first age band the server lists.
   const [chosenRankCode, setChosenRankCode] = useState<string | null>(null);
   const [chosenAgeBand, setChosenAgeBand] = useState<AgeBandEnum | null>(null);
-  const selectedRankCode =
-    chosenRankCode ??
-    (ranks.some((r) => r.code === "YELLOW") ? "YELLOW" : (ranks[0]?.code ?? ""));
+  const selectedRankCode = chosenRankCode ?? ranks[0]?.code ?? "";
   const selectedAgeBand = chosenAgeBand ?? ageBands[0]?.code ?? null;
-  const programme: Programme =
-    ageBands.find((band) => band.code === selectedAgeBand)?.programme ?? "JUNIOR";
+  const programme = ageBands.find((band) => band.code === selectedAgeBand)?.programme;
 
   // Everything a grading for this rank and age band assesses, in syllabus
   // order - the same rows assessment generation snapshots.
   const requirementsQuery = useQuery({
-    queryKey: ["effectiveSyllabus", selectedRankCode, selectedAgeBand],
+    queryKey: keys.effectiveSyllabus(selectedRankCode, selectedAgeBand),
     queryFn: () =>
       getAllEffectiveSyllabusRequirements({
         rank_code: selectedRankCode,
@@ -141,15 +135,11 @@ export function SyllabusScreen() {
       }),
     enabled: !!selectedRankCode && selectedAgeBand !== null,
   });
-  const requirements = useMemo(
-    () => requirementsQuery.data?.results ?? [],
-    [requirementsQuery.data],
-  );
-  const isLoading =
-    ranksQuery.isLoading || ageBandsQuery.isLoading || requirementsQuery.isLoading;
+  const requirements = useMemo(() => requirementsQuery.data?.results ?? [], [requirementsQuery.data]);
+  const isLoading = ranksQuery.isLoading || ageBandsQuery.isLoading || requirementsQuery.isLoading;
 
   const loadError = ranksQuery.error ?? ageBandsQuery.error ?? requirementsQuery.error;
-  const error = loadError ? errorMessage(loadError, "Failed to load the syllabus.") : null;
+  const error = loadError ? errorMessage(loadError, "The syllabus could not be loaded.") : null;
 
   // A programme change keeps the age band if it belongs to that programme,
   // otherwise moves to the programme's oldest band.
@@ -190,7 +180,7 @@ export function SyllabusScreen() {
           <label htmlFor="syl-curriculum-select">Curriculum</label>
           <select
             id="syl-curriculum-select"
-            value={programme}
+            value={programme ?? ""}
             onChange={(e) => handleProgrammeChange(e.target.value as Programme)}
           >
             {programmes.map((band) => (
@@ -253,14 +243,12 @@ export function SyllabusScreen() {
       </ScrollRail>
 
       {/* Main Rank Chapter View */}
-      <div className="syl-rank-content">
+      <div className="stack stack--6">
         {/* Rank Chapter Heading */}
         <div className="syl-rank-header">
           <div>
             <h2 className="syl-rank-title">{rankName}</h2>
-            <p className="syl-rank-subtitle subtext">
-              {currentAgeBand?.description || "Curriculum requirements"}
-            </p>
+            <p className="syl-rank-subtitle subtext">{currentAgeBand?.description || "Curriculum requirements"}</p>
             {requirements.length > 0 && (
               <p className="syl-rank-everything-note subtext">
                 Everything examinable through {rankName}, all assessed at every grading.
@@ -270,7 +258,7 @@ export function SyllabusScreen() {
 
           {nextRank && (
             <Button variant="link" onClick={() => setChosenRankCode(nextRank.code)}>
-              Next rank: {nextRank.name} →
+              Next rank: {nextRank.name} <ArrowRightIcon />
             </Button>
           )}
         </div>
@@ -282,14 +270,13 @@ export function SyllabusScreen() {
           <LoadingState>Loading curriculum requirements…</LoadingState>
         ) : hasNoSyllabus ? (
           <EmptyState framed>
-            No syllabus is recorded for {rankName} in this age group yet, so nobody can be assessed
-            for it.
+            No syllabus is recorded for {rankName} in this age group yet, so nobody can be assessed for it.
           </EmptyState>
         ) : (
           <>
             {coreAreas.length > 0 && (
-              <div className="syl-section-block">
-                <div className="syl-section-title-wrap">
+              <div className="stack stack--4">
+                <div className="stack stack--1">
                   <h3 className="section-title">Core grading areas</h3>
                   <p className="syl-section-subtitle subtext">The same areas at every rank.</p>
                 </div>
@@ -298,7 +285,9 @@ export function SyllabusScreen() {
                     <div key={area.item_code} className="syl-core-card">
                       <div className="item-title">{area.item_name}</div>
                       {area.item_korean_name && (
-                        <div className="subtext" lang="ko">{area.item_korean_name}</div>
+                        <div className="subtext" lang="ko">
+                          {area.item_korean_name}
+                        </div>
                       )}
                       <div className="syl-core-english meta">{area.category_display}</div>
                     </div>
@@ -308,8 +297,8 @@ export function SyllabusScreen() {
             )}
 
             {ledgers.map((ledger) => (
-              <div key={ledger.category} className="syl-section-block">
-                <div className="syl-section-title-wrap">
+              <div key={ledger.category} className="stack stack--4">
+                <div className="stack stack--1">
                   <h3 className="section-title">{ledger.title}</h3>
                   <p className="syl-section-subtitle subtext">
                     Where a later rank extended an item, its latest range is shown.
@@ -324,14 +313,12 @@ export function SyllabusScreen() {
 
       {/* Footer Reference */}
       <footer className="syl-footer subtext">
-        <div className="syl-footer-brand">
+        <div className="row syl-footer-brand">
           <strong>KukGrade</strong>
           <span className="syl-footer-divider">|</span>
           <span>Past assessments keep the wording they were graded on.</span>
         </div>
-        <div className="meta">
-          Preliminary reference: WKSA curriculum chart, 2014
-        </div>
+        <div className="meta">Preliminary reference: WKSA curriculum chart, 2014</div>
       </footer>
     </section>
   );

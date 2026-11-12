@@ -38,7 +38,6 @@
   /* How long a colour, edge or position takes to change. */
   --duration: 160ms;
   --font-weight-normal: 400;
-  --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-strong: 700;
   --font-weight-title: 800;
@@ -90,6 +89,77 @@
   margin-block: 0;
 }
 
+/* A stack whose parts sit closer than sections do: a form's fields, a
+   card's lines. Each is a step of the space scale. */
+.stack--1 {
+  gap: var(--space-1);
+}
+
+.stack--2 {
+  gap: var(--space-2);
+}
+
+.stack--3 {
+  gap: var(--space-3);
+}
+
+.stack--4 {
+  gap: var(--space-4);
+}
+
+.stack--6 {
+  gap: var(--space-6);
+}
+
+/* A stack beside a taller neighbour whose last part fills the rest of its
+   height (a file drop area, as tall as the guide beside it). */
+.stack--fill {
+  display: flex;
+  flex-direction: column;
+}
+
+.stack--fill > :last-child {
+  flex: 1 1 auto;
+}
+
+/* Things side by side on one line, centred on each other: an icon and its
+   words, a name and its badge. `--wrap` lets them take more lines, `--inline`
+   keeps the row inside a line of text, and `--1`, `--3` and `--4` set the
+   space between them (a step of the scale). For a row of actions that
+   spreads to both ends, use .action-row. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.row--inline {
+  display: inline-flex;
+}
+
+.row--wrap {
+  flex-wrap: wrap;
+}
+
+.row--1 {
+  gap: var(--space-1);
+}
+
+.row--3 {
+  gap: var(--space-3);
+}
+
+.row--4 {
+  gap: var(--space-4);
+}
+
+/* A list with no bullets or indent: its items bring their own look. */
+.list-plain {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* Keeps a label available to assistive tech without showing it - e.g. the
    theme toggle's icons are the visible label, but each button still needs
    an accessible name. */
@@ -104,6 +174,21 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* The same, on a phone only: words a narrow row has no room to show. */
+@media (max-width: 40rem) {
+  .visually-hidden--phone {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 /* A grid that is wider than its box by nature, a preview of the user's own
@@ -142,14 +227,66 @@
   background: var(--color-surface);
 }
 
-/* Type roles. A line of text is a heading element (App.css), one of these, or
+/* The headings: each level has one size, everywhere. */
+h1 {
+  margin-bottom: var(--space-4);
+  color: var(--color-text);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-title);
+  letter-spacing: var(--tracking-tight);
+}
+
+h2 {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xl);
+}
+
+/* Every heading below a section's title: a card's or a row's own heading. */
+h3 {
+  font-size: var(--font-size-lg);
+}
+
+h4 {
+  font-size: var(--font-size-base);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+  /* Every letter carries a little space before it, about 0.05em in this
+     font, which at heading sizes shows: a heading above a box looked set in
+     from the box's border. Pulling the first line back puts the letters
+     themselves on the edge. */
+  text-indent: -0.05em;
+}
+
+/* text-indent is inherited; a badge or button inside a heading keeps its own. */
+:is(h1, h2, h3, h4) * {
+  text-indent: 0;
+}
+
+/* Inline code: something to type exactly, such as a password. */
+code {
+  padding: 0.05rem var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+/* Type roles. A line of text is a heading element (above), one of these, or
    a shared piece's own part; a screen does not set its own size, weight or
    colour for text.
    - .eyebrow: the small capitals above a title or naming a group;
      .eyebrow--muted (on its own) when it only labels.
    - .item-title: the name a row, tile or card is about.
    - .subtext: a sentence under a heading or beside a control.
-   - .meta: a detail on a line, such as a time, a count or who did it. */
+   - .meta: a detail on a line, such as a time, a count or who did it.
+   - .menu-link: a place to go in a menu, a rail or a row of tabs, the size
+     of a button's words; `.active` (NavLink) marks where you are. */
 .eyebrow,
 .eyebrow--muted,
 .page-header__eyebrow,
@@ -187,6 +324,17 @@
   margin-bottom: var(--space-1);
 }
 
+.menu-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
 /* The title of a section or a card. `--ruled` draws a line under it, for the
    head of a card whose body is a form or a list. */
 .section-title {
@@ -194,6 +342,12 @@
   color: var(--color-text);
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-strong);
+}
+
+/* The one title that is a display, not a section: the About page's name. */
+.section-title--display {
+  font-size: var(--font-size-3xl);
+  letter-spacing: var(--tracking-tight);
 }
 
 .section-title--ruled {
@@ -346,9 +500,12 @@ select:not([multiple]):not([size]) {
   -webkit-appearance: none;
   min-height: var(--target-min);
   padding-right: var(--space-6);
-  background-image: linear-gradient(45deg, transparent 50%, var(--color-text-muted) 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-text-muted) 50%),
     linear-gradient(135deg, var(--color-text-muted) 50%, transparent 50%);
-  background-position: calc(100% - 1.1rem) 50%, calc(100% - 0.8rem) 50%;
+  background-position:
+    calc(100% - 1.1rem) 50%,
+    calc(100% - 0.8rem) 50%;
   background-size: 0.3rem 0.3rem;
   background-repeat: no-repeat;
   text-overflow: ellipsis;
@@ -396,13 +553,9 @@ select:not([multiple]):not([size]) {
   resize: vertical;
 }
 
-.field__row {
-  display: flex;
-}
-
 /* A search box: a .field whose magnifier is drawn at the box's start, in the
    theme's muted colour, so a screen adds no icon of its own. Its label may be
-   visually hidden; the box is always the field's last child. */
+   visually hidden; the box is always the field's last child (SearchField). */
 .field--search {
   position: relative;
 }
@@ -419,42 +572,9 @@ select:not([multiple]):not([size]) {
   width: 1rem;
   height: 1rem;
   background: var(--color-text-muted);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
   pointer-events: none;
-}
-
-/* A search box and its button, joined. */
-.field__row > input {
-  flex: 1 1 auto;
-  width: auto;
-  min-width: 0;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-}
-
-/* The button joined to a search box. The box gives way on a narrow screen;
-   the button keeps its word whole. */
-.field__row > button {
-  flex-shrink: 0;
-  border: 1px solid var(--btn-primary-border);
-  border-left: 0;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  font: inherit;
-  font-weight: var(--font-weight-strong);
-  padding: var(--space-2) var(--space-4);
-  cursor: pointer;
-}
-
-.field__row > button:focus-visible {
-  outline: 2px solid var(--color-accent-strong);
-  outline-offset: 1px;
-}
-
-.field__row > button:hover {
-  border-color: var(--btn-primary-hover-border);
-  background: var(--btn-primary-hover-bg);
-  color: var(--btn-primary-hover-text);
 }
 
 /* ── Tables ────────────────────────────────────────────────────────────── */
@@ -770,9 +890,11 @@ select:not([multiple]):not([size]) {
   padding-block: var(--space-2);
 }
 
+/* Labels in one column, values in the other. When the line is short a label
+   wraps between its words before a value is split: a date never breaks. */
 .facts-list--aligned {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: minmax(min-content, max-content) minmax(min-content, 1fr);
 }
 
 .facts-list--aligned > div {
@@ -839,6 +961,27 @@ select:not([multiple]):not([size]) {
   justify-content: flex-end;
 }
 
+/* A confirmation (ConfirmDialog.tsx): what it says, then its two buttons. */
+.dialog__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dialog__body p {
+  margin: 0;
+}
+
+.dialog__body textarea {
+  min-height: 6rem;
+}
+
 .dialog__header {
   display: flex;
   flex-wrap: wrap;
@@ -853,7 +996,6 @@ select:not([multiple]):not([size]) {
   flex: 1 1 12rem;
   min-width: 0;
 }
-
 
 .dialog__heading {
   margin: 0;
@@ -881,42 +1023,89 @@ select:not([multiple]):not([size]) {
 
 /* ── Page furniture ────────────────────────────────────────────────────── */
 
-/* The trail of links above a page title. */
-.crumbs {
-  display: flex;
+/* From one rank to the next (RankTransition.tsx), on one line that wraps when it must. */
+.rank-transition {
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
 }
 
-.crumbs__item {
+.rank-transition__rank {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-.crumbs a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--target-min);
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.crumbs a:hover {
-  color: var(--color-text);
-}
-
-.crumbs__sep {
+.rank-transition__arrow {
+  flex-shrink: 0;
   color: var(--color-text-muted);
 }
 
-.crumbs [aria-current="page"] {
-  color: var(--color-text);
+.rank-transition__top {
+  font-style: italic;
+}
+
+/* A checkbox and what it means (`<label class="check">`): the box at the start,
+   the words beside it, a second line in .check__text if it needs one. */
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  line-height: var(--line-height-snug);
+  cursor: pointer;
+}
+
+.check input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--color-gold-strong);
+}
+
+.check__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* A part that opens on demand: <details class="disclosure"> with its <summary>,
+   whose chevron (ChevronRightIcon) turns down when it is open. */
+.disclosure > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  list-style: none;
+  color: var(--color-accent-text);
   font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary svg {
+  flex-shrink: 0;
+  transition: transform var(--duration) ease;
+}
+
+.disclosure[open] > summary svg {
+  transform: rotate(90deg);
+}
+
+.disclosure__body {
+  padding-top: var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclosure > summary svg {
+    transition: none;
+  }
 }
 
 /* The way back to the page above. */
@@ -966,7 +1155,6 @@ select:not([multiple]):not([size]) {
   gap: var(--space-1);
   min-width: 0;
 }
-
 
 .page-header__title-row {
   display: flex;
@@ -1092,6 +1280,12 @@ select:not([multiple]):not([size]) {
 .pager {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+/* At the foot of a flush card (Pagination flush). */
+.pager--foot {
+  padding: var(--space-3) var(--card-pad);
+  border-top: 1px solid var(--color-border);
 }
 
 .pager__buttons {

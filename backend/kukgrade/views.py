@@ -17,6 +17,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from accounts.password_policy import policy as password_policy
+from data_imports.mappings import STANDARD_TEMPLATE_HEADERS
+from data_imports.models import COMMITTED_ROWS_KEPT_FOR, ImportBatch
+from data_imports.parsers import FILE_TYPE_NAMES, MAX_ROWS
+from data_imports.services import ALLOWED_SUFFIXES, IMPORT_STEP_NAMES, ImportStep
+from gradings.serializers import BULK_LINK_LIMIT
+from kukgrade.serializers import ChoiceSerializer
 from students import wksa_ids
 
 
@@ -91,6 +97,42 @@ class DemoSerializer(serializers.Serializer):
     )
 
 
+class ImportStepSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=ImportStep.choices)
+
+
+class ImportKindSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=ImportBatch.Kind.choices)
+    file_types = ChoiceSerializer(
+        many=True,
+        help_text="The file types this kind of import reads: a suffix and its name.",
+    )
+    steps = ImportStepSerializer(
+        many=True,
+        help_text="The steps this kind of import runs through, in order, named.",
+    )
+
+
+class ImportSettingsSerializer(serializers.Serializer):
+    max_bytes = serializers.IntegerField(
+        help_text="The maximum import file size enforced by this deployment, in bytes.",
+    )
+    max_rows = serializers.IntegerField(
+        help_text="The most rows a roster file may have, blank rows included.",
+    )
+    rows_kept_for_days = serializers.IntegerField(
+        help_text="How long a finished import's row-by-row list is kept.",
+    )
+    bulk_link_limit = serializers.IntegerField(
+        help_text="The most past records one link or unlink request takes.",
+    )
+    kinds = ImportKindSerializer(many=True)
+    template_headers = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The header row of the standard roster template.",
+    )
+
+
 class SiteSettingsSerializer(serializers.Serializer):
     club_name = serializers.CharField()
     time_zone = serializers.CharField(
@@ -99,15 +141,37 @@ class SiteSettingsSerializer(serializers.Serializer):
             "'today' is today there."
         ),
     )
-    import_upload_max_bytes = serializers.IntegerField(
-        help_text="The maximum import file size enforced by this deployment, in bytes.",
-    )
+    imports = ImportSettingsSerializer()
     password_policy = PasswordPolicySerializer()
     wksa_id = WksaIdSchemeSerializer()
     demo = DemoSerializer(
         required=False,
         help_text="Present only on the public demo: its accounts and when it resets.",
     )
+
+
+def _imports() -> dict[str, object]:
+    return {
+        "max_bytes": settings.IMPORT_UPLOAD_MAX_BYTES,
+        "max_rows": MAX_ROWS,
+        "rows_kept_for_days": COMMITTED_ROWS_KEPT_FOR.days,
+        "bulk_link_limit": BULK_LINK_LIMIT,
+        "kinds": [
+            {
+                "kind": kind,
+                "file_types": [
+                    {"value": suffix, "label": FILE_TYPE_NAMES[suffix]}
+                    for suffix in suffixes
+                ],
+                "steps": [
+                    {"value": step, "label": name}
+                    for step, name in IMPORT_STEP_NAMES[kind].items()
+                ],
+            }
+            for kind, suffixes in ALLOWED_SUFFIXES.items()
+        ],
+        "template_headers": list(STANDARD_TEMPLATE_HEADERS.values()),
+    }
 
 
 def _demo() -> dict[str, object]:
@@ -148,7 +212,7 @@ def site_settings(_request: Request) -> Response:
             {
                 "club_name": settings.CLUB_NAME,
                 "time_zone": settings.TIME_ZONE,
-                "import_upload_max_bytes": settings.IMPORT_UPLOAD_MAX_BYTES,
+                "imports": _imports(),
                 "password_policy": password_policy(),
                 "wksa_id": wksa_ids.described(),
                 **({"demo": _demo()} if settings.DEMO_MODE else {}),

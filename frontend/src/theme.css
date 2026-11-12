@@ -2,13 +2,12 @@
  * Design tokens for the "Quiet Command" visual direction: warm charcoal and
  * gold, with light and dark themes.
  *
- * Colour is meant to come through these custom properties. Some component
- * stylesheets still carry literal colours with a `[data-theme="dark"] .x`
- * override; those apply because `<html data-theme>` always holds the
- * resolved theme - the Light/Dark/System toggle's choice, or the system
- * preference under System (index.html sets it before first paint and
- * useTheme.ts keeps it current). The media query below covers only the
- * moment before that script runs.
+ * Colour comes only through these custom properties: no other stylesheet
+ * holds a colour or mentions the theme (tokenRules.test.ts). `<html
+ * data-theme>` always holds the resolved theme - the Light/Dark/System
+ * toggle's choice, or the system preference under System (index.html sets
+ * it before first paint and ThemeProvider in useTheme.tsx keeps it
+ * current), so the dark tokens are written once, under `[data-theme="dark"]`.
  */
 
 :root {
@@ -50,9 +49,6 @@
   --btn-primary-bg: #f2a71b;
   --btn-primary-text: #17140f;
   --btn-primary-border: #d6900e;
-  --btn-primary-hover-bg: #e59e19;
-  --btn-primary-hover-border: #b87b0a;
-  --btn-primary-hover-text: #17140f;
   --btn-primary-shadow: 0 2px 8px rgb(197 155 39 / 20%);
 
   /* Reserved for operational meaning - never the sole carrier of
@@ -104,7 +100,6 @@
   /* Elevation, from a resting card to a dialog; the rings and the edge are
      focus and validation marks, not depth. */
   /* The thumb of a switch is white on either theme. */
-  --color-knob: #ffffff;
   --shadow-xs: 0 1px 3px rgb(21 19 15 / 15%);
   --shadow-sm: 0 2px 14px rgb(21 19 15 / 6%);
   --shadow-md: 0 8px 30px rgb(21 19 15 / 8%);
@@ -117,83 +112,14 @@
   --edge-accent: inset 3px 0 0 var(--color-gold);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-sans:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    "Pretendard Variable", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* Layered charcoal, not an inversion of the light palette: no pure-black
    panels, neon glow or large gold fills. Surfaces sit one step
    lighter than the page so cards still read as distinct objects. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-page-bg: #16130f;
-    --color-surface: #221e18;
-    --color-surface-sunken: #1c1914;
-    --color-field: #2c2720;
-    --color-rail: #241f18;
-    --color-rail-border: #3a3226;
-    --color-border: #332d24;
-
-    --color-text: #f3efe6;
-    --color-text-muted: #a39c8c;
-    --color-text-on-ink: #f3efe6;
-    --color-text-on-ink-muted: #a39c8c;
-
-    --color-gold: #f2a71b;
-    --color-gold-strong: #ffbb3d;
-    --color-on-gold: #17140f;
-    --color-focus-ring: rgb(242 167 27 / 45%);
-
-    --color-accent: #ffbb3d;
-    --color-accent-strong: #ffd073;
-    --color-accent-text: #ffbb3d;
-
-    /* Primary Action Buttons: switched colour scheme for dark mode, highly legible, easy on the eyes */
-    --btn-primary-bg: #e8a838;
-    --btn-primary-text: #14110c;
-    --btn-primary-border: #ffbb3d;
-    --btn-primary-hover-bg: #ffbb3d;
-    --btn-primary-hover-border: #ffd073;
-    --btn-primary-hover-text: #0e0c08;
-    --btn-primary-shadow: 0 2px 12px rgb(232 168 56 / 25%);
-
-    --color-success: #4cbf84;
-    --color-success-surface: #1d3227;
-    --color-warning: #e8a93b;
-    --color-warning-surface: #3a2e17;
-    --color-danger: #f27a6e;
-    --color-danger-surface: #3a1f1b;
-    /* Text on a filled status colour. */
-    --color-on-success: #14110c;
-    --color-on-danger: #14110c;
-
-    --color-status-draft: #a5b4fc;
-    --color-status-draft-surface: #1e1b4b;
-    --color-status-draft-border: #3730a3;
-    --color-status-open: #4ade80;
-    --color-status-open-surface: #052e16;
-    --color-status-open-border: #166534;
-    --color-status-locked: #fbbf24;
-    --color-status-locked-surface: #1c1200;
-    --color-status-locked-border: #78350f;
-    --color-status-completed: #2dd4bf;
-    --color-status-completed-surface: #012723;
-    --color-status-completed-border: #0f5c4a;
-    --color-status-cancelled: #f87171;
-    --color-status-cancelled-surface: #2d0707;
-    --color-status-cancelled-border: #7f1d1d;
-    --color-info: #93c5fd;
-    --color-info-surface: #1b2a44;
-    --color-info-border: #2c4470;
-    --color-scrim: rgb(15 23 42 / 62%);
-
-    --color-scrollbar-track: #181511;
-    --color-scrollbar-thumb: #786650;
-    --color-scrollbar-thumb-hover: #d6900e;
-  }
-}
-
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --color-page-bg: #16130f;
   --color-surface: #221e18;
   --color-surface-sunken: #1c1914;
@@ -220,9 +146,6 @@
   --btn-primary-bg: #e8a838;
   --btn-primary-text: #14110c;
   --btn-primary-border: #ffbb3d;
-  --btn-primary-hover-bg: #ffbb3d;
-  --btn-primary-hover-border: #ffd073;
-  --btn-primary-hover-text: #0e0c08;
   --btn-primary-shadow: 0 2px 12px rgb(232 168 56 / 25%);
 
   --color-success: #4cbf84;

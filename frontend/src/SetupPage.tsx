@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { PasswordToggle } from "./PasswordToggle";
 import { useServerForm } from "./forms";
 
-import { ErrorText } from "./ErrorText";
+import { Field } from "./Field";
 import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
@@ -10,7 +11,6 @@ import { PasswordRequirements } from "./PasswordRequirements";
 import { Button } from "./Button";
 
 const FIELDS = ["code", "email", "first_name", "last_name", "password", "confirm"] as const;
-type Field = (typeof FIELDS)[number];
 
 /**
  * A new deployment's first screen: creating the main administrator.
@@ -30,44 +30,21 @@ export function SetupPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPasswords, setShowPasswords] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useServerForm(FIELDS);
-  const fieldErrors: Partial<Record<Field, string[]>> = form.fields;
+  const submit = useMutation({
+    mutationFn: () => setUp({ code, email, first_name: firstName, last_name: lastName, password }),
+    onError: (error) => form.handle(error, "KukGrade could not be set up. Try again in a moment."),
+  });
+  const isSubmitting = submit.isPending;
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     form.reset();
     if (password !== confirm) {
       form.setClientErrors({ confirm: ["The passwords do not match."] });
       return;
     }
-
-    setIsSubmitting(true);
-    try {
-      await setUp({
-        code,
-        email,
-        first_name: firstName,
-        last_name: lastName,
-        password,
-      });
-    } catch (submitError) {
-      form.handle(submitError, "KukGrade could not be set up. Try again in a moment.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  function errorsFor(field: Field) {
-    return fieldErrors[field]?.map((message) => (
-      <ErrorText field announce={false} id={`setup-${field}-error`} key={message}>
-        {message}
-      </ErrorText>
-    ));
-  }
-
-  function described(field: Field) {
-    return fieldErrors[field] ? `setup-${field}-error` : undefined;
+    submit.mutate();
   }
 
   const inputType = showPasswords ? "text" : "password";
@@ -79,8 +56,7 @@ export function SetupPage() {
         <section className="login-content" aria-labelledby="setup-title">
           <h1 id="setup-title">Set up KukGrade</h1>
           <p className="login-subtitle">
-            Create the main administrator account. You will need the setup code from the
-            server&rsquo;s log.
+            Create the main administrator account. You will need the setup code from the server&rsquo;s log.
           </p>
 
           <div className="setup-theme">
@@ -91,110 +67,101 @@ export function SetupPage() {
             </p>
           </div>
 
-          <form className="login-form" onSubmit={handleSubmit}>
-            <label className="field field--sentence">
-              <span>Setup code</span>
-              <input
-                aria-describedby={described("code")}
-                aria-invalid={Boolean(fieldErrors.code)}
-                autoCapitalize="characters"
-                autoComplete="off"
-                name="code"
-                onChange={(event) => setCode(event.target.value)}
-                required
-                spellCheck={false}
-                value={code}
-              />
-            </label>
-            {errorsFor("code")}
-            <label className="field field--sentence">
-              <span>Email address</span>
-              <input
-                aria-describedby={described("email")}
-                aria-invalid={Boolean(fieldErrors.email)}
-                autoComplete="email"
-                name="email"
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                type="email"
-                value={email}
-              />
-            </label>
-            {errorsFor("email")}
+          <form className="stack stack--4" onSubmit={handleSubmit}>
+            <Field label="Setup code" error={form.errorFor("code")}>
+              {(control) => (
+                <input
+                  {...control}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  name="code"
+                  onChange={(event) => setCode(event.target.value)}
+                  required
+                  spellCheck={false}
+                  value={code}
+                />
+              )}
+            </Field>
+            <Field label="Email address" error={form.errorFor("email")}>
+              {(control) => (
+                <input
+                  {...control}
+                  autoComplete="email"
+                  name="email"
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  type="email"
+                  value={email}
+                />
+              )}
+            </Field>
             <div className="setup-name-row">
-              <div>
-                <label className="field field--sentence">
-                  <span>First name</span>
+              <Field label="First name" error={form.errorFor("first_name")}>
+                {(control) => (
                   <input
-                    aria-describedby={described("first_name")}
+                    {...control}
                     autoComplete="given-name"
                     name="first_name"
                     onChange={(event) => setFirstName(event.target.value)}
+                    required
                     value={firstName}
                   />
-                </label>
-                {errorsFor("first_name")}
-              </div>
-              <div>
-                <label className="field field--sentence">
-                  <span>Last name</span>
+                )}
+              </Field>
+              <Field label="Last name" error={form.errorFor("last_name")}>
+                {(control) => (
                   <input
-                    aria-describedby={described("last_name")}
+                    {...control}
                     autoComplete="family-name"
                     name="last_name"
                     onChange={(event) => setLastName(event.target.value)}
+                    required
                     value={lastName}
                   />
-                </label>
-                {errorsFor("last_name")}
-              </div>
+                )}
+              </Field>
             </div>
-            <label className="field field--sentence">
-              <span>Password</span>
-              <div className="password-field">
-                {/* Named here, not by the label that also holds the button. */}
+            <Field label="Password" error={form.errorFor("password")}>
+              {(control) => (
+                <div className="password-field">
+                  <input
+                    {...control}
+                    autoComplete="new-password"
+                    name="password"
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                    type={inputType}
+                    value={password}
+                  />
+                  <PasswordToggle
+                    noun="passwords"
+                    onToggle={() => setShowPasswords((previous) => !previous)}
+                    shown={showPasswords}
+                  />
+                </div>
+              )}
+            </Field>
+            <PasswordRequirements password={password} />
+            <Field label="Confirm password" error={form.errorFor("confirm")}>
+              {(control) => (
                 <input
-                  aria-describedby={described("password")}
-                  aria-invalid={Boolean(fieldErrors.password)}
-                  aria-label="Password"
+                  {...control}
                   autoComplete="new-password"
-                  name="password"
-                  onChange={(event) => setPassword(event.target.value)}
+                  name="confirm"
+                  onChange={(event) => setConfirm(event.target.value)}
                   required
                   type={inputType}
-                  value={password}
+                  value={confirm}
                 />
-                <PasswordToggle noun="passwords" onToggle={() => setShowPasswords((previous) => !previous)} shown={showPasswords} />
-              </div>
-            </label>
-            {errorsFor("password")}
-            <PasswordRequirements password={password} />
-            <label className="field field--sentence">
-              <span>Confirm password</span>
-              <input
-                aria-describedby={described("confirm")}
-                aria-invalid={Boolean(fieldErrors.confirm)}
-                autoComplete="new-password"
-                name="confirm"
-                onChange={(event) => setConfirm(event.target.value)}
-                required
-                type={inputType}
-                value={confirm}
-              />
-            </label>
-            {errorsFor("confirm")}
-            {form.banner ? (
-              <Alert>
-                {form.banner}
-              </Alert>
-            ) : null}
+              )}
+            </Field>
+            {form.banner ? <Alert>{form.banner}</Alert> : null}
             <Button variant="primary" disabled={isSubmitting} type="submit">
               {isSubmitting ? "Setting up" : "Create administrator"}
             </Button>
           </form>
           <p className="login-security-note meta">
-            This page is shown once. After setup, every other account is added from the Users
-            screen.
+            This page is shown once. After setup, every other account is added from the Users screen.
           </p>
         </section>
       </div>

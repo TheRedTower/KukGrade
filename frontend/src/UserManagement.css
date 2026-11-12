@@ -1,17 +1,8 @@
-
 .users-form-grid input:focus,
 .users-form-grid select:focus,
 .user-authority-options input:focus-visible {
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
-}
-
-.users-dialog-form label > span,
-.users-issued-password-value span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-title);
-  letter-spacing: var(--tracking-label);
 }
 
 .users-info-note {
@@ -24,22 +15,12 @@
   padding: var(--space-3) var(--space-4);
 }
 
-.users-info-note > span {
-  display: grid;
-  place-items: center;
+/* A .mark--small, in the text's colour. */
+.users-info-note > .mark {
   width: 1.25rem;
   height: 1.25rem;
-  border-radius: 50%;
   background: var(--color-text);
   color: var(--color-surface);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-title);
-}
-
-.users-dialog-form,
-.users-password-form {
-  display: grid;
-  gap: var(--space-4);
 }
 
 .users-form-grid {
@@ -48,12 +29,18 @@
   gap: var(--space-4);
 }
 
-.users-form-wide { grid-column: 1 / -1; }
-.users-form-note { margin: 0; }
+.users-form-wide {
+  grid-column: 1 / -1;
+}
+.users-form-note {
+  margin: 0;
+}
 
 /* A temporary password, shown once (TemporaryPasswordIssued.tsx). */
-.users-issued-password { display: grid; gap: var(--space-4); }
-.users-issued-password p { margin: 0; }
+
+.users-issued-password p {
+  margin: 0;
+}
 .users-issued-password-value {
   display: grid;
   gap: var(--space-2);
@@ -62,9 +49,9 @@
   background: var(--color-surface-sunken);
   padding: var(--space-3) var(--space-4);
 }
+/* A .section-title in the inline code's type. */
 .users-issued-password-value code {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xl);
+  padding: 0;
   letter-spacing: var(--tracking-label);
   user-select: all;
 }
@@ -92,8 +79,10 @@
 }
 
 .user-detail-section > p,
-.user-detail-aside p { margin: 0 0 var(--space-4); color: var(--color-text-muted); }
-.user-detail-form { display: grid; gap: var(--space-4); }
+.user-detail-aside p {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+}
 
 .user-authority-options {
   border: 1px solid var(--color-border);
@@ -111,11 +100,18 @@
   padding: var(--space-3);
 }
 
-.user-authority-options label:last-child { border-bottom: 0; }
+.user-authority-options label:last-child {
+  border-bottom: 0;
+}
 .user-authority-options label > span,
 .user-authority-options strong,
-.user-authority-options small { display: block; }
-.user-authority-options small { margin-top: 0.2rem; color: var(--color-text-muted); }
+.user-authority-options small {
+  display: block;
+}
+.user-authority-options small {
+  margin-top: 0.2rem;
+  color: var(--color-text-muted);
+}
 
 .user-authority-options input {
   width: 2.8rem;
@@ -128,12 +124,12 @@
   margin-top: var(--space-3);
 }
 
-.user-authority-footer p { margin: 0; }
+.user-authority-footer p {
+  margin: 0;
+}
 
 .user-activity-list {
-  list-style: none;
   margin: 0 0 var(--space-4);
-  padding: 0;
 }
 
 .user-activity-list li {
@@ -149,15 +145,15 @@
 }
 
 /* Holds the user page's forms so a view-only account disables them all. */
-.user-detail-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.user-detail-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
 
 .users-email,
 .users-authority-summary {
   display: block;
   color: var(--color-text-muted);
-}
-
-.users-ledger {
-  display: grid;
-  gap: var(--space-4);
 }

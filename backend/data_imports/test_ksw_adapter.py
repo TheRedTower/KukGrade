@@ -217,12 +217,12 @@ def test_empty_comments_are_an_empty_string_not_none() -> None:
 
 def test_free_form_outcome_is_preserved_unresolved() -> None:
     content = standard_workbook(
-        [["A. Example", "White", "Yellow Stripe", "Testing? JKN Adi: No", ""]],
+        [["A. Example", "White", "Yellow Stripe", "Testing? JKN Example: No", ""]],
     )
     result = parse_ksw_workbook(content)
 
     row = result.rows[0]
-    assert row.source_outcome_text == "Testing? JKN Adi: No"
+    assert row.source_outcome_text == "Testing? JKN Example: No"
     assert row.outcome is None
     assert row.record_kind == LegacyRecordKind.GRADING_RESULT
 
@@ -466,7 +466,7 @@ def test_a_row_with_no_name_and_anything_above_the_table_are_kept_as_notes() -> 
 
 
 def test_a_row_with_no_name_under_a_side_section_is_kept_as_a_note() -> None:
-    """Review N-05 (2026-11-07): such a row used to be dropped whole."""
+    """Its other cells are kept, not dropped with the missing name."""
     content = sheet(
         ["Name", "Current Rank", "Testing For", "Outcome", "Comments"],
         ["Alex Example", "White", "Yellow Stripe", "Pass", ""],

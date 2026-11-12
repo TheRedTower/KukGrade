@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -17,7 +18,24 @@ from gradings.models import (
     CandidateOutcome,
     GradingSession,
 )
+from gradings.outcome_services import (
+    finalise_candidate_outcome,
+    promote_candidate,
+    propose_for_candidate,
+)
+from gradings.services import transition_grading_session
+from gradings.testing import (
+    assessment,
+    candidate,
+    complete_assessment,
+    grading_session,
+    master,
+    promoter,
+    start_assessment,
+    user,
+)
 from kukgrade.testing import results
+from ranks.models import Rank
 
 pytestmark = pytest.mark.django_db
 
@@ -36,7 +54,10 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     instructor_user = User.objects.create_user(
         email="e2e-instructor@example.com",
         password=password,
+        first_name="Erin",
+        last_name="Marker",
         role=User.Role.INSTRUCTOR,
+        rank=Rank.objects.get(code="KSN"),
     )
     master_user = User.objects.create_user(
         email="e2e-master@example.com",
@@ -147,7 +168,8 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
         assert item_response.status_code == 200
         item_body = item_response.json()
         assert item_body["result"] == CandidateAssessmentItem.Result.MET
-        assert item_body["assessor_email"] == instructor_user.email
+        # By rank and name, never an email address.
+        assert item_body["assessor_name"] == "KSN Erin Marker"
 
     # Every assessment is completed while the session is open; locking then
     # ends grading and opens the decision stage.
@@ -220,3 +242,38 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     assert [promotion["id"] for promotion in rank_history_body["promotions"]] == [
         promote_body["id"]
     ]
+
+
+def test_the_workflow_runs_in_the_order_features_md_gives() -> None:
+    """docs/features.md, "The grading workflow": assess, lock, propose,
+    decide, then complete; promotion while locked or after completion."""
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    complete_assessment(generated)
+    built.refresh_from_db()
+    with pytest.raises(ValidationError, match="locked"):
+        propose_for_candidate(
+            built, CandidateOutcome.Outcome.PASS, "", user("order-early@example.com")
+        )
+
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    built.refresh_from_db()
+    outcome = propose_for_candidate(
+        built, CandidateOutcome.Outcome.PASS, "", user("order-proposer@example.com")
+    )
+    with pytest.raises(ValidationError, match="finalised outcome"):
+        transition_grading_session(session, GradingSession.Status.COMPLETED)
+
+    outcome = finalise_candidate_outcome(
+        outcome,
+        CandidateOutcome.Outcome.PASS,
+        "",
+        "",
+        master("order-master@example.com"),
+    )
+    transition_grading_session(session, GradingSession.Status.COMPLETED)
+    promotion = promote_candidate(outcome, promoter("order-promoter@example.com"))
+
+    assert promotion.to_rank_id == built.testing_for_rank_id

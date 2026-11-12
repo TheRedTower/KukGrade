@@ -40,11 +40,11 @@
 
 .nav-brand:focus-visible,
 .nav-link:focus-visible,
-.nav-icon-button:focus-visible,
+.nav-tool:focus-visible,
 .nav-person-link:focus-visible,
 .nav-collapse:focus-visible,
 .nav-about-line a:focus-visible,
-.nav-menu-button:focus-visible {
+.nav-menu:focus-visible {
   outline: 2px solid var(--color-gold);
   outline-offset: 2px;
 }
@@ -54,27 +54,26 @@
   max-width: 100%;
 }
 
+/* A .mark--large, square-cornered, in gold. */
 .nav-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
   border-radius: var(--radius-control);
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-title);
 }
 
-.nav-menu-button {
+/* A ghost button (Button), in the rail's colours; on a phone only. */
+.nav-menu {
   display: none;
-  border: 1px solid var(--color-rail-border);
-  border-radius: var(--radius-control);
+  border-color: var(--color-rail-border);
   background: var(--color-rail-wash);
   color: var(--color-text-on-ink);
-  font-weight: var(--font-weight-strong);
-  padding: 0 var(--space-4);
+}
+
+.nav-menu:hover:not(:disabled) {
+  border-color: var(--color-rail-border);
+  background: var(--color-rail-wash-strong);
 }
 
 .nav-panel {
@@ -85,27 +84,18 @@
   min-height: 0;
 }
 
+/* A .mark--small, in gold, holding initials. */
 .avatar-circle {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 50%;
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-title);
   letter-spacing: var(--tracking-label);
 }
 
 .nav-eyebrow {
-  margin: 0;
   color: var(--color-text-on-ink-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
   letter-spacing: var(--tracking-display);
-  text-transform: uppercase;
 }
 
 /* Everything in the sidebar starts on one inner edge: a link's icon, the
@@ -124,27 +114,17 @@
 
 .nav-club-name {
   margin-top: 0.15rem;
-  font-weight: var(--font-weight-strong);
+  color: inherit;
 }
 
-.nav-links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
+/* A .menu-link, in the rail's colours. */
 .nav-link {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
   min-height: 2.9rem;
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-control);
   color: var(--color-text-on-ink-muted);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
-  transition: color var(--duration) ease, background-color var(--duration) ease;
+  transition:
+    color var(--duration) ease,
+    background-color var(--duration) ease;
 }
 
 .nav-link:hover {
@@ -204,42 +184,35 @@
   gap: 0.15rem;
 }
 
+/* A .subtext: the name an .item-title, the role a .meta, in the rail's colours. */
 .nav-person-text {
   display: flex;
   flex-direction: column;
+  color: inherit;
   line-height: var(--line-height-tight);
 }
 
 .nav-person-name {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
+  color: inherit;
 }
 
 .nav-person-role {
   color: var(--color-text-on-ink-muted);
-  font-size: var(--font-size-xs);
 }
 
-.nav-icon-button {
-  display: inline-flex;
+/* A ghost icon button (btn--icon), in the rail's colours. */
+.nav-tool {
   flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: var(--target-min);
-  height: var(--target-min);
   border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
   color: var(--color-text-on-ink-muted);
-  text-decoration: none;
 }
 
-.nav-icon-button:hover:not(:disabled) {
+.nav-tool:hover:not(:disabled) {
   background: var(--color-rail-wash-strong);
   color: var(--color-text-on-ink);
 }
 
-.nav-icon-button.active {
+.nav-tool.active {
   color: var(--color-gold);
 }
 
@@ -251,15 +224,6 @@
   margin: 0;
   padding: 0 var(--space-3);
   color: var(--color-text-on-ink-muted);
-  font-size: var(--font-size-sm);
-}
-
-/* Each dot travels with the link after it, outside the link, so a line
-   never ends on one and the dot is never underlined or clickable. */
-.nav-about-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 
 .nav-about-line a {
@@ -267,7 +231,6 @@
   align-items: center;
   min-height: var(--target-min);
   color: var(--color-text-on-ink-muted);
-  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 
@@ -276,22 +239,19 @@
   text-decoration: underline;
 }
 
+/* A small ghost button (Button), across the rail's foot, in its colours. */
 .nav-collapse {
-  display: flex;
-  align-items: center;
+  justify-content: flex-start;
   gap: var(--space-3);
   width: 100%;
   border: 0;
   border-top: 1px solid var(--color-rail-border);
   border-radius: 0 0 var(--radius-control) var(--radius-control);
-  background: transparent;
   color: var(--color-text-on-ink-muted);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
   padding: 0 var(--space-3);
 }
 
-.nav-collapse:hover {
+.nav-collapse:hover:not(:disabled) {
   color: var(--color-text-on-ink);
   background: var(--color-rail-wash);
 }
@@ -332,7 +292,6 @@
 .nav-rail.strip .avatar-circle {
   width: 2rem;
   height: 2rem;
-  font-size: var(--font-size-xs);
 }
 
 @media (max-width: 56rem) {
@@ -354,9 +313,8 @@
     overscroll-behavior: auto;
   }
 
-  .nav-menu-button {
+  .nav-menu {
     display: inline-flex;
-    align-items: center;
   }
 
   .nav-panel {

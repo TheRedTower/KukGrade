@@ -25,7 +25,16 @@ interface DialogProps {
  * is open. Focus starts on the first control, or on a child marked data-dialog-autofocus (a destructive
  * confirmation marks Cancel); it stays inside, and Escape or a click outside closes it.
  */
-export function Dialog({ title, eyebrow, closeLabel = "Close", onClose, canClose = true, closeOnBackdrop = true, closeButton = true, children }: DialogProps) {
+export function Dialog({
+  title,
+  eyebrow,
+  closeLabel = "Close",
+  onClose,
+  canClose = true,
+  closeOnBackdrop = true,
+  closeButton = true,
+  children,
+}: DialogProps) {
   const titleId = useId();
   const ref = useDialogFocus<HTMLElement>({ isOpen: true, onClose, canClose });
   return (
@@ -36,18 +45,13 @@ export function Dialog({ title, eyebrow, closeLabel = "Close", onClose, canClose
         if (canClose && closeOnBackdrop && event.target === event.currentTarget) onClose();
       }}
     >
-      <section
-        ref={ref}
-        tabIndex={-1}
-        className="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
+      <section ref={ref} tabIndex={-1} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="dialog__header">
           <div className="dialog__title">
             {eyebrow && <p className="dialog__eyebrow">{eyebrow}</p>}
-            <h2 className="dialog__heading" id={titleId}>{title}</h2>
+            <h2 className="dialog__heading" id={titleId}>
+              {title}
+            </h2>
           </div>
           {closeButton && (
             <Button variant="ghost" onClick={onClose} aria-label={closeLabel} disabled={!canClose}>

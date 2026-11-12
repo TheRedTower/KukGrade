@@ -1,4 +1,5 @@
 import type { ComponentProps, ElementType } from "react";
+import { cx } from "./cx";
 
 interface ErrorTextProps extends ComponentProps<"p"> {
   /** The element to draw, when a paragraph does not fit (a list item, or text inside a line). */
@@ -15,5 +16,11 @@ interface ErrorTextProps extends ComponentProps<"p"> {
  * action. Give it the `id` the control points at with aria-describedby.
  */
 export function ErrorText({ as: Tag = "p", field, announce = true, className, role, ...rest }: ErrorTextProps) {
-  return <Tag className={["error-text", field ? "error-text--field" : "", className].filter(Boolean).join(" ")} role={role ?? (announce ? "alert" : undefined)} {...rest} />;
+  return (
+    <Tag
+      className={cx("error-text", field && "error-text--field", className)}
+      role={role ?? (announce ? "alert" : undefined)}
+      {...rest}
+    />
+  );
 }

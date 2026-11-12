@@ -209,9 +209,9 @@ def finalised_outcome(
     )
 
 
-def auth_client(email: str = "grading-api@example.com") -> APIClient:
+def auth_client(email: str = "grading-api@example.com", **overrides: Any) -> APIClient:
     client = APIClient()
-    client.force_authenticate(user=user(email))
+    client.force_authenticate(user=user(email, **overrides))
     return client
 
 
@@ -249,12 +249,5 @@ def locked_session_with_undecided_candidate() -> tuple[
 ]:
     # Graded but with no decision yet - the only state a candidate can be in
     # once a session locks, since locking requires every assessment complete.
-    session = grading_session(status=GradingSession.Status.OPEN)
-    built = candidate(session=session)
-    generated = assessment(candidate=built)
-    start_assessment(generated)
-    complete_assessment(generated)
-    transition_grading_session(session, GradingSession.Status.LOCKED)
-    session.refresh_from_db()
-    built.refresh_from_db()
-    return session, built
+    built, _ = locked_completed_candidate()
+    return GradingSession.objects.get(pk=built.session_id), built

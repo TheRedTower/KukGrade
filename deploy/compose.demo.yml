@@ -1,7 +1,10 @@
 # The public demo site: made-up data, shared sign-ins, wiped every few hours.
 # Read docs/demo.md first. Run it on a machine of its own, not beside a real
 # KukGrade.
-#   KUKGRADE_HOST=demo.example.org docker compose -f compose.demo.yml up -d
+#   KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.10 \
+#     docker compose -f compose.demo.yml up -d
+# KUKGRADE_VERSION is the image tag. There is no `latest` until the first
+# stable release, so it has no default yet.
 #
 # It brings no tunnel or proxy of its own: connect the one you already run to
 # the network "kukgrade-demo" and point its public hostname at
@@ -15,7 +18,7 @@ services:
   demo:
     # A fixed name, so the tunnel can find it on the network.
     container_name: kukgrade-demo
-    image: ghcr.io/theredtower/kukgrade:${KUKGRADE_VERSION:-latest}
+    image: ghcr.io/theredtower/kukgrade:${KUKGRADE_VERSION:?Set KUKGRADE_VERSION to the image tag}
     restart: unless-stopped
     stop_grace_period: 45s
     user: "10001:10001"

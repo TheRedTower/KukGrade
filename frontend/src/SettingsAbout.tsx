@@ -24,7 +24,7 @@ export function SettingsAbout() {
     <div className="split split--rail">
       <nav aria-label="About sections" className="card card--flush split__aside ab-rail">
         {SECTIONS.map((section) => (
-          <NavLink end={section.end} key={section.to} to={section.to}>
+          <NavLink className="menu-link" end={section.end} key={section.to} to={section.to}>
             {section.label}
           </NavLink>
         ))}
@@ -38,7 +38,7 @@ export function SettingsAbout() {
           </p>
         ) : null}
       </nav>
-      <div className="ab-main">
+      <div className="stack stack--4 ab-main">
         <Routes>
           <Route element={<AboutOverview />} index />
           <Route element={<AboutLicence />} path="licence" />

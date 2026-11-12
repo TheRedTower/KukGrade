@@ -1,4 +1,3 @@
-
 import { type Rank } from "./api";
 import { useRanksQuery } from "./queries";
 import "./Belt.css";

@@ -5,7 +5,11 @@ import { ErrorText } from "./ErrorText";
 
 describe("ErrorText", () => {
   it("is announced at once and carries the id a control points at", () => {
-    render(<ErrorText field id="name-error">Enter a name</ErrorText>);
+    render(
+      <ErrorText field id="name-error">
+        Enter a name
+      </ErrorText>,
+    );
     const error = screen.getByRole("alert");
     expect(error).toHaveTextContent("Enter a name");
     expect(error).toHaveAttribute("id", "name-error");
@@ -15,7 +19,9 @@ describe("ErrorText", () => {
   it("can be another element and keeps a caller's class", () => {
     render(
       <ul>
-        <ErrorText as="li" className="extra">Could not load</ErrorText>
+        <ErrorText as="li" className="extra">
+          Could not load
+        </ErrorText>
       </ul>,
     );
     const item = screen.getByRole("alert");

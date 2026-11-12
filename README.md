@@ -48,7 +48,7 @@ and shows who decided what.
 | | |
 | --- | --- |
 | **Grading sessions** | Draft → Open → Locked → Completed, with a cohort builder that registers a whole mixed-belt group in one step |
-| **Assessment** | Item-level *Met / Not met* with notes, results rolled up by category, attendance confirmed in bulk |
+| **Assessment** | Item-level *Met / Not met* with comments, results rolled up by category, attendance confirmed in bulk |
 | **Decisions** | Instructor proposals, a Master's decision board, Pass / Fail / Conditional, then promotion with permanent rank history |
 | **Students** | Records, status (active, inactive, left), school and national IDs, and one timeline of every grading |
 | **Syllabus** | WKSA charts for the ranks up to Jo Kyo Nim and every age band, held as data, never hard-coded |
@@ -67,15 +67,16 @@ You need [Docker](https://docs.docker.com/get-docker/) with Compose v2 and git.
 git clone https://github.com/TheRedTower/KukGrade.git
 cd KukGrade/deploy
 cp .env.example .env
-docker compose up -d
 ```
 
-The first run pulls the image, which takes a minute or two. There is no `latest` image
-until the first stable release, so first set the `image:` line in `deploy/compose.yml` to the
-newest release candidate under [Releases](https://github.com/TheRedTower/KukGrade/releases)
-(for example `ghcr.io/theredtower/kukgrade:0.2.0-rc.6`). Then:
+There is no `latest` image until the first stable release, so set the `image:` line in
+`deploy/compose.yml` to the newest release candidate under
+[Releases](https://github.com/TheRedTower/KukGrade/releases) (for example
+`ghcr.io/theredtower/kukgrade:0.2.0-rc.10`). Then start it; the first run pulls the image,
+which takes a minute or two:
 
 ```sh
+docker compose up -d
 docker compose logs | grep "setup code"
 ```
 
@@ -91,32 +92,32 @@ Pangolin: see the [installation guide](docs/installation.md). Every setting is i
 
 <table>
   <tr>
-    <td width="50%">
-      <img src="docs/assets/screenshots/session.png" alt="A grading session with its lifecycle and candidates">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/session.png" alt="A grading session with its lifecycle and candidates" width="100%">
       <p align="center"><b>Run a grading session</b><br>Lifecycle, candidates and next actions at a glance</p>
     </td>
-    <td width="50%">
-      <img src="docs/assets/screenshots/assessment.png" alt="Scoring a candidate requirement by requirement">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/assessment.png" alt="Scoring a candidate requirement by requirement" width="100%">
       <p align="center"><b>Assess on the mat</b><br>Mark every requirement, with a live count</p>
     </td>
   </tr>
   <tr>
-    <td width="50%">
-      <img src="docs/assets/screenshots/decisions.png" alt="The Master's final decision board">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/decisions.png" alt="The Master's final decision board" width="100%">
       <p align="center"><b>Decide</b><br>The evidence, the proposal and the final decision, side by side</p>
     </td>
-    <td width="50%">
-      <img src="docs/assets/screenshots/cohort.png" alt="Building a grading cohort">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/cohort.png" alt="Building a grading cohort" width="100%">
       <p align="center"><b>Build a cohort</b><br>Add whole groups, then review exceptions</p>
     </td>
   </tr>
   <tr>
-    <td width="50%">
-      <img src="docs/assets/screenshots/students.png" alt="The student list">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/students.png" alt="The student list" width="100%">
       <p align="center"><b>Know your students</b><br>Search, filter, and see each one's current grading</p>
     </td>
-    <td width="50%">
-      <img src="docs/assets/screenshots/syllabus.png" alt="The syllabus by rank and age band">
+    <td width="50%" valign="top">
+      <img src="docs/assets/screenshots/syllabus.png" alt="The syllabus by rank and age band" width="100%">
       <p align="center"><b>Browse the syllabus</b><br>By rank and age band, cumulative to each rank</p>
     </td>
   </tr>
@@ -130,10 +131,11 @@ Pangolin: see the [installation guide](docs/installation.md). Every setting is i
 flowchart LR
     A[Create session] --> B[Register candidates]
     B --> C[Assess each requirement]
-    C --> D[Instructor proposes]
-    D --> E[Master decides]
-    E --> F[Promote]
-    F --> G[Lock and complete]
+    C --> D[Lock]
+    D --> E[Instructor proposes]
+    E --> F[Master decides]
+    F --> G[Promote]
+    G --> H[Complete]
 ```
 
 ## Documentation
@@ -152,7 +154,7 @@ flowchart LR
 ## Built with
 
 Python 3.14 · Django · Django REST Framework · PostgreSQL 17 · React 19 · TypeScript · Vite ·
-Docker. Fully typed and tested (pytest, Vitest, Ruff, mypy, ESLint), with every API type
+Docker. Fully typed and tested (pytest, Vitest, Ruff, mypy, ESLint, Stylelint, Prettier), with every API type
 generated from one OpenAPI schema.
 
 ## Status

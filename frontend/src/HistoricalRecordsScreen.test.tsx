@@ -15,27 +15,33 @@ const api = vi.hoisted(() => ({
   getStudents: vi.fn(),
   linkLegacyGradingRecord: vi.fn(),
   unlinkLegacyGradingRecord: vi.fn(),
-  resolveLegacyCurrentRank: vi.fn(),
-  resolveLegacyTestingForRank: vi.fn(),
+  resolveLegacyRank: vi.fn(),
   voidLegacyGradingRecord: vi.fn(),
 }));
 
 vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
-  return { ...actual, ...Object.fromEntries(Object.keys(api).map((name) => [name, (...args: unknown[]) => api[name as keyof typeof api](...args)])) };
+  return {
+    ...actual,
+    ...Object.fromEntries(
+      Object.keys(api).map((name) => [name, (...args: unknown[]) => api[name as keyof typeof api](...args)]),
+    ),
+  };
 });
 
 function renderAt(path: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={queryClient}>
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route element={<HistoricalRecordsScreen />} path="/imports/history/:id?" />
-        <Route element={<h1>Imports</h1>} path="/imports" />
-        <Route element={<h1>Linking</h1>} path="/imports/records" />
-      </Routes>
-    </MemoryRouter>
-  </QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<HistoricalRecordsScreen />} path="/imports/history/:id?" />
+          <Route element={<h1>Imports</h1>} path="/imports" />
+          <Route element={<h1>Linking</h1>} path="/imports/records" />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
 }
 
 beforeEach(() => {
@@ -44,7 +50,9 @@ beforeEach(() => {
   api.getLegacyGradingRecords.mockResolvedValue(page([legacyRecord()]));
   api.getLegacyGradingRecord.mockResolvedValue(legacyRecord());
   api.getRanks.mockResolvedValue(page(RANKS));
-  api.getStudents.mockResolvedValue(page([{ id: 32, first_name: "Mia", last_name: "Reynolds", current_rank_name: "Blue", wksa_id: "123-4-032" }]));
+  api.getStudents.mockResolvedValue(
+    page([{ id: 32, first_name: "Mia", last_name: "Reynolds", current_rank_name: "Blue", wksa_id: "123-4-032" }]),
+  );
 });
 
 describe("Historical record recovery", () => {
@@ -67,12 +75,12 @@ describe("Historical record recovery", () => {
   it("can clear a mapped rank and unlink a record from its persistent detail", async () => {
     const user = userEvent.setup();
     api.getLegacyGradingRecord.mockResolvedValue(legacyRecord({ student: 31, student_display_name: "Wrong Student" }));
-    api.resolveLegacyCurrentRank.mockResolvedValue(legacyRecord({ current_rank: null }));
+    api.resolveLegacyRank.mockResolvedValue(legacyRecord({ current_rank: null }));
     api.unlinkLegacyGradingRecord.mockResolvedValue(legacyRecord());
     renderAt("/imports/history/101");
 
     await user.selectOptions(await screen.findByLabelText(/Held rank/), "");
-    await waitFor(() => expect(api.resolveLegacyCurrentRank).toHaveBeenCalledWith(101, null));
+    await waitFor(() => expect(api.resolveLegacyRank).toHaveBeenCalledWith(101, "current_rank", null));
     await user.click(screen.getByRole("button", { name: "Unlink student…" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Unlink student" }));
     await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledWith(101));

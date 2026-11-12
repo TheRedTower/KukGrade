@@ -1,16 +1,17 @@
 import { FormEvent, ReactNode, useState } from "react";
 import { PasswordToggle } from "./PasswordToggle";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
-import { ApiError, type AuthUser, getSetupStatus } from "./api";
+import { ApiError, type AuthUser, getSetupStatus, NETWORK_ERROR } from "./api";
 import { hasSignedInBefore, useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
 import { DemoSignIn } from "./DemoSignIn";
 import { MustChangePassword } from "./MustChangePassword";
 import { SetupPage } from "./SetupPage";
 import { Button } from "./Button";
+import { keys } from "./queryKeys";
 
 /**
  * Where sign-in leads: the page that sent the viewer to it (a session that
@@ -23,6 +24,16 @@ function useReturnPath(): string {
     : "/";
 }
 
+/** Why signing in failed, said plainly. */
+function signInFailure(error: unknown): string {
+  if (!(error instanceof ApiError)) return NETWORK_ERROR;
+  if (error.status === 403) return "Your sign-in could not be checked. Refresh the page and try again.";
+  // The server's own message names how long to wait.
+  if (error.status === 429) return error.message;
+  if (error.status >= 500) return "KukGrade is not responding. Your password may be fine - try again in a moment.";
+  return "Email or password is incorrect.";
+}
+
 function LoginPage() {
   const { login, status } = useAuth();
   const navigate = useNavigate();
@@ -30,44 +41,24 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   // Read once per mount rather than kept in state: this browser's history
   // does not change while the login form is on screen.
   const [isReturningVisitor] = useState(hasSignedInBefore);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void signIn(email, password);
+    signIn(email, password);
   }
 
-  async function signIn(address: string, secret: string) {
-    setError(null);
-    setIsSubmitting(true);
+  const signingIn = useMutation({
+    mutationFn: ({ address, secret }: { address: string; secret: string }) => login(address, secret),
+    onSuccess: () => navigate(returnPath, { replace: true }),
+  });
+  const isSubmitting = signingIn.isPending;
+  const error = signingIn.error ? signInFailure(signingIn.error) : null;
 
-    try {
-      await login(address, secret);
-      navigate(returnPath, { replace: true });
-    } catch (loginError) {
-      if (loginError instanceof ApiError) {
-        if (loginError.status === 403) {
-          setError("Your sign-in could not be checked. Refresh the page and try again.");
-        } else if (loginError.status === 429) {
-          // The server's own message names how long to wait.
-          setError(loginError.message);
-        } else if (loginError.status >= 500) {
-          setError(
-            "KukGrade is not responding. Your password may be fine - try again in a moment.",
-          );
-        } else {
-          setError("Email or password is incorrect.");
-        }
-      } else {
-        setError("KukGrade could not be reached. Check your connection and try again.");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+  function signIn(address: string, secret: string) {
+    signingIn.mutate({ address, secret });
   }
 
   return (
@@ -80,8 +71,8 @@ function LoginPage() {
         <section className="login-content" aria-labelledby="login-title">
           <h1 id="login-title">{isReturningVisitor ? "Welcome back" : "Sign in"}</h1>
           <p className="login-subtitle">Sign in to KukGrade</p>
-          <DemoSignIn busy={status === "loading" || isSubmitting} onSignIn={(a, p) => void signIn(a, p)} />
-          <form className="login-form" onSubmit={handleSubmit}>
+          <DemoSignIn busy={status === "loading" || isSubmitting} onSignIn={signIn} />
+          <form className="stack stack--4" onSubmit={handleSubmit}>
             <label className="field field--sentence">
               <span>Email address</span>
               <input
@@ -104,15 +95,15 @@ function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                 />
-                <PasswordToggle noun="password" onToggle={() => setShowPassword((previous) => !previous)} shown={showPassword} />
+                <PasswordToggle
+                  noun="password"
+                  onToggle={() => setShowPassword((previous) => !previous)}
+                  shown={showPassword}
+                />
               </div>
             </label>
             {error ? <Alert>{error}</Alert> : null}
-            <Button
-              variant="primary"
-              disabled={status === "loading" || isSubmitting}
-              type="submit"
-            >
+            <Button variant="primary" disabled={status === "loading" || isSubmitting} type="submit">
               {isSubmitting ? "Signing in" : "Sign in"}
             </Button>
           </form>
@@ -136,9 +127,7 @@ function ConnectionErrorPage() {
       <section className="login-panel" aria-labelledby="connection-error-title">
         <p className="eyebrow">KukGrade</p>
         <h1 id="connection-error-title">Can&rsquo;t reach KukGrade</h1>
-        <Alert>
-          {error ?? "Something went wrong."}
-        </Alert>
+        <Alert>{error ?? "Something went wrong."}</Alert>
         <Button variant="primary" onClick={retry}>
           Try again
         </Button>
@@ -207,7 +196,7 @@ export function SetupGate({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const anonymous = status === "anonymous";
   const setup = useQuery({
-    queryKey: ["setupStatus"],
+    queryKey: keys.setupStatus(),
     queryFn: getSetupStatus,
     enabled: anonymous,
   });

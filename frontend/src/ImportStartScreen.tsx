@@ -9,6 +9,7 @@ import {
   type CreateDataImportBatchResponse,
   type DataImportBatch,
   type DataImportKind,
+  type SiteSettings,
   cancelDataImportBatch,
   chooseDataImportSheet,
   createDataImportBatch,
@@ -18,49 +19,17 @@ import {
 import { Alert } from "./Alert";
 import { ErrorText } from "./ErrorText";
 import { ImportStepBar } from "./ImportStepBar";
-import { counted, importKindTitle } from "./importSteps";
-import { downloadStandardTemplate } from "./importTemplate";
+import { importKinds } from "./importKinds";
+import { useTemplateDownload } from "./importTemplate";
 import { useSiteSettingsQuery } from "./queries";
 import "./Imports.css";
 import { Button } from "./Button";
-
-type Guide = { lead: string; fields: { name: string; hint: string; needed: boolean }[]; foot: string };
-
-const GUIDES: Record<DataImportKind, Guide> = {
-  STUDENT_ROSTER: {
-    lead:
-      "One student per row, with a heading on each column. The headings do not need to match: you pair them up next.",
-    fields: [
-      { name: "WKSA ID", hint: "Such as 123-4-567, or A-12345 for a black belt", needed: true },
-      { name: "First name", hint: "", needed: true },
-      { name: "Last name", hint: "", needed: true },
-      { name: "Date of birth", hint: "Such as 14/03/2015", needed: true },
-      { name: "Rank", hint: "Can be set once for the whole file", needed: true },
-      { name: "Status", hint: "Active, Inactive or Left. Active if not given", needed: false },
-    ],
-    foot:
-      "Anything missing can be typed in before importing, and any other column can be kept as extra information on the student.",
-  },
-  LEGACY_GRADINGS: {
-    lead:
-      "The grading record workbook, one sheet per grading. In Google Sheets, use File, Download, Microsoft Excel.",
-    fields: [
-      { name: "Name", hint: "As written in the sheet, often a first name only", needed: true },
-      { name: "Outcome", hint: "Pass, Fail, Conditional or Did not attend", needed: false },
-      { name: "Rank held", hint: "Such as Yellow Belt or DBN", needed: false },
-      { name: "Rank tested for", hint: "A “?” is kept as doubtful", needed: false },
-      { name: "Comments", hint: "Kept in full as the grading report", needed: false },
-    ],
-    foot: "Side tables such as Did not attend, and notes anywhere on a sheet, are kept too.",
-  },
-};
+import { keys } from "./queryKeys";
+import { CheckIcon, ChevronRightIcon, ExclamationIcon, UploadIcon } from "./Icons";
+import { cx } from "./cx";
 
 function parseKind(value: string | null): DataImportKind {
   return value === "LEGACY_GRADINGS" ? "LEGACY_GRADINGS" : "STUDENT_ROSTER";
-}
-
-function allowedSuffixes(kind: DataImportKind): string[] {
-  return kind === "STUDENT_ROSTER" ? ["xlsx", "csv"] : ["xlsx"];
 }
 
 function suffixOf(name: string): string {
@@ -68,7 +37,9 @@ function suffixOf(name: string): string {
 }
 
 function fileSize(bytes: number): string {
-  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function sizeLimit(bytes: number): string {
@@ -77,11 +48,21 @@ function sizeLimit(bytes: number): string {
 }
 
 /** Why the browser can refuse a file before sending it, or null. */
-function clientRefusal(file: File, kind: DataImportKind, maxBytes: number | undefined): string | null {
-  if (!allowedSuffixes(kind).includes(suffixOf(file.name))) {
-    return kind === "STUDENT_ROSTER"
-      ? "Choose an Excel (.xlsx) or CSV (.csv) file."
-      : "Choose the workbook as an Excel (.xlsx) file.";
+type FileTypes = SiteSettings["imports"]["kinds"][number]["file_types"];
+
+/** The file types in a phrase: "Excel (.xlsx) or CSV (.csv)". */
+function typeWords(types: FileTypes): string {
+  return types.map((type) => `${type.label} (.${type.value})`).join(" or ");
+}
+
+function clientRefusal(
+  file: File,
+  kind: DataImportKind,
+  types: FileTypes,
+  maxBytes: number | undefined,
+): string | null {
+  if (types.length && !types.some((type) => type.value === suffixOf(file.name))) {
+    return importKinds[kind].wrongType(typeWords(types));
   }
   if (maxBytes !== undefined && file.size > maxBytes) {
     return `The file is larger than ${sizeLimit(maxBytes)}.`;
@@ -97,45 +78,23 @@ function uploadFailure(error: unknown): string {
   return errorMessage(error, "The file could not be read. Try again in a moment.");
 }
 
-function ChevronIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="16">
-      <path d="m9 18 6-6-6-6" />
-    </svg>
-  );
-}
-
-function UploadIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="40" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="40">
-      <path d="M12 15V4" />
-      <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
-      <path d="M3 15v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-3" />
-    </svg>
-  );
-}
-
 function GuideList({ kind }: { kind: DataImportKind }) {
-  const guide = GUIDES[kind];
+  const guide = importKinds[kind].guide;
   return (
     <>
       <p className="subtext">{guide.lead}</p>
-      <ul className="ix-guide-list">
+      <ul className="list-plain ix-guide-list">
         {guide.fields.map((field) => (
           <li key={field.name}>
             <span>
               <p className="item-title">{field.name}</p>
               {field.hint ? <p className="subtext">{field.hint}</p> : null}
             </span>
-            <Badge tone={field.needed ? "info" : "neutral"}>
-              {field.needed ? "Needed" : kind === "STUDENT_ROSTER" ? "Optional" : "If present"}
-            </Badge>
+            <Badge tone={field.needed ? "info" : "neutral"}>{field.needed ? "Needed" : guide.optional}</Badge>
           </li>
         ))}
       </ul>
-      <p className="ix-flush">
-        {guide.foot}
-      </p>
+      <p className="ix-flush">{guide.foot}</p>
     </>
   );
 }
@@ -161,59 +120,23 @@ function FoundChecklist({
       detail: `${fileSize(batch.file_size)}${limit ? `, under the ${limit} limit` : ""}.`,
     },
   ];
-  if (kind === "STUDENT_ROSTER") {
-    items.push(
-      {
-        ok: batch.row_counts.total > 0,
-        title: counted(batch.row_counts.total, "row of students", "rows of students"),
-        detail: batch.sheet
-          ? `Read from the sheet “${batch.sheet}”. Blank rows are left out.`
-          : "Blank rows are left out.",
-      },
-      {
-        ok: true,
-        title: counted(batch.detected_headers.length, "column", "columns"),
-        detail: "You match them to KukGrade in the next step.",
-      },
-    );
-  } else {
-    items.push(
-      {
-        ok: batch.grading_sheets.length > 0,
-        title: counted(batch.grading_sheets.length, "grading sheet", "grading sheets"),
-        detail: batch.grading_sheets.length
-          ? `Each sheet holds one grading: ${batch.grading_sheets.join(", ")}.`
-          : "No sheet named for a grading was found.",
-      },
-      {
-        ok: batch.row_counts.total > 0,
-        title: counted(batch.row_counts.total, "record", "records"),
-        detail: "Including side tables such as Did not attend, and sheet notes.",
-      },
-    );
-    for (const warning of batch.warnings) {
-      items.push({ ok: false, title: "Something was left out", detail: warning });
-    }
-  }
+  items.push(...importKinds[kind].found(batch));
   if (created.already_imported_warning) {
     items.push({
       ok: false,
       title: "This exact file has been imported before",
-      detail:
-        kind === "STUDENT_ROSTER"
-          ? "Anyone already in KukGrade is skipped, so nobody is added twice."
-          : "Its records would be imported a second time. Check before you go on.",
+      detail: importKinds[kind].alreadyImported,
     });
   }
 
   return (
     <div>
       <h3 className="ix-h3">What KukGrade found</h3>
-      <ul className="ix-checklist">
+      <ul className="list-plain ix-checklist">
         {items.map((item) => (
           <li key={item.title}>
-            <span aria-hidden="true" className={`mark ${item.ok ? "mark--success" : "mark--warning"}`}>
-              {item.ok ? "✓" : "!"}
+            <span aria-hidden="true" className="mark" data-tone={item.ok ? "success" : "warning"}>
+              {item.ok ? <CheckIcon /> : <ExclamationIcon />}
             </span>
             <span>
               <p className="item-title">{item.title}</p>
@@ -232,7 +155,10 @@ export function ImportStartScreen() {
   const kind = parseKind(searchParams.get("kind"));
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const maxBytes = useSiteSettingsQuery().data?.import_upload_max_bytes;
+  const imports = useSiteSettingsQuery().data?.imports;
+  const template = useTemplateDownload();
+  const maxBytes = imports?.max_bytes;
+  const types = imports?.kinds.find((served) => served.kind === kind)?.file_types ?? [];
   const limit = maxBytes === undefined ? undefined : sizeLimit(maxBytes);
   const inputRef = useRef<HTMLInputElement>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -244,27 +170,27 @@ export function ImportStartScreen() {
     mutationFn: (file: File) => createDataImportBatch(file, kind),
     onSuccess: (response) => {
       setCreated(response);
-      void queryClient.invalidateQueries({ queryKey: ["imports"] });
+      void queryClient.invalidateQueries({ queryKey: keys.imports.all() });
     },
   });
   const batchId = created?.id;
   const batch = useQuery({
-    queryKey: ["imports", "batch", batchId],
+    queryKey: keys.imports.batch(batchId),
     queryFn: () => getDataImportBatch(batchId!),
     enabled: batchId !== undefined,
   });
   const sheet = useMutation({
     mutationFn: (name: string) => chooseDataImportSheet(batchId!, name),
-    onSuccess: (updated) => queryClient.setQueryData(["imports", "batch", batchId], updated),
+    onSuccess: (updated) => queryClient.setQueryData(keys.imports.batch(batchId), updated),
   });
   const discard = useMutation({
     mutationFn: (id: number) => cancelDataImportBatch(id),
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: ["imports"] }),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: keys.imports.all() }),
   });
 
   function take(file: File | undefined) {
     if (!file || upload.isPending) return;
-    const reason = clientRefusal(file, kind, maxBytes);
+    const reason = clientRefusal(file, kind, types, maxBytes);
     setRefusal(reason);
     upload.reset();
     if (!reason) upload.mutate(file);
@@ -301,17 +227,18 @@ export function ImportStartScreen() {
       : batch.isError
         ? errorMessage(batch.error, "The file was read, but could not be shown. Try again in a moment.")
         : null);
-  const accept = kind === "STUDENT_ROSTER" ? ".xlsx,.csv" : ".xlsx";
-  const nextName = kind === "STUDENT_ROSTER" ? "Continue to match columns" : "Continue to match ranks";
+  const accept = types.map((type) => `.${type.value}`).join(",");
+  const { addsStudents, chooseLead, match, oneSheet, title } = importKinds[kind];
+  const emptySheet = oneSheet && loaded !== null && (Boolean(loaded.sheet_error) || loaded.row_counts.total === 0);
 
   return (
     <section aria-labelledby="ix-start-title" className="page">
-      <PageHeader back={{ to: "/imports", label: "Imports" }} title={importKindTitle(kind)} titleId="ix-start-title" />
+      <PageHeader back={{ to: "/imports", label: "Imports" }} title={title} titleId="ix-start-title" />
 
-      <ImportStepBar current={0} kind={kind} />
+      <ImportStepBar current="CHOOSE_FILE" kind={kind} />
 
       {loaded && created ? (
-        <section aria-labelledby="ix-your-file" className="card ix-section ix-roomy">
+        <section aria-labelledby="ix-your-file" className="card stack stack--4">
           <h2 className="ix-title ix-flush" id="ix-your-file" tabIndex={-1}>
             Your file
           </h2>
@@ -325,12 +252,13 @@ export function ImportStartScreen() {
             </Button>
           </div>
           <FoundChecklist batch={loaded} created={created} kind={kind} limit={limit} />
-          {kind === "STUDENT_ROSTER" && (loaded.sheet_error || loaded.row_counts.total === 0) ? (
+          {emptySheet ? (
             <Alert tone="warning">
-              {loaded.sheet_error || "This sheet has no student rows."} Choose the sheet containing the roster before continuing.
+              {loaded.sheet_error || "This sheet has no student rows."} Choose the sheet containing the roster before
+              continuing.
             </Alert>
           ) : null}
-          {kind === "STUDENT_ROSTER" && loaded.sheet_names.length > 1 ? (
+          {oneSheet && loaded.sheet_names.length > 1 ? (
             <label className="field field--sentence ix-field-narrow">
               <span>Sheet to read</span>
               <select
@@ -351,44 +279,32 @@ export function ImportStartScreen() {
               </span>
             </label>
           ) : null}
-          {sheet.isError ? (
-            <ErrorText>
-              {errorMessage(sheet.error, "That sheet could not be read.")}
-            </ErrorText>
-          ) : null}
-          <div className="ix-fold">
-            <button
-              aria-controls="ix-guide"
-              aria-expanded={guideOpen}
-              className="ix-disclosure"
-              type="button"
-              onClick={() => setGuideOpen((open) => !open)}
-            >
-              <ChevronIcon />
+          {sheet.isError ? <ErrorText>{errorMessage(sheet.error, "That sheet could not be read.")}</ErrorText> : null}
+          <details
+            className="disclosure ix-fold"
+            open={guideOpen}
+            onToggle={(event) => setGuideOpen(event.currentTarget.open)}
+          >
+            <summary>
+              <ChevronRightIcon />
               What KukGrade looks for
-            </button>
-            {guideOpen ? (
-              <div className="ix-section ix-fold-body" id="ix-guide">
-                <GuideList kind={kind} />
-              </div>
-            ) : null}
-          </div>
+            </summary>
+            <div className="stack stack--3 disclosure__body">
+              <GuideList kind={kind} />
+            </div>
+          </details>
         </section>
       ) : (
         <div className="ix-split">
-          <section aria-labelledby="ix-choose" className="card ix-section ix-roomy">
+          <section aria-labelledby="ix-choose" className="card stack stack--4 stack--fill">
             <div>
               <h2 className="ix-title" id="ix-choose">
                 Choose your file
               </h2>
-              <p className="subtext">
-                {kind === "STUDENT_ROSTER"
-                  ? "A spreadsheet of students, one per row. Nothing is saved until the last step."
-                  : "The grading record workbook, downloaded from Google Sheets as Excel. Nothing is saved until the last step."}
-              </p>
+              <p className="subtext">{chooseLead}</p>
             </div>
             <div
-              className={`ix-drop${dragging ? " ix-drop-active" : ""}`}
+              className={cx("ix-drop", dragging && "ix-drop-active")}
               onDragLeave={() => setDragging(false)}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -397,7 +313,7 @@ export function ImportStartScreen() {
               onDrop={onDrop}
             >
               <span className="subtext">
-                <UploadIcon />
+                <UploadIcon size={40} />
               </span>
               <p className="item-title">Drag your file here</p>
               <p className="subtext">or</p>
@@ -418,24 +334,20 @@ export function ImportStartScreen() {
                 {upload.isPending || (created !== null && batch.isPending) ? "Reading your file…" : "Choose a file"}
               </Button>
               <p className="subtext">
-                {kind === "STUDENT_ROSTER"
-                  ? `Excel (.xlsx) or CSV, ${limit ? `up to ${limit}` : "size checked when uploaded"} and 1,000 rows`
-                  : `Excel (.xlsx), ${limit ? `up to ${limit}` : "size checked when uploaded"}`}
+                {types.length ? `${typeWords(types)}, ` : null}
+                {limit ? `up to ${limit}` : "size checked when uploaded"}
+                {oneSheet && imports ? ` and ${imports.max_rows.toLocaleString("en-GB")} rows` : null}
               </p>
             </div>
-            {fileError ? (
-              <ErrorText className="ix-flush">
-                {fileError}
-              </ErrorText>
-            ) : null}
+            {fileError ? <ErrorText className="ix-flush">{fileError}</ErrorText> : null}
           </section>
-          <aside aria-labelledby="ix-looks-for" className="card ix-sunken ix-section">
+          <aside aria-labelledby="ix-looks-for" className="card ix-sunken stack stack--3">
             <h2 className="ix-minor" id="ix-looks-for">
               What KukGrade looks for
             </h2>
             <GuideList kind={kind} />
-            {kind === "STUDENT_ROSTER" ? (
-              <Button variant="secondary" className="ix-start" onClick={downloadStandardTemplate}>
+            {addsStudents ? (
+              <Button variant="secondary" className="ix-start" disabled={!template.ready} onClick={template.download}>
                 Download the template
               </Button>
             ) : null}
@@ -447,7 +359,7 @@ export function ImportStartScreen() {
         <Button variant="ghost" disabled={discard.isPending} onClick={cancelImport}>
           Cancel import
         </Button>
-        <div className="ix-actions">
+        <div className="row row--wrap">
           {!loaded ? (
             <span className="subtext" id="ix-continue-why">
               Choose a file first.
@@ -456,10 +368,10 @@ export function ImportStartScreen() {
           <Button
             aria-describedby={loaded ? undefined : "ix-continue-why"}
             variant="primary"
-            disabled={!loaded || sheet.isPending || (kind === "STUDENT_ROSTER" && (Boolean(loaded.sheet_error) || loaded.row_counts.total === 0))}
+            disabled={!loaded || sheet.isPending || emptySheet}
             onClick={() => navigate(`/imports/${batchId}`)}
           >
-            {nextName}
+            Continue to match {match}
           </Button>
         </div>
       </div>

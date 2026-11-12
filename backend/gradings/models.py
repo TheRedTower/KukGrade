@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
 
-from kukgrade.modelchecks import clean_without_database_checks
+from kukgrade.kept import KeptModel, KeptQuerySet
+from kukgrade.modelchecks import changed_since_saved, clean_without_database_checks
+from syllabus.age import resolve_age_band
 from syllabus.models import (
     AgeBand,
     SyllabusItem,
@@ -30,17 +32,28 @@ class GradingSessionQuerySet(models.QuerySet["GradingSession"]):
         return super().delete()
 
 
+class GradingSessionStatus(models.TextChoices):
+    DRAFT = "DRAFT", "Draft"
+    OPEN = "OPEN", "Open"
+    LOCKED = "LOCKED", "Locked"
+    COMPLETED = "COMPLETED", "Completed"
+    CANCELLED = "CANCELLED", "Cancelled"
+
+
+# Draft or open: candidates can still be added, changed, removed and have
+# their forms prepared. The one statement, for a session and for a query.
+ROSTER_OPEN_STATUSES = frozenset(
+    {GradingSessionStatus.DRAFT, GradingSessionStatus.OPEN}
+)
+ROSTER_OPEN = models.Q(status__in=ROSTER_OPEN_STATUSES)
+
+
 class GradingSession(models.Model):
     if TYPE_CHECKING:
         created_by_id: int
         candidates: models.Manager[GradingCandidate]
 
-    class Status(models.TextChoices):
-        DRAFT = "DRAFT", "Draft"
-        OPEN = "OPEN", "Open"
-        LOCKED = "LOCKED", "Locked"
-        COMPLETED = "COMPLETED", "Completed"
-        CANCELLED = "CANCELLED", "Cancelled"
+    Status = GradingSessionStatus
 
     title = models.CharField(max_length=200)
     grading_date = models.DateField()
@@ -97,20 +110,17 @@ class GradingSession(models.Model):
                 name="grading_session_title_not_blank",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    status__in=[
-                        "DRAFT",
-                        "OPEN",
-                        "LOCKED",
-                        "COMPLETED",
-                        "CANCELLED",
-                    ],
-                ),
+                condition=Q(status__in=GradingSessionStatus.values),
                 name="grading_session_status_valid",
             ),
             models.CheckConstraint(
                 condition=Q(archived_at__isnull=True)
-                | Q(status__in=["COMPLETED", "CANCELLED"]),
+                | Q(
+                    status__in=[
+                        GradingSessionStatus.COMPLETED,
+                        GradingSessionStatus.CANCELLED,
+                    ],
+                ),
                 name="grading_session_archived_only_when_finished",
             ),
         ]
@@ -145,6 +155,22 @@ class GradingSession(models.Model):
         # create_grading_session, update_grading_session and
         # transition_grading_session enforce it, under the session's lock.
 
+    @property
+    def is_locked(self) -> bool:
+        return self.status == self.Status.LOCKED
+
+    @property
+    def roster_open(self) -> bool:
+        """Draft or open: candidates can still be added, changed, removed and
+        have their forms prepared."""
+        return self.status in ROSTER_OPEN_STATUSES
+
+    @property
+    def marking_open(self) -> bool:
+        """Open: candidates are being graded, so assessments are started,
+        marked and completed now."""
+        return self.status == self.Status.OPEN
+
 
 class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
     def delete(self) -> tuple[int, dict[str, int]]:
@@ -162,6 +188,21 @@ CANDIDATE_STUDENT_FIXED_MESSAGE = (
 OTHER_WITHDRAWAL_NOTE_MESSAGE = "Say what the other reason is."
 
 
+class GradingCandidateStatus(models.TextChoices):
+    REGISTERED = "REGISTERED", "Registered"
+    WITHDRAWN = "WITHDRAWN", "Withdrawn"
+    COMPLETED = "COMPLETED", "Completed"
+
+
+class WithdrawalReason(models.TextChoices):
+    INJURY = "INJURY", "Injured during grading"
+    WITHDREW = "WITHDREW", "Withdrew voluntarily"
+    ABSENT = "ABSENT", "Did not attend"
+    # Anything else, said in the note - an Other with no note records
+    # nothing, so the model refuses it.
+    OTHER = "OTHER", "Other"
+
+
 class GradingCandidate(models.Model):
     if TYPE_CHECKING:
         session_id: int
@@ -173,18 +214,9 @@ class GradingCandidate(models.Model):
         outcome: CandidateOutcome
         promotion: Promotion
 
-    class Status(models.TextChoices):
-        REGISTERED = "REGISTERED", "Registered"
-        WITHDRAWN = "WITHDRAWN", "Withdrawn"
-        COMPLETED = "COMPLETED", "Completed"
+    Status = GradingCandidateStatus
 
-    class WithdrawalReason(models.TextChoices):
-        INJURY = "INJURY", "Injured during grading"
-        WITHDREW = "WITHDREW", "Withdrew voluntarily"
-        ABSENT = "ABSENT", "Did not attend"
-        # Anything else, said in the note - an Other with no note records
-        # nothing, so the model refuses it.
-        OTHER = "OTHER", "Other"
+    WithdrawalReason = WithdrawalReason
 
     session = models.ForeignKey(
         GradingSession,
@@ -261,40 +293,23 @@ class GradingCandidate(models.Model):
                 name="unique_grading_candidate_session_student",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    age_band__in=[
-                        "AGE_8_AND_UNDER",
-                        "AGE_9_TO_12",
-                        "AGE_13_TO_17",
-                        "AGE_18_AND_OVER",
-                    ],
-                ),
+                condition=Q(age_band__in=AgeBand.values),
                 name="grading_candidate_age_band_valid",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    status__in=[
-                        "REGISTERED",
-                        "WITHDRAWN",
-                        "COMPLETED",
-                    ],
-                ),
+                condition=Q(status__in=GradingCandidateStatus.values),
                 name="grading_candidate_status_valid",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    withdrawal_reason__in=[
-                        "INJURY",
-                        "WITHDREW",
-                        "ABSENT",
-                        "OTHER",
-                    ],
-                )
+                condition=Q(withdrawal_reason__in=WithdrawalReason.values)
                 | Q(withdrawal_reason=""),
                 name="grading_candidate_withdrawal_reason_valid",
             ),
             models.CheckConstraint(
-                condition=~Q(withdrawal_reason="OTHER", withdrawal_note=""),
+                condition=~Q(
+                    withdrawal_reason=WithdrawalReason.OTHER,
+                    withdrawal_note="",
+                ),
                 name="grading_candidate_other_withdrawal_has_note",
             ),
             # Attribution travels together, and only ever on a withdrawal; a
@@ -308,9 +323,9 @@ class GradingCandidate(models.Model):
                         withdrawn_by__isnull=True,
                         withdrawn_at__isnull=True,
                     )
-                    & ~Q(status="WITHDRAWN")
+                    & ~Q(status=GradingCandidateStatus.WITHDRAWN)
                     | Q(
-                        status="WITHDRAWN",
+                        status=GradingCandidateStatus.WITHDRAWN,
                         withdrawn_by__isnull=False,
                         withdrawn_at__isnull=False,
                     )
@@ -346,8 +361,6 @@ class GradingCandidate(models.Model):
             raise ValidationError({"withdrawal_note": [OTHER_WITHDRAWAL_NOTE_MESSAGE]})
 
         if not self.age_band and self.student_id and self.session_id:
-            from gradings.age import resolve_age_band
-
             self.age_band = resolve_age_band(
                 self.student.date_of_birth,
                 self.session.grading_date,
@@ -366,6 +379,12 @@ class GradingCandidate(models.Model):
                 raise ValidationError({"student": [CANDIDATE_STUDENT_FIXED_MESSAGE]})
 
 
+class CandidateAssessmentStatus(models.TextChoices):
+    NOT_STARTED = "NOT_STARTED", "Not started"
+    IN_PROGRESS = "IN_PROGRESS", "In progress"
+    COMPLETED = "COMPLETED", "Completed"
+
+
 class CandidateAssessment(models.Model):
     if TYPE_CHECKING:
         candidate_id: int
@@ -373,10 +392,7 @@ class CandidateAssessment(models.Model):
         outcome: CandidateOutcome
         items: models.Manager[CandidateAssessmentItem]
 
-    class Status(models.TextChoices):
-        NOT_STARTED = "NOT_STARTED", "Not started"
-        IN_PROGRESS = "IN_PROGRESS", "In progress"
-        COMPLETED = "COMPLETED", "Completed"
+    Status = CandidateAssessmentStatus
 
     candidate = models.OneToOneField(
         GradingCandidate,
@@ -394,6 +410,8 @@ class CandidateAssessment(models.Model):
         on_delete=models.PROTECT,
         related_name="generated_candidate_assessments",
     )
+    # The rank (or "administrator") generated by held then (accounts.people).
+    generated_by_title = models.CharField(max_length=100, blank=True, editable=False)
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
@@ -419,25 +437,23 @@ class CandidateAssessment(models.Model):
                 name="unique_assessment_id_candidate",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    status__in=["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
-                ),
+                condition=Q(status__in=CandidateAssessmentStatus.values),
                 name="candidate_assessment_status_valid",
             ),
             models.CheckConstraint(
                 condition=(
                     Q(
-                        status="NOT_STARTED",
+                        status=CandidateAssessmentStatus.NOT_STARTED,
                         started_at__isnull=True,
                         completed_at__isnull=True,
                     )
                     | Q(
-                        status="IN_PROGRESS",
+                        status=CandidateAssessmentStatus.IN_PROGRESS,
                         started_at__isnull=False,
                         completed_at__isnull=True,
                     )
                     | Q(
-                        status="COMPLETED",
+                        status=CandidateAssessmentStatus.COMPLETED,
                         started_at__isnull=False,
                         completed_at__isnull=False,
                         completed_at__gte=F("started_at"),
@@ -459,32 +475,29 @@ class CandidateAssessment(models.Model):
         self.notes = (self.notes or "").strip()
 
 
-class CandidateOutcomeQuerySet(models.QuerySet["CandidateOutcome"]):
-    def update(self, **kwargs: Any) -> int:
-        # clean() already refuses to change a finalised outcome through
-        # save(); QuerySet.update() bypasses clean() entirely and was the
-        # one path left that could rewrite a finalised decision from a
-        # shell with no validation and no trace.
-        if self.filter(status=CandidateOutcome.Status.FINALISED).exists():
-            raise ValidationError(
-                {"status": ["A final decision cannot be changed."]},
-            )
-        return super().update(**kwargs)
-
-    def delete(self) -> tuple[int, dict[str, int]]:
-        # Model.delete() refuses a finalised outcome; QuerySet.delete() never
-        # calls it, so without this a bulk delete erased a finalised Fail or
-        # Conditional (a Pass is also held by its promotion). The cleanup
-        # services that remove decisions on purpose call
-        # models.QuerySet.delete directly.
-        if self.filter(status=CandidateOutcome.Status.FINALISED).exists():
-            raise ValidationError(
-                {"status": ["Finalised candidate outcomes cannot be deleted."]},
-            )
-        return super().delete()
+class CandidateOutcomeQuerySet(KeptQuerySet["CandidateOutcome"]):
+    def can_be_finalised(self) -> CandidateOutcomeQuerySet:
+        """Proposed, in a locked session: outcome_services.outcome_can_be_finalised
+        as a query."""
+        return self.filter(
+            status=CandidateOutcome.Status.PROPOSED,
+            candidate__session__status=GradingSession.Status.LOCKED,
+        )
 
 
-class CandidateOutcome(models.Model):
+class CandidateOutcomeStatus(models.TextChoices):
+    PROPOSED = "PROPOSED", "Proposed"
+    FINALISED = "FINALISED", "Finalised"
+
+
+class GradingOutcome(models.TextChoices):
+    # In the order every outcome control offers them.
+    PASS = "PASS", "Pass"
+    CONDITIONAL = "CONDITIONAL", "Conditional"
+    FAIL = "FAIL", "Fail"
+
+
+class CandidateOutcome(KeptModel):
     if TYPE_CHECKING:
         candidate_id: int
         assessment_id: int
@@ -492,14 +505,9 @@ class CandidateOutcome(models.Model):
         decided_by_id: int | None
         promotion: Promotion
 
-    class Outcome(models.TextChoices):
-        PASS = "PASS", "Pass"
-        FAIL = "FAIL", "Fail"
-        CONDITIONAL = "CONDITIONAL", "Conditional"
+    Outcome = GradingOutcome
 
-    class Status(models.TextChoices):
-        PROPOSED = "PROPOSED", "Proposed"
-        FINALISED = "FINALISED", "Finalised"
+    Status = CandidateOutcomeStatus
 
     candidate = models.OneToOneField(
         GradingCandidate,
@@ -524,6 +532,8 @@ class CandidateOutcome(models.Model):
         null=True,
         blank=True,
     )
+    # The rank (or "administrator") proposed by held then (accounts.people).
+    proposed_by_title = models.CharField(max_length=100, blank=True, editable=False)
     proposed_at = models.DateTimeField(null=True, blank=True)
     proposal_notes = models.TextField(blank=True)
     final_outcome = models.CharField(  # noqa: DJ001
@@ -539,6 +549,8 @@ class CandidateOutcome(models.Model):
         null=True,
         blank=True,
     )
+    # The rank (or "administrator") decided by held then (accounts.people).
+    decided_by_title = models.CharField(max_length=100, blank=True, editable=False)
     decided_at = models.DateTimeField(null=True, blank=True)
     decision_notes = models.TextField(blank=True)
     status = models.CharField(max_length=32, choices=Status.choices)
@@ -547,6 +559,24 @@ class CandidateOutcome(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = CandidateOutcomeQuerySet.as_manager()
+
+    refusal_field = "status"
+    change_refused = "A final decision cannot be changed."
+    delete_refused = "Finalised candidate outcomes cannot be deleted."
+    _DECISION_FIELDS: ClassVar[tuple[str, ...]] = (
+        "candidate_id",
+        "assessment_id",
+        "status",
+        "proposed_outcome",
+        "proposed_by_id",
+        "proposed_at",
+        "proposal_notes",
+        "final_outcome",
+        "decided_by_id",
+        "decided_at",
+        "decision_notes",
+        "conditional_requirements",
+    )
 
     class Meta:
         ordering = [
@@ -575,23 +605,23 @@ class CandidateOutcome(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=Q(status__in=["PROPOSED", "FINALISED"]),
+                condition=Q(status__in=CandidateOutcomeStatus.values),
                 name="candidate_outcome_status_valid",
             ),
             models.CheckConstraint(
                 condition=Q(proposed_outcome__isnull=True)
-                | Q(proposed_outcome__in=["PASS", "FAIL", "CONDITIONAL"]),
+                | Q(proposed_outcome__in=GradingOutcome.values),
                 name="candidate_outcome_proposed_valid",
             ),
             models.CheckConstraint(
                 condition=Q(final_outcome__isnull=True)
-                | Q(final_outcome__in=["PASS", "FAIL", "CONDITIONAL"]),
+                | Q(final_outcome__in=GradingOutcome.values),
                 name="candidate_outcome_final_valid",
             ),
             models.CheckConstraint(
                 condition=(
                     Q(
-                        status="PROPOSED",
+                        status=CandidateOutcomeStatus.PROPOSED,
                         proposed_outcome__isnull=False,
                         proposed_by__isnull=False,
                         proposed_at__isnull=False,
@@ -601,7 +631,7 @@ class CandidateOutcome(models.Model):
                         conditional_requirements="",
                     )
                     | Q(
-                        status="FINALISED",
+                        status=CandidateOutcomeStatus.FINALISED,
                         proposed_outcome__isnull=False,
                         proposed_by__isnull=False,
                         proposed_at__isnull=False,
@@ -616,12 +646,14 @@ class CandidateOutcome(models.Model):
             models.CheckConstraint(
                 condition=(
                     Q(
-                        final_outcome="CONDITIONAL",
+                        final_outcome=GradingOutcome.CONDITIONAL,
                         conditional_requirements__gt="",
                     )
                     | (
                         Q(final_outcome__isnull=True)
-                        | Q(final_outcome__in=["PASS", "FAIL"])
+                        | Q(
+                            final_outcome__in=[GradingOutcome.PASS, GradingOutcome.FAIL]
+                        )
                     )
                     & Q(conditional_requirements="")
                 ),
@@ -632,16 +664,13 @@ class CandidateOutcome(models.Model):
     def __str__(self) -> str:
         return f"Outcome for {self.candidate}"
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        self.full_clean()
-        super().save(*args, **kwargs)
+    @classmethod
+    def kept_rows(cls) -> Q:
+        # Only a final decision is kept; a proposal can still be withdrawn.
+        return Q(status=cls.Status.FINALISED)
 
-    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
-        if self.status == self.Status.FINALISED:
-            raise ValidationError(
-                {"status": ["Finalised candidate outcomes cannot be deleted."]},
-            )
-        return super().delete(*args, **kwargs)
+    def is_kept(self) -> bool:
+        return self.status == self.Status.FINALISED
 
     def clean(self) -> None:
         super().clean()
@@ -659,49 +688,15 @@ class CandidateOutcome(models.Model):
                 "Outcome assessment must belong to the same grading candidate.",
             ]
 
-        if not self._state.adding and self.pk is not None:
-            previous = (
-                CandidateOutcome.objects.filter(pk=self.pk)
-                .values(
-                    "candidate_id",
-                    "assessment_id",
-                    "status",
-                    "proposed_outcome",
-                    "proposed_by_id",
-                    "proposed_at",
-                    "proposal_notes",
-                    "final_outcome",
-                    "decided_by_id",
-                    "decided_at",
-                    "decision_notes",
-                    "conditional_requirements",
-                )
-                .first()
-            )
-            if previous is not None:
-                # How an outcome moves from proposed to final is workflow: the
-                # services propose and finalise it, under the session's lock.
-                # What stays here is what a final decision is: it never changes.
-                if previous["status"] == self.Status.FINALISED:
-                    protected_changes = (
-                        previous["candidate_id"] != self.candidate_id
-                        or previous["assessment_id"] != self.assessment_id
-                        or previous["status"] != self.status
-                        or previous["proposed_outcome"] != self.proposed_outcome
-                        or previous["proposed_by_id"] != self.proposed_by_id
-                        or previous["proposed_at"] != self.proposed_at
-                        or previous["proposal_notes"] != self.proposal_notes
-                        or previous["final_outcome"] != self.final_outcome
-                        or previous["decided_by_id"] != self.decided_by_id
-                        or previous["decided_at"] != self.decided_at
-                        or previous["decision_notes"] != self.decision_notes
-                        or previous["conditional_requirements"]
-                        != self.conditional_requirements
-                    )
-                    if protected_changes:
-                        errors["status"] = [
-                            "A final decision cannot be changed.",
-                        ]
+        # How an outcome moves from proposed to final is workflow: the
+        # services propose and finalise it, under the session's lock. What
+        # stays here is what a final decision is: it never changes.
+        if changed_since_saved(
+            self,
+            self._DECISION_FIELDS,
+            saved_where=self.kept_rows(),
+        ):
+            errors["status"] = [self.change_refused]
 
         if self.status == self.Status.PROPOSED:
             if self.proposed_outcome is None:
@@ -785,10 +780,16 @@ class StagedDecision(models.Model):
                 name="staged_decision_one_per_author",
             ),
             models.CheckConstraint(
-                condition=Q(final_outcome__in=["PASS", "FAIL", "CONDITIONAL"]),
+                condition=Q(final_outcome__in=GradingOutcome.values),
                 name="staged_decision_outcome_valid",
             ),
         ]
+
+
+class ItemResult(models.TextChoices):
+    NOT_ASSESSED = "NOT_ASSESSED", "Not assessed"
+    MET = "MET", "Met"
+    NOT_MET = "NOT_MET", "Not met"
 
 
 class CandidateAssessmentItem(models.Model):
@@ -796,10 +797,7 @@ class CandidateAssessmentItem(models.Model):
         assessment_id: int
         syllabus_item_id: int
 
-    class Result(models.TextChoices):
-        NOT_ASSESSED = "NOT_ASSESSED", "Not assessed"
-        MET = "MET", "Met"
-        NOT_MET = "NOT_MET", "Not met"
+    Result = ItemResult
 
     assessment = models.ForeignKey(
         CandidateAssessment,
@@ -869,6 +867,8 @@ class CandidateAssessmentItem(models.Model):
         null=True,
         blank=True,
     )
+    # The rank (or "administrator") assessor held then (accounts.people).
+    assessor_title = models.CharField(max_length=100, blank=True, editable=False)
     assessed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -888,37 +888,15 @@ class CandidateAssessmentItem(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=Q(
-                    source_age_band__in=[
-                        "AGE_8_AND_UNDER",
-                        "AGE_9_TO_12",
-                        "AGE_13_TO_17",
-                        "AGE_18_AND_OVER",
-                    ],
-                ),
+                condition=Q(source_age_band__in=AgeBand.values),
                 name="candidate_item_age_band_valid",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    category__in=[
-                        "ETIQUETTE",
-                        "FUNDAMENTALS",
-                        "HAND_TECHNIQUES",
-                        "KICKING",
-                        "FALLING",
-                        "BREAKING",
-                        "TECHNIQUE_SET",
-                        "FORM",
-                        "WEAPONS",
-                        "OTHER",
-                    ],
-                ),
+                condition=Q(category__in=SyllabusItem.Category.values),
                 name="candidate_item_category_valid",
             ),
             models.CheckConstraint(
-                condition=Q(
-                    result__in=["NOT_ASSESSED", "MET", "NOT_MET"],
-                ),
+                condition=Q(result__in=ItemResult.values),
                 name="candidate_item_result_valid",
             ),
             models.CheckConstraint(
@@ -968,12 +946,12 @@ class CandidateAssessmentItem(models.Model):
             models.CheckConstraint(
                 condition=(
                     Q(
-                        result="NOT_ASSESSED",
+                        result=ItemResult.NOT_ASSESSED,
                         assessor__isnull=True,
                         assessed_at__isnull=True,
                     )
                     | Q(
-                        result__in=["MET", "NOT_MET"],
+                        result__in=[ItemResult.MET, ItemResult.NOT_MET],
                         assessor__isnull=False,
                         assessed_at__isnull=False,
                     )
@@ -1020,20 +998,7 @@ class CandidateAssessmentItem(models.Model):
         return format_numbered_range(self.start_number, self.end_number)
 
 
-class AssessmentItemCommentQuerySet(models.QuerySet["AssessmentItemComment"]):
-    def delete(self) -> tuple[int, dict[str, int]]:
-        raise ValidationError(
-            {"comment": ["A comment cannot be deleted."]},
-        )
-
-    def update(self, **kwargs: Any) -> int:
-        # save() and delete() already refuse; QuerySet.update() bypasses both.
-        raise ValidationError(
-            {"comment": ["A comment cannot be changed. Add another instead."]},
-        )
-
-
-class AssessmentItemComment(models.Model):
+class AssessmentItemComment(KeptModel):
     """A comment on one assessed item, kept as written.
 
     Anyone who marks or reviews a candidate may add one; each keeps its author
@@ -1058,6 +1023,8 @@ class AssessmentItemComment(models.Model):
         on_delete=models.PROTECT,
         related_name="assessment_item_comments",
     )
+    # The rank (or "administrator") author held then (accounts.people).
+    author_title = models.CharField(max_length=100, blank=True, editable=False)
     body = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     after_lock = models.BooleanField(
@@ -1065,7 +1032,12 @@ class AssessmentItemComment(models.Model):
         help_text="Written after the session was locked.",
     )
 
-    objects = AssessmentItemCommentQuerySet.as_manager()
+    objects = KeptQuerySet.as_manager()
+
+    refusal_field = "comment"
+    change_refused = "A comment cannot be changed. Add another instead."
+    delete_refused = "A comment cannot be deleted."
+    final_once_saved = True
 
     class Meta:
         ordering = ["created_at", "pk"]
@@ -1082,20 +1054,10 @@ class AssessmentItemComment(models.Model):
     def __str__(self) -> str:
         return f"Comment on {self.item}"
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        if not self._state.adding:
-            raise ValidationError(
-                {"comment": ["A comment cannot be changed. Add another instead."]},
-            )
+    def check_before_save(self) -> None:
         # Written by one service, which decides every value; the constraints
         # and foreign keys stay the guard.
         clean_without_database_checks(self)
-        super().save(*args, **kwargs)
-
-    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
-        raise ValidationError(
-            {"comment": ["A comment cannot be deleted."]},
-        )
 
     def clean(self) -> None:
         super().clean()
@@ -1104,22 +1066,7 @@ class AssessmentItemComment(models.Model):
             raise ValidationError({"body": ["A comment cannot be empty."]})
 
 
-class AssessmentItemResultChangeQuerySet(
-    models.QuerySet["AssessmentItemResultChange"],
-):
-    def delete(self) -> tuple[int, dict[str, int]]:
-        raise ValidationError(
-            {"change": ["A recorded mark change cannot be deleted."]},
-        )
-
-    def update(self, **kwargs: Any) -> int:
-        # save() and delete() already refuse; QuerySet.update() bypasses both.
-        raise ValidationError(
-            {"change": ["A recorded mark change cannot be changed."]},
-        )
-
-
-class AssessmentItemResultChange(models.Model):
+class AssessmentItemResultChange(KeptModel):
     """One change to an item's mark: who, from what to what, when, and why.
 
     The first mark on an item needs no reason; every later change, including
@@ -1156,6 +1103,8 @@ class AssessmentItemResultChange(models.Model):
         on_delete=models.PROTECT,
         related_name="assessment_item_result_changes",
     )
+    # The rank (or "administrator") changed by held then (accounts.people).
+    changed_by_title = models.CharField(max_length=100, blank=True, editable=False)
     changed_at = models.DateTimeField(auto_now_add=True)
     reason = models.TextField(blank=True)
     after_lock = models.BooleanField(
@@ -1163,7 +1112,12 @@ class AssessmentItemResultChange(models.Model):
         help_text="Made after the session was locked.",
     )
 
-    objects = AssessmentItemResultChangeQuerySet.as_manager()
+    objects = KeptQuerySet.as_manager()
+
+    refusal_field = "change"
+    change_refused = "A recorded mark change cannot be changed."
+    delete_refused = "A recorded mark change cannot be deleted."
+    final_once_saved = True
 
     class Meta:
         ordering = ["item_id", "sequence"]
@@ -1189,20 +1143,10 @@ class AssessmentItemResultChange(models.Model):
     def __str__(self) -> str:
         return f"{self.item}: {self.from_result} to {self.to_result}"
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        if not self._state.adding:
-            raise ValidationError(
-                {"change": ["A recorded mark change cannot be changed."]},
-            )
+    def check_before_save(self) -> None:
         # Written by one service, which decides every value; the constraints
         # and foreign keys stay the guard.
         clean_without_database_checks(self)
-        super().save(*args, **kwargs)
-
-    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
-        raise ValidationError(
-            {"change": ["A recorded mark change cannot be deleted."]},
-        )
 
     def clean(self) -> None:
         super().clean()
@@ -1213,22 +1157,7 @@ class AssessmentItemResultChange(models.Model):
             )
 
 
-class PromotionQuerySet(models.QuerySet["Promotion"]):
-    def delete(self) -> tuple[int, dict[str, int]]:
-        raise ValidationError(
-            {"promotion": ["A promotion cannot be deleted."]},
-        )
-
-    def update(self, **kwargs: Any) -> int:
-        # save() and delete() already refuse; QuerySet.update() bypasses both
-        # (no clean(), no delete()) and was the one path left that could
-        # silently rewrite a promotion's rank or attribution from a shell.
-        raise ValidationError(
-            {"promotion": ["A promotion cannot be changed."]},
-        )
-
-
-class Promotion(models.Model):
+class Promotion(KeptModel):
     if TYPE_CHECKING:
         student_id: int
         outcome_id: int
@@ -1273,7 +1202,22 @@ class Promotion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = PromotionQuerySet.as_manager()
+    objects = KeptQuerySet.as_manager()
+
+    refusal_field = "promotion"
+    change_refused = "A promotion cannot be changed."
+    delete_refused = "A promotion cannot be deleted."
+    _RECORDED_FIELDS: ClassVar[tuple[str, ...]] = (
+        "student_id",
+        "outcome_id",
+        "grading_candidate_id",
+        "from_rank_id",
+        "to_rank_id",
+        "promoted_by_id",
+        "promoted_at",
+        "effective_date",
+        "notes",
+    )
 
     class Meta:
         ordering = ["-effective_date", "-promoted_at", "-pk"]
@@ -1297,15 +1241,6 @@ class Promotion(models.Model):
 
     def __str__(self) -> str:
         return f"{self.student} promoted from {self.from_rank} to {self.to_rank}"
-
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
-        raise ValidationError(
-            {"promotion": ["A promotion cannot be deleted."]},
-        )
 
     def clean(self) -> None:
         super().clean()
@@ -1351,60 +1286,11 @@ class Promotion(models.Model):
         ):
             errors["to_rank"] = ["Promotion target rank must differ from source rank."]
 
-        if not self._state.adding and self.pk is not None:
-            previous = (
-                Promotion.objects.filter(pk=self.pk)
-                .values(
-                    "student_id",
-                    "outcome_id",
-                    "grading_candidate_id",
-                    "from_rank_id",
-                    "to_rank_id",
-                    "promoted_by_id",
-                    "promoted_at",
-                    "effective_date",
-                    "notes",
-                )
-                .first()
-            )
-            if previous is not None:
-                changed_fields = [
-                    field
-                    for field, value in previous.items()
-                    if getattr(self, field) != value
-                ]
-                if changed_fields:
-                    errors["promotion"] = [
-                        "A promotion cannot be changed once recorded.",
-                    ]
+        if changed_since_saved(self, self._RECORDED_FIELDS):
+            errors["promotion"] = ["A promotion cannot be changed once recorded."]
 
         if errors:
             raise ValidationError(errors)
-
-
-class LegacyGradingRecordQuerySet(models.QuerySet["LegacyGradingRecord"]):
-    def delete(self) -> tuple[int, dict[str, int]]:
-        raise ValidationError(
-            {
-                "legacy_grading_record": [
-                    "Historical grading records cannot be deleted - void them instead.",
-                ],
-            },
-        )
-
-    def update(self, **kwargs: Any) -> int:
-        # Every legitimate change goes through gradings.legacy_services on a
-        # single locked instance (so clean()'s source-field immutability
-        # check and the accompanying audit event both run); a bulk
-        # queryset .update() would bypass both silently.
-        raise ValidationError(
-            {
-                "legacy_grading_record": [
-                    "Legacy grading records must be changed through "
-                    "gradings.legacy_services, not updated directly.",
-                ],
-            },
-        )
 
 
 class LegacyRecordKind(models.TextChoices):
@@ -1430,7 +1316,14 @@ class LegacyDatePrecision(models.TextChoices):
     DAY = "DAY", "Day"
 
 
-class LegacyGradingRecord(models.Model):
+class LegacyRankField(models.TextChoices):
+    """The two ranks a record maps from its source text."""
+
+    CURRENT_RANK = "current_rank", "current rank"
+    TESTING_FOR_RANK = "testing_for_rank", "testing-for rank"
+
+
+class LegacyGradingRecord(KeptModel):
     """One row of imported historical grading evidence - never native.
 
     A distinct, deliberately weaker evidence model from CandidateAssessment/
@@ -1444,7 +1337,7 @@ class LegacyGradingRecord(models.Model):
     (link/unlink/resolve-rank/void), always through one locked instance
     save() so the immutability check and an audit event both run; ordinary
     queryset mutation and physical deletion are blocked outright
-    (LegacyGradingRecordQuerySet above) - void is the only removal path,
+    (kukgrade.kept) - void is the only removal path,
     consistent with "historical records are never physically deleted".
     """
 
@@ -1468,6 +1361,7 @@ class LegacyGradingRecord(models.Model):
             "is_void",
             "void_reason",
             "voided_by_id",
+            "voided_by_title",
             "voided_at",
             "created_at",
             "updated_at",
@@ -1475,8 +1369,8 @@ class LegacyGradingRecord(models.Model):
     )
 
     # Nullable, PROTECT: a legacy record may be committed with no known
-    # Student match but must never silently lose that link once
-    # deleting a user is possible.
+    # Student match, but a link once made is never lost: a student with one
+    # is kept when deleted, not erased (students.services.delete_student).
     student = models.ForeignKey(
         "students.Student",
         on_delete=models.PROTECT,
@@ -1554,12 +1448,23 @@ class LegacyGradingRecord(models.Model):
         blank=True,
         related_name="voided_legacy_grading_records",
     )
+    # The rank (or "administrator") voided by held then (accounts.people).
+    voided_by_title = models.CharField(max_length=100, blank=True, editable=False)
     voided_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = LegacyGradingRecordQuerySet.as_manager()
+    objects = KeptQuerySet.as_manager()
+
+    refusal_field = "legacy_grading_record"
+    # Every change goes through gradings.legacy_services on one locked row,
+    # so clean()'s check of the source fields and the audit event both run.
+    change_refused = (
+        "Legacy grading records must be changed through "
+        "gradings.legacy_services, not updated directly."
+    )
+    delete_refused = "Historical grading records cannot be deleted - void them instead."
 
     class Meta:
         ordering = ["-cycle_year", "-cycle_month", "source_sheet", "source_locator"]
@@ -1616,19 +1521,6 @@ class LegacyGradingRecord(models.Model):
     def __str__(self) -> str:
         return f"{self.source_sheet}!{self.source_locator}: {self.source_name}"
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
-        raise ValidationError(
-            {
-                "legacy_grading_record": [
-                    "Historical grading records cannot be deleted - void them instead.",
-                ],
-            },
-        )
-
     def clean(self) -> None:
         super().clean()
         self.source_sheet = (self.source_sheet or "").strip()
@@ -1646,32 +1538,40 @@ class LegacyGradingRecord(models.Model):
         if self.is_void and not self.void_reason.strip():
             errors["void_reason"] = ["A reason is required to void a record."]
 
-        if not self._state.adding and self.pk is not None:
-            immutable_field_names = [
+        changed = changed_since_saved(
+            self,
+            (
                 field.attname
                 for field in self._meta.fields
                 if field.attname not in self._MUTABLE_FIELD_NAMES
+            ),
+        )
+        if changed:
+            errors["non_field_errors"] = [
+                "What the workbook said cannot be changed after import: "
+                + ", ".join(changed)
+                + ".",
             ]
-            previous = (
-                LegacyGradingRecord.objects.filter(pk=self.pk)
-                .values(*immutable_field_names)
-                .first()
-            )
-            if previous is not None:
-                changed_fields = [
-                    field
-                    for field, value in previous.items()
-                    if getattr(self, field) != value
-                ]
-                if changed_fields:
-                    errors["non_field_errors"] = [
-                        "What the workbook said cannot be changed after import: "
-                        + ", ".join(sorted(changed_fields))
-                        + ".",
-                    ]
 
         if errors:
             raise ValidationError(errors)
+
+    @staticmethod
+    def rank_unmatched() -> Q:
+        """A rank written on the record but not matched to one yet, as a
+        filter: needs_rank below, for rows already loaded."""
+        return Q(~Q(source_current_rank_text=""), current_rank__isnull=True) | Q(
+            ~Q(source_testing_for_rank_text=""),
+            testing_for_rank__isnull=True,
+        )
+
+    @property
+    def needs_rank(self) -> bool:
+        """rank_unmatched() above, on this row."""
+        return bool(
+            (self.source_current_rank_text and self.current_rank_id is None)
+            or (self.source_testing_for_rank_text and self.testing_for_rank_id is None)
+        )
 
 
 class SetAsideName(models.Model):

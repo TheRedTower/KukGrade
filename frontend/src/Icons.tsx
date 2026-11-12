@@ -1,8 +1,7 @@
 /**
- * Inline icons, so each glyph is drawn once with the same stroke props:
- * shared glyphs, the navigation rail's and the theme
- * toggle's. Screen-specific icons stay beside their screen. Every icon is
- * aria-hidden; the control around it supplies the accessible name.
+ * Every icon in the app, inline, so each glyph is drawn once with the same
+ * stroke props. Every icon is aria-hidden; the control around it supplies
+ * the accessible name.
  */
 
 type IconProps = { size?: number; className?: string };
@@ -57,6 +56,63 @@ export function WarningIcon(props: IconProps) {
   );
 }
 
+/** "Look at this", inside a .mark: the mark draws the circle. */
+export function ExclamationIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 2.6)}>
+      <path d="M12 5.5v8M12 18.5v.1" />
+    </svg>
+  );
+}
+
+/** A note to read, inside a .mark: the mark draws the circle. */
+export function InfoIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 2.6)}>
+      <path d="M12 10.5v8M12 5.5v.1" />
+    </svg>
+  );
+}
+
+/** Not done, or left out. */
+export function MinusIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 2.6)}>
+      <path d="M6.5 12h11" />
+    </svg>
+  );
+}
+
+/** Passed over: already there, so not added again. */
+export function SkipIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 15a8 8 0 0 1 15-4" />
+      <path d="M20 5v6h-6" />
+    </svg>
+  );
+}
+
+/** Opens somewhere outside KukGrade. */
+export function ExternalLinkIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M14 4h6v6M20 4l-9 9" />
+      <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+    </svg>
+  );
+}
+
+/** Write or change a note. */
+export function PencilIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 20h4L19 9l-4-4L4 16z" />
+      <path d="m13.5 6.5 4 4" />
+    </svg>
+  );
+}
+
 export function LockIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>
@@ -75,11 +131,91 @@ export function XCircleIcon(props: IconProps) {
   );
 }
 
-export function SearchIcon(props: IconProps) {
+export function PlusIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+/** Forward, to the next page or rank; ArrowLeftIcon is its mirror. */
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 12h15M14 7l5 5-5 5" />
+    </svg>
+  );
+}
+
+export function ArrowLeftIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M20 12H5M10 7l-5 5 5 5" />
+    </svg>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 1.5)}>
+      <path d="M12 15V4" />
+      <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
+      <path d="M3 15v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-3" />
+    </svg>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect height="18" rx="2" ry="2" width="18" x="3" y="4" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+}
+
+export function CheckCircleIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+export function ClockIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+export function AlertCircleIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 8v4M12 16h.01" />
+    </svg>
+  );
+}
+
+/** Who assessed: one person. */
+export function PersonIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="12" cy="8" r="3.4" />
+      <path d="M5 20c0-3.6 3.1-5.8 7-5.8s7 2.2 7 5.8" />
     </svg>
   );
 }

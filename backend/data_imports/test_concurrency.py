@@ -23,6 +23,7 @@ from data_imports.services import (
     expire_import_batch,
 )
 from data_imports.storage import import_upload_storage
+from data_imports.testing import check_roster
 from data_imports.tests import (
     CLEAN_ROW,
     STANDARD_MAPPING,
@@ -57,11 +58,9 @@ def fresh(batch: ImportBatch) -> ImportBatch:
 
 def transition(name: str, batch: ImportBatch, admin: User) -> Callable[[], object]:
     if name == "commit":
-        return lambda: commit_student_import(
-            fresh(batch),
-            actor=admin,
-            column_mapping=STANDARD_MAPPING,
-        )
+        # The columns are matched first; only the commit races.
+        check_roster(batch, column_mapping=STANDARD_MAPPING)
+        return lambda: commit_student_import(fresh(batch), actor=admin)
     return lambda: cancel_import_batch(fresh(batch), actor=admin)
 
 

@@ -18,7 +18,7 @@ export function ThemeToggle() {
   const activeIndex = THEME_OPTIONS.findIndex((option) => option.value === preference);
 
   return (
-    <div aria-label="Theme" className="theme-toggle" role="group">
+    <div aria-label="Theme" role="group">
       <div
         className="theme-toggle-track"
         style={{ "--theme-toggle-active-index": String(activeIndex) } as CSSProperties}
@@ -48,8 +48,8 @@ export function LoginBrandPanel() {
     <aside className="auth-brand">
       <div>
         <KukGradeLogo className="auth-logo" />
-        <p className="auth-brand-tagline">Staff grading management</p>
-        <p className="auth-brand-values">People &middot; Progress &middot; Purpose</p>
+        <p className="eyebrow auth-brand-tagline">Staff grading management</p>
+        <p className="eyebrow auth-brand-values">People &middot; Progress &middot; Purpose</p>
       </div>
       <div className="auth-brand-footer">
         <p>Built for instructors.</p>

@@ -29,6 +29,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import SetupCode, User
+from accounts.people import name_of, require_names
 from audit.models import AuditAction
 from audit.recording import record
 
@@ -95,6 +96,7 @@ def complete_setup(
     The code's row is locked first, so two requests holding it cannot both
     pass: the second waits, then finds it gone.
     """
+    require_names(first_name, last_name)
     stored = SetupCode.objects.select_for_update().first()
     if not setup_needed():
         raise ValidationError({"code": [ALREADY_SET_UP_MESSAGE]})
@@ -124,7 +126,7 @@ def complete_setup(
     record(
         AuditAction.USER_CREATED,
         user,
-        f"First administrator {user.email} set up.",
-        metadata={"role": user.role, "superuser": True},
+        f"First administrator {name_of(user)} set up.",
+        metadata={"email": user.email, "role": user.role, "superuser": True},
     )
     return user

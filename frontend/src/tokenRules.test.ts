@@ -1,10 +1,7 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
   DEFINITION_FILES,
-  SRC,
   cssFiles,
   declarations,
   definedClasses,
@@ -18,13 +15,8 @@ import {
  * Every colour, size and value a screen uses comes from theme.css or layout.css,
  * and every class a screen writes as a className literal is defined. These checks stop a screen from
  * growing its own, so a visual bug always has the same two places to look:
- * the token or shared piece, or the screen's use of it.
- *
- * tokenBaseline.json counts what the stylesheets still hold (it only ever
- * shrinks, and a file not in it may have none); classBaseline.json lists the
- * class names in the code that no stylesheet defines (it only ever shrinks).
- * After converting a screen, lower them with
- *   UPDATE_TOKEN_BASELINE=1 npx vitest run src/tokenRules.test.ts
+ * the token or shared piece, or the screen's use of it. There are no
+ * exceptions: every count is zero, so a new one fails at once.
  */
 
 const COLOUR_NAMES =
@@ -42,7 +34,9 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   fontFamily: (prop, value) => (prop === "font-family" && !/^(?:inherit|var\()/.test(value) ? 1 : 0),
   radius: (prop, value) =>
     // A corner of 0 is square, not a size: only another number is hand-set.
-    prop === "border-radius" && /\d/.test(value.replace(/var\([^)]*\)/g, "").replace(/\b0\b/g, "")) && value !== "50%" ? 1 : 0,
+    prop === "border-radius" && /\d/.test(value.replace(/var\([^)]*\)/g, "").replace(/\b0\b/g, "")) && value !== "50%"
+      ? 1
+      : 0,
   letterSpacing: (prop, value) => (prop === "letter-spacing" && !/^(?:0|normal|inherit|var\()/.test(value) ? 1 : 0),
   lineHeight: (prop, value) => (prop === "line-height" && !/^(?:0|1|normal|inherit|var\()/.test(value) ? 1 : 0),
   // A change takes the one duration, and names what changes: never `all`.
@@ -51,7 +45,9 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   // Space between and inside boxes is a step of the scale; a hairline offset (0.2rem or less) or a clearance (over 3.25rem) is not a step.
   spacing: (prop, value) => {
     if (!/^(?:gap|row-gap|column-gap|margin|padding)(?:-[a-z]+)?$/.test(prop)) return 0;
-    const lengths = value.replace(/(?:calc|clamp|min|max|var)\((?:[^()]|\([^()]*\))*\)/g, "").matchAll(/(?<![\w.-])(\d*\.?\d+)(rem|px)\b/g);
+    const lengths = value
+      .replace(/(?:calc|clamp|min|max|var)\((?:[^()]|\([^()]*\))*\)/g, "")
+      .matchAll(/(?<![\w.-])(\d*\.?\d+)(rem|px)\b/g);
     return [...lengths].some(([, n, unit]) => {
       const rem = unit === "px" ? Number(n) / 16 : Number(n);
       return rem > 0.2 && rem <= 3.25;
@@ -78,18 +74,20 @@ function countFile(file: string): Record<string, number> {
     if (total > 0) counts[rule] = total;
   }
   // A button is written once, in controls.css: a screen's own button class is a second one.
-  const buttons = file === "controls.css" ? 0 : [...definedClasses(css)].filter((name) => /(?:^|-)(?:btn|button)(?:-|$)/.test(name)).length;
+  const buttons =
+    file === "controls.css"
+      ? 0
+      : [...definedClasses(css)].filter((name) => /(?:^|-)(?:btn|button)(?:-|$)/.test(name)).length;
   if (buttons > 0) counts.buttonClass = buttons;
-  // Text takes a heading's size (App.css) or a type role in layout.css: a screen's own size or weight is a second one.
-  const ownType = TYPE_FILES.includes(file) ? 0 : decls.filter(({ prop }) => prop === "font-size" || prop === "font-weight").length;
+  // Text takes a heading's size or a type role, both in layout.css: a screen's own size or weight is a second one.
+  const ownType = TYPE_FILES.includes(file)
+    ? 0
+    : decls.filter(({ prop }) => prop === "font-size" || prop === "font-weight").length;
   if (ownType > 0) counts.ownType = ownType;
   const dark = (css.match(/\[data-theme=|prefers-color-scheme/g) ?? []).length;
   if (dark > 0) counts.darkOverride = dark;
   return counts;
 }
-
-const BASELINE_FILE = join(SRC, "tokenBaseline.json");
-const CLASS_BASELINE_FILE = join(SRC, "classBaseline.json");
 
 const files = cssFiles().filter((name) => name !== "theme.css");
 const sources = sourceFiles().filter((name) => !name.endsWith(".test.ts") && !name.endsWith(".test.tsx"));
@@ -104,42 +102,13 @@ function unknownClasses(): string[] {
   return [...unknown].sort();
 }
 
-let baseline: Record<string, Record<string, number>> = JSON.parse(readFileSync(BASELINE_FILE, "utf8"));
-let classBaseline: string[] = JSON.parse(readFileSync(CLASS_BASELINE_FILE, "utf8"));
-
-// The lists can only be lowered here: a count that went up, a file that was not
-// on them or a new undefined class is something a screen must not add.
-if (process.env.UPDATE_TOKEN_BASELINE) {
-  const fresh: Record<string, Record<string, number>> = {};
-  for (const file of files) {
-    const counts = countFile(file);
-    for (const [rule, count] of Object.entries(counts)) {
-      if (count > (baseline[file]?.[rule] ?? 0)) {
-        throw new Error(`${file} adds ${rule}: ${count}, up from ${baseline[file]?.[rule] ?? 0}. Remove it instead.`);
-      }
-    }
-    if (Object.keys(counts).length > 0) fresh[file] = counts;
-  }
-  const unknown = unknownClasses();
-  const added = unknown.filter((name) => !classBaseline.includes(name));
-  if (added.length > 0) throw new Error(`Classes with no style: ${added.join(", ")}. Define or remove them.`);
-  writeFileSync(BASELINE_FILE, `${JSON.stringify(fresh, null, 2)}\n`);
-  writeFileSync(CLASS_BASELINE_FILE, `${JSON.stringify(unknown, null, 2)}\n`);
-  baseline = fresh;
-  classBaseline = unknown;
-}
-
 describe("token rules", () => {
-  it.each(files)("%s holds no more raw values than its baseline", (file) => {
-    expect(countFile(file)).toEqual(baseline[file] ?? {});
+  it.each(files)("%s holds no raw values of its own", (file) => {
+    expect(countFile(file)).toEqual({});
   });
 
-  it("lists only files that still exist", () => {
-    for (const file of Object.keys(baseline)) expect(files).toContain(file);
-  });
-
-  it("every class the code uses is defined by a stylesheet, apart from the listed legacy ones", () => {
-    expect(unknownClasses()).toEqual(classBaseline);
+  it("every class the code uses is defined by a stylesheet", () => {
+    expect(unknownClasses()).toEqual([]);
   });
 
   it("every token a stylesheet uses is defined", () => {
@@ -165,7 +134,12 @@ describe("token rules", () => {
     const unused: string[] = [];
     for (const file of DEFINITION_FILES) {
       for (const { prop } of declarations(readCss(file))) {
-        if (prop.startsWith("--") && !new RegExp(`var\\(\\s*${prop}(?![\\w-])`).test(everything) && !unused.includes(prop)) unused.push(prop);
+        if (
+          prop.startsWith("--") &&
+          !new RegExp(`var\\(\\s*${prop}(?![\\w-])`).test(everything) &&
+          !unused.includes(prop)
+        )
+          unused.push(prop);
       }
     }
     expect(unused).toEqual([]);

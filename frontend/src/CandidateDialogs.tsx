@@ -3,10 +3,9 @@ import {
   MoveRegistrationDialog,
   NoShowDialog,
   RemoveRegistrationDialog,
-  type AttendanceCandidate,
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDialog } from "./OutcomeProposalDialog";
-import { toAttendanceCandidate } from "./sessionDetail";
+import { type AttendanceCandidate, toAttendanceCandidate } from "./sessionDetail";
 import type { useCandidateWork } from "./useCandidateWork";
 
 interface CandidateDialogsProps {
@@ -19,7 +18,12 @@ interface CandidateDialogsProps {
 }
 
 /** The dialog open for a candidate on the session page, if any. */
-export function CandidateDialogs({ work, attendanceCandidates, actionError, onAttendanceClose }: CandidateDialogsProps) {
+export function CandidateDialogs({
+  work,
+  attendanceCandidates,
+  actionError,
+  onAttendanceClose,
+}: CandidateDialogsProps) {
   const { attendance, withdrawal, registration, proposal } = work;
   const moving = registration.action?.kind === "move" ? registration.action : null;
   const removing = registration.action?.kind === "remove" ? registration.action : null;
@@ -43,7 +47,9 @@ export function CandidateDialogs({ work, attendanceCandidates, actionError, onAt
           pending={withdrawal.mutation.isPending}
           error={withdrawal.error}
           onClose={withdrawal.close}
-          onConfirm={(payload) => withdrawal.mutation.mutate({ candidateId: withdrawal.candidate!.candidate.id, payload })}
+          onConfirm={(payload) =>
+            withdrawal.mutation.mutate({ candidateId: withdrawal.candidate!.candidate.id, payload })
+          }
         />
       )}
 

@@ -17,13 +17,7 @@ function resetTime(iso: string): string {
  * server publishes both (GET /api/site/); on any other deployment the site
  * settings carry no `demo` and this renders nothing.
  */
-export function DemoSignIn({
-  busy,
-  onSignIn,
-}: {
-  busy: boolean;
-  onSignIn: (email: string, password: string) => void;
-}) {
+export function DemoSignIn({ busy, onSignIn }: { busy: boolean; onSignIn: (email: string, password: string) => void }) {
   const demo = useSiteSettingsQuery().data?.demo;
   if (!demo) return null;
 
@@ -31,10 +25,10 @@ export function DemoSignIn({
     <section aria-labelledby="demo-title" className="demo-card">
       <h2 id="demo-title">Try the demo</h2>
       <p>
-        Everything here is made up, and anyone can use these accounts at the same time. The data
-        is reset at {resetTime(demo.next_reset_at)}.
+        Everything here is made up, and anyone can use these accounts at the same time. The data is reset at{" "}
+        {resetTime(demo.next_reset_at)}.
       </p>
-      <ul className="demo-accounts">
+      <ul className="stack stack--2 list-plain">
         {demo.accounts.map((account) => (
           <li key={account.key}>
             <button

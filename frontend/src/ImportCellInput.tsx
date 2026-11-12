@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from "react";
+import { cx } from "./cx";
 
 /**
  * One value of a row, typed into. The fix is saved when the field is left
@@ -48,19 +49,25 @@ export function ImportCellInput({
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") event.currentTarget.blur();
-    if (event.key === "Escape") { setDraft(null); onDirtyChange?.(false); }
+    if (event.key === "Escape") {
+      setDraft(null);
+      onDirtyChange?.(false);
+    }
   }
 
   return (
     <input
       aria-invalid={invalid}
       aria-label={label}
-      className={`ix-cell-input${invalid ? " ix-cell-invalid" : changed ? " ix-cell-changed" : ""}`}
+      className={cx("ix-cell-input", invalid ? "ix-cell-invalid" : changed && "ix-cell-changed")}
       disabled={disabled || saving}
       placeholder={placeholder}
       value={draft ?? value}
       onBlur={() => void commit()}
-      onChange={(event) => { setDraft(event.target.value); onDirtyChange?.(event.target.value !== value); }}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        onDirtyChange?.(event.target.value !== value);
+      }}
       onKeyDown={onKeyDown}
     />
   );

@@ -38,7 +38,13 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import QuerySet
 
-from gradings.models import GradingSession
+from gradings.models import (
+    CandidateAssessment,
+    CandidateAssessmentItem,
+    CandidateOutcome,
+    GradingCandidate,
+    GradingSession,
+)
 from students.models import Student
 
 SESSION_GONE_MESSAGE = "This grading session no longer exists."
@@ -155,6 +161,64 @@ def lock_in_session[M: models.Model](
     raise ValidationError({name: [f"This {name} no longer exists."]})
 
 
+def lock_candidate(pk: int, *, also_lock: Collection[int] = ()) -> GradingCandidate:
+    """A candidate, locked under its session, read with its session, student
+    and testing-for rank."""
+    return lock_in_session(
+        GradingCandidate.objects.select_related(
+            "session", "student", "testing_for_rank"
+        ),
+        pk,
+        session_path="session_id",
+        name="candidate",
+        also_lock=also_lock,
+    )
+
+
+def lock_assessment(pk: int) -> CandidateAssessment:
+    """An assessment, locked under its session, read with its candidate's
+    session and student."""
+    return lock_in_session(
+        CandidateAssessment.objects.select_related(
+            "candidate__session",
+            "candidate__student",
+        ),
+        pk,
+        session_path="candidate__session_id",
+        name="assessment",
+    )
+
+
+def lock_item(pk: int) -> CandidateAssessmentItem:
+    """An assessment item, locked under its session, read with its
+    candidate's session and student."""
+    return lock_in_session(
+        CandidateAssessmentItem.objects.select_related(
+            "assessment__candidate__session",
+            "assessment__candidate__student",
+        ),
+        pk,
+        session_path="assessment__candidate__session_id",
+        name="item",
+    )
+
+
+def lock_outcome(pk: int) -> CandidateOutcome:
+    """An outcome, locked under its session, read with its candidate's
+    session, its assessment and who proposed and decided it."""
+    return lock_in_session(
+        CandidateOutcome.objects.select_related(
+            "candidate__session",
+            "assessment",
+            "proposed_by",
+            "decided_by",
+        ),
+        pk,
+        session_path="candidate__session_id",
+        name="outcome",
+    )
+
+
 def lock_sessions_of(
     model: type[models.Model],
     pks: Iterable[int],
@@ -194,15 +258,3 @@ def require_pinned(pk: int, pinned: Collection[int], name: str) -> None:
                 ],
             },
         )
-
-
-__all__ = [
-    "STUDENT_GONE_MESSAGE",
-    "lock_in_session",
-    "lock_session",
-    "lock_sessions",
-    "lock_sessions_of",
-    "lock_student",
-    "lock_students",
-    "require_pinned",
-]

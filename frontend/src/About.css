@@ -6,15 +6,10 @@
   padding: var(--space-2);
 }
 
+/* Each a .menu-link. */
 .ab-rail a {
-  display: flex;
-  align-items: center;
-  min-height: var(--target-min);
   padding: 0 var(--space-3);
-  border-radius: var(--radius-control);
   color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
 }
 
 .ab-rail a:hover {
@@ -24,7 +19,6 @@
 .ab-rail a.active {
   background: var(--color-surface-sunken);
   box-shadow: var(--edge-accent);
-  font-weight: var(--font-weight-strong);
 }
 
 .ab-rail a:focus-visible {
@@ -40,9 +34,6 @@
 
 .ab-main {
   line-height: var(--line-height-body);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
 }
 
 .ab-main > header h2 {
@@ -62,28 +53,17 @@
   padding: var(--space-5);
 }
 
+/* A .mark--display, on the rail's ink. */
 .st-hero-mark {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
   width: 5.25rem;
   height: 5.25rem;
-  border-radius: var(--radius-pill);
   background: var(--color-rail);
   color: var(--color-gold);
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-title);
 }
 
 .st-hero-text {
   flex: 1 1 18rem;
   min-width: 0;
-}
-
-.st-hero h2 {
-  font-size: var(--font-size-3xl);
-  letter-spacing: var(--tracking-tight);
 }
 
 .st-accent {
@@ -101,16 +81,13 @@
   margin: 0;
 }
 
+/* Each a .menu-link, ruled from the one above. */
 .st-links a {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
   min-height: 48px;
   padding: 0 var(--space-5);
   border-top: 1px solid var(--color-border);
+  border-radius: 0;
   color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
 }
 
 .st-links a:first-child {
@@ -156,7 +133,6 @@
   overscroll-behavior: contain;
 }
 
-
 .ab-doc-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -178,14 +154,12 @@
   padding: var(--space-2) var(--space-3);
 }
 
+/* Each a .menu-link. */
 .ab-contents button {
-  min-height: var(--target-min);
   padding: 0 var(--space-3);
   border: 0;
-  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
   text-align: left;
 }
 
@@ -208,11 +182,6 @@
   margin-top: 0;
 }
 
-.ab-prose h3:focus,
-.ab-prose h4:focus {
-  outline: none;
-}
-
 .ab-prose h4 {
   margin: var(--space-4) 0 var(--space-1);
   scroll-margin-top: 1rem;
@@ -233,19 +202,9 @@
   padding-left: var(--space-5);
 }
 
-
-.ab-prose code {
-  padding: 0.05rem var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-sunken);
-  font-size: 0.9em;
-}
-
 /* The pledge. */
 .ab-pledge {
   margin: var(--space-4) 0 0;
-  padding: 0;
-  list-style: none;
 }
 
 .ab-pledge li {
@@ -271,24 +230,17 @@
   color: var(--color-text-muted);
 }
 
+/* A .mark--small, in gold. */
 .ab-number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 1.65rem;
   height: 1.65rem;
-  border-radius: var(--radius-pill);
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-title);
 }
 
 /* Support and credits. */
 .ab-steps {
   margin: var(--space-3) 0 0;
-  padding: 0;
-  list-style: none;
 }
 
 .ab-steps li {
@@ -314,4 +266,3 @@
 .ab-contact:first-child {
   border-top: 0;
 }
-

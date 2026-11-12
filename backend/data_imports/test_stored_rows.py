@@ -22,15 +22,17 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from data_imports.models import COMMITTED_ROWS_KEPT_FOR, ImportBatch, ImportRow
 from data_imports.services import (
+    ROW_COUNT_NAMES,
     cancel_import_batch,
     commit_legacy_grading_import,
     commit_student_import,
     correct_import_row,
     expire_import_batch,
+    row_counts,
     save_import_mapping,
     set_import_row_excluded,
 )
-from data_imports.testing import standard_workbook
+from data_imports.testing import check_roster, standard_workbook
 from data_imports.tests import (
     CLEAN_ROW,
     STANDARD_MAPPING,
@@ -115,7 +117,7 @@ def test_matching_columns_checks_and_stores_every_row() -> None:
 
     assert outcomes(batch) == {2: "READY", 3: "REVIEW_REQUIRED"}
     bad = batch.rows.get(row_number=3)
-    assert bad.issues == ["Date of birth 'not a date' could not be parsed."]
+    assert bad.issues == ["Date of birth 'not a date' is not a valid date."]
     assert bad.values["first_name"] == "Casey"
     assert batch.configuration_json["column_mapping"] == STANDARD_MAPPING
 
@@ -223,7 +225,7 @@ def test_finishing_with_no_body_uses_what_is_stored_and_notes_what_each_became()
     assert response.status_code == 200, response.json()
     body = response.json()
     assert body["status"] == "COMMITTED"
-    assert body["next_step"] == "CLOSED"
+    assert body["next_step"] == "RESULTS"
     assert body["summary_json"]["created"] == 2
     created = {row.row_number: row.created_id for row in batch.rows.all()}
     students = dict(Student.objects.values_list("first_name", "pk"))
@@ -281,8 +283,9 @@ def test_the_list_and_detail_say_where_each_import_is_up_to() -> None:
     client = client_for(admin)
 
     listed = {row["id"]: row for row in results(client.get(BASE))}
-    assert listed[unmatched.pk]["next_step"] == "MATCH_COLUMNS"
+    assert listed[unmatched.pk]["next_step"] == "MATCH"
     assert listed[reviewing.pk]["next_step"] == "REVIEW"
+    assert listed[reviewing.pk]["review_step"] == "REVIEW"
     assert listed[reviewing.pk]["row_counts"] == {
         "total": 2,
         "ready": 1,
@@ -290,14 +293,87 @@ def test_the_list_and_detail_say_where_each_import_is_up_to() -> None:
         "skip_existing": 0,
         "excluded": 0,
     }
-    assert listed[reviewing.pk]["kind_display"] == "Student roster"
+    assert listed[reviewing.pk]["kind_display"] == "Students"
     assert listed[reviewing.pk]["status_display"] == "Uploaded"
     assert listed[reviewing.pk]["column_mapping"] == STANDARD_MAPPING
-    assert listed[reviewing.pk]["uploaded_by_name"] == admin.email
+    # Never by email: an account made before names were required says so,
+    # and an administrator's says it is one.
+    assert listed[reviewing.pk]["uploaded_by_name"] == "Unnamed account (administrator)"
 
     detail = client.get(f"{BASE}{unmatched.pk}/").json()
     assert detail["detected_headers"] == list(STANDARD_MAPPING.values())
     assert detail["row_counts"]["total"] == 1
+
+
+def test_a_sorted_roster_is_ready_to_confirm_and_a_workbook_resumes_at_its_ranks() -> (
+    None
+):
+    admin = admin_user()
+    sorted_roster = mapped(CLEAN_ROW, admin=admin)
+    workbook = upload_batch(
+        kind=ImportBatch.Kind.LEGACY_GRADINGS,
+        content=standard_workbook(
+            [["A. Example", "White Belt", "Yellow Stripe", "Pass", ""]],
+        ),
+        uploaded_by=admin,
+    )
+    client = client_for(admin)
+
+    roster_served = client.get(f"{BASE}{sorted_roster.pk}/").json()
+    assert (roster_served["next_step"], roster_served["review_step"]) == (
+        "CONFIRM",
+        "CONFIRM",
+    )
+    workbook_served = client.get(f"{BASE}{workbook.pk}/").json()
+    assert (workbook_served["next_step"], workbook_served["review_step"]) == (
+        "MATCH",
+        "CONFIRM",
+    )
+
+
+def test_a_rows_counts_are_one_rule_served_and_checked_alike() -> None:
+    # One count of each outcome, and the total: the list's annotation and
+    # the check's count are the one statement (services._row_counted).
+    assert ROW_COUNT_NAMES == (
+        "total",
+        *(outcome.lower() for outcome in ImportRow.Outcome.values),
+    )
+    admin = admin_user()
+    batch = mapped(CLEAN_ROW, BAD_DATE, admin=admin)
+    set_import_row_excluded(batch, row_number=3, excluded=True)
+
+    checked = check_roster(batch, column_mapping=STANDARD_MAPPING).counts
+    served = client_for(admin).get(f"{BASE}{batch.pk}/").json()["row_counts"]
+
+    assert checked == {
+        "total": 2,
+        "ready": 1,
+        "review_required": 0,
+        "skip_existing": 0,
+        "excluded": 1,
+    }
+    assert served == checked
+    assert row_counts(batch.rows.all()) == checked
+
+
+def test_an_imports_configuration_is_read_by_name_with_its_empty_value() -> None:
+    batch = roster(CLEAN_ROW)
+    configuration = batch.configuration
+
+    # Not stored yet: read as empty, and reading writes nothing.
+    assert configuration.column_mapping == {}
+    assert configuration.sheet_error == ""
+    assert "column_mapping" not in batch.configuration_json
+
+    configuration.column_mapping = STANDARD_MAPPING
+    configuration.sheet_error = "Unreadable."
+    del configuration.sheet_error
+    batch.save(update_fields=["configuration_json", "updated_at"])
+
+    stored = ImportBatch.objects.get(pk=batch.pk)
+    assert stored.configuration_json["column_mapping"] == STANDARD_MAPPING
+    assert "sheet_error" not in stored.configuration_json
+    assert stored.configuration.column_mapping == STANDARD_MAPPING
 
 
 def test_the_list_filters_by_status_and_kind_and_refuses_anything_else() -> None:
@@ -338,7 +414,7 @@ def test_the_rows_come_a_page_at_a_time_filtered_and_searched() -> None:
     assert [row["row_number"] for row in first["results"]] == [2, 3]
     review = results(client.get(url, {"outcome": "REVIEW_REQUIRED"}))
     assert [row["row_number"] for row in review] == [4]
-    assert review[0]["issues"] == ["Date of birth 'not a date' could not be parsed."]
+    assert review[0]["issues"] == ["Date of birth 'not a date' is not a valid date."]
     assert review[0]["outcome_display"] == "Needs attention"
     assert [
         row["row_number"] for row in results(client.get(url, {"search": "blair"}))
@@ -642,6 +718,21 @@ def test_the_import_list_takes_several_statuses() -> None:
     assert open_one.pk not in [batch["id"] for batch in listed]
 
 
+def test_the_import_list_takes_the_finished_ones_by_name() -> None:
+    admin = admin_user()
+    open_one = roster(CLEAN_ROW, admin=admin)
+    finished = mapped(CLEAN_ROW, admin=admin)
+    commit_student_import(finished, actor=admin)
+    client = client_for(admin)
+
+    assert [b["id"] for b in results(client.get(BASE, {"finished": "true"}))] == [
+        finished.pk,
+    ]
+    assert [b["id"] for b in results(client.get(BASE, {"finished": "false"}))] == [
+        open_one.pk,
+    ]
+
+
 # --- what the matching and review screens need --------------------------------
 
 
@@ -666,10 +757,11 @@ def test_a_roster_import_serves_its_fields_and_suggested_columns() -> None:
         "whole_file": True,
     }
     assert rank["needed"] and rank["whole_file"]
-    assert served["rank_mappings"] == {}
 
 
-def test_a_historical_import_serves_the_ranks_chosen_for_its_spellings() -> None:
+def test_a_historical_imports_preview_serves_the_rank_chosen_for_each_spelling() -> (
+    None
+):
     admin = admin_user()
     batch = upload_batch(
         kind=ImportBatch.Kind.LEGACY_GRADINGS,
@@ -683,9 +775,13 @@ def test_a_historical_import_serves_the_ranks_chosen_for_its_spellings() -> None
         format="json",
     )
 
+    # Asked again without choices, it reads the stored ones.
+    preview = client.post(f"{BASE}{batch.pk}/preview/", {}, format="json").json()
     served = client.get(f"{BASE}{batch.pk}/").json()
 
-    assert served["rank_mappings"] == {"brn stripe": "BROWN_STRIPE"}
+    assert {
+        s["source_text"]: s["chosen_rank_code"] for s in preview["rank_suggestions"]
+    } == {"Brn stripe": "BROWN_STRIPE", "Brown": None}
     assert served["target_fields"] == [] and served["suggested_mapping"] == {}
 
 
@@ -829,3 +925,26 @@ def test_roster_rows_can_be_listed_by_a_value_kukgrade_gave_them() -> None:
     correct_import_row(batch, row_number=3, changes={"status": "INACTIVE"})
     assert filled("status") == []
     assert filled("first_name") == []
+
+
+def test_the_second_look_counts_what_kukgrade_filled_in_for_the_added_rows() -> None:
+    admin = admin_user()
+    no_status = ["123-4-501", "Blair", "Park", "2013-06-02", "", ""]
+    no_rank = ["123-4-502", "Casey", "Lee", "2013-06-02", "", "ACTIVE"]
+    batch = save_import_mapping(
+        roster(CLEAN_ROW, no_status, no_rank, BAD_DATE, admin=admin),
+        column_mapping=STANDARD_MAPPING,
+        defaults={"current_rank": "White"},
+    )
+    correct_import_row(batch, row_number=4, changes={"first_name": "Cassie"})
+    set_import_row_excluded(batch, row_number=5, excluded=True)
+    client = client_for(admin)
+
+    # Only the rows added count: the one left out is not among them.
+    assert client.get(f"{BASE}{batch.pk}/second-look/").json() == {
+        "corrected": 1,
+        "given_status": 1,
+        "given_rank": 2,
+    }
+    instructor = client_for(instructor_user())
+    assert instructor.get(f"{BASE}{batch.pk}/second-look/").status_code == 403

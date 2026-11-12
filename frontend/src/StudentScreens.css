@@ -1,15 +1,8 @@
 /* Filter Bar */
 
-
-.students-results {
-  display: grid;
-  gap: var(--space-4);
-}
-
 .wksa-id-pill {
   font-family: var(--font-mono);
 }
-
 
 .current-grading-stage,
 .current-grading-none {
@@ -17,9 +10,6 @@
   color: var(--color-text-muted);
 }
 
-/* Actions */
-
-/* Empty States */
 /* ==========================================================================
    Add Student Screen
    ========================================================================== */
@@ -30,8 +20,6 @@
   margin-bottom: var(--space-5);
 }
 
-/* Form Section Cards */
-
 /* Grid Layouts */
 
 .form-row-grid-2,
@@ -40,8 +28,6 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   gap: var(--space-5);
 }
-
-/* Field Groups */
 
 /* Form Inputs */
 
@@ -81,9 +67,6 @@
 
 .detail-left-column,
 .detail-right-column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
   min-width: 0;
 }
 
@@ -161,20 +144,6 @@
 
 /* Grading Readiness Card */
 
-.readiness-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.readiness-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
-}
-
 .readiness-value {
   text-align: right;
 }
@@ -188,23 +157,8 @@
 
 /* Record Status Card */
 
-.record-status-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.record-status-badge-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .record-status-policy-note {
   line-height: var(--line-height-snug);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 .record-status-policy-note p {
@@ -212,16 +166,6 @@
 }
 
 /* The change-status dialog */
-
-.modal-lead-text {
-  margin: 0 0 var(--space-4);
-}
-
-.status-radio-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
 
 .status-radio-card {
   display: flex;
@@ -231,7 +175,10 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   cursor: pointer;
-  transition: border-color var(--duration) ease, background var(--duration) ease, color var(--duration) ease;
+  transition:
+    border-color var(--duration) ease,
+    background var(--duration) ease,
+    color var(--duration) ease;
   background: var(--color-surface);
 }
 
@@ -251,14 +198,7 @@
   cursor: pointer;
 }
 
-.status-radio-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .status-radio-desc {
   margin: 0;
   line-height: var(--line-height-snug);
 }
-

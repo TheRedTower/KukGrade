@@ -15,6 +15,7 @@ import type {
 } from "./api";
 import { ApiError } from "./api";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
+import { CHOICES, sessionServed } from "./appTestSupport";
 
 const masterUser: AuthUser = {
   id: "uuid-master",
@@ -56,6 +57,7 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
+    getChoices: async () => CHOICES,
     getGradingSession: (...args: unknown[]) => mockGetGradingSession(...args),
     getAllGradingCandidates: (...args: unknown[]) => mockGetCandidates(...args),
     getAssessmentSummary: (...args: unknown[]) => mockGetSummary(...args),
@@ -79,7 +81,12 @@ const lockedSession: GradingSession = {
   candidate_count: 0,
   completed_assessment_count: 0,
   awaiting_decision_count: 0,
-  can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+  ...sessionServed("LOCKED"),
+  withdrawn_count: 1,
+  can_be_deleted: false,
+  archived_at: null,
+  can_be_archived: false,
+  can_be_restored: false,
   grading_date: "2026-11-12",
   location: "Riverside",
   notes: "",
@@ -91,6 +98,7 @@ function candidate(id: number, name: string, overrides: Partial<GradingCandidate
     session: 10,
     student: id + 100,
     student_display_name: name,
+    student_first_name: name.split(" ")[0],
     student_wksa_id: `KG-${id}`,
     from_rank: 2,
     from_rank_name: "Yellow Stripe",
@@ -107,20 +115,17 @@ function candidate(id: number, name: string, overrides: Partial<GradingCandidate
   };
 }
 
-function assessment(
-  id: number,
-  candidateId: number,
-  overall: CandidateAssessment["overall"],
-): CandidateAssessment {
+function assessment(id: number, candidateId: number, overall: CandidateAssessment["overall"]): CandidateAssessment {
   return {
     id,
     candidate: candidateId,
     candidate_student_name: "",
     status: "COMPLETED",
     status_display: "Completed",
-    generated_by_email: "master@example.com",
+    generated_by_name: "PKJN Mia Master",
     overall,
     marks_open: true,
+    can_start: false,
     can_delete: false,
     generated_at: "2026-11-12T09:00:00Z",
     started_at: "2026-11-12T09:05:00Z",
@@ -134,13 +139,14 @@ function outcome(id: number, candidateId: number, overrides: Partial<CandidateOu
     id,
     candidate: candidateId,
     status: "PROPOSED",
+    status_display: "Proposed",
     proposed_outcome: "PASS",
     proposed_outcome_display: "Pass",
     proposed_by_name: "Morgan Reed",
     proposed_at: "2026-11-12T15:00:00Z",
     proposal_notes: "Clean grading throughout.",
     final_outcome: null,
-    final_outcome_display: "",
+    final_outcome_display: null,
     decided_by_name: "",
     decided_at: null,
     decision_notes: "",
@@ -160,7 +166,8 @@ function summary(required: number, met: number, notMet: number): CandidateAssess
     required_not_assessed: 0,
     all_required_assessed: true,
   };
-  return { overall: counts, categories: [] };
+  // Sealed: there is nothing left to complete.
+  return { overall: counts, can_complete: false, categories: [] };
 }
 
 function item(id: number, overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentItem {
@@ -171,6 +178,8 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
     category: "KICKING",
     category_display: "Kicking",
     category_is_core: true,
+    reason_required: true,
+    can_clear: true,
     position: id,
     required: true,
     display_range: "",
@@ -178,7 +187,7 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
     notation: "",
     result: "MET",
     result_display: "Met",
-    assessor_email: "reed@example.com",
+    assessor_name: "KSN Reed Hart",
     assessed_at: "2026-11-12T10:00:00Z",
     comments: [],
     changes: [],
@@ -192,7 +201,7 @@ const cohort = [
   candidate(1, "Mia Okafor"),
   candidate(2, "Alex Carter"),
   candidate(3, "Tom Ashby"),
-  candidate(4, "Sam Withdrawn", { status: "WITHDRAWN", }),
+  candidate(4, "Sam Withdrawn", { status: "WITHDRAWN" }),
 ] satisfies GradingCandidate[];
 const outcomes = [
   outcome(11, 1),
@@ -203,6 +212,7 @@ const outcomes = [
   }),
   outcome(13, 3, {
     status: "FINALISED",
+    status_display: "Finalised",
     final_outcome: "FAIL",
     final_outcome_display: "Fail",
     decided_by_name: "Lee Tan",
@@ -217,7 +227,7 @@ const assessments = [
   assessment(1002, 2, summary(24, 22, 2).overall),
   assessment(1003, 3, summary(18, 18, 0).overall),
 ];
-const roster = cohort.map((row): GradingCandidateRoster => {
+const servedRoster = cohort.map((row): GradingCandidateRoster => {
   const found = outcomes.find((o) => o.candidate === row.id) ?? null;
   return {
     ...row,
@@ -226,9 +236,13 @@ const roster = cohort.map((row): GradingCandidateRoster => {
     next_action: "REVIEW_DECISION",
     promotion: null,
     can_be_withdrawn_after_lock: false,
+    can_be_marked_absent: false,
+    can_prepare_assessment: false,
     can_be_finalised: found?.status === "PROPOSED",
   };
 });
+// The board asks for the candidates still being graded (withdrawn=false).
+const roster = servedRoster.filter((row) => row.status !== "WITHDRAWN");
 
 function renderBoard(
   path = "/gradings/10/decisions",
@@ -266,14 +280,39 @@ describe("CohortAdjudicationScreen", () => {
     );
     mockGetItems.mockResolvedValue(
       page([
-        item(1, { result: "NOT_MET", result_display: "Not met", item_name: "Dwi Cha Gi", comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on the turn.", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
-        item(2, { item_name: "Ap Cha Gi", comments: [{ id: 2, author_name: "Casey Reed", body: "Excellent chamber.", created_at: "2026-09-18T10:20:00Z", after_lock: false }] }),
+        item(1, {
+          result: "NOT_MET",
+          result_display: "Not met",
+          item_name: "Dwi Cha Gi",
+          comments: [
+            {
+              id: 1,
+              author_name: "Casey Reed",
+              body: "Guard dropped on the turn.",
+              created_at: "2026-09-18T10:20:00Z",
+              after_lock: false,
+            },
+          ],
+        }),
+        item(2, {
+          item_name: "Ap Cha Gi",
+          comments: [
+            {
+              id: 2,
+              author_name: "Casey Reed",
+              body: "Excellent chamber.",
+              created_at: "2026-09-18T10:20:00Z",
+              after_lock: false,
+            },
+          ],
+        }),
         item(3, { item_name: "Yup Cha Gi" }),
       ]),
     );
     mockFinalise.mockImplementation(async (outcomeId: number) => ({
       ...outcomes.find((o) => o.id === outcomeId)!,
       status: "FINALISED",
+      status_display: "Finalised",
     }));
     mockGetStaged.mockResolvedValue([]);
     mockStage.mockImplementation(async (outcomeId: number) => ({ outcome: outcomeId }));
@@ -310,7 +349,7 @@ describe("CohortAdjudicationScreen", () => {
     renderBoard();
 
     const mia = await screen.findByTestId("cab-row-1");
-    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
     await waitFor(() =>
       expect(mockStage).toHaveBeenCalledWith(11, {
         final_outcome: "PASS",
@@ -329,7 +368,7 @@ describe("CohortAdjudicationScreen", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
     await user.click(screen.getByTestId("cab-record-staged"));
 
@@ -347,7 +386,13 @@ describe("CohortAdjudicationScreen", () => {
           recorded && row.id === 1
             ? {
                 ...row,
-                outcome: { ...row.outcome!, status: "FINALISED" as const, final_outcome: "PASS" as const },
+                outcome: {
+                  ...row.outcome!,
+                  status: "FINALISED" as const,
+                  status_display: "Finalised",
+                  final_outcome: "PASS" as const,
+                  final_outcome_display: "Pass",
+                },
                 can_be_finalised: false,
               }
             : row,
@@ -356,15 +401,17 @@ describe("CohortAdjudicationScreen", () => {
     );
     mockFinalise.mockImplementation(async (outcomeId: number) => {
       recorded = true;
-      return { ...outcomes.find((o) => o.id === outcomeId)!, status: "FINALISED" };
+      return { ...outcomes.find((o) => o.id === outcomeId)!, status: "FINALISED", status_display: "Finalised" };
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     await user.click(screen.getByTestId("cab-record-staged"));
 
     expect(await screen.findByText("1 decision recorded.")).toBeVisible();
-    await waitFor(() => expect(within(screen.getByTestId("cab-row-1")).queryByRole("button", { name: "Pass" })).toBeNull());
+    await waitFor(() =>
+      expect(within(screen.getByTestId("cab-row-1")).queryByRole("button", { name: "Pass" })).toBeNull(),
+    );
     expect(mockGetCandidates.mock.calls.length).toBeGreaterThan(1);
   });
 
@@ -374,7 +421,13 @@ describe("CohortAdjudicationScreen", () => {
     await waitFor(() => expect(mockGetStaged).toHaveBeenCalledTimes(1));
     first.unmount();
     mockGetStaged.mockResolvedValue([
-      { outcome: 11, final_outcome: "FAIL", decision_notes: "", conditional_requirements: "", updated_at: "2026-11-12T15:00:00Z" },
+      {
+        outcome: 11,
+        final_outcome: "FAIL",
+        decision_notes: "",
+        conditional_requirements: "",
+        updated_at: "2026-11-12T15:00:00Z",
+      },
     ]);
 
     renderBoard(undefined, queryClient);
@@ -414,7 +467,7 @@ describe("CohortAdjudicationScreen", () => {
     renderBoard();
 
     const mia = await screen.findByTestId("cab-row-1");
-    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
     await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
     await user.click(within(mia).getByRole("button", { name: "Fail" }));
     await passTypingPause();
@@ -427,6 +480,26 @@ describe("CohortAdjudicationScreen", () => {
     expect(mockStage).toHaveBeenLastCalledWith(11, expect.objectContaining({ final_outcome: "FAIL" }));
   });
 
+  it("records a decision only after its save in flight has landed", async () => {
+    const user = userEvent.setup();
+    let finishSave!: () => void;
+    mockStage.mockImplementationOnce(
+      (outcomeId: number) => new Promise((resolve) => (finishSave = () => resolve({ outcome: outcomeId }))),
+    );
+    renderBoard();
+
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByTestId("cab-record-staged"));
+    // The save is still on its way, so recording waits behind it.
+    expect(mockFinalise).not.toHaveBeenCalled();
+
+    finishSave();
+
+    expect(await screen.findByText("1 decision recorded.")).toBeVisible();
+    expect(mockFinalise).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps warning while any candidate's decision is unsaved", async () => {
     const user = userEvent.setup();
     mockStage.mockImplementation(async (outcomeId: number) => {
@@ -435,7 +508,7 @@ describe("CohortAdjudicationScreen", () => {
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     expect(await screen.findByText(/Could not save Mia\./)).toBeVisible();
     await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
     await waitFor(() => expect(mockStage).toHaveBeenCalledWith(12, expect.anything()));
@@ -448,7 +521,7 @@ describe("CohortAdjudicationScreen", () => {
     mockStage.mockRejectedValue(new ApiError("This candidate's decision can no longer be staged.", 400));
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
 
     expect(
       await screen.findByText(/This candidate's decision can no longer be staged. That decision is still/),
@@ -461,8 +534,10 @@ describe("CohortAdjudicationScreen", () => {
     const alex = await screen.findByTestId("cab-row-2");
     await waitFor(() => expect(within(alex).getByText("22 / 24 met")).toBeVisible());
     expect(within(alex).getByText("2 not met")).toBeVisible();
-    expect(within(alex).getByText("Conditional", { selector: ".badge--warning" })).toBeVisible();
+    expect(within(alex).getByText("Conditional", { selector: '[data-tone="warning"]' })).toBeVisible();
     expect(within(screen.getByTestId("cab-row-3")).getByText("Recorded · Fail")).toBeVisible();
+    // The server leaves withdrawn candidates out, and counts them on the session.
+    expect(mockGetCandidates).toHaveBeenCalledWith({ session: 10, withdrawn: false });
     expect(screen.queryByTestId("cab-row-4")).toBeNull();
     expect(screen.getByText("1 withdrawn candidate is not shown.")).toBeVisible();
     expect(screen.getByText("finalised", { exact: false })).toHaveTextContent("1 / 3 finalised");
@@ -477,9 +552,11 @@ describe("CohortAdjudicationScreen", () => {
     renderBoard();
 
     const mia = await screen.findByTestId("cab-row-1");
-    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
+    // Named by the first name the server serves.
+    expect(screen.getByRole("button", { name: "Record decision for Mia" })).toBeVisible();
     const alex = screen.getByTestId("cab-row-2");
-    await user.click(within(alex).getByRole("button", { name: "Conditional" }));
+    await user.click(await within(alex).findByRole("button", { name: "Conditional" }));
 
     // A Conditional decision cannot be recorded without re-test requirements.
     const recordAll = screen.getByTestId("cab-record-staged");
@@ -511,11 +588,11 @@ describe("CohortAdjudicationScreen", () => {
     const user = userEvent.setup();
     mockFinalise.mockImplementation(async (outcomeId: number) => {
       if (outcomeId === 12) throw new ApiError("Session changed.", 400);
-      return { ...outcomes[0], status: "FINALISED" };
+      return { ...outcomes[0], status: "FINALISED", status_display: "Finalised" };
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
     await user.click(screen.getByTestId("cab-record-staged"));
 
@@ -534,11 +611,11 @@ describe("CohortAdjudicationScreen", () => {
       if (outcomeId === 11) {
         throw new ApiError("Authentication credentials were not provided.", 403, "authentication_required");
       }
-      return { ...outcomes[0], status: "FINALISED" };
+      return { ...outcomes[0], status: "FINALISED", status_display: "Finalised" };
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
     await user.click(screen.getByTestId("cab-record-staged"));
 
@@ -575,7 +652,14 @@ describe("CohortAdjudicationScreen", () => {
   });
 
   it("offers no decision controls until the session is locked", async () => {
-    mockGetGradingSession.mockResolvedValue({ ...lockedSession, status: "OPEN", status_display: "Open" });
+    mockGetGradingSession.mockResolvedValue({
+      ...lockedSession,
+      status: "OPEN",
+      status_display: "Open",
+      ...sessionServed("OPEN"),
+    });
+    // Nothing can be finalised before the lock, and the rows say so.
+    mockGetCandidates.mockResolvedValue(page(roster.map((row) => ({ ...row, can_be_finalised: false }))));
     renderBoard();
 
     await screen.findByTestId("cab-row-1");
@@ -591,7 +675,9 @@ describe("CohortAdjudicationScreen", () => {
     });
     renderBoard();
 
-    await user.click(within(await screen.findByTestId("cab-row-2")).getByRole("button", { name: "Alex Carter" }));
+    await user.click(
+      await within(await screen.findByTestId("cab-row-2")).findByRole("button", { name: "Alex Carter" }),
+    );
 
     await waitFor(() =>
       expect(within(screen.getByTestId("cab-detail")).getByRole("heading", { name: "Alex Carter" })).toHaveFocus(),
@@ -603,7 +689,7 @@ describe("CohortAdjudicationScreen", () => {
     const user = userEvent.setup();
     renderBoard();
 
-    const name = within(await screen.findByTestId("cab-row-2")).getByRole("button", { name: "Alex Carter" });
+    const name = await within(await screen.findByTestId("cab-row-2")).findByRole("button", { name: "Alex Carter" });
     await user.click(name);
 
     expect(within(screen.getByTestId("cab-detail")).getByRole("heading", { name: "Alex Carter" })).toBeVisible();
@@ -615,8 +701,8 @@ describe("CohortAdjudicationScreen", () => {
 
     const detail = await screen.findByTestId("cab-detail");
     expect(within(detail).getByRole("heading", { name: "Alex Carter" })).toBeVisible();
-    expect(await within(detail).findByText("Guard dropped on the turn.")).toBeVisible();
-    expect(within(detail).getByText("Excellent chamber.")).toBeVisible();
+    expect(await within(detail).findByText("“Guard dropped on the turn.”")).toBeVisible();
+    expect(within(detail).getByText("“Excellent chamber.”")).toBeVisible();
     expect(within(detail).queryByText(/Yup Cha Gi/)).toBeNull();
     expect(within(detail).getByText("Back kick needs a re-test.")).toBeVisible();
     expect(within(detail).getByRole("link", { name: "Open the full assessment record" })).toHaveAttribute(

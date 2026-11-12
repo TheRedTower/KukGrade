@@ -18,7 +18,21 @@ import {
   ADMINISTRATOR_CAPABILITIES,
   jsonResponse,
   assessmentSummaryFor,
+  sessionServed,
+  CHOICES,
+  stubFetch,
 } from "./appTestSupport";
+
+/** The open confirmation's own button: the last one in the dialog. */
+function confirmButton(): HTMLElement {
+  return within(screen.getByRole("dialog")).getAllByRole("button").at(-1)!;
+}
+
+async function confirmButtonAsync(): Promise<HTMLElement> {
+  return within(await screen.findByRole("dialog"))
+    .getAllByRole("button")
+    .at(-1)!;
+}
 
 describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   const adminUser = {
@@ -53,7 +67,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
-    can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+    ...sessionServed("OPEN"),
+    can_be_deleted: false,
+    archived_at: null,
+    can_be_archived: false,
+    can_be_restored: false,
     location: "Riverside Dojang",
     notes: "Please arrive 15 minutes before the start time.",
   } satisfies GradingSession;
@@ -72,6 +90,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       session: 10,
       student: 1,
       student_display_name: "Alex Carter",
+      student_first_name: "Alex",
       student_wksa_id: "UK-1001",
       from_rank: 2,
       from_rank_name: "Yellow Stripe",
@@ -90,6 +109,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       session: 10,
       student: 2,
       student_display_name: "Brooke Ellis",
+      student_first_name: "Brooke",
       student_wksa_id: "UK-1002",
       from_rank: 5,
       from_rank_name: "Blue",
@@ -108,6 +128,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       session: 10,
       student: 3,
       student_display_name: "Casey Nguyen",
+      student_first_name: "Casey",
       student_wksa_id: "UK-1003",
       from_rank: 6,
       from_rank_name: "Red stripe",
@@ -130,9 +151,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       candidate_student_name: "Alex Carter",
       status: "IN_PROGRESS" as const,
       status_display: "In progress",
-      generated_by_email: adminUser.email,
+      generated_by_name: `${adminUser.full_name} (administrator)`,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_start: false,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
@@ -145,9 +167,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       candidate_student_name: "Brooke Ellis",
       status: "COMPLETED" as const,
       status_display: "Completed",
-      generated_by_email: adminUser.email,
+      generated_by_name: `${adminUser.full_name} (administrator)`,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_start: false,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
@@ -160,9 +183,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       candidate_student_name: "Casey Nguyen",
       status: "NOT_STARTED" as const,
       status_display: "Not started",
-      generated_by_email: adminUser.email,
+      generated_by_name: `${adminUser.full_name} (administrator)`,
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
+      can_start: true,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: null,
@@ -176,13 +200,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       id: 302,
       candidate: 102,
       status: "PROPOSED" as const,
+      status_display: "Proposed",
       proposed_outcome: "PASS" as const,
       proposed_outcome_display: "Pass",
       proposed_by_name: "Alex Admin",
       proposed_at: "2026-09-15T10:05:00Z",
       proposal_notes: "Strong stances throughout.",
       final_outcome: null,
-      final_outcome_display: "",
+      final_outcome_display: null,
       decided_by_name: "",
       decided_at: null,
       decision_notes: "",
@@ -216,6 +241,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     canDecide: boolean,
     canOverride = false,
   ): GradingCandidateRoster[] {
+    const rosterOpen = sessionStatus === "DRAFT" || sessionStatus === "OPEN";
     return candidates.map((candidate) => {
       const assessment = assessments.find((item) => item.candidate === candidate.id) ?? null;
       const outcome = outcomes.find((item) => item.candidate === candidate.id) ?? null;
@@ -224,13 +250,17 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       else if (assessment?.status === "IN_PROGRESS") nextAction = "CONTINUE_ASSESSMENT";
       else if (assessment?.status === "NOT_STARTED") nextAction = "START_ASSESSMENT";
       else if (assessment?.status === "COMPLETED") {
-        if (outcome?.status === "FINALISED") nextAction = outcome.final_outcome === "PASS" ? "PROMOTION_LEDGER" : "VIEW_DECISION";
+        if (outcome?.status === "FINALISED")
+          nextAction = outcome.final_outcome === "PASS" ? "PROMOTION_LEDGER" : "VIEW_DECISION";
         else if (outcome?.status === "PROPOSED") nextAction = canDecide ? "REVIEW_DECISION" : "REVIEW_PROPOSAL";
         else nextAction = sessionStatus === "LOCKED" ? "PROPOSE_OUTCOME" : "VIEW_ASSESSMENT";
       }
       const canBeFinalised = outcome?.status === "PROPOSED" && sessionStatus === "LOCKED";
       const canWithdraw =
-        sessionStatus === "LOCKED" && canOverride && candidate.status !== "WITHDRAWN" && outcome?.status !== "FINALISED";
+        sessionStatus === "LOCKED" &&
+        canOverride &&
+        candidate.status !== "WITHDRAWN" &&
+        outcome?.status !== "FINALISED";
       return {
         ...candidate,
         assessment,
@@ -239,6 +269,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         next_action: nextAction,
         can_be_finalised: canBeFinalised,
         can_be_withdrawn_after_lock: canWithdraw,
+        // As the server rules them (gradings.services
+        // candidate_can_be_marked_absent, assessment_can_be_prepared).
+        can_be_marked_absent:
+          rosterOpen && candidate.status === "REGISTERED" && (!assessment || assessment.status === "NOT_STARTED"),
+        can_prepare_assessment: rosterOpen && candidate.status !== "WITHDRAWN" && !assessment,
       };
     });
   }
@@ -255,6 +290,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "ACTIVE" as const,
       status_display: "Active",
       can_be_graded: true,
+      next_rank: null,
+      next_rank_name: null,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
       current_grading: null,
@@ -270,6 +307,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "ACTIVE" as const,
       status_display: "Active",
       can_be_graded: true,
+      next_rank: null,
+      next_rank_name: null,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
       current_grading: null,
@@ -285,6 +324,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "ACTIVE" as const,
       status_display: "Active",
       can_be_graded: true,
+      next_rank: null,
+      next_rank_name: null,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
       current_grading: null,
@@ -316,6 +357,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const candidates = candidateRows ?? (locked ? lockedCandidates : testCandidates);
     const outcomes: CandidateOutcome[] = locked ? testOutcomes : [];
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
       if (url.includes("/api/gradings/withdrawal-reasons/")) {
         return jsonResponse(200, {
@@ -323,29 +365,20 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           next: null,
           previous: null,
           results: [
-            { code: "INJURY", name: "Injured during grading", note_required: false },
-            { code: "WITHDREW", name: "Withdrew voluntarily", note_required: false },
-            { code: "ABSENT", name: "Did not attend", note_required: false },
-            { code: "OTHER", name: "Other", note_required: true },
+            { value: "INJURY", label: "Injured during grading", note_required: false },
+            { value: "WITHDREW", label: "Withdrew voluntarily", note_required: false },
+            { value: "ABSENT", label: "Did not attend", note_required: false },
+            { value: "OTHER", label: "Other", note_required: true },
           ],
         });
       }
-      if (
-        url.includes("/api/gradings/candidates/bulk-generate-assessments/") &&
-        init?.method === "POST"
-      ) {
+      if (url.includes("/api/gradings/candidates/bulk-generate-assessments/") && init?.method === "POST") {
         return jsonResponse(200, { created: [], errors: {}, already_registered: {} });
       }
-      if (
-        url.includes("/api/gradings/assessments/bulk-start/") &&
-        init?.method === "POST"
-      ) {
+      if (url.includes("/api/gradings/assessments/bulk-start/") && init?.method === "POST") {
         return jsonResponse(200, { started: [testAssessments[2]], errors: {} });
       }
-      if (
-        url.includes("/api/gradings/candidates/bulk-update-status/") &&
-        init?.method === "POST"
-      ) {
+      if (url.includes("/api/gradings/candidates/bulk-update-status/") && init?.method === "POST") {
         const body = JSON.parse(init.body as string) as { candidates: number[] };
         return jsonResponse(200, {
           updated: candidates
@@ -354,10 +387,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           errors: {},
         });
       }
-      if (
-        url.match(/\/api\/gradings\/candidates\/\d+\/withdraw\/$/) &&
-        init?.method === "POST"
-      ) {
+      if (url.match(/\/api\/gradings\/candidates\/\d+\/withdraw\/$/) && init?.method === "POST") {
         const candidateId = Number(url.match(/candidates\/(\d+)\//)?.[1]);
         const candidate = candidates.find((item) => item.id === candidateId);
         return jsonResponse(200, {
@@ -377,17 +407,23 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         const patchData = JSON.parse(init.body as string);
-        return jsonResponse(200, { ...testSession, ...sessionOverrides, ...patchData });
+        const moved = { ...testSession, ...sessionOverrides, ...patchData };
+        return jsonResponse(200, {
+          ...moved,
+          ...sessionServed(moved.status, { withOverride: authenticatedUser.can_override_locked_session }),
+        });
       }
       if (url.includes("/api/gradings/sessions/10/")) {
-        return jsonResponse(200, { ...testSession, ...sessionOverrides });
+        const status = sessionOverrides.status ?? testSession.status;
+        const served = sessionServed(status, { withOverride: authenticatedUser.can_override_locked_session });
+        return jsonResponse(200, { ...testSession, ...served, ...sessionOverrides });
       }
       if (url.includes("/api/gradings/candidates/")) {
         const rows = rosterRows(
           candidates,
           assessments,
           outcomes,
-          locked ? "LOCKED" : "OPEN",
+          sessionOverrides.status ?? testSession.status,
           authenticatedUser.can_make_final_grading_decision,
           authenticatedUser.can_override_locked_session,
         );
@@ -397,21 +433,26 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, { count: assessments.length, next: null, previous: null, results: assessments });
       }
       if (url.includes("/api/students/")) {
-        return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
       }
       return jsonResponse(404, {});
     });
   }
 
-  it("renders session header, breadcrumbs, status pill, and lifecycle stepper track", async () => {
+  it("renders session header, the way back, status pill, and lifecycle stepper track", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Autumn Grading" })).toBeVisible();
     expect(screen.getByText("Riverside Dojang")).toBeVisible();
-    expect(screen.getByText("Open", { selector: ".badge--open" })).toBeVisible();
+    expect(screen.getByText("Open", { selector: '[data-tone="open"]' })).toBeVisible();
 
     // Stepper track
     expect(screen.getByText("Draft", { selector: ".item-title" })).toBeVisible();
@@ -425,7 +466,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("renders candidate roster table with authentic student ranks, assessment and outcome badges", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -442,7 +483,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row1).getByText("Yellow Stripe")).toBeVisible();
     expect(within(row1).getByText("Yellow")).toBeVisible();
     expect(within(row1).getByText("In progress")).toBeVisible();
-    expect(within(row1).getByText("Continue assessment →")).toBeVisible();
+    expect(within(row1).getByText("Continue assessment")).toBeVisible();
 
     // Candidate 2: Brooke Ellis
     const row2 = screen.getByTestId("candidate-row-102");
@@ -451,7 +492,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row2).getByText("Red stripe")).toBeVisible();
     expect(within(row2).getByText("Completed")).toBeVisible();
     expect(within(row2).getByText("Not proposed")).toBeVisible();
-    expect(within(row2).getByText("View record →")).toBeVisible();
+    expect(within(row2).getByText("View record")).toBeVisible();
 
     // Candidate 3: Casey Nguyen
     const row3 = screen.getByTestId("candidate-row-103");
@@ -459,12 +500,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row3).getByText("Red stripe")).toBeVisible();
     expect(within(row3).getByText("Red")).toBeVisible();
     expect(within(row3).getByText("Not started")).toBeVisible();
-    expect(within(row3).getByText("Start assessment →")).toBeVisible();
+    expect(within(row3).getByText("Start assessment")).toBeVisible();
   });
 
   it("starts all prepared assessments as an explicit bulk action", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -475,9 +516,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(startButton);
 
     await waitFor(() => {
-      const request = fetchMock.mock.calls.find(([url, init]) =>
-        String(url).includes("/api/gradings/assessments/bulk-start/") &&
-        (init as RequestInit | undefined)?.method === "POST",
+      const request = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes("/api/gradings/assessments/bulk-start/") &&
+          (init as RequestInit | undefined)?.method === "POST",
       );
       expect(request).toBeDefined();
       expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
@@ -489,21 +531,19 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("offers bulk preparation when registered candidates have no snapshot", async () => {
     const fetchMock = setupStandardMock({}, testAssessments.slice(0, 2));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
 
     expect(await screen.findByText("Not prepared")).toBeVisible();
-    await user.click(
-      screen.getByRole("button", { name: "Prepare all (1)" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Prepare all (1)" }));
 
     await waitFor(() => {
-      const request = fetchMock.mock.calls.find(([url, init]) =>
-        String(url).includes(
-          "/api/gradings/candidates/bulk-generate-assessments/",
-        ) && (init as RequestInit | undefined)?.method === "POST",
+      const request = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes("/api/gradings/candidates/bulk-generate-assessments/") &&
+          (init as RequestInit | undefined)?.method === "POST",
       );
       expect(request).toBeDefined();
       expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
@@ -514,7 +554,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("confirms attendance by marking only selected no-shows", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -528,9 +568,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(within(dialog).getByRole("button", { name: "Mark selected as no-show" }));
 
     await waitFor(() => {
-      const request = fetchMock.mock.calls.find(([url, init]) =>
-        String(url).includes("/api/gradings/candidates/bulk-update-status/") &&
-        (init as RequestInit | undefined)?.method === "POST",
+      const request = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes("/api/gradings/candidates/bulk-update-status/") &&
+          (init as RequestInit | undefined)?.method === "POST",
       );
       expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
         candidates: [103],
@@ -543,7 +584,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("requires a note before an Other withdrawal can be recorded", async () => {
     const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -561,7 +602,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("allows an authorised Master to record a reasoned locked-session withdrawal", async () => {
     const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -570,34 +611,29 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(within(row).getByRole("button", { name: "Withdraw Alex Carter" }));
     const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
     await user.click(await within(dialog).findByRole("radio", { name: "Injured during grading" }));
-    await user.type(
-      within(dialog).getByLabelText(/Additional note/),
-      "Unable to continue safely.",
-    );
+    await user.type(within(dialog).getByLabelText(/Additional note/), "Unable to continue safely.");
     await user.click(within(dialog).getByRole("button", { name: "Withdraw candidate" }));
 
     await waitFor(() => {
-      const request = fetchMock.mock.calls.find(([url, init]) =>
-        String(url).includes("/api/gradings/candidates/101/withdraw/") &&
-        (init as RequestInit | undefined)?.method === "POST",
+      const request = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes("/api/gradings/candidates/101/withdraw/") &&
+          (init as RequestInit | undefined)?.method === "POST",
       );
       expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
         withdrawal_reason: "INJURY",
         withdrawal_note: "Unable to continue safely.",
       });
     });
-    expect(
-      await screen.findByText("Alex Carter was withdrawn from the locked session."),
-    ).toBeVisible();
+    expect(await screen.findByText("Alex Carter was withdrawn from the locked session.")).toBeVisible();
   });
 
   it("does not expose locked withdrawal without override authority", async () => {
-    const fetchMock = setupStandardMock(
-      { status: "LOCKED", status_display: "Locked" },
-      undefined,
-      { ...adminUser, can_override_locked_session: false },
-    );
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" }, undefined, {
+      ...adminUser,
+      can_override_locked_session: false,
+    });
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -624,7 +660,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       adminUser,
       withdrawnCandidates,
     );
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -637,29 +673,26 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("shows a locked session's proposals and the decision a Master can review", async () => {
-    vi.stubGlobal(
-      "fetch",
-      setupStandardMock({ status: "LOCKED", status_display: "Locked" }, undefined, masterUser),
-    );
+    stubFetch(setupStandardMock({ status: "LOCKED", status_display: "Locked" }, undefined, masterUser));
 
     render(<App />);
 
     const proposed = await screen.findByTestId("candidate-row-102");
     expect(within(proposed).getByText("Proposed: Pass")).toBeVisible();
-    expect(within(proposed).getByRole("link", { name: "Review decision →" })).toHaveAttribute(
+    expect(within(proposed).getByRole("link", { name: "Review decision" })).toHaveAttribute(
       "href",
       "/gradings/10/decisions?candidate=102",
     );
-    expect(screen.getByTestId("propose-outcome-btn-101")).toHaveTextContent("Propose outcome →");
+    expect(screen.getByTestId("propose-outcome-btn-101")).toHaveTextContent("Propose outcome");
   });
 
   it("points the awaiting-decision banner at the served count and the decisions board", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       setupStandardMock({
         status: "LOCKED",
         status_display: "Locked",
         awaiting_decision_count: 3,
+        ...sessionServed("LOCKED"),
       }),
     );
 
@@ -668,14 +701,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await screen.findByRole("heading", { name: "Autumn Grading" });
     // The server's number, not a recount of proposals on this screen.
     expect(screen.getByText("3 candidates awaiting final decision")).toBeVisible();
-    expect(screen.getByTestId("gsd-review-decisions-btn")).toHaveAttribute(
-      "href",
-      "/gradings/10/decisions",
-    );
+    expect(screen.getByTestId("gsd-review-decisions-btn")).toHaveAttribute("href", "/gradings/10/decisions");
   });
 
   it("shows no awaiting-decision banner before the session is locked", async () => {
-    vi.stubGlobal("fetch", setupStandardMock({ awaiting_decision_count: 1 }));
+    stubFetch(setupStandardMock({ awaiting_decision_count: 1 }));
 
     render(<App />);
 
@@ -691,13 +721,15 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       const asked = new URL(String(url), "http://localhost").searchParams.get("search");
       if (String(url).includes("/api/gradings/candidates/") && asked) {
         searches.push(asked);
-        const roster = (await (await standard(url, init)).json()) as { results: { id: number; student_display_name: string }[] };
+        const roster = (await (await standard(url, init)).json()) as {
+          results: { id: number; student_display_name: string }[];
+        };
         const matching = roster.results.filter((row) => row.student_display_name.includes("Alex"));
         return jsonResponse(200, { count: matching.length, next: null, previous: null, results: matching });
       }
       return standard(url, init);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -721,8 +753,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const standard = setupStandardMock();
     let answer: ((response: Response) => void) | undefined;
     let failing = false;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation((url: string, init?: RequestInit) => {
         const asked = new URL(String(url), "http://localhost").searchParams.get("search");
         if (String(url).includes("/api/gradings/candidates/") && asked) {
@@ -757,8 +788,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("does not show one search's answer while the next search is still on its way", async () => {
     const standard = setupStandardMock();
     const pending: Record<string, (response: Response) => void> = {};
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation((url: string, init?: RequestInit) => {
         const asked = new URL(String(url), "http://localhost").searchParams.get("search");
         if (String(url).includes("/api/gradings/candidates/") && asked) {
@@ -793,7 +823,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("shows the whole roster again when the search is cleared", async () => {
-    vi.stubGlobal("fetch", setupStandardMock());
+    stubFetch(setupStandardMock());
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Autumn Grading" });
@@ -809,6 +839,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("allows instructors to view and edit session notes with authentic PATCH call", async () => {
     let patchBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         patchBody = JSON.parse(init.body as string);
@@ -829,7 +860,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -859,6 +890,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("handles session transition to LOCKED via Session actions dropdown", async () => {
     let patchBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         patchBody = JSON.parse(init.body as string);
@@ -880,7 +912,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -895,18 +927,19 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     // Confirm dialog
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
-    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
+    await user.click(confirmButton());
 
     await waitFor(() => {
       expect(patchBody).toEqual({ status: "LOCKED" });
     });
 
-    expect(await screen.findByText("Locked", { selector: ".badge--locked" })).toBeVisible();
+    expect(await screen.findByText("Locked", { selector: '[data-tone="locked"]' })).toBeVisible();
   });
 
   it("handles session transition to CANCELLED via Session actions dropdown with cancellation reason", async () => {
     let patchBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         patchBody = JSON.parse(init.body as string);
@@ -928,7 +961,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -947,7 +980,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(reasonInput).toBeInTheDocument();
 
     await user.type(reasonInput, "Hall booking unavailable due to maintenance.");
-    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
+    await user.click(confirmButton());
 
     await waitFor(() => {
       expect(patchBody).toEqual({
@@ -956,11 +989,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       });
     });
 
-    expect(await screen.findByText("Cancelled", { selector: ".badge--cancelled" })).toBeVisible();
+    expect(await screen.findByText("Cancelled", { selector: '[data-tone="cancelled"]' })).toBeVisible();
   });
 
   it("renders clean zero-candidate empty state when session has no registered candidates", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
       if (url.includes("/api/gradings/candidates/")) {
@@ -974,7 +1008,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -986,7 +1020,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("closes the session actions dropdown on outside click and Escape key", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1012,7 +1046,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("moves focus into the session actions menu, steps through it with the arrow keys and gives focus back on Escape", async () => {
-    vi.stubGlobal("fetch", setupStandardMock());
+    stubFetch(setupStandardMock());
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Autumn Grading" });
@@ -1044,6 +1078,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     let status: GradingSession["status"] = "OPEN";
     const candidateRows = () => rosterRows(lockedCandidates, completedAssessments, [], status, false);
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         status = "LOCKED";
@@ -1057,17 +1092,22 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
       }
       if (url.includes("/api/students/")) {
-        return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
       }
       return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
 
     const row = await screen.findByTestId("candidate-row-102");
-    expect(within(row).getByRole("link", { name: "View record →" })).toBeVisible();
+    expect(within(row).getByRole("link", { name: "View record" })).toBeVisible();
     expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
 
     await user.click(screen.getByTestId("gsd-actions-btn"));
@@ -1079,7 +1119,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("closes confirmation modal on backdrop click and Escape key", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1110,7 +1150,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("traps focus in the lifecycle confirmation modal, defaults to Cancel, and restores focus to the launcher on Escape", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1123,7 +1163,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
     const cancelBtn = screen.getByRole("button", { name: "Cancel" });
-    const confirmBtn = screen.getByTestId("gsd-modal-confirm-btn");
+    const confirmBtn = confirmButton();
     expect(cancelBtn).toHaveFocus();
 
     await user.tab({ shift: true });
@@ -1145,10 +1185,16 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     const fetchMock = setupStandardMock();
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         await patchPending;
-        return jsonResponse(200, { ...testSession, status: "LOCKED", status_display: "Locked" });
+        return jsonResponse(200, {
+          ...testSession,
+          status: "LOCKED",
+          status_display: "Locked",
+          ...sessionServed("LOCKED"),
+        });
       }
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
       if (url.includes("/api/gradings/candidates/")) {
@@ -1159,7 +1205,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1170,8 +1216,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
 
-    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
-    expect(await screen.findByTestId("gsd-modal-confirm-btn")).toBeDisabled();
+    await user.click(confirmButton());
+    expect(await confirmButtonAsync()).toBeDisabled();
 
     await user.keyboard("{Escape}");
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
@@ -1191,9 +1237,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = setupStandardMock({
       status: "CANCELLED",
       status_display: "Cancelled",
-      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     const notStartedAssessments = testAssessments.map((a) => ({
@@ -1201,6 +1250,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "NOT_STARTED" as const,
     }));
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "DELETE") {
         return new Response(null, { status: 204 });
@@ -1210,7 +1260,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           ...testSession,
           status: "CANCELLED",
           status_display: "Cancelled",
-          can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+          can_be_deleted: true,
+          archived_at: null,
+          can_be_archived: false,
+          can_be_restored: false,
         });
       }
       if (url.includes("/api/gradings/candidates/")) {
@@ -1218,10 +1271,20 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
-        return jsonResponse(200, { count: notStartedAssessments.length, next: null, previous: null, results: notStartedAssessments });
+        return jsonResponse(200, {
+          count: notStartedAssessments.length,
+          next: null,
+          previous: null,
+          results: notStartedAssessments,
+        });
       }
       if (url.includes("/api/students/")) {
-        return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
       }
       return jsonResponse(404, {});
     });
@@ -1242,12 +1305,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(await screen.findByText("Delete Grading Session")).toBeVisible();
 
     // Confirm delete
-    const modalConfirmBtn = screen.getByTestId("gsd-modal-confirm-btn");
+    const modalConfirmBtn = confirmButton();
     await user.click(modalConfirmBtn);
 
     // Verify DELETE call was sent
-    const deleteCalls = fetchMock.mock.calls.filter(([url, init]) =>
-      url.includes("/api/gradings/sessions/10/") && init?.method === "DELETE"
+    const deleteCalls = fetchMock.mock.calls.filter(
+      ([url, init]) => url.includes("/api/gradings/sessions/10/") && init?.method === "DELETE",
     );
     expect(deleteCalls.length).toBe(1);
   });
@@ -1256,9 +1319,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = setupStandardMock({
       status: "CANCELLED",
       status_display: "Cancelled",
-      can_be_deleted: true, archived_at: null, can_be_archived: false, can_be_restored: false,
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1273,7 +1339,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("offers delete and the session's audit events exactly as the server and grants allow", async () => {
     const fetchMock = setupStandardMock({ can_be_deleted: true });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1282,17 +1348,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     // An open session an administrator may delete: offered, whatever the status.
     expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
-    expect(screen.getByRole("menuitem", { name: "View history" })).toHaveAttribute(
-      "href",
-      "/audit?subject=session:10",
-    );
+    expect(screen.getByRole("menuitem", { name: "View history" })).toHaveAttribute("href", "/audit?subject=session:10");
   });
 
   it("hides the audit link from a user who cannot read the audit log", async () => {
-    vi.stubGlobal(
-      "fetch",
-      setupStandardMock({}, testAssessments, { ...adminUser, can_read_audit_log: false }),
-    );
+    stubFetch(setupStandardMock({}, testAssessments, { ...adminUser, can_read_audit_log: false }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -1304,7 +1364,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("requires a reason before a locked session can be cancelled", async () => {
-    vi.stubGlobal("fetch", setupStandardMock({ status: "LOCKED", status_display: "Locked" }));
+    stubFetch(setupStandardMock({ status: "LOCKED", status_display: "Locked" }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -1312,7 +1372,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(screen.getByTestId("gsd-actions-btn"));
     await user.click(screen.getByRole("menuitem", { name: "Cancel session" }));
 
-    const confirm = screen.getByTestId("gsd-modal-confirm-btn");
+    const confirm = confirmButton();
     expect(screen.getByLabelText("Cancellation reason (required)")).toBeVisible();
     expect(confirm).toBeDisabled();
     await user.type(screen.getByLabelText("Cancellation reason (required)"), "Hall flooded.");
@@ -1326,7 +1386,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       testAssessments,
       instructorUser,
     );
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1338,20 +1398,39 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("offers no proposal while the session is open, only the completed record", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "OPEN", false) });
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
-      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "OPEN", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     const row = await screen.findByTestId("candidate-row-102");
 
     expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
-    expect(within(row).getByRole("link", { name: "View record →" })).toHaveAttribute(
+    expect(within(row).getByRole("link", { name: "View record" })).toHaveAttribute(
       "href",
       "/gradings/10/assessments/102/review",
     );
@@ -1360,6 +1439,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("opens the proposal drawer with the sealed assessment evidence and submits a proposal", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, {
           ...adminUser,
@@ -1406,17 +1486,27 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
             category: "TECHNIQUE",
             category_display: "Techniques",
             category_is_core: false,
+            reason_required: true,
+            can_clear: true,
             required: true,
             result: "MET",
             result_display: "Met",
             position: i,
-            assessor_email: "coach@example.com",
+            assessor_name: "SBN Coach Park",
             assessed_at: null,
             // A positive observation on a met item must reach the proposer too.
             changes: [],
             comments:
               i === 0
-                ? [{ id: 1, author_name: "Coach Reed", body: "Crisp, confident footwork", created_at: "2026-09-15T10:00:00Z", after_lock: false }]
+                ? [
+                    {
+                      id: 1,
+                      author_name: "Coach Reed",
+                      body: "Crisp, confident footwork",
+                      created_at: "2026-09-15T10:00:00Z",
+                      after_lock: false,
+                    },
+                  ]
                 : [],
           })),
         });
@@ -1427,6 +1517,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           ...testOutcomes[0],
           id: 401,
           status: "PROPOSED",
+          status_display: "Proposed",
           proposed_outcome: body.proposed_outcome,
           proposal_notes: body.proposal_notes || "",
         });
@@ -1442,18 +1533,18 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       return jsonResponse(404, {});
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
     await screen.findByRole("heading", { name: "Autumn Grading" });
 
-    // Candidate 102 (Brooke Ellis) has COMPLETED assessment but no outcome -> shows "Propose outcome →"
+    // Candidate 102 (Brooke Ellis) has COMPLETED assessment but no outcome -> shows "Propose outcome"
     const proposeBtn = await screen.findByTestId("propose-outcome-btn-102");
     expect(proposeBtn).toBeVisible();
-    expect(proposeBtn).toHaveTextContent("Propose outcome →");
+    expect(proposeBtn).toHaveTextContent("Propose outcome");
 
-    // Click "Propose outcome →" to open drawer
+    // Click "Propose outcome" to open drawer
     await user.click(proposeBtn);
 
     // Verify drawer is opened
@@ -1463,15 +1554,16 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     // Candidate and the rank transition, from the candidate's own fields
     expect(within(drawer).getByRole("heading", { name: "Brooke Ellis" })).toBeVisible();
     expect(within(drawer).getByText("UK-1002")).toBeVisible();
-    expect(drawer).toHaveTextContent(/Blue\s*→\s*Red stripe/);
+    expect(drawer).toHaveTextContent("Blue, grading for: Red stripe");
 
     // The same served evidence the Master sees on the board - no percentage
     expect(await within(drawer).findByText("24 / 24 required met · none not met")).toBeVisible();
     expect(within(drawer).queryByText(/%/)).not.toBeInTheDocument();
-    expect(await within(drawer).findByText("Crisp, confident footwork")).toBeVisible();
-    expect(
-      within(drawer).getByRole("link", { name: "Open the full assessment record" }),
-    ).toHaveAttribute("href", "/gradings/10/assessments/102/review");
+    expect(await within(drawer).findByText("“Crisp, confident footwork”")).toBeVisible();
+    expect(within(drawer).getByRole("link", { name: "Open the full assessment record" })).toHaveAttribute(
+      "href",
+      "/gradings/10/assessments/102/review",
+    );
 
     // Pass / Conditional / Fail, Pass selected by default
     expect(within(drawer).getByRole("radio", { name: "Pass" })).toBeChecked();
@@ -1483,16 +1575,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       within(drawer).getByLabelText("Notes for the Master"),
       "Recommend re-testing form 3 within 2 weeks.",
     );
-    expect(
-      within(drawer).getByText(/A proposal does not finalise the grading or promote the candidate/),
-    ).toBeVisible();
+    expect(within(drawer).getByText(/A proposal does not finalise the grading or promote the candidate/)).toBeVisible();
 
     await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
 
     // One call opens the outcome record and proposes
     await waitFor(() => {
-      const proposeCall = fetchMock.mock.calls.find(([url, init]) =>
-        url.includes("/propose-outcome/") && init?.method === "POST",
+      const proposeCall = fetchMock.mock.calls.find(
+        ([url, init]) => url.includes("/propose-outcome/") && init?.method === "POST",
       );
       expect(proposeCall).toBeDefined();
       const body = JSON.parse(proposeCall![1]!.body as string);
@@ -1509,17 +1599,37 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("dismisses the proposal drawer on Cancel and Escape", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
       if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
-      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
-      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      if (url.includes("/api/gradings/assessment-items/"))
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
       return jsonResponse(404, {});
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1531,9 +1641,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     const reopenedDrawer = await screen.findByRole("dialog");
     expect(reopenedDrawer).toBeVisible();
-    expect(
-      reopenedDrawer.querySelector<HTMLInputElement>('input[value="PASS"]'),
-    ).toHaveFocus();
+    expect(reopenedDrawer.querySelector<HTMLInputElement>('input[value="PASS"]')).toHaveFocus();
 
     // Dismiss via Cancel button
     await user.click(within(reopenedDrawer).getByRole("button", { name: "Cancel" }));
@@ -1552,6 +1660,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("keeps the proposal drawer open with the server's reason when a proposal is refused", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
@@ -1559,14 +1668,33 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           error: { code: "validation_error", message: "The assessment is not completed." },
         });
       }
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
       if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
-      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
-      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      if (url.includes("/api/gradings/assessment-items/"))
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));
@@ -1574,9 +1702,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
 
-    expect(await within(drawer).findByRole("alert")).toHaveTextContent(
-      "The assessment is not completed.",
-    );
+    expect(await within(drawer).findByRole("alert")).toHaveTextContent("The assessment is not completed.");
     expect(screen.getByRole("dialog")).toBeVisible();
   });
 
@@ -1584,6 +1710,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     let proposeAttempts = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
@@ -1595,14 +1722,33 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         }
         return jsonResponse(200, { ...testOutcomes[0], id: 401, proposed_outcome: "PASS" });
       }
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
       if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
-      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
-      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      if (url.includes("/api/gradings/assessment-items/"))
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));
@@ -1621,16 +1767,36 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("will not submit a proposal while its evidence failed to load", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
-      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false) });
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
-      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
       if (url.includes("/summary/")) return jsonResponse(500, {});
-      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/gradings/assessment-items/"))
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));

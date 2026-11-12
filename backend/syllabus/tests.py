@@ -15,8 +15,9 @@ from accounts.models import User
 from kukgrade.testing import results
 from ranks.models import Rank
 from syllabus.models import (
-    AGE_BAND_DESCRIPTION,
+    AGE_BAND_OLDEST,
     AGE_BAND_PROGRAMME,
+    AGE_BAND_STUDENTS,
     AgeBand,
     SyllabusItem,
     SyllabusRequirement,
@@ -357,6 +358,12 @@ def test_effective_syllabus_requirement_api_rejects_invalid_parameters() -> None
     assert "age_band" in missing.json()["error"]["fields"]
     assert unknown_rank.status_code == 400
     assert bad_age_band.status_code == 400
+    undeclared = client.get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=BLUE_STRIPE&age_band={AgeBand.AGE_13_TO_17}&colour=red",
+    )
+    assert undeclared.status_code == 400
+    assert "colour" in undeclared.json()["error"]["fields"]
 
 
 def test_effective_syllabus_requirement_blue_stripe_regression() -> None:
@@ -598,7 +605,7 @@ def test_effective_syllabus_is_everything_examinable_through_the_rank(
         (row["category"], row["item_code"], row["display_range"] or row["notation"])
         for row in rows
     ] == expected
-    # Which rows are core areas is served, not kept in the browser (F-31).
+    # Which rows are core areas is served, not kept in the browser.
     assert {row["category"] for row in rows if row["category_is_core"]} == {
         "ETIQUETTE",
         "FUNDAMENTALS",
@@ -718,7 +725,7 @@ def test_normalize_chart_notation(notes: str, expected: str) -> None:
 
 # 8-and-under Cho Geup Hyung is taught in parts: 1 at Blue, 2 at Red stripe,
 # 3 at Red. Every part taught so far is examinable, so the cumulative row
-# names them all (2026-10-18, audit F-09).
+# names them all.
 @pytest.mark.parametrize(
     ("rank_code", "expected"),
     [
@@ -935,4 +942,20 @@ def test_age_bands_are_served_in_order_with_their_programme() -> None:
 
 def test_every_age_band_has_a_programme_and_description() -> None:
     assert set(AGE_BAND_PROGRAMME) == set(AgeBand.values)
-    assert set(AGE_BAND_DESCRIPTION) == set(AgeBand.values)
+    assert set(AGE_BAND_STUDENTS) == set(AgeBand.values)
+
+
+def test_each_age_band_label_says_its_boundaries() -> None:
+    youngest = 0
+    labels = []
+    for band, oldest in AGE_BAND_OLDEST.items():
+        labels.append(
+            f"{oldest} and under"
+            if youngest == 0
+            else f"{youngest}+"
+            if oldest is None
+            else f"{youngest}-{oldest}"
+        )
+        assert AgeBand(band).label == labels[-1]
+        youngest = (oldest or 0) + 1
+    assert list(AGE_BAND_OLDEST) == list(AgeBand.values)

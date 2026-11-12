@@ -1,15 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useChoices } from "./choices";
 import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { keepPreviousData } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 
-import {
-  type Rank,
-  type StudentListItem,
-  type StudentStatus,
-  getStudents,
-} from "./api";
+import { type Rank, type StudentListItem, type StudentStatus, getStudents } from "./api";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { useRanksQuery } from "./queries";
@@ -17,62 +13,61 @@ import { Pagination } from "./Pagination";
 import { StudentStatusBadge } from "./StatusBadge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
-import { UserPlusIcon } from "./Icons";
-import { useDebouncedValue } from "./useDebouncedValue";
+import { ArrowRightIcon, UserPlusIcon } from "./Icons";
+import { SearchField } from "./SearchField";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
 import { Button } from "./Button";
+import { counted } from "./plural";
 
 const PAGE_SIZE = 15;
 
 export function StudentsScreen() {
   const navigate = useNavigate();
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StudentStatus | "ALL">("ALL");
-  const [rankFilter, setRankFilter] = useState<string>("ALL");
-  const [page, setPage] = useState(1);
+  const filters = useUrlFilters();
+  const search = filters.value("search");
+  const statusFilter = filters.value("status") as StudentStatus | "";
+  const rankFilter = filters.value("rank");
+  const studentStatuses = useChoices().student_statuses;
   // Set by an import's results ("See the new students"); cleared by "Show every student".
-  const [searchParams, setSearchParams] = useSearchParams();
-  const sourceImport = Number(searchParams.get("source_import")) || undefined;
+  const sourceImport = Number(filters.value("source_import")) || undefined;
+  const page = filters.page;
 
   // 1. Fetch available ranks for filter dropdown
   const ranksQuery = useRanksQuery();
 
   const ranks = useMemo<Rank[]>(() => {
-    return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
+    return ranksQuery.data?.results ?? [];
   }, [ranksQuery.data]);
 
   // 2. Fetch paginated students with active filters. The search waits for a
   // pause in typing, and the last page stays on screen while the next loads,
   // so a name is one request rather than one per keystroke.
-  const debouncedSearch = useDebouncedValue(search.trim());
-  const studentsQuery = useQuery({
+  const debouncedSearch = search.trim();
+  const studentsQuery = usePagedQuery({
     queryKey: keys.students.list(debouncedSearch, statusFilter, rankFilter, sourceImport, page),
     placeholderData: keepPreviousData,
     queryFn: () =>
       getStudents({
         search: debouncedSearch || undefined,
-        status: statusFilter !== "ALL" ? statusFilter : undefined,
-        current_rank_code: rankFilter !== "ALL" ? rankFilter : undefined,
+        status: statusFilter || undefined,
+        current_rank_code: rankFilter || undefined,
         source_import: sourceImport,
         page,
         page_size: PAGE_SIZE,
       }),
+    page,
+    pageSize: PAGE_SIZE,
+    onPage: filters.setPage,
   });
+  const students: StudentListItem[] = studentsQuery.results;
+  const totalCount = studentsQuery.count;
 
-  const students = useMemo<StudentListItem[]>(() => {
-    return Array.isArray(studentsQuery.data?.results) ? studentsQuery.data.results : [];
-  }, [studentsQuery.data]);
-
-  const totalCount = studentsQuery.data?.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-
-  const hasActiveFilters = search.trim() !== "" || statusFilter !== "ALL" || rankFilter !== "ALL";
+  const hasActiveFilters = search.trim() !== "" || statusFilter !== "" || rankFilter !== "";
 
   function handleClearFilters() {
-    setSearch("");
-    setStatusFilter("ALL");
-    setRankFilter("ALL");
-    setPage(1);
+    filters.clear("search", "status", "rank");
   }
 
   return (
@@ -91,47 +86,35 @@ export function StudentsScreen() {
 
       {/* Filter and Search Bar */}
       <div className="filter-bar" role="search" aria-label="Student filters">
-        <label className="field field--search filter-bar__full">
-          <span className="visually-hidden">Search students by name or WKSA ID</span>
-          <input
-            type="search"
-            placeholder="Search name or WKSA ID"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-        </label>
+        <SearchField
+          className="filter-bar__full"
+          hideLabel
+          label="Search students by name or WKSA ID"
+          placeholder="Search name or WKSA ID"
+          value={search}
+          onChange={(value) => filters.set({ search: value })}
+        />
 
         <div className="field">
           <label htmlFor="status-filter-select">Status</label>
           <select
             id="status-filter-select"
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as StudentStatus | "ALL");
-              setPage(1);
-            }}
+            onChange={(e) => filters.set({ status: e.target.value })}
           >
-            <option value="ALL">All statuses</option>
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-            <option value="LEFT">Left</option>
+            <option value="">All statuses</option>
+            {studentStatuses.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="field">
           <label htmlFor="rank-filter-select">Rank</label>
-          <select
-            id="rank-filter-select"
-            value={rankFilter}
-            onChange={(e) => {
-              setRankFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="ALL">All ranks</option>
+          <select id="rank-filter-select" value={rankFilter} onChange={(e) => filters.set({ rank: e.target.value })}>
+            <option value="">All ranks</option>
             {ranks.map((r) => (
               <option key={r.code} value={r.code}>
                 {r.name}
@@ -144,28 +127,20 @@ export function StudentsScreen() {
           {sourceImport ? (
             <>
               <span className="filter-bar__count">Only the students one import added</span>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  const next = new URLSearchParams(searchParams);
-                  next.delete("source_import");
-                  setSearchParams(next, { replace: true });
-                  setPage(1);
-                }}
-              >
+              <Button variant="ghost" onClick={() => filters.clear("source_import")}>
                 Show every student
               </Button>
             </>
           ) : null}
           <span className="filter-bar__count">
-            {studentsQuery.isLoading ? "Loading..." : `${totalCount} ${totalCount === 1 ? "student" : "students"}`}
+            {studentsQuery.query.isLoading ? "Loading…" : counted(totalCount, "student", "students")}
           </span>
         </div>
       </div>
 
       {/* Data Table / Empty State Container */}
-      <div className="students-results">
-        {studentsQuery.isLoading ? (
+      <div className="stack stack--4">
+        {studentsQuery.query.isLoading ? (
           <LoadingState>Loading student records…</LoadingState>
         ) : students.length === 0 ? (
           hasActiveFilters ? (
@@ -231,7 +206,7 @@ export function StudentsScreen() {
                   render: (student) => <StudentStatusBadge status={student.status} label={student.status_display} />,
                 },
                 // The registration the server says is still in progress, and how
-                // far it has got - not a guess from the student's status (audit F-29).
+                // far it has got - not a guess from the student's status.
                 {
                   key: "grading",
                   header: "Current grading",
@@ -259,20 +234,14 @@ export function StudentsScreen() {
                       aria-label={`View record for ${student.first_name} ${student.last_name}`}
                     >
                       <span>View student</span>
-                      <span aria-hidden="true">→</span>
+                      <ArrowRightIcon />
                     </Button>
                   ),
                 },
               ]}
             />
 
-            <Pagination
-              label="Table pagination"
-              page={page}
-              totalPages={totalPages}
-              onPage={setPage}
-              summary={`Showing ${Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount} students`}
-            />
+            <Pagination label="Table pagination" noun={["student", "students"]} {...studentsQuery.pager} />
           </>
         )}
       </div>

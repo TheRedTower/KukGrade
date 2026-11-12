@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from django import forms
 from django.contrib import admin
@@ -8,7 +8,6 @@ from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse
 from django.template.response import TemplateResponse
@@ -16,18 +15,18 @@ from django.utils.cache import add_never_cache_headers
 from django.utils.translation import gettext_lazy as _
 
 from accounts.admin_site import admin_notice
-from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.models import User
 from accounts.services import (
+    INSTRUCTOR_RANK_MESSAGE,
     TemporaryPassword,
     can_manage,
     create_platform_user,
-    delete_platform_user,
     reset_password,
     set_admin_site_access,
     update_platform_user,
     validate_can_reset_password,
 )
-from kukgrade.admin_mixins import ServiceDeleteMixin
+from ranks.models import Rank
 
 # Where save_model leaves the password it just issued for response_add to
 # show: the request, never the ModelAdmin, which every request shares.
@@ -41,11 +40,30 @@ class UserCreationForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("email", "first_name", "last_name", "role")
+        fields = ("email", "first_name", "last_name", "role", "rank")
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Every staff account has a name (accounts.people.require_names).
+        self.fields["first_name"].required = True
+        self.fields["last_name"].required = True
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        # As create_platform_user requires, asked here so the form says so
+        # beside the field rather than failing on save.
+        if cleaned.get("role") == User.Role.INSTRUCTOR and not cleaned.get("rank"):
+            self.add_error("rank", INSTRUCTOR_RANK_MESSAGE)
+        return cleaned
 
 
 class UserChangeForm(forms.ModelForm):
     password = ReadOnlyPasswordHashField()
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["first_name"].required = True
+        self.fields["last_name"].required = True
 
     class Meta:
         model = User
@@ -55,6 +73,7 @@ class UserChangeForm(forms.ModelForm):
             "first_name",
             "last_name",
             "role",
+            "rank",
             "is_active",
             "is_staff",
             "is_superuser",
@@ -66,8 +85,7 @@ class UserChangeForm(forms.ModelForm):
 
 
 @admin.register(User)
-class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
-    deletion_service = staticmethod(delete_platform_user)
+class UserAdmin(DjangoUserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
     # Django's own add-user template asks for a password, which this form has
@@ -105,16 +123,6 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         "date_joined",
     )
 
-    def get_queryset(self, request: HttpRequest) -> QuerySet[User]:
-        # Internal bookkeeping, not an account anyone administers.
-        return (
-            super()
-            .get_queryset(request)
-            .exclude(
-                email=DELETED_USER_PLACEHOLDER_EMAIL,
-            )
-        )
-
     fieldsets = (
         (
             None,
@@ -130,7 +138,7 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         (_("Personal info"), {"fields": ("first_name", "last_name")}),
         (
             _("KukGrade access"),
-            {"fields": ("role",)},
+            {"fields": ("role", "rank")},
         ),
         (
             _("Django permissions"),
@@ -156,6 +164,7 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
                     "first_name",
                     "last_name",
                     "role",
+                    "rank",
                     "is_staff",
                     "is_superuser",
                     "is_active",
@@ -163,6 +172,17 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
             },
         ),
     )
+
+    def formfield_for_foreignkey(
+        self,
+        db_field: Any,
+        request: HttpRequest,
+        **kwargs: Any,
+    ) -> Any:
+        if db_field.name == "rank":
+            # Only the ranks an instructor's account may hold.
+            kwargs["queryset"] = Rank.objects.staff()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(
         self,
@@ -183,6 +203,7 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
                 first_name=obj.first_name,
                 last_name=obj.last_name,
                 role=obj.role,
+                rank=obj.rank,
                 is_active=obj.is_active,
                 actor=cast(User, request.user),
             )
@@ -205,6 +226,7 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
             first_name=obj.first_name if "first_name" in changed_data else None,
             last_name=obj.last_name if "last_name" in changed_data else None,
             role=obj.role if "role" in changed_data else None,
+            rank=obj.rank if "rank" in changed_data else None,
             is_active=obj.is_active if "is_active" in changed_data else None,
             actor=cast(User, request.user),
         )
@@ -294,11 +316,9 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         request: HttpRequest,
         obj: User | None = None,
     ) -> bool:
-        if obj is not None and obj.pk == request.user.pk:
-            return False
-        if obj is not None and not can_manage(obj, cast(User, request.user)):
-            return False
-        return super().has_delete_permission(request, obj)
+        # Accounts are recovered here, never deleted: deleting one is done in
+        # KukGrade, which closes an account that holds history.
+        return False
 
     def get_readonly_fields(
         self,

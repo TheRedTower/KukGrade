@@ -71,9 +71,10 @@ def reset() -> None:
     table, and a visitor's page that had read one table and was about to read
     the next deadlocked with it (found by loading a running demo, and answered
     with a 500 for them). Deleting takes row locks only, which readers never
-    wait on, and the database's foreign keys are checked at the commit, so the
-    order of the tables does not matter. Anyone using the demo meanwhile sees
-    the old club until the commit and the new one after - never half of it.
+    wait on. Some foreign keys are checked at once rather than at the commit,
+    so the tables are emptied in `deletion_order`. Anyone using the demo
+    meanwhile sees the old club until the commit and the new one after - never
+    half of it.
 
     A visitor saving something in the same instant can make this fail (their
     row points at one just removed); the whole reset then rolls back and

@@ -9,6 +9,34 @@ from django.utils import timezone
 
 from ranks.models import Rank
 from students import wksa_ids
+from syllabus.age import resolve_age_band
+
+STUDENT_DELETED_MESSAGE = "This student has been deleted."
+
+
+class StudentStatus(models.TextChoices):
+    # A temporary break - injury, exams, travel - which blocks nothing.
+    # Missing a grading never sets this: only a person does, deliberately.
+    ACTIVE = "ACTIVE", "Active"
+    INACTIVE = "INACTIVE", "Inactive"
+    # Gone. Blocks registration as a grading candidate, and is reversible
+    # if they come back. Grading history is retained either way.
+    LEFT = "LEFT", "Left"
+
+
+# What each status means, as the status choice explains it.
+STUDENT_STATUS_MEANINGS: dict[str, str] = {
+    StudentStatus.ACTIVE: (
+        "In regular training. Can be registered for gradings, one at a time."
+    ),
+    StudentStatus.INACTIVE: (
+        "On a temporary break, such as medical leave. Inactive blocks nothing: "
+        "the student can still be registered, and all history is kept."
+    ),
+    StudentStatus.LEFT: (
+        "Has left. Cannot be registered for gradings; all history is kept."
+    ),
+}
 
 
 class Student(models.Model):
@@ -18,14 +46,7 @@ class Student(models.Model):
         promotions: models.Manager[Promotion]
         current_rank_id: int
 
-    class Status(models.TextChoices):
-        # A temporary break - injury, exams, travel - which blocks nothing.
-        # Missing a grading never sets this: only a person does, deliberately.
-        ACTIVE = "ACTIVE", "Active"
-        INACTIVE = "INACTIVE", "Inactive"
-        # Gone. Blocks registration as a grading candidate, and is reversible
-        # if they come back. Grading history is retained either way.
-        LEFT = "LEFT", "Left"
+    Status = StudentStatus
 
     # Set by a caller that has already checked a whole batch of IDs against
     # the previous IDs in one query (the roster preview), so validating each
@@ -67,7 +88,7 @@ class Student(models.Model):
                 name="student_wksa_id_format",
             ),
             models.CheckConstraint(
-                condition=Q(status__in=["ACTIVE", "INACTIVE", "LEFT"]),
+                condition=Q(status__in=StudentStatus.values),
                 name="student_status_valid",
             ),
         ]
@@ -144,8 +165,6 @@ class Student(models.Model):
     @property
     def age_band(self) -> str:
         """The canonical age band relative to today."""
-        from gradings.age import resolve_age_band
-
         return resolve_age_band(self.date_of_birth, timezone.localdate())
 
     @property

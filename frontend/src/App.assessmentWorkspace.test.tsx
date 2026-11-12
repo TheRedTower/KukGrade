@@ -16,6 +16,11 @@ import {
   authUser,
   jsonResponse,
   assessmentSummaryFor,
+  itemSaved,
+  itemServed,
+  sessionServed,
+  CHOICES,
+  stubFetch,
 } from "./appTestSupport";
 
 // Candidate Assessment Workspace Screen (/gradings/:sessionId/assessments/:candidateId)
@@ -30,7 +35,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
-    can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
+    ...sessionServed("OPEN"),
+    can_be_deleted: false,
+    archived_at: null,
+    can_be_archived: false,
+    can_be_restored: false,
     notes: "",
   };
 
@@ -39,6 +48,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     session: 10,
     student: 1,
     student_display_name: "Alex Carter",
+    student_first_name: "Alex",
     student_wksa_id: "KG-0264",
     from_rank: 1,
     from_rank_name: "Yellow stripe",
@@ -65,6 +75,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     age_band_display: "Junior (9–12)",
     status: "ACTIVE",
     can_be_graded: true,
+    next_rank: null,
+    next_rank_name: null,
     status_display: "Active",
     current_grading: null,
   };
@@ -75,9 +87,10 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     candidate_student_name: "Alex Carter",
     status: "IN_PROGRESS",
     status_display: "In progress",
-    generated_by_email: "casey@example.com",
+    generated_by_name: "KSN Casey Lane",
     overall: assessmentSummaryFor([]).overall,
     marks_open: true,
+    can_start: false,
     can_delete: false,
     generated_at: "2026-09-18T10:00:00Z",
     started_at: "2026-09-18T10:05:00Z",
@@ -92,6 +105,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     category: "ETIQUETTE",
     category_display: "Etiquette",
     category_is_core: true,
+    reason_required: true,
+    can_clear: true,
     position: 1,
     required: true,
     display_range: "",
@@ -99,7 +114,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     notation: "",
     result: "MET",
     result_display: "Met",
-    assessor_email: "casey@example.com",
+    assessor_name: "KSN Casey Lane",
     assessed_at: "2026-09-18T10:10:00Z",
     comments: [],
     changes: [],
@@ -112,6 +127,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     category: "KICKING",
     category_display: "Kicking",
     category_is_core: true,
+    reason_required: true,
+    can_clear: true,
     position: 2,
     required: true,
     display_range: "",
@@ -119,9 +136,17 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     notation: "",
     result: "NOT_MET",
     result_display: "Not Met",
-    assessor_email: "casey@example.com",
+    assessor_name: "KSN Casey Lane",
     assessed_at: "2026-09-18T10:15:00Z",
-    comments: [{ id: 1, author_name: "Casey Reed", body: "Guard dropped on turn", created_at: "2026-09-18T10:20:00Z", after_lock: false }],
+    comments: [
+      {
+        id: 1,
+        author_name: "Casey Reed",
+        body: "Guard dropped on turn",
+        created_at: "2026-09-18T10:20:00Z",
+        after_lock: false,
+      },
+    ],
     changes: [],
   };
 
@@ -132,6 +157,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     category: "KICKING",
     category_display: "Kicking",
     category_is_core: true,
+    reason_required: false,
+    can_clear: false,
     position: 3,
     required: true,
     display_range: "",
@@ -139,7 +166,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     notation: "",
     result: "NOT_ASSESSED",
     result_display: "Not Assessed",
-    assessor_email: "",
+    assessor_name: "",
     assessed_at: null,
     comments: [],
     changes: [],
@@ -158,6 +185,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders the single column run with band headers, rows and the mat bar", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -183,7 +211,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -191,7 +219,12 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
     expect(screen.getByText("KG-0264")).toBeVisible();
     expect(screen.getByText("Junior (9–12)")).toBeVisible();
-    // The status pill also carries the start time in 1A, so match on the pill.
+    // The one way back: to the grading the candidate is in.
+    expect(within(screen.getByRole("main")).getByRole("link", { name: "Autumn Grading" })).toHaveAttribute(
+      "href",
+      "/gradings/10",
+    );
+    // The status pill also carries the start time, so match on the pill.
     expect(screen.getByTestId("caw-status-pill")).toHaveTextContent("In progress");
 
     // Mat bar carries the live count in place of the progress ledger
@@ -202,7 +235,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByText("1 remaining")).toBeVisible();
     expect(screen.getByText("2 / 3").closest('[role="status"]')).not.toBeNull();
 
-    // Sticky band headers replace the category sub-rail
+    // Each category has a sticky band header
     expect(screen.getByTestId("caw-cat-header-ETIQUETTE")).toBeVisible();
     expect(screen.getByTestId("caw-cat-header-KICKING")).toBeVisible();
     // A category has no Korean name of its own; its first item's must not
@@ -225,15 +258,17 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       category: "FORM",
       category_display: "Forms",
       category_is_core: false,
+      reason_required: false,
+      can_clear: false,
       display_range: "",
       requirement_notes: "Chart notation: (1/2).",
       notation: "Part 1 of 2",
     };
     const items = [mockItem1, formItem];
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -264,6 +299,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("shows the rank held at registration without searching for the student", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -288,7 +324,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -311,12 +347,13 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -325,14 +362,27 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       if (url.includes("/summary/")) {
         return jsonResponse(200, {
           overall: {
-            total: 3, required: 2, met: 2, not_met: 0, not_assessed: 1,
-            required_met: 2, required_not_assessed: 0, all_required_assessed: true,
+            total: 3,
+            required: 2,
+            met: 2,
+            not_met: 0,
+            not_assessed: 1,
+            required_met: 2,
+            required_not_assessed: 0,
+            all_required_assessed: true,
           },
+          can_complete: true,
           categories: [
             {
               category: "ETIQUETTE",
-              total: 2, required: 1, met: 1, not_met: 0, not_assessed: 1,
-              required_met: 1, required_not_assessed: 0, all_required_assessed: true,
+              total: 2,
+              required: 1,
+              met: 1,
+              not_met: 0,
+              not_assessed: 1,
+              required_met: 1,
+              required_not_assessed: 0,
+              all_required_assessed: true,
             },
           ],
         } satisfies CandidateAssessmentSummary);
@@ -342,13 +392,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
-          count: 3, next: null, previous: null,
+          count: 3,
+          next: null,
+          previous: null,
           results: [mockItem1, mockItem2, allAssessedItem3],
         });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -374,19 +426,28 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders every comment on the proof, not only on the failures", async () => {
     const metWithNote: CandidateAssessmentItem = {
       ...mockItem1,
-      comments: [{ id: 2, author_name: "Morgan Reed", body: "Bow was crisp and unhurried; best in the group.", created_at: "2026-09-18T10:20:00Z", after_lock: false }],
+      comments: [
+        {
+          id: 2,
+          author_name: "Morgan Reed",
+          body: "Bow was crisp and unhurried; best in the group.",
+          created_at: "2026-09-18T10:20:00Z",
+          after_lock: false,
+        },
+      ],
       changes: [],
     };
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
     const proofItems = [metWithNote, mockItem2, assessedItem3];
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -401,7 +462,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -424,23 +485,54 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.queryByTestId("acp-note-1003")).toBeNull();
   });
 
-  // A sealed record is the permanent document. It must show its seal and offer
-  // no way to write to it — the assessment note is immutable after COMPLETED.
-  // `grading_date` is a date-only string. Parsed as a timestamp it is read as
-  // UTC midnight, so west of UTC the proof renders the day *before* the
-  // grading — a permanent record misstating when it happened. This test runs
-  // in America/Los_Angeles, where that off-by-one shows.
-  it("renders a date-only grading date in local time, west of UTC", async () => {
+  it("puts every changed mark on the proof, with who changed it and why", async () => {
+    const metWithNote: CandidateAssessmentItem = {
+      ...mockItem1,
+      comments: [
+        {
+          id: 3,
+          author_name: "Master Park",
+          body: "Confirmed on the recording.",
+          created_at: "2026-09-19T09:00:00Z",
+          after_lock: true,
+        },
+      ],
+      changes: [
+        {
+          sequence: 1,
+          from_result: "NOT_ASSESSED",
+          from_result_display: "Not assessed",
+          to_result: "NOT_MET",
+          to_result_display: "Not met",
+          changed_by_name: "Casey Reed",
+          changed_at: "2026-09-18T10:00:00Z",
+          reason: "",
+          after_lock: false,
+        },
+        {
+          sequence: 2,
+          from_result: "NOT_MET",
+          from_result_display: "Not met",
+          to_result: "MET",
+          to_result_display: "Met",
+          changed_by_name: "Morgan Reed",
+          changed_at: "2026-09-18T10:30:00Z",
+          reason: "Repeated cleanly on the second attempt.",
+          after_lock: false,
+        },
+      ],
+    };
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
-    const proofItems = [mockItem1, mockItem2, assessedItem3];
+    const proofItems = [metWithNote, mockItem2, assessedItem3];
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -455,7 +547,64 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
+
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Assessment record" });
+
+    // The change after the first mark is on the record with its reason, who
+    // made it, and the new mark; the first mark is not a change.
+    const note = screen.getByTestId("acp-note-1001");
+    expect(within(note).getByTestId("remark-change-1001-2")).toHaveTextContent(
+      "Changed from Not met to Met: “Repeated cleanly on the second attempt.” — Morgan Reed",
+    );
+    expect(within(note).queryByTestId("remark-change-1001-1")).toBeNull();
+    // A Master's remark after the lock says so; remarks read oldest first.
+    expect(within(note).getByTestId("remark-comment-3")).toHaveTextContent("Master Park");
+    expect(within(note).getByTestId("remark-comment-3")).toHaveTextContent("after the lock");
+    expect(
+      within(note)
+        .getAllByRole("listitem")
+        .map((line) => line.dataset.testid),
+    ).toEqual(["remark-change-1001-2", "remark-comment-3"]);
+  });
+
+  // A sealed record is the permanent document. It must show its seal and offer
+  // no way to write to it — the assessment note is immutable after COMPLETED.
+  // `grading_date` is a date-only string. Parsed as a timestamp it is read as
+  // UTC midnight, so west of UTC the proof renders the day *before* the
+  // grading — a permanent record misstating when it happened. This test runs
+  // in America/Los_Angeles, where that off-by-one shows.
+  it("renders a date-only grading date in local time, west of UTC", async () => {
+    const assessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor_name: `KSN ${authUser.full_name}`,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+    const proofItems = [mockItem1, mockItem2, assessedItem3];
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
+        return jsonResponse(200, mockCandidate);
+      }
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -480,15 +629,17 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
     const proofItems = [mockItem1, mockItem2, assessedItem3];
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
-      if (url.includes("/api/site/")) return jsonResponse(200, { club_name: "Kuk Sool Won Testville", time_zone: "Europe/London" });
+      if (url.includes("/api/site/"))
+        return jsonResponse(200, { club_name: "Kuk Sool Won Testville", time_zone: "Europe/London" });
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
         return jsonResponse(200, mockCandidate);
@@ -502,7 +653,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -516,9 +667,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByTestId("acp-sealed-panel")).toBeVisible();
 
     // The assessment note is rendered as the record, not as an input.
-    expect(screen.getByTestId("acp-sealed-note")).toHaveTextContent(
-      "Strong throughout; guard discipline to revisit.",
-    );
+    expect(screen.getByTestId("acp-sealed-note")).toHaveTextContent("Strong throughout; guard discipline to revisit.");
     expect(screen.queryByLabelText("Assessment note")).toBeNull();
     expect(screen.queryByTestId("confirm-complete-assessment-btn")).toBeNull();
     expect(screen.queryByTestId("acp-proofread-checkbox")).toBeNull();
@@ -536,6 +685,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     function sealedRecordFetch(sessionStatus: GradingSession["status"]) {
       return vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/gradings/sessions/10/")) {
           return jsonResponse(200, { ...mockSession, status: sessionStatus });
@@ -545,7 +695,12 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         }
         if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
         if (url.includes("/api/gradings/assessments/")) {
-          return jsonResponse(200, { count: 1, next: null, previous: null, results: [{ ...sealed, marks_open: sessionStatus === "OPEN" }] });
+          return jsonResponse(200, {
+            count: 1,
+            next: null,
+            previous: null,
+            results: [{ ...sealed, marks_open: sessionStatus === "OPEN" }],
+          });
         }
         if (url.includes("/api/gradings/assessment-items/")) {
           return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
@@ -554,7 +709,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       });
     }
 
-    vi.stubGlobal("fetch", sealedRecordFetch("LOCKED"));
+    stubFetch(sealedRecordFetch("LOCKED"));
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
     const lockedView = render(<App />);
     await screen.findByRole("heading", { name: "Assessment record" });
@@ -562,7 +717,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.queryByText(/reopen/i)).toBeNull();
     lockedView.unmount();
 
-    vi.stubGlobal("fetch", sealedRecordFetch("OPEN"));
+    stubFetch(sealedRecordFetch("OPEN"));
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
     render(<App />);
     const link = await screen.findByTestId("acp-correct-link");
@@ -579,12 +734,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         status_display: "Completed",
         completed_at: "2026-09-18T11:30:00Z",
         marks_open: false,
+        can_start: false,
       };
       const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
       return vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, viewer);
-        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, { ...mockSession, status: "LOCKED" });
+        if (url.includes("/api/gradings/sessions/10/"))
+          return jsonResponse(200, { ...mockSession, status: "LOCKED", ...sessionServed("LOCKED") });
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
         if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
         if (url.includes("/api/gradings/assessments/")) {
@@ -598,19 +756,16 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     }
 
     it("opens that registration's history for someone who may read the audit log", async () => {
-      vi.stubGlobal("fetch", recordFetch({ ...authUser, can_read_audit_log: true }));
+      stubFetch(recordFetch({ ...authUser, can_read_audit_log: true }));
       window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
       render(<App />);
 
-      expect(await screen.findByTestId("acp-history-link")).toHaveAttribute(
-        "href",
-        "/audit?subject=candidate:101",
-      );
+      expect(await screen.findByTestId("acp-history-link")).toHaveAttribute("href", "/audit?subject=candidate:101");
     });
 
     it("is not offered to someone who may not", async () => {
-      vi.stubGlobal("fetch", recordFetch({ ...authUser, can_read_audit_log: false }));
+      stubFetch(recordFetch({ ...authUser, can_read_audit_log: false }));
       window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
       render(<App />);
@@ -632,16 +787,18 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       category: "WEAPONS",
       category_display: "Weapons",
       category_is_core: false,
+      reason_required: true,
+      can_clear: true,
       position: 4,
       display_range: "1–5",
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:25:00Z",
     };
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
     // A form's part lives in its chart notation, served as wording.
@@ -653,18 +810,21 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       category: "FORM",
       category_display: "Forms",
       category_is_core: false,
+      reason_required: true,
+      can_clear: true,
       position: 5,
       display_range: "",
       requirement_notes: "Chart notation: (1/2).",
       notation: "Part 1 of 2",
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:30:00Z",
     };
     const proofItems = [mockItem1, mockItem2, assessedItem3, weaponsItem, formItem];
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -679,7 +839,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -706,6 +866,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("reports a failed rollup instead of rendering zero counts", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -719,16 +880,20 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
-          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
         });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
-    expect(await screen.findByTestId("caw-load-error", {}, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByTestId("caw-failed", {}, { timeout: 5000 })).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("scoring is paused");
     expect(screen.queryByTestId("caw-complete-assessment-btn")).toBeNull();
     expect(screen.queryByText("0 / 0")).toBeNull();
   });
@@ -749,6 +914,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           resolvePatch = resolve;
         });
       }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -762,12 +928,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
-          count: 3, next: null, previous: null, results: scoredItems,
+          count: 3,
+          next: null,
+          previous: null,
+          results: scoredItems,
         });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -780,7 +949,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await user.type(screen.getByTestId("caw-reason-input-1001"), "Wrong item.{Enter}");
 
     await waitFor(() => expect(completeBtn).toBeDisabled());
-    expect(completeBtn).toHaveTextContent("Saving...");
+    expect(completeBtn).toHaveTextContent("Saving…");
 
     resolvePatch?.(jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" }) as Response);
   });
@@ -790,6 +959,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       const posts: string[] = [];
       const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
@@ -802,7 +972,13 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
               error: { code: "validation_error", message: "Items can only be commented on in an open session." },
             });
           }
-          const comment = { id: 900 + posts.length, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z", after_lock: false };
+          const comment = {
+            id: 900 + posts.length,
+            author_name: "Lee Coach",
+            body,
+            created_at: "2026-09-18T11:00:00Z",
+            after_lock: false,
+          };
           const id = Number(url.match(/assessment-items\/(\d+)\//)?.[1]);
           const at = items.findIndex((item) => item.id === id);
           items[at] = { ...items[at], comments: [...items[at].comments, comment] };
@@ -816,7 +992,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         }
         return jsonResponse(404, { detail: "Not found" });
       });
-      vi.stubGlobal("fetch", fetchMock);
+      stubFetch(fetchMock);
       return { posts };
     }
 
@@ -827,8 +1003,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         candidate?: Partial<typeof mockCandidate>;
       }) {
         const posts: string[] = [];
-        vi.stubGlobal(
-          "fetch",
+        stubFetch(
           vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
             const url = String(input);
             if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
@@ -836,6 +1011,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
               posts.push(body);
               return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
             }
+            if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
             if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
             if (url.includes("/api/gradings/sessions/10/")) {
               return jsonResponse(200, { ...mockSession, ...options.session });
@@ -843,14 +1019,23 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
               return jsonResponse(200, { ...mockCandidate, ...options.candidate });
             }
-            if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+            if (url.includes("/summary/"))
+              return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
             if (url.includes("/api/gradings/assessments/")) {
               return jsonResponse(200, {
-                count: 1, next: null, previous: null, results: [{ ...mockAssessment, ...options.assessment }],
+                count: 1,
+                next: null,
+                previous: null,
+                results: [{ ...mockAssessment, ...options.assessment }],
               });
             }
             if (url.includes("/api/gradings/assessment-items/")) {
-              return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+              return jsonResponse(200, {
+                count: 3,
+                next: null,
+                previous: null,
+                results: [mockItem1, mockItem2, mockItem3],
+              });
             }
             return jsonResponse(404, { detail: "Not found" });
           }),
@@ -871,9 +1056,24 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       });
 
       it.each([
-        ["the session is locked", { session: { status: "LOCKED" as const, status_display: "Locked" }, assessment: { status: "COMPLETED" as const, status_display: "Completed" } }],
-        ["the assessment has not been started", { assessment: { status: "NOT_STARTED" as const, status_display: "Not started", marks_open: false } }],
-        ["the candidate has withdrawn", { candidate: { status: "WITHDRAWN" as const }, assessment: { status: "COMPLETED" as const, status_display: "Completed" } }],
+        [
+          "the session is locked",
+          {
+            session: { status: "LOCKED" as const, status_display: "Locked" },
+            assessment: { status: "COMPLETED" as const, status_display: "Completed" },
+          },
+        ],
+        [
+          "the assessment has not been started",
+          { assessment: { status: "NOT_STARTED" as const, status_display: "Not started", marks_open: false } },
+        ],
+        [
+          "the candidate has withdrawn",
+          {
+            candidate: { status: "WITHDRAWN" as const },
+            assessment: { status: "COMPLETED" as const, status_display: "Completed" },
+          },
+        ],
       ])("offers no comment box when %s", async (_why, options) => {
         stateMock({ ...options, assessment: { marks_open: false, ...options.assessment } });
         render(<App />);
@@ -896,8 +1096,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
       it("holds the text still while a comment is saving, so nothing typed meanwhile is lost", async () => {
         let release: ((response: Response) => void) | undefined;
-        vi.stubGlobal(
-          "fetch",
+        stubFetch(
           vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
             const url = String(input);
             if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
@@ -905,15 +1104,22 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
                 release = resolve;
               });
             }
+            if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
             if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
             if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
             if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
-            if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+            if (url.includes("/summary/"))
+              return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
             if (url.includes("/api/gradings/assessments/")) {
               return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
             }
             if (url.includes("/api/gradings/assessment-items/")) {
-              return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+              return jsonResponse(200, {
+                count: 3,
+                next: null,
+                previous: null,
+                results: [mockItem1, mockItem2, mockItem3],
+              });
             }
             return jsonResponse(404, { detail: "Not found" });
           }),
@@ -930,7 +1136,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         await user.type(box, " typed while saving");
 
         expect(box).toHaveValue("Sent text");
-        release?.(jsonResponse(201, { id: 901, author_name: "Lee Coach", body: "Sent text", created_at: "2026-09-18T11:00:00Z", after_lock: false }) as Response);
+        release?.(
+          jsonResponse(201, {
+            id: 901,
+            author_name: "Lee Coach",
+            body: "Sent text",
+            created_at: "2026-09-18T11:00:00Z",
+            after_lock: false,
+          }) as Response,
+        );
         await waitFor(() => expect(screen.queryByTestId("caw-comment-input-1003")).toBeNull());
       });
     });
@@ -971,7 +1185,10 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       // The comment did not touch the mark or who made it.
       expect(posts).toEqual(["Also lost balance on the landing."]);
       expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("aria-pressed", "true");
-      expect(row).toHaveTextContent("casey@example.com");
+      // The chosen mark carries its tone, so it is drawn red, not as a plain pressed button.
+      expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("data-tone", "danger");
+      expect(screen.getByTestId("btn-met-1002")).not.toHaveAttribute("data-tone");
+      expect(row).toHaveTextContent("KSN Casey Lane");
     });
 
     it("adds nothing when the box is left or dismissed without saving", async () => {
@@ -1061,8 +1278,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     it("does not refetch the items while scores are still saving, so a comment cannot undo a score", async () => {
       let releasePatch: ((response: Response) => void) | undefined;
       let itemFetches = 0;
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const url = String(input);
           if (/assessment-items\/1003\/$/.test(url) && init?.method === "PATCH") {
@@ -1074,17 +1290,24 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             const body = JSON.parse(String(init.body)).body as string;
             return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
           }
+          if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
           if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
-          if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+          if (url.includes("/summary/"))
+            return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
           if (url.includes("/api/gradings/assessments/")) {
             return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
           }
           if (url.includes("/api/gradings/assessment-items/")) {
             itemFetches += 1;
             // The server has not seen the score yet: item 1003 is still unmarked.
-            return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+            return jsonResponse(200, {
+              count: 3,
+              next: null,
+              previous: null,
+              results: [mockItem1, mockItem2, mockItem3],
+            });
           }
           return jsonResponse(404, { detail: "Not found" });
         }),
@@ -1102,6 +1325,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
       expect(itemFetches).toBe(fetchesBefore);
       expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("data-tone", "success");
 
       releasePatch?.(jsonResponse(200, { ...mockItem3, result: "MET", result_display: "Met" }) as Response);
       await waitFor(() => expect(itemFetches).toBeGreaterThan(fetchesBefore));
@@ -1144,22 +1368,30 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
           const body = JSON.parse(String(init.body)).body as string;
           posts.push(body);
-          if (failures-- > 0) return jsonResponse(500, { error: { code: "server_error", message: "Something went wrong." } });
+          if (failures-- > 0)
+            return jsonResponse(500, { error: { code: "server_error", message: "Something went wrong." } });
           return jsonResponse(201, { id: 901, author_name: "Lee Coach", body, created_at: "2026-09-18T11:00:00Z" });
         }
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
         if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
         if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
-        if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+        if (url.includes("/summary/"))
+          return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
         if (url.includes("/api/gradings/assessments/")) {
           return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
         }
         if (url.includes("/api/gradings/assessment-items/")) {
-          return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+          return jsonResponse(200, {
+            count: 3,
+            next: null,
+            previous: null,
+            results: [mockItem1, mockItem2, mockItem3],
+          });
         }
         return jsonResponse(404, { detail: "Not found" });
       });
-      vi.stubGlobal("fetch", base);
+      stubFetch(base);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1197,6 +1429,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders served counts rather than recounting the item rows", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1218,6 +1451,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             required_not_assessed: 1,
             all_required_assessed: false,
           },
+          can_complete: false,
           categories: [],
         } satisfies CandidateAssessmentSummary);
       }
@@ -1234,7 +1468,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1256,6 +1490,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("refuses the completion review route while required items remain unassessed", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1281,7 +1516,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -1325,7 +1560,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             result: body.result,
             reason: body.reason,
             save: () => {
-              const saved = { ...items.get(itemId)!, result: body.result };
+              const saved = itemSaved(items.get(itemId)!, body.result);
               items.set(itemId, saved);
               respond(
                 jsonResponse(
@@ -1334,12 +1569,12 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
                 ),
               );
             },
-            refuse: () =>
-              respond(jsonResponse(400, { error: { code: "validation_error", message: "Refused." } })),
+            refuse: () => respond(jsonResponse(400, { error: { code: "validation_error", message: "Refused." } })),
           });
         });
       }
       if (url.includes("/api/auth/me/")) return Promise.resolve(jsonResponse(200, authUser));
+      if (url.includes("/api/choices/")) return Promise.resolve(jsonResponse(200, CHOICES));
       if (url.includes("/api/gradings/sessions/10/")) return Promise.resolve(jsonResponse(200, mockSession));
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
         return Promise.resolve(jsonResponse(200, mockCandidate));
@@ -1350,7 +1585,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         return Promise.resolve(jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] }));
       }
       if (url.includes("/api/gradings/assessment-items/")) {
-        return Promise.resolve(jsonResponse(200, { count: current.length, next: null, previous: null, results: current }));
+        return Promise.resolve(
+          jsonResponse(200, { count: current.length, next: null, previous: null, results: current }),
+        );
       }
       return Promise.resolve(jsonResponse(404, { detail: "Not found" }));
     });
@@ -1358,17 +1595,18 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   }
 
   // An item with no mark yet, so the first mark needs no reason.
-  const unmarked = (item: CandidateAssessmentItem): CandidateAssessmentItem => ({
-    ...item,
-    result: "NOT_ASSESSED",
-    result_display: "Not Assessed",
-    assessor_email: "",
-    assessed_at: null,
-  });
+  const unmarked = (item: CandidateAssessmentItem): CandidateAssessmentItem =>
+    itemServed({
+      ...item,
+      result: "NOT_ASSESSED",
+      result_display: "Not Assessed",
+      assessor_name: "",
+      assessed_at: null,
+    });
 
   it("rolls back only the item whose save failed", async () => {
     const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3]);
-    vi.stubGlobal("fetch", server.fetchMock);
+    stubFetch(server.fetchMock);
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1383,14 +1621,18 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
 
     server.pending[1].save();
-    await waitFor(() => expect(server.fetchMock.mock.calls.filter(([url]) => String(url).includes("/summary/")).length).toBeGreaterThan(1));
+    await waitFor(() =>
+      expect(server.fetchMock.mock.calls.filter(([url]) => String(url).includes("/summary/")).length).toBeGreaterThan(
+        1,
+      ),
+    );
     expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("btn-met-1001")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("sends a second change to the same item only after the first lands", async () => {
     const server = scoringServer([mockItem1, mockItem2, mockItem3]);
-    vi.stubGlobal("fetch", server.fetchMock);
+    stubFetch(server.fetchMock);
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1411,15 +1653,13 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(server.pending[1].reason).toBe("Changed my mind.");
     server.pending[1].save();
 
-    await waitFor(() =>
-      expect(screen.getByTestId("btn-not-met-1003")).toHaveAttribute("aria-pressed", "true"),
-    );
+    await waitFor(() => expect(screen.getByTestId("btn-not-met-1003")).toHaveAttribute("aria-pressed", "true"));
   });
 
   describe("changing a mark", () => {
     it("asks why before switching a mark, writes nothing until it is given, and sends it with the change", async () => {
       const server = scoringServer([mockItem1, mockItem2, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1450,15 +1690,35 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     it("asks why when an item is marked again after it was cleared", async () => {
       // 1003 was marked and then cleared: its next mark is a later change, so
       // the screen asks rather than sending a mark the server would refuse.
-      const cleared: CandidateAssessmentItem = {
+      const cleared: CandidateAssessmentItem = itemServed({
         ...mockItem3,
         changes: [
-          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
-          { sequence: 2, from_result: "MET", to_result: "NOT_ASSESSED", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:05:00Z", reason: "Wrong item.", after_lock: false },
+          {
+            sequence: 1,
+            from_result: "NOT_ASSESSED",
+            from_result_display: "Not assessed",
+            to_result: "MET",
+            to_result_display: "Met",
+            changed_by_name: "Casey Reed",
+            changed_at: "2026-09-18T10:00:00Z",
+            reason: "",
+            after_lock: false,
+          },
+          {
+            sequence: 2,
+            from_result: "MET",
+            from_result_display: "Met",
+            to_result: "NOT_ASSESSED",
+            to_result_display: "Not assessed",
+            changed_by_name: "Casey Reed",
+            changed_at: "2026-09-18T10:05:00Z",
+            reason: "Wrong item.",
+            after_lock: false,
+          },
         ],
-      };
+      });
       const server = scoringServer([mockItem1, mockItem2, cleared]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1474,7 +1734,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("keeps the reason, and says why, when the change is refused", async () => {
       const server = scoringServer([mockItem1, mockItem2, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1493,45 +1753,68 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       const changed: CandidateAssessmentItem = {
         ...mockItem2,
         changes: [
-          { sequence: 1, from_result: "NOT_ASSESSED", to_result: "MET", changed_by_name: "Casey Reed", changed_at: "2026-09-18T10:00:00Z", reason: "", after_lock: false },
-          { sequence: 2, from_result: "MET", to_result: "NOT_MET", changed_by_name: "Lee Coach", changed_at: "2026-09-19T09:30:00Z", reason: "Dropped the guard on the replay.", after_lock: false },
+          {
+            sequence: 1,
+            from_result: "NOT_ASSESSED",
+            from_result_display: "Not assessed",
+            to_result: "MET",
+            to_result_display: "Met",
+            changed_by_name: "Casey Reed",
+            changed_at: "2026-09-18T10:00:00Z",
+            reason: "",
+            after_lock: false,
+          },
+          {
+            sequence: 2,
+            from_result: "MET",
+            from_result_display: "Met",
+            to_result: "NOT_MET",
+            to_result_display: "Not met",
+            changed_by_name: "Lee Coach",
+            changed_at: "2026-09-19T09:30:00Z",
+            reason: "Dropped the guard on the replay.",
+            after_lock: false,
+          },
         ],
       };
       const server = scoringServer([mockItem1, changed, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
 
       const row = screen.getByTestId("caw-item-1002");
-      expect(within(row).getByTestId("caw-change-1002-2")).toHaveTextContent(
-        "Changed from Met to Not met — Lee Coach",
+      expect(within(row).getByTestId("remark-change-1002-2")).toHaveTextContent(
+        "Changed from Met to Not met: “Dropped the guard on the replay.” — Lee Coach",
       );
-      expect(within(row).getByTestId("caw-change-1002-2")).toHaveTextContent("Dropped the guard on the replay.");
       // The first mark is the attribution already shown, not a "change".
-      expect(within(row).queryByTestId("caw-change-1002-1")).toBeNull();
+      expect(within(row).queryByTestId("remark-change-1002-1")).toBeNull();
     });
 
     it("says so, and brings back the real mark, when another person marked the item first", async () => {
       const user = userEvent.setup();
       let fetchedItems = 0;
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const url = String(input);
           if (init?.method === "PATCH") {
             return jsonResponse(400, { error: { code: "validation_error", message: "Say why the mark is changing." } });
           }
+          if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
           if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
-          if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+          if (url.includes("/summary/"))
+            return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
           if (url.includes("/api/gradings/assessments/")) {
             return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
           }
           if (url.includes("/api/gradings/assessment-items/")) {
             fetchedItems += 1;
             // This screen loaded 1003 as unmarked; someone else has marked it since.
-            const items = fetchedItems === 1 ? [mockItem1, mockItem2, mockItem3] : [mockItem1, mockItem2, { ...mockItem3, result: "NOT_MET" as const, assessor_email: "lee@example.com" }];
+            const items =
+              fetchedItems === 1
+                ? [mockItem1, mockItem2, mockItem3]
+                : [mockItem1, mockItem2, { ...mockItem3, result: "NOT_MET" as const, assessor_name: "PSBN Lee Moss" }];
             return jsonResponse(200, { count: 3, next: null, previous: null, results: items });
           }
           return jsonResponse(404, { detail: "Not found" });
@@ -1549,7 +1832,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("finishing one item's change does not close the prompt open on another", async () => {
       const server = scoringServer([mockItem1, mockItem2, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1570,23 +1853,29 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     it("lets a completed assessment's mark be corrected with a reason", async () => {
       const completed = { ...mockAssessment, status: "COMPLETED" as const, status_display: "Completed" };
       const patches: Record<string, unknown>[] = [];
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const url = String(input);
           if (init?.method === "PATCH") {
             patches.push(JSON.parse(String(init.body)));
             return jsonResponse(200, { ...mockItem1, result: "NOT_MET" });
           }
+          if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
           if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
-          if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+          if (url.includes("/summary/"))
+            return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
           if (url.includes("/api/gradings/assessments/")) {
             return jsonResponse(200, { count: 1, next: null, previous: null, results: [completed] });
           }
           if (url.includes("/api/gradings/assessment-items/")) {
-            return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+            return jsonResponse(200, {
+              count: 3,
+              next: null,
+              previous: null,
+              results: [mockItem1, mockItem2, mockItem3],
+            });
           }
           return jsonResponse(404, { detail: "Not found" });
         }),
@@ -1610,26 +1899,36 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         status: "COMPLETED" as const,
         status_display: "Completed",
         marks_open: marksOpen,
+        can_start: false,
       };
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const url = String(input);
           if (init?.method === "PATCH") {
             patches.push(JSON.parse(String(init.body)));
             return jsonResponse(200, { ...mockItem1, result: "NOT_MET" });
           }
+          if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
           if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
           if (url.includes("/api/gradings/sessions/10/")) {
-            return jsonResponse(200, { ...mockSession, status: "LOCKED", status_display: "Locked" });
+            return jsonResponse(200, {
+              ...mockSession,
+              status: "LOCKED",
+              status_display: "Locked",
+              ...sessionServed("LOCKED"),
+            });
           }
           if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
-          if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+          if (url.includes("/summary/"))
+            return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
           if (url.includes("/api/gradings/assessments/")) {
             return jsonResponse(200, { count: 1, next: null, previous: null, results: [completed] });
           }
           if (url.includes("/api/gradings/assessment-items/")) {
-            return jsonResponse(200, { count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3] });
+            const served = [mockItem1, mockItem2, mockItem3].map((item) =>
+              itemServed(item, { locked: true, completed: true }),
+            );
+            return jsonResponse(200, { count: 3, next: null, previous: null, results: served });
           }
           return jsonResponse(404, { detail: "Not found" });
         }),
@@ -1647,9 +1946,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       await user.click(screen.getByTestId("btn-not-met-1001"));
       await user.type(screen.getByTestId("caw-reason-input-1001"), "Seen again on the recording.{Enter}");
 
-      await waitFor(() =>
-        expect(patches).toEqual([{ result: "NOT_MET", reason: "Seen again on the recording." }]),
-      );
+      await waitFor(() => expect(patches).toEqual([{ result: "NOT_MET", reason: "Seen again on the recording." }]));
     });
 
     it("asks for a reason even for the first mark on an item left unmarked", async () => {
@@ -1682,7 +1979,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("uses them for a lone mark instead of asking for the counts again", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1704,7 +2001,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("reads them again when two marks overlapped, since the last answer may predate the other save", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, unmarked(mockItem3)], true);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1730,8 +2027,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       // the counts as they were when it was asked.
       let holding = false;
       let release: (() => void) | undefined;
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const answer = server.fetchMock(input, init) as Promise<Response>;
           if (holding && String(input).includes("/summary/") && !release) {
@@ -1769,7 +2065,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("reads them again when the save failed", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1784,7 +2080,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("reads them again from a server that answers with the item alone", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1799,7 +2095,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("keeps the item in the list free of the counts that came with it", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       const { container } = render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1815,7 +2111,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   it("holds completion until every item save has landed", async () => {
     const server = scoringServer([mockItem1, mockItem2, { ...mockItem3, result: "MET" }]);
-    vi.stubGlobal("fetch", server.fetchMock);
+    stubFetch(server.fetchMock);
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1843,6 +2139,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -1862,7 +2159,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           ...mockItem3,
           result: (patchedBody?.result as CandidateAssessmentItemResult) ?? "MET",
           assessor: authUser.id,
-          assessor_email: authUser.email,
+          assessor_name: `KSN ${authUser.full_name}`,
           assessed_at: "2026-09-18T10:20:00Z",
         });
       }
@@ -1879,7 +2176,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1910,6 +2207,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         patches.push(JSON.parse(String(init.body)));
         return jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" });
       }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -1923,12 +2221,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
-          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
         });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1943,7 +2244,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await user.click(screen.getByTestId("btn-clear-1001"));
 
     const prompt = screen.getByTestId("caw-change-prompt-1001");
-    expect(prompt).toHaveTextContent("casey@example.com");
+    expect(prompt).toHaveTextContent("KSN Casey Lane");
     expect(prompt).toHaveTextContent("removes the record of who assessed it");
     expect(prompt).toHaveTextContent("The change and your reason are kept");
     expect(screen.getByTestId("btn-reason-save-1001")).toBeDisabled();
@@ -1972,6 +2273,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -1985,12 +2287,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
-          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
         });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -2008,6 +2313,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders assessor attribution on met rows, not only on failures", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2021,22 +2327,25 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
-          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
         });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
     await screen.findByRole("heading", { name: "Alex Carter" });
 
     // 1001 is MET, 1002 is NOT_MET: both carry their assessor.
-    expect(screen.getByTestId("caw-item-1001")).toHaveTextContent("casey@example.com");
-    expect(screen.getByTestId("caw-item-1002")).toHaveTextContent("casey@example.com");
+    expect(screen.getByTestId("caw-item-1001")).toHaveTextContent("KSN Casey Lane");
+    expect(screen.getByTestId("caw-item-1002")).toHaveTextContent("KSN Casey Lane");
     // 1003 is unassessed, so it has no attribution to show.
-    expect(screen.getByTestId("caw-item-1003")).not.toHaveTextContent("casey@example.com");
+    expect(screen.getByTestId("caw-item-1003")).not.toHaveTextContent("KSN Casey Lane");
   });
 
   // A COMPLETED assessment is corrected in place while the session is open (no
@@ -2047,6 +2356,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2060,12 +2370,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
-          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3].map((item) => itemServed(item, { completed: true })),
         });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -2081,6 +2394,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("renders every category in one continuous run, not behind a rail", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2102,7 +2416,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -2133,7 +2447,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
 
@@ -2141,6 +2455,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2177,7 +2492,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -2187,7 +2502,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     // "Complete assessment" is ready and enabled
     const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
     expect(completeBtn).toBeEnabled();
-    expect(completeBtn).toHaveTextContent("Complete assessment →");
+    expect(completeBtn).toHaveTextContent("Complete assessment");
 
     // Click to enter review mode
     await user.click(completeBtn);
@@ -2234,12 +2549,13 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor_email: authUser.email,
+      assessor_name: `KSN ${authUser.full_name}`,
       assessed_at: "2026-09-18T10:20:00Z",
     };
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, authUser);
       }
@@ -2270,7 +2586,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     const user = userEvent.setup();
 
@@ -2280,10 +2596,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await user.click(screen.getByTestId("caw-complete-assessment-btn"));
 
     await screen.findByRole("heading", { name: "Assessment record" });
-    await user.type(
-      screen.getByLabelText("Assessment note"),
-      "Guard discipline needs work before the next grading.",
-    );
+    await user.type(screen.getByLabelText("Assessment note"), "Guard discipline needs work before the next grading.");
 
     // Back to scoring to correct something, then into the review again
     await user.click(screen.getByRole("link", { name: "Return to scoring" }));
@@ -2302,12 +2615,14 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       status: "NOT_STARTED",
       status_display: "Not started",
       started_at: null,
+      can_start: true,
     };
 
     let startPayload: Record<string, unknown> | null = null;
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
@@ -2346,15 +2661,15 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           next: null,
           previous: null,
           results: [
-            { ...mockItem1, result: "NOT_ASSESSED", assessor: null, assessor_email: "", assessed_at: null },
-            { ...mockItem2, result: "NOT_ASSESSED", assessor: null, assessor_email: "", assessed_at: null },
+            { ...mockItem1, result: "NOT_ASSESSED", assessor: null, assessor_name: "", assessed_at: null },
+            { ...mockItem2, result: "NOT_ASSESSED", assessor: null, assessor_name: "", assessed_at: null },
             mockItem3,
           ],
         });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -2370,65 +2685,72 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(startPayload).toEqual({ status: "IN_PROGRESS" });
   });
 
-  it.each(["DRAFT", "OPEN"] as const)("prepares a missing assessment snapshot before offering start (%s)", async (sessionStatus) => {
-    const draftSession = {
-      ...mockSession,
-      status: sessionStatus,
-      status_display: sessionStatus === "DRAFT" ? "Draft" : "Open",
-      candidate_count: 0,
-      completed_assessment_count: 0,
-      awaiting_decision_count: 0,
-      can_be_deleted: false, archived_at: null, can_be_archived: false, can_be_restored: false,
-    } satisfies GradingSession;
-    const generatedAssessment: CandidateAssessment = {
-      ...mockAssessment,
-      status: "NOT_STARTED",
-      status_display: "Not started",
-      started_at: null,
-    };
-    let generationRequested = false;
+  it.each(["DRAFT", "OPEN"] as const)(
+    "prepares a missing assessment snapshot before offering start (%s)",
+    async (sessionStatus) => {
+      const draftSession = {
+        ...mockSession,
+        status: sessionStatus,
+        status_display: sessionStatus === "DRAFT" ? "Draft" : "Open",
+        candidate_count: 0,
+        completed_assessment_count: 0,
+        awaiting_decision_count: 0,
+        ...sessionServed(sessionStatus),
+        can_be_deleted: false,
+        archived_at: null,
+        can_be_archived: false,
+        can_be_restored: false,
+      } satisfies GradingSession;
+      const generatedAssessment: CandidateAssessment = {
+        ...mockAssessment,
+        status: "NOT_STARTED",
+        status_display: "Not started",
+        started_at: null,
+        can_start: sessionStatus === "OPEN",
+      };
+      let generationRequested = false;
 
-    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, draftSession);
-      if (
-        url.includes("/api/gradings/candidates/101/generate-assessment/") &&
-        init?.method === "POST"
-      ) {
-        generationRequested = true;
-        return jsonResponse(201, generatedAssessment);
-      }
-      if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
-        return jsonResponse(200, mockCandidate);
-      }
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
-        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
-      }
-      if (url.includes("/summary/")) {
-        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
-      }
-      if (url.includes("/api/gradings/assessment-items/")) {
-        return jsonResponse(200, {
-          count: 3,
-          next: null,
-          previous: null,
-          results: [mockItem1, mockItem2, mockItem3],
-        });
-      }
-      return jsonResponse(404, { detail: "Not found" });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
+      const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, draftSession);
+        if (url.includes("/api/gradings/candidates/101/generate-assessment/") && init?.method === "POST") {
+          generationRequested = true;
+          return jsonResponse(201, generatedAssessment);
+        }
+        if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
+          // Served with the roster's own word on preparing a form.
+          return jsonResponse(200, { ...mockCandidate, can_prepare_assessment: true });
+        }
+        if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+          return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        }
+        if (url.includes("/summary/")) {
+          return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+        }
+        if (url.includes("/api/gradings/assessment-items/")) {
+          return jsonResponse(200, {
+            count: 3,
+            next: null,
+            previous: null,
+            results: [mockItem1, mockItem2, mockItem3],
+          });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      });
+      stubFetch(fetchMock);
+      const user = userEvent.setup();
 
-    render(<App />);
+      render(<App />);
 
-    expect(await screen.findByTestId("caw-missing-assessment-banner")).toBeVisible();
-    expect(screen.queryByTestId("caw-not-started-banner")).not.toBeInTheDocument();
+      expect(await screen.findByTestId("caw-missing-assessment-banner")).toBeVisible();
+      expect(screen.queryByTestId("caw-not-started-banner")).not.toBeInTheDocument();
 
-    await user.click(screen.getByTestId("generate-assessment-btn"));
+      await user.click(screen.getByTestId("generate-assessment-btn"));
 
-    await waitFor(() => expect(generationRequested).toBe(true));
-    expect(await screen.findByTestId("caw-not-started-banner")).toBeVisible();
-  });
+      await waitFor(() => expect(generationRequested).toBe(true));
+      expect(await screen.findByTestId("caw-not-started-banner")).toBeVisible();
+    },
+  );
 });

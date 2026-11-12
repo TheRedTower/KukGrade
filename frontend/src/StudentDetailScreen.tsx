@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { keys, refresh } from "./queryKeys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   type GradingHistoryItem,
-  type Rank,
   type StudentStatus,
   deleteStudent,
   getStudent,
@@ -18,21 +17,23 @@ import { PageHeader } from "./PageHeader";
 import { StudentEditDialog } from "./StudentEditDialog";
 import { StudentStatusDialog } from "./StudentStatusDialog";
 import { EmptyState } from "./EmptyState";
-import { LoadingState } from "./LoadingState";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
-import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
-import { Dialog } from "./Dialog";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
-import { badgeClass } from "./badgeClass";
+import { badgeProps } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { useChoices } from "./choices";
 import { StudentStatusBadge } from "./StatusBadge";
 import "./StudentScreens.css";
 import { formatLongDate, formatMonthYear, formatShortDate } from "./dates";
 import { CheckIcon, LockIcon } from "./Icons";
 import { Button } from "./Button";
+import { cx } from "./cx";
 
 function formatGradingHistoryDate(item: GradingHistoryItem): string {
   if (item.date_precision === "DAY" && item.date) {
@@ -53,12 +54,13 @@ function gradingHistoryOutcomeLabel(item: GradingHistoryItem): string {
 }
 
 export function StudentDetailScreen() {
-  const { id } = useParams<{ id: string }>();
+  const id = useIdParam();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
 
-  const studentId = Number(id);
+  // The queries wait for a real id; 0 is never sent.
+  const studentId = id ?? 0;
 
   // Modals state
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
@@ -80,7 +82,7 @@ export function StudentDetailScreen() {
       await refresh.afterStudentChange(queryClient, change.id);
       setIsStatusModalOpen(false);
     },
-    onError: (err) => setStatusError(errorMessage(err, "Failed to update student status.")),
+    onError: (err) => setStatusError(errorMessage(err, "The student's status could not be changed.")),
   });
   const isSavingStatus = statusMutation.isPending;
 
@@ -92,7 +94,7 @@ export function StudentDetailScreen() {
       await refresh.afterStudentChange(queryClient, change.id);
       setIsEditModalOpen(false);
     },
-    onError: (err) => editForm.handle(err, "Failed to update student details."),
+    onError: (err) => editForm.handle(err, "The student's details could not be saved."),
   });
   const isSavingEdit = editMutation.isPending;
 
@@ -105,7 +107,7 @@ export function StudentDetailScreen() {
       ]);
       navigate("/students");
     },
-    onError: (err) => setDeleteError(errorMessage(err, "Failed to delete student.")),
+    onError: (err) => setDeleteError(errorMessage(err, "The student could not be deleted.")),
   });
   const isDeletingStudent = deleteMutation.isPending;
 
@@ -113,39 +115,26 @@ export function StudentDetailScreen() {
   const studentQuery = useQuery({
     queryKey: keys.students.detail(studentId),
     queryFn: () => getStudent(studentId),
-    enabled: !isNaN(studentId) && studentId > 0,
+    enabled: id !== null,
   });
 
   // 2. Fetch Rank History
   const rankHistoryQuery = useQuery({
     queryKey: keys.students.rankHistory(studentId),
     queryFn: () => getStudentRankHistory(studentId),
-    enabled: !isNaN(studentId) && studentId > 0,
+    enabled: id !== null,
   });
 
   // 2b. Fetch unified grading history (native + linked historical records)
   const gradingHistoryQuery = useQuery({
     queryKey: keys.students.gradingHistory(studentId),
     queryFn: () => getStudentGradingHistory(studentId),
-    enabled: !isNaN(studentId) && studentId > 0,
+    enabled: id !== null,
   });
 
-  // 3. Fetch Ranks Catalogue
-  const ranksQuery = useRanksQuery();
-
   const student = studentQuery.data;
+  const statusMeaning = useChoices().student_statuses.find((choice) => choice.value === student?.status)?.description;
   const rankHistory = rankHistoryQuery.data;
-  const ranks = useMemo<Rank[]>(() => {
-    return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
-  }, [ranksQuery.data]);
-
-  // The next rank as the server defines it (Rank.next_rank), unless its syllabus
-  // is not recorded yet: such a rank is not offered.
-  const nextRank = useMemo(() => {
-    const current = ranks.find((r) => r.id === student?.current_rank);
-    const next = ranks.find((r) => r.id === current?.next_rank);
-    return next?.has_syllabus ? next : null;
-  }, [student, ranks]);
 
   function handleDeleteStudent() {
     if (!student) return;
@@ -153,37 +142,24 @@ export function StudentDetailScreen() {
     deleteMutation.mutate(student.id);
   }
 
-  if (studentQuery.isLoading) {
+  const status = recordStatus(id, studentQuery);
+  if (status || !student) {
     return (
-      <section aria-labelledby="student-loading-title" className="page">
-        <LoadingState id="student-loading-title">Loading student record…</LoadingState>
-      </section>
-    );
-  }
-
-  if (studentQuery.isError || !student || !student.id) {
-    return (
-      <section aria-labelledby="student-error-title" className="page">
-        <EmptyState
-          titleAs="h2"
-          titleId="student-error-title"
-          title="Student record not found"
-          action={
-            <Button variant="secondary" onClick={() => navigate("/students")}>
-              ← Back to students
-            </Button>
-          }
-        >
-          The requested student record could not be loaded or may not exist.
-        </EmptyState>
-      </section>
+      <RecordPage
+        back={{ to: "/students", label: "Students" }}
+        error={studentQuery.error}
+        failed="The student record could not be loaded."
+        label="Student record"
+        loading="Loading student record…"
+        missing="Student record not found"
+        status={status ?? "loading"}
+        onRetry={() => void studentQuery.refetch()}
+      />
     );
   }
 
   const promotions = rankHistory?.promotions ?? [];
   const gradingHistoryItems = gradingHistoryQuery.data?.items ?? [];
-  const statusStr = student.status || "ACTIVE";
-  const statusDisplay = student.status_display || statusStr;
   // Deleted after their history began: kept so past gradings still show who
   // it was, and closed to changes (the server refuses them).
   const isDeleted = student.deleted_at !== null;
@@ -191,10 +167,10 @@ export function StudentDetailScreen() {
   return (
     <section aria-labelledby="student-heading" className="page">
       <PageHeader
-        crumbs={[{ label: "Students", to: "/students" }, { label: `${student.first_name} ${student.last_name}` }]}
+        back={{ to: "/students", label: "Students" }}
         title={`${student.first_name} ${student.last_name}`}
         titleId="student-heading"
-        tag={<StudentStatusBadge status={student.status} label={statusDisplay} />}
+        tag={<StudentStatusBadge status={student.status} label={student.status_display} />}
         subtitle={
           <>
             WKSA ID <span className="wksa-id-pill meta">{student.wksa_id}</span>
@@ -239,16 +215,15 @@ export function StudentDetailScreen() {
 
       {isDeleted && (
         <Alert tone="info" title={`Deleted on ${formatLongDate(student.deleted_at)}`}>
-          This student is no longer on the student list and their record can no longer be
-          changed. It is kept so that their past gradings, marks and decisions still show who
-          they were.
+          This student is no longer on the student list and their record can no longer be changed. It is kept so that
+          their past gradings, marks and decisions still show who they were.
         </Alert>
       )}
 
       {/* Two-Column Grid Layout */}
       <div className="student-detail-grid">
         {/* Left Column: Core Record, Grading History & Rank History */}
-        <div className="detail-left-column">
+        <div className="stack detail-left-column">
           {/* Card 1: Student details */}
           <div className="card">
             <h2 className="section-title section-title--ruled">Student details</h2>
@@ -310,12 +285,12 @@ export function StudentDetailScreen() {
                     header: "Source",
                     render: (item) =>
                       item.source === "LEGACY" && currentUser?.can_reconcile_imported_history ? (
-                        <Link className={badgeClass("neutral")} to={`/imports/history/${item.record_id}`}>
+                        <Link {...badgeProps("neutral")} to={`/imports/history/${item.record_id}`}>
                           Historical · correct
                         </Link>
                       ) : item.session_id && item.candidate_id ? (
                         <Link
-                          className={badgeClass("info")}
+                          {...badgeProps("info")}
                           to={`/gradings/${item.session_id}/assessments/${item.candidate_id}/review`}
                         >
                           KukGrade · view assessment
@@ -349,7 +324,9 @@ export function StudentDetailScreen() {
                       item.attendance_status === "DID_NOT_ATTEND" ? (
                         <Badge tone="neutral">{gradingHistoryOutcomeLabel(item)}</Badge>
                       ) : item.outcome === "PASS" ? (
-                        <Badge tone="success" icon={<CheckIcon size={14} />}>{gradingHistoryOutcomeLabel(item)}</Badge>
+                        <Badge tone="success" icon={<CheckIcon size={14} />}>
+                          {gradingHistoryOutcomeLabel(item)}
+                        </Badge>
                       ) : (
                         <Badge tone="warning">{gradingHistoryOutcomeLabel(item)}</Badge>
                       ),
@@ -384,13 +361,11 @@ export function StudentDetailScreen() {
               {/* Promotion nodes from newest to oldest */}
               {promotions.map((p, idx) => (
                 <div key={p.id} className="timeline-node-item">
-                  <div className={`timeline-indicator ${idx === 0 ? "indicator-active" : ""}`} />
+                  <div className={cx("timeline-indicator", idx === 0 && "indicator-active")} />
                   <div>
                     <div className="meta">{formatShortDate(p.effective_date || p.promoted_at)}</div>
                     <div className="item-title">{p.to_rank_name}</div>
-                    <div className="subtext">
-                      Promoted at {p.session_title || "Grading Session"}
-                    </div>
+                    <div className="subtext">Promoted at {p.session_title || "Grading Session"}</div>
                   </div>
                 </div>
               ))}
@@ -405,9 +380,7 @@ export function StudentDetailScreen() {
                       ? promotions[promotions.length - 1].from_rank_name
                       : student.current_rank_name}
                   </div>
-                  <div className="subtext">
-                    Initial rank recorded in KukGrade
-                  </div>
+                  <div className="subtext">Initial rank recorded in KukGrade</div>
                 </div>
               </div>
             </div>
@@ -415,58 +388,61 @@ export function StudentDetailScreen() {
         </div>
 
         {/* Right Column: Operational Sidebar */}
-        <div className="detail-right-column">
-          {/* Card 1: Grading readiness */}
-          <div className="card">
-            <h2 className="section-title section-title--ruled">Grading readiness</h2>
-            <div className="readiness-body">
-              <div className="readiness-row">
-                <span className="meta">Next rank</span>
-                <span className="readiness-value item-title">{nextRank?.name || "Highest curriculum rank"}</span>
-              </div>
+        <div className="stack detail-right-column">
+          {/* Card 1: Grading readiness. Whether they can be registered is the
+              server's answer (can_be_graded); a deleted record is closed, so
+              it has no readiness to show. */}
+          {!isDeleted && (
+            <div className="card">
+              <h2 className="section-title section-title--ruled">Grading readiness</h2>
+              <div className="stack stack--4">
+                <div className="action-row">
+                  <span className="meta">Next rank</span>
+                  <span className="readiness-value item-title">
+                    {student.next_rank_name ?? "Highest curriculum rank"}
+                  </span>
+                </div>
 
-              <div className="readiness-row">
-                <span className="meta">Current status</span>
-                {student.status === "ACTIVE" ? (
-                  <Badge tone="success" icon={<CheckIcon size={14} />}>Can be registered</Badge>
-                ) : student.status === "INACTIVE" ? (
-                  <Badge tone="warning">Inactive (temporary break)</Badge>
-                ) : (
-                  <Badge tone="danger">Left (registration blocked)</Badge>
-                )}
-              </div>
+                <div className="action-row">
+                  <span className="meta">Current status</span>
+                  {student.can_be_graded ? (
+                    <Badge tone="success" icon={<CheckIcon size={14} />}>
+                      Can be registered
+                    </Badge>
+                  ) : (
+                    <Badge tone="danger">Cannot be registered</Badge>
+                  )}
+                </div>
 
-              <p className="readiness-guidance subtext">
-                {student.status === "ACTIVE"
-                  ? "Active students can be added to a grading cohort, one grading at a time. KukGrade does not track training time or attendance, so readiness is the instructor's judgement."
-                  : student.status === "INACTIVE"
-                  ? "On a temporary break. Inactive blocks nothing: the student can still be added to a grading cohort."
-                  : "Student has left. Left status blocks grading registration while preserving complete historical records."}
-              </p>
+                <p className="readiness-guidance subtext">
+                  {statusMeaning} KukGrade does not track training time or attendance, so readiness is the instructor's
+                  judgement.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Card 2: Record status */}
           <div className="card">
             <h2 className="section-title section-title--ruled">Record status</h2>
-            <div className="record-status-body">
-              <div className="record-status-badge-row">
+            <div className="stack stack--4">
+              <div className="action-row">
                 <span className="meta">Status</span>
-                <StudentStatusBadge status={student.status} label={statusDisplay} />
+                <StudentStatusBadge status={student.status} label={student.status_display} />
               </div>
 
-              <div className="record-status-policy-note subtext">
+              <div className="stack stack--2 record-status-policy-note subtext">
+                <p>Active students can be added to gradings and appear in active registers.</p>
                 <p>
-                  Active students can be added to gradings and appear in active registers.
-                </p>
-                <p>
-                  If a student becomes inactive (for example, due to a temporary break), their record is retained and their history remains accessible.
+                  If a student becomes inactive (for example, due to a temporary break), their record is retained and
+                  their history remains accessible.
                 </p>
               </div>
 
               {!isDeleted && (
                 <Button
-                  variant="secondary" block
+                  variant="secondary"
+                  block
                   onClick={() => {
                     setStatusError(null);
                     setIsStatusModalOpen(true);
@@ -476,7 +452,13 @@ export function StudentDetailScreen() {
                 </Button>
               )}
 
-              {currentUser?.can_delete_students && !isDeleted && (
+              {/* Whether they can be deleted now, and if not why, is the server's. */}
+              {currentUser?.can_delete_students && student.deletion_blocked_by && (
+                <p className="subtext" data-testid="student-delete-blocked">
+                  {student.deletion_blocked_by}
+                </p>
+              )}
+              {student.can_be_deleted && (
                 <Button
                   variant="danger"
                   onClick={() => {
@@ -508,37 +490,18 @@ export function StudentDetailScreen() {
 
       {/* Delete Student Modal */}
       {isDeleteModalOpen && (
-        <Dialog title="Delete student" closeButton={false} onClose={() => setIsDeleteModalOpen(false)} canClose={!isDeletingStudent}>
-
-            {deleteError && (
-              <Alert className="form-alert">{deleteError}</Alert>
-            )}
-
-            <div>
-              <p className="modal-lead-text">
-                Delete this student? This cannot be undone. Their past gradings, marks and
-                decisions stay as recorded.
-              </p>
-            </div>
-
-            <div className="action-row action-row--end">
-              <Button
-                variant="secondary"
-                onClick={() => setIsDeleteModalOpen(false)}
-                disabled={isDeletingStudent}
-                data-dialog-autofocus
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleDeleteStudent}
-                disabled={isDeletingStudent}
-              >
-                {isDeletingStudent ? "Deleting…" : "Delete student"}
-              </Button>
-            </div>
-        </Dialog>
+        <ConfirmDialog
+          title="Delete student"
+          confirmLabel="Delete student"
+          pendingLabel="Deleting…"
+          pending={isDeletingStudent}
+          error={deleteError}
+          danger
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleDeleteStudent}
+        >
+          <p>Delete this student? This cannot be undone. Their past gradings, marks and decisions stay as recorded.</p>
+        </ConfirmDialog>
       )}
 
       {isEditModalOpen && (

@@ -9,14 +9,12 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Each a .menu-link, underlined in gold where you are. */
 .st-tab {
-  display: inline-flex;
-  align-items: center;
   min-height: 48px;
   border-bottom: 3px solid transparent;
+  border-radius: 0;
   color: var(--color-text-muted);
-  font-weight: var(--font-weight-strong);
-  text-decoration: none;
 }
 
 .st-tab:hover {
@@ -80,21 +78,20 @@
 }
 
 .st-name-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-2);
   width: 100%;
 }
 
-.st-name-form .field {
-  flex: 1 1 8rem;
-  min-width: 0;
+/* The two names side by side, each on its own line when there is no room. */
+.st-name-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
 }
 
-.st-full {
-  flex: 1 1 100%;
-  margin: 0;
+.st-name-fields .field {
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 
 .st-saved {
@@ -103,9 +100,6 @@
 }
 
 .st-password-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
   max-width: 30rem;
   padding-top: var(--space-2);
 }
@@ -121,8 +115,6 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
   gap: var(--space-2);
   margin: var(--space-1) 0 var(--space-2);
-  padding: 0;
-  list-style: none;
 }
 
 .st-capabilities li {

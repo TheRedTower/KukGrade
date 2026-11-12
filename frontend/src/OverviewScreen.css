@@ -50,7 +50,9 @@
   min-height: 48px;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background var(--duration) ease, border-color var(--duration) ease;
+  transition:
+    background var(--duration) ease,
+    border-color var(--duration) ease;
 }
 
 .attention-item-row:hover,
@@ -82,7 +84,9 @@
   cursor: pointer;
   min-height: 48px;
   border: 1px solid transparent;
-  transition: background var(--duration) ease, border-color var(--duration) ease;
+  transition:
+    background var(--duration) ease,
+    border-color var(--duration) ease;
 }
 
 .upcoming-session-row:hover,

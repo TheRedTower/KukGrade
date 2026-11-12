@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.urls import include, path, re_path
 
+from kukgrade.choices import choices
 from kukgrade.views import frontend, site_settings
 
 # Django looks these up by name on the root URLconf.
@@ -15,6 +16,7 @@ handler500 = "kukgrade.exceptions.server_error"
 # by hand from a shell (docs/installation.md).
 urlpatterns = [
     path("api/site/", site_settings, name="site-settings"),
+    path("api/choices/", choices, name="choices"),
     path("api/", include("about.urls")),
     path("api/", include("accounts.urls")),
     path("api/", include("health.urls")),

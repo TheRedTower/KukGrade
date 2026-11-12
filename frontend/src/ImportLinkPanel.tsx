@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { type DataImportBatch, type LegacyPerson, errorMessage, getLegacyGradingRecords, getLegacyPeople } from "./api";
+import { type DataImportBatch, type LegacyPerson, errorMessage, getLegacyPeople, getLegacyRecordCounts } from "./api";
 import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
-import { counted } from "./importSteps";
 import { periodRange } from "./linkRecords";
-import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
+import { useLegacyLinking } from "./useLegacyLinking";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
+import { cx } from "./cx";
+import { CheckIcon } from "./Icons";
 
 const LINK_GROUPS_SHOWN = 4;
 
@@ -22,11 +25,11 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
   const [linked, setLinked] = useState<Record<string, { person: LegacyPerson; name: string }>>({});
 
   const awaiting = useQuery({
-    queryKey: ["legacyRecords", "awaitingLinkCount", batch.id],
-    queryFn: () => getLegacyGradingRecords({ batch: batch.id, awaiting_link: true, page_size: 1 }),
+    queryKey: keys.legacyRecords.awaitingLinkCount(batch.id),
+    queryFn: () => getLegacyRecordCounts({ batch: batch.id }),
   });
   const people = useQuery({
-    queryKey: ["legacyPeople", batch.id, "unlinked"],
+    queryKey: keys.legacyPeople.unlinked(batch.id),
     queryFn: () => getLegacyPeople({ batch: batch.id, linked: false, page_size: LINK_GROUPS_SHOWN }),
     enabled: canLink,
   });
@@ -42,21 +45,12 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
   function undoLink(person: LegacyPerson) {
     link.reset();
     undo.mutate(person.record_ids, {
-      onSettled: (unlinkedIds, error) => {
-        const removed = unlinkedIds ?? (error instanceof PartialUnlinkError ? error.unlinkedIds : []);
+      onSuccess: () =>
         setLinked((current) => {
-          const entry = current[person.source_name];
-          if (!entry || removed.length === 0) return current;
           const next = { ...current };
-          const remaining = entry.person.record_ids.filter((id) => !removed.includes(id));
-          if (remaining.length === 0) delete next[person.source_name];
-          else next[person.source_name] = {
-            ...entry,
-            person: { ...entry.person, record_ids: remaining, records: remaining.length },
-          };
+          delete next[person.source_name];
           return next;
-        });
-      },
+        }),
     });
   }
 
@@ -65,12 +59,12 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
     ...Object.values(linked).map((entry) => entry.person),
     ...fromServer.filter((person) => !linked[person.source_name]),
   ].slice(0, LINK_GROUPS_SHOWN + Object.keys(linked).length);
-  const waiting = awaiting.data?.count;
+  const waiting = awaiting.data?.awaiting_link;
   const busy = link.isPending || undo.isPending;
   const failed = link.isError
     ? errorMessage(link.error, "Those records could not be linked.")
     : undo.isError
-      ? undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "Those records could not be unlinked.")
+      ? errorMessage(undo.error, "Those records could not be unlinked.")
       : null;
 
   return (
@@ -82,8 +76,8 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
             Who is each record?
           </h2>
           <p className="subtext">
-            Grouped by the name as written. KukGrade suggests a student; nothing is linked until
-            you say so. A linked record shows in that student’s history.
+            Grouped by the name as written. KukGrade suggests a student; nothing is linked until you say so. A linked
+            record shows in that student’s history.
           </p>
         </div>
         {waiting !== undefined ? (
@@ -99,9 +93,7 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
           Loading suggestions…
         </p>
       ) : people.isError ? (
-        <ErrorText className="ix-row">
-          {errorMessage(people.error, "Suggestions could not be loaded.")}
-        </ErrorText>
+        <ErrorText className="ix-row">{errorMessage(people.error, "Suggestions could not be loaded.")}</ErrorText>
       ) : shown.length === 0 ? (
         <p className="ix-row ix-success-text">Every record from this import is linked.</p>
       ) : (
@@ -109,17 +101,19 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
           const done = linked[person.source_name];
           const [best] = person.candidates;
           return (
-            <div className={`ix-row${done ? " ix-row-done" : ""}`} key={person.source_name}>
+            <div className={cx("ix-row", done && "ix-row-done")} key={person.source_name}>
               <div className="ix-row-main ix-row-name">
                 <p className="item-title">
                   “{person.source_name}” · {counted(person.records, "record", "records")}
                 </p>
                 <p className="subtext">{periodRange(person)}</p>
               </div>
-              <div className="ix-actions ix-row-choice">
+              <div className="row row--wrap ix-row-choice">
                 {done ? (
                   <>
-                    <span className="ix-success-text item-title">✓ Linked to {done.name}</span>
+                    <span className="row row--inline ix-success-text item-title">
+                      <CheckIcon /> Linked to {done.name}
+                    </span>
                     <Button
                       aria-label={`Undo linking “${person.source_name}”`}
                       variant="link"
@@ -153,12 +147,12 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
                       {best.reasons.length ? <span className="subtext">{best.reasons.join(" · ")}</span> : null}
                     </span>
                     <Button
-                      aria-label={`${person.records === 1 ? "Link it" : `Link all ${person.records}`}: “${person.source_name}” to ${best.full_name}`}
+                      aria-label={`${agreeing(person.records, "Link it", `Link all ${person.records}`)}: “${person.source_name}” to ${best.full_name}`}
                       variant="primary"
                       disabled={busy}
                       onClick={() => linkAll(person, best.student, best.full_name)}
                     >
-                      {person.records === 1 ? "Link it" : `Link all ${person.records}`}
+                      {agreeing(person.records, "Link it", `Link all ${person.records}`)}
                     </Button>
                     <Link className={buttonClass({ variant: "ghost" })} to="/imports/records">
                       Someone else
@@ -177,13 +171,9 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
           );
         })
       )}
-      {failed ? (
-        <ErrorText className="ix-row">
-          {failed}
-        </ErrorText>
-      ) : null}
+      {failed ? <ErrorText className="ix-row">{failed}</ErrorText> : null}
       {canLink ? (
-        <div className="ix-row ix-actions-split">
+        <div className="action-row ix-row">
           <span className="subtext">
             {people.data && people.data.count > fromServer.length
               ? `${fromServer.length} of ${people.data.count} names shown. The rest are on the linking page.`

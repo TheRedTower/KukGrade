@@ -40,6 +40,11 @@ _RANK_TEXT_ALIASES = {
     "DAHN BO NIM": "DAHN_BO",
 }
 
+# The black belt titles the workbook writes before a name ("JKN Alex"),
+# lower-cased. Fixed, not read from the catalogue: a name's group key is
+# stored (gradings.SetAsideName), so it must not move when a rank does.
+RANK_TITLES = frozenset({"jkn", "ksn", "dbn", "psbn", "sbn", "pkjn", "dahn"})
+
 
 def suggest_rank(text: str, ranks: dict[str, Rank]) -> tuple[Rank | None, bool]:
     """The active rank a source text most likely means, and whether the source
@@ -51,14 +56,8 @@ def suggest_rank(text: str, ranks: dict[str, Rank]) -> tuple[Rank | None, bool]:
         key = key.removesuffix(" BELT").strip()
     rank = ranks.get(key)
     if rank is None and key in _RANK_TEXT_ALIASES:
-        rank = next(
-            (
-                found
-                for found in ranks.values()
-                if found.code == _RANK_TEXT_ALIASES[key]
-            ),
-            None,
-        )
+        # The lookup is keyed by upper-cased code too.
+        rank = ranks.get(_RANK_TEXT_ALIASES[key])
     return rank, doubtful
 
 

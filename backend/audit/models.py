@@ -1,20 +1,24 @@
 """An append-only record of who did what.
 
 Deliberately its own app: the log must not depend on the apps it records, and
-an audit record has to outlive the schema it describes. That is also why
-`entity_type` is a plain string rather than a ContentType foreign key - a
-ContentType reference breaks exactly when a model is renamed or removed, which
-is when the history matters most.
+an audit record has to outlive the schema it describes. It reaches the
+students, gradings and imports it records by name (apps.get_model), never by
+import; accounts is the one app it imports, for who acted and who may read.
+
+That is also why `entity_type` is a plain string rather than a ContentType
+foreign key - a ContentType reference breaks exactly when a model is renamed
+or removed, which is when the history matters most.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models
 
+from accounts.permissions import USER_ADMINISTRATION_PERMISSION
+from kukgrade.kept import KeptModel, KeptQuerySet
 from kukgrade.modelchecks import clean_without_database_checks
 
 if TYPE_CHECKING:
@@ -40,9 +44,6 @@ class AuditAction(models.TextChoices):
     ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
     ASSESSMENT_UPDATED = "ASSESSMENT_UPDATED", "Assessment notes updated"
     ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
-    # No longer written (a completed assessment is corrected, not reopened), but
-    # events already in the log carry it, so it stays a valid choice.
-    ASSESSMENT_REOPENED = "ASSESSMENT_REOPENED", "Assessment reopened"
     ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
     ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"
     ITEM_COMMENT_ADDED = "ITEM_COMMENT_ADDED", "Assessment item comment added"
@@ -113,26 +114,20 @@ USER_MANAGEMENT_ACTIONS: tuple[str, ...] = (
 def hidden_actions(user: User) -> tuple[str, ...]:
     """The actions `user` may not read: user management, unless they may
     open the Users API themselves (see USER_MANAGEMENT_ACTIONS)."""
-    if user.has_perm("accounts.view_user"):
+    if user.has_perm(USER_ADMINISTRATION_PERMISSION):
         return ()
     return USER_MANAGEMENT_ACTIONS
 
 
-class AuditEventQuerySet(models.QuerySet["AuditEvent"]):
+class AuditEventQuerySet(KeptQuerySet["AuditEvent"]):
     def visible_to(self, user: User) -> AuditEventQuerySet:
         """The events `user` may read, once permitted to read the log at all
         (accounts.permissions.can_view_audit_log). Shared by the API and
         Django admin so the two cannot disagree."""
         return self.exclude(action__in=hidden_actions(user))
 
-    def delete(self) -> tuple[int, dict[str, int]]:
-        raise ValidationError({"audit": [IMMUTABLE_MESSAGE]})
 
-    def update(self, **kwargs: Any) -> int:
-        raise ValidationError({"audit": [IMMUTABLE_MESSAGE]})
-
-
-class AuditEvent(models.Model):
+class AuditEvent(KeptModel):
     # PROTECT so that deleting a user can never erase who did something.
     # Null only for actions with no human actor.
     actor = models.ForeignKey(
@@ -142,11 +137,12 @@ class AuditEvent(models.Model):
         null=True,
         blank=True,
     )
-    # Who acted, as they were at the time. `actor` can later be reassigned to
-    # the deleted-user placeholder (accounts.services.delete_platform_user);
-    # these copies are what keep the trail attributable to the real person.
+    # Who acted, as they were at the time: a later change to the account's
+    # name, email address or rank never rewrites the trail.
     actor_email = models.EmailField(blank=True)
     actor_name = models.CharField(max_length=301, blank=True)
+    # Their rank then, or "administrator" (accounts.people).
+    actor_title = models.CharField(max_length=100, blank=True, editable=False)
     action = models.CharField(max_length=64, choices=AuditAction.choices)
     entity_type = models.CharField(max_length=64, choices=AuditEntity.choices)
     entity_id = models.CharField(max_length=64)
@@ -156,6 +152,11 @@ class AuditEvent(models.Model):
     metadata = models.JSONField(default=dict, blank=True)
 
     objects = AuditEventQuerySet.as_manager()
+
+    refusal_field = "audit"
+    change_refused = IMMUTABLE_MESSAGE
+    delete_refused = IMMUTABLE_MESSAGE
+    final_once_saved = True
 
     class Meta:
         ordering = ["-occurred_at", "-pk"]
@@ -186,14 +187,6 @@ class AuditEvent(models.Model):
     def __str__(self) -> str:
         return f"{self.action} {self.entity_type}#{self.entity_id}"
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        # `_state.adding` rather than a pk check: the pk is typed non-optional,
-        # so `pk is not None` is always true and would make this a no-op.
-        if not self._state.adding:
-            raise ValidationError({"audit": [IMMUTABLE_MESSAGE]})
+    def check_before_save(self) -> None:
         # record() decides every value; the constraints stay the guard.
         clean_without_database_checks(self)
-        super().save(*args, **kwargs)
-
-    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
-        raise ValidationError({"audit": [IMMUTABLE_MESSAGE]})

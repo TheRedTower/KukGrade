@@ -20,16 +20,17 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
+from django.db import models
+
 from gradings.models import LegacyGradingRecord
-from ranks.matching import active_rank_lookup, rank_for_text
+from kukgrade.search import apply_search
+from ranks.matching import RANK_TITLES, active_rank_lookup, rank_for_text
 from ranks.models import Rank
 from students.models import Student
 
 # A sheet note is a cell in no table, not a person (data_imports.ksw_adapter).
 SHEET_NOTE_NAME = "Sheet note"
 
-# A rank written before a name ("JKN Alex") is a title, not part of it.
-_RANK_PREFIXES = frozenset({"jkn", "ksn", "dbn", "psbn", "sbn", "pkjn", "dahn"})
 _CLOSE = 0.8
 _MINIMUM_SCORE = 35
 _SHOWN = 5
@@ -38,7 +39,8 @@ _SHOWN = 5
 def name_tokens(name: str) -> list[str]:
     """A name as compared: lower-cased words, punctuation and rank titles off."""
     words = re.sub(r"[^\w\s'-]", " ", name.lower()).split()
-    while words and words[0] in _RANK_PREFIXES:
+    # A rank written before a name ("JKN Alex") is a title, not part of it.
+    while words and words[0] in RANK_TITLES:
         words.pop(0)
     return words
 
@@ -49,6 +51,14 @@ def group_key(name: str) -> str:
 
 def _close(a: str, b: str) -> bool:
     return a[:1] == b[:1] and SequenceMatcher(None, a, b).ratio() >= _CLOSE
+
+
+class Suggestion(models.TextChoices):
+    """How clear the students suggested for a name are."""
+
+    CLEAR = "clear", "One student fits clearly"
+    CHOOSE = "choose", "Several students fit equally well"
+    NONE = "none", "No student fits"
 
 
 @dataclass(frozen=True)
@@ -75,11 +85,45 @@ class PersonGroup:
         return self.candidates[0].score == self.candidates[1].score
 
     @property
-    def suggestion(self) -> str:
+    def suggestion(self) -> Suggestion:
         """How clear the suggestion is: one student, a choice, or none."""
         if not self.candidates:
-            return "none"
-        return "choose" if self.shared else "clear"
+            return Suggestion.NONE
+        return Suggestion.CHOOSE if self.shared else Suggestion.CLEAR
+
+    @property
+    def needs_rank(self) -> bool:
+        """Whether a rank is written on a record but not matched to one yet."""
+        return any(record.needs_rank for record in self.records)
+
+    @property
+    def first_period(self) -> str:
+        """The earliest record's year and month, as "2025-03"."""
+        return self._periods()[0]
+
+    @property
+    def last_period(self) -> str:
+        return self._periods()[-1]
+
+    def _periods(self) -> list[str]:
+        return sorted(
+            f"{record.cycle_year}-{record.cycle_month:02d}" for record in self.records
+        )
+
+    @property
+    def ranks_written(self) -> list[str]:
+        """Each distinct "held → testing for" the records write, oldest first."""
+        written: list[str] = []
+        for record in sorted(
+            self.records,
+            key=lambda r: (r.cycle_year, r.cycle_month, r.pk),
+        ):
+            held = record.source_current_rank_text
+            testing = record.source_testing_for_rank_text
+            text = f"{held or '(blank)'} → {testing}" if testing else held
+            if text and text not in written:
+                written.append(text)
+        return written
 
     @property
     def linked_student(self) -> Student | None:
@@ -201,3 +245,46 @@ def suggest_for_groups(
         ]
         scored.sort(key=lambda candidate: (-candidate.score, candidate.student.pk))
         group.candidates = scored[:_SHOWN]
+
+
+# How the people list narrows to the names a viewer has put aside for now.
+SET_ASIDE_CHOICES = ("exclude", "only")
+
+
+def people_groups(
+    records: models.QuerySet[LegacyGradingRecord],
+    *,
+    search_term: str = "",
+    suggestion: str = "",
+    set_aside: str = "",
+    aside: Iterable[str] = (),
+) -> list[PersonGroup]:
+    """The people a set of records is about: grouped by the name as written,
+    then narrowed - to the names put aside for now (`aside`) or all but them,
+    to the names a search finds, and to how clear their suggested students
+    are. A person is kept whole: one record a search finds keeps the group.
+
+    A value no group can match (an unknown suggestion, say) matches none, as
+    on every list. Suggestions are scored only when they narrow the list; the
+    people list scores the page it shows.
+    """
+    if set_aside and set_aside not in SET_ASIDE_CHOICES:
+        return []
+    if suggestion and suggestion not in Suggestion.values:
+        return []
+    groups = group_records(records.order_by("pk"))
+    if set_aside:
+        kept = set(aside)
+        groups = [g for g in groups if (g.key in kept) == (set_aside == "only")]
+    if search_term.strip():
+        found = set(
+            apply_search(records, search_term, ("source_name",)).values_list(
+                "pk",
+                flat=True,
+            ),
+        )
+        groups = [g for g in groups if any(r.pk in found for r in g.records)]
+    if suggestion:
+        suggest_for_groups(groups)
+        groups = [group for group in groups if group.suggestion == suggestion]
+    return groups

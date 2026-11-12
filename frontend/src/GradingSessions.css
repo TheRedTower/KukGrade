@@ -2,8 +2,6 @@
    Grading Sessions List Screen (/gradings)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Filters ─────────────────────────────────────────────────────────────── */
-
 /* ── Current Session Spotlight ───────────────────────────────────────────── */
 
 .gs-current-card {
@@ -16,10 +14,6 @@
 .gs-current-tag {
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-strong);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
   padding: var(--space-1) var(--space-4);
 }
 
@@ -64,37 +58,13 @@
 
 /* ── Table Section ───────────────────────────────────────────────────────── */
 
-.gs-table-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .gs-table-heading {
   margin: 0;
 }
 
-
-/* ── Status Badges ───────────────────────────────────────────────────────── */
-
-/* ── View / Open Button ──────────────────────────────────────────────────── */
-
-/* ── Loading & Empty States ──────────────────────────────────────────────── */
 /* ==========================================================================
    Create Grading Session Screen (/gradings/new)
    ========================================================================== */
-
-/* ── Alert Banner ────────────────────────────────────────────────────────── */
-
-/* ── Grid Layout ─────────────────────────────────────────────────────────── */
-
-/* ── Form Panel ──────────────────────────────────────────────────────────── */
-
-.cgs-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
 
 /* Date 3-select row */
 
@@ -116,9 +86,6 @@
 /* ── Actions ─────────────────────────────────────────────────────────────── */
 
 .cgs-form-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
   margin-top: var(--space-3);
 }
 
@@ -204,14 +171,6 @@
 
 /* ── Lifecycle Progression Track ─────────────────────────────────────────── */
 
-.gsd-lifecycle-section {
-  min-width: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--card-pad);
-}
-
 /* As many steps in a row as fit, each at least 9rem. */
 .gsd-lifecycle-track {
   display: grid;
@@ -219,24 +178,15 @@
   gap: var(--space-4);
 }
 
-.gsd-lifecycle-step {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
 .gsd-step-circle {
   width: 26px;
   height: 26px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-title);
   border: 2px solid var(--color-text-muted);
   color: transparent;
-  transition: border-color var(--duration) ease, background var(--duration) ease, color var(--duration) ease;
+  transition:
+    border-color var(--duration) ease,
+    background var(--duration) ease,
+    color var(--duration) ease;
 }
 
 .gsd-step-completed .gsd-step-circle {
@@ -265,9 +215,6 @@
 /* ── Candidates Roster Section ───────────────────────────────────────────── */
 
 .gsd-candidates-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -284,34 +231,7 @@
   margin-top: 0.15rem;
 }
 
-.gsd-rank-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* From one rank to the next, on a line that wraps when it must. */
-.gsd-rank-flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-}
-
-/* ── Row Action Button ───────────────────────────────────────────────────── */
-
 /* ── Session Notes Section ───────────────────────────────────────────────── */
-
-
-.gsd-notes-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
 
 .gsd-notes-header {
   align-items: flex-start;
@@ -336,12 +256,6 @@
   margin: 0;
 }
 
-.gsd-notes-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .gsd-notes-textarea {
   width: 100%;
   padding: var(--space-3);
@@ -362,6 +276,3 @@
 .gsd-notes-actions {
   justify-content: flex-start;
 }
-
-/* ── Modals ──────────────────────────────────────────────────────────────── */
-

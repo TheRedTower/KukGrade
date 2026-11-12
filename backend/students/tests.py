@@ -17,6 +17,7 @@ from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from ranks.models import Rank
 from students.models import Student
+from syllabus.models import SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
 
@@ -482,6 +483,52 @@ def test_can_be_graded_reflects_status_in_the_student_list() -> None:
     assert listed() is False
 
 
+def test_can_be_graded_is_served_on_the_student_record() -> None:
+    # The student page reads it rather than working it out from status.
+    client = auth_client("can-be-graded-detail@example.com")
+    created = create_via_api(client, wksa_id="123-4-521")
+
+    def served(status: str) -> bool:
+        client.patch(f"/api/students/{created['id']}/", {"status": status})
+        return bool(
+            client.get(f"/api/students/{created['id']}/").json()["can_be_graded"]
+        )
+
+    assert served(Student.Status.ACTIVE) is True
+    assert served(Student.Status.INACTIVE) is True
+    assert served(Student.Status.LEFT) is False
+
+
+def test_the_next_rank_is_served_on_the_list_the_record_and_a_fresh_save() -> None:
+    # The cohort builder and the student page read it rather than working it
+    # out from the rank list.
+    client = auth_client("next-rank@example.com")
+    yellow_stripe = Rank.objects.get(code="YELLOW_STRIPE")
+
+    created = create_via_api(client, wksa_id="123-4-522")
+    listed = client.get("/api/students/?search=123-4-522").json()["results"][0]
+    detail = client.get(f"/api/students/{created['id']}/").json()
+
+    for served in (created, listed, detail):
+        assert served["next_rank"] == yellow_stripe.pk
+        assert served["next_rank_name"] == yellow_stripe.name
+
+
+def test_no_next_rank_is_served_past_the_top_or_onto_a_rank_with_no_syllabus() -> None:
+    client = auth_client("no-next-rank@example.com")
+    top = Rank.objects.filter(active=True).order_by("-order").first()
+    assert top is not None
+    at_top = create_via_api(client, wksa_id="A-20823", current_rank=top.pk)
+    SyllabusRequirement.objects.filter(rank__code="YELLOW_STRIPE").update(active=False)
+    below_unrecorded = create_via_api(client, wksa_id="123-4-524")
+
+    for created in (at_top, below_unrecorded):
+        detail = client.get(f"/api/students/{created['id']}/").json()
+        assert (detail["next_rank"], detail["next_rank_name"]) == (None, None)
+    listed = client.get("/api/students/?search=123-4-524").json()["results"][0]
+    assert (listed["next_rank"], listed["next_rank_name"]) == (None, None)
+
+
 def test_only_students_view_student_can_read() -> None:
     from django.contrib.auth.models import Permission
 
@@ -588,7 +635,7 @@ def test_students_filter_by_age_band_agrees_with_the_age_band_they_are_served() 
 
 
 def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
-    from gradings.age import calculate_age_on, with_age_band_on
+    from syllabus.age import calculate_age_on, with_age_band_on
 
     Student.objects.create(
         **student_kwargs(wksa_id="123-4-529", date_of_birth=date(2016, 2, 29))
@@ -610,7 +657,7 @@ def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
 def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:
     # Registration bands a student by their age on the grading date; the
     # cohort builder's list must agree, or a birthday in between shows the
-    # wrong band and filters the student out (audit F-33).
+    # wrong band and filters the student out.
     from gradings.testing import grading_session
 
     today = timezone.localdate()
@@ -640,8 +687,8 @@ def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:
 
 
 def test_student_list_shows_each_students_current_grading_and_its_stage() -> None:
-    # Replaces the old "Next action" guess with the registration the student
-    # actually has, worked out from its assessment and outcome (audit F-29).
+    # The registration the student actually has, and how far it has got,
+    # worked out from its assessment and outcome.
     from gradings.models import CandidateOutcome, GradingCandidate, GradingSession
     from gradings.outcome_services import (
         promote_candidate,

@@ -8,7 +8,7 @@ a change, [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 - [Docker](https://docs.docker.com/get-docker/), for a local PostgreSQL
 - [uv](https://docs.astral.sh/uv/), which installs Python 3.14 and the backend's dependencies
-- Node 22.22.2 or newer (Vite 8 and jsdom 30 require it)
+- Node 22.22.2 or newer (Vite 8 and jsdom 31 require it)
 
 ## Run it locally
 
@@ -69,6 +69,9 @@ npm ci
 npm run generate:types
 git diff --exit-code -- src/api/schema.ts
 npm run lint        # ESLint, then Stylelint (stylelint.config.mjs) for the CSS
+npm run format:check   # Prettier (.prettierrc.json); `npm run format` rewrites the files
+                       # (blame skips the reformat: git config blame.ignoreRevsFile .git-blame-ignore-revs)
+npm run knip        # unused files, exports and dependencies (knip.json leaves out the generated types)
 npm run typecheck
 npm run test
 npm run build
@@ -107,8 +110,10 @@ serializers and the committed frontend types match the schema.
 - **Test data is synthetic.** Use `example.com` addresses and made-up names. Never
   commit real student data, exports, secrets or screenshots containing them.
 - **Builders live in `testing.py`** inside their own app, never in another app's tests.
-- **Frontend tests mock the API at the `./api` module boundary**, with fixtures declared
-  `satisfies <GeneratedType>`, so a contract change breaks the test instead of hiding.
+- **Frontend tests mock the API at the `./api` module boundary**, or stand in for the
+  server with `stubFetch` (`appTestSupport.ts`, never `vi.stubGlobal("fetch")` directly,
+  since the client sends a `Request`), with fixtures declared `satisfies <GeneratedType>`,
+  so a contract change breaks the test instead of hiding.
 - **Never hand-write an API type** in the frontend. Declare the shape in the backend
   (`@extend_schema`), regenerate `schema.yml`, then `npm run generate:types`.
 - **Layout numbers live in `frontend/src/layout.css`, nowhere else.** A screen adds its
@@ -119,12 +124,12 @@ serializers and the committed frontend types match the schema.
   (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
-  on a narrow page), `Dialog` for every modal (a sheet on a phone), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form), `.filter-bar` for every set of filters (its
+  on a narrow page), `Dialog` for every modal (a sheet on a phone) and `ConfirmDialog` for every one that asks to confirm (a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form; `--1` to `--4` and `--6` for parts that sit closer, a step of the space scale), `.row` for things side by side on one line (`--wrap`, `--inline`, `--1`, `--3`, `--4`), `.list-plain` for a list with no bullets, `.visually-hidden--phone` for words a phone's row has no room to show (still read out), `.filter-bar` for every set of filters (its
   `.filter-bar__count` for how many results they leave) and
-  `.field` (`.field--search` for every search box, which draws its own magnifier; `.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help) for every labelled text box, select and date box (one size and one iOS date-box fix, in
+  `.field` (`.field--search` (through `SearchField`) for every search box, which draws its own magnifier; `.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help; `Field` writes a form field's label, required star, error and help and wires them to its control) for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
   Cancel and Save) for a row of buttons or a header, `.stats` for key figures (side by side, wrapping only when a label's longest word no longer fits), `.split` for a main
-  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `PageHeader` for every page's title area (title, subtitle, `back` link or `crumbs`, and the page's `actions`), `BackLink` for a way back outside one, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `.card` (with `.card--flush` when its contents bring their own padding) for every boxed section, text through a heading element (`h1` to `h4`, sized once in `App.css`) or a type role in `layout.css` (`.eyebrow` and `.eyebrow--muted` for small capitals, `.item-title` for the name a row or tile is about, `.subtext` for a sentence under a heading, `.meta` for a time, count or by-line; `tokenRules.test.ts` counts each screen stylesheet's own `font-size` and `font-weight` as `ownType`, which only goes down), `.mark` (`--success`, `--warning`, `--danger`, `--neutral`; `--small`, `--large`) for a single symbol in a circle, `Badge` for every short status label (a label: its text is centred; a `Button`'s text reads from the start when it wraps, so an arrow stays beside its words; one rule each in `controls.css`, never a per-screen text-align), `ChoiceGroup` for a pick-one row of buttons (a switch, or filter chips with counts), `Pagination` for page controls, `ScrollRail` for a row
+  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `PageHeader` for every page's title area (title, subtitle, `back` link and the page's `actions`), `BackLink`, the one way back to the page above (inside a `PageHeader` or, on a screen without one, on its own), `Icons.tsx` for every icon, `RankTransition` (and `CandidateRanks`) for every rank-to-rank line, `.disclosure` on a `<details>` for every section that folds open, `.check` for every checkbox with its words, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `.card` (with `.card--flush` when its contents bring their own padding) for every boxed section, text through a heading element (`h1` to `h4`, sized once in `layout.css`) or a type role there (`.eyebrow` and `.eyebrow--muted` for small capitals, `.item-title` for the name a row or tile is about, `.subtext` for a sentence under a heading, `.meta` for a time, count or by-line, `.menu-link` for a place to go in a menu, rail or row of tabs, `.section-title` (`--display` for the About page's name) for a section's title, and one look for inline `code`; a screen stylesheet sets no `font-size` or `font-weight` of its own, which `tokenRules.test.ts` counts as `ownType`), `.mark` (`--success`, `--warning`, `--danger`, `--neutral`; `--small`, `--large`, `--display`) for a single symbol, initials or a number in a circle (a screen may set the circle's size and colours), `Badge` for every short status label (a label: its text is centred; a `Button`'s text reads from the start when it wraps, so an arrow stays beside its words; one rule each in `controls.css`, never a per-screen text-align), `ChoiceGroup` for a pick-one row of buttons (a switch, or filter chips with counts), `Pagination` for page controls (it writes "Showing 1–10 of 25 students" itself; `flush` at the foot of a flush card) fed by `usePagedQuery`, `useUrlFilters` for a list's filters and page (kept in the address, so a reload, a shared link and Back keep them; changing a filter goes back to the first page), `SearchField` for every search box (type-to-search: the list follows as you type, with no Search button), `RecordPage` with `recordStatus` and `useIdParam` for every record's page until its record is there (loading, not found, could not be loaded, each with the way back), `ExternalLink` for every link out of the app (it opens a new tab and says so to a screen reader), `useClipboard` for every Copy button, `useDirtySet` for a screen that warns about unsaved edits across many rows, `useMutation` for every form's save (no hand-rolled busy and error flags), a mutation `scope` wherever writes to one thing must land in the order they were made (each assessment item has its own, as `useItemWrites` sets up; a session's staged decisions and their recording share one), `cx` to join class names, `ScrollRail` for a row
   of choices too long for the screen (a plain native scroller: swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch; the
   one place a screen may scroll a row sideways; `.scroll-region` is the other, for a grid that is wide by nature, such as a preview of the user's own spreadsheet). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
@@ -136,33 +141,32 @@ serializers and the committed frontend types match the schema.
   not fit: delete a screen from them when you fix it.
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
   or `layout.css` (widths and the shared pieces), and every class a screen uses is defined.**
+  The one typeface is Pretendard (`--font-sans`, loaded in `main.tsx` and served by the app
+  itself, never a font host): Latin as in Inter and Korean to match, but no hanja, so text
+  in Chinese characters would fall back to a system font and needs a different typeface.
   The scales are: type `--font-size-xs` to `-3xl` (eight steps, 0.75rem to 2rem) and
   `--font-weight-normal` to `-title` (400 to 800); corners `--radius-xs`, `-sm`, `-control`,
   `--radius` and `-pill`; elevation `--shadow-xs` to `-lg` and `--shadow-up`; and the focus and
   validation marks `--ring-*` and `--edge-accent`; space `--space-1` to `-7` (0.25rem to 3rem; a hairline offset of 0.2rem or less and a clearance over 3.25rem are not steps); letter-spacing `--tracking-label`, `-display` and `-tight`; line height `--line-height-tight`, `-snug` and `-body`; and one change time, `--duration` (a `transition` names what changes, never `all`). A value that sits between two steps takes the
   nearer one; if a design really needs a new step, add it to the scale for everyone.
   Stylelint (`stylelint.config.mjs`, part of `npm run lint`) rejects invalid CSS and what is already at zero everywhere: a named colour, an id selector, `!important` (the reduced-motion rule in `theme.css` is the one exception) and a word-splitting `overflow-wrap: anywhere` or `word-break: break-all`. An email address goes through `EmailAddress`, which lets it wrap after the `@` or before a dot; a Korean name carries `lang="ko"`, which keeps it whole.
-  `tokenRules.test.ts` counts what each stylesheet still holds outside them (raw colours,
-  dark-mode patches, `!important`, type, space, letter-spacing, line-height, transition, radius and shadow literals, z-index) and fails if
-  the count goes up; `tokenBaseline.json` only ever shrinks. It also fails on a `var()`
+  `tokenRules.test.ts` fails on anything a stylesheet holds outside them (raw colours,
+  dark-mode patches, `!important`, its own type, space, letter-spacing, line-height, transition, radius and shadow literals, z-index, a button class of its own),
+  with no list of exceptions. It also fails on a `var()`
   fallback, a token that is used but not defined (or defined but never used), a design token
-  defined outside those two files, and a class used in the code that no stylesheet defines
-  (`classBaseline.json` lists the legacy ones). After converting a screen, lower the lists with
-  `UPDATE_TOKEN_BASELINE=1 npx vitest run src/tokenRules.test.ts`; the command refuses to
-  raise anything. Before adding a style, look for the shared piece that already does it; if
+  defined outside those two files, and a class used in the code that no stylesheet defines. Before adding a style, look for the shared piece that already does it; if
   there is none and a second screen will want it, add it to `layout.css` or `theme.css`
   once, not to the screen.
 - **A button is `<Button variant="primary|secondary|ghost|danger|danger-quiet|link">`** (or a link given
   `buttonClass({ variant })`), styled in `frontend/src/controls.css` and nowhere else: primary
   for the one thing to do, secondary or ghost beside it, danger for what cannot be undone, danger-quiet for a smaller risky action in a list, link for one that reads as a link,
-  `small` inside a table or card, `block` for one as wide as its box. Do not write a new
-  `.xyz-btn` class; `tokenRules.test.ts` counts the button classes outside `controls.css`
-  (`buttonClass`) and fails if the count goes up.
+  `small` inside a table or card, `block` for one as wide as its box, `icon` for one that is only an icon (its words in its `aria-label`). A screen may add a class for its own place and colours (the navigation rail's ink), never its own type. Do not write a new
+  `.xyz-btn` class; `tokenRules.test.ts` fails on a button class outside `controls.css`.
 - **A badge is `<Badge tone="success|warning|danger|info|neutral">`** (a link given
-  `badgeClass(tone)`), and a status the system defines has one component in `StatusBadge.tsx`
+  `badgeProps(tone)`), and a status the system defines has one component in `StatusBadge.tsx`
   (`SessionStatusBadge`, `StudentStatusBadge`, `AssessmentBadge`, `OutcomeBadge`,
   `RequirementBadge`): the one way to show it, so it cannot look different on two screens.
-  Their look is in `controls.css`, and the status colours (`--color-status-*`) are tokens in
+  Their look is in `controls.css`; a tone is a `data-tone` attribute, written once there for badges, marks and a chosen outcome alike, and the status colours (`--color-status-*`) are tokens in
   `theme.css`, with a dark value each.
 - **A link in running text is a plain `<Link>` or `<a>`, with no class.** `App.css` gives every
   unclassed link one look (the accent, underlined, the same once visited), and `layout.css`
@@ -175,6 +179,12 @@ serializers and the committed frontend types match the schema.
   squeeze a column to one letter wide and split ordinary words.
   A date never splits: the formatters in `dates.ts` (`formatRecentTime` for "Today 14:30") join its
   parts with no-break spaces (it may break only after a comma), so a screen shows a date only through them.
+- **A view calls the service; a serializer never saves.** A viewset is a `KukGradeViewSet`
+  and its serializers are `kukgrade.serializers.ModelSerializer`; `perform_create` and
+  `perform_update` hand the checked data to the app's service, a delete names its service
+  (`ServiceDestroyMixin`), a bulk action goes through `run_bulk`, and an action's own
+  query parameters are declared (`query_filters=` on the action, or a query serializer
+  read with `read_query`), never parsed by hand. `kukgrade/test_view_machinery.py` holds it.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API
@@ -204,7 +214,7 @@ roster and list tests hold their counts flat as data grows. Measured 2026-11-05:
 | Student list (any length of page) | 2 | 4 |
 | A session's roster (any number of candidates) | 12 or fewer | 12 |
 
-Marking an item cost 76 until P3-2: about fifty of those statements were the database
+Marking an item once cost 76: about fifty of those statements were the database
 re-checking constraints that `Model.save()` had just validated (`full_clean()` runs a
 statement per foreign key and a few per CHECK and UNIQUE constraint, and the write is then
 checked again by the database anyway). The hot writes (an item's update, its comment and
@@ -232,7 +242,8 @@ CI. Merge one once its checks are green.
   not support it yet). Security updates are still taken.
 - A package whose output is committed can fail CI until you add a follow-up commit to the
   Dependabot branch: `drf-spectacular` needs `schema.yml` regenerated,
-  `openapi-typescript` needs `npm run generate:types`, and `ruff` may need `ruff format`.
+  `openapi-typescript` needs `npm run generate:types`, `ruff` may need `ruff format`,
+  and `prettier` may need `npm run format`.
 - The PostgreSQL image is not tracked automatically: a new major version is a data
   migration (see [installation.md](installation.md#updating)).
 
@@ -261,7 +272,7 @@ The version is a single number in `backend/kukgrade/version.py`, kept equal to
    `ghcr.io/theredtower/kukgrade:0.2.0-rc.1` for amd64 and arm64 on native runners, runs
    `manage.py check --deploy` and `.github/scripts/image-smoke.sh` on each, and only then
    publishes it. It never moves `latest`, and its About page and sidebar name it by its tag
-   (`0.2.0-rc.4`, from the build argument `KUKGRADE_BUILD_PRE_RELEASE`), so a candidate is never mistaken for the final release. A production-ready build is still tried this way
+   (`0.2.0-rc.1`, from the build argument `KUKGRADE_BUILD_PRE_RELEASE`), so a candidate is never mistaken for the final release. A production-ready build is still tried this way
    first.
 3. **Try it.** Run the candidate as a real deployment (the image tag goes in the compose
    file), work through the checks that matter for the change, and fix what turns up on

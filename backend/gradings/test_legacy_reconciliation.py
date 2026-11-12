@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from data_imports.testing import legacy_batch, legacy_record
 from gradings.legacy_services import link_legacy_record_to_student
+from gradings.models import LegacyGradingRecord
 from gradings.testing import rank, student, user
 
 pytestmark = pytest.mark.django_db
@@ -67,6 +68,13 @@ def test_instructor_cannot_link_unlink_resolve_or_void() -> None:
     )
     assert link_response.status_code == 403
 
+    resolve_response = client.post(
+        f"/api/gradings/legacy-records/{record.pk}/resolve-rank/",
+        {"field": "current_rank", "rank": rank("YELLOW").pk},
+        format="json",
+    )
+    assert resolve_response.status_code == 403
+
     void_response = client.post(
         f"/api/gradings/legacy-records/{record.pk}/void/",
         {"reason": "test"},
@@ -102,22 +110,38 @@ def test_admin_resolves_current_and_testing_for_rank_via_the_api() -> None:
     client = APIClient()
     client.force_authenticate(user=admin())
 
+    url = f"/api/gradings/legacy-records/{record.pk}/resolve-rank/"
+
     response = client.post(
-        f"/api/gradings/legacy-records/{record.pk}/resolve-current-rank/",
-        {"rank": yellow.pk},
-        format="json",
+        url, {"field": "current_rank", "rank": yellow.pk}, format="json"
     )
     assert response.status_code == 200
     assert response.json()["current_rank"] == yellow.pk
     assert response.json()["current_rank_code"] == "YELLOW"
 
-    cleared = client.post(
-        f"/api/gradings/legacy-records/{record.pk}/resolve-current-rank/",
-        {"rank": None},
-        format="json",
-    )
+    cleared = client.post(url, {"field": "current_rank", "rank": None}, format="json")
     assert cleared.status_code == 200
     assert cleared.json()["current_rank"] is None
+
+    tested = client.post(
+        url, {"field": "testing_for_rank", "rank": yellow.pk}, format="json"
+    )
+    assert tested.status_code == 200
+    assert tested.json()["testing_for_rank"] == yellow.pk
+    assert tested.json()["current_rank"] is None
+
+
+def test_resolving_a_rank_needs_to_say_which() -> None:
+    record = legacy_record(source_current_rank_text="Yellow")
+    client = APIClient()
+    client.force_authenticate(user=admin())
+    url = f"/api/gradings/legacy-records/{record.pk}/resolve-rank/"
+
+    for body in ({"rank": rank("YELLOW").pk}, {"field": "notes", "rank": None}):
+        response = client.post(url, body, format="json")
+        assert response.status_code == 400, body
+    record.refresh_from_db()
+    assert record.current_rank_id is None
 
 
 def test_admin_voids_a_record_via_the_api_and_second_void_is_refused() -> None:
@@ -182,8 +206,7 @@ def test_anonymous_user_is_denied() -> None:
 
 
 def test_linking_does_not_change_source_name() -> None:
-    """Decision 3/24.4: a link/unlink correction never touches source
-    identity text."""
+    """A link/unlink correction never touches source identity text."""
     record = legacy_record(source_name="Original Name")
     target = student(wksa_id="123-4-503")
     client = APIClient()
@@ -196,3 +219,36 @@ def test_linking_does_not_change_source_name() -> None:
     )
     record.refresh_from_db()
     assert record.source_name == "Original Name"
+
+
+def test_needs_rank_is_one_rule_in_the_filter_and_on_a_loaded_record() -> None:
+    yellow = rank("YELLOW")
+    for held_text, held, testing_text, testing in (
+        ("", None, "", None),
+        ("Yellow", None, "", None),
+        ("Yellow", yellow, "", None),
+        ("", None, "Blue", None),
+        ("Yellow", yellow, "Blue", yellow),
+        ("", yellow, "", None),
+    ):
+        legacy_record(
+            source_current_rank_text=held_text,
+            current_rank=held,
+            source_testing_for_rank_text=testing_text,
+            testing_for_rank=testing,
+        )
+    client = APIClient()
+    client.force_authenticate(user=admin())
+
+    filtered = {
+        row["id"]
+        for row in client.get(
+            "/api/gradings/legacy-records/?needs_rank=true&page_size=100"
+        ).json()["results"]
+    }
+
+    loaded = {
+        record.pk for record in LegacyGradingRecord.objects.all() if record.needs_rank
+    }
+    assert len(loaded) == 2
+    assert filtered == loaded

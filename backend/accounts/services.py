@@ -20,12 +20,32 @@ from django.utils import timezone
 
 from accounts.models import User
 from accounts.password_policy import generate_temporary_password
+from accounts.people import name_of, person_label, require_names, title_of
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
 )
 from audit.models import AuditAction
 from audit.recording import record
+from ranks.models import Rank
+
+INSTRUCTOR_RANK_MESSAGE = "Choose the instructor's rank."
+SUPERUSER_ONLY_MESSAGE = "Only a superuser can change this account."
+OWN_ROLE_OR_STATUS_MESSAGE = "You cannot change your own role or account status."
+DELETED_ACCOUNT_MESSAGE = "This account has been deleted and cannot be changed."
+DELETED_ACCOUNT_EMAIL_MESSAGE = (
+    "This email belonged to an account that was deleted. Its records still "
+    "carry it, so use another email."
+)
+
+
+def email_holder(email: str, *, exclude: User | None = None) -> User | None:
+    """The account holding `email`, deleted or not: a deleted account keeps
+    its email, so its records still say who acted."""
+    taken = User.objects.filter(email__iexact=User.objects.normalize_email(email))
+    if exclude is not None:
+        taken = taken.exclude(pk=exclude.pk)
+    return taken.first()
 
 
 def _lock_user(user_id: UUID) -> User:
@@ -43,13 +63,16 @@ def _snapshot(user: User) -> dict[str, Any]:
         "first_name": user.first_name,
         "last_name": user.last_name,
         "role": user.role,
+        "rank": user.rank.code if user.rank else None,
         "is_active": user.is_active,
     }
 
 
-SUPERUSER_ONLY_MESSAGE = "Only a superuser can change this account."
-OWN_ROLE_OR_STATUS_MESSAGE = "You cannot change your own role or account status."
-DELETED_ACCOUNT_MESSAGE = "This account has been deleted and cannot be changed."
+def _account(user: User) -> str:
+    """An account as its events name it: "KSN Jane Smith", as every record
+    names a person. The email address goes in the event's details, which tell
+    one person's two accounts apart."""
+    return person_label(name_of(user), title_of(user))
 
 
 def can_manage(target: User, actor: User) -> bool:
@@ -108,23 +131,16 @@ def create_platform_user(
     first_name: str = "",
     last_name: str = "",
     role: str | None = None,
+    rank: Rank | None = None,
     is_active: bool | None = None,
     actor: User | None = None,
 ) -> TemporaryPassword:
     """A new account with a generated temporary password, which expires and
     which its owner must replace at their first sign-in."""
-    if User.objects.filter(
-        email=User.objects.normalize_email(email),
-        deleted_at__isnull=False,
-    ).exists():
-        raise ValidationError(
-            {
-                "email": [
-                    "This email belonged to an account that was deleted. Its "
-                    "records still carry it, so use another email.",
-                ],
-            },
-        )
+    require_names(first_name, last_name)
+    holder = email_holder(email)
+    if holder is not None and holder.deleted_at is not None:
+        raise ValidationError({"email": [DELETED_ACCOUNT_EMAIL_MESSAGE]})
     expires_at = _temporary_password_expiry()
     extra: dict[str, Any] = {
         "first_name": first_name,
@@ -134,6 +150,11 @@ def create_platform_user(
     }
     if role is not None:
         extra["role"] = role
+    # An instructor's rank is chosen when the account is made: every record
+    # they make names them by it (accounts.people).
+    if (role or User.Role.INSTRUCTOR) == User.Role.INSTRUCTOR and rank is None:
+        raise ValidationError({"rank": [INSTRUCTOR_RANK_MESSAGE]})
+    extra["rank"] = rank
     if is_active is not None:
         extra["is_active"] = is_active
     # Built unsaved from the submitted details, so the similarity check has
@@ -152,10 +173,12 @@ def create_platform_user(
     record(
         AuditAction.USER_CREATED,
         user,
-        f"User account created for {user.email}.",
+        f"User account created for {_account(user)}.",
         actor=actor,
         metadata={
+            "email": user.email,
             "role": user.role,
+            "rank": user.rank.code if user.rank else None,
             "temporary_password_expires_at": expires_at.isoformat(),
         },
     )
@@ -183,6 +206,7 @@ def update_platform_user(
     first_name: str | None = None,
     last_name: str | None = None,
     role: str | None = None,
+    rank: Rank | None = None,
     is_active: bool | None = None,
     actor: User | None = None,
 ) -> User:
@@ -194,6 +218,7 @@ def update_platform_user(
     # makes the Master check below race-proof: set_user_authority() takes the
     # same lock, so a role change and a Master grant cannot both read the
     # other's field as it was.
+    require_names(first_name, last_name)
     locked = _lock_user(user.pk)
     before = _snapshot(locked)
 
@@ -223,6 +248,11 @@ def update_platform_user(
         locked.last_name = last_name
     if role is not None:
         locked.role = role
+    if rank is not None:
+        locked.rank = rank
+    if locked.role == User.Role.ADMINISTRATOR:
+        # An administrator account has no rank.
+        locked.rank = None
     if is_active is not None:
         locked.is_active = is_active
 
@@ -255,9 +285,9 @@ def update_platform_user(
     record(
         AuditAction.USER_UPDATED,
         locked,
-        f"User account {locked.email} updated.",
+        f"User account {_account(locked)} updated.",
         actor=actor,
-        metadata={"before": before, "after": after},
+        metadata={"email": locked.email, "before": before, "after": after},
     )
     return locked
 
@@ -290,10 +320,6 @@ def delete_platform_user(target: User, actor: User) -> bool:
     if target.pk == actor.pk:
         raise ValidationError({"user": ["You cannot delete your own account."]})
     _validate_can_manage(target, actor)
-    if target.is_deleted_user_placeholder:
-        raise ValidationError(
-            {"user": ["The deleted-user placeholder account cannot be deleted."]},
-        )
     locked = User.objects.select_for_update().get(pk=target.pk)
     if locked.deleted_at is not None:
         raise ValidationError({"user": ["This account is already deleted."]})
@@ -303,10 +329,10 @@ def delete_platform_user(target: User, actor: User) -> bool:
         AuditAction.USER_DELETED,
         locked,
         (
-            f"User account {locked.email} deleted; their name stays on what "
+            f"User account {_account(locked)} deleted; their name stays on what "
             "they recorded."
             if keep
-            else f"User account {locked.email} deleted."
+            else f"User account {_account(locked)} deleted."
         ),
         actor=actor,
         metadata={
@@ -411,9 +437,9 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
         record(
             AuditAction.USER_AUTHORITY_CHANGED,
             refreshed,
-            f"Authority changed for {refreshed.email}.",
+            f"Authority changed for {_account(refreshed)}.",
             actor=actor,
-            metadata={"before": before, "after": after},
+            metadata={"email": refreshed.email, "before": before, "after": after},
         )
     return refreshed
 
@@ -428,7 +454,7 @@ def validate_can_reset_password(target: User, actor: User) -> None:
 
     Not your own: a reset asks for no current password, so on your own
     account it let whoever held a signed-in session replace the password and
-    lock the owner out (audit F-04); change_own_password, behind the current
+    lock the owner out; change_own_password, behind the current
     password, is the way. And, as with every change, not an account that can
     use the Django admin site unless you are a superuser (can_manage): the
     temporary password signs in as that account.
@@ -486,15 +512,18 @@ def _password_set(locked: User, *, actor: User) -> User:
         AuditAction.USER_UPDATED,
         locked,
         (
-            f"Password changed by {locked.email}."
+            f"Password changed by {_account(locked)}."
             if chosen_by_owner
-            else f"Password reset for {locked.email}."
+            else f"Password reset for {_account(locked)}."
         ),
         actor=actor,
         metadata=(
-            {"temporary_password_expires_at": expires_at.isoformat()}
+            {
+                "email": locked.email,
+                "temporary_password_expires_at": expires_at.isoformat(),
+            }
             if expires_at
-            else {}
+            else {"email": locked.email}
         ),
     )
     return locked
@@ -527,8 +556,8 @@ def set_admin_site_access(
     record(
         AuditAction.USER_UPDATED,
         locked,
-        f"Admin site access changed for {locked.email}.",
+        f"Admin site access changed for {_account(locked)}.",
         actor=actor,
-        metadata={"before": before, "after": after},
+        metadata={"email": locked.email, "before": before, "after": after},
     )
     return locked

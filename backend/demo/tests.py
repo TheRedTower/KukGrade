@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from django.apps import apps
 from django.core.management.base import CommandError
 from django.db import connection
 from django.test import override_settings
@@ -87,7 +88,6 @@ def test_a_reset_rebuilds_the_same_club_and_keeps_the_accounts_and_catalogue() -
         syllabus,
     )
     assert Promotion.objects.count() == 14
-    assert User.objects.filter(email="deleted-user@kukgrade.internal").exists()
     # Numbering carries on: a sequence cannot be set back safely in a transaction.
     assert session_named("Autumn Grading").pk > 5
 
@@ -156,6 +156,10 @@ def test_resets_fall_on_whole_multiples_of_the_interval(
         ("patch", "/api/users/00000000-0000-0000-0000-000000000000/authority/"),
         ("post", "/api/users/00000000-0000-0000-0000-000000000000/set-password/"),
         ("post", "/api/data-imports/batches/"),
+        # Its rows are their own viewset (import-batch-row), closed the same way.
+        ("patch", "/api/data-imports/batches/1/rows/2/"),
+        ("post", "/api/data-imports/batches/1/rows/2/exclusion/"),
+        ("post", "/api/data-imports/batches/1/rows/leave-out-attention/"),
     ],
 )
 def test_changes_that_would_affect_other_visitors_are_closed(
@@ -226,3 +230,21 @@ def test_tables_are_emptied_after_everything_that_refers_to_them() -> None:
         ("gradings_promotion", "gradings_candidateoutcome"),
     ]:
         assert order.index(child) < order.index(parent)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@demo_mode
+def test_every_person_the_demo_names_carries_the_rank_they_held() -> None:
+    # Each record keeps, beside a person, their rank then (accounts.people);
+    # one written without it would read as a bare name.
+    seed.build()
+    named = 0
+    for model in apps.get_models():
+        for field in model._meta.fields:
+            title = f"{field.name}_title"
+            if not field.is_relation or not hasattr(model, title):
+                continue
+            rows = model._base_manager.filter(**{f"{field.name}__isnull": False})
+            named += rows.count()
+            assert not rows.filter(**{title: ""}).exists(), f"{model.__name__}.{title}"
+    assert named > 100

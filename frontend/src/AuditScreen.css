@@ -10,17 +10,11 @@
   max-width: min(100%, 14rem);
 }
 
-.audit-ledger {
-  display: grid;
-  gap: var(--space-4);
-}
-
 .audit-date,
 .audit-entity-type,
 .audit-entity-id {
   display: block;
 }
-
 
 .audit-time,
 .audit-entity-id {

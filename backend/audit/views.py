@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from django.apps import apps
 from django.db.models import (
     Case,
     IntegerField,
@@ -18,7 +19,6 @@ from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import CanViewAuditLog, HasRequiredPermissions
@@ -32,7 +32,12 @@ from audit.serializers import (
 from audit.subjects import describe, events_of
 from kukgrade.filtering import QueryFilter, choice, exact, on_date
 from kukgrade.search import ExactOnly, apply_search, full_name_of, label_of
-from students.models import Student
+from kukgrade.viewsets import KukGradeViewSet
+
+
+def _students() -> Any:
+    # Looked up by name so the log keeps no import of the apps it records.
+    return apps.get_model("students", "Student")
 
 
 def _student_name_of_event() -> Subquery:
@@ -42,7 +47,8 @@ def _student_name_of_event() -> Subquery:
     carries: its own, for a student's event, or the one in its details.
     """
     return Subquery(
-        Student.objects.filter(pk=OuterRef("_subject_student"))
+        _students()
+        .objects.filter(pk=OuterRef("_subject_student"))
         .annotate(name=full_name_of())
         .values("name")[:1],
         output_field=TextField(),
@@ -74,7 +80,7 @@ def _apply_search(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     )
 
 
-class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
+class AuditEventViewSet(mixins.ListModelMixin, KukGradeViewSet[AuditEvent]):
     """Read-only by construction: the model refuses writes from every path."""
 
     serializer_class = AuditEventSerializer
@@ -124,7 +130,7 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
         ids = {i for i in map(student_id_of, events) if i is not None}
         self._student_names = {
             student.pk: student.full_name
-            for student in Student.objects.filter(pk__in=ids)
+            for student in _students().objects.filter(pk__in=ids)
         }
         return page
 

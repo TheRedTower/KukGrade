@@ -1,6 +1,8 @@
 import type { ComponentProps, ReactNode } from "react";
 
 import { Button } from "./Button";
+import { cx } from "./cx";
+import { CrossIcon } from "./Icons";
 
 type AlertTone = "error" | "warning" | "success" | "info";
 
@@ -21,10 +23,20 @@ interface AlertProps extends Omit<ComponentProps<"div">, "title"> {
  * (see .alert in controls.css). An error or a warning is announced at once; a
  * confirmation or a note waits its turn. Pass `role` to override.
  */
-export function Alert({ tone = "error", title, icon, action, onDismiss, role, className, children, ...rest }: AlertProps) {
+export function Alert({
+  tone = "error",
+  title,
+  icon,
+  action,
+  onDismiss,
+  role,
+  className,
+  children,
+  ...rest
+}: AlertProps) {
   return (
     <div
-      className={["alert", `alert--${tone}`, className].filter(Boolean).join(" ")}
+      className={cx("alert", `alert--${tone}`, className)}
       role={role ?? (tone === "error" || tone === "warning" ? "alert" : "status")}
       {...rest}
     >
@@ -40,7 +52,7 @@ export function Alert({ tone = "error", title, icon, action, onDismiss, role, cl
       {action}
       {onDismiss ? (
         <Button variant="ghost" small className="alert__dismiss" aria-label="Dismiss message" onClick={onDismiss}>
-          <span aria-hidden="true">✕</span>
+          <CrossIcon size={14} />
         </Button>
       ) : null}
     </div>

@@ -256,6 +256,7 @@ export function AssessmentItemRow({
               disabled={!canEdit}
               onClick={() => choose("MET")}
               aria-pressed={item.result === "MET"}
+              data-tone={item.result === "MET" ? "success" : undefined}
               data-testid={`btn-met-${item.id}`}
               ref={metButtonRef}
             >
@@ -271,6 +272,7 @@ export function AssessmentItemRow({
               disabled={!canEdit}
               onClick={() => choose("NOT_MET")}
               aria-pressed={item.result === "NOT_MET"}
+              data-tone={item.result === "NOT_MET" ? "danger" : undefined}
               data-testid={`btn-not-met-${item.id}`}
             >
               <CrossIcon size={17} />

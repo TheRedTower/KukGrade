@@ -1185,6 +1185,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       // The comment did not touch the mark or who made it.
       expect(posts).toEqual(["Also lost balance on the landing."]);
       expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("aria-pressed", "true");
+      // The chosen mark carries its tone, so it is drawn red, not as a plain pressed button.
+      expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("data-tone", "danger");
+      expect(screen.getByTestId("btn-met-1002")).not.toHaveAttribute("data-tone");
       expect(row).toHaveTextContent("KSN Casey Lane");
     });
 
@@ -1322,6 +1325,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
       expect(itemFetches).toBe(fetchesBefore);
       expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("data-tone", "success");
 
       releasePatch?.(jsonResponse(200, { ...mockItem3, result: "MET", result_display: "Met" }) as Response);
       await waitFor(() => expect(itemFetches).toBeGreaterThan(fetchesBefore));

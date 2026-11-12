@@ -129,13 +129,13 @@ button:not(.theme-toggle-option, .visually-hidden) {
   box-shadow: var(--shadow-md);
 }
 
-/* A permanent ink brand panel beside the sign-in
-   form, rather than the single centered card the other auth states
-   (connection failure, loading) still use - see FRONTEND_DESIGN_REGISTER.md. */
+/* A permanent ink brand panel beside the sign-in form, rather than the single
+   centred card the other auth states (connection failure, loading) still use. */
 
 .login-page {
   display: grid;
-  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  /* The brand panel is as wide as the sidebar it becomes once signed in. */
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -147,7 +147,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   border-right: 1px solid var(--color-rail-border);
   background: var(--color-rail);
   color: var(--color-text-on-ink);
-  padding: clamp(1.5rem, 4vw, 3rem);
+  padding: var(--space-6) var(--space-5);
 }
 
 /* The logo's black strokes are drawn in currentColor (KukGradeLogo), so on
@@ -164,7 +164,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
 }
 
 .auth-logo {
-  width: 14rem;
+  width: 12rem;
   max-width: 100%;
   margin: 0 0 var(--space-4);
 }

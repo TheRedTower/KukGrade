@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import { authRequiredResponse, authUser, jsonResponse, signedInResponse } from "./appTestSupport";
+import { authRequiredResponse, authUser, jsonResponse, signedInResponse, stubFetch } from "./appTestSupport";
 
 const owner = {
   ...authUser,
@@ -66,10 +66,7 @@ describe("First-time setup", () => {
   });
 
   it("shows only the setup page, on any path, until it is done", async () => {
-    vi.stubGlobal(
-      "fetch",
-      newDeployment(() => jsonResponse(500, {})),
-    );
+    stubFetch(newDeployment(() => jsonResponse(500, {})));
 
     render(<App />);
 
@@ -80,10 +77,7 @@ describe("First-time setup", () => {
   });
 
   it("lets the first choice of theme stick", async () => {
-    vi.stubGlobal(
-      "fetch",
-      newDeployment(() => jsonResponse(500, {})),
-    );
+    stubFetch(newDeployment(() => jsonResponse(500, {})));
     const user = userEvent.setup();
 
     render(<App />);
@@ -100,7 +94,7 @@ describe("First-time setup", () => {
       sent.push(body);
       return jsonResponse(201, owner);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -124,8 +118,7 @@ describe("First-time setup", () => {
   });
 
   it("puts the server's refusal beside the field it is about", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       newDeployment(() =>
         jsonResponse(400, {
           error: {
@@ -149,8 +142,7 @@ describe("First-time setup", () => {
   });
 
   it("says a refusal no field shows, even beside a field's own", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       newDeployment(() =>
         jsonResponse(400, {
           error: {
@@ -176,10 +168,7 @@ describe("First-time setup", () => {
   });
 
   it("asks the first administrator for both names", async () => {
-    vi.stubGlobal(
-      "fetch",
-      newDeployment(() => jsonResponse(201, owner)),
-    );
+    stubFetch(newDeployment(() => jsonResponse(201, owner)));
 
     render(<App />);
     await screen.findByRole("heading", { name: "Set up KukGrade" });
@@ -190,7 +179,7 @@ describe("First-time setup", () => {
 
   it("checks the confirmation before sending anything", async () => {
     const fetchMock = newDeployment(() => jsonResponse(201, owner));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -204,7 +193,7 @@ describe("First-time setup", () => {
 
   it("never asks a signed-in visitor", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => signedInResponse(url, authUser));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 

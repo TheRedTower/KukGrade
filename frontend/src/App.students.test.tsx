@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import type { Rank, StudentDetail, StudentListItem, StudentRankHistory } from "./api";
-import { authUser, jsonResponse, CHOICES } from "./appTestSupport";
+import { authUser, jsonResponse, CHOICES, stubFetch } from "./appTestSupport";
 
 describe("Students registry screen (/students)", () => {
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe("Students registry screen (/students)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -53,7 +53,7 @@ describe("Students registry screen (/students)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -78,7 +78,7 @@ describe("Students registry screen (/students)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -232,7 +232,7 @@ describe("Students registry screen (/students)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -333,7 +333,7 @@ describe("Students registry screen (/students)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -421,7 +421,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -470,7 +470,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -575,7 +575,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -635,7 +635,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -681,7 +681,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
@@ -705,7 +705,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
@@ -728,7 +728,7 @@ describe("Add student screen (/students/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -846,7 +846,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -915,7 +915,7 @@ describe("Student detail screen (/students/:id)", () => {
     }
 
     it("opens that student's own history for someone who may read the audit log", async () => {
-      vi.stubGlobal("fetch", studentMock({ ...authUser, can_read_audit_log: true }));
+      stubFetch(studentMock({ ...authUser, can_read_audit_log: true }));
 
       render(<App />);
 
@@ -924,7 +924,7 @@ describe("Student detail screen (/students/:id)", () => {
     });
 
     it("is not offered to someone who may not", async () => {
-      vi.stubGlobal("fetch", studentMock({ ...authUser, can_read_audit_log: false }));
+      stubFetch(studentMock({ ...authUser, can_read_audit_log: false }));
 
       render(<App />);
 
@@ -935,8 +935,7 @@ describe("Student detail screen (/students/:id)", () => {
 
   it("shows no next rank when the server offers none", async () => {
     // The server withholds a next rank that has no syllabus recorded.
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -1045,7 +1044,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1109,7 +1108,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1175,7 +1174,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1217,8 +1216,7 @@ describe("Student detail screen (/students/:id)", () => {
   it("records the black belt ID, which can still be corrected after", async () => {
     let student: StudentDetail = { ...testStudent };
     const sent: unknown[] = [];
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
         if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -1288,7 +1286,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1335,7 +1333,7 @@ describe("Student detail screen (/students/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1359,19 +1357,19 @@ describe("A student record that is not there", () => {
     vi.unstubAllGlobals();
   });
 
-  function stubFetch() {
+  function serveRecordPages() {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
       return jsonResponse(404, { detail: "Not found." });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     return fetchMock;
   }
 
   it("says so for an address that names no record, without asking the server", async () => {
     window.history.replaceState({}, "", "/students/12abc");
-    const fetchMock = stubFetch();
+    const fetchMock = serveRecordPages();
 
     render(<App />);
 
@@ -1385,7 +1383,7 @@ describe("A student record that is not there", () => {
 
   it("says so for a record the server does not have", async () => {
     window.history.replaceState({}, "", "/students/99");
-    stubFetch();
+    serveRecordPages();
 
     render(<App />);
 

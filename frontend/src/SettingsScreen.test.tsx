@@ -10,6 +10,7 @@ import {
   fetchSignedInAs,
   jsonResponse,
   signedInResponse,
+  stubFetch,
 } from "./appTestSupport";
 
 const masterUser = {
@@ -51,7 +52,7 @@ afterEach(() => {
 
 describe("Settings", () => {
   it("opens on Account, with a tab for each part", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -67,7 +68,7 @@ describe("Settings", () => {
 
   it("sends an unknown tab back to Account", async () => {
     window.history.replaceState({}, "", "/settings/nonsense");
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -78,7 +79,7 @@ describe("Settings", () => {
 
 describe("Settings: Account", () => {
   it("shows the email and says none of the Master capabilities are granted to a standard instructor", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -89,7 +90,7 @@ describe("Settings: Account", () => {
   });
 
   it("shows granted capabilities for an Authorised Master", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(masterUser));
+    stubFetch(fetchSignedInAs(masterUser));
 
     render(<App />);
 
@@ -99,7 +100,7 @@ describe("Settings: Account", () => {
   });
 
   it("shows granted promotion and override for an Administrator", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(adminUser));
+    stubFetch(fetchSignedInAs(adminUser));
 
     render(<App />);
 
@@ -120,7 +121,7 @@ describe("Settings: Account", () => {
       }
       return signedInResponse(url, authUser);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -143,8 +144,7 @@ describe("Settings: Account", () => {
   });
 
   it("keeps what you typed, with the server's message, when saving the name fails", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
         if (init?.method === "PATCH") {
           return jsonResponse(400, {
@@ -190,7 +190,7 @@ describe("Settings: Account", () => {
       }
       return signedInResponse(url, authUser);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -220,7 +220,7 @@ describe("Settings: Account", () => {
   });
 
   it("can be cancelled without changing anything", async () => {
-    vi.stubGlobal("fetch", fetchMock());
+    stubFetch(fetchMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -237,8 +237,7 @@ describe("Settings: Account", () => {
   });
 
   it("says an error the server raises against no password field", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/change-password/")) {
           return jsonResponse(400, {
@@ -272,7 +271,7 @@ describe("Settings: Appearance", () => {
   });
 
   it("chooses the theme for this browser", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -287,7 +286,7 @@ describe("Settings: Appearance", () => {
   });
 
   it("sets whether the sidebar is open or a strip of icons, and the sidebar follows", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
     const user = userEvent.setup();
 
     render(<App />);

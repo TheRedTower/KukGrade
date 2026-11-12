@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SiteSettings } from "./api";
-import { jsonResponse, SITE } from "./appTestSupport";
+import { jsonResponse, SITE, stubFetch } from "./appTestSupport";
 import { PasswordRequirements } from "./PasswordRequirements";
 
 // Deliberately not the real policy: the checklist must follow whatever the
@@ -25,7 +25,7 @@ const served: SiteSettings = {
 };
 
 function renderWith(password: string) {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, served)));
+  stubFetch(vi.fn().mockResolvedValue(jsonResponse(200, served)));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>

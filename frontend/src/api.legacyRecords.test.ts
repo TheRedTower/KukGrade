@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 import { getAllLegacyGradingRecords } from "./api";
-import { jsonResponse } from "./appTestSupport";
+import { jsonResponse, stubFetch } from "./appTestSupport";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -17,7 +17,7 @@ it("reads every page of the server's historical name group within one import", a
       results,
     });
   });
-  vi.stubGlobal("fetch", fetchMock);
+  stubFetch(fetchMock);
 
   const group = await getAllLegacyGradingRecords({
     group_key: "zac w",

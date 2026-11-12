@@ -102,7 +102,11 @@ generated from it, and CI fails if either drifts. See [api.md](api.md).
 React with React Router and TanStack Query; styling is one stylesheet per feature on
 the design tokens in `frontend/src/theme.css` (a warm gold-on-charcoal palette with
 light and dark themes). API types are generated into `frontend/src/api/schema.ts`, and
-`frontend/src/api.ts` holds the fetch functions. `frontend/src/queryKeys.ts` names every
+`frontend/src/api.ts` holds the fetch functions. They call one `openapi-fetch` client typed
+from those paths, so each call's path, parameters, body and answer are the schema's and
+none is written by hand; the client adds the CSRF token and turns the error envelope into
+an `ApiError`. Tests stand in for the server with `stubFetch` (`appTestSupport.ts`).
+`frontend/src/queryKeys.ts` names every
 query and mutation the app keeps (`keys`; a lint rule refuses a key written anywhere else)
 and says what to read again after the changes several screens make (`refresh`), so a screen
 that changes data and one that shows it agree.

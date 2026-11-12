@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SyllabusScreen } from "./SyllabusScreen";
 import { NETWORK_ERROR } from "./api";
 import type { AgeBand, EffectiveSyllabusRequirement, Rank } from "./api";
+import { jsonResponse, stubFetch } from "./appTestSupport";
 
 function renderScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -264,24 +265,15 @@ const mockJknEffective: EffectiveSyllabusRequirement[] = [
   ),
 ];
 
-function jsonResponse(status: number, body: unknown): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  } as Response;
-}
-
 function paginated<T>(results: T[]) {
   return { count: results.length, next: null, previous: null, results };
 }
 
-function stubFetch(
+function serveSyllabus(
   effectiveByRank: Record<string, EffectiveSyllabusRequirement[]>,
   { effectiveFails = false, ranks = mockRanks }: { effectiveFails?: boolean; ranks?: Rank[] } = {},
 ) {
-  vi.stubGlobal(
-    "fetch",
+  stubFetch(
     vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/syllabus/age-bands/")) {
@@ -311,7 +303,7 @@ describe("SyllabusScreen", () => {
   // Which categories are core areas is the server's to say: a
   // category the browser has never heard of follows the served flag.
   it("places rows by the served core flag, not by a category list of its own", async () => {
-    stubFetch({
+    serveSyllabus({
       YELLOW: [
         ...coreAreas,
         effectiveRow({
@@ -335,7 +327,7 @@ describe("SyllabusScreen", () => {
   });
 
   it("renders header, filters, belt rail, core areas and a cumulative ledger per category", async () => {
-    stubFetch({ YELLOW: mockYellowEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective });
 
     await renderOnYellow();
 
@@ -394,7 +386,7 @@ describe("SyllabusScreen", () => {
 
   it("shows carried-forward provenance and part notation for the Blue Stripe worked example", async () => {
     const user = userEvent.setup();
-    stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
     renderScreen();
 
@@ -423,7 +415,7 @@ describe("SyllabusScreen", () => {
 
   it("lists weapons in their own ledger where the rank has them", async () => {
     const user = userEvent.setup();
-    stubFetch({ YELLOW: mockYellowEffective, JKN: mockJknEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective, JKN: mockJknEffective });
 
     renderScreen();
 
@@ -444,7 +436,7 @@ describe("SyllabusScreen", () => {
 
   it("switches rank when belt button or testing for selector is changed", async () => {
     const user = userEvent.setup();
-    stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
     renderScreen();
 
@@ -464,7 +456,7 @@ describe("SyllabusScreen", () => {
 
   it("advances to next rank when clicking 'Next rank: ...'", async () => {
     const user = userEvent.setup();
-    stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
+    serveSyllabus({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
     await renderOnYellow();
 
@@ -478,7 +470,7 @@ describe("SyllabusScreen", () => {
   });
 
   it("opens on the first served rank that has a syllabus, and the first served age band", async () => {
-    stubFetch({});
+    serveSyllabus({});
 
     renderScreen();
 
@@ -489,7 +481,7 @@ describe("SyllabusScreen", () => {
 
   it("synchronizes curriculum track and age band selections", async () => {
     const user = userEvent.setup();
-    stubFetch({});
+    serveSyllabus({});
 
     renderScreen();
 
@@ -524,7 +516,7 @@ describe("SyllabusScreen", () => {
       next_rank: null,
       has_syllabus: false,
     };
-    stubFetch(
+    serveSyllabus(
       { YELLOW: mockYellowEffective },
       { ranks: [...mockRanks.map((rank) => (rank === jkn ? { ...rank, next_rank: 99 } : rank)), notRecorded] },
     );
@@ -540,7 +532,7 @@ describe("SyllabusScreen", () => {
   });
 
   it("says so when no syllabus is recorded for the rank, rather than showing earlier ranks' content", async () => {
-    stubFetch({});
+    serveSyllabus({});
 
     renderScreen();
 
@@ -555,7 +547,7 @@ describe("SyllabusScreen", () => {
   });
 
   it("renders error banner when the effective-requirements fetch fails", async () => {
-    stubFetch({}, { effectiveFails: true });
+    serveSyllabus({}, { effectiveFails: true });
 
     renderScreen();
 

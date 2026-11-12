@@ -12,6 +12,7 @@ import {
   sessionsResponse,
   sessionServed,
   CHOICES,
+  stubFetch,
 } from "./appTestSupport";
 
 describe("Overview screen (Operational Ledger)", () => {
@@ -43,7 +44,7 @@ describe("Overview screen (Operational Ledger)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -78,7 +79,7 @@ describe("Overview screen (Operational Ledger)", () => {
       }
       return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -127,8 +128,7 @@ describe("Overview screen (Operational Ledger)", () => {
       event(6, "PROMOTION_RECORDED", "Promotion recorded", "Promoted to Yellow.", "success"),
       event(7, "SESSION_UPDATED", "Grading session updated", "Notes: everyone should pass.", "neutral"),
     ];
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/me/")) return jsonResponse(200, { ...authUser, can_read_audit_log: true });
         if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
@@ -296,7 +296,7 @@ describe("Overview screen (Operational Ledger)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -354,7 +354,7 @@ describe("Overview screen (Operational Ledger)", () => {
         }
         return jsonResponse(404, {});
       });
-      vi.stubGlobal("fetch", fetchMock);
+      stubFetch(fetchMock);
       const view = render(<App />);
       expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
       await screen.findByText("No upcoming gradings");
@@ -404,7 +404,7 @@ describe("Overview screen (Operational Ledger)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);

@@ -12,6 +12,7 @@ import {
   authRequiredResponse,
   signedOutResponse,
   CHOICES,
+  stubFetch,
 } from "./appTestSupport";
 
 /**
@@ -42,7 +43,7 @@ describe("App authentication", () => {
 
   it("loads the authenticated application shell with the signed-in user", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, authUser));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -59,8 +60,7 @@ describe("App authentication", () => {
     window.history.replaceState({}, "", "/students");
     // Signed in when the app loads; the session then expires, so the
     // students request is the first to hear it.
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi
         .fn()
         .mockImplementation(async (url: string) =>
@@ -76,8 +76,7 @@ describe("App authentication", () => {
   it("goes back, after signing in again, to the page the session ended on", async () => {
     window.history.replaceState({}, "", "/students?status=ACTIVE");
     let signedIn = false;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/login/")) {
           signedIn = true;
@@ -107,8 +106,7 @@ describe("App authentication", () => {
   it("follows only a path inside the app after signing in", async () => {
     window.history.replaceState({ usr: { from: "//evil.example/steal" }, key: "x", idx: 0 }, "", "/login");
     let signedIn = false;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/login/")) {
           signedIn = true;
@@ -133,10 +131,7 @@ describe("App authentication", () => {
 
   it("protects authenticated routes from anonymous users", async () => {
     window.history.replaceState({}, "", "/sessions");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)),
-    );
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -165,7 +160,7 @@ describe("App authentication", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -211,7 +206,7 @@ describe("App authentication", () => {
         },
       }),
     ]);
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -235,7 +230,7 @@ describe("App authentication", () => {
         },
       }),
     ]);
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -265,7 +260,7 @@ describe("App authentication", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -354,7 +349,7 @@ describe("App authentication", () => {
       }
       return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -392,8 +387,7 @@ describe("Connection failures are not sign-outs", () => {
   });
 
   it("shows a retryable error for a server fault instead of the login page", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockResolvedValue(
         jsonResponse(500, {
           error: { code: "error", message: "Internal Server Error" },
@@ -409,7 +403,7 @@ describe("Connection failures are not sign-outs", () => {
   });
 
   it("shows a retryable error when the network is unreachable", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    stubFetch(vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     render(<App />);
 
@@ -419,7 +413,7 @@ describe("Connection failures are not sign-outs", () => {
 
   it("does not redirect to the login route on a connection failure", async () => {
     window.history.replaceState({}, "", "/sessions");
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    stubFetch(vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     render(<App />);
 
@@ -432,7 +426,7 @@ describe("Connection failures are not sign-outs", () => {
       .fn()
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
       .mockResolvedValueOnce(jsonResponse(200, authUser));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -461,7 +455,7 @@ describe("Connection failures are not sign-outs", () => {
       }
       return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     const heading = await screen.findByRole("heading", { name: "Overview" });
@@ -484,8 +478,7 @@ describe("Connection failures are not sign-outs", () => {
 
   it("signs the viewer out when the reconnect re-check says the session has ended", async () => {
     let meCalls = 0;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
@@ -508,10 +501,7 @@ describe("Connection failures are not sign-outs", () => {
   });
 
   it("still treats a genuine authentication answer as anonymous", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)),
-    );
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -532,7 +522,7 @@ describe("Connection failures are not sign-outs", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -559,10 +549,7 @@ describe("First-time login copy", () => {
   });
 
   it("greets a browser that has never signed in with 'Sign in', not 'Welcome back'", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)),
-    );
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -590,7 +577,7 @@ describe("First-time login copy", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -621,10 +608,7 @@ describe("Login theme toggle", () => {
   });
 
   it("defaults to following the system preference with no stored choice", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)),
-    );
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -657,10 +641,7 @@ describe("Login theme toggle", () => {
           removeEventListener: () => {},
         }) as unknown as MediaQueryList,
     );
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)),
-    );
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -677,10 +658,7 @@ describe("Login theme toggle", () => {
   });
 
   it("pins an explicit choice to the page and remembers it for next time", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)),
-    );
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
     const user = userEvent.setup();
 
     render(<App />);
@@ -706,7 +684,7 @@ describe("Mandatory password change", () => {
   });
 
   it("renders mandatory password change view and blocks navigation when must_change_password is true", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, forcedUser)));
+    stubFetch(vi.fn().mockResolvedValue(jsonResponse(200, forcedUser)));
 
     render(<App />);
 
@@ -734,7 +712,7 @@ describe("Mandatory password change", () => {
       }
       return jsonResponse(200, forcedUser);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -785,7 +763,7 @@ describe("Mandatory password change", () => {
       return jsonResponse(404, {});
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -803,8 +781,7 @@ describe("Mandatory password change", () => {
   });
 
   it("surfaces API field errors when current password is wrong", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
         if (url.includes("/api/auth/me/")) {
@@ -850,7 +827,7 @@ describe("Mandatory password change", () => {
       return jsonResponse(404, {});
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -863,8 +840,7 @@ describe("Mandatory password change", () => {
   });
 
   it("says so when signing out from the mandatory password change view fails", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/logout/")) throw new TypeError("Failed to fetch");
         return jsonResponse(200, forcedUser);
@@ -940,7 +916,7 @@ describe("App demo", () => {
       }
       return jsonResponse(200, { results: [], count: 0 });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -956,8 +932,7 @@ describe("App demo", () => {
   });
 
   it("shows no demo card on an ordinary deployment", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/site/")) {
           return jsonResponse(200, { club_name: "Riverside", time_zone: "Europe/London" });

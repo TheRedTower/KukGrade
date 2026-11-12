@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getStudents } from "./api";
 import { AuthProvider, useAuth } from "./auth";
 import type { AuthUser } from "./api";
+import { jsonResponse, stubFetch } from "./appTestSupport";
 
 const authUser = {
   id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
@@ -12,10 +13,6 @@ const authUser = {
   first_name: "Casey",
   last_name: "Instructor",
 } satisfies Partial<AuthUser>;
-
-function response(status: number, body: unknown): Response {
-  return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
-}
 
 function SignOutButton() {
   const { user, logout } = useAuth();
@@ -64,12 +61,11 @@ afterEach(() => {
 
 describe("ending a session", () => {
   it("drops everything fetched under it when the viewer signs out", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi
         .fn()
         .mockImplementation(async (url: string) =>
-          url.includes("/api/auth/logout/") ? response(204, undefined) : response(200, authUser),
+          url.includes("/api/auth/logout/") ? jsonResponse(204, undefined) : jsonResponse(200, authUser),
         ),
     );
     const queryClient = await renderSignedIn(<SignOutButton />);
@@ -81,11 +77,10 @@ describe("ending a session", () => {
   });
 
   it("drops it too when the server says the session has expired", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
-        if (url.includes("/api/auth/me/")) return response(200, authUser);
-        return response(401, {});
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        return jsonResponse(401, {});
       }),
     );
     const queryClient = await renderSignedIn(<SignOutButton />);
@@ -104,17 +99,16 @@ describe("ending a session", () => {
 describe("starting a session", () => {
   it("drops anything the cache still held from before the viewer signed in", async () => {
     let signedIn = false;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/login/")) {
           signedIn = true;
-          return response(200, authUser);
+          return jsonResponse(200, authUser);
         }
         if (url.includes("/api/auth/me/")) {
-          return signedIn ? response(200, authUser) : response(401, {});
+          return signedIn ? jsonResponse(200, authUser) : jsonResponse(401, {});
         }
-        return response(200, {});
+        return jsonResponse(200, {});
       }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

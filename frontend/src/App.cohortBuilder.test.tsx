@@ -12,7 +12,7 @@ import type {
   Rank,
   StudentListItem,
 } from "./api";
-import { ADMINISTRATOR_CAPABILITIES, jsonResponse, sessionServed, CHOICES } from "./appTestSupport";
+import { ADMINISTRATOR_CAPABILITIES, jsonResponse, sessionServed, CHOICES, stubFetch } from "./appTestSupport";
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/register)
@@ -297,7 +297,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   }
 
   it("renders cohort builder workspace layout, session info, and eligible rank groups", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
 
     render(<App />);
 
@@ -334,7 +334,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("adds whole rank groups to cohort and updates selected count and progression", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -359,7 +359,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("renders matching eligible students table with details and individual add/remove buttons", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -395,7 +395,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("filters eligible students by age group and updates matching student records and rank groups", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -437,7 +437,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
 
   it("asks the server for the eligible students matching the filters instead of downloading the roster", async () => {
     const fetchMock = setupCohortMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -464,7 +464,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("filters eligible students and adds filtered students to cohort", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -488,7 +488,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("opens review exceptions modal and allows removing an individual candidate", async () => {
-    vi.stubGlobal("fetch", setupCohortMock());
+    stubFetch(setupCohortMock());
     const user = userEvent.setup();
 
     render(<App />);
@@ -533,7 +533,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
         } satisfies BulkCandidateRegistrationResponse);
       },
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -574,7 +574,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
         } satisfies BulkCandidateRegistrationResponse);
       },
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -618,7 +618,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       },
       { created: [{ candidate: registeredRow(103), assessment: null }], errors: {}, already_registered: {} },
     ];
-    vi.stubGlobal("fetch", setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }));
+    stubFetch(setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -654,7 +654,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       },
       { created: [{ candidate: registeredRow(102), assessment: null }], errors: {}, already_registered: {} },
     ];
-    vi.stubGlobal("fetch", setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }));
+    stubFetch(setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -672,8 +672,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("goes on to the session once the last flagged row is removed", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       setupCohortMock({
         bulkRegisterHandler: () =>
           jsonResponse(200, {
@@ -697,8 +696,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   });
 
   it("returns to an empty cohort when nothing was registered and the last row is removed", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       setupCohortMock({
         bulkRegisterHandler: () =>
           jsonResponse(200, {
@@ -727,8 +725,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       "This student is already registered for 'Summer Grading', which has not reached its " +
       "result yet. A student is registered for one grading at a time; an administrator can " +
       "correct a registration made in error.";
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       setupCohortMock({
         bulkRegisterHandler: () =>
           jsonResponse(200, {

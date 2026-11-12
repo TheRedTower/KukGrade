@@ -177,12 +177,36 @@ export const ADMINISTRATOR_CAPABILITIES = {
   can_read_audit_log: true,
 } satisfies Partial<AuthUser>;
 
+/**
+ * The server's answer, readable any number of times, so one answer can stand
+ * for every call a mock returns it to.
+ */
 export function jsonResponse(status: number, body: unknown): Response {
+  const text = body === undefined ? "" : JSON.stringify(body);
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers(),
     json: async () => body,
+    text: async () => text,
   } as Response;
+}
+
+/**
+ * Stand in for the server. The app sends a Request; `respond` is called as
+ * fetch(path, init) with its path and query, method, headers, credentials
+ * and body as text, so a test reads a request as it was sent.
+ */
+export function stubFetch(respond: (url: string, init: RequestInit) => unknown): void {
+  vi.stubGlobal("fetch", async (request: Request) => {
+    const url = new URL(request.url);
+    return respond(url.pathname + url.search, {
+      method: request.method,
+      headers: request.headers,
+      credentials: request.credentials,
+      ...(request.body ? { body: await request.text() } : {}),
+    });
+  });
 }
 
 /**
@@ -195,11 +219,7 @@ export function signedOutResponse(url: string): Response {
 }
 
 export function emptyResponse(status: number): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => undefined,
-  } as Response;
+  return jsonResponse(status, undefined);
 }
 
 export function authRequiredResponse(): Response {

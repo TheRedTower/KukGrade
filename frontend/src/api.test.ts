@@ -5,11 +5,13 @@ import {
   bulkGenerateCandidateAssessments,
   bulkStartCandidateAssessments,
   bulkUpdateCandidateStatus,
+  createDataImportBatch,
   createManagedUser,
   getAllCandidateAssessmentItems,
   getAllGradingCandidates,
   getAuditEvents,
   getCurrentUser,
+  getStudents,
   getManagedUsers,
   loginUser,
   resetManagedUserPassword,
@@ -17,33 +19,70 @@ import {
   updateManagedUserAuthority,
   withdrawLockedCandidate,
 } from "./api";
-
-function jsonResponse(status: number, body: unknown): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  } as Response;
-}
+import { emptyResponse, jsonResponse, stubFetch } from "./appTestSupport";
 
 function nonJsonResponse(status: number): Response {
   return {
     ok: false,
     status,
-    json: async (): Promise<unknown> => {
-      throw new SyntaxError("Unexpected token < in JSON");
-    },
+    headers: new Headers(),
+    text: async () => "<html>Bad gateway</html>",
   } as Response;
 }
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+});
+
+describe("the API client", () => {
+  it("sends the CSRF token on a write and not on a read", async () => {
+    document.cookie = "csrftoken=token-from-django";
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { count: 0, next: null, results: [] }));
+    stubFetch(fetchMock);
+
+    await getStudents();
+    await loginUser("a@example.com", "pw");
+
+    const [read, write] = fetchMock.mock.calls.map(([, init]) => (init as RequestInit).headers as Headers);
+    expect(read.get("X-CSRFToken")).toBeNull();
+    expect(write.get("X-CSRFToken")).toBe("token-from-django");
+    expect(write.get("Content-Type")).toBe("application/json");
+  });
+
+  it("leaves out a filter with no value", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { count: 0, next: null, results: [] }));
+    stubFetch(fetchMock);
+
+    await getStudents({ search: "", status: undefined, page: 2 });
+
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/students/?page=2");
+  });
+
+  it("uploads a file as the browser's own multipart form", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, { id: 7, previously_imported: [] }));
+    stubFetch(fetchMock);
+
+    await createDataImportBatch(new File(["wksa_id\n1"], "roster.csv", { type: "text/csv" }));
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Headers).get("Content-Type")).toMatch(/^multipart\/form-data; boundary=/);
+    expect(init.body).toContain('name="kind"');
+    expect(init.body).toContain("STUDENT_ROSTER");
+    expect(init.body).toContain('name="file"');
+    expect(init.body).toContain("wksa_id\n1");
+  });
+
+  it("lets a request that never reached the server reject as fetch does", async () => {
+    stubFetch(vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    await expect(getCurrentUser()).rejects.toBeInstanceOf(TypeError);
+  });
 });
 
 describe("API error envelope", () => {
   it("exposes per-field validation messages to the caller", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockResolvedValue(
         jsonResponse(400, {
           error: {
@@ -68,8 +107,7 @@ describe("API error envelope", () => {
   });
 
   it("returns an empty list for a field with no errors", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockResolvedValue(
         jsonResponse(400, {
           error: { code: "validation_error", message: "x", fields: {} },
@@ -83,8 +121,7 @@ describe("API error envelope", () => {
   });
 
   it("surfaces serializer-level errors as non-field messages", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockResolvedValue(
         jsonResponse(400, {
           error: {
@@ -106,8 +143,7 @@ describe("API error envelope", () => {
   });
 
   it("carries the code for permission errors and leaves fields undefined", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockResolvedValue(
         jsonResponse(403, {
           error: {
@@ -126,7 +162,7 @@ describe("API error envelope", () => {
   });
 
   it("falls back to a status message when the body is not JSON", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(nonJsonResponse(502)));
+    stubFetch(vi.fn().mockResolvedValue(nonJsonResponse(502)));
 
     const error = await getCurrentUser().catch((e) => e);
 
@@ -156,7 +192,7 @@ describe("API pagination", () => {
         results: [{ id: 1 }],
       });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     const response = await getAllGradingCandidates({ session: 10 });
 
@@ -169,7 +205,7 @@ describe("API pagination", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await getAuditEvents({ page_size: 6 });
 
@@ -180,7 +216,7 @@ describe("API pagination", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await getAuditEvents({
       page: 2,
@@ -208,7 +244,7 @@ describe("API pagination", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await getAllCandidateAssessmentItems({ assessment: 42 });
 
@@ -228,8 +264,8 @@ describe("user management API", () => {
       .mockResolvedValueOnce(jsonResponse(201, { id: "new-user" }))
       .mockResolvedValueOnce(jsonResponse(200, { id: "target" }))
       .mockResolvedValueOnce(jsonResponse(200, { id: "target" }))
-      .mockResolvedValueOnce({ ok: true, status: 204 } as Response);
-    vi.stubGlobal("fetch", fetchMock);
+      .mockResolvedValueOnce(emptyResponse(204));
+    stubFetch(fetchMock);
 
     await getManagedUsers({
       search: "kim",
@@ -270,7 +306,7 @@ describe("user management API", () => {
 describe("bulk grading operations", () => {
   it("prepares the selected candidates", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { created: [], errors: {} }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await bulkGenerateCandidateAssessments([11, 12]);
 
@@ -283,7 +319,7 @@ describe("bulk grading operations", () => {
 
   it("starts the selected prepared assessments", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { started: [], errors: {} }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await bulkStartCandidateAssessments([21, 22]);
 
@@ -299,7 +335,7 @@ describe("bulk grading operations", () => {
       .fn()
       .mockResolvedValueOnce(jsonResponse(200, { updated: [], errors: {} }))
       .mockResolvedValueOnce(jsonResponse(200, { id: 22, status: "WITHDRAWN" }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await bulkUpdateCandidateStatus({
       candidates: [21, 22],

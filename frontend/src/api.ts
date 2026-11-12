@@ -1,4 +1,6 @@
-import type { components, operations } from "./api/schema";
+import createClient from "openapi-fetch";
+
+import type { components, operations, paths } from "./api/schema";
 
 // Generated from backend/schema.yml (`npm run generate:types`) rather than
 // hand-maintained, so these cannot silently drift from the serializers. Regenerate after any serializer change.
@@ -13,15 +15,6 @@ export type ManagedUser = components["schemas"]["UserManagement"];
 /** A managed user with the temporary password just issued for them, shown once. */
 export type IssuedTemporaryPassword = components["schemas"]["IssuedTemporaryPassword"];
 
-/**
- * One page of any list. Its envelope (count, next, previous) is taken from the
- * schema's own paginated type, every list sharing it; only `results` is typed
- * per list, since the schema emits one named type for each.
- */
-type PaginatedResponse<T> = Required<Omit<Schemas["PaginatedGradingSessionList"], "results">> & {
-  results: T[];
-};
-
 export type GradingSession = components["schemas"]["GradingSession"];
 export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEnum"];
 export type GradingCandidate = Schemas["GradingCandidate"];
@@ -29,7 +22,6 @@ export type GradingCandidate = Schemas["GradingCandidate"];
 export type GradingCandidateRoster = Schemas["GradingCandidateRoster"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
-type AssessmentItemComment = Schemas["AssessmentItemComment"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type StagedDecision = Schemas["StagedDecision"];
@@ -130,62 +122,65 @@ function csrfToken(): string | undefined {
     ?.split("=")[1];
 }
 
-async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const method = init.method?.toUpperCase() ?? "GET";
-  const headers = new Headers(init.headers);
-
-  // A FormData body (file upload) must keep the browser's own multipart
-  // boundary in Content-Type - setting it to application/json here would
-  // silently break every multipart upload.
-  if (!headers.has("Content-Type") && init.body !== undefined && !(init.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
-    const token = csrfToken();
-    if (token) {
-      headers.set("X-CSRFToken", decodeURIComponent(token));
-    }
-  }
-
-  const response = await fetch(path, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
-
-  if (!response.ok) {
-    let message = "Something went wrong. Try again in a moment.";
-    let code: string | undefined;
-    let fields: FieldErrors | undefined;
-    try {
-      const body = (await response.json()) as ApiErrorBody;
-      message = body.error?.message ?? message;
-      code = body.error?.code;
-      fields = body.error?.fields;
-    } catch {
-      // Keep the status-derived message when the response is not JSON,
-      // which is what a proxy error or a gateway timeout looks like.
-    }
-    throw new ApiError(message, response.status, code, fields);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
-}
-
-/** `path` with every present parameter appended; empty values are omitted. */
-function withQuery(path: string, params: object = {}): string {
+/** A query string with every present parameter; empty values are left out. */
+function searchOf(params: object = {}): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
     search.set(key, String(value));
   }
-  const query = search.toString();
-  return query ? `${path}?${query}` : path;
+  return search.toString();
+}
+
+/**
+ * Every request goes through this one client, typed from the schema: its
+ * path, parameters, body and answer are the schema's, so no call restates
+ * them. Same origin, with the session cookie and Django's CSRF token on every
+ * unsafe method. `fetch` is looked up on each call, not kept from load.
+ */
+const api = createClient<paths>({
+  baseUrl: window.location.origin,
+  credentials: "include",
+  fetch: (request) => globalThis.fetch(request),
+  querySerializer: searchOf,
+});
+
+api.use({
+  onRequest({ request }) {
+    if (["GET", "HEAD", "OPTIONS", "TRACE"].includes(request.method)) return undefined;
+    const token = csrfToken();
+    if (token) request.headers.set("X-CSRFToken", decodeURIComponent(token));
+    return request;
+  },
+});
+
+/** The error envelope's fields, when the answer carried one. */
+function envelopeOf(body: unknown): ApiErrorBody["error"] {
+  return typeof body === "object" && body !== null ? (body as ApiErrorBody).error : undefined;
+}
+
+/**
+ * The answer's body, or an ApiError with the server's reason. A body that is
+ * not JSON (a proxy error, a gateway timeout) keeps the general message. A
+ * request that never reached the server rejects with fetch's own TypeError.
+ */
+async function answer<D>(call: Promise<{ data?: D; error?: unknown; response: Response }>): Promise<D> {
+  const { data, error, response } = await call;
+  if (!response.ok) {
+    const envelope = envelopeOf(error);
+    throw new ApiError(
+      envelope?.message ?? "Something went wrong. Try again in a moment.",
+      response.status,
+      envelope?.code,
+      envelope?.fields,
+    );
+  }
+  return data as D;
+}
+
+/** An answer with no body (204): only whether it succeeded. */
+async function done(call: Promise<{ error?: unknown; response: Response }>): Promise<void> {
+  await answer(call);
 }
 
 // The largest page a list serves (DefaultPagination.max_page_size). Asking for
@@ -193,9 +188,9 @@ function withQuery(path: string, params: object = {}): string {
 // server limit costs requests, never rows, as the pages are followed to the end.
 export const LARGEST_PAGE = 200;
 
-async function collectAllPages<T>(
-  loadPage: (page: number) => Promise<PaginatedResponse<T>>,
-): Promise<PaginatedResponse<T>> {
+type Page<T> = { count: number; next?: string | null; results: T[] };
+
+async function collectAllPages<T>(loadPage: (page: number) => Promise<Page<T>>) {
   let page = 1;
   let response = await loadPage(page);
   const results: T[] = [...response.results];
@@ -211,37 +206,34 @@ async function collectAllPages<T>(
 
 export type SiteSettings = Schemas["SiteSettings"];
 
-export async function getSiteSettings(): Promise<SiteSettings> {
-  return apiRequest<SiteSettings>("/api/site/");
+export function getSiteSettings() {
+  return answer(api.GET("/api/site/"));
 }
 
 export type Choices = Schemas["Choices"];
 
-export async function getChoices(): Promise<Choices> {
-  return apiRequest<Choices>("/api/choices/");
+export function getChoices() {
+  return answer(api.GET("/api/choices/"));
 }
 
 export type About = Schemas["About"];
-type AboutDocument = Schemas["Document"];
-type Pledge = Schemas["Pledge"];
-type Credits = Schemas["Credits"];
 export type Credit = Schemas["Credit"];
 
-export async function getAbout(): Promise<About> {
-  return apiRequest<About>("/api/about/");
+export function getAbout() {
+  return answer(api.GET("/api/about/"));
 }
 
 /** The licence, code of conduct or security policy, as the repository holds it. */
-export async function getAboutDocument(slug: string): Promise<AboutDocument> {
-  return apiRequest<AboutDocument>(`/api/about/documents/${slug}/`);
+export function getAboutDocument(slug: string) {
+  return answer(api.GET("/api/about/documents/{slug}/", { params: { path: { slug } } }));
 }
 
-export async function getPledge(): Promise<Pledge> {
-  return apiRequest<Pledge>("/api/about/pledge/");
+export function getPledge() {
+  return answer(api.GET("/api/about/pledge/"));
 }
 
-export async function getCredits(): Promise<Credits> {
-  return apiRequest<Credits>("/api/about/credits/");
+export function getCredits() {
+  return answer(api.GET("/api/about/credits/"));
 }
 
 /** The full third-party licence notices, a text file the browser opens itself. */
@@ -249,721 +241,501 @@ export function creditsNoticesUrl(): string {
   return "/api/about/credits/notices/";
 }
 
-export async function getCurrentUser(): Promise<AuthUser> {
-  return apiRequest<AuthUser>("/api/auth/me/");
+export function getCurrentUser() {
+  return answer(api.GET("/api/auth/me/"));
 }
-
-type SelfProfilePayload = Schemas["PatchedSelfProfileRequest"];
 
 /** Your own first and last name - the only things a user edits about themselves. */
-export async function updateCurrentUser(data: SelfProfilePayload): Promise<AuthUser> {
-  return apiRequest<AuthUser>("/api/auth/me/", {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
+export function updateCurrentUser(body: Schemas["PatchedSelfProfileRequest"]) {
+  return answer(api.PATCH("/api/auth/me/", { body }));
 }
 
-export async function loginUser(email: string, password: string): Promise<AuthUser> {
-  return apiRequest<AuthUser>("/api/auth/login/", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
+export function loginUser(email: string, password: string) {
+  return answer(api.POST("/api/auth/login/", { body: { email, password } }));
 }
 
-export async function logoutUser(): Promise<void> {
-  await apiRequest<void>("/api/auth/logout/", {
-    method: "POST",
-  });
+export function logoutUser() {
+  return done(api.POST("/api/auth/logout/"));
 }
 
 export type SetupDetails = Schemas["SetupRequest"];
 
 /** Whether the deployment still needs its first administrator. */
-export async function getSetupStatus(): Promise<Schemas["SetupStatus"]> {
-  return apiRequest<Schemas["SetupStatus"]>("/api/setup/");
+export function getSetupStatus() {
+  return answer(api.GET("/api/setup/"));
 }
 
 /** Create the first administrator and sign them in. */
-export async function completeSetup(details: SetupDetails): Promise<AuthUser> {
-  return apiRequest<AuthUser>("/api/setup/", {
-    method: "POST",
-    body: JSON.stringify(details),
-  });
+export function completeSetup(body: SetupDetails) {
+  return answer(api.POST("/api/setup/", { body }));
 }
 
-export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await apiRequest<void>("/api/auth/change-password/", {
-    method: "POST",
-    body: JSON.stringify({
-      current_password: currentPassword,
-      new_password: newPassword,
+export function changePassword(currentPassword: string, newPassword: string) {
+  return done(
+    api.POST("/api/auth/change-password/", {
+      body: { current_password: currentPassword, new_password: newPassword },
     }),
-  });
+  );
 }
 
-export async function getManagedUsers(params?: ListQuery<"users_list">): Promise<PaginatedResponse<ManagedUser>> {
-  return apiRequest<PaginatedResponse<ManagedUser>>(withQuery("/api/users/", params));
+export function getManagedUsers(query?: ListQuery<"users_list">) {
+  return answer(api.GET("/api/users/", { params: { query } }));
 }
 
-export async function getManagedUser(id: string): Promise<ManagedUser> {
-  return apiRequest<ManagedUser>(`/api/users/${id}/`);
+export function getManagedUser(id: string) {
+  return answer(api.GET("/api/users/{id}/", { params: { path: { id } } }));
 }
 
-type CreateManagedUserPayload = Schemas["UserManagementRequest"];
-
-export async function createManagedUser(data: CreateManagedUserPayload): Promise<IssuedTemporaryPassword> {
-  return apiRequest<IssuedTemporaryPassword>("/api/users/", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+export function createManagedUser(body: Schemas["UserManagementRequest"]) {
+  return answer(api.POST("/api/users/", { body }));
 }
 
-export async function deleteManagedUser(id: string): Promise<void> {
-  await apiRequest<void>(`/api/users/${id}/`, {
-    method: "DELETE",
-  });
+export function deleteManagedUser(id: string) {
+  return done(api.DELETE("/api/users/{id}/", { params: { path: { id } } }));
 }
 
-export async function updateManagedUser(
-  id: string,
-  data: Schemas["PatchedUserManagementRequest"],
-): Promise<ManagedUser> {
-  return apiRequest<ManagedUser>(`/api/users/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
+export function updateManagedUser(id: string, body: Schemas["PatchedUserManagementRequest"]) {
+  return answer(api.PATCH("/api/users/{id}/", { params: { path: { id } }, body }));
 }
 
 export type UserAuthorityPayload = Schemas["PatchedUserAuthorityRequest"];
 
-export async function updateManagedUserAuthority(id: string, data: UserAuthorityPayload): Promise<ManagedUser> {
-  return apiRequest<ManagedUser>(`/api/users/${id}/authority/`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
+export function updateManagedUserAuthority(id: string, body: UserAuthorityPayload) {
+  return answer(api.PATCH("/api/users/{id}/authority/", { params: { path: { id } }, body }));
 }
 
-export async function resetManagedUserPassword(id: string): Promise<IssuedTemporaryPassword> {
-  return apiRequest<IssuedTemporaryPassword>(`/api/users/${id}/set-password/`, {
-    method: "POST",
-  });
+export function resetManagedUserPassword(id: string) {
+  return answer(api.POST("/api/users/{id}/set-password/", { params: { path: { id } } }));
 }
 
-export async function getGradingSessions(
-  params?: ListQuery<"gradings_sessions_list">,
-): Promise<PaginatedResponse<GradingSession>> {
-  return apiRequest<PaginatedResponse<GradingSession>>(withQuery("/api/gradings/sessions/", params));
+export function getGradingSessions(query?: ListQuery<"gradings_sessions_list">) {
+  return answer(api.GET("/api/gradings/sessions/", { params: { query } }));
 }
 
-export async function getAllGradingSessions(
-  params: Omit<ListQuery<"gradings_sessions_list">, "page" | "page_size"> = {},
-): Promise<PaginatedResponse<GradingSession>> {
-  return collectAllPages((page) => getGradingSessions({ ...params, page, page_size: LARGEST_PAGE }));
+export function getAllGradingSessions(query: Omit<ListQuery<"gradings_sessions_list">, "page" | "page_size"> = {}) {
+  return collectAllPages((page) => getGradingSessions({ ...query, page, page_size: LARGEST_PAGE }));
 }
 
 export async function getGradingSessionYears(): Promise<number[]> {
-  const body = await apiRequest<Schemas["GradingYears"]>("/api/gradings/sessions/years/");
+  const body = await answer(api.GET("/api/gradings/sessions/years/"));
   return body.years;
 }
 
-type CreateGradingSessionPayload = Schemas["GradingSessionRequest"];
-
-export async function createGradingSession(payload: CreateGradingSessionPayload): Promise<GradingSession> {
-  return apiRequest<GradingSession>("/api/gradings/sessions/", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function createGradingSession(body: Schemas["GradingSessionRequest"]) {
+  return answer(api.POST("/api/gradings/sessions/", { body }));
 }
 
-export async function getGradingSession(id: number | string): Promise<GradingSession> {
-  return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/`);
+export function getGradingSession(id: number) {
+  return answer(api.GET("/api/gradings/sessions/{id}/", { params: { path: { id } } }));
 }
 
-export async function updateGradingSession(
-  id: number | string,
-  payload: Schemas["PatchedGradingSessionRequest"],
-): Promise<GradingSession> {
-  return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+export function updateGradingSession(id: number, body: Schemas["PatchedGradingSessionRequest"]) {
+  return answer(api.PATCH("/api/gradings/sessions/{id}/", { params: { path: { id } }, body }));
 }
 
 /** Hide a finished session from the lists; nothing is erased. */
-export async function archiveGradingSession(id: number | string): Promise<GradingSession> {
-  return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/archive/`, { method: "POST" });
+export function archiveGradingSession(id: number) {
+  return answer(api.POST("/api/gradings/sessions/{id}/archive/", { params: { path: { id } } }));
 }
 
 /** Bring an archived session back into the lists. */
-export async function restoreGradingSession(id: number | string): Promise<GradingSession> {
-  return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/restore/`, { method: "POST" });
+export function restoreGradingSession(id: number) {
+  return answer(api.POST("/api/gradings/sessions/{id}/restore/", { params: { path: { id } } }));
 }
 
-export async function deleteGradingSession(id: number | string): Promise<void> {
-  await apiRequest<void>(`/api/gradings/sessions/${id}/`, {
-    method: "DELETE",
-  });
+export function deleteGradingSession(id: number) {
+  return done(api.DELETE("/api/gradings/sessions/{id}/", { params: { path: { id } } }));
 }
 
-async function getGradingCandidates(
-  params?: ListQuery<"gradings_candidates_list">,
-): Promise<PaginatedResponse<GradingCandidateRoster>> {
-  return apiRequest<PaginatedResponse<GradingCandidateRoster>>(withQuery("/api/gradings/candidates/", params));
+function getGradingCandidates(query?: ListQuery<"gradings_candidates_list">) {
+  return answer(api.GET("/api/gradings/candidates/", { params: { query } }));
 }
 
-export async function getGradingCandidate(id: number): Promise<GradingCandidateRoster> {
-  return apiRequest<GradingCandidateRoster>(`/api/gradings/candidates/${id}/`);
+export function getGradingCandidate(id: number) {
+  return answer(api.GET("/api/gradings/candidates/{id}/", { params: { path: { id } } }));
 }
 
-export async function getAllGradingCandidates(
-  params: Omit<ListQuery<"gradings_candidates_list">, "page" | "page_size"> = {},
-): Promise<PaginatedResponse<GradingCandidateRoster>> {
-  return collectAllPages((page) => getGradingCandidates({ ...params, page, page_size: LARGEST_PAGE }));
+export function getAllGradingCandidates(query: Omit<ListQuery<"gradings_candidates_list">, "page" | "page_size"> = {}) {
+  return collectAllPages((page) => getGradingCandidates({ ...query, page, page_size: LARGEST_PAGE }));
 }
 
 /** Move a registration to another draft or open session. */
-export async function moveGradingCandidate(id: number, sessionId: number): Promise<GradingCandidate> {
-  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify({ session: sessionId }),
-  });
+export function moveGradingCandidate(id: number, session: number) {
+  return answer(api.PATCH("/api/gradings/candidates/{id}/", { params: { path: { id } }, body: { session } }));
 }
 
 /** Remove a registration while its session is draft or open. */
-export async function deleteGradingCandidate(id: number): Promise<void> {
-  await apiRequest<void>(`/api/gradings/candidates/${id}/`, {
-    method: "DELETE",
-  });
+export function deleteGradingCandidate(id: number) {
+  return done(api.DELETE("/api/gradings/candidates/{id}/", { params: { path: { id } } }));
 }
 
 export type BulkCandidateRegistrationPayload = Schemas["BulkCandidateRegistrationRequest"];
 export type BulkCandidateRegistrationResponse = Schemas["BulkCandidateRegistrationResult"];
 
-export async function bulkRegisterCandidates(
-  payload: BulkCandidateRegistrationPayload,
-): Promise<BulkCandidateRegistrationResponse> {
-  return apiRequest<BulkCandidateRegistrationResponse>("/api/gradings/candidates/bulk-register/", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function bulkRegisterCandidates(body: BulkCandidateRegistrationPayload) {
+  return answer(api.POST("/api/gradings/candidates/bulk-register/", { body }));
 }
 
-export async function generateCandidateAssessment(candidateId: number): Promise<CandidateAssessment> {
-  return apiRequest<CandidateAssessment>(`/api/gradings/candidates/${candidateId}/generate-assessment/`, {
-    method: "POST",
-  });
+export function generateCandidateAssessment(id: number) {
+  return answer(api.POST("/api/gradings/candidates/{id}/generate-assessment/", { params: { path: { id } } }));
 }
 
-export async function bulkGenerateCandidateAssessments(
-  candidateIds: number[],
-): Promise<Schemas["BulkAssessmentGenerationResult"]> {
-  return apiRequest("/api/gradings/candidates/bulk-generate-assessments/", {
-    method: "POST",
-    body: JSON.stringify({ candidates: candidateIds }),
-  });
+export function bulkGenerateCandidateAssessments(candidates: number[]) {
+  return answer(api.POST("/api/gradings/candidates/bulk-generate-assessments/", { body: { candidates } }));
 }
 
-export async function bulkUpdateCandidateStatus(
-  payload: Schemas["BulkCandidateStatusUpdateRequest"],
-): Promise<Schemas["BulkCandidateStatusUpdateResult"]> {
-  return apiRequest("/api/gradings/candidates/bulk-update-status/", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function bulkUpdateCandidateStatus(body: Schemas["BulkCandidateStatusUpdateRequest"]) {
+  return answer(api.POST("/api/gradings/candidates/bulk-update-status/", { body }));
 }
 
 export type WithdrawalReason = Schemas["WithdrawalReason"];
 
-export async function getWithdrawalReasons(): Promise<PaginatedResponse<WithdrawalReason>> {
-  return apiRequest<PaginatedResponse<WithdrawalReason>>("/api/gradings/withdrawal-reasons/");
+export function getWithdrawalReasons() {
+  return answer(api.GET("/api/gradings/withdrawal-reasons/"));
 }
 
 export type LockedCandidateWithdrawal = Schemas["LockedCandidateWithdrawalRequest"];
 
-export async function withdrawLockedCandidate(
-  candidateId: number,
-  payload: LockedCandidateWithdrawal,
-): Promise<GradingCandidate> {
-  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${candidateId}/withdraw/`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function withdrawLockedCandidate(id: number, body: LockedCandidateWithdrawal) {
+  return answer(api.POST("/api/gradings/candidates/{id}/withdraw/", { params: { path: { id } }, body }));
 }
 
-export async function getCandidateAssessments(
-  params?: ListQuery<"gradings_assessments_list">,
-): Promise<PaginatedResponse<CandidateAssessment>> {
-  return apiRequest<PaginatedResponse<CandidateAssessment>>(withQuery("/api/gradings/assessments/", params));
+export function getCandidateAssessments(query?: ListQuery<"gradings_assessments_list">) {
+  return answer(api.GET("/api/gradings/assessments/", { params: { query } }));
 }
 
-export async function updateCandidateAssessment(
-  id: number,
-  data: Schemas["PatchedCandidateAssessmentRequest"],
-): Promise<CandidateAssessment> {
-  return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
+export function updateCandidateAssessment(id: number, body: Schemas["PatchedCandidateAssessmentRequest"]) {
+  return answer(api.PATCH("/api/gradings/assessments/{id}/", { params: { path: { id } }, body }));
 }
 
-export async function deleteCandidateAssessment(id: number): Promise<void> {
-  await apiRequest<void>(`/api/gradings/assessments/${id}/`, {
-    method: "DELETE",
-  });
+export function deleteCandidateAssessment(id: number) {
+  return done(api.DELETE("/api/gradings/assessments/{id}/", { params: { path: { id } } }));
 }
 
-export async function bulkStartCandidateAssessments(
-  assessmentIds: number[],
-): Promise<Schemas["BulkAssessmentStartResult"]> {
-  return apiRequest("/api/gradings/assessments/bulk-start/", {
-    method: "POST",
-    body: JSON.stringify({ assessments: assessmentIds }),
-  });
+export function bulkStartCandidateAssessments(assessments: number[]) {
+  return answer(api.POST("/api/gradings/assessments/bulk-start/", { body: { assessments } }));
 }
 
-async function getCandidateAssessmentItems(
-  params?: ListQuery<"gradings_assessment_items_list">,
-): Promise<PaginatedResponse<CandidateAssessmentItem>> {
-  return apiRequest<PaginatedResponse<CandidateAssessmentItem>>(withQuery("/api/gradings/assessment-items/", params));
+function getCandidateAssessmentItems(query?: ListQuery<"gradings_assessment_items_list">) {
+  return answer(api.GET("/api/gradings/assessment-items/", { params: { query } }));
 }
 
-export async function getAllCandidateAssessmentItems(
-  params: Omit<ListQuery<"gradings_assessment_items_list">, "page" | "page_size"> = {},
-): Promise<PaginatedResponse<CandidateAssessmentItem>> {
-  return collectAllPages((page) => getCandidateAssessmentItems({ ...params, page, page_size: LARGEST_PAGE }));
+export function getAllCandidateAssessmentItems(
+  query: Omit<ListQuery<"gradings_assessment_items_list">, "page" | "page_size"> = {},
+) {
+  return collectAllPages((page) => getCandidateAssessmentItems({ ...query, page, page_size: LARGEST_PAGE }));
 }
 
-/** An item as a mark returns it: with the assessment's counts as the save left them. */
-type CandidateAssessmentItemSaved = Schemas["CandidateAssessmentItemSaved"];
-
-export async function updateCandidateAssessmentItem(
-  id: number,
-  data: Schemas["PatchedCandidateAssessmentItemRequest"],
-): Promise<CandidateAssessmentItemSaved> {
-  return apiRequest<CandidateAssessmentItemSaved>(`/api/gradings/assessment-items/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
+/** Mark an item; the answer carries the assessment's counts as the save left them. */
+export function updateCandidateAssessmentItem(id: number, body: Schemas["PatchedCandidateAssessmentItemRequest"]) {
+  return answer(api.PATCH("/api/gradings/assessment-items/{id}/", { params: { path: { id } }, body }));
 }
 
 /** Add a comment to an item. A comment is kept as written; a correction is another. */
-export async function addAssessmentItemComment(itemId: number, body: string): Promise<AssessmentItemComment> {
-  return apiRequest<AssessmentItemComment>(`/api/gradings/assessment-items/${itemId}/comments/`, {
-    method: "POST",
-    body: JSON.stringify({ body }),
-  });
+export function addAssessmentItemComment(id: number, body: string) {
+  return answer(
+    api.POST("/api/gradings/assessment-items/{id}/comments/", { params: { path: { id } }, body: { body } }),
+  );
 }
 
 export type PromotionEligibility = Schemas["PromotionEligibility"];
 
-export async function getPromotionEligibility(session: number): Promise<PromotionEligibility[]> {
-  return apiRequest<PromotionEligibility[]>(withQuery("/api/gradings/outcomes/promotion-eligibility/", { session }));
+export function getPromotionEligibility(session: number) {
+  return answer(api.GET("/api/gradings/outcomes/promotion-eligibility/", { params: { query: { session } } }));
 }
 
 /** The first proposal opens the candidate's outcome record; later ones revise it. */
-export async function proposeCandidateOutcome(
-  candidateId: number,
-  data: Schemas["CandidateOutcomeProposalRequest"],
-): Promise<CandidateOutcome> {
-  return apiRequest<CandidateOutcome>(`/api/gradings/candidates/${candidateId}/propose-outcome/`, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+export function proposeCandidateOutcome(id: number, body: Schemas["CandidateOutcomeProposalRequest"]) {
+  return answer(api.POST("/api/gradings/candidates/{id}/propose-outcome/", { params: { path: { id } }, body }));
 }
 
 /**
  * Rollup for one assessment, reachable at any assessment status - scoring,
  * completion review and the adjudication board all read counts from here.
  */
-export async function getAssessmentSummary(assessmentId: number): Promise<CandidateAssessmentSummary> {
-  return apiRequest<CandidateAssessmentSummary>(`/api/gradings/assessments/${assessmentId}/summary/`);
+export function getAssessmentSummary(id: number) {
+  return answer(api.GET("/api/gradings/assessments/{id}/summary/", { params: { path: { id } } }));
 }
 
 /** The viewer's own decisions staged in a session and not yet recorded. */
-export async function getStagedDecisions(session: number): Promise<StagedDecision[]> {
-  return apiRequest<StagedDecision[]>(withQuery("/api/gradings/outcomes/staged-decisions/", { session }));
+export function getStagedDecisions(session: number) {
+  return answer(api.GET("/api/gradings/outcomes/staged-decisions/", { params: { query: { session } } }));
 }
 
-export async function stageDecision(
-  outcomeId: number,
-  data: Schemas["StagedDecisionRequest"],
-): Promise<StagedDecision> {
-  return apiRequest<StagedDecision>(`/api/gradings/outcomes/${outcomeId}/staged-decision/`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  });
+export function stageDecision(id: number, body: Schemas["StagedDecisionRequest"]) {
+  return answer(api.PUT("/api/gradings/outcomes/{id}/staged-decision/", { params: { path: { id } }, body }));
 }
 
-export async function discardStagedDecision(outcomeId: number): Promise<void> {
-  await apiRequest<void>(`/api/gradings/outcomes/${outcomeId}/staged-decision/`, {
-    method: "DELETE",
-  });
+export function discardStagedDecision(id: number) {
+  return done(api.DELETE("/api/gradings/outcomes/{id}/staged-decision/", { params: { path: { id } } }));
 }
 
-export async function finaliseCandidateOutcome(
-  outcomeId: number,
-  data: Schemas["CandidateOutcomeFinaliseRequest"],
-): Promise<CandidateOutcome> {
-  return apiRequest<CandidateOutcome>(`/api/gradings/outcomes/${outcomeId}/finalise/`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
+export function finaliseCandidateOutcome(id: number, body: Schemas["CandidateOutcomeFinaliseRequest"]) {
+  return answer(api.PATCH("/api/gradings/outcomes/{id}/finalise/", { params: { path: { id } }, body }));
 }
 
 /** The names of the audit event and record types, for the audit filters. */
-export async function getAuditLabels(): Promise<Schemas["AuditLabels"]> {
-  return apiRequest<Schemas["AuditLabels"]>("/api/audit-events/labels/");
+export function getAuditLabels() {
+  return answer(api.GET("/api/audit-events/labels/"));
 }
 
 /** What a record's history is of: its current name and where to open it. */
-export async function getAuditSubject(subject: string): Promise<AuditSubject> {
-  return apiRequest<AuditSubject>(withQuery("/api/audit-events/subject/", { subject }));
+export function getAuditSubject(subject: string) {
+  return answer(api.GET("/api/audit-events/subject/", { params: { query: { subject } } }));
 }
 
-export async function getAuditEvents(params?: ListQuery<"audit_events_list">): Promise<PaginatedResponse<AuditEvent>> {
-  return apiRequest<PaginatedResponse<AuditEvent>>(withQuery("/api/audit-events/", params));
+export function getAuditEvents(query?: ListQuery<"audit_events_list">) {
+  return answer(api.GET("/api/audit-events/", { params: { query } }));
 }
 
-export async function getStudents(params?: ListQuery<"students_list">): Promise<PaginatedResponse<StudentListItem>> {
-  return apiRequest<PaginatedResponse<StudentListItem>>(withQuery("/api/students/", params));
+export function getStudents(query?: ListQuery<"students_list">) {
+  return answer(api.GET("/api/students/", { params: { query } }));
 }
 
-export async function getAllStudents(
-  params: Omit<NonNullable<Parameters<typeof getStudents>[0]>, "page" | "page_size"> = {},
-): Promise<PaginatedResponse<StudentListItem>> {
-  return collectAllPages((page) => getStudents({ ...params, page, page_size: LARGEST_PAGE }));
+export function getAllStudents(query: Omit<ListQuery<"students_list">, "page" | "page_size"> = {}) {
+  return collectAllPages((page) => getStudents({ ...query, page, page_size: LARGEST_PAGE }));
 }
 
-export async function getRanks(params?: ListQuery<"ranks_list">): Promise<PaginatedResponse<Rank>> {
-  return apiRequest<PaginatedResponse<Rank>>(withQuery("/api/ranks/", params));
+export function getRanks(query?: ListQuery<"ranks_list">) {
+  return answer(api.GET("/api/ranks/", { params: { query } }));
 }
 
-export async function getAgeBands(): Promise<PaginatedResponse<AgeBand>> {
-  return apiRequest<PaginatedResponse<AgeBand>>("/api/syllabus/age-bands/");
+export function getAgeBands() {
+  return answer(api.GET("/api/syllabus/age-bands/"));
 }
 
-async function getEffectiveSyllabusRequirements(
-  params: ListQuery<"syllabus_requirements_effective_list">,
-): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
-  return apiRequest<PaginatedResponse<EffectiveSyllabusRequirement>>(
-    withQuery("/api/syllabus/requirements/effective/", {
-      ...params,
-      page_size: params.page_size ?? 200,
-    }),
+export function getAllEffectiveSyllabusRequirements(
+  query: Omit<ListQuery<"syllabus_requirements_effective_list">, "page" | "page_size">,
+) {
+  return collectAllPages((page) =>
+    answer(
+      api.GET("/api/syllabus/requirements/effective/", {
+        params: { query: { ...query, page, page_size: LARGEST_PAGE } },
+      }),
+    ),
   );
 }
 
-export async function getAllEffectiveSyllabusRequirements(
-  params: Omit<Parameters<typeof getEffectiveSyllabusRequirements>[0], "page" | "page_size">,
-): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
-  return collectAllPages((page) => getEffectiveSyllabusRequirements({ ...params, page, page_size: LARGEST_PAGE }));
+export function getStudent(id: number) {
+  return answer(api.GET("/api/students/{id}/", { params: { path: { id } } }));
 }
 
-export async function getStudent(id: number): Promise<StudentDetail> {
-  return apiRequest<StudentDetail>(`/api/students/${id}/`);
-}
-
-type CreateStudentPayload = Schemas["StudentRequest"];
-
-export async function createStudent(payload: CreateStudentPayload): Promise<StudentDetail> {
-  return apiRequest<StudentDetail>("/api/students/", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function createStudent(body: Schemas["StudentRequest"]) {
+  return answer(api.POST("/api/students/", { body }));
 }
 
 export type StudentRankHistory = Schemas["StudentRankHistory"];
 
-export async function getStudentRankHistory(id: number): Promise<StudentRankHistory> {
-  return apiRequest<StudentRankHistory>(`/api/students/${id}/rank-history/`);
+export function getStudentRankHistory(id: number) {
+  return answer(api.GET("/api/students/{id}/rank-history/", { params: { path: { id } } }));
 }
 
-type UpdateStudentPayload = Schemas["PatchedStudentRequest"];
-
-export async function updateStudent(id: number, payload: UpdateStudentPayload): Promise<StudentDetail> {
-  return apiRequest<StudentDetail>(`/api/students/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+export function updateStudent(id: number, body: Schemas["PatchedStudentRequest"]) {
+  return answer(api.PATCH("/api/students/{id}/", { params: { path: { id } }, body }));
 }
 
-export async function deleteStudent(id: number): Promise<void> {
-  await apiRequest<void>(`/api/students/${id}/`, {
-    method: "DELETE",
-  });
+export function deleteStudent(id: number) {
+  return done(api.DELETE("/api/students/{id}/", { params: { path: { id } } }));
 }
 
-export async function promoteCandidateOutcome(
-  outcomeId: number,
-  data?: Schemas["CandidatePromotionRequest"],
-): Promise<Promotion> {
-  return apiRequest<Promotion>(`/api/gradings/outcomes/${outcomeId}/promote/`, {
-    method: "POST",
-    body: JSON.stringify(data || {}),
-  });
+export function promoteCandidateOutcome(id: number, body: Schemas["CandidatePromotionRequest"] = {}) {
+  return answer(api.POST("/api/gradings/outcomes/{id}/promote/", { params: { path: { id } }, body }));
 }
 
-type BulkPromoteResponse = Schemas["BulkPromotionResult"];
-
-export async function bulkPromoteCandidateOutcomes(
-  data: Schemas["BulkPromotionRequest"],
-): Promise<BulkPromoteResponse> {
-  return apiRequest<BulkPromoteResponse>(`/api/gradings/outcomes/bulk-promote/`, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+export function bulkPromoteCandidateOutcomes(body: Schemas["BulkPromotionRequest"]) {
+  return answer(api.POST("/api/gradings/outcomes/bulk-promote/", { body }));
 }
 
 export type DataImportKind = Schemas["KindEnum"];
 export type DataImportBatch = Schemas["ImportBatch"];
 export type CreateDataImportBatchResponse = Schemas["ImportBatchCreated"];
 
-export async function createDataImportBatch(
-  file: File,
-  kind: DataImportKind = "STUDENT_ROSTER",
-): Promise<CreateDataImportBatchResponse> {
-  const formData = new FormData();
-  formData.append("kind", kind);
-  formData.append("file", file);
-  return apiRequest<CreateDataImportBatchResponse>("/api/data-imports/batches/", {
-    method: "POST",
-    body: formData,
-  });
+export function createDataImportBatch(file: File, kind: DataImportKind = "STUDENT_ROSTER") {
+  // The schema writes a file as a binary string; the browser writes the
+  // multipart body, with its own boundary.
+  return answer(
+    api.POST("/api/data-imports/batches/", {
+      body: { kind, file: file as unknown as string },
+      bodySerializer(fields) {
+        const form = new FormData();
+        form.append("kind", fields.kind);
+        form.append("file", file);
+        return form;
+      },
+    }),
+  );
 }
 
 export type DataImportRow = Schemas["ImportRow"];
 
-export async function getDataImportBatches(
-  params?: ListQuery<"data_imports_batches_list">,
-): Promise<PaginatedResponse<DataImportBatch>> {
-  return apiRequest<PaginatedResponse<DataImportBatch>>(withQuery("/api/data-imports/batches/", params));
+export function getDataImportBatches(query?: ListQuery<"data_imports_batches_list">) {
+  return answer(api.GET("/api/data-imports/batches/", { params: { query } }));
 }
 
 /** Complete import choices for filters, regardless of how many were committed. */
-export async function getAllDataImportBatches(
-  params: Omit<ListQuery<"data_imports_batches_list">, "page" | "page_size">,
-): Promise<PaginatedResponse<DataImportBatch>> {
-  return collectAllPages((page) => getDataImportBatches({ ...params, page, page_size: LARGEST_PAGE }));
+export function getAllDataImportBatches(query: Omit<ListQuery<"data_imports_batches_list">, "page" | "page_size">) {
+  return collectAllPages((page) => getDataImportBatches({ ...query, page, page_size: LARGEST_PAGE }));
 }
 
-export async function getDataImportBatch(batchId: number): Promise<DataImportBatch> {
-  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/`);
+export function getDataImportBatch(id: number) {
+  return answer(api.GET("/api/data-imports/batches/{id}/", { params: { path: { id } } }));
 }
-
-type ImportSecondLook = Schemas["ImportSecondLook"];
 
 /** What KukGrade filled in for a roster's added students, counted. */
-export async function getDataImportSecondLook(batchId: number): Promise<ImportSecondLook> {
-  return apiRequest<ImportSecondLook>(`/api/data-imports/batches/${batchId}/second-look/`);
+export function getDataImportSecondLook(id: number) {
+  return answer(api.GET("/api/data-imports/batches/{id}/second-look/", { params: { path: { id } } }));
 }
 
-export async function getDataImportRows(
-  batchId: number,
-  params?: ListQuery<"data_imports_batches_rows_list">,
-): Promise<PaginatedResponse<DataImportRow>> {
-  return apiRequest<PaginatedResponse<DataImportRow>>(withQuery(`/api/data-imports/batches/${batchId}/rows/`, params));
+export function getDataImportRows(batch_pk: number, query?: ListQuery<"data_imports_batches_rows_list">) {
+  return answer(api.GET("/api/data-imports/batches/{batch_pk}/rows/", { params: { path: { batch_pk }, query } }));
 }
 
 /** Read a roster from another sheet of its workbook. */
-export async function chooseDataImportSheet(batchId: number, sheet: string): Promise<DataImportBatch> {
-  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/sheet/`, {
-    method: "POST",
-    body: JSON.stringify({ sheet }),
-  });
+export function chooseDataImportSheet(id: number, sheet: string) {
+  return answer(api.POST("/api/data-imports/batches/{id}/sheet/", { params: { path: { id } }, body: { sheet } }));
 }
 
 /** Void every record a finished historical import made, with the reason. */
-export async function voidDataImportRecords(batchId: number, reason: string): Promise<Schemas["ImportRecordsVoided"]> {
-  return apiRequest<Schemas["ImportRecordsVoided"]>(`/api/data-imports/batches/${batchId}/void-records/`, {
-    method: "POST",
-    body: JSON.stringify({ reason }),
-  });
+export function voidDataImportRecords(id: number, reason: string) {
+  return answer(
+    api.POST("/api/data-imports/batches/{id}/void-records/", { params: { path: { id } }, body: { reason } }),
+  );
 }
 
-type DataImportMapping = Schemas["ImportMappingRequest"];
-type DataImportRowChanges = Schemas["PatchedImportRowCorrectionRequest"];
-
 /** Match a roster's columns to KukGrade's fields; every row is checked again. */
-export async function saveDataImportMapping(batchId: number, mapping: DataImportMapping): Promise<DataImportBatch> {
-  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/mapping/`, {
-    method: "POST",
-    body: JSON.stringify(mapping),
-  });
+export function saveDataImportMapping(id: number, body: Schemas["ImportMappingRequest"]) {
+  return answer(api.POST("/api/data-imports/batches/{id}/mapping/", { params: { path: { id } }, body }));
 }
 
 /** Fix a roster row's values by field; null takes a fix away. */
-export async function correctDataImportRow(
-  batchId: number,
-  rowNumber: number,
-  changes: DataImportRowChanges,
-): Promise<DataImportRow> {
-  return apiRequest<DataImportRow>(`/api/data-imports/batches/${batchId}/rows/${rowNumber}/`, {
-    method: "PATCH",
-    body: JSON.stringify(changes),
-  });
+export function correctDataImportRow(
+  batch_pk: number,
+  row_number: number,
+  body: Schemas["PatchedImportRowCorrectionRequest"],
+) {
+  return answer(
+    api.PATCH("/api/data-imports/batches/{batch_pk}/rows/{row_number}/", {
+      params: { path: { batch_pk, row_number } },
+      body,
+    }),
+  );
 }
 
 /** Leave a row out of the import, or bring it back. */
-export async function setDataImportRowExcluded(
-  batchId: number,
-  rowNumber: number,
-  excluded: boolean,
-): Promise<DataImportRow> {
-  return apiRequest<DataImportRow>(`/api/data-imports/batches/${batchId}/rows/${rowNumber}/exclusion/`, {
-    method: "POST",
-    body: JSON.stringify({ excluded }),
-  });
+export function setDataImportRowExcluded(batch_pk: number, row_number: number, excluded: boolean) {
+  return answer(
+    api.POST("/api/data-imports/batches/{batch_pk}/rows/{row_number}/exclusion/", {
+      params: { path: { batch_pk, row_number } },
+      body: { excluded },
+    }),
+  );
 }
 
 /** Leave out every roster row still needing attention. */
-export async function leaveOutDataImportRowsNeedingAttention(batchId: number): Promise<DataImportBatch> {
-  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/rows/leave-out-attention/`, {
-    method: "POST",
-  });
+export function leaveOutDataImportRowsNeedingAttention(batch_pk: number) {
+  return answer(
+    api.POST("/api/data-imports/batches/{batch_pk}/rows/leave-out-attention/", { params: { path: { batch_pk } } }),
+  );
 }
 
 /** Import what the stored rows say, all or nothing. */
-export async function commitDataImport(batchId: number): Promise<DataImportBatch> {
-  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/commit/`, {
-    method: "POST",
-  });
+export function commitDataImport(id: number) {
+  return answer(api.POST("/api/data-imports/batches/{id}/commit/", { params: { path: { id } } }));
 }
 
-export async function cancelDataImportBatch(batchId: number): Promise<void> {
-  return apiRequest<void>(`/api/data-imports/batches/${batchId}/cancel/`, {
-    method: "POST",
-  });
+export function cancelDataImportBatch(id: number) {
+  return done(api.POST("/api/data-imports/batches/{id}/cancel/", { params: { path: { id } } }));
 }
 
 export type LegacyImportPreview = Schemas["LegacyImportPreview"];
 
-export async function previewLegacyGradingImport(
-  batchId: number,
-  payload: Schemas["LegacyImportRequest"],
-): Promise<LegacyImportPreview> {
-  return apiRequest<LegacyImportPreview>(`/api/data-imports/batches/${batchId}/preview/`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function previewLegacyGradingImport(id: number, body: Schemas["LegacyImportRequest"]) {
+  return answer(api.POST("/api/data-imports/batches/{id}/preview/", { params: { path: { id } }, body }));
 }
 
 export type LegacyGradingRecord = Schemas["LegacyGradingRecord"];
 
-export async function getLegacyGradingRecords(
-  params?: ListQuery<"gradings_legacy_records_list">,
-): Promise<PaginatedResponse<LegacyGradingRecord>> {
-  return apiRequest<PaginatedResponse<LegacyGradingRecord>>(withQuery("/api/gradings/legacy-records/", params));
+export function getLegacyGradingRecords(query?: ListQuery<"gradings_legacy_records_list">) {
+  return answer(api.GET("/api/gradings/legacy-records/", { params: { query } }));
 }
 
-export async function getLegacyGradingRecord(id: number): Promise<LegacyGradingRecord> {
-  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/`);
+export function getLegacyGradingRecord(id: number) {
+  return answer(api.GET("/api/gradings/legacy-records/{id}/", { params: { path: { id } } }));
 }
 
-export async function linkLegacyGradingRecord(
-  id: number,
-  student: number,
-  replace = false,
-): Promise<LegacyGradingRecord> {
-  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/link-student/`, {
-    method: "POST",
-    body: JSON.stringify({ student, replace }),
-  });
+export function linkLegacyGradingRecord(id: number, student: number, replace = false) {
+  return answer(
+    api.POST("/api/gradings/legacy-records/{id}/link-student/", {
+      params: { path: { id } },
+      body: { student, replace },
+    }),
+  );
 }
 
 /** Every page of one historical name group, before choosing records to link. */
-export async function getAllLegacyGradingRecords(
-  params: Omit<ListQuery<"gradings_legacy_records_list">, "page" | "page_size">,
-): Promise<PaginatedResponse<LegacyGradingRecord>> {
-  return collectAllPages((page) => getLegacyGradingRecords({ ...params, page, page_size: LARGEST_PAGE }));
+export function getAllLegacyGradingRecords(
+  query: Omit<ListQuery<"gradings_legacy_records_list">, "page" | "page_size">,
+) {
+  return collectAllPages((page) => getLegacyGradingRecords({ ...query, page, page_size: LARGEST_PAGE }));
 }
 
 export type LegacyPerson = Schemas["LegacyPerson"];
 
 /** Historical records grouped by the name as written, with suggested students. */
-export async function getLegacyPeople(
-  params?: ListQuery<"gradings_legacy_records_people_list">,
-): Promise<PaginatedResponse<LegacyPerson>> {
-  return apiRequest<PaginatedResponse<LegacyPerson>>(withQuery("/api/gradings/legacy-records/people/", params));
+export function getLegacyPeople(query?: ListQuery<"gradings_legacy_records_people_list">) {
+  return answer(api.GET("/api/gradings/legacy-records/people/", { params: { query } }));
 }
 
-type LegacyPeopleSummary = Schemas["LegacyPeopleSummary"];
-type LegacyRecordCounts = Schemas["LegacyRecordCounts"];
-
 /** How many imported records still wait for a student, counted on the server. */
-export async function getLegacyRecordCounts(
-  params?: ListQuery<"gradings_legacy_records_counts_retrieve">,
-): Promise<LegacyRecordCounts> {
-  return apiRequest<LegacyRecordCounts>(withQuery("/api/gradings/legacy-records/counts/", params));
+export function getLegacyRecordCounts(query?: ListQuery<"gradings_legacy_records_counts_retrieve">) {
+  return answer(api.GET("/api/gradings/legacy-records/counts/", { params: { query } }));
 }
 
 /** How many names still wait to be linked, by how clear their suggested students are. */
-export async function getLegacyPeopleSummary(
-  params?: ListQuery<"gradings_legacy_records_people_summary_retrieve">,
-): Promise<LegacyPeopleSummary> {
-  return apiRequest<LegacyPeopleSummary>(withQuery("/api/gradings/legacy-records/people-summary/", params));
+export function getLegacyPeopleSummary(query?: ListQuery<"gradings_legacy_records_people_summary_retrieve">) {
+  return answer(api.GET("/api/gradings/legacy-records/people-summary/", { params: { query } }));
 }
 
 /** Put names aside for now on the linking page; the viewer's own list, on the server. */
-export async function setAsideNames(groupKeys: string[]): Promise<string[]> {
-  const kept = await apiRequest<Schemas["SetAsideNames"]>("/api/gradings/legacy-records/people/set-aside/", {
-    method: "POST",
-    body: JSON.stringify({ group_keys: groupKeys }),
-  });
+export async function setAsideNames(group_keys: string[]): Promise<string[]> {
+  const kept = await answer(api.POST("/api/gradings/legacy-records/people/set-aside/", { body: { group_keys } }));
   return kept.group_keys;
 }
 
-export async function putBackSetAsideName(groupKey: string): Promise<void> {
-  await apiRequest<void>(withQuery("/api/gradings/legacy-records/people/set-aside/", { group_key: groupKey }), {
-    method: "DELETE",
-  });
+export function putBackSetAsideName(group_key: string) {
+  return done(api.DELETE("/api/gradings/legacy-records/people/set-aside/", { params: { query: { group_key } } }));
 }
 
 /** Link many records at once, all or nothing. */
-export async function bulkLinkLegacyRecords(
-  links: Schemas["LegacyRecordLinkRequest"][],
-): Promise<LegacyGradingRecord[]> {
-  return apiRequest<LegacyGradingRecord[]>("/api/gradings/legacy-records/bulk-link/", {
-    method: "POST",
-    body: JSON.stringify({ links }),
-  });
+export function bulkLinkLegacyRecords(links: Schemas["LegacyRecordLinkRequest"][]) {
+  return answer(api.POST("/api/gradings/legacy-records/bulk-link/", { body: { links } }));
 }
 
 /** Unlink many records at once, all or nothing: Undo after a bulk link. */
-export async function bulkUnlinkLegacyRecords(
-  records: Schemas["BulkUnlinkLegacyRecordsRequest"]["records"],
-): Promise<LegacyGradingRecord[]> {
-  return apiRequest<LegacyGradingRecord[]>("/api/gradings/legacy-records/bulk-unlink/", {
-    method: "POST",
-    body: JSON.stringify({ records }),
-  });
+export function bulkUnlinkLegacyRecords(records: Schemas["BulkUnlinkLegacyRecordsRequest"]["records"]) {
+  return answer(api.POST("/api/gradings/legacy-records/bulk-unlink/", { body: { records } }));
 }
 
-export async function unlinkLegacyGradingRecord(id: number): Promise<LegacyGradingRecord> {
-  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/unlink-student/`, { method: "POST" });
+export function unlinkLegacyGradingRecord(id: number) {
+  return answer(api.POST("/api/gradings/legacy-records/{id}/unlink-student/", { params: { path: { id } } }));
 }
 
-export async function resolveLegacyRank(
-  id: number,
-  field: Schemas["LegacyRankFieldEnum"],
-  rankId: number | null,
-): Promise<LegacyGradingRecord> {
-  const body: Schemas["ResolveLegacyRankRequest"] = { field, rank: rankId };
-  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/resolve-rank/`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+export function resolveLegacyRank(id: number, field: Schemas["LegacyRankFieldEnum"], rank: number | null) {
+  return answer(
+    api.POST("/api/gradings/legacy-records/{id}/resolve-rank/", {
+      params: { path: { id } },
+      body: { field, rank },
+    }),
+  );
 }
 
-export async function voidLegacyGradingRecord(id: number, reason: string): Promise<LegacyGradingRecord> {
-  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/void/`, {
-    method: "POST",
-    body: JSON.stringify({ reason }),
-  });
+export function voidLegacyGradingRecord(id: number, reason: string) {
+  return answer(api.POST("/api/gradings/legacy-records/{id}/void/", { params: { path: { id } }, body: { reason } }));
 }
 
 export type GradingHistoryItem = Schemas["GradingHistoryItem"];
 export type StudentGradingHistory = Schemas["StudentGradingHistory"];
 
-export async function getStudentGradingHistory(studentId: number): Promise<StudentGradingHistory> {
-  return apiRequest<StudentGradingHistory>(`/api/students/${studentId}/grading-history/`);
+export function getStudentGradingHistory(id: number) {
+  return answer(api.GET("/api/students/{id}/grading-history/", { params: { path: { id } } }));
 }

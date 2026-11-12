@@ -11,6 +11,7 @@ import {
   jsonResponse,
   sessionsResponse,
   sessionServed,
+  stubFetch,
 } from "./appTestSupport";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   it("shows each session's served progress without asking for its candidates", async () => {
     const fetchMock = makeFetch();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -128,7 +129,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
         can_be_restored: false,
       },
     ] satisfies GradingSession[];
-    vi.stubGlobal("fetch", makeFetch(sessions));
+    stubFetch(makeFetch(sessions));
 
     render(<App />);
 
@@ -140,7 +141,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
   it("asks for archived sessions only when the viewer chooses to see them", async () => {
     const fetchMock = makeFetch(testSessions);
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
     render(<App />);
 
@@ -160,7 +161,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       ...testSessions,
       { ...testSessions[2], id: 4, title: "Old Grading", grading_date: "2024-03-01" },
     ]);
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -181,7 +182,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
   });
 
   it("renders gradings page heading and subtitle", async () => {
-    vi.stubGlobal("fetch", makeFetch());
+    stubFetch(makeFetch());
 
     render(<App />);
 
@@ -190,7 +191,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
   });
 
   it("renders session table rows from API with title, date, and status", async () => {
-    vi.stubGlobal("fetch", makeFetch());
+    stubFetch(makeFetch());
 
     render(<App />);
 
@@ -205,7 +206,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
   });
 
   it("renders the current (open) session spotlight card", async () => {
-    vi.stubGlobal("fetch", makeFetch());
+    stubFetch(makeFetch());
 
     render(<App />);
 
@@ -231,7 +232,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", emptyFetch);
+    stubFetch(emptyFetch);
 
     render(<App />);
 
@@ -259,7 +260,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", emptyAdminFetch);
+    stubFetch(emptyAdminFetch);
 
     render(<App />);
 
@@ -287,7 +288,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", emptyFetch);
+    stubFetch(emptyFetch);
     const user = userEvent.setup();
 
     render(<App />);
@@ -326,7 +327,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", filterFetch);
+    stubFetch(filterFetch);
     const user = userEvent.setup();
 
     render(<App />);
@@ -376,7 +377,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", deleteFetch);
+    stubFetch(deleteFetch);
     const user = userEvent.setup();
 
     render(<App />);
@@ -429,7 +430,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -489,7 +490,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -553,7 +554,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, instructorUser);
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -567,7 +568,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -591,7 +592,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -628,7 +629,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -661,7 +662,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -710,7 +711,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -750,7 +751,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -786,7 +787,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);

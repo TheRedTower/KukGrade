@@ -4029,7 +4029,8 @@ export interface operations {
             path: {
                 /** @description A unique integer value identifying this import batch. */
                 batch_pk: number;
-                row_number: string;
+                /** @description The row's number in the file. */
+                row_number: number;
             };
             cookie?: never;
         };
@@ -4058,7 +4059,8 @@ export interface operations {
             path: {
                 /** @description A unique integer value identifying this import batch. */
                 batch_pk: number;
-                row_number: string;
+                /** @description The row's number in the file. */
+                row_number: number;
             };
             cookie?: never;
         };

@@ -20,6 +20,7 @@ import {
   itemServed,
   sessionServed,
   CHOICES,
+  stubFetch,
 } from "./appTestSupport";
 
 // Candidate Assessment Workspace Screen (/gradings/:sessionId/assessments/:candidateId)
@@ -210,7 +211,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -264,8 +265,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       notation: "Part 1 of 2",
     };
     const items = [mockItem1, formItem];
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
@@ -324,7 +324,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -400,7 +400,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -462,7 +462,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -547,7 +547,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -604,7 +604,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -653,7 +653,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -709,7 +709,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       });
     }
 
-    vi.stubGlobal("fetch", sealedRecordFetch("LOCKED"));
+    stubFetch(sealedRecordFetch("LOCKED"));
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
     const lockedView = render(<App />);
     await screen.findByRole("heading", { name: "Assessment record" });
@@ -717,7 +717,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.queryByText(/reopen/i)).toBeNull();
     lockedView.unmount();
 
-    vi.stubGlobal("fetch", sealedRecordFetch("OPEN"));
+    stubFetch(sealedRecordFetch("OPEN"));
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
     render(<App />);
     const link = await screen.findByTestId("acp-correct-link");
@@ -756,7 +756,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     }
 
     it("opens that registration's history for someone who may read the audit log", async () => {
-      vi.stubGlobal("fetch", recordFetch({ ...authUser, can_read_audit_log: true }));
+      stubFetch(recordFetch({ ...authUser, can_read_audit_log: true }));
       window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
       render(<App />);
@@ -765,7 +765,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     });
 
     it("is not offered to someone who may not", async () => {
-      vi.stubGlobal("fetch", recordFetch({ ...authUser, can_read_audit_log: false }));
+      stubFetch(recordFetch({ ...authUser, can_read_audit_log: false }));
       window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
       render(<App />);
@@ -839,7 +839,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -888,7 +888,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -936,7 +936,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -992,7 +992,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         }
         return jsonResponse(404, { detail: "Not found" });
       });
-      vi.stubGlobal("fetch", fetchMock);
+      stubFetch(fetchMock);
       return { posts };
     }
 
@@ -1003,8 +1003,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         candidate?: Partial<typeof mockCandidate>;
       }) {
         const posts: string[] = [];
-        vi.stubGlobal(
-          "fetch",
+        stubFetch(
           vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
             const url = String(input);
             if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
@@ -1097,8 +1096,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
       it("holds the text still while a comment is saving, so nothing typed meanwhile is lost", async () => {
         let release: ((response: Response) => void) | undefined;
-        vi.stubGlobal(
-          "fetch",
+        stubFetch(
           vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
             const url = String(input);
             if (/assessment-items\/(\d+)\/comments\/$/.test(url) && init?.method === "POST") {
@@ -1277,8 +1275,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     it("does not refetch the items while scores are still saving, so a comment cannot undo a score", async () => {
       let releasePatch: ((response: Response) => void) | undefined;
       let itemFetches = 0;
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const url = String(input);
           if (/assessment-items\/1003\/$/.test(url) && init?.method === "PATCH") {
@@ -1390,7 +1387,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         }
         return jsonResponse(404, { detail: "Not found" });
       });
-      vi.stubGlobal("fetch", base);
+      stubFetch(base);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1467,7 +1464,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1515,7 +1512,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
 
@@ -1605,7 +1602,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   it("rolls back only the item whose save failed", async () => {
     const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3]);
-    vi.stubGlobal("fetch", server.fetchMock);
+    stubFetch(server.fetchMock);
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1631,7 +1628,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   it("sends a second change to the same item only after the first lands", async () => {
     const server = scoringServer([mockItem1, mockItem2, mockItem3]);
-    vi.stubGlobal("fetch", server.fetchMock);
+    stubFetch(server.fetchMock);
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1658,7 +1655,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   describe("changing a mark", () => {
     it("asks why before switching a mark, writes nothing until it is given, and sends it with the change", async () => {
       const server = scoringServer([mockItem1, mockItem2, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1717,7 +1714,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         ],
       });
       const server = scoringServer([mockItem1, mockItem2, cleared]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1733,7 +1730,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("keeps the reason, and says why, when the change is refused", async () => {
       const server = scoringServer([mockItem1, mockItem2, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1777,7 +1774,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         ],
       };
       const server = scoringServer([mockItem1, changed, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
 
@@ -1792,8 +1789,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     it("says so, and brings back the real mark, when another person marked the item first", async () => {
       const user = userEvent.setup();
       let fetchedItems = 0;
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const url = String(input);
           if (init?.method === "PATCH") {
@@ -1832,7 +1828,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("finishing one item's change does not close the prompt open on another", async () => {
       const server = scoringServer([mockItem1, mockItem2, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -1853,8 +1849,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     it("lets a completed assessment's mark be corrected with a reason", async () => {
       const completed = { ...mockAssessment, status: "COMPLETED" as const, status_display: "Completed" };
       const patches: Record<string, unknown>[] = [];
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const url = String(input);
           if (init?.method === "PATCH") {
@@ -1902,8 +1897,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         marks_open: marksOpen,
         can_start: false,
       };
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const url = String(input);
           if (init?.method === "PATCH") {
@@ -1981,7 +1975,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("uses them for a lone mark instead of asking for the counts again", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -2003,7 +1997,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("reads them again when two marks overlapped, since the last answer may predate the other save", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, unmarked(mockItem3)], true);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -2029,8 +2023,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       // the counts as they were when it was asked.
       let holding = false;
       let release: (() => void) | undefined;
-      vi.stubGlobal(
-        "fetch",
+      stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
           const answer = server.fetchMock(input, init) as Promise<Response>;
           if (holding && String(input).includes("/summary/") && !release) {
@@ -2068,7 +2061,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("reads them again when the save failed", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -2083,7 +2076,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("reads them again from a server that answers with the item alone", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3]);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -2098,7 +2091,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     it("keeps the item in the list free of the counts that came with it", async () => {
       const server = scoringServer([unmarked(mockItem1), mockItem2, mockItem3], true);
-      vi.stubGlobal("fetch", server.fetchMock);
+      stubFetch(server.fetchMock);
       const user = userEvent.setup();
       const { container } = render(<App />);
       await screen.findByRole("heading", { name: "Alex Carter" });
@@ -2114,7 +2107,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   it("holds completion until every item save has landed", async () => {
     const server = scoringServer([mockItem1, mockItem2, { ...mockItem3, result: "MET" }]);
-    vi.stubGlobal("fetch", server.fetchMock);
+    stubFetch(server.fetchMock);
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Alex Carter" });
@@ -2179,7 +2172,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -2232,7 +2225,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -2298,7 +2291,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -2338,7 +2331,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -2381,7 +2374,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -2419,7 +2412,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -2495,7 +2488,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -2589,7 +2582,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     const user = userEvent.setup();
 
@@ -2672,7 +2665,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       }
       return jsonResponse(404, { detail: "Not found" });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -2742,7 +2735,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         }
         return jsonResponse(404, { detail: "Not found" });
       });
-      vi.stubGlobal("fetch", fetchMock);
+      stubFetch(fetchMock);
       const user = userEvent.setup();
 
       render(<App />);

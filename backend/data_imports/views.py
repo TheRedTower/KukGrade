@@ -254,6 +254,16 @@ class ImportBatchViewSet(
         return _served_batch(request, committed)
 
 
+# A row is named by its number in the file, which the schema could not read
+# from a queryset built per request.
+ROW_NUMBER = OpenApiParameter(
+    "row_number",
+    int,
+    OpenApiParameter.PATH,
+    description="The row's number in the file.",
+)
+
+
 @extend_schema(
     parameters=[
         OpenApiParameter(
@@ -347,7 +357,11 @@ class ImportRowViewSet(KukGradeViewSet[ImportRow]):
         assert page is not None
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
-    @extend_schema(request=ImportRowCorrectionSerializer, responses=ImportRowSerializer)
+    @extend_schema(
+        parameters=[ROW_NUMBER],
+        request=ImportRowCorrectionSerializer,
+        responses=ImportRowSerializer,
+    )
     def partial_update(
         self,
         request: Request,
@@ -364,7 +378,11 @@ class ImportRowViewSet(KukGradeViewSet[ImportRow]):
         )
         return Response(self.get_serializer(corrected).data)
 
-    @extend_schema(request=ImportRowExclusionSerializer, responses=ImportRowSerializer)
+    @extend_schema(
+        parameters=[ROW_NUMBER],
+        request=ImportRowExclusionSerializer,
+        responses=ImportRowSerializer,
+    )
     @action(detail=True, methods=["post"])
     def exclusion(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Leave a row out of the import, or bring it back."""

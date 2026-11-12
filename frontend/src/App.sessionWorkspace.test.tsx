@@ -20,6 +20,7 @@ import {
   assessmentSummaryFor,
   sessionServed,
   CHOICES,
+  stubFetch,
 } from "./appTestSupport";
 
 /** The open confirmation's own button: the last one in the dialog. */
@@ -445,7 +446,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("renders session header, the way back, status pill, and lifecycle stepper track", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -465,7 +466,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("renders candidate roster table with authentic student ranks, assessment and outcome badges", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -504,7 +505,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("starts all prepared assessments as an explicit bulk action", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -530,7 +531,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("offers bulk preparation when registered candidates have no snapshot", async () => {
     const fetchMock = setupStandardMock({}, testAssessments.slice(0, 2));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -553,7 +554,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("confirms attendance by marking only selected no-shows", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -583,7 +584,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("requires a note before an Other withdrawal can be recorded", async () => {
     const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -601,7 +602,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("allows an authorised Master to record a reasoned locked-session withdrawal", async () => {
     const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -632,7 +633,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       ...adminUser,
       can_override_locked_session: false,
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -659,7 +660,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       adminUser,
       withdrawnCandidates,
     );
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -672,7 +673,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("shows a locked session's proposals and the decision a Master can review", async () => {
-    vi.stubGlobal("fetch", setupStandardMock({ status: "LOCKED", status_display: "Locked" }, undefined, masterUser));
+    stubFetch(setupStandardMock({ status: "LOCKED", status_display: "Locked" }, undefined, masterUser));
 
     render(<App />);
 
@@ -686,8 +687,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("points the awaiting-decision banner at the served count and the decisions board", async () => {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       setupStandardMock({
         status: "LOCKED",
         status_display: "Locked",
@@ -705,7 +705,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("shows no awaiting-decision banner before the session is locked", async () => {
-    vi.stubGlobal("fetch", setupStandardMock({ awaiting_decision_count: 1 }));
+    stubFetch(setupStandardMock({ awaiting_decision_count: 1 }));
 
     render(<App />);
 
@@ -729,7 +729,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return standard(url, init);
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -753,8 +753,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const standard = setupStandardMock();
     let answer: ((response: Response) => void) | undefined;
     let failing = false;
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation((url: string, init?: RequestInit) => {
         const asked = new URL(String(url), "http://localhost").searchParams.get("search");
         if (String(url).includes("/api/gradings/candidates/") && asked) {
@@ -789,8 +788,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("does not show one search's answer while the next search is still on its way", async () => {
     const standard = setupStandardMock();
     const pending: Record<string, (response: Response) => void> = {};
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi.fn().mockImplementation((url: string, init?: RequestInit) => {
         const asked = new URL(String(url), "http://localhost").searchParams.get("search");
         if (String(url).includes("/api/gradings/candidates/") && asked) {
@@ -825,7 +823,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("shows the whole roster again when the search is cleared", async () => {
-    vi.stubGlobal("fetch", setupStandardMock());
+    stubFetch(setupStandardMock());
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Autumn Grading" });
@@ -862,7 +860,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -914,7 +912,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -963,7 +961,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1010,7 +1008,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1022,7 +1020,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("closes the session actions dropdown on outside click and Escape key", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1048,7 +1046,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("moves focus into the session actions menu, steps through it with the arrow keys and gives focus back on Escape", async () => {
-    vi.stubGlobal("fetch", setupStandardMock());
+    stubFetch(setupStandardMock());
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { name: "Autumn Grading" });
@@ -1103,7 +1101,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1121,7 +1119,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("closes confirmation modal on backdrop click and Escape key", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1152,7 +1150,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("traps focus in the lifecycle confirmation modal, defaults to Cancel, and restores focus to the launcher on Escape", async () => {
     const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1207,7 +1205,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       }
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1244,7 +1242,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_archived: false,
       can_be_restored: false,
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     const notStartedAssessments = testAssessments.map((a) => ({
@@ -1326,7 +1324,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_archived: false,
       can_be_restored: false,
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1341,7 +1339,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
   it("offers delete and the session's audit events exactly as the server and grants allow", async () => {
     const fetchMock = setupStandardMock({ can_be_deleted: true });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
@@ -1354,7 +1352,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("hides the audit link from a user who cannot read the audit log", async () => {
-    vi.stubGlobal("fetch", setupStandardMock({}, testAssessments, { ...adminUser, can_read_audit_log: false }));
+    stubFetch(setupStandardMock({}, testAssessments, { ...adminUser, can_read_audit_log: false }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -1366,7 +1364,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("requires a reason before a locked session can be cancelled", async () => {
-    vi.stubGlobal("fetch", setupStandardMock({ status: "LOCKED", status_display: "Locked" }));
+    stubFetch(setupStandardMock({ status: "LOCKED", status_display: "Locked" }));
     const user = userEvent.setup();
 
     render(<App />);
@@ -1388,7 +1386,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       testAssessments,
       instructorUser,
     );
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1426,7 +1424,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         });
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     const row = await screen.findByTestId("candidate-row-102");
@@ -1535,7 +1533,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       return jsonResponse(404, {});
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1631,7 +1629,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       return jsonResponse(404, {});
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 
@@ -1696,7 +1694,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         });
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));
@@ -1750,7 +1748,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         });
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));
@@ -1798,7 +1796,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       return jsonResponse(404, {});
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));

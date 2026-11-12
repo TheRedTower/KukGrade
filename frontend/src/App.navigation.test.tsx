@@ -12,6 +12,7 @@ import {
   jsonResponse,
   signedInResponse,
   ABOUT,
+  stubFetch,
 } from "./appTestSupport";
 
 describe("Navigation rail and role-gated routes", () => {
@@ -47,7 +48,7 @@ describe("Navigation rail and role-gated routes", () => {
   });
 
   it("renders base navigation links for a standard instructor and hides privileged links", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -71,7 +72,7 @@ describe("Navigation rail and role-gated routes", () => {
   });
 
   it("navigates between sections when navigation links are clicked", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -97,7 +98,7 @@ describe("Navigation rail and role-gated routes", () => {
 
   it("redirects an unauthorised instructor attempting direct URL access to /audit", async () => {
     window.history.replaceState({}, "", "/audit");
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -110,7 +111,7 @@ describe("Navigation rail and role-gated routes", () => {
 
   it("redirects an unauthorised instructor attempting direct URL access to /users", async () => {
     window.history.replaceState({}, "", "/users");
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
 
     render(<App />);
 
@@ -123,7 +124,7 @@ describe("Navigation rail and role-gated routes", () => {
 
   it("redirects an Authorised Master attempting direct URL access to /users", async () => {
     window.history.replaceState({}, "", "/users");
-    vi.stubGlobal("fetch", fetchSignedInAs(masterInstructorUser));
+    stubFetch(fetchSignedInAs(masterInstructorUser));
 
     render(<App />);
 
@@ -135,7 +136,7 @@ describe("Navigation rail and role-gated routes", () => {
   });
 
   it("grants Audit access and displays the Audit link for an Authorised Master", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(masterInstructorUser));
+    stubFetch(fetchSignedInAs(masterInstructorUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -150,7 +151,7 @@ describe("Navigation rail and role-gated routes", () => {
   });
 
   it("grants full navigation and route access for an Administrator", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(adminUser));
+    stubFetch(fetchSignedInAs(adminUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -186,8 +187,7 @@ describe("The sidebar", () => {
   });
 
   function stubSite(user: AuthUser = authUser) {
-    vi.stubGlobal(
-      "fetch",
+    stubFetch(
       vi
         .fn()
         .mockImplementation(async (url: string) =>
@@ -200,7 +200,7 @@ describe("The sidebar", () => {
 
   it("takes the brand to the dashboard from any page", async () => {
     window.history.replaceState({}, "", "/students");
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    stubFetch(fetchSignedInAs(authUser));
     const user = userEvent.setup();
 
     render(<App />);
@@ -278,7 +278,7 @@ describe("The sidebar", () => {
           ? jsonResponse(200, { club_name: "Test club", time_zone: "Pacific/Auckland" })
           : signedInResponse(url, authUser),
       );
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     render(<App />);
 

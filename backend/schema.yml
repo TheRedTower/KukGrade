@@ -552,8 +552,8 @@ paths:
       - in: path
         name: row_number
         schema:
-          type: string
-          pattern: ^[0-9]+$
+          type: integer
+        description: The row's number in the file.
         required: true
       tags:
       - data-imports
@@ -591,8 +591,8 @@ paths:
       - in: path
         name: row_number
         schema:
-          type: string
-          pattern: ^[0-9]+$
+          type: integer
+        description: The row's number in the file.
         required: true
       tags:
       - data-imports

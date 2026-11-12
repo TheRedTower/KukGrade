@@ -503,6 +503,26 @@ def test_commit_creates_students_via_the_normal_service_and_audits_both() -> Non
     assert AuditEvent.objects.count() == events_before + 2  # student + batch
 
 
+def test_a_committed_import_keeps_the_title_its_committer_held() -> None:
+    admin = User.objects.create_user(
+        email="titled-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+        first_name="Jane",
+        last_name="Smith",
+    )
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    commit_roster(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+
+    batch.refresh_from_db()
+    assert batch.committed_by_title == "administrator"
+    client = APIClient()
+    client.force_authenticate(admin)
+    served = client.get(f"/api/data-imports/batches/{batch.pk}/")
+    assert served.status_code == 200
+    assert served.json()["committed_by_name"] == "Jane Smith (administrator)"
+
+
 def test_commit_never_creates_a_student_for_a_skip_existing_row() -> None:
     existing = Student.objects.create(
         wksa_id="123-4-500",

@@ -538,6 +538,7 @@ def _mark_committed(
         update_fields=[
             "status",
             "committed_by",
+            "committed_by_title",
             "committed_at",
             "summary_json",
             "source_file",

@@ -198,7 +198,8 @@ describe("About: the code of conduct", () => {
     const text = within(await screen.findByRole("article", { name: "Code of conduct text" }));
     // The file's own title is the page's, so its sections sit below the page heading.
     expect(text.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
-    expect(text.getByRole("heading", { level: 3, name: "Our Pledge" })).toHaveAttribute("id", "our-pledge");
+    // The Markdown reader loads on its own, once a document is opened.
+    expect(await text.findByRole("heading", { level: 3, name: "Our Pledge" })).toHaveAttribute("id", "our-pledge");
 
     const contents = within(screen.getByRole("navigation", { name: "Code of conduct, on this page" }));
     await user.click(contents.getByRole("button", { name: "Enforcement" }));

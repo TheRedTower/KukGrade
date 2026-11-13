@@ -416,7 +416,9 @@ describe("Overview screen (Operational Ledger)", () => {
 
     // Navigate back to overview
     window.history.replaceState({}, "", "/");
-    await user.click(screen.getByRole("link", { name: "Overview" }));
+    // The session page opens at once now, and its back link to the Overview is named the same.
+    const mainNavigation = within(screen.getByRole("navigation", { name: "Main navigation" }));
+    await user.click(mainNavigation.getByRole("link", { name: "Overview" }));
 
     // Click "View all activity"
     const viewAllButton = await screen.findByRole("link", { name: /View all activity/i });

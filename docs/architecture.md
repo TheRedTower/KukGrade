@@ -109,7 +109,8 @@ an `ApiError`. Tests stand in for the server with `stubFetch` (`appTestSupport.t
 `frontend/src/queryKeys.ts` names every
 query and mutation the app keeps (`keys`; a lint rule refuses a key written anywhere else)
 and says what to read again after the changes several screens make (`refresh`), so a screen
-that changes data and one that shows it agree.
+that changes data and one that shows it agree. Every screen is in the one bundle;
+only the About documents' Markdown reader is loaded on its own.
 
 Two behaviours worth knowing:
 

@@ -8,7 +8,7 @@ import { ErrorText } from "./ErrorText";
 import { Field } from "./Field";
 import { Alert } from "./Alert";
 import { createGradingSession } from "./api";
-import { useServerForm } from "./forms";
+import { requiredErrors, useServerForm } from "./forms";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { SessionStatusBadge } from "./StatusBadge";
 import { labelOf, useChoices } from "./choices";
@@ -101,15 +101,13 @@ export function CreateGradingSessionScreen() {
     e.preventDefault();
     form.reset();
 
-    const errors: Record<string, string[]> = {};
+    const errors = requiredErrors({
+      title: [title, "Session title"],
+      // The date is given only once its day, month and year are all chosen.
+      grading_date: [day && month && year, "Grading date"],
+    });
 
-    if (!title.trim()) {
-      errors.title = ["Session title is required."];
-    }
-
-    if (!day || !month || !year) {
-      errors.grading_date = ["Grading date is required."];
-    } else {
+    if (!errors.grading_date) {
       const y = parseInt(year, 10);
       const m = parseInt(month, 10) - 1;
       const d = parseInt(day, 10);

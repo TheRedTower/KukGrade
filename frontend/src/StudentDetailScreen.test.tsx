@@ -312,6 +312,7 @@ describe("StudentDetailScreen grading history", () => {
           source_testing_for_rank_text: "",
           outcome: "CONDITIONAL",
           attendance_status: "ATTENDED",
+          result_display: "Conditional",
           comments: "Good spirit.",
           note: "",
           conditional_requirements: "Repeat the kicking set within three months.",

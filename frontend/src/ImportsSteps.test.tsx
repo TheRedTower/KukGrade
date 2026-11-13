@@ -5,10 +5,10 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AuthUser, type DataImportBatch, type DataImportRow } from "./api";
-import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, SITE } from "./appTestSupport";
+import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, page, SITE } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
 import { ImportReview } from "./ImportReview";
-import { batch, legacyRecord as record, page, person, RANKS, row } from "./importTestFixtures";
+import { batch, legacyRecord as record, person, RANKS, row } from "./importTestFixtures";
 import { LinkRecordsScreen } from "./LinkRecordsScreen";
 
 const api = vi.hoisted(() => ({

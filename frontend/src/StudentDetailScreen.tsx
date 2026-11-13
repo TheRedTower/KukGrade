@@ -28,7 +28,7 @@ import { buttonClass } from "./buttonClass";
 import { badgeProps } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useChoices } from "./choices";
-import { StudentStatusBadge } from "./StatusBadge";
+import { ResultBadge, StudentStatusBadge } from "./StatusBadge";
 import "./StudentScreens.css";
 import { formatLongDate, formatMonthYear, formatShortDate } from "./dates";
 import { CheckIcon, LockIcon } from "./Icons";
@@ -43,14 +43,6 @@ function formatGradingHistoryDate(item: GradingHistoryItem): string {
     return formatMonthYear(item.cycle_year, item.cycle_month);
   }
   return "—";
-}
-
-function gradingHistoryOutcomeLabel(item: GradingHistoryItem): string {
-  if (item.attendance_status === "DID_NOT_ATTEND") return "Did not attend";
-  if (item.outcome === "PASS") return "Pass";
-  if (item.outcome === "FAIL") return "Fail";
-  if (item.outcome === "CONDITIONAL") return "Conditional";
-  return "Unresolved";
 }
 
 export function StudentDetailScreen() {
@@ -320,16 +312,11 @@ export function StudentDetailScreen() {
                   {
                     key: "outcome",
                     header: "Outcome",
-                    render: (item) =>
-                      item.attendance_status === "DID_NOT_ATTEND" ? (
-                        <Badge tone="neutral">{gradingHistoryOutcomeLabel(item)}</Badge>
-                      ) : item.outcome === "PASS" ? (
-                        <Badge tone="success" icon={<CheckIcon size={14} />}>
-                          {gradingHistoryOutcomeLabel(item)}
-                        </Badge>
-                      ) : (
-                        <Badge tone="warning">{gradingHistoryOutcomeLabel(item)}</Badge>
-                      ),
+                    render: (item) => (
+                      <ResultBadge result={item.outcome} absent={item.attendance_status === "DID_NOT_ATTEND"}>
+                        {item.result_display}
+                      </ResultBadge>
+                    ),
                   },
                   {
                     key: "comments",

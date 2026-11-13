@@ -1,5 +1,3 @@
-import { Link } from "react-router-dom";
-
 import { Alert } from "./Alert";
 
 import { type AgeBand, type Rank, type StudentListItem, errorMessage } from "./api";
@@ -15,6 +13,9 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
 import { counted } from "./plural";
 import { CheckIcon, InfoIcon } from "./Icons";
+import { Field } from "./Field";
+import { Select } from "./Select";
+import { ExternalLink } from "./ExternalLink";
 
 export type StatusFilter = "ACTIVE_INACTIVE" | "ACTIVE" | "INACTIVE";
 
@@ -88,52 +89,50 @@ export function CohortFindSection({
           />
         </label>
 
-        <div className="field">
-          <label htmlFor="bgc-rank-filter">Current rank</label>
-          <select id="bgc-rank-filter" value={rankFilter} onChange={(e) => onRankFilter(e.target.value)}>
-            <option value="ALL">All ranks</option>
-            {ranks
-              // A rank whose next rank has its syllabus recorded, so its students can be graded.
-              .filter((r) => r.next_rank !== null && rankMap.get(r.next_rank)?.has_syllabus)
-              .map((r) => (
-                <option key={r.id} value={String(r.id)}>
-                  {r.name}
-                </option>
-              ))}
-          </select>
-        </div>
+        <Field label="Current rank" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All ranks"
+              allValue="ALL"
+              options={ranks
+                // A rank whose next rank has its syllabus recorded, so its students can be graded.
+                .filter((r) => r.next_rank !== null && rankMap.get(r.next_rank)?.has_syllabus)
+                .map((r) => ({ value: String(r.id), label: r.name }))}
+              value={rankFilter}
+              onChange={onRankFilter}
+            />
+          )}
+        </Field>
 
-        <div className="field">
-          <label htmlFor="bgc-age-filter">Age group</label>
-          <select
-            id="bgc-age-filter"
-            value={ageFilter}
-            onChange={(e) => onAgeFilter(e.target.value)}
-            data-testid="bgc-age-filter"
-          >
-            <option value="ALL">All ages</option>
-            {ageBands.map((band) => (
-              <option key={band.code} value={band.code}>
-                {band.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field label="Age group" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All ages"
+              allValue="ALL"
+              options={ageBands.map((band) => ({ value: band.code, label: band.name }))}
+              value={ageFilter}
+              onChange={onAgeFilter}
+              data-testid="bgc-age-filter"
+            />
+          )}
+        </Field>
 
-        <div className="field">
-          <label htmlFor="bgc-status-filter">Status</label>
-          <select
-            id="bgc-status-filter"
-            value={statusFilter}
-            onChange={(e) => onStatusFilter(e.target.value as StatusFilter)}
-          >
-            <option value="ACTIVE_INACTIVE">
-              {active} + {inactive}
-            </option>
-            <option value="ACTIVE">{active} only</option>
-            <option value="INACTIVE">{inactive} only</option>
-          </select>
-        </div>
+        <Field label="Status" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              options={[
+                { value: "ACTIVE_INACTIVE", label: `${active} + ${inactive}` },
+                { value: "ACTIVE", label: `${active} only` },
+                { value: "INACTIVE", label: `${inactive} only` },
+              ]}
+              value={statusFilter}
+              onChange={(value) => onStatusFilter(value as StatusFilter)}
+            />
+          )}
+        </Field>
       </div>
 
       {/* Filter matching summary banner */}
@@ -194,10 +193,9 @@ export function CohortFindSection({
                 primary: true,
                 render: (student) => (
                   <>
-                    <Link to={`/students/${student.id}`} target="_blank" rel="noreferrer">
+                    <ExternalLink to={`/students/${student.id}`}>
                       {student.first_name} {student.last_name}
-                      <span className="visually-hidden"> (opens in a new tab)</span>
-                    </Link>
+                    </ExternalLink>
                     <span className="bgc-student-id meta">{student.wksa_id || "—"}</span>
                   </>
                 ),

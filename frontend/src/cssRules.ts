@@ -59,7 +59,7 @@ export function definedClasses(css: string): Set<string> {
   return names;
 }
 
-/** The literal class names a source file puts in className="..." or className={`...`}. */
+/** The literal class names a source file puts in className="..." or className={`...`}, or joins with cx(). */
 export function usedClasses(source: string): Set<string> {
   const names = new Set<string>();
   const add = (text: string) => {
@@ -70,6 +70,12 @@ export function usedClasses(source: string): Set<string> {
   };
   for (const match of source.matchAll(/className="([^"]*)"/g)) add(match[1]);
   for (const match of source.matchAll(/className=\{`([^`]*)`\}/g)) add(match[1]);
+  // The plain names joined by cx(...), each in its own quotes.
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  for (const match of code.matchAll(/\bcx\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)) {
+    // Only a name given as an argument, or after &&: never a value compared or defaulted.
+    for (const literal of match[1].matchAll(/(?:^|,|&&)\s*"([^"]*)"\s*(?=,|$)/g)) add(literal[1]);
+  }
   // The extra classes given to buttonClass as its second argument.
   for (const match of source.matchAll(/buttonClass\(\{[^}]*\},\s*"([^"]*)"\)/g)) add(match[1]);
   return names;

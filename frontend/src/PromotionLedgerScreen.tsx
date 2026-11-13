@@ -7,7 +7,7 @@ import { recordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
-import { outcomeTone } from "./badgeClass";
+import { OutcomeBadge } from "./StatusBadge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -331,22 +331,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             {
               key: "outcome",
               header: "Outcome",
-              render: (row) => {
-                const outcome = row.outcome;
-                if (outcome?.status === "FINALISED") {
-                  const result = outcome.final_outcome;
-                  if (result)
-                    return (
-                      <Badge tone={outcomeTone(result)}>
-                        {outcome.final_outcome_display} ({outcome.status_display})
-                      </Badge>
-                    );
-                }
-                if (outcome?.status === "PROPOSED") {
-                  return <Badge tone="neutral">Proposed: {outcome.proposed_outcome_display || "Pending"}</Badge>;
-                }
-                return <Badge tone="neutral">Outcome pending</Badge>;
-              },
+              render: (row) => <OutcomeBadge outcome={row.outcome} />,
             },
             {
               key: "eligibility",

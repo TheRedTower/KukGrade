@@ -2,10 +2,6 @@ import type { DataImportBatch, DataImportRow, LegacyGradingRecord, LegacyPerson,
 
 // Invented data for the import screens' tests.
 
-export function page<T>(results: T[], count = results.length) {
-  return { count, next: null, previous: null, results };
-}
-
 export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch {
   return {
     id: 7,

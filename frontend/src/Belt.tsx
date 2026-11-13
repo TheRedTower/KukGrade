@@ -1,6 +1,7 @@
 import { type Rank } from "./api";
 import { useRanksQuery } from "./queries";
 import "./Belt.css";
+import { cx } from "./cx";
 
 export type BeltRank = Pick<Rank, "name" | "belt_colour" | "stripe_colour" | "stripe_count">;
 
@@ -9,10 +10,10 @@ export function BeltSwatch({ rank }: { rank: BeltRank | null | undefined }) {
   if (!rank) return null;
   const stripe = rank.stripe_colour;
   return (
-    <span className={`belt belt-${rank.belt_colour.toLowerCase()}`} aria-hidden="true">
+    <span className={cx("belt", `belt-${rank.belt_colour.toLowerCase()}`)} aria-hidden="true">
       {stripe
         ? Array.from({ length: rank.stripe_count }, (_, index) => (
-            <span key={index} className={`belt-stripe belt-${stripe.toLowerCase()}`} />
+            <span key={index} className={cx("belt-stripe", `belt-${stripe.toLowerCase()}`)} />
           ))
         : null}
     </span>

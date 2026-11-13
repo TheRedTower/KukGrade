@@ -2237,6 +2237,8 @@ export interface components {
             source_testing_for_rank_text: string;
             outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             attendance_status: components["schemas"]["AttendanceStatusEnum"];
+            /** @description The result as the history names it: the outcome, that the student did not attend, or that a historical outcome is not one KukGrade knows. */
+            readonly result_display: string;
             /** @description The grading report: decision notes, or a historical record's comments. */
             comments: string;
             /** @description Anything else a historical sheet said beside the record. */
@@ -2278,6 +2280,12 @@ export interface components {
             readonly marking_open: boolean;
             /** @description Whether final decisions are being made now: the session is locked. */
             readonly decisions_open: boolean;
+            /** @description Whether the session has left draft, so its count of complete assessments means something. */
+            readonly marking_begun: boolean;
+            /** @description Whether its final decisions and promotion ledger can be opened: the session is locked or completed. */
+            readonly results_open: boolean;
+            /** @description Whether any assessment work has been recorded in it, which deleting the session would erase. */
+            readonly has_recorded_work: boolean;
             /** @description Whether the viewer may open this session now. */
             readonly can_open: boolean;
             /** @description Whether the viewer may ask to lock this session now. Locking itself checks that every assessment is complete. */

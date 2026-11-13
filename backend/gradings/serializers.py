@@ -95,6 +95,27 @@ class GradingSessionSerializer(ModelSerializer):
             "Whether final decisions are being made now: the session is locked."
         ),
     )
+    marking_begun = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether the session has left draft, so its count of complete "
+            "assessments means something."
+        ),
+    )
+    results_open = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether its final decisions and promotion ledger can be opened: "
+            "the session is locked or completed."
+        ),
+    )
+    has_recorded_work = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether any assessment work has been recorded in it, which "
+            "deleting the session would erase."
+        ),
+    )
     can_open = serializers.SerializerMethodField(
         help_text="Whether the viewer may open this session now.",
     )
@@ -142,6 +163,9 @@ class GradingSessionSerializer(ModelSerializer):
             "roster_open",
             "marking_open",
             "decisions_open",
+            "marking_begun",
+            "results_open",
+            "has_recorded_work",
             "can_open",
             "can_lock",
             "can_complete",

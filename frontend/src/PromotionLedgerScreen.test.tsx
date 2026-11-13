@@ -481,35 +481,35 @@ describe("PromotionLedgerScreen", () => {
       expect(screen.getByText("Alex Mercer")).toBeInTheDocument();
     });
 
-    // Row 101 (Alex Mercer): Pass (Finalised), Eligible for Yellow, Promote button
+    // Row 101 (Alex Mercer): Finalised: Pass, Eligible for Yellow, Promote button
     const row101 = screen.getByTestId("promotion-row-101");
-    expect(row101).toHaveTextContent("Pass (Finalised)");
+    expect(row101).toHaveTextContent("Finalised: Pass");
     expect(row101).toHaveTextContent("Eligible for Yellow");
     expect(screen.getByTestId("promote-candidate-btn-101")).toHaveTextContent("Promote to Yellow");
 
-    // Row 102 (Beth Harmon): Pass (Finalised), Eligible for Blue Stripe, Promote button
+    // Row 102 (Beth Harmon): Finalised: Pass, Eligible for Blue Stripe, Promote button
     const row102 = screen.getByTestId("promotion-row-102");
-    expect(row102).toHaveTextContent("Pass (Finalised)");
+    expect(row102).toHaveTextContent("Finalised: Pass");
     expect(row102).toHaveTextContent("Eligible for Blue Stripe");
     expect(screen.getByTestId("promote-candidate-btn-102")).toHaveTextContent("Promote to Blue Stripe");
 
     // Row 103 (Carlos Rivera): Already promoted to Yellow
     const row103 = screen.getByTestId("promotion-row-103");
-    expect(row103).toHaveTextContent("Pass (Finalised)");
+    expect(row103).toHaveTextContent("Finalised: Pass");
     expect(row103).toHaveTextContent("Promoted to Yellow");
     expect(row103).toHaveTextContent("Effective 15 Oct 2026");
     expect(row103).toHaveTextContent("Promoted");
     expect(screen.queryByTestId("promote-candidate-btn-103")).not.toBeInTheDocument();
 
-    // Row 104 (Diana Prince): Conditional (Finalised)
+    // Row 104 (Diana Prince): Finalised: Conditional
     const row104 = screen.getByTestId("promotion-row-104");
-    expect(row104).toHaveTextContent("Conditional (Finalised)");
+    expect(row104).toHaveTextContent("Finalised: Conditional");
     expect(row104).toHaveTextContent("Only a pass can be promoted.");
     expect(screen.queryByTestId("promote-candidate-btn-104")).not.toBeInTheDocument();
 
-    // Row 105 (Ethan Hunt): Fail (Finalised)
+    // Row 105 (Ethan Hunt): Finalised: Fail
     const row105 = screen.getByTestId("promotion-row-105");
-    expect(row105).toHaveTextContent("Fail (Finalised)");
+    expect(row105).toHaveTextContent("Finalised: Fail");
     expect(row105).toHaveTextContent("Only a pass can be promoted.");
     expect(screen.queryByTestId("promote-candidate-btn-105")).not.toBeInTheDocument();
 

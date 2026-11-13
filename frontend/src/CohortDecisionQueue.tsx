@@ -1,8 +1,8 @@
-import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
 import { ErrorText } from "./ErrorText";
 import { type BoardRow, type StagedDecision } from "./adjudicationBoard";
 import { outcomeTone } from "./badgeClass";
+import { ResultBadge } from "./StatusBadge";
 import { CheckIcon } from "./Icons";
 import { useChoices } from "./choices";
 import "./OutcomeControls.css";
@@ -90,7 +90,7 @@ export function CohortDecisionQueue({
           header: "Proposal",
           render: (row) =>
             row.outcome?.proposed_outcome ? (
-              <Badge tone={outcomeTone(row.outcome.proposed_outcome)}>{row.outcome.proposed_outcome_display}</Badge>
+              <ResultBadge result={row.outcome.proposed_outcome}>{row.outcome.proposed_outcome_display}</ResultBadge>
             ) : (
               <span className="cab-flags meta">Awaiting proposal</span>
             ),

@@ -12,6 +12,7 @@ import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
 import { counted } from "./plural";
+import { ExternalLink } from "./ExternalLink";
 
 /** A student the registration refused, with why, as the resolver lists them. */
 export interface FlaggedCandidateItem {
@@ -125,14 +126,12 @@ export function CohortResolver({
               actions: true,
               render: (item) => (
                 <>
-                  <Link
+                  <ExternalLink
                     to={`/students/${item.student.id}`}
                     className={buttonClass({ variant: "ghost", small: true })}
-                    target="_blank"
-                    rel="noreferrer"
                   >
-                    View student<span className="visually-hidden"> (opens in a new tab)</span>
-                  </Link>
+                    View student
+                  </ExternalLink>
                   <Button variant="danger-quiet" small disabled={isSubmitting} onClick={() => onRemove(item.key)}>
                     Remove from list
                   </Button>

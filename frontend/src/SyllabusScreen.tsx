@@ -21,6 +21,8 @@ import { RequirementBadge } from "./StatusBadge";
 import "./Syllabus.css";
 import { keys } from "./queryKeys";
 import { ArrowRightIcon } from "./Icons";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -176,51 +178,39 @@ export function SyllabusScreen() {
 
       {/* Top Filter Controls */}
       <div className="filter-bar" aria-label="Syllabus filters">
-        <div className="field">
-          <label htmlFor="syl-curriculum-select">Curriculum</label>
-          <select
-            id="syl-curriculum-select"
-            value={programme ?? ""}
-            onChange={(e) => handleProgrammeChange(e.target.value as Programme)}
-          >
-            {programmes.map((band) => (
-              <option key={band.programme} value={band.programme}>
-                {band.programme_display}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field label="Curriculum" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              options={programmes.map((band) => ({ value: band.programme, label: band.programme_display }))}
+              value={programme ?? ""}
+              onChange={(value) => handleProgrammeChange(value as Programme)}
+            />
+          )}
+        </Field>
 
-        <div className="field">
-          <label htmlFor="syl-age-select">Age group</label>
-          <select
-            id="syl-age-select"
-            value={selectedAgeBand ?? ""}
-            onChange={(e) => handleAgeBandChange(e.target.value as AgeBandEnum)}
-          >
-            {ageBands.map((band) => (
-              <option key={band.code} value={band.code}>
-                {band.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field label="Age group" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              options={ageBands.map((band) => ({ value: band.code, label: band.name }))}
+              value={selectedAgeBand ?? ""}
+              onChange={(value) => handleAgeBandChange(value as AgeBandEnum)}
+            />
+          )}
+        </Field>
 
-        <div className="field">
-          <label htmlFor="syl-rank-select">Testing for</label>
-          <select
-            id="syl-rank-select"
-            value={selectedRankCode}
-            onChange={(e) => setChosenRankCode(e.target.value)}
-            disabled={ranksQuery.isLoading || ranks.length === 0}
-          >
-            {ranks.map((r) => (
-              <option key={r.code} value={r.code}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field label="Testing for" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              options={ranks.map((r) => ({ value: r.code, label: r.name }))}
+              value={selectedRankCode}
+              onChange={setChosenRankCode}
+              disabled={ranksQuery.isLoading || ranks.length === 0}
+            />
+          )}
+        </Field>
       </div>
 
       {/* The ranks: a page at a time, so every one is shown whole. */}

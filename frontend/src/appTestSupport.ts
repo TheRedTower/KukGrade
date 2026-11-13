@@ -9,6 +9,7 @@ import type {
   GradingSessionStatus,
   SiteSettings,
 } from "./api";
+import type { paths } from "./api/schema";
 
 /** /api/choices/ as the server serves it. */
 export const CHOICES: Choices = {
@@ -195,6 +196,37 @@ export function jsonResponse(status: number, body: unknown): Response {
   } as Response;
 }
 
+/** One page of a list, as every paged endpoint serves it. */
+export function page<T>(results: T[], count = results.length) {
+  return { count, next: null, previous: null, results };
+}
+
+/** The schema paths that answer a GET with JSON. */
+type ReadPath = {
+  [P in keyof paths]: paths[P] extends { get: { responses: { 200: { content: { "application/json": unknown } } } } }
+    ? P
+    : never;
+}[keyof paths];
+type ReadBody<P extends ReadPath> = paths[P]["get"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The server's answers to GET requests, each keyed by its schema path
+ * ("/api/students/{id}/") and typed as that path's response, so a fixture in a
+ * shape the server no longer sends fails the type check. A path matches whole,
+ * its {parameters} standing for any one segment, whatever the query.
+ * Gives undefined for a request it holds no answer to.
+ */
+export function serve(answers: { [P in ReadPath]?: ReadBody<P> }): (url: string) => Response | undefined {
+  const routes = Object.entries(answers).map(
+    ([path, body]) => [new RegExp(`^${path.replace(/\{[^/]+\}/g, "[^/]+")}$`), body] as const,
+  );
+  return (url) => {
+    const path = url.split("?")[0];
+    const found = routes.find(([pattern]) => pattern.test(path));
+    return found ? jsonResponse(200, found[1]) : undefined;
+  };
+}
+
 /**
  * Stand in for the server. The app sends a Request; `respond` is called as
  * fetch(path, init) with its path and query, method, headers, credentials
@@ -297,6 +329,9 @@ export function sessionServed(status: GradingSessionStatus, { withOverride = fal
     roster_open: roster,
     marking_open: status === "OPEN",
     decisions_open: status === "LOCKED",
+    marking_begun: status !== "DRAFT",
+    results_open: status === "LOCKED" || status === "COMPLETED",
+    has_recorded_work: false,
     can_open: status === "DRAFT",
     can_lock: status === "OPEN",
     can_complete: status === "LOCKED",

@@ -16,17 +16,14 @@ npm run test:widths                  # every width
 KUKGRADE_E2E_QUICK=1 npm run test:widths
 ```
 
-`widthDebt.json` lists screens that still do not fit. CI is authoritative (fonts differ
-between machines): there, a screen on the list is expected to fail and a screen off it must
-pass, so the list only shrinks and the run tells you when to remove one. A local run only
-notes what it finds for the screens on the list.
+Every screen must fit: there is no list for parking one that does not. CI is
+authoritative, since fonts differ between machines.
 
 ## WebKit (iPhone and iPad)
 
 Three projects run the same screens: `chromium` (the nine widths), `webkit-iphone` (320, 390, 430) and
 `webkit-ipad` (768, 820, 1024). WebKit is Safari's engine, so it catches layout that only Safari gets wrong.
-Run one with `npx playwright test --project=webkit-iphone`. `widthDebtWebkit.json` is the debt list per WebKit
-project, and works like `widthDebt.json`.
+Run one with `npx playwright test --project=webkit-iphone`.
 
 Besides overflow, `overflow.ts` flags a date input wider than its box and two cards stacked with no gap, and
 the `grading-*-actions` screens open the Session actions menu so a menu running off the screen is caught.

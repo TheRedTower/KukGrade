@@ -8,6 +8,7 @@ leaks to other modules.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -63,6 +64,15 @@ def club(django_db_setup: None, django_db_blocker: Any) -> Iterator[None]:
 def in_demo_mode() -> Iterator[None]:
     with override_settings(DEMO_MODE=True):
         yield
+
+
+def test_the_club_tests_share_one_worker(request: pytest.FixtureRequest) -> None:
+    # pytest-xdist marks a grouped test by adding the group to its node id. If
+    # that stops working (as it did under pytest 9.2), every worker builds its
+    # own club; this fails instead of the suite silently slowing down.
+    if not os.environ.get("PYTEST_XDIST_WORKER"):
+        pytest.skip("only meaningful when run with -n")
+    assert request.node.nodeid.endswith("@demo_club")
 
 
 @pytest.mark.django_db

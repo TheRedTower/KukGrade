@@ -1,7 +1,5 @@
 import { type APIRequestContext, type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
 
-import debt from "./widthDebt.json" with { type: "json" };
-import webkitDebt from "./widthDebtWebkit.json" with { type: "json" };
 import { findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
 import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
 
@@ -17,7 +15,7 @@ interface Ids {
 }
 
 interface Screen {
-  /** The name used in the width debt lists. */
+  /** The test's name. */
   name: string;
   role: Role;
   path: (ids: Ids) => string;
@@ -139,8 +137,6 @@ const SCREENS: Screen[] = [
 ];
 
 const quick = Boolean(process.env.KUKGRADE_E2E_QUICK);
-const known = new Set(SCREENS.map((screen) => screen.name));
-const authoritative = Boolean(process.env.CI);
 const contexts = new Map<Role, BrowserContext>();
 let ids: Ids;
 
@@ -152,6 +148,40 @@ async function signIn(browser: Browser, role: Role): Promise<BrowserContext> {
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
   await page.close();
   return context;
+}
+
+/** The requests each page has sent and not yet had an answer to. */
+const inFlight = new WeakMap<Page, Set<unknown>>();
+
+async function trackedPage(role: Role): Promise<Page> {
+  const page = await contexts.get(role)!.newPage();
+  const open = new Set<unknown>();
+  inFlight.set(page, open);
+  page.on("request", (request) => open.add(request));
+  page.on("requestfinished", (request) => open.delete(request));
+  page.on("requestfailed", (request) => open.delete(request));
+  return page;
+}
+
+/**
+ * Waits until the screen has drawn what it loads: no loading line, no request
+ * still waiting for its answer (some screens fill in without a loading line),
+ * and the same two frames later, since an answer can start the next request.
+ * Then its fonts. Waiting for the network to fall silent instead cost half a
+ * second on every load.
+ */
+async function settled(page: Page): Promise<void> {
+  const open = inFlight.get(page)!;
+  const loading = page.locator(".loading-state");
+  for (;;) {
+    await expect(loading).toHaveCount(0);
+    await expect.poll(() => open.size, { intervals: [10] }).toBe(0);
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    if (open.size === 0 && (await loading.count()) === 0) break;
+  }
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
 }
 
 async function list(request: APIRequestContext, path: string): Promise<Record<string, unknown>[]> {
@@ -183,16 +213,6 @@ test.beforeAll(async ({ browser }) => {
     sessions,
     candidate: String(candidates[0].id),
   };
-});
-
-test("the debt lists name only screens that exist", () => {
-  const testInfo = test.info();
-  const webkitProjects = testInfo.config.projects
-    .map((project) => project.name)
-    .filter((name) => name.startsWith("webkit"));
-  expect(Object.keys(webkitDebt).sort()).toEqual(webkitProjects.sort());
-  expect(Object.keys(WEBKIT_WIDTHS).sort()).toEqual(webkitProjects.sort());
-  expect([...debt, ...Object.values(webkitDebt).flat()].filter((name) => !known.has(name))).toEqual([]);
 });
 
 test("the edit-student dialog can be scrolled to Save on a short landscape screen", async () => {
@@ -308,40 +328,13 @@ for (const path of ["/", "/students", "/gradings"]) {
   });
 }
 
-test("every control on every screen is a finger-sized target on a phone", async () => {
-  test.skip(test.info().project.name !== "webkit-iphone", "touch targets are judged on the phone");
-  const problems: string[] = [];
-  for (const screen of SCREENS) {
-    const page = await contexts.get(screen.role)!.newPage();
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(screen.path(ids));
-    await page.getByRole("heading").first().waitFor();
-    await page.waitForLoadState("networkidle");
-    await screen.after?.(page);
-    for (const small of await findSmallTargets(page)) problems.push(`${screen.name}: ${small}`);
-    await page.close();
-  }
-  expect(problems, `controls under 44px:\n  ${problems.join("\n  ")}`).toEqual([]);
-});
-
 for (const screen of SCREENS) {
   test(screen.name, async ({ browserName }, testInfo) => {
     const webkit = browserName === "webkit";
     const widths = webkit ? WEBKIT_WIDTHS[testInfo.project.name] : quick ? QUICK_WIDTHS : ALL_WIDTHS;
-    // WebKit checks the same few widths in every run, so only Chrome's quick run is partial.
-    const partial = quick && !webkit;
-    const debtFile = webkit ? `widthDebtWebkit.json (${testInfo.project.name})` : "widthDebt.json";
-    const owedHere = (
-      (webkit ? webkitDebt[testInfo.project.name as keyof typeof webkitDebt] : debt) as string[]
-    ).includes(screen.name);
-    // A screen on the debt list is expected not to fit yet. Where the run is
-    // authoritative (CI, all widths) Playwright reports a pass of an expected
-    // failure as a failure: remove the screen from widthDebt.json. Fonts differ
-    // from machine to machine, so a local run only notes what it finds, and the
-    // quick run checks too few widths to tell.
-    test.skip(partial && owedHere, "owed: only the full run checks it");
-    test.fail(owedHere && authoritative && !partial, `still owed: listed in ${debtFile}`);
-    const page = await contexts.get(screen.role)!.newPage();
+    // Touch targets are judged on the phone, at its own width.
+    const phone = testInfo.project.name === "webkit-iphone";
+    const page = await trackedPage(screen.role);
     const problems: string[] = [];
     for (const width of widths) {
       await page.setViewportSize({ width, height: 844 });
@@ -350,21 +343,15 @@ for (const screen of SCREENS) {
       await page.getByRole("heading").first().waitFor();
       // A redirect or a not-found page would fit and prove nothing.
       expect(new URL(page.url()).pathname, "the screen was not shown").toBe(path.split("?")[0]);
-      await page.waitForLoadState("networkidle");
+      await settled(page);
       await screen.after?.(page);
       for (const issue of await findOverflow(page, width)) problems.push(`${width}px  ${issue}`);
       for (const issue of await findLayoutFaults(page)) problems.push(`${width}px  ${issue}`);
+      if (phone && width === 390) {
+        for (const small of await findSmallTargets(page)) problems.push(`${width}px  under 44px: ${small}`);
+      }
     }
     await page.close();
-    if (owedHere && !authoritative) {
-      if (process.env.KUKGRADE_E2E_REPORT && problems.length)
-        console.log(`${screen.name}:\n  ${problems.join("\n  ")}`);
-      test.info().annotations.push({
-        type: "owed",
-        description: problems.length ? "does not fit yet" : `fits here: remove it from ${debtFile} once CI agrees`,
-      });
-      return;
-    }
     expect(problems, `${screen.name} does not fit:\n  ${problems.join("\n  ")}`).toEqual([]);
   });
 }

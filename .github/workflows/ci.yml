@@ -119,7 +119,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Pinned to an LTS line that Vite 8 and jsdom 30 support (Node 22.22.2 or
+      # Pinned to an LTS line that Vite 8 and jsdom 31 support (Node 22.22.2 or
       # newer; "22" takes the latest 22.x). Local development is
       # currently on a newer Node; add an .nvmrc if that drift ever bites.
       - uses: actions/setup-node@v7
@@ -239,33 +239,12 @@ jobs:
           kukgrade:ci
           manage.py check --deploy --fail-level WARNING
 
-      # Starts the image with its own database and as deploy/compose.external-db.yml runs it
-      # (read-only, UID 10001, an external database), signs in, and checks the
-      # admin is closed and the database stops cleanly.
+      # Starts the image with its own database, as deploy/compose.external-db.yml
+      # runs it (read-only, UID 10001, an external database) and as the demo,
+      # signs in, and checks the admin is closed and the database stops cleanly.
+      # The demo is left running for the width check below.
       - name: Start the image and sign in
-        run: .github/scripts/image-smoke.sh kukgrade:ci
-
-      # Every screen, rendered in a real browser from phone to desktop widths on
-      # the demo's made-up club, must fit (frontend/e2e/README.md). Pull requests
-      # and pushes to dev and prod check four widths; a release tag and "Run
-      # workflow" check all nine. WebKit (an iPhone and an iPad profile) always
-      # checks its own few widths.
-      - name: Start the demo for the width check
-        run: |
-          docker run -d --name kg-widths -p 127.0.0.1:6943:6942 \
-            --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true \
-            --shm-size 256m \
-            --tmpfs /var/lib/kukgrade:uid=10001,gid=10001,mode=0700,size=512m \
-            --tmpfs /tmp:rw,noexec,nosuid,size=64m,mode=1777 \
-            -e KUKGRADE_DEMO_MODE=1 -e KUKGRADE_CLUB_NAME="Riverside Kuk Sool Won" \
-            -e DJANGO_ALLOWED_HOSTS=localhost -e DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost:6943 \
-            kukgrade:ci
-          for i in $(seq 1 90); do
-            [ "$(docker inspect -f '{{.State.Health.Status}}' kg-widths)" = healthy ] && exit 0
-            sleep 2
-          done
-          docker logs kg-widths
-          exit 1
+        run: .github/scripts/image-smoke.sh kukgrade:ci --keep-demo
 
       - uses: actions/setup-node@v7
         with:
@@ -279,6 +258,12 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
 
+      # Every screen, rendered in a real browser from phone to desktop widths on
+      # the demo's made-up club, must fit (frontend/e2e/README.md). Pull requests
+      # and pushes to dev and prod check four widths; a release tag and "Run
+      # workflow" check all nine. WebKit (an iPhone and an iPad profile) always
+      # checks its own few widths. It runs against the demo the smoke test left
+      # running (kg-demo, https://localhost:6943).
       - name: Check every screen fits at every width
         working-directory: frontend
         run: |

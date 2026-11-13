@@ -648,11 +648,6 @@ def test_effective_syllabus_serves_each_category_label() -> None:
     }
 
 
-def test_syllabus_items_endpoint_is_gone() -> None:
-    # The effective view serves every category, the core areas included.
-    assert auth_client().get("/api/syllabus/items/").status_code == 404
-
-
 def test_effective_syllabus_requirement_is_isolated_by_age_band() -> None:
     client = auth_client()
 

@@ -82,7 +82,7 @@ npm audit --audit-level=high
 
 ```sh
 docker build --target production -t kukgrade:ci .
-.github/scripts/image-smoke.sh kukgrade:ci   # starts it as deployed, signs in, stops it cleanly
+.github/scripts/image-smoke.sh kukgrade:ci   # starts it as deployed, signs in, stops it cleanly (--keep-demo leaves the demo on 6943)
 ```
 
 **Width check** (the demo image running on port 6943; see `frontend/e2e/README.md`):
@@ -142,8 +142,7 @@ serializers and the committed frontend types match the schema.
   `detail` shows what a row's own button opened beneath it, across the table. Rows sit in the middle of their line, and an
   `actions` column's buttons sit side by side at the end of the row, on one line while it is a table; a screen does not
   wrap them in its own box or build its own row grid.
-  `e2e/widthDebt.json` (Chrome) and `e2e/widthDebtWebkit.json` (per WebKit device) list screens that still do
-  not fit: delete a screen from them when you fix it.
+  Every screen must fit at every width; there is no list for parking one that does not.
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
   or `layout.css` (widths and the shared pieces), and every class a screen uses is defined.**
   The one typeface is Pretendard (`--font-sans`, loaded in `main.tsx` and served by the app

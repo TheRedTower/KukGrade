@@ -19,7 +19,10 @@ dev = [
     "django-stubs>=5.2,<6.0",
     "djangorestframework-stubs>=3.16,<4.0",
     "mypy>=1.18,<3.0",
-    "pytest>=9.0,<10.0",
+    # Held below 9.2: pytest-xdist 3.8.0 (the newest) cannot group tests under
+    # pytest 9.2, so demo/test_club.py would build its club on every worker. Lift
+    # with the Dependabot ignore once a newer pytest-xdist is out.
+    "pytest>=9.0,<9.2",
     "pytest-django>=4.11,<5.0",
     "pytest-xdist>=3.8,<4.0",
     "ruff>=0.14,<1.0",
@@ -28,7 +31,11 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "kukgrade.settings_test"
 # With -n, tests marked xdist_group stay on one worker (demo/test_club.py builds
-# its club once per worker); every other test is spread one by one as before.
+# its club once, on that worker); every other test is spread one by one.
+# The suite relies on this order: a test marked transaction=True empties every
+# table when it ends, including the ranks and permission groups migrations seed,
+# and pytest-django runs those tests last so nothing follows them on a worker.
+# Do not switch to --dist loadfile: it mixes them in and 546 tests fail.
 addopts = "--dist loadgroup"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 markers = [

@@ -28,6 +28,11 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: django-stubs
         update-types: ["version-update:semver-major"]
+      # pytest-xdist 3.8.0 (the newest) cannot group tests under pytest 9.2, so
+      # demo/test_club.py would build its club on every worker. Lift together
+      # with the pin in pyproject.toml once a newer pytest-xdist is out.
+      - dependency-name: pytest
+        versions: [">=9.2"]
     groups:
       # Groups are matched in this order: the first one a package fits.
       backend-schema:

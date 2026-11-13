@@ -10,6 +10,8 @@ export default defineConfig({
   timeout: 120_000,
   fullyParallel: true,
   retries: 0,
+  // The runner has four cores; Playwright's default would use two.
+  workers: process.env.CI ? 4 : undefined,
   reporter: [["list"]],
   use: {
     baseURL: process.env.KUKGRADE_E2E_URL ?? "https://localhost:6943",

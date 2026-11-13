@@ -10,12 +10,9 @@ from django.test import override_settings
 from pypdf import PdfReader
 
 from gradings.exports import pdf
+from gradings.testing import pdf_pages as pages
 
 MADE = datetime(2026, 10, 25, 10, 5, tzinfo=UTC)
-
-
-def pages(content: bytes) -> list[str]:
-    return [page.extract_text() for page in PdfReader(io.BytesIO(content)).pages]
 
 
 def document(*parts: pdf.Part, demo: bool = False) -> pdf.Document:

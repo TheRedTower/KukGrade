@@ -72,6 +72,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     archived_at: null,
     can_be_archived: false,
     can_be_restored: false,
+    can_download_summary: false,
     location: "Riverside Dojang",
     notes: "Please arrive 15 minutes before the start time.",
   } satisfies GradingSession;
@@ -1243,6 +1244,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       archived_at: null,
       can_be_archived: false,
       can_be_restored: false,
+      can_download_summary: false,
     });
     stubFetch(fetchMock);
     const user = userEvent.setup();
@@ -1266,6 +1268,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           archived_at: null,
           can_be_archived: false,
           can_be_restored: false,
+          can_download_summary: false,
         });
       }
       if (url.includes("/api/gradings/candidates/")) {
@@ -1325,6 +1328,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       archived_at: null,
       can_be_archived: false,
       can_be_restored: false,
+      can_download_summary: false,
     });
     stubFetch(fetchMock);
     const user = userEvent.setup();

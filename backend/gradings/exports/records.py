@@ -21,11 +21,17 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Flowable, Paragraph, Table, TableStyle
 
 from accounts.models import User
-from accounts.people import name_of, named, person_label, title_of
+from accounts.people import named
 from audit.models import AuditAction
-from audit.recording import record, student_label
+from audit.recording import student_label
 from gradings.exports import pdf
-from gradings.exports.reading import chosen_candidates, snapshot
+from gradings.exports.making import (
+    Exported,
+    audit_export,
+    chosen_candidates,
+    made_by,
+    snapshot,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -81,14 +87,6 @@ def _candidates() -> QuerySet[GradingCandidate]:
     )
 
 
-@dataclass(frozen=True)
-class Exported:
-    """A file made, and what to call it."""
-
-    document: pdf.Document
-    content: bytes
-
-
 def export_records(
     session: GradingSession,
     candidate_ids: list[int],
@@ -108,7 +106,7 @@ def export_records(
         document = pdf.Document(
             file_name=_file_name(current, candidates),
             kind=KIND,
-            made_by=person_label(name_of(actor), title_of(actor)),
+            made_by=made_by(actor),
             parts=[
                 _part(current, candidate, shows_promotion=shows_promotion)
                 for candidate in candidates
@@ -142,17 +140,12 @@ def _audit(
         held = f"Record of {student_label(candidates[0].student)}"
     else:
         held = f"Records of {len(candidates)} candidates"
-    record(
+    audit_export(
         AuditAction.RECORDS_DOWNLOADED,
         session,
         f"{held} downloaded as a PDF from grading session '{session.title}'.",
-        actor=actor,
-        metadata={
-            "session_id": session.pk,
-            "candidates": [candidate.student.wksa_id for candidate in candidates],
-            "candidate_ids": [candidate.pk for candidate in candidates],
-            "student_ids": [candidate.student_id for candidate in candidates],
-        },
+        candidates,
+        actor,
     )
 
 

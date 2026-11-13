@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import io
 from typing import Any
 
 import pytest
 from django.db import connection, transaction
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
-from pypdf import PdfReader
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -20,7 +18,7 @@ from gradings.assessment_services import (
     update_candidate_assessment_item,
 )
 from gradings.exports import pdf
-from gradings.exports.reading import NOT_IN_SESSION, snapshot
+from gradings.exports.making import NOT_IN_SESSION, snapshot
 from gradings.exports.records import NOT_SEALED
 from gradings.models import (
     CandidateAssessmentItem,
@@ -32,13 +30,16 @@ from gradings.services import transition_grading_session, withdraw_locked_candid
 from gradings.testing import (
     assessment,
     candidate,
-    complete_assessment,
+    client_for,
     finalised_outcome,
     grading_session,
     master,
+    pdf_pages,
+    pdf_text,
     promoter,
     rank,
-    student,
+    sealed,
+    staff,
     user,
 )
 from kukgrade.testing import results
@@ -49,55 +50,6 @@ pytestmark = pytest.mark.django_db
 
 def url(session: GradingSession) -> str:
     return f"/api/gradings/sessions/{session.pk}/exports/records/"
-
-
-def client_for(account: User) -> APIClient:
-    client = APIClient()
-    client.force_authenticate(user=account)
-    return client
-
-
-def staff(email: str, **overrides: Any) -> User:
-    return user(
-        email,
-        first_name=overrides.pop("first_name", "Jane"),
-        last_name=overrides.pop("last_name", "Smith"),
-        rank=overrides.pop(
-            "rank",
-            None if overrides.get("role") == User.Role.ADMINISTRATOR else rank("KSN"),
-        ),
-        **overrides,
-    )
-
-
-def pages(content: bytes) -> list[str]:
-    return [page.extract_text() for page in PdfReader(io.BytesIO(content)).pages]
-
-
-def text(content: bytes) -> str:
-    """The file's words, however its lines happened to wrap."""
-    return " ".join(" ".join(pages(content)).split())
-
-
-def sealed(
-    session: GradingSession,
-    *,
-    first_name: str = "Priya",
-    last_name: str = "Nair",
-    held: str = "WHITE",
-    testing_for: str = "YELLOW_STRIPE",
-) -> GradingCandidate:
-    """A candidate whose assessment is sealed in an open session."""
-    built = candidate(
-        session=session,
-        student=student(
-            first_name=first_name, last_name=last_name, current_rank=rank(held)
-        ),
-        testing_for_rank=rank(testing_for),
-    )
-    complete_assessment(assessment(candidate=built), staff(f"marker-{built.pk}@x.org"))
-    built.refresh_from_db()
-    return built
 
 
 def ledger_item(built: GradingCandidate) -> CandidateAssessmentItem:
@@ -146,7 +98,7 @@ def test_the_records_download_as_one_pdf_in_the_gradings_order() -> None:
     assert response["Content-Type"] == "application/pdf"
     assert "Records%20%282%29.pdf" in response["Content-Disposition"]
     assert response["Cache-Control"] == "no-store"
-    texts = pages(response.content)
+    texts = pdf_pages(response.content)
     junior_at = next(n for n, t in enumerate(texts) if "Sam Okafor ·" in t)
     senior_at = next(n for n, t in enumerate(texts) if "Ana Adams ·" in t)
     # The white belt first, whichever was ticked first.
@@ -180,7 +132,7 @@ def test_a_record_holds_every_requirement_its_marks_and_who_marked_them() -> Non
     built = sealed(session)
     items = list(CandidateAssessmentItem.objects.filter(assessment__candidate=built))
 
-    printed = text(download(session, [built.pk]).content)
+    printed = pdf_text(download(session, [built.pk]).content)
 
     for item in items:
         assert item.item_name in printed
@@ -213,7 +165,7 @@ def test_every_comment_and_reasoned_change_is_printed_with_who_and_when() -> Non
         assessor=coach,
     )
 
-    printed = text(download(session, [built.pk]).content)
+    printed = pdf_text(download(session, [built.pk]).content)
 
     assert "“Strong <b>stance</b> & good control.” — JKN Min Park" in printed
     assert "Changed from Not met to Met: “Steady on the second attempt.”" in printed
@@ -229,7 +181,7 @@ def test_a_final_record_names_the_decision_the_master_and_the_promotion() -> Non
     promote_candidate(outcome, promoter("records-promoter@x.org"))
     outcome.refresh_from_db()
 
-    printed = text(download(session, [built.pk]).content)
+    printed = pdf_text(download(session, [built.pk]).content)
 
     assert "FINAL RECORD" in printed
     assert "Pass ·" in printed
@@ -252,7 +204,7 @@ def test_corrections_after_the_lock_are_listed_on_their_own() -> None:
         assessor=corrector,
     )
 
-    printed = text(download(session, [built.pk]).content)
+    printed = pdf_text(download(session, [built.pk]).content)
 
     after = printed.split("Changes after the lock", 1)[1]
     assert f"{item.item_name}: Changed from Met to Not met" in after
@@ -271,7 +223,7 @@ def test_a_withdrawn_candidates_record_says_so_and_why() -> None:
         user("override@x.org", is_superuser=True),
     )
 
-    printed = text(download(session, [built.pk]).content)
+    printed = pdf_text(download(session, [built.pk]).content)
 
     assert "WITHDRAWN" in printed
     assert "Injured during grading" in printed
@@ -283,7 +235,7 @@ def test_a_record_with_nothing_written_says_so_in_words() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
     built = sealed(session)
 
-    printed = text(download(session, [built.pk]).content)
+    printed = pdf_text(download(session, [built.pk]).content)
 
     assert "No overall note was recorded." in printed
     assert "No proposal recorded" in printed
@@ -296,7 +248,7 @@ def test_a_record_never_holds_a_date_of_birth_or_an_email_address() -> None:
     built = sealed(session)
     born = built.student.date_of_birth
 
-    printed = text(download(session, [built.pk]).content)
+    printed = pdf_text(download(session, [built.pk]).content)
 
     assert pdf.day(born) not in printed
     assert born.isoformat() not in printed
@@ -308,12 +260,12 @@ def test_a_demo_record_says_so_on_every_page() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
     built = sealed(session)
 
-    texts = pages(download(session, [built.pk]).content)
+    texts = pdf_pages(download(session, [built.pk]).content)
 
     assert all(page.count(pdf.DEMO_BAND) == 2 for page in texts)
 
 
-def test_many_long_comments_run_on_over_pages() -> None:
+def test_many_long_comments_run_on_over_pdf_pages() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
     built = sealed(session)
     item = ledger_item(built)
@@ -324,7 +276,7 @@ def test_many_long_comments_run_on_over_pages() -> None:
     response = download(session, [built.pk])
 
     assert response.status_code == 200
-    texts = pages(response.content)
+    texts = pdf_pages(response.content)
     assert len(texts) > 2
     assert all(f"Page {n} of {len(texts)}" in page for n, page in enumerate(texts, 1))
 
@@ -445,7 +397,7 @@ def test_without_sight_of_promotions_the_record_leaves_them_out() -> None:
     response = download(session, [built.pk], account)
 
     assert response.status_code == 200
-    assert "Promotion" not in text(response.content)
+    assert "Promotion" not in pdf_text(response.content)
 
 
 # The audit log

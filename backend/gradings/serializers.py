@@ -16,6 +16,7 @@ from gradings.assessment_services import (
     item_mark_can_be_cleared,
 )
 from gradings.exports.records import record_can_be_downloaded
+from gradings.exports.summary import summary_can_be_downloaded
 from gradings.legacy_matching import Suggestion
 from gradings.models import (
     AssessmentItemComment,
@@ -124,6 +125,12 @@ class GradingSessionSerializer(ModelSerializer):
     can_be_restored = serializers.SerializerMethodField(
         help_text="Whether the viewer may restore this archived session.",
     )
+    can_download_summary = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the session's summary can be downloaded as a PDF: it is "
+            "locked (provisional) or completed (final)."
+        ),
+    )
 
     class Meta:
         model = GradingSession
@@ -152,6 +159,7 @@ class GradingSessionSerializer(ModelSerializer):
             "archived_at",
             "can_be_archived",
             "can_be_restored",
+            "can_download_summary",
         )
         read_only_fields = (
             "id",
@@ -199,6 +207,9 @@ class GradingSessionSerializer(ModelSerializer):
 
     def get_can_be_restored(self, obj: GradingSession) -> bool:
         return session_can_be_restored(obj, self.context["request"].user)
+
+    def get_can_download_summary(self, obj: GradingSession) -> bool:
+        return summary_can_be_downloaded(obj)
 
     def to_representation(self, instance: GradingSession) -> dict[str, Any]:
         # A session just created or edited was not loaded through the

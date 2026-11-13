@@ -1,4 +1,5 @@
-"""How an export reads what it prints, and which candidates it may hold.
+"""How every export is made: read as one moment, its candidates chosen all
+or nothing, and audited once.
 
 A file of many records is read in many queries; between two of them a mark
 could be corrected or a comment added. Read in one repeatable-read
@@ -11,11 +12,16 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.db.models import QuerySet
 
+from accounts.models import User
+from accounts.people import name_of, person_label, title_of
+from audit.recording import record
+from gradings.exports import pdf
 from gradings.models import GradingCandidate, GradingSession, candidate_order
 
 NOT_IN_SESSION = "This candidate is not registered in this grading."
@@ -65,3 +71,39 @@ def chosen_candidates(
     if errors:
         raise ValidationError(errors)
     return list(found.values())
+
+
+@dataclass(frozen=True)
+class Exported:
+    """A file made, and what to call it."""
+
+    document: pdf.Document
+    content: bytes
+
+
+def made_by(actor: User) -> str:
+    """Who made a file, as the foot of each page names them."""
+    return person_label(name_of(actor), title_of(actor))
+
+
+def audit_export(
+    action: str,
+    session: GradingSession,
+    summary: str,
+    candidates: Sequence[GradingCandidate],
+    actor: User,
+) -> None:
+    """One event for the file, whatever it holds: everyone in it by WKSA ID,
+    never by name, and their ids so each one's history finds it."""
+    record(
+        action,
+        session,
+        summary,
+        actor=actor,
+        metadata={
+            "session_id": session.pk,
+            "candidates": [candidate.student.wksa_id for candidate in candidates],
+            "candidate_ids": [candidate.pk for candidate in candidates],
+            "student_ids": [candidate.student_id for candidate in candidates],
+        },
+    )

@@ -2351,6 +2351,29 @@ paths:
                 type: string
                 format: binary
           description: The records, one candidate after another.
+  /api/gradings/sessions/{id}/exports/summary/:
+    post:
+      operationId: gradings_sessions_exports_summary_create
+      description: Download the session's summary as a PDF, once it is locked.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: Who passed and who did not, and passes by rank.
   /api/gradings/sessions/{id}/restore/:
     post:
       operationId: gradings_sessions_restore_create
@@ -5050,6 +5073,11 @@ components:
           type: boolean
           readOnly: true
           description: Whether the viewer may restore this archived session.
+        can_download_summary:
+          type: boolean
+          readOnly: true
+          description: 'Whether the session''s summary can be downloaded as a PDF:
+            it is locked (provisional) or completed (final).'
       required:
       - archived_at
       - awaiting_decision_count
@@ -5058,6 +5086,7 @@ components:
       - can_be_restored
       - can_cancel
       - can_complete
+      - can_download_summary
       - can_lock
       - can_open
       - cancel_reason_required

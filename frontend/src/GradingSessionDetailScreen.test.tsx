@@ -91,6 +91,7 @@ function lockedSession(): GradingSession {
     archived_at: null,
     can_be_archived: false,
     can_be_restored: false,
+    can_download_summary: false,
     location: "Riverside",
     notes: "",
   };
@@ -256,6 +257,7 @@ describe("GradingSessionDetailScreen archiving", () => {
       ...completed(),
       archived_at: "2027-04-01T10:00:00Z",
       can_be_restored: true,
+      can_download_summary: false,
     });
     mockRestoreGradingSession.mockResolvedValue(completed());
     const user = userEvent.setup();

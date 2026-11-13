@@ -1200,6 +1200,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/sessions/{id}/exports/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Download the session's summary as a PDF, once it is locked. */
+        post: operations["gradings_sessions_exports_summary_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/sessions/{id}/restore/": {
         parameters: {
             query?: never;
@@ -2349,6 +2366,8 @@ export interface components {
             readonly can_be_archived: boolean;
             /** @description Whether the viewer may restore this archived session. */
             readonly can_be_restored: boolean;
+            /** @description Whether the session's summary can be downloaded as a PDF: it is locked (provisional) or completed (final). */
+            readonly can_download_summary: boolean;
         };
         GradingSessionRequest: {
             title: string;
@@ -5500,6 +5519,29 @@ export interface operations {
         };
         responses: {
             /** @description The records, one candidate after another. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
+    gradings_sessions_exports_summary_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this grading session. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Who passed and who did not, and passes by rank. */
             200: {
                 headers: {
                     [name: string]: unknown;

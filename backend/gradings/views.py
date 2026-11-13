@@ -30,7 +30,9 @@ from gradings.assessment_services import (
     update_candidate_assessment,
     update_candidate_assessment_item,
 )
-from gradings.exports import pdf, records
+from gradings.exports import pdf
+from gradings.exports.records import export_records
+from gradings.exports.summary import export_summary
 from gradings.legacy_matching import (
     SET_ASIDE_CHOICES,
     SHEET_NOTE_NAME,
@@ -222,6 +224,17 @@ def _apply_archived(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     return queryset.none()
 
 
+# What reading a grading's records takes: whoever can may also download them
+# as a PDF (owner, 2026-11-13).
+_READS_RECORDS = (
+    "gradings.view_gradingsession",
+    "gradings.view_gradingcandidate",
+    "gradings.view_candidateassessment",
+    "gradings.view_candidateassessmentitem",
+    "gradings.view_candidateoutcome",
+)
+
+
 class GradingSessionViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -268,13 +281,8 @@ class GradingSessionViewSet(
         "archive": (DELETE_ANY_SESSION_PERMISSION,),
         "restore": (DELETE_ANY_SESSION_PERMISSION,),
         # Whoever can open the records may print them (owner, 2026-11-13).
-        "export_records": (
-            "gradings.view_gradingsession",
-            "gradings.view_gradingcandidate",
-            "gradings.view_candidateassessment",
-            "gradings.view_candidateassessmentitem",
-            "gradings.view_candidateoutcome",
-        ),
+        "export_records": _READS_RECORDS,
+        "export_summary": _READS_RECORDS,
     }
 
     query_filters = (
@@ -361,9 +369,26 @@ class GradingSessionViewSet(
         all or nothing."""
         payload = CandidateExportSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        made = records.export_records(
+        made = export_records(
             self.get_object(), payload.validated_data["candidates"], self.actor
         )
+        return pdf.response(made.document, made.content)
+
+    @extend_schema(
+        request=None,
+        responses={
+            (200, "application/pdf"): OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="Who passed and who did not, and passes by rank.",
+            ),
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="exports/summary")
+    def export_summary(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> HttpResponse:
+        """Download the session's summary as a PDF, once it is locked."""
+        made = export_summary(self.get_object(), self.actor)
         return pdf.response(made.document, made.content)
 
     @extend_schema(

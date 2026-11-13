@@ -351,15 +351,51 @@ describe("CohortAdjudicationScreen", () => {
     const mia = await screen.findByTestId("cab-row-1");
     await user.click(await within(mia).findByRole("button", { name: "Pass" }));
     await waitFor(() =>
-      expect(mockStage).toHaveBeenCalledWith(11, {
-        final_outcome: "PASS",
-        decision_notes: "",
-        conditional_requirements: "",
-      }),
+      expect(mockStage).toHaveBeenCalledWith(
+        11,
+        {
+          final_outcome: "PASS",
+          decision_notes: "",
+          conditional_requirements: "",
+        },
+        false,
+      ),
     );
 
     await user.click(within(mia).getByRole("button", { name: "Pass" }));
-    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11));
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11, false));
+    expect(mockStage).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a decision taken off the board even when the board is left before the save", async () => {
+    const user = userEvent.setup();
+    const board = renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    // Another screen, before the pause that would have saved it.
+    board.unmount();
+
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11, true));
+    expect(mockStage).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a staged decision at once when the page is left, so a closed tab loses nothing", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
+    window.dispatchEvent(new Event("pagehide"));
+
+    await waitFor(() =>
+      expect(mockStage).toHaveBeenCalledWith(11, expect.objectContaining({ final_outcome: "PASS" }), true),
+    );
+    await passTypingPause();
+    // Already sent: the pause sends nothing again.
     expect(mockStage).toHaveBeenCalledTimes(1);
   });
 
@@ -477,7 +513,7 @@ describe("CohortAdjudicationScreen", () => {
     finishFirst();
 
     await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(2));
-    expect(mockStage).toHaveBeenLastCalledWith(11, expect.objectContaining({ final_outcome: "FAIL" }));
+    expect(mockStage).toHaveBeenLastCalledWith(11, expect.objectContaining({ final_outcome: "FAIL" }), false);
   });
 
   it("records a decision only after its save in flight has landed", async () => {
@@ -511,7 +547,7 @@ describe("CohortAdjudicationScreen", () => {
     await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
     expect(await screen.findByText(/Could not save Mia\./)).toBeVisible();
     await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
-    await waitFor(() => expect(mockStage).toHaveBeenCalledWith(12, expect.anything()));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledWith(12, expect.anything(), false));
 
     expect(screen.getByText(/Could not save Mia\./)).toBeVisible();
   });

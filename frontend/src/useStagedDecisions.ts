@@ -81,29 +81,40 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // Each write goes through the mutation cache, so an expired session signs the viewer out.
   const keepMutation = useMutation({
     scope,
-    mutationFn: async ({ outcomeId, decision }: { outcomeId: number; decision: StagedDecision | null }) => {
-      if (!decision) return discardStagedDecision(outcomeId);
-      await stageDecision(outcomeId, {
-        final_outcome: decision.outcome,
-        decision_notes: decision.notes,
-        conditional_requirements: decision.conditionalRequirements,
-      });
+    mutationFn: async ({
+      outcomeId,
+      decision,
+      leaving,
+    }: {
+      outcomeId: number;
+      decision: StagedDecision | null;
+      leaving: boolean;
+    }) => {
+      if (!decision) return discardStagedDecision(outcomeId, leaving);
+      await stageDecision(
+        outcomeId,
+        {
+          final_outcome: decision.outcome,
+          decision_notes: decision.notes,
+          conditional_requirements: decision.conditionalRequirements,
+        },
+        leaving,
+      );
     },
   });
   const keep = keepMutation.mutateAsync;
 
-  // Every change to what is staged is kept once typing settles. Not while
-  // recording (recording removes the server's copy itself), and not until the
-  // settled value has caught up with what is staged now.
-  const settled = useDebouncedValue(staged, KEEP_DELAY_MS);
-  useEffect(() => {
-    if (restored === null || isRecording || settled !== staged) return;
+  // Sends what differs between `target` and what the server will hold. Not
+  // before the server's copy is read, and not while recording (recording
+  // removes the server's copy itself).
+  function sendChanges(target: Record<number, StagedDecision>, leaving: boolean) {
+    if (restored === null || isRecording) return;
     sent.current ??= Object.fromEntries(
       Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
     );
     const onServer = sent.current;
-    new Set([...Object.keys(settled), ...Object.keys(onServer)].map(Number)).forEach((outcomeId) => {
-      const decision = settled[outcomeId];
+    new Set([...Object.keys(target), ...Object.keys(onServer)].map(Number)).forEach((outcomeId) => {
+      const decision = target[outcomeId];
       const json = decision === undefined ? undefined : JSON.stringify(decision);
       if (json === onServer[outcomeId]) return;
       if (json === undefined) delete onServer[outcomeId];
@@ -111,7 +122,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
       const seq = (writeSeq.current[outcomeId] ?? 0) + 1;
       writeSeq.current[outcomeId] = seq;
       const isLatest = () => writeSeq.current[outcomeId] === seq;
-      keep({ outcomeId, decision: decision ?? null }).then(
+      keep({ outcomeId, decision: decision ?? null, leaving }).then(
         () => {
           if (isLatest()) setKeepFailures((current) => without(current, outcomeId));
         },
@@ -127,7 +138,30 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
         },
       );
     });
-  }, [settled, staged, restored, isRecording, keep]);
+  }
+
+  // Every change to what is staged is kept once typing settles, and not until
+  // the settled value has caught up with what is staged now.
+  const settled = useDebouncedValue(staged, KEEP_DELAY_MS);
+  useEffect(() => {
+    if (settled === staged) sendChanges(settled, false);
+  });
+
+  // Leaving the board (another screen, a closed tab, a reload) keeps at once
+  // what is staged now, so a change made just before is not lost: a decision
+  // taken off the board must not come back on the next visit.
+  const leave = useRef(() => {});
+  useEffect(() => {
+    leave.current = () => sendChanges(staged, true);
+  });
+  useEffect(() => {
+    const onPageHide = () => leave.current();
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      leave.current();
+    };
+  }, []);
 
   function stage(row: BoardRow, outcome: CandidateOutcomeOutcome) {
     const outcomeId = row.outcome?.id;

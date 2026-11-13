@@ -24,7 +24,7 @@ export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
-export type StagedDecision = Schemas["StagedDecision"];
+export type KeptStagedDecision = Schemas["KeptStagedDecision"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type Promotion = components["schemas"]["Promotion"];
 export type CategoryAssessmentSummary = Schemas["AssessmentCategorySummary"];
@@ -462,12 +462,18 @@ export function getStagedDecisions(session: number) {
   return answer(api.GET("/api/gradings/outcomes/staged-decisions/", { params: { query: { session } } }));
 }
 
-export function stageDecision(id: number, body: Schemas["StagedDecisionRequest"]) {
-  return answer(api.PUT("/api/gradings/outcomes/{id}/staged-decision/", { params: { path: { id } }, body }));
+/** `keepalive` lets a save sent as the page is left still reach the server. */
+export function stageDecision(id: number, body: Schemas["StagedDecisionRequest"], keepalive = false) {
+  return answer(api.PUT("/api/gradings/outcomes/{id}/staged-decision/", { params: { path: { id } }, body, keepalive }));
 }
 
-export function discardStagedDecision(id: number) {
-  return done(api.DELETE("/api/gradings/outcomes/{id}/staged-decision/", { params: { path: { id } } }));
+export function discardStagedDecision(id: number, revision: number, keepalive = false) {
+  return done(
+    api.DELETE("/api/gradings/outcomes/{id}/staged-decision/", {
+      params: { path: { id }, query: { revision } },
+      keepalive,
+    }),
+  );
 }
 
 export function finaliseCandidateOutcome(id: number, body: Schemas["CandidateOutcomeFinaliseRequest"]) {

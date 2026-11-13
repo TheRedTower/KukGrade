@@ -809,8 +809,25 @@ class CandidateOutcomeProposalSerializer(serializers.Serializer):
     )
 
 
+_REVISION_MESSAGE = "Send which change this is."
+
+
+def _revision_field() -> serializers.IntegerField:
+    """Which change to a staged decision a write is: a number that only goes up."""
+    return serializers.IntegerField(
+        min_value=1,
+        error_messages={
+            "required": _REVISION_MESSAGE,
+            "invalid": _REVISION_MESSAGE,
+            "min_value": _REVISION_MESSAGE,
+        },
+    )
+
+
 class StagedDecisionSerializer(ModelSerializer):
     """A final decision chosen but not yet recorded, seen only by whoever chose it."""
+
+    revision = _revision_field()
 
     # Kept as typed, so it comes back as it was left; recording trims it.
     decision_notes = serializers.CharField(
@@ -831,9 +848,35 @@ class StagedDecisionSerializer(ModelSerializer):
             "final_outcome",
             "decision_notes",
             "conditional_requirements",
+            "revision",
             "updated_at",
         ]
         read_only_fields = ["outcome", "updated_at"]
+
+
+class KeptStagedDecisionSerializer(StagedDecisionSerializer):
+    """
+    A staged decision as the board reads it back. A decision taken off is
+    listed too, `discarded` and with no outcome, so the board knows its
+    revision and starts every later change above it, whatever this device's
+    clock says.
+    """
+
+    final_outcome = serializers.ChoiceField(
+        choices=CandidateOutcome.Outcome.choices,
+        allow_blank=True,
+        read_only=True,
+    )
+
+    class Meta(StagedDecisionSerializer.Meta):
+        fields = [*StagedDecisionSerializer.Meta.fields, "discarded"]
+        read_only_fields = fields
+
+
+class StagedDecisionDiscardQuerySerializer(serializers.Serializer):
+    """Which change taking a staged decision off is."""
+
+    revision = _revision_field()
 
 
 class CandidateOutcomeFinaliseSerializer(serializers.Serializer):

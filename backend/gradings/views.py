@@ -96,6 +96,7 @@ from gradings.serializers import (
     GradingCandidateSerializer,
     GradingSessionSerializer,
     GradingYearsSerializer,
+    KeptStagedDecisionSerializer,
     LegacyGradingRecordSerializer,
     LegacyPeopleSummarySerializer,
     LegacyPersonSerializer,
@@ -107,6 +108,7 @@ from gradings.serializers import (
     ResolveLegacyRankSerializer,
     SessionQuerySerializer,
     SetAsideNamesSerializer,
+    StagedDecisionDiscardQuerySerializer,
     StagedDecisionSerializer,
     VoidLegacyRecordSerializer,
     WithdrawalReasonSerializer,
@@ -846,7 +848,7 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
 
     @extend_schema(
         parameters=[SessionQuerySerializer],
-        responses=StagedDecisionSerializer(many=True),
+        responses=KeptStagedDecisionSerializer(many=True),
     )
     @action(
         detail=False,
@@ -862,14 +864,19 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         """The viewer's own decisions staged in a session and not yet recorded."""
         session = read_query(request, SessionQuerySerializer)["session"]
         staged = staged_decisions_for_session(session, cast(User, request.user))
-        return Response(StagedDecisionSerializer(staged, many=True).data)
+        return Response(KeptStagedDecisionSerializer(staged, many=True).data)
 
     @extend_schema(
         methods=["PUT"],
         request=StagedDecisionSerializer,
         responses=StagedDecisionSerializer,
     )
-    @extend_schema(methods=["DELETE"], request=None, responses={204: None})
+    @extend_schema(
+        methods=["DELETE"],
+        parameters=[StagedDecisionDiscardQuerySerializer],
+        request=None,
+        responses={204: None},
+    )
     @action(
         detail=True,
         methods=["put", "delete"],
@@ -882,7 +889,10 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         """Keep, or drop, the viewer's chosen decision until it is recorded."""
         outcome = self.get_object()
         if request.method == "DELETE":
-            discard_staged_decision(outcome, cast(User, request.user))
+            revision = read_query(request, StagedDecisionDiscardQuerySerializer)[
+                "revision"
+            ]
+            discard_staged_decision(outcome, cast(User, request.user), revision)
             return Response(status=status.HTTP_204_NO_CONTENT)
         serializer = StagedDecisionSerializer(
             data=request.data,
@@ -897,6 +907,7 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
                 serializer.validated_data.get("conditional_requirements", ""),
             ),
             actor=self.actor,
+            revision=int(serializer.validated_data["revision"]),
         )
         return Response(StagedDecisionSerializer(staged).data)
 

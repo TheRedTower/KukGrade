@@ -2023,6 +2023,12 @@ paths:
           type: integer
         description: A unique integer value identifying this candidate outcome.
         required: true
+      - in: query
+        name: revision
+        schema:
+          type: integer
+          minimum: 1
+        required: true
       tags:
       - gradings
       security:
@@ -2101,7 +2107,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/StagedDecision'
+                  $ref: '#/components/schemas/KeptStagedDecision'
           description: ''
   /api/gradings/sessions/:
     get:
@@ -5712,6 +5718,42 @@ components:
       required:
       - label
       - value
+    KeptStagedDecision:
+      type: object
+      description: |-
+        A staged decision as the board reads it back. A decision taken off is
+        listed too, `discarded` and with no outcome, so the board knows its
+        revision and starts every later change above it, whatever this device's
+        clock says.
+      properties:
+        outcome:
+          type: integer
+          readOnly: true
+        final_outcome:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        decision_notes:
+          type: string
+        conditional_requirements:
+          type: string
+        revision:
+          type: integer
+          minimum: 1
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        discarded:
+          type: boolean
+          readOnly: true
+      required:
+      - discarded
+      - final_outcome
+      - outcome
+      - revision
+      - updated_at
     KindEnum:
       enum:
       - STUDENT_ROSTER
@@ -7086,6 +7128,9 @@ components:
           type: string
         conditional_requirements:
           type: string
+        revision:
+          type: integer
+          minimum: 1
         updated_at:
           type: string
           format: date-time
@@ -7093,6 +7138,7 @@ components:
       required:
       - final_outcome
       - outcome
+      - revision
       - updated_at
     StagedDecisionRequest:
       type: object
@@ -7105,8 +7151,12 @@ components:
           type: string
         conditional_requirements:
           type: string
+        revision:
+          type: integer
+          minimum: 1
       required:
       - final_outcome
+      - revision
     Student:
       type: object
       description: |-

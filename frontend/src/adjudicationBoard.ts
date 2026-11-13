@@ -3,7 +3,7 @@ import type {
   CandidateOutcome,
   CandidateOutcomeOutcome,
   GradingCandidateRoster,
-  StagedDecision as ApiStagedDecision,
+  KeptStagedDecision,
 } from "./api";
 
 /** A decision on its way to being recorded: staged on the board, and kept on the server. */
@@ -21,16 +21,23 @@ export type BoardRow = {
   decidable: boolean;
 };
 
-export function fromServer(rows: ApiStagedDecision[]): Record<number, StagedDecision> {
+/** The decisions still staged; one taken off is listed only for its revision. */
+export function fromServer(rows: KeptStagedDecision[]): Record<number, StagedDecision> {
   return Object.fromEntries(
-    rows.map((row) => [
-      row.outcome,
-      {
-        outcome: row.final_outcome,
-        notes: row.decision_notes ?? "",
-        conditionalRequirements: row.conditional_requirements ?? "",
-      },
-    ]),
+    rows.flatMap((row) =>
+      row.discarded || row.final_outcome === ""
+        ? []
+        : [
+            [
+              row.outcome,
+              {
+                outcome: row.final_outcome,
+                notes: row.decision_notes ?? "",
+                conditionalRequirements: row.conditional_requirements ?? "",
+              },
+            ] as const,
+          ],
+    ),
   );
 }
 

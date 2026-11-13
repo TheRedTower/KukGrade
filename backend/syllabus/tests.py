@@ -21,6 +21,7 @@ from syllabus.models import (
     SyllabusItem,
     SyllabusRequirement,
 )
+from syllabus.serializers import NO_ACTIVE_RANK_MESSAGE
 from syllabus.services import (
     cumulative_notation,
     effective_syllabus_requirements,
@@ -356,6 +357,9 @@ def test_effective_syllabus_requirement_api_rejects_invalid_parameters() -> None
     assert "rank_code" in missing.json()["error"]["fields"]
     assert "age_band" in missing.json()["error"]["fields"]
     assert unknown_rank.status_code == 400
+    assert unknown_rank.json()["error"]["fields"]["rank_code"] == [
+        NO_ACTIVE_RANK_MESSAGE,
+    ]
     assert bad_age_band.status_code == 400
     undeclared = client.get(
         "/api/syllabus/requirements/effective/"

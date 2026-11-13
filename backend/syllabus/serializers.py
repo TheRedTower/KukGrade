@@ -13,6 +13,8 @@ from syllabus.models import (
 )
 from syllabus.services import EffectiveSyllabusRequirement
 
+NO_ACTIVE_RANK_MESSAGE = "No active rank matches this code."
+
 
 class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
     """One cumulative row for a selected rank and age band, in syllabus order.
@@ -119,5 +121,5 @@ class EffectiveSyllabusQuerySerializer(serializers.Serializer):
     def validate_rank_code(self, code: str) -> Rank:
         rank = Rank.objects.filter(code=code, active=True).first()
         if rank is None:
-            raise serializers.ValidationError("No active rank matches this code.")
+            raise serializers.ValidationError(NO_ACTIVE_RANK_MESSAGE)
         return rank

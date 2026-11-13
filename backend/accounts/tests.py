@@ -35,6 +35,7 @@ from accounts.permissions import (
     can_see_school_settings,
     can_view_audit_log,
 )
+from accounts.serializers import EMAIL_TAKEN_MESSAGE, WRONG_CURRENT_PASSWORD_MESSAGE
 from accounts.services import (
     delete_platform_user,
     reset_password,
@@ -431,7 +432,9 @@ def test_change_password_requires_the_correct_current_password() -> None:
     )
 
     assert response.status_code == 400
-    assert "current_password" in response.json()["error"]["fields"]
+    assert response.json()["error"]["fields"]["current_password"] == [
+        WRONG_CURRENT_PASSWORD_MESSAGE,
+    ]
     user.refresh_from_db()
     assert user.check_password("OldPassw0rd!")
 
@@ -867,7 +870,7 @@ def test_duplicate_email_is_a_field_error_not_a_server_error() -> None:
     )
 
     assert response.status_code == 400
-    assert "email" in response.json()["error"]["fields"]
+    assert response.json()["error"]["fields"]["email"] == [EMAIL_TAKEN_MESSAGE]
 
 
 def test_is_staff_and_is_superuser_cannot_be_granted_through_create() -> None:

@@ -21,6 +21,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from data_imports.models import COMMITTED_ROWS_KEPT_FOR, ImportBatch, ImportRow
+from data_imports.serializers import NOTHING_TO_CHANGE_MESSAGE
 from data_imports.services import (
     ROW_COUNT_NAMES,
     cancel_import_batch,
@@ -477,6 +478,7 @@ def test_an_empty_fix_is_refused() -> None:
     response = client_for(admin).patch(f"{BASE}{batch.pk}/rows/2/", {}, format="json")
 
     assert response.status_code == 400
+    assert response.json()["error"]["message"] == NOTHING_TO_CHANGE_MESSAGE
 
 
 @pytest.mark.parametrize(

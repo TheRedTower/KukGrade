@@ -30,6 +30,9 @@ from ranks.models import Rank
 
 security_logger = logging.getLogger("kukgrade.security")
 
+EMAIL_TAKEN_MESSAGE = "An account with this email already exists."
+WRONG_CURRENT_PASSWORD_MESSAGE = "Current password is incorrect."
+
 
 def _validated_password(value: str, user: User | None) -> str:
     """Run Django's configured validators, reported as a DRF field error."""
@@ -288,7 +291,7 @@ class UserManagementSerializer(AuthorityFields, ModelSerializer):
             return User.objects.normalize_email(value)
         if holder.deleted_at is not None:
             raise serializers.ValidationError(DELETED_ACCOUNT_EMAIL_MESSAGE)
-        raise serializers.ValidationError("An account with this email already exists.")
+        raise serializers.ValidationError(EMAIL_TAKEN_MESSAGE)
 
 
 class UserAuthoritySerializer(serializers.Serializer):
@@ -348,7 +351,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_current_password(self, value: str) -> str:
         request = self.context["request"]
         if not request.user.check_password(value):
-            raise serializers.ValidationError("Current password is incorrect.")
+            raise serializers.ValidationError(WRONG_CURRENT_PASSWORD_MESSAGE)
         return value
 
     def validate_new_password(self, value: str) -> str:

@@ -564,6 +564,25 @@ describe("CohortAdjudicationScreen", () => {
     ).toBeVisible();
   });
 
+  it("does not send a failed save again until the decision changes", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    mockStage.mockRejectedValue(new ApiError("The server had a problem.", 500));
+    renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
+    expect(await screen.findByText(/The server had a problem./)).toBeVisible();
+    await passTypingPause();
+    await passTypingPause();
+    // Showing the failure is not a change: nothing is sent again.
+    expect(mockStage).toHaveBeenCalledTimes(1);
+
+    // A change is, and it is sent whatever the server was last thought to hold.
+    await user.click(within(mia).getByRole("button", { name: "Fail" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(2));
+  });
+
   it("lists the non-withdrawn cohort with served counts, proposals and recorded decisions", async () => {
     renderBoard();
 

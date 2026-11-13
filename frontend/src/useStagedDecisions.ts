@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -141,25 +141,25 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   }
 
   // Every change to what is staged is kept once typing settles, and not until
-  // the settled value has caught up with what is staged now.
+  // the settled value has caught up with what is staged now. Only a change to
+  // what is staged sends anything: a failed save showing its message must not
+  // send it again.
   const settled = useDebouncedValue(staged, KEEP_DELAY_MS);
+  const keepSettled = useEffectEvent(() => sendChanges(settled, false));
   useEffect(() => {
-    if (settled === staged) sendChanges(settled, false);
-  });
+    if (settled === staged) keepSettled();
+  }, [settled, staged, restored, isRecording]);
 
   // Leaving the board (another screen, a closed tab, a reload) keeps at once
   // what is staged now, so a change made just before is not lost: a decision
   // taken off the board must not come back on the next visit.
-  const leave = useRef(() => {});
+  const leave = useEffectEvent(() => sendChanges(staged, true));
   useEffect(() => {
-    leave.current = () => sendChanges(staged, true);
-  });
-  useEffect(() => {
-    const onPageHide = () => leave.current();
+    const onPageHide = () => leave();
     window.addEventListener("pagehide", onPageHide);
     return () => {
       window.removeEventListener("pagehide", onPageHide);
-      leave.current();
+      leave();
     };
   }, []);
 

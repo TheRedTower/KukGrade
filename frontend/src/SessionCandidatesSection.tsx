@@ -12,6 +12,9 @@ import type { EnrichedCandidate } from "./sessionDetail";
 import type { useCandidateWork } from "./useCandidateWork";
 import { counted } from "./plural";
 import { ArrowRightIcon } from "./Icons";
+import type { usePdfDownload } from "./pdfDownloads";
+import { CandidateDownloadBar } from "./CandidateDownloadBar";
+import { useCandidateSelection } from "./useCandidateSelection";
 
 interface SessionCandidatesSectionProps {
   session: GradingSession;
@@ -32,6 +35,8 @@ interface SessionCandidatesSectionProps {
   preparedIds: number[];
   nextActionFor: (item: EnrichedCandidate) => NextAction;
   onConfirmAttendance: () => void;
+  /** The page's PDF download, shared with the session's summary. */
+  download: ReturnType<typeof usePdfDownload>;
 }
 
 /** The roster of a session: its toolbar, and a table or the reason there is none. */
@@ -51,9 +56,11 @@ export function SessionCandidatesSection({
   preparedIds,
   nextActionFor,
   onConfirmAttendance,
+  download,
 }: SessionCandidatesSectionProps) {
   const choices = useChoices();
   const { bulkPrepare, bulkStart } = work;
+  const selection = useCandidateSelection(all, shown);
 
   return (
     <section className="stack stack--3 gsd-candidates-section" aria-labelledby="candidates-heading">
@@ -112,6 +119,8 @@ export function SessionCandidatesSection({
         <p className="filter-bar__count">{counted(shown.length, "candidate", "candidates")}</p>
       </div>
 
+      {selection.offered && <CandidateDownloadBar session={session} selection={selection} download={download} />}
+
       {all.length === 0 ? (
         <EmptyState
           framed
@@ -165,6 +174,7 @@ export function SessionCandidatesSection({
           onPropose={work.proposal.begin}
           onRemove={(item) => work.registration.begin("remove", item)}
           onWithdraw={work.withdrawal.begin}
+          selection={selection.offered ? selection : undefined}
         />
       )}
     </section>

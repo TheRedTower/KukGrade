@@ -24,7 +24,8 @@ from audit.recording import record
 from gradings.exports import pdf
 from gradings.models import GradingCandidate, GradingSession, candidate_order
 
-NOT_IN_SESSION = "This candidate is not registered in this grading."
+# Each refusal is said of a candidate the screen names beside it.
+NOT_IN_SESSION = "Not registered in this grading."
 
 
 @contextmanager

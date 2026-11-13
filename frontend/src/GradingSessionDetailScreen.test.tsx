@@ -18,6 +18,14 @@ const mockDeleteGradingCandidate = vi.fn();
 const mockUpdateGradingSession = vi.fn();
 const mockArchiveGradingSession = vi.fn();
 const mockRestoreGradingSession = vi.fn();
+const mockDownloadCandidateRecords = vi.fn();
+const mockPrintGradingSheets = vi.fn();
+const mockDownloadSessionSummary = vi.fn();
+const mockSaveFile = vi.fn();
+
+vi.mock("./saveFile", () => ({
+  saveFile: (...args: unknown[]) => mockSaveFile(...args),
+}));
 
 vi.mock("./auth", () => ({
   useAuth: () => ({ user: currentUser, status: "authenticated" }),
@@ -36,6 +44,9 @@ vi.mock("./api", async () => {
     updateGradingSession: (...args: unknown[]) => mockUpdateGradingSession(...args),
     archiveGradingSession: (...args: unknown[]) => mockArchiveGradingSession(...args),
     restoreGradingSession: (...args: unknown[]) => mockRestoreGradingSession(...args),
+    downloadCandidateRecords: (...args: unknown[]) => mockDownloadCandidateRecords(...args),
+    printGradingSheets: (...args: unknown[]) => mockPrintGradingSheets(...args),
+    downloadSessionSummary: (...args: unknown[]) => mockDownloadSessionSummary(...args),
   };
 });
 
@@ -522,5 +533,151 @@ describe("GradingSessionDetailScreen opening a draft session", () => {
 
     expect(await screen.findByText(/Cannot transition grading session from DRAFT to OPEN/)).toBeVisible();
     expect(screen.getByRole("dialog", { name: "Open Grading Session" })).toBeVisible();
+  });
+});
+
+describe("GradingSessionDetailScreen PDF downloads", () => {
+  const pdf = (name: string) => ({ blob: new Blob(["%PDF"], { type: "application/pdf" }), name });
+  const ben = (overrides: Partial<GradingCandidateRoster> = {}) =>
+    registeredCandidate({ id: 32, student: 132, student_display_name: "Ben Hall", ...overrides });
+
+  function roster(...results: GradingCandidateRoster[]) {
+    mockGetAllGradingCandidates.mockReset().mockResolvedValue({ ...emptyPage(), count: results.length, results });
+  }
+
+  beforeEach(() => {
+    currentUser = instructorUser;
+    mockGetGradingSession.mockReset().mockResolvedValue(openSession({ can_print_grading_sheets: true }));
+    roster(
+      registeredCandidate({ can_print_grading_sheet: true }),
+      ben({ can_print_grading_sheet: true, can_download_record: true }),
+    );
+    mockDownloadCandidateRecords.mockReset().mockResolvedValue(pdf("2027-03-20 March - Records.pdf"));
+    mockPrintGradingSheets.mockReset().mockResolvedValue(pdf("2027-03-20 March - Grading sheets.pdf"));
+    mockDownloadSessionSummary.mockReset().mockResolvedValue(pdf("2027-03-20 March - Summary.pdf"));
+    mockSaveFile.mockReset();
+  });
+
+  it("prints the grading sheets of everyone chosen and saves them under the server's name", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByLabelText("Select all (2)"));
+    expect(screen.getByText("2 selected")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Print grading sheets (PDF)" }));
+
+    await waitFor(() => expect(mockPrintGradingSheets).toHaveBeenCalledWith(7, [31, 32]));
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved as 2027-03-20 March - Grading sheets.pdf");
+    expect(mockSaveFile).toHaveBeenCalledWith(expect.any(Blob), "2027-03-20 March - Grading sheets.pdf");
+  });
+
+  it("downloads records only once every candidate chosen has a sealed record", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByLabelText("Select all (2)"));
+    const records = screen.getByRole("button", { name: "Download records (PDF)" });
+    expect(records).toBeDisabled();
+    expect(screen.getByText(/1 of the 2 selected is not sealed yet/)).toBeVisible();
+
+    await user.click(screen.getByLabelText("Select Mia Okafor"));
+    expect(records).toBeEnabled();
+    await user.click(records);
+
+    await waitFor(() => expect(mockDownloadCandidateRecords).toHaveBeenCalledWith(7, [32]));
+  });
+
+  it("says each button is busy while the PDF is being made", async () => {
+    mockPrintGradingSheets.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByLabelText("Select Ben Hall"));
+    await user.click(screen.getByRole("button", { name: "Print grading sheets (PDF)" }));
+
+    expect(await screen.findByRole("button", { name: "Preparing PDF…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Download records (PDF)" })).toBeDisabled();
+  });
+
+  it("offers a row only for what the server says it is ready for", async () => {
+    mockGetGradingSession.mockResolvedValue(lockedSession());
+    roster(registeredCandidate(), ben({ can_download_record: true }));
+    renderScreen();
+
+    expect(await screen.findByLabelText("Select Mia Okafor")).toBeDisabled();
+    expect(screen.getByLabelText("Select Ben Hall")).toBeEnabled();
+    expect(screen.getByLabelText("Select all that can be downloaded (1)")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Print grading sheets (PDF)" })).toBeNull();
+  });
+
+  it("shows no selection when nothing can be downloaded", async () => {
+    mockGetGradingSession.mockResolvedValue(lockedSession());
+    roster(registeredCandidate());
+    renderScreen();
+
+    await screen.findByText("Mia Okafor");
+    expect(screen.queryByTestId("gsd-download-bar")).toBeNull();
+    expect(screen.queryByLabelText("Select Mia Okafor")).toBeNull();
+  });
+
+  it("names the candidates refused, saves nothing, and refreshes the list on request", async () => {
+    mockPrintGradingSheets.mockRejectedValue(
+      new ApiError("Invalid input.", 400, "invalid", { "31": ["Withdrawn from this grading."] }),
+    );
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByLabelText("Select all (2)"));
+    await user.click(screen.getByRole("button", { name: "Print grading sheets (PDF)" }));
+
+    const refusal = await screen.findByTestId("pdf-refusal");
+    expect(refusal).toHaveTextContent("Nothing was downloaded");
+    expect(refusal).toHaveTextContent("Mia Okafor: Withdrawn from this grading.");
+    expect(mockSaveFile).not.toHaveBeenCalled();
+
+    const loads = mockGetAllGradingCandidates.mock.calls.length;
+    await user.click(within(refusal).getByRole("button", { name: "Refresh the list" }));
+    await waitFor(() => expect(mockGetAllGradingCandidates.mock.calls.length).toBeGreaterThan(loads));
+    expect(screen.queryByTestId("pdf-refusal")).toBeNull();
+  });
+
+  it("tries the same PDF again when it could not be made", async () => {
+    mockPrintGradingSheets
+      .mockRejectedValueOnce(new ApiError("Server error.", 500))
+      .mockResolvedValueOnce(pdf("Grading sheets.pdf"));
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByLabelText("Select Ben Hall"));
+    await user.click(screen.getByRole("button", { name: "Print grading sheets (PDF)" }));
+    await user.click(await screen.findByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved as Grading sheets.pdf");
+    expect(mockPrintGradingSheets).toHaveBeenCalledTimes(2);
+    expect(mockPrintGradingSheets).toHaveBeenLastCalledWith(7, [32]);
+  });
+
+  it("downloads the summary from the session's actions once the server offers it", async () => {
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), can_download_summary: true });
+    roster();
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByRole("button", { name: /Session actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Download summary (PDF)" }));
+
+    await waitFor(() => expect(mockDownloadSessionSummary).toHaveBeenCalledWith(7));
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved as 2027-03-20 March - Summary.pdf");
+  });
+
+  it("does not offer the summary before the server does", async () => {
+    mockGetGradingSession.mockResolvedValue(lockedSession());
+    roster();
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByRole("button", { name: /Session actions/i }));
+
+    expect(screen.queryByRole("menuitem", { name: "Download summary (PDF)" })).toBeNull();
   });
 });

@@ -1,16 +1,9 @@
 import { useSiteSettingsQuery } from "./queries";
+import { saveFile } from "./saveFile";
 
 function downloadCsv(headers: string[]) {
   const csv = `${headers.join(",")}\n`;
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "kukgrade-student-roster-template.csv";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  saveFile(new Blob([csv], { type: "text/csv" }), "kukgrade-student-roster-template.csv");
 }
 
 /**

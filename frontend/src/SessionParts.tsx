@@ -6,7 +6,8 @@ import type { EnrichedCandidate } from "./sessionDetail";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { ResponsiveTable } from "./ResponsiveTable";
+import { type Column, ResponsiveTable } from "./ResponsiveTable";
+import type { CandidateSelection } from "./useCandidateSelection";
 import { formatSessionDate } from "./dates";
 import { labelOf, useChoices } from "./choices";
 import { AssessmentBadge, OutcomeBadge } from "./StatusBadge";
@@ -154,6 +155,7 @@ export function SessionCandidateTable({
   onMove,
   onRemove,
   onWithdraw,
+  selection,
 }: {
   candidates: EnrichedCandidate[];
   nextActionFor: (item: EnrichedCandidate) => NextAction;
@@ -161,7 +163,29 @@ export function SessionCandidateTable({
   onMove: (item: EnrichedCandidate) => void;
   onRemove: (item: EnrichedCandidate) => void;
   onWithdraw: (item: EnrichedCandidate) => void;
+  /** Ticks to choose candidates for a PDF, when the session offers one. */
+  selection?: CandidateSelection;
 }) {
+  const choose: Column<EnrichedCandidate>[] = selection
+    ? [
+        {
+          key: "select",
+          header: "Select",
+          actions: "inline",
+          render: (item) => (
+            <label className="check">
+              <input
+                type="checkbox"
+                aria-label={`Select ${item.candidate.student_display_name}`}
+                checked={selection.isChoosable(item) && selection.isChosen(item)}
+                disabled={!selection.isChoosable(item)}
+                onChange={() => selection.toggle(item)}
+              />
+            </label>
+          ),
+        },
+      ]
+    : [];
   return (
     <ResponsiveTable
       label="Candidates"
@@ -170,6 +194,7 @@ export function SessionCandidateTable({
       rowKey={(item) => item.candidate.id}
       rowTestId={(item) => `candidate-row-${item.candidate.id}`}
       columns={[
+        ...choose,
         {
           key: "candidate",
           header: "Candidate",

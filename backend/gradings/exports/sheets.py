@@ -41,7 +41,7 @@ from syllabus.services import effective_syllabus_requirements
 
 KIND = "Grading sheet"
 NOT_OPEN = "Grading sheets are printed before a grading is locked."
-WITHDRAWN = "This candidate has been withdrawn."
+WITHDRAWN = "Withdrawn from this grading."
 
 FORM_TITLE = ParagraphStyle(
     "form-title", parent=pdf.TITLE, alignment=1, fontSize=18, leading=22

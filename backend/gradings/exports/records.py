@@ -42,7 +42,7 @@ from gradings.models import (
 from gradings.read_models import assessment_overall, item_remarks
 from syllabus.models import CORE_CATEGORIES, age_band_description
 
-NOT_SEALED = "This candidate's assessment is not sealed yet."
+NOT_SEALED = "Their assessment is not sealed yet."
 KIND = "Grading record"
 PROMOTION_PERMISSION = "gradings.view_promotion"
 

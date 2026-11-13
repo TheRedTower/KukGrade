@@ -1,12 +1,16 @@
 import { Link } from "react-router-dom";
 
-import type { AgeBand, Rank, StudentListItem } from "./api";
+import { Alert } from "./Alert";
+
+import { type AgeBand, type Rank, type StudentListItem, errorMessage } from "./api";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { RankTransition, rankEnd } from "./RankTransition";
 import { labelOf, useChoices } from "./choices";
 import { destinationOf } from "./cohortBuilder";
 import { EmptyState } from "./EmptyState";
+
+import { LoadingState } from "./LoadingState";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
 import { counted } from "./plural";
@@ -29,6 +33,10 @@ interface CohortFindSectionProps {
   /** The students the filters leave, and whether that list is still catching up with them. */
   students: StudentListItem[];
   updating: boolean;
+  /** Whether the first list has arrived: until it has, there is nothing to count. */
+  roster: "loading" | "failed" | "ready";
+  rosterError: unknown;
+  onRetry: () => void;
   inCohort: Set<number>;
   onAdd: (student: StudentListItem) => void;
   onRemove: (studentId: number) => void;
@@ -50,6 +58,9 @@ export function CohortFindSection({
   ageBands,
   students,
   updating,
+  roster,
+  rosterError,
+  onRetry,
   inCohort,
   onAdd,
   onRemove,
@@ -137,22 +148,36 @@ export function CohortFindSection({
           </span>
         </div>
         <div className="action-row">
-          <span className="item-title">{counted(students.length, "student matches", "students match")}</span>
+          {roster === "ready" && (
+            <span className="item-title">{counted(students.length, "student matches", "students match")}</span>
+          )}
           <Button
             variant="primary"
             small
             onClick={onAddAll}
-            disabled={students.length === 0 || updating}
+            disabled={roster !== "ready" || students.length === 0 || updating}
             data-testid="bgc-add-all-filtered-btn"
           >
-            Add all {students.length} filtered students
+            {roster === "ready" ? `Add all ${students.length} filtered students` : "Add all filtered students"}
           </Button>
         </div>
       </div>
 
       {/* Filtered matching student records table */}
       <div data-testid="bgc-filtered-students-table">
-        {students.length === 0 ? (
+        {roster === "loading" ? (
+          <LoadingState>Loading eligible students…</LoadingState>
+        ) : roster === "failed" ? (
+          <Alert
+            action={
+              <Button variant="secondary" onClick={onRetry}>
+                Try again
+              </Button>
+            }
+          >
+            {errorMessage(rosterError, "The eligible students could not be loaded.")}
+          </Alert>
+        ) : students.length === 0 ? (
           <EmptyState framed data-testid="bgc-empty-filtered">
             No eligible students match the selected filters.
           </EmptyState>

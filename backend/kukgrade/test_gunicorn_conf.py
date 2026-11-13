@@ -35,6 +35,7 @@ def test_it_binds_every_interface_on_the_configured_port(
     assert conf.bind == "0.0.0.0:6942"
     assert conf.workers == 1
     assert conf.worker_class == "gthread"
+    assert conf.keepalive == 75
     assert not hasattr(conf, "certfile")
 
 

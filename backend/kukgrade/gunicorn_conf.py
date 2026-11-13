@@ -25,6 +25,11 @@ control_socket_disable = True
 forwarded_allow_ips = ""
 timeout = 30
 graceful_timeout = 30
+# Gunicorn's default of 2 seconds closed a browser's connection between two
+# clicks, so the next one paid a new TLS handshake. Behind a proxy the proxy
+# holds the browser's connection; this matters when the app serves HTTPS
+# itself. A threaded worker holds an idle connection without tying up a thread.
+keepalive = 75
 accesslog = "-"
 errorlog = "-"
 access_log_format = "%(h)s %(m)s %(U)s %(s)s %(D)s"

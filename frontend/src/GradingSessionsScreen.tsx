@@ -27,6 +27,8 @@ import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
 import { Button } from "./Button";
 import { ArrowRightIcon, PlusIcon } from "./Icons";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -92,6 +94,11 @@ function CurrentSessionCard({
 }
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
+
+const SHOW_OPTIONS = [
+  { value: "CURRENT", label: "Current gradings" },
+  { value: "ARCHIVED", label: "Archived gradings" },
+];
 
 export function GradingSessionsScreen() {
   const navigate = useNavigate();
@@ -193,39 +200,38 @@ export function GradingSessionsScreen() {
           value={searchText}
           onChange={(value) => filters.set({ search: value })}
         />
-        <div className="field">
-          <label htmlFor="gs-status-filter">Status</label>
-          <select id="gs-status-filter" onChange={(e) => filters.set({ status: e.target.value })} value={statusFilter}>
-            <option value="">All statuses</option>
-            {sessionStatuses.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="gs-year-filter">Year</label>
-          <select id="gs-year-filter" onChange={(e) => filters.set({ year: e.target.value })} value={yearFilter}>
-            <option value="">All years</option>
-            {availableYears.map((y) => (
-              <option key={y} value={String(y)}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="gs-archive-filter">Show</label>
-          <select
-            id="gs-archive-filter"
-            onChange={(e) => filters.set({ archived: e.target.value === "ARCHIVED" ? "only" : null })}
-            value={archivedOnly ? "ARCHIVED" : "CURRENT"}
-          >
-            <option value="CURRENT">Current gradings</option>
-            <option value="ARCHIVED">Archived gradings</option>
-          </select>
-        </div>
+        <Field label="Status" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All statuses"
+              options={sessionStatuses}
+              value={statusFilter}
+              onChange={(value) => filters.set({ status: value })}
+            />
+          )}
+        </Field>
+        <Field label="Year" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All years"
+              options={availableYears.map((year) => ({ value: String(year), label: String(year) }))}
+              value={yearFilter}
+              onChange={(value) => filters.set({ year: value })}
+            />
+          )}
+        </Field>
+        <Field label="Show" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              options={SHOW_OPTIONS}
+              value={archivedOnly ? "ARCHIVED" : "CURRENT"}
+              onChange={(value) => filters.set({ archived: value === "ARCHIVED" ? "only" : null })}
+            />
+          )}
+        </Field>
       </div>
 
       {/* ── Current Session Spotlight */}

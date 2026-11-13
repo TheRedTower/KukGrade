@@ -26,6 +26,8 @@ import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
 import { CheckIcon } from "./Icons";
 import { LoadingState } from "./LoadingState";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 const PAGE_SIZE = 50;
 
@@ -211,17 +213,20 @@ export function LinkRecordsScreen() {
             resetRows();
           }}
         />
-        <label className="field">
-          <span>Import</span>
-          <select value={batch} onChange={(event) => refilter({ batch: event.target.value })}>
-            <option value="">Every import</option>
-            {(imports.data?.results ?? []).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.original_filename}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Import" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="Every import"
+              options={(imports.data?.results ?? []).map((item) => ({
+                value: String(item.id),
+                label: item.original_filename,
+              }))}
+              value={batch}
+              onChange={(value) => refilter({ batch: value })}
+            />
+          )}
+        </Field>
       </div>
 
       <ChoiceGroup

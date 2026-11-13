@@ -31,6 +31,8 @@ import { ImportStatusBadge } from "./StatusBadge";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
 import { LoadingState } from "./LoadingState";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 const PAST_PAGE_SIZE = 10;
 
@@ -192,28 +194,28 @@ function PastImports() {
         Past imports
       </h2>
       <div className="filter-bar" role="search" aria-label="Import filters">
-        <label className="field">
-          <span>What</span>
-          <select value={kind} onChange={(event) => filters.set({ kind: event.target.value })}>
-            <option value="">Everything</option>
-            {choices.import_kinds.map((choice) => (
-              <option key={choice.value} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>State</span>
-          <select value={state} onChange={(event) => filters.set({ state: event.target.value })}>
-            <option value="">Any</option>
-            {choices.finished_import_statuses.map((choice) => (
-              <option key={choice.value} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="What" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="Everything"
+              options={choices.import_kinds}
+              value={kind}
+              onChange={(value) => filters.set({ kind: value })}
+            />
+          )}
+        </Field>
+        <Field label="State" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="Any"
+              options={choices.finished_import_statuses}
+              value={state}
+              onChange={(value) => filters.set({ state: value })}
+            />
+          )}
+        </Field>
       </div>
       <div className="card card--flush">
         {past.isPending ? (

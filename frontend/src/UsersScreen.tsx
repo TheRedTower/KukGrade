@@ -26,6 +26,7 @@ import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
 import { counted } from "./plural";
 import { MissingDetails } from "./MissingDetails";
+import { Select } from "./Select";
 
 const PAGE_SIZE = 10;
 
@@ -148,6 +149,11 @@ function CreateUserDialog({
   );
 }
 
+const ACCOUNT_STATUSES = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+];
+
 export function UsersScreen(): React.ReactElement {
   const navigate = useNavigate();
   const filters = useUrlFilters();
@@ -208,25 +214,28 @@ export function UsersScreen(): React.ReactElement {
           value={search}
           onChange={(value) => filters.set({ search: value })}
         />
-        <label className="field">
-          <span>Role</span>
-          <select value={role} onChange={(event) => filters.set({ role: event.target.value })}>
-            <option value="">All roles</option>
-            {roles.map((choice) => (
-              <option key={choice.value} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Status</span>
-          <select value={status} onChange={(event) => filters.set({ status: event.target.value })}>
-            <option value="">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
+        <Field label="Role" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All roles"
+              options={roles}
+              value={role}
+              onChange={(value) => filters.set({ role: value })}
+            />
+          )}
+        </Field>
+        <Field label="Status" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All statuses"
+              options={ACCOUNT_STATUSES}
+              value={status}
+              onChange={(value) => filters.set({ status: value })}
+            />
+          )}
+        </Field>
         <p className="filter-bar__count">{counted(count, "user", "users")}</p>
       </div>
 

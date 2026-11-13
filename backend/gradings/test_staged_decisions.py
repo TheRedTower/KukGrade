@@ -92,7 +92,6 @@ def test_a_master_stages_changes_and_reads_back_their_own_decision() -> None:
             "decision_notes": "Strong forms, ",
             "conditional_requirements": "",
             "revision": 2,
-            "updated_at": second.json()["updated_at"],
             "discarded": False,
         },
     ]

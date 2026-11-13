@@ -32,8 +32,6 @@ const masterUser: AuthUser = {
   can_import_data: false,
   can_reconcile_imported_history: false,
   can_delete_students: false,
-  can_delete_assessments: false,
-  can_delete_any_session: false,
   can_read_audit_log: true,
   must_change_password: false,
 };

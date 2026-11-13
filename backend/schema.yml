@@ -3283,16 +3283,8 @@ components:
           type: integer
           readOnly: true
           description: Its place in the item's history, from 1.
-        from_result:
-          allOf:
-          - $ref: '#/components/schemas/ResultEnum'
-          readOnly: true
         from_result_display:
           type: string
-          readOnly: true
-        to_result:
-          allOf:
-          - $ref: '#/components/schemas/ResultEnum'
           readOnly: true
         to_result_display:
           type: string
@@ -3317,11 +3309,9 @@ components:
       - after_lock
       - changed_at
       - changed_by_name
-      - from_result
       - from_result_display
       - reason
       - sequence
-      - to_result
       - to_result_display
     AssessmentStatusChoice:
       type: object
@@ -5718,10 +5708,6 @@ components:
         revision:
           type: integer
           minimum: 1
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
         discarded:
           type: boolean
           readOnly: true
@@ -5730,7 +5716,6 @@ components:
       - final_outcome
       - outcome
       - revision
-      - updated_at
     KindEnum:
       enum:
       - STUDENT_ROSTER
@@ -5770,9 +5755,6 @@ components:
         cycle_month:
           type: integer
           readOnly: true
-        source_batch:
-          type: integer
-          readOnly: true
         source_section:
           type: string
           readOnly: true
@@ -5799,10 +5781,6 @@ components:
           readOnly: true
         testing_for_rank:
           type: integer
-          readOnly: true
-          nullable: true
-        testing_for_rank_code:
-          type: string
           readOnly: true
           nullable: true
         testing_for_rank_name:
@@ -5849,7 +5827,6 @@ components:
       - record_kind
       - record_kind_display
       - report
-      - source_batch
       - source_current_rank_text
       - source_name
       - source_section
@@ -5857,7 +5834,6 @@ components:
       - student
       - student_display_name
       - testing_for_rank
-      - testing_for_rank_code
       - testing_for_rank_name
       - void_reason
       - voided_by_name
@@ -5875,8 +5851,6 @@ components:
         unresolved_current_rank:
           type: integer
         unresolved_testing_for_rank:
-          type: integer
-        unresolved_outcome:
           type: integer
         excluded:
           type: integer
@@ -5899,7 +5873,6 @@ components:
       - rank_suggestions
       - total
       - unresolved_current_rank
-      - unresolved_outcome
       - unresolved_testing_for_rank
       - warnings
       - worth_a_look
@@ -6697,12 +6670,7 @@ components:
         wksa_id:
           type: string
           readOnly: true
-        replaced_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - replaced_at
       - wksa_id
     ProgrammeEnum:
       enum:
@@ -6721,9 +6689,6 @@ components:
         student_display_name:
           type: string
           readOnly: true
-        grading_candidate:
-          type: integer
-          readOnly: true
         to_rank_name:
           type: string
           readOnly: true
@@ -6733,7 +6698,6 @@ components:
           readOnly: true
       required:
       - effective_date
-      - grading_candidate
       - id
       - student_display_name
       - to_rank_name
@@ -7089,15 +7053,10 @@ components:
         revision:
           type: integer
           minimum: 1
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
       - final_outcome
       - outcome
       - revision
-      - updated_at
     StagedDecisionRequest:
       type: object
       description: A final decision chosen but not yet recorded, seen only by whoever
@@ -7541,12 +7500,6 @@ components:
         can_delete_students:
           type: boolean
           readOnly: true
-        can_delete_assessments:
-          type: boolean
-          readOnly: true
-        can_delete_any_session:
-          type: boolean
-          readOnly: true
         can_read_audit_log:
           type: boolean
           readOnly: true
@@ -7554,8 +7507,6 @@ components:
           type: boolean
           readOnly: true
       required:
-      - can_delete_any_session
-      - can_delete_assessments
       - can_delete_students
       - can_import_data
       - can_make_final_grading_decision

@@ -12,7 +12,6 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.people import MissingDetail, missing_details, name_of
 from accounts.permissions import (
-    DELETE_ANY_SESSION_PERMISSION,
     FINAL_GRADING_DECISION_PERMISSION,
     GRADING_AUDIT_LOG_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
@@ -80,8 +79,6 @@ class UserSerializer(AuthorityFields, ModelSerializer):
         "gradings.can_reconcile_imported_history",
     )
     can_delete_students = HasPermission("students.delete_student")
-    can_delete_assessments = HasPermission("gradings.delete_candidateassessment")
-    can_delete_any_session = HasPermission(DELETE_ANY_SESSION_PERMISSION)
     # Not a single permission: the audit-log rule, computed by the same
     # function the API and admin enforce it with.
     can_read_audit_log = serializers.SerializerMethodField()
@@ -109,8 +106,6 @@ class UserSerializer(AuthorityFields, ModelSerializer):
             "can_import_data",
             "can_reconcile_imported_history",
             "can_delete_students",
-            "can_delete_assessments",
-            "can_delete_any_session",
             "can_read_audit_log",
             "must_change_password",
         )

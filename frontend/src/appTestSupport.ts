@@ -167,8 +167,6 @@ export const authUser = {
   can_import_data: false,
   can_reconcile_imported_history: false,
   can_delete_students: false,
-  can_delete_assessments: false,
-  can_delete_any_session: false,
   can_read_audit_log: false,
   must_change_password: false,
 } satisfies AuthUser;
@@ -179,8 +177,6 @@ export const ADMINISTRATOR_CAPABILITIES = {
   can_import_data: true,
   can_reconcile_imported_history: true,
   can_delete_students: true,
-  can_delete_assessments: true,
-  can_delete_any_session: true,
   can_read_audit_log: true,
 } satisfies Partial<AuthUser>;
 

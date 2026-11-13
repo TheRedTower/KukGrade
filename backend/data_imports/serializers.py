@@ -467,7 +467,6 @@ class LegacyImportPreviewSerializer(serializers.Serializer):
     did_not_attend = serializers.IntegerField()
     unresolved_current_rank = serializers.IntegerField()
     unresolved_testing_for_rank = serializers.IntegerField()
-    unresolved_outcome = serializers.IntegerField()
     excluded = serializers.IntegerField()
     worth_a_look = serializers.IntegerField(
         help_text="Records not left out that have issues: a reason to look.",

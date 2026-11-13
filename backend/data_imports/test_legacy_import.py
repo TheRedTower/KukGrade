@@ -200,7 +200,7 @@ def test_every_preview_judges_each_record_against_the_ranks_as_they_are_now() ->
     assert not_matched in batch.rows.get().issues
 
 
-def test_preview_counts_unresolved_free_form_outcomes() -> None:
+def test_preview_counts_an_unresolved_free_form_outcome_as_worth_a_look() -> None:
     content = standard_workbook(
         [["A. Example", "White", "Yellow Stripe", "Testing? JKN Example: No", ""]],
     )
@@ -208,7 +208,10 @@ def test_preview_counts_unresolved_free_form_outcomes() -> None:
 
     preview = preview_legacy_grading_import(batch)
 
-    assert preview.unresolved_outcome == 1
+    assert preview.worth_a_look == 1
+    assert "Outcome 'Testing? JKN Example: No' is not one KukGrade knows." in (
+        batch.rows.get().issues
+    )
 
 
 def test_preview_is_recomputed_fresh_and_deterministic() -> None:

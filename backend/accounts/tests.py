@@ -277,8 +277,6 @@ def test_current_user_returns_authenticated_user() -> None:
         "can_import_data": False,
         "can_reconcile_imported_history": False,
         "can_delete_students": False,
-        "can_delete_assessments": False,
-        "can_delete_any_session": False,
         # A Master may read the audit log.
         "can_read_audit_log": True,
         "must_change_password": False,
@@ -290,8 +288,6 @@ CAPABILITY_FLAGS = (
     "can_import_data",
     "can_reconcile_imported_history",
     "can_delete_students",
-    "can_delete_assessments",
-    "can_delete_any_session",
     "can_read_audit_log",
 )
 
@@ -305,8 +301,8 @@ def test_current_user_capabilities_follow_permissions_not_role() -> None:
     granted = create_user(email="capabilities-granted@example.com")
     granted.user_permissions.add(
         Permission.objects.get(
-            content_type__app_label="gradings",
-            codename="delete_any_gradingsession",
+            content_type__app_label="students",
+            codename="delete_student",
         ),
     )
 
@@ -318,7 +314,7 @@ def test_current_user_capabilities_follow_permissions_not_role() -> None:
 
     assert all(flags(administrator).values())
     assert flags(granted) == {
-        name: name == "can_delete_any_session" for name in CAPABILITY_FLAGS
+        name: name == "can_delete_students" for name in CAPABILITY_FLAGS
     }
 
 

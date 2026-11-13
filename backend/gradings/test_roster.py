@@ -12,6 +12,7 @@ from gradings.models import (
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    Promotion,
 )
 from gradings.outcome_services import promote_candidate, propose_for_candidate
 from gradings.read_models import CandidateNextAction, candidate_next_action
@@ -373,7 +374,10 @@ def test_the_roster_carries_the_promotion_only_to_those_who_may_see_promotions()
     [with_access] = results(seen_by_promoter.get(url))
     [without_access] = results(seen_by_instructor.get(url))
 
-    assert with_access["promotion"]["grading_candidate"] == built.pk
+    assert (
+        with_access["promotion"]["id"]
+        == Promotion.objects.get(grading_candidate_id=built.pk).pk
+    )
     assert with_access["promotion"]["to_rank_name"]
     assert without_access["promotion"] is None
 

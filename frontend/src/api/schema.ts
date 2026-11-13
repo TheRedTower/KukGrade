@@ -1653,9 +1653,7 @@ export interface components {
         AssessmentItemResultChange: {
             /** @description Its place in the item's history, from 1. */
             readonly sequence: number;
-            readonly from_result: components["schemas"]["ResultEnum"];
             readonly from_result_display: string;
-            readonly to_result: components["schemas"]["ResultEnum"];
             readonly to_result_display: string;
             /** @description Who changed by is, as the record names them: their rank then and their name. */
             readonly changed_by_name: string;
@@ -2626,8 +2624,6 @@ export interface components {
             decision_notes?: string;
             conditional_requirements?: string;
             revision: number;
-            /** Format: date-time */
-            readonly updated_at: string;
             readonly discarded: boolean;
         };
         /**
@@ -2649,7 +2645,6 @@ export interface components {
             readonly record_kind_display: string;
             readonly cycle_year: number;
             readonly cycle_month: number;
-            readonly source_batch: number;
             readonly source_section: string;
             readonly source_name: string;
             readonly source_current_rank_text: string;
@@ -2658,7 +2653,6 @@ export interface components {
             readonly current_rank_name: string | null;
             readonly source_testing_for_rank_text: string;
             readonly testing_for_rank: number | null;
-            readonly testing_for_rank_code: string | null;
             readonly testing_for_rank_name: string | null;
             readonly outcome_display: string | null;
             readonly attendance_status_display: string;
@@ -2678,7 +2672,6 @@ export interface components {
             did_not_attend: number;
             unresolved_current_rank: number;
             unresolved_testing_for_rank: number;
-            unresolved_outcome: number;
             excluded: number;
             /** @description Records not left out that have issues: a reason to look. */
             worth_a_look: number;
@@ -3147,8 +3140,6 @@ export interface components {
         };
         PreviousWksaId: {
             readonly wksa_id: string;
-            /** Format: date-time */
-            readonly replaced_at: string;
         };
         /**
          * @description * `JUNIOR` - Junior & Little Dragon
@@ -3159,7 +3150,6 @@ export interface components {
         Promotion: {
             readonly id: number;
             readonly student_display_name: string;
-            readonly grading_candidate: number;
             readonly to_rank_name: string;
             /** Format: date */
             readonly effective_date: string;
@@ -3313,8 +3303,6 @@ export interface components {
             decision_notes?: string;
             conditional_requirements?: string;
             revision: number;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /** @description A final decision chosen but not yet recorded, seen only by whoever chose it. */
         StagedDecisionRequest: {
@@ -3509,8 +3497,6 @@ export interface components {
             readonly can_import_data: boolean;
             readonly can_reconcile_imported_history: boolean;
             readonly can_delete_students: boolean;
-            readonly can_delete_assessments: boolean;
-            readonly can_delete_any_session: boolean;
             readonly can_read_audit_log: boolean;
             readonly must_change_password: boolean;
         };

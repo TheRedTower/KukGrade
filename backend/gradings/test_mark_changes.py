@@ -412,11 +412,11 @@ def test_the_api_takes_a_reason_and_serves_the_history() -> None:
     [row] = [r for r in results(listed) if r["id"] == item.pk]
     assert row["result"] == "NOT_MET"
     assert [
-        (c["sequence"], c["from_result"], c["to_result"], c["reason"])
+        (c["sequence"], c["from_result_display"], c["to_result_display"], c["reason"])
         for c in row["changes"]
     ] == [
-        (1, "NOT_ASSESSED", "MET", ""),
-        (2, "MET", "NOT_MET", "Second look."),
+        (1, "Not assessed", "Met", ""),
+        (2, "Met", "Not met", "Second look."),
     ]
     assert all(c["changed_by_name"] and c["changed_at"] for c in row["changes"])
     assert "reason" not in row

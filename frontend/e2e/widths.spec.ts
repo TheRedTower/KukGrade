@@ -154,6 +154,40 @@ async function signIn(browser: Browser, role: Role): Promise<BrowserContext> {
   return context;
 }
 
+/** The requests each page has sent and not yet had an answer to. */
+const inFlight = new WeakMap<Page, Set<unknown>>();
+
+async function trackedPage(role: Role): Promise<Page> {
+  const page = await contexts.get(role)!.newPage();
+  const open = new Set<unknown>();
+  inFlight.set(page, open);
+  page.on("request", (request) => open.add(request));
+  page.on("requestfinished", (request) => open.delete(request));
+  page.on("requestfailed", (request) => open.delete(request));
+  return page;
+}
+
+/**
+ * Waits until the screen has drawn what it loads: no loading line, no request
+ * still waiting for its answer (some screens fill in without a loading line),
+ * and the same two frames later, since an answer can start the next request.
+ * Then its fonts. Waiting for the network to fall silent instead cost half a
+ * second on every load.
+ */
+async function settled(page: Page): Promise<void> {
+  const open = inFlight.get(page)!;
+  const loading = page.locator(".loading-state");
+  for (;;) {
+    await expect(loading).toHaveCount(0);
+    await expect.poll(() => open.size, { intervals: [10] }).toBe(0);
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    if (open.size === 0 && (await loading.count()) === 0) break;
+  }
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+}
+
 async function list(request: APIRequestContext, path: string): Promise<Record<string, unknown>[]> {
   const response = await request.get(path);
   expect(response.ok(), path).toBe(true);
@@ -308,26 +342,12 @@ for (const path of ["/", "/students", "/gradings"]) {
   });
 }
 
-test("every control on every screen is a finger-sized target on a phone", async () => {
-  test.skip(test.info().project.name !== "webkit-iphone", "touch targets are judged on the phone");
-  const problems: string[] = [];
-  for (const screen of SCREENS) {
-    const page = await contexts.get(screen.role)!.newPage();
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(screen.path(ids));
-    await page.getByRole("heading").first().waitFor();
-    await page.waitForLoadState("networkidle");
-    await screen.after?.(page);
-    for (const small of await findSmallTargets(page)) problems.push(`${screen.name}: ${small}`);
-    await page.close();
-  }
-  expect(problems, `controls under 44px:\n  ${problems.join("\n  ")}`).toEqual([]);
-});
-
 for (const screen of SCREENS) {
   test(screen.name, async ({ browserName }, testInfo) => {
     const webkit = browserName === "webkit";
     const widths = webkit ? WEBKIT_WIDTHS[testInfo.project.name] : quick ? QUICK_WIDTHS : ALL_WIDTHS;
+    // Touch targets are judged on the phone, at its own width.
+    const phone = testInfo.project.name === "webkit-iphone";
     // WebKit checks the same few widths in every run, so only Chrome's quick run is partial.
     const partial = quick && !webkit;
     const debtFile = webkit ? `widthDebtWebkit.json (${testInfo.project.name})` : "widthDebt.json";
@@ -341,7 +361,7 @@ for (const screen of SCREENS) {
     // quick run checks too few widths to tell.
     test.skip(partial && owedHere, "owed: only the full run checks it");
     test.fail(owedHere && authoritative && !partial, `still owed: listed in ${debtFile}`);
-    const page = await contexts.get(screen.role)!.newPage();
+    const page = await trackedPage(screen.role);
     const problems: string[] = [];
     for (const width of widths) {
       await page.setViewportSize({ width, height: 844 });
@@ -350,10 +370,13 @@ for (const screen of SCREENS) {
       await page.getByRole("heading").first().waitFor();
       // A redirect or a not-found page would fit and prove nothing.
       expect(new URL(page.url()).pathname, "the screen was not shown").toBe(path.split("?")[0]);
-      await page.waitForLoadState("networkidle");
+      await settled(page);
       await screen.after?.(page);
       for (const issue of await findOverflow(page, width)) problems.push(`${width}px  ${issue}`);
       for (const issue of await findLayoutFaults(page)) problems.push(`${width}px  ${issue}`);
+      if (phone && width === 390) {
+        for (const small of await findSmallTargets(page)) problems.push(`${width}px  under 44px: ${small}`);
+      }
     }
     await page.close();
     if (owedHere && !authoritative) {

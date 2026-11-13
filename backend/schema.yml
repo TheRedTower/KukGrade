@@ -4915,6 +4915,21 @@ components:
           readOnly: true
           description: 'Whether final decisions are being made now: the session is
             locked.'
+        marking_begun:
+          type: boolean
+          readOnly: true
+          description: Whether the session has left draft, so its count of complete
+            assessments means something.
+        results_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether its final decisions and promotion ledger can be opened:
+            the session is locked or completed.'
+        has_recorded_work:
+          type: boolean
+          readOnly: true
+          description: Whether any assessment work has been recorded in it, which
+            deleting the session would erase.
         can_open:
           type: boolean
           readOnly: true
@@ -4972,8 +4987,11 @@ components:
       - completed_assessment_count
       - decisions_open
       - grading_date
+      - has_recorded_work
       - id
+      - marking_begun
       - marking_open
+      - results_open
       - roster_open
       - status_display
       - title

@@ -268,7 +268,7 @@ export function GradingSessionsScreen() {
                     key: "progress",
                     header: "Progress",
                     render: (session) =>
-                      session.candidate_count !== null && session.status !== "DRAFT"
+                      session.marking_begun
                         ? `${session.completed_assessment_count ?? 0} of ${session.candidate_count} complete`
                         : "—",
                   },

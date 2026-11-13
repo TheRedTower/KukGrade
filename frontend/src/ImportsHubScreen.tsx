@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -28,6 +27,7 @@ import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useChoices } from "./choices";
+import { ImportStatusBadge } from "./StatusBadge";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
 import { LoadingState } from "./LoadingState";
@@ -37,15 +37,6 @@ const PAST_PAGE_SIZE = 10;
 /** What a finished import did, in a line. */
 function finishedResult(batch: DataImportBatch): string {
   return batch.status === "COMMITTED" ? importKinds[batch.kind].finished(batch.summary_json) : "Nothing saved";
-}
-
-function statePill(batch: DataImportBatch) {
-  const tone = batch.status === "COMMITTED" ? "success" : batch.status === "UPLOADED" ? "warning" : "neutral";
-  return (
-    <Badge dot tone={tone}>
-      {batch.status_display}
-    </Badge>
-  );
 }
 
 function UnfinishedImports({
@@ -250,7 +241,11 @@ function PastImports() {
                   render: (batch) => <strong>{batch.original_filename}</strong>,
                 },
                 { key: "what", header: "What", render: (batch) => batch.kind_display },
-                { key: "state", header: "State", render: (batch) => statePill(batch) },
+                {
+                  key: "state",
+                  header: "State",
+                  render: (batch) => <ImportStatusBadge status={batch.status} label={batch.status_display} />,
+                },
                 { key: "result", header: "Result", render: (batch) => finishedResult(batch) },
                 {
                   key: "when",

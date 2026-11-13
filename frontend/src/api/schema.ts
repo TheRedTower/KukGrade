@@ -2280,6 +2280,12 @@ export interface components {
             readonly marking_open: boolean;
             /** @description Whether final decisions are being made now: the session is locked. */
             readonly decisions_open: boolean;
+            /** @description Whether the session has left draft, so its count of complete assessments means something. */
+            readonly marking_begun: boolean;
+            /** @description Whether its final decisions and promotion ledger can be opened: the session is locked or completed. */
+            readonly results_open: boolean;
+            /** @description Whether any assessment work has been recorded in it, which deleting the session would erase. */
+            readonly has_recorded_work: boolean;
             /** @description Whether the viewer may open this session now. */
             readonly can_open: boolean;
             /** @description Whether the viewer may ask to lock this session now. Locking itself checks that every assessment is complete. */

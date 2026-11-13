@@ -4,6 +4,7 @@ import type {
   CandidateAssessment,
   CandidateOutcome,
   CandidateOutcomeOutcome,
+  DataImportBatch,
   GradingSessionStatus,
   StudentStatus,
 } from "./api";
@@ -121,6 +122,17 @@ export function OutcomeBadge({ outcome }: { outcome?: CandidateOutcome | null })
     <ResultBadge result={result}>
       {outcome.status_display}: {label}
     </ResultBadge>
+  );
+}
+
+const IMPORT_TONES = { UPLOADED: "warning", COMMITTED: "success", CANCELLED: "neutral", EXPIRED: "neutral" } as const;
+
+/** Where an import stands: waiting to be finished, imported, or ended with nothing saved. */
+export function ImportStatusBadge({ status, label }: { status: DataImportBatch["status"]; label: string }) {
+  return (
+    <Badge dot tone={IMPORT_TONES[status]}>
+      {label}
+    </Badge>
   );
 }
 

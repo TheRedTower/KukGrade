@@ -186,7 +186,8 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
   it("lets an administrator delete a locked session after confirming", async () => {
     currentUser = adminUser;
     // The server decides per user: an administrator may delete any status.
-    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), can_be_deleted: true });
+    // Locking needs every assessment complete, so a locked session holds work.
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), can_be_deleted: true, has_recorded_work: true });
     const user = userEvent.setup();
 
     renderScreen();
@@ -206,6 +207,30 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
     await waitFor(() => expect(mockDeleteGradingSession).toHaveBeenCalledWith(7));
     await waitFor(() => expect(screen.getByText("Gradings list")).toBeInTheDocument());
+  });
+
+  it("offers the final decisions and the ledger only when the server says results are open", async () => {
+    currentUser = adminUser;
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), results_open: false });
+    renderScreen();
+
+    expect(await screen.findByRole("heading", { name: "March 2027 Riverside Grading" })).toBeVisible();
+    expect(screen.queryByTestId("gsd-final-decisions-btn")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("gsd-promotion-ledger-btn")).not.toBeInTheDocument();
+  });
+
+  it("warns of erased assessments only when the server says work is recorded", async () => {
+    currentUser = adminUser;
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), can_be_deleted: true, has_recorded_work: false });
+    const user = userEvent.setup();
+
+    renderScreen();
+    await user.click(await screen.findByRole("button", { name: /Session actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete session" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Delete Grading Session" });
+    expect(dialog).not.toHaveTextContent("every assessment recorded in it");
+    expect(dialog).toHaveTextContent("This action cannot be undone.");
   });
 });
 

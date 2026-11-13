@@ -748,6 +748,11 @@ class StagedDecision(models.Model):
     A final decision the Master has chosen but not yet recorded. It is the
     Master's own working copy, kept so a session that times out loses
     nothing; it decides nothing, and recording the decision removes it.
+
+    Each change carries a revision that only goes up, and an older change
+    that arrives late (a save still on its way when the page was left) is
+    refused. So taking a decision off leaves the row `discarded` rather than
+    deleting it: the revision it carries is what refuses the late save.
     """
 
     if TYPE_CHECKING:
@@ -770,6 +775,8 @@ class StagedDecision(models.Model):
     )
     decision_notes = models.TextField(blank=True)
     conditional_requirements = models.TextField(blank=True)
+    revision = models.PositiveBigIntegerField(default=0)
+    discarded = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -779,8 +786,10 @@ class StagedDecision(models.Model):
                 fields=["outcome", "author"],
                 name="staged_decision_one_per_author",
             ),
+            # A decision taken off keeps no outcome, only its revision.
             models.CheckConstraint(
-                condition=Q(final_outcome__in=GradingOutcome.values),
+                condition=Q(final_outcome__in=GradingOutcome.values)
+                | Q(discarded=True, final_outcome=""),
                 name="staged_decision_outcome_valid",
             ),
         ]

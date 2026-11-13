@@ -347,6 +347,26 @@ def finalise_candidate_outcome(
     return locked_outcome
 
 
+STALE_STAGED_CHANGE_MESSAGE = "A newer change to this decision has already been saved."
+
+
+def _newer_staged_change(
+    outcome: CandidateOutcome,
+    actor: User,
+    revision: int,
+) -> StagedDecision | None:
+    """The actor's staged row for this outcome, locked, or None if there is
+    none; refuses a change no newer than the one it holds."""
+    staged = (
+        StagedDecision.objects.select_for_update()
+        .filter(outcome=outcome, author=actor)
+        .first()
+    )
+    if staged is not None and revision <= staged.revision:
+        raise ValidationError({"revision": [STALE_STAGED_CHANGE_MESSAGE]})
+    return staged
+
+
 @transaction.atomic
 def stage_final_decision(
     outcome: CandidateOutcome,
@@ -354,8 +374,12 @@ def stage_final_decision(
     decision_notes: str,
     conditional_requirements: str,
     actor: User,
+    revision: int,
 ) -> StagedDecision:
     """Keep the actor's chosen decision, unrecorded, until they record it.
+
+    `revision` only goes up: a change no newer than the kept one is refused,
+    so a save that arrives after a later one cannot undo it.
 
     Not audited: it decides nothing and changes no record. Recording it is
     what is audited, by finalise_candidate_outcome.
@@ -367,22 +391,46 @@ def stage_final_decision(
             {"status": ["This candidate's decision can no longer be staged."]},
         )
     _validate_outcome_choice(final_outcome, "final_outcome")
-    staged, _created = StagedDecision.objects.update_or_create(
-        outcome=locked_outcome,
-        author=actor,
-        defaults={
-            "final_outcome": final_outcome,
-            "decision_notes": decision_notes,
-            "conditional_requirements": conditional_requirements,
-        },
-    )
+    staged = _newer_staged_change(locked_outcome, actor, revision)
+    if staged is None:
+        staged = StagedDecision(outcome=locked_outcome, author=actor)
+    staged.final_outcome = final_outcome
+    staged.decision_notes = decision_notes
+    staged.conditional_requirements = conditional_requirements
+    staged.revision = revision
+    staged.discarded = False
+    staged.save()
     return staged
 
 
-def discard_staged_decision(outcome: CandidateOutcome, actor: User) -> None:
-    """Drop the actor's staged decision for this outcome, if there is one."""
+@transaction.atomic
+def discard_staged_decision(
+    outcome: CandidateOutcome,
+    actor: User,
+    revision: int,
+) -> None:
+    """Take the actor's staged decision for this outcome off.
+
+    The row stays, marked discarded and carrying `revision`, so an older save
+    still on its way is refused when it arrives instead of bringing the
+    decision back.
+    """
     validate_final_decision_actor(actor)
-    StagedDecision.objects.filter(outcome=outcome, author=actor).delete()
+    locked_outcome = lock_outcome(outcome.pk)
+    if not outcome_can_be_finalised(locked_outcome):
+        # Nothing can be staged here any more, so no late save can land: as
+        # before, whatever is left simply goes.
+        StagedDecision.objects.filter(outcome=locked_outcome, author=actor).delete()
+        return
+    staged = _newer_staged_change(locked_outcome, actor, revision)
+    if staged is None:
+        staged = StagedDecision(outcome=locked_outcome, author=actor)
+    staged.final_outcome = ""
+    staged.decision_notes = ""
+    staged.conditional_requirements = ""
+    staged.revision = revision
+    staged.discarded = True
+    staged.save()
 
 
 def staged_decisions_for_session(
@@ -393,6 +441,7 @@ def staged_decisions_for_session(
     validate_final_decision_actor(actor)
     return StagedDecision.objects.filter(
         author=actor,
+        discarded=False,
         outcome__candidate__session_id=session_id,
         outcome__in=CandidateOutcome.objects.can_be_finalised(),
     ).order_by("outcome_id")

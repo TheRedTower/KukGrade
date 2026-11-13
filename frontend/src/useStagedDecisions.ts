@@ -21,15 +21,25 @@ const KEEP_DELAY_MS = 600;
 // Stands for a row whose last save failed: no staged decision matches it.
 const UNKNOWN = "";
 
-/** Keeps one row's staged decision on the server, or drops it (`null`). */
-async function write(outcomeId: number, decision: StagedDecision | null, keepalive: boolean): Promise<void> {
-  if (!decision) return discardStagedDecision(outcomeId, keepalive);
+/**
+ * Keeps one row's staged decision on the server, or takes it off (`null`).
+ * `revision` says which change it is; the server refuses one older than what
+ * it holds, so a save that arrives late cannot undo a later change.
+ */
+async function write(
+  outcomeId: number,
+  decision: StagedDecision | null,
+  revision: number,
+  keepalive: boolean,
+): Promise<void> {
+  if (!decision) return discardStagedDecision(outcomeId, revision, keepalive);
   await stageDecision(
     outcomeId,
     {
       final_outcome: decision.outcome,
       decision_notes: decision.notes,
       conditional_requirements: decision.conditionalRequirements,
+      revision,
     },
     keepalive,
   );
@@ -63,6 +73,8 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // latest, so only its answer counts.
   const sent = useRef<Record<number, string> | null>(null);
   const writeSeq = useRef<Record<number, number>>({});
+  // The revision of each row's last change, so the next is always later.
+  const revisions = useRef<Record<number, number> | null>(null);
   const [restored, setRestored] = useState<ApiStagedDecision[] | null>(null);
   const [keepFailures, setKeepFailures] = useState<Record<number, string>>({});
 
@@ -95,8 +107,15 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // Each write goes through the mutation cache, so an expired session signs the viewer out.
   const keepMutation = useMutation({
     scope,
-    mutationFn: ({ outcomeId, decision }: { outcomeId: number; decision: StagedDecision | null }) =>
-      write(outcomeId, decision, false),
+    mutationFn: ({
+      outcomeId,
+      decision,
+      revision,
+    }: {
+      outcomeId: number;
+      decision: StagedDecision | null;
+      revision: number;
+    }) => write(outcomeId, decision, revision, false),
   });
   const keep = keepMutation.mutateAsync;
 
@@ -113,6 +132,8 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     sent.current ??= Object.fromEntries(
       Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
     );
+    revisions.current ??= Object.fromEntries(restored.map((row) => [row.outcome, row.revision]));
+    const lastRevision = revisions.current;
     const onServer = sent.current;
     new Set([...Object.keys(target), ...Object.keys(onServer)].map(Number)).forEach((outcomeId) => {
       const decision = target[outcomeId];
@@ -123,11 +144,14 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
       const seq = (writeSeq.current[outcomeId] ?? 0) + 1;
       writeSeq.current[outcomeId] = seq;
       const isLatest = () => writeSeq.current[outcomeId] === seq;
+      // Later than any change this row has had, here or as the server holds it.
+      const revision = Math.max(Date.now(), (lastRevision[outcomeId] ?? 0) + 1);
+      lastRevision[outcomeId] = revision;
       if (closing) {
-        void write(outcomeId, decision ?? null, true).catch(() => {});
+        void write(outcomeId, decision ?? null, revision, true).catch(() => {});
         return;
       }
-      keep({ outcomeId, decision: decision ?? null }).then(
+      keep({ outcomeId, decision: decision ?? null, revision }).then(
         () => {
           if (isLatest()) setKeepFailures((current) => without(current, outcomeId));
         },

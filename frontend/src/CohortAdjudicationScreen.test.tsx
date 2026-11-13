@@ -327,6 +327,7 @@ describe("CohortAdjudicationScreen", () => {
         final_outcome: "CONDITIONAL",
         decision_notes: "Strong forms.",
         conditional_requirements: "Re-test Dwi Cha Gi.",
+        revision: 1,
         updated_at: "2026-11-12T15:00:00Z",
       },
     ]);
@@ -357,13 +358,14 @@ describe("CohortAdjudicationScreen", () => {
           final_outcome: "PASS",
           decision_notes: "",
           conditional_requirements: "",
+          revision: expect.any(Number),
         },
         false,
       ),
     );
 
     await user.click(within(mia).getByRole("button", { name: "Pass" }));
-    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11, false));
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11, expect.any(Number), false));
     expect(mockStage).toHaveBeenCalledTimes(1);
   });
 
@@ -378,7 +380,7 @@ describe("CohortAdjudicationScreen", () => {
     // Another screen, before the pause that would have saved it.
     board.unmount();
 
-    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11, false));
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11, expect.any(Number), false));
     expect(mockStage).toHaveBeenCalledTimes(1);
   });
 
@@ -425,7 +427,35 @@ describe("CohortAdjudicationScreen", () => {
     await user.click(within(mia).getByRole("button", { name: "Pass" }));
     window.dispatchEvent(new Event("pagehide"));
 
-    expect(mockDiscard).toHaveBeenCalledWith(11, true);
+    expect(mockDiscard).toHaveBeenCalledWith(11, expect.any(Number), true);
+  });
+
+  it("says which change each save is, always later than the last, starting above the server's", async () => {
+    // A revision far ahead of this device's clock: the next change must still be later.
+    const ahead = Date.now() + 60 * 60 * 1000;
+    mockGetStaged.mockResolvedValue([
+      {
+        outcome: 11,
+        final_outcome: "FAIL",
+        decision_notes: "",
+        conditional_requirements: "",
+        revision: ahead,
+        updated_at: "2026-11-12T15:00:00Z",
+      },
+    ]);
+    const user = userEvent.setup();
+    renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledTimes(1));
+
+    const staged = mockStage.mock.calls[0][1] as { revision: number };
+    const discarded = mockDiscard.mock.calls[0][1] as number;
+    expect(staged.revision).toBe(ahead + 1);
+    expect(discarded).toBeGreaterThan(staged.revision);
   });
 
   it("does not drop the server's copy of a recorded decision itself", async () => {
@@ -491,6 +521,7 @@ describe("CohortAdjudicationScreen", () => {
         final_outcome: "FAIL",
         decision_notes: "",
         conditional_requirements: "",
+        revision: 1,
         updated_at: "2026-11-12T15:00:00Z",
       },
     ]);

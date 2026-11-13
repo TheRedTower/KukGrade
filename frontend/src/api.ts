@@ -467,8 +467,13 @@ export function stageDecision(id: number, body: Schemas["StagedDecisionRequest"]
   return answer(api.PUT("/api/gradings/outcomes/{id}/staged-decision/", { params: { path: { id } }, body, keepalive }));
 }
 
-export function discardStagedDecision(id: number, keepalive = false) {
-  return done(api.DELETE("/api/gradings/outcomes/{id}/staged-decision/", { params: { path: { id } }, keepalive }));
+export function discardStagedDecision(id: number, revision: number, keepalive = false) {
+  return done(
+    api.DELETE("/api/gradings/outcomes/{id}/staged-decision/", {
+      params: { path: { id }, query: { revision } },
+      keepalive,
+    }),
+  );
 }
 
 export function finaliseCandidateOutcome(id: number, body: Schemas["CandidateOutcomeFinaliseRequest"]) {

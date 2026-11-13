@@ -3327,6 +3327,7 @@ export interface components {
             final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             decision_notes?: string;
             conditional_requirements?: string;
+            revision: number;
             /** Format: date-time */
             readonly updated_at: string;
         };
@@ -3335,6 +3336,7 @@ export interface components {
             final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             decision_notes?: string;
             conditional_requirements?: string;
+            revision: number;
         };
         /**
          * @description Detail, create and update.
@@ -5189,7 +5191,9 @@ export interface operations {
     };
     gradings_outcomes_staged_decision_destroy: {
         parameters: {
-            query?: never;
+            query: {
+                revision: number;
+            };
             header?: never;
             path: {
                 /** @description A unique integer value identifying this candidate outcome. */

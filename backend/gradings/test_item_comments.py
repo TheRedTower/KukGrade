@@ -1,20 +1,16 @@
-"""Comments on assessed items: written, kept as written, carried over from old notes."""
+"""Comments on assessed items: written, and kept as written."""
 
 from __future__ import annotations
 
 from typing import Any
 
 import pytest
-from django.apps import apps
 from django.core.exceptions import ValidationError
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from accounts.services import delete_platform_user
 from audit.models import AuditAction, AuditEvent
-from audit.recording import record
 from gradings.assessment_services import (
     add_item_comment,
     update_candidate_assessment_item,
@@ -22,7 +18,6 @@ from gradings.assessment_services import (
 from gradings.models import (
     AssessmentItemComment,
     CandidateAssessment,
-    CandidateAssessmentItem,
     GradingCandidate,
     GradingSession,
 )
@@ -37,10 +32,6 @@ from gradings.testing import (
     user,
 )
 from kukgrade.testing import results
-
-# Where migrations 0019 and 0024 credit a note with nobody else to credit; the
-# account itself goes in accounts migration 0011.
-DELETED_USER_PLACEHOLDER_EMAIL = "deleted-user@kukgrade.internal"
 
 pytestmark = pytest.mark.django_db
 
@@ -374,244 +365,3 @@ def test_the_api_needs_a_signed_in_person_who_may_mark() -> None:
     assert signed_out.post(url, {"body": "Hi."}, format="json").status_code == 403
     assert no_authority.post(url, {"body": "Hi."}, format="json").status_code == 403
     assert not item.comments.exists()
-
-
-# --- carrying old notes across ---------------------------------------------
-
-
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_old_notes_become_comments_credited_to_the_best_known_author() -> None:
-    generated = start_assessment(
-        assessment(
-            candidate=candidate(
-                session=grading_session(status=GradingSession.Status.OPEN)
-            ),
-        ),
-    )
-    first, second, third, untouched = list(generated.items.all()[:4])
-    wrote_it = user("wrote-the-note@example.com")
-    changed_result_only = user("changed-the-result@example.com")
-    marked_it = user("marked-the-item@example.com")
-    old_target = [("gradings", "0017_remove_draft_outcome_status")]
-    executor = MigrationExecutor(connection)
-    final_targets = executor.loader.graph.leaf_nodes()
-
-    try:
-        executor.migrate(old_target)
-        with connection.cursor() as cursor:
-            for item, note in (
-                (first, "Note A"),
-                (second, "Note B"),
-                (third, "Note C"),
-            ):
-                cursor.execute(
-                    "UPDATE gradings_candidateassessmentitem SET assessor_notes = %s"
-                    " WHERE id = %s",
-                    [note, item.pk],
-                )
-            cursor.execute(
-                "UPDATE gradings_candidateassessmentitem SET assessor_id = %s,"
-                " result = 'MET', assessed_at = now() WHERE id = %s",
-                [marked_it.pk, second.pk],
-            )
-        # The audit trail says who changed the note to Note A; someone else
-        # later changed only the result, and that event carried the note too.
-        # Note B has only a marker; Note C has neither.
-        event = record(
-            AuditAction.ITEM_RESULT_RECORDED,
-            first,
-            "Notes updated.",
-            actor=wrote_it,
-            metadata={
-                "before": {"result": "NOT_ASSESSED", "assessor_notes": ""},
-                "after": {"result": "NOT_ASSESSED", "assessor_notes": "Note A"},
-            },
-        )
-        record(
-            AuditAction.ITEM_RESULT_RECORDED,
-            first,
-            "Recorded as MET.",
-            actor=changed_result_only,
-            metadata={
-                "before": {"result": "NOT_ASSESSED", "assessor_notes": "Note A"},
-                "after": {"result": "MET", "assessor_notes": "Note A"},
-            },
-        )
-
-        executor = MigrationExecutor(connection)
-        executor.migrate(final_targets)
-
-        Comment = apps.get_model("gradings", "AssessmentItemComment")
-        by_item = {c.item_id: c for c in Comment.objects.all()}
-        assert set(by_item) == {first.pk, second.pk, third.pk}
-        assert by_item[first.pk].author_id == wrote_it.pk
-        assert by_item[first.pk].created_at == event.occurred_at
-        assert by_item[first.pk].body == "Note A"
-        assert by_item[second.pk].author_id == marked_it.pk
-        assert by_item[third.pk].author.email == DELETED_USER_PLACEHOLDER_EMAIL
-        assert untouched.pk not in by_item
-    finally:
-        executor = MigrationExecutor(connection)
-        executor.migrate(final_targets)
-
-
-# --- dropping the old note column --------------------------------------------
-
-BEFORE_THE_DROP = [("gradings", "0023_archive_sessions")]
-
-
-def _before_the_drop(model: str) -> Any:
-    """`model` as it was before the drop: the current one has columns added
-    since, which that schema does not hold."""
-    state = MigrationExecutor(connection).loader.project_state(BEFORE_THE_DROP)
-    return state.apps.get_model(model)
-
-
-def _started_items(count: int) -> list[CandidateAssessmentItem]:
-    generated = start_assessment(
-        assessment(
-            candidate=candidate(
-                session=grading_session(status=GradingSession.Status.OPEN)
-            ),
-        ),
-    )
-    return list(generated.items.all()[:count])
-
-
-def _write_note(item: CandidateAssessmentItem, note: str) -> None:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "UPDATE gradings_candidateassessmentitem SET assessor_notes = %s"
-            " WHERE id = %s",
-            [note, item.pk],
-        )
-
-
-def _columns() -> set[str]:
-    with connection.cursor() as cursor:
-        return {
-            column.name
-            for column in connection.introspection.get_table_description(
-                cursor,
-                "gradings_candidateassessmentitem",
-            )
-        }
-
-
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_dropping_the_note_column_keeps_a_note_that_was_never_carried() -> None:
-    carried, stranded, untouched = _started_items(3)
-    marked_it = user("marked-before-the-drop@example.com")
-    wrote_it = user("wrote-it-after-the-marker@example.com")
-    final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
-
-    try:
-        MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
-        assert "assessor_notes" in _columns()
-        _write_note(carried, "Already a comment.")
-        _write_note(stranded, "Written by an older version.")
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE gradings_candidateassessmentitem SET assessor_id = %s,"
-                " result = 'MET', assessed_at = now() WHERE id = %s",
-                [marked_it.pk, stranded.pk],
-            )
-        Comment = _before_the_drop("gradings.AssessmentItemComment")
-        Comment.objects.create(
-            item_id=carried.pk,
-            author_id=marked_it.pk,
-            body="Already a comment.",
-        )
-        # An older version saved the note later, by someone who did not mark
-        # the item; the audit trail, not the marker, says who and when.
-        event = record(
-            AuditAction.ITEM_RESULT_RECORDED,
-            stranded,
-            "Notes updated.",
-            actor=wrote_it,
-            metadata={
-                "before": {"result": "MET", "assessor_notes": ""},
-                "after": {
-                    "result": "MET",
-                    "assessor_notes": "Written by an older version.",
-                },
-            },
-        )
-
-        MigrationExecutor(connection).migrate(final_targets)
-
-        Comment = apps.get_model("gradings", "AssessmentItemComment")
-        bodies: dict[int, list[str]] = {}
-        for comment in Comment.objects.all():
-            bodies.setdefault(comment.item_id, []).append(comment.body)
-        assert bodies == {
-            carried.pk: ["Already a comment."],
-            stranded.pk: ["Written by an older version."],
-        }
-        assert untouched.pk not in bodies
-        recovered = Comment.objects.get(item_id=stranded.pk)
-        assert recovered.author_id == wrote_it.pk
-        assert recovered.created_at == event.occurred_at
-        assert "assessor_notes" not in _columns()
-    finally:
-        MigrationExecutor(connection).migrate(final_targets)
-
-
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_a_note_with_no_audit_trail_is_credited_to_whoever_marked_the_item() -> None:
-    (marked,) = _started_items(1)
-    marker = user("only-the-marker@example.com")
-    final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
-
-    try:
-        MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
-        _write_note(marked, "No trail.")
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE gradings_candidateassessmentitem SET assessor_id = %s,"
-                " result = 'MET', assessed_at = now() WHERE id = %s",
-                [marker.pk, marked.pk],
-            )
-
-        MigrationExecutor(connection).migrate(final_targets)
-
-        Comment = apps.get_model("gradings", "AssessmentItemComment")
-        assert Comment.objects.get(item_id=marked.pk).author_id == marker.pk
-    finally:
-        MigrationExecutor(connection).migrate(final_targets)
-
-
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_a_note_with_nobody_to_credit_stops_the_drop_and_nothing_is_lost() -> None:
-    (orphan,) = _started_items(1)
-    final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
-
-    try:
-        MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
-        _write_note(orphan, "Nobody wrote this down.")
-        User = _before_the_drop("accounts.User")
-        User.objects.filter(email=DELETED_USER_PLACEHOLDER_EMAIL).delete()
-
-        with pytest.raises(RuntimeError, match="nobody to credit"):
-            MigrationExecutor(connection).migrate(final_targets)
-
-        assert "assessor_notes" in _columns()
-    finally:
-        # Restore the placeholder the migration needs, then finish.
-        User = _before_the_drop("accounts.User")
-        User.objects.get_or_create(
-            email=DELETED_USER_PLACEHOLDER_EMAIL,
-            defaults={"is_active": False},
-        )
-        MigrationExecutor(connection).migrate(final_targets)
-
-
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_going_back_over_the_drop_restores_an_empty_column() -> None:
-    final_targets = MigrationExecutor(connection).loader.graph.leaf_nodes()
-    try:
-        MigrationExecutor(connection).migrate(BEFORE_THE_DROP)
-        assert "assessor_notes" in _columns()
-    finally:
-        MigrationExecutor(connection).migrate(final_targets)
-    assert "assessor_notes" not in _columns()

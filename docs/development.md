@@ -34,6 +34,11 @@ The dev server forwards `/api` to the backend, so the browser only ever talks to
 <http://localhost:5173>. Open it, enter the setup code on the setup page and create the
 first administrator. The API's health check is <http://localhost:8000/api/health/>.
 
+Each app's migrations were rebuilt from scratch on 13 November 2026, before any club
+had installed KukGrade: one `0001_initial` each, plus a seed for the ranks and one for
+the syllabus. A database made before then cannot follow them; recreate it (drop the
+database, then `migrate`).
+
 With `DJANGO_DEBUG=true` the database defaults match `compose.yaml`, so no `.env`
 file is needed. The Django browsable API is available only in debug. See
 [configuration.md](configuration.md) for every setting.

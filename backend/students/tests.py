@@ -6,8 +6,7 @@ from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, transaction
-from django.db.migrations.executor import MigrationExecutor
+from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.test import RequestFactory
 from django.utils import timezone
@@ -162,44 +161,6 @@ def test_student_does_not_duplicate_rank_data() -> None:
     assert "rank_order" not in field_names
     assert "rank_category" not in field_names
     assert "current_rank_name" not in field_names
-
-
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_existing_student_migration_path_assigns_white_rank() -> None:
-    executor = MigrationExecutor(connection)
-    final_targets = executor.loader.graph.leaf_nodes()
-    old_targets = [
-        ("ranks", "0002_seed_rank_catalogue"),
-        ("students", "0001_initial"),
-    ]
-
-    try:
-        executor.migrate(old_targets)
-        old_apps = executor.loader.project_state(old_targets).apps
-        OldStudent = old_apps.get_model("students", "Student")
-        OldStudent.objects.create(
-            wksa_id="123-4-502",
-            first_name="Migration",
-            last_name="Student",
-            date_of_birth=date(2010, 3, 1),
-            # The historical model at students/0001: `status` does not exist
-            # yet, and 0005 is what converts this flag.
-            is_active=True,
-        )
-
-        executor = MigrationExecutor(connection)
-        executor.migrate([("students", "0004_require_current_rank")])
-        new_apps = executor.loader.project_state(
-            [("students", "0004_require_current_rank")],
-        ).apps
-        NewStudent = new_apps.get_model("students", "Student")
-
-        student = NewStudent.objects.get(wksa_id="123-4-502")
-
-        assert student.current_rank.code == "WHITE"
-    finally:
-        executor = MigrationExecutor(connection)
-        executor.migrate(final_targets)
 
 
 def test_student_status_defaults_to_active() -> None:

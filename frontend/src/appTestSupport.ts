@@ -48,6 +48,12 @@ export const CHOICES: Choices = {
     { value: "MET", label: "Met" },
     { value: "NOT_MET", label: "Not met" },
   ],
+  withdrawal_reasons: [
+    { value: "INJURY", label: "Injured during grading", note_required: false },
+    { value: "WITHDREW", label: "Withdrew voluntarily", note_required: false },
+    { value: "ABSENT", label: "Did not attend", note_required: false },
+    { value: "OTHER", label: "Other", note_required: true },
+  ],
   outcomes: [
     { value: "PASS", label: "Pass" },
     { value: "CONDITIONAL", label: "Conditional" },

@@ -40,7 +40,6 @@ READ_ENDPOINTS = [
     "/api/gradings/candidates/",
     "/api/gradings/assessments/",
     "/api/gradings/assessment-items/",
-    "/api/gradings/withdrawal-reasons/",
 ]
 
 

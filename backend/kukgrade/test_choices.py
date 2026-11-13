@@ -70,6 +70,15 @@ def test_the_finished_import_states_leave_out_the_open_one() -> None:
     assert values == ["COMMITTED", "CANCELLED", "EXPIRED"]
 
 
+def test_the_withdrawal_reasons_say_which_needs_a_note() -> None:
+    assert _served()["withdrawal_reasons"] == [
+        {"value": "INJURY", "label": "Injured during grading", "note_required": False},
+        {"value": "WITHDREW", "label": "Withdrew voluntarily", "note_required": False},
+        {"value": "ABSENT", "label": "Did not attend", "note_required": False},
+        {"value": "OTHER", "label": "Other", "note_required": True},
+    ]
+
+
 def test_every_authority_is_named_and_described_once() -> None:
     authorities = _served()["authorities"]
 

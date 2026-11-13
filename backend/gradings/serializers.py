@@ -54,7 +54,7 @@ from gradings.services import (
     session_may_move_to,
     with_session_progress,
 )
-from kukgrade.serializers import ChoiceSerializer, ModelSerializer
+from kukgrade.serializers import ModelSerializer
 from ranks.models import Rank
 from students.models import Student
 from syllabus.models import CORE_CATEGORIES, SyllabusItem
@@ -1263,13 +1263,3 @@ class ResolveLegacyRankSerializer(serializers.Serializer):
 
 class VoidLegacyRecordSerializer(serializers.Serializer):
     reason = serializers.CharField()
-
-
-class WithdrawalReasonSerializer(ChoiceSerializer):
-    """One withdrawal reason, and whether it needs a note."""
-
-    value = serializers.ChoiceField(choices=GradingCandidate.WithdrawalReason.choices)
-    note_required = serializers.SerializerMethodField()
-
-    def get_note_required(self, reason: dict[str, str]) -> bool:
-        return reason["value"] == GradingCandidate.WithdrawalReason.OTHER

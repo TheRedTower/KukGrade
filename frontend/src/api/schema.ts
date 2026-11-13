@@ -1214,26 +1214,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/withdrawal-reasons/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description The reasons a candidate can be withdrawn for, as every withdrawal
-         *     control lists them.
-         */
-        get: operations["gradings_withdrawal_reasons_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/health/": {
         parameters: {
             query?: never;
@@ -2070,6 +2050,8 @@ export interface components {
             candidate_statuses: components["schemas"]["CandidateStatusChoice"][];
             assessment_statuses: components["schemas"]["AssessmentStatusChoice"][];
             item_results: components["schemas"]["ItemResultChoice"][];
+            /** @description Why a candidate may be withdrawn, in the order the controls offer. */
+            withdrawal_reasons: components["schemas"]["WithdrawalReasonChoice"][];
             /** @description The grading outcomes, in the order the outcome controls offer them. */
             outcomes: components["schemas"]["OutcomeChoice"][];
             import_kinds: components["schemas"]["ImportKindChoice"][];
@@ -3045,21 +3027,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["UserManagement"][];
         };
-        PaginatedWithdrawalReasonList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["WithdrawalReason"][];
-        };
         PasswordCharacterRule: {
             code: string;
             label: string;
@@ -3611,11 +3578,15 @@ export interface components {
         VoidLegacyRecordRequest: {
             reason: string;
         };
-        /** @description One withdrawal reason, and whether it needs a note. */
-        WithdrawalReason: {
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        WithdrawalReasonChoice: {
             value: components["schemas"]["WithdrawalReasonEnum"];
             label: string;
-            readonly note_required: boolean;
+            /** @description Whether a withdrawal for this reason must say why. */
+            note_required: boolean;
         };
         /**
          * @description * `INJURY` - Injured during grading
@@ -5488,30 +5459,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GradingYears"];
-                };
-            };
-        };
-    };
-    gradings_withdrawal_reasons_list: {
-        parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedWithdrawalReasonList"];
                 };
             };
         };

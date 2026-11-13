@@ -388,11 +388,7 @@ export function bulkUpdateCandidateStatus(body: Schemas["BulkCandidateStatusUpda
   return answer(api.POST("/api/gradings/candidates/bulk-update-status/", { body }));
 }
 
-export type WithdrawalReason = Schemas["WithdrawalReason"];
-
-export function getWithdrawalReasons() {
-  return answer(api.GET("/api/gradings/withdrawal-reasons/"));
-}
+export type WithdrawalReason = Schemas["WithdrawalReasonChoice"];
 
 export type LockedCandidateWithdrawal = Schemas["LockedCandidateWithdrawalRequest"];
 

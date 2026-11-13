@@ -118,7 +118,10 @@ serializers and the committed frontend types match the schema.
 - **Frontend tests mock the API at the `./api` module boundary**, or stand in for the
   server with `stubFetch` (`appTestSupport.ts`, never `vi.stubGlobal("fetch")` directly,
   since the client sends a `Request`), with fixtures declared `satisfies <GeneratedType>`,
-  so a contract change breaks the test instead of hiding.
+  so a contract change breaks the test instead of hiding. Answer GET requests with
+  `serve({ "/api/students/{id}/": student, ... })`: each key is a schema path and each value
+  must be that path's response type, and a list's page comes from `page()`. A test file
+  moves to `serve` when a change already touches it.
 - **Never hand-write an API type** in the frontend. Declare the shape in the backend
   (`@extend_schema`), regenerate `schema.yml`, then `npm run generate:types`.
 - **Layout numbers live in `frontend/src/layout.css`, nowhere else.** A screen adds its

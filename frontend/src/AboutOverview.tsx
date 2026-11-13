@@ -9,7 +9,8 @@ import { ExternalLink } from "./ExternalLink";
 
 /** What is running, and what to quote when asking for help. */
 export function AboutOverview() {
-  const about = useAboutQuery();
+  // Shows the database's state, so it is read afresh each time.
+  const about = useAboutQuery({ current: true });
   const data = about.data;
   const details = data ? versionDetails(data) : [];
 

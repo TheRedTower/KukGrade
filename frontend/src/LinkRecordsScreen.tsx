@@ -25,6 +25,7 @@ import { Button } from "./Button";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
 import { CheckIcon } from "./Icons";
+import { LoadingState } from "./LoadingState";
 
 const PAGE_SIZE = 50;
 
@@ -287,9 +288,7 @@ export function LinkRecordsScreen() {
 
       <div className="card card--flush">
         {loading ? (
-          <p className="ix-card-pad subtext" role="status">
-            Loading the names…
-          </p>
+          <LoadingState>Loading the names…</LoadingState>
         ) : people.isError ? (
           <div className="ix-card-pad stack stack--3">
             <ErrorText className="ix-flush">

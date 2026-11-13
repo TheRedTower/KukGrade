@@ -331,6 +331,13 @@
   text-align: center;
 }
 
+/* A row or a small panel: the line takes the place a line of text would. */
+.loading-state--compact {
+  justify-content: flex-start;
+  padding: 0;
+  text-align: start;
+}
+
 .spinner {
   flex: 0 0 auto;
   width: 1.25rem;

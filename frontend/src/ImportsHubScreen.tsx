@@ -30,6 +30,7 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import { useChoices } from "./choices";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
+import { LoadingState } from "./LoadingState";
 
 const PAST_PAGE_SIZE = 10;
 
@@ -225,9 +226,7 @@ function PastImports() {
       </div>
       <div className="card card--flush">
         {past.isPending ? (
-          <p className="subtext ix-card-pad" role="status">
-            Loading past imports…
-          </p>
+          <LoadingState>Loading past imports…</LoadingState>
         ) : past.isError ? (
           <ErrorText className="ix-card-pad">
             {errorMessage(past.error, "Past imports could not be loaded. Try again in a moment.")}

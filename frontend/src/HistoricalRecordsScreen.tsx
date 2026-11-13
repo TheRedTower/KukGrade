@@ -26,6 +26,7 @@ import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { keys } from "./queryKeys";
+import { LoadingState } from "./LoadingState";
 
 type Filter = "all" | "unlinked" | "linked" | "voided";
 
@@ -106,7 +107,7 @@ export function HistoricalRecordsScreen() {
           {id === null ? (
             <p className="card subtext">Choose a record to inspect and correct it.</p>
           ) : detail.isPending ? (
-            <p role="status">Loading record…</p>
+            <LoadingState>Loading record…</LoadingState>
           ) : detail.isError || !record ? (
             <ErrorText>{errorMessage(detail.error, "This record could not be loaded.")}</ErrorText>
           ) : (
@@ -190,7 +191,7 @@ export function HistoricalRecordsScreen() {
             <SearchField label="Name as written" value={search} onChange={(value) => filters.set({ search: value })} />
           </div>
           {records.isPending ? (
-            <p role="status">Loading records…</p>
+            <LoadingState>Loading records…</LoadingState>
           ) : records.isError ? (
             <ErrorText>{errorMessage(records.error, "Records could not be loaded.")}</ErrorText>
           ) : (

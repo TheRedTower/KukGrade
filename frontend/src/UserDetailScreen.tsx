@@ -34,6 +34,7 @@ import { Badge } from "./Badge";
 import { buttonClass } from "./buttonClass";
 import { EmailAddress } from "./EmailAddress";
 import { ArrowRightIcon } from "./Icons";
+import { LoadingState } from "./LoadingState";
 
 function AccountForm({
   user,
@@ -495,7 +496,7 @@ export function UserDetailScreen(): React.ReactElement {
           <section>
             <h2>Recent administrative activity</h2>
             {activityQuery.isLoading ? (
-              <p role="status">Loading activity…</p>
+              <LoadingState>Loading activity…</LoadingState>
             ) : activityQuery.data?.results.length ? (
               <ul className="list-plain user-activity-list">
                 {activityQuery.data.results.map((event) => (

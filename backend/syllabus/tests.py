@@ -6,8 +6,7 @@ from collections import Counter
 import pytest
 from django.apps import apps
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, transaction
-from django.db.migrations.executor import MigrationExecutor
+from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from rest_framework.test import APIClient
 
@@ -780,55 +779,10 @@ def test_syllabus_api_rejects_write_methods(method: str, path: str) -> None:
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_syllabus_migrations_apply_from_zero_and_seed_deterministic_records() -> None:
-    executor = MigrationExecutor(connection)
-    final_targets = executor.loader.graph.leaf_nodes()
-
-    try:
-        executor.migrate([("syllabus", None)])
-        rank_seed_migration = importlib.import_module(
-            "ranks.migrations.0002_seed_rank_catalogue",
-        )
-        rank_seed_migration.seed_rank_catalogue(apps, None)
-        executor = MigrationExecutor(connection)
-        executor.migrate(
-            [
-                ("ranks", "0004_rename_dahn_bo_to_dbn"),
-                ("syllabus", "0002_seed_wksa_2014_syllabus"),
-            ],
-        )
-        state_apps = executor.loader.project_state(
-            [("syllabus", "0002_seed_wksa_2014_syllabus")],
-        ).apps
-        HistoricalItem = state_apps.get_model("syllabus", "SyllabusItem")
-        HistoricalRequirement = state_apps.get_model(
-            "syllabus",
-            "SyllabusRequirement",
-        )
-
-        assert HistoricalItem.objects.count() == 32
-        assert HistoricalRequirement.objects.count() == 373
-        assert HistoricalRequirement.objects.filter(
-            rank__code="YELLOW",
-            age_band=AgeBand.AGE_9_TO_12,
-            item__code="KI_BOHN_SOO",
-            start_number=1,
-            end_number=10,
-        ).exists()
-    finally:
-        executor = MigrationExecutor(connection)
-        executor.migrate(final_targets)
-
-
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_syllabus_seed_reverse_targets_only_exact_seeded_rows() -> None:
-    rank_seed_migration = importlib.import_module(
-        "ranks.migrations.0002_seed_rank_catalogue",
-    )
-    seed_migration = importlib.import_module(
-        "syllabus.migrations.0002_seed_wksa_2014_syllabus",
-    )
-    rank_seed_migration.seed_rank_catalogue(apps, None)
+    rank_seed_migration = importlib.import_module("ranks.migrations.0002_seed_ranks")
+    seed_migration = importlib.import_module("syllabus.migrations.0002_seed_syllabus")
+    rank_seed_migration.seed_ranks(apps, None)
     seed_migration.seed_wksa_2014_syllabus(apps, None)
 
     requirement = SyllabusRequirement.objects.get(
@@ -849,8 +803,7 @@ def test_syllabus_seed_reverse_targets_only_exact_seeded_rows() -> None:
     ).exists()
 
 
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_adult_jkn_technique_sets_migration_reverses_to_the_seed() -> None:
+def test_a_fresh_install_starts_with_the_wksa_2014_syllabus() -> None:
     def adult_jkn_technique_sets() -> list[tuple[str, int]]:
         return list(
             SyllabusRequirement.objects.filter(
@@ -862,8 +815,16 @@ def test_adult_jkn_technique_sets_migration_reverses_to_the_seed() -> None:
             .values_list("item__code", "sequence"),
         )
 
-    executor = MigrationExecutor(connection)
-    final_targets = executor.loader.graph.leaf_nodes()
+    assert SyllabusItem.objects.count() == 32
+    assert SyllabusRequirement.objects.count() == 378
+    assert SyllabusRequirement.objects.filter(
+        rank__code="YELLOW",
+        age_band=AgeBand.AGE_9_TO_12,
+        item__code="KI_BOHN_SOO",
+        start_number=1,
+        end_number=10,
+    ).exists()
+    # Owner decision 2026-09-29: adults testing for JKN do all seven sets.
     assert adult_jkn_technique_sets() == [
         ("JOONG_GEUP_SOHN_MOHK_SOO", 100),
         ("AHP_EUE_BOHK_SOO", 110),
@@ -874,23 +835,9 @@ def test_adult_jkn_technique_sets_migration_reverses_to_the_seed() -> None:
         ("BAHNG_TOO_KI", 160),
     ]
 
-    try:
-        executor.migrate([("syllabus", "0002_seed_wksa_2014_syllabus")])
-        assert adult_jkn_technique_sets() == [
-            ("MOHK_JOH_LEU_KI", 100),
-            ("BAHNG_TOO_KI", 110),
-        ]
-    finally:
-        executor = MigrationExecutor(connection)
-        executor.migrate(final_targets)
-
-    assert len(adult_jkn_technique_sets()) == 7
-
 
 def test_seed_migration_has_no_duplicate_in_memory_tuples() -> None:
-    seed_migration = importlib.import_module(
-        "syllabus.migrations.0002_seed_wksa_2014_syllabus",
-    )
+    seed_migration = importlib.import_module("syllabus.migrations.0002_seed_syllabus")
     keys = [
         (rank_code, age_band, item_code)
         for rank_code, age_band, item_code, *_rest in seed_migration.REQUIREMENTS

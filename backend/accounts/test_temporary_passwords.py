@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
 import pytest
-from django.apps import apps as django_apps
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.test import Client
@@ -391,21 +389,3 @@ def test_the_security_log_never_sees_a_temporary_password(
     # The failed sign-in is there: proof the capture sees this log at all.
     assert "Failed login attempt for temp-new@example.com" in caplog.text
     assert issued not in caplog.text
-
-
-def test_sessions_signed_in_before_account_backend_stay_signed_in() -> None:
-    # Django loads a session's user only while the backend path the session
-    # recorded is still configured; 0007 re-points the old one.
-    migration = importlib.import_module(
-        "accounts.migrations.0007_sessions_use_account_backend",
-    )
-    user = User.objects.create_user(email="temp-session@example.com")
-    client = Client()
-    client.force_login(user, backend=migration.MODEL_BACKEND)
-    assert client.get("/api/auth/me/").status_code == 403
-
-    migration.forwards(django_apps, None)
-
-    assert client.get("/api/auth/me/").status_code == 200
-    migration.backwards(django_apps, None)
-    assert client.get("/api/auth/me/").status_code == 403

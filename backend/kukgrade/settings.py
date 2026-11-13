@@ -211,7 +211,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "kukgrade.wsgi.application"
 
 # PostgreSQL only. A SQLite fallback branch used to exist here; it could not
-# actually run this application - migration 0006 issues raw PostgreSQL
+# actually run this application - the gradings migration issues raw PostgreSQL
 # ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY DDL, and SQLite does not
 # support the SELECT ... FOR UPDATE locking every write path in
 # gradings/services.py depends on. A developer who found that switch got a

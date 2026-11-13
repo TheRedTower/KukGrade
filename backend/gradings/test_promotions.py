@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import importlib
-from datetime import date
 from typing import cast
 
 import pytest
-from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
 from django.test.utils import CaptureQueriesContext
@@ -191,31 +188,6 @@ def test_candidate_from_rank_does_not_move_when_the_student_is_promoted() -> Non
     assert built.from_rank.code == "WHITE"
     assert response.status_code == 200
     assert response.data["from_rank_name"] == "White"
-
-
-def test_from_rank_backfill_reconstructs_the_rank_at_registration() -> None:
-    backfill = importlib.import_module(
-        "gradings.migrations.0009_candidate_from_rank_and_delete_any_permission",
-    ).backfill_from_rank
-    promoted, _generated = locked_completed_candidate()
-    promote_candidate(finalised_outcome(promoted), promoter("backfill@example.com"))
-    # A later registration for the same, now promoted, student that was never
-    # itself promoted: its rank is the one the earlier promotion reached.
-    later = candidate(
-        session=grading_session(grading_date=date(2028, 3, 20)),
-        student=promoted.student,
-        testing_for_rank=rank("YELLOW"),
-    )
-    never_promoted = candidate()
-    GradingCandidate.objects.update(from_rank=rank("BROWN"))
-
-    backfill(apps, None)
-
-    assert GradingCandidate.objects.get(pk=promoted.pk).from_rank.code == "WHITE"
-    assert GradingCandidate.objects.get(pk=later.pk).from_rank.code == ("YELLOW_STRIPE")
-    assert GradingCandidate.objects.get(pk=never_promoted.pk).from_rank.code == (
-        "WHITE"
-    )
 
 
 def test_promotion_database_constraints_and_model_validation() -> None:

@@ -1,3 +1,8 @@
+"""The WKSA 2014 syllabus every fresh install starts with: its items, and each
+rank's requirements per age band. Written as it stands today; the syllabus is
+edited in the app afterwards, and each grading keeps its own copy.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -479,11 +484,53 @@ JKN_REQUIREMENTS = [
     ),
     (
         "AGE_18_AND_OVER",
+        # Owner decision 2026-09-29: adults testing for Jo Kyo Nim do all seven
+        # black-belt technique sets, in the chart's order.
         [
+            (
+                "JOONG_GEUP_SOHN_MOHK_SOO",
+                True,
+                100,
+                1,
+                7,
+                "Required for Black Belt Promotion for Adults.",
+            ),
+            (
+                "AHP_EUE_BOHK_SOO",
+                True,
+                110,
+                1,
+                20,
+                "Required for Black Belt Promotion for Adults.",
+            ),
+            (
+                "DEE_EUE_BOHK_SOO",
+                True,
+                120,
+                1,
+                23,
+                "Required for Black Belt Promotion for Adults.",
+            ),
+            (
+                "KWAHN_JUHL_KI",
+                True,
+                130,
+                1,
+                13,
+                "Required for Black Belt Promotion for Adults.",
+            ),
+            (
+                "TOO_KI",
+                True,
+                140,
+                1,
+                13,
+                "Required for Black Belt Promotion for Adults.",
+            ),
             (
                 "MOHK_JOH_LEU_KI",
                 True,
-                100,
+                150,
                 1,
                 5,
                 "Required for Black Belt Promotion for Adults.",
@@ -491,7 +538,7 @@ JKN_REQUIREMENTS = [
             (
                 "BAHNG_TOO_KI",
                 True,
-                110,
+                160,
                 1,
                 10,
                 "Required for Black Belt Promotion for Adults.",
@@ -687,6 +734,7 @@ def unseed_wksa_2014_syllabus(apps: Any, _schema_editor: Any) -> None:
 
 class Migration(migrations.Migration):
     dependencies = [
+        ("ranks", "0002_seed_ranks"),
         ("syllabus", "0001_initial"),
     ]
 

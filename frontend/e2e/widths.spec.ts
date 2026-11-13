@@ -252,6 +252,12 @@ test("an import step's Cancel and Continue stack on a phone and share a row with
   await page.close();
 });
 
+/** How many decisions the Master has staged and kept in the locked session. One taken off is listed only for its revision. */
+async function stagedCount(page: Page): Promise<number> {
+  const rows = await list(page.request, `/api/gradings/outcomes/staged-decisions/?session=${ids.sessions.LOCKED}`);
+  return rows.filter((row) => !row.discarded).length;
+}
+
 test("a tap anywhere on a decision card brings it into focus, and its buttons still answer for themselves", async () => {
   const page = await contexts.get("master")!.newPage();
   // An iPad mini on its side (cards, the focus pane under them) and a desktop (table rows).
@@ -279,8 +285,12 @@ test("a tap anywhere on a decision card brings it into focus, and its buttons st
     await pass.click();
     await expect(pass).toHaveAttribute("aria-pressed", "true");
     await expect(decidable.locator(".cab-row-name")).toHaveAttribute("aria-pressed", "true");
-    await pass.click(); // and unstaged again, leaving the demo as it was
+    // Kept on the server, then dropped again once unstaged, leaving the demo
+    // as it was for the other browsers.
+    await expect.poll(() => stagedCount(page)).toBe(1);
+    await pass.click();
     await expect(pass).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(() => stagedCount(page)).toBe(0);
   }
   await page.close();
 });

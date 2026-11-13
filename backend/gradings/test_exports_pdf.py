@@ -115,6 +115,24 @@ def test_a_demo_file_says_so_at_the_top_and_foot_of_every_page() -> None:
     assert not any(pdf.DEMO_BAND in text for text in real)
 
 
+def test_a_paper_form_has_only_a_small_foot_and_still_says_demo() -> None:
+    form = pdf.Document(
+        file_name="2026-10-25 Spring – Grading sheets.pdf",
+        kind="Grading sheet",
+        made_by="KSN Jane Smith",
+        parts=[part("Spring grading", 2, state="")],
+        demo=True,
+        form=True,
+    )
+
+    [text] = pages(pdf.build(form, made_at=MADE))
+
+    assert "Spring grading\nPrinted 25 Oct 2026" in text
+    assert "Grading sheet" not in text
+    assert "Page" not in text and "Made" not in text
+    assert text.count(pdf.DEMO_BAND) == 2
+
+
 def test_the_same_document_made_at_the_same_moment_is_the_same_file() -> None:
     first = pdf.build(document(part("Jane", 5)), made_at=MADE)
 

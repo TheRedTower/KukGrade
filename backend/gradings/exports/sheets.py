@@ -7,6 +7,8 @@ areas their age band's chart examines through the rank they are testing for,
 each with a Pass and a Fail box; and a Subject and Comments table in two tall
 blocks filling the rest of the page. The marks are made on paper and never
 typed into the app. No grey fills, and no version number: the form is frozen.
+Headed as the paper form is, with a small foot naming the grading and the day
+it was printed; a demo sheet still says so at the top and foot.
 """
 
 from __future__ import annotations
@@ -38,7 +40,6 @@ from syllabus.models import CORE_CATEGORIES
 from syllabus.services import effective_syllabus_requirements
 
 KIND = "Grading sheet"
-STATE = "For marking on paper"
 NOT_OPEN = "Grading sheets are printed before a grading is locked."
 WITHDRAWN = "This candidate has been withdrawn."
 
@@ -100,7 +101,8 @@ def export_sheets(
             parts=[
                 pdf.Part(
                     heading=current.title,
-                    state=STATE,
+                    # A blank form has no state; its foot is the form's own.
+                    state="",
                     story=_sheet(
                         current,
                         candidate,
@@ -110,6 +112,7 @@ def export_sheets(
                 for candidate in candidates
             ],
             demo=settings.DEMO_MODE,
+            form=True,
         )
         content = pdf.build(document, made_at=timezone.now())
         if len(candidates) == 1:

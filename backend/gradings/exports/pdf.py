@@ -5,8 +5,9 @@ of each page, with whose pages they are; at the foot, when and by whom the file
 was made, its state (Final, Provisional) and "Page n of N". A document is a
 run of parts - one per candidate's record, or one for a summary - and each part
 counts its own pages, so a record read on its own says "Page 2 of 3" whatever
-came before it in the file. A demo file says so at the top and foot of every
-page.
+came before it in the file. The school's paper form keeps its own look: only
+a small foot naming the grading and the day it was printed. A demo file says
+so at the top and foot of every page.
 
 Everything typed by a person reaches the page through `markup` or `plain`:
 ReportLab reads `<b>` and `&` in a paragraph as markup, and the typeface has no
@@ -54,7 +55,8 @@ from reportlab.platypus import (
 
 FONTS = Path(__file__).resolve().parent / "fonts"
 REGULAR = "Pretendard"
-BOLD = "Pretendard-Bold"
+# SemiBold, not Bold: headings that stand out without weighing on the page.
+BOLD = "Pretendard-SemiBold"
 # Drawn in place of a character the typeface does not have (hanja, emoji).
 MISSING = "□"
 
@@ -94,14 +96,14 @@ HEADING = ParagraphStyle(
 
 @functools.cache
 def _typeface() -> TTFont:
-    """Registers Pretendard, regular and bold, once per process.
+    """Registers Pretendard, regular and semibold, once per process.
 
     Reading the files takes most of a second, so it is done on the first
     export, not at start-up, and never again.
     """
     regular = TTFont(REGULAR, str(FONTS / "Pretendard-Regular.ttf"))
     pdfmetrics.registerFont(regular)
-    pdfmetrics.registerFont(TTFont(BOLD, str(FONTS / "Pretendard-Bold.ttf")))
+    pdfmetrics.registerFont(TTFont(BOLD, str(FONTS / "Pretendard-SemiBold.ttf")))
     pdfmetrics.registerFontFamily(
         REGULAR, normal=REGULAR, bold=BOLD, italic=REGULAR, boldItalic=BOLD
     )
@@ -241,6 +243,9 @@ class Document:
     made_by: str
     parts: Sequence[Part]
     demo: bool = False
+    # The school's own paper form: no running heading or page count, only a
+    # small foot with the part's heading and the day it was printed.
+    form: bool = False
 
 
 class _PartStart(Flowable):
@@ -262,10 +267,12 @@ class _Pages(Canvas):
     """Holds every page until the end, so each can say "Page n of N" for its
     own part, then draws the running heading and foot on all of them."""
 
-    def __init__(self, *args: Any, document: Document, made: str, **kwargs: Any):
+    def __init__(
+        self, *args: Any, document: Document, made_at: datetime, **kwargs: Any
+    ):
         super().__init__(*args, **kwargs)
         self._document = document
-        self._made = made
+        self._made_at = made_at
         self._kukgrade_part = 0
         self._held: list[tuple[dict[str, Any], int]] = []
 
@@ -289,6 +296,18 @@ class _Pages(Canvas):
         self.setFillColor(MUTED)
         self.setStrokeColor(INK)
         self.setLineWidth(0.75)
+        if document.demo:
+            for y in (PAGE_HEIGHT - 7 * mm, 5 * mm):
+                _band(self, y)
+            self.setFillColor(MUTED)
+            self.setStrokeColor(INK)
+            self.setLineWidth(0.75)
+        foot = 11 * mm
+        if document.form:
+            printed = day(timezone.localtime(self._made_at).date())
+            _pair(self, foot, part.heading, f"Printed {printed}")
+            self.restoreState()
+            return
         top = PAGE_HEIGHT - 13 * mm
         _pair(
             self,
@@ -297,17 +316,13 @@ class _Pages(Canvas):
             part.heading,
         )
         self.line(SIDE, top - 2.5 * mm, PAGE_WIDTH - SIDE, top - 2.5 * mm)
-        foot = 11 * mm
         self.line(SIDE, foot + 4 * mm, PAGE_WIDTH - SIDE, foot + 4 * mm)
         _pair(
             self,
             foot,
-            f"Made {self._made} by {document.made_by} · {part.state}",
+            f"Made {moment(self._made_at)} by {document.made_by} · {part.state}",
             f"Page {number} of {total}",
         )
-        if document.demo:
-            for y in (PAGE_HEIGHT - 7 * mm, 5 * mm):
-                _band(self, y)
         self.restoreState()
 
 
@@ -368,10 +383,11 @@ def build(document: Document, *, made_at: datetime | None = None) -> bytes:
             story.append(PageBreak())
         story.append(_PartStart(index))
         story.extend(part.story)
-    made = moment(made_at or timezone.now())
     template.build(
         story,
-        canvasmaker=functools.partial(_Pages, document=document, made=made),
+        canvasmaker=functools.partial(
+            _Pages, document=document, made_at=made_at or timezone.now()
+        ),
     )
     return buffer.getvalue()
 

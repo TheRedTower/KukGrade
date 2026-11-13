@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -76,8 +77,11 @@ def test_each_candidate_gets_one_filled_in_page_in_the_gradings_order() -> None:
     assert "Grading Form KSW Colchester" in first
     assert "Current Rank White" in first
     assert "Testing date 20 Mar 2027" in first
-    assert "Page 1 of 1" in first and "Page 1 of 1" in second
-    assert "October grading – Juniors" in first
+    # The paper form's own look: its heading once, and a small foot.
+    assert first.count("KSW Colchester") == 1
+    assert "Page" not in first and "Made" not in first
+    printed = pdf.day(timezone.localdate())
+    assert first.endswith(f"October grading – Juniors Printed {printed}")
     assert first.count("Subject Comments") == 2
 
 
@@ -108,8 +112,7 @@ def test_a_very_long_name_still_fits_on_one_page() -> None:
     response = print_sheets(session, [built.pk])
 
     assert response.status_code == 200
-    [page] = pdf_pages(response.content)
-    assert "Page 1 of 1" in page
+    assert len(pdf_pages(response.content)) == 1
 
 
 def test_a_sheet_never_holds_a_date_of_birth() -> None:

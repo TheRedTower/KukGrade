@@ -8,13 +8,16 @@ environment so that the production branch is exercised directly.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
 from types import ModuleType
 
 import pytest
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.test import Client
 
 SETTINGS_PATH = Path(__file__).resolve().parent / "settings.py"
 
@@ -109,9 +112,11 @@ def test_production_settings_are_hardened(
     assert settings.CSRF_COOKIE_SECURE is True
     assert settings.STATIC_URL == "/static/"
     assert settings.STORAGES["staticfiles"]["BACKEND"] == (
-        "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        "whitenoise.storage.CompressedStaticFilesStorage"
     )
     assert settings.MIDDLEWARE[1] == "whitenoise.middleware.WhiteNoiseMiddleware"
+    # After WhiteNoise, so the files it serves are never compressed again.
+    assert settings.MIDDLEWARE[2] == "django.middleware.gzip.GZipMiddleware"
     assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 0
     # Pinned so that deleting either half of the throttle - the class or the
     # rate - is caught here rather than only by a scoped view becoming
@@ -457,3 +462,40 @@ def test_the_database_is_the_images_own_socket_unless_a_host_is_given(
 
     plain = load_settings(monkeypatch, **PRODUCTION_ENV, POSTGRES_HOST="  ")
     assert plain.DATABASES["default"]["HOST"] == "127.0.0.1"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/static/assets/index-Bj8YU-O_.js",
+        "/static/assets/index-C8x7JIdx.css",
+        "/static/assets/PretendardVariable.subset.0-BHUkWNFR.woff2",
+        "/static/assets/kukgrade-mark-Wjvxuljx.svg",
+    ],
+)
+def test_vite_hashed_assets_are_cached_for_good(path: str) -> None:
+    assert re.match(settings.WHITENOISE_IMMUTABLE_FILE_TEST, path)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/static/assets/logo.svg", "/static/assets/app.js", "/static/index.html"],
+)
+def test_files_without_a_vite_hash_are_not_cached_for_good(path: str) -> None:
+    assert not re.match(settings.WHITENOISE_IMMUTABLE_FILE_TEST, path)
+
+
+def test_database_connections_are_kept_and_checked_before_reuse() -> None:
+    database = settings.DATABASES["default"]
+    assert database["CONN_MAX_AGE"] == 600
+    assert database["CONN_HEALTH_CHECKS"] is True
+
+
+@pytest.mark.django_db
+def test_api_answers_are_compressed_for_a_browser_that_accepts_it() -> None:
+    compressed = Client().get("/api/site/", HTTP_ACCEPT_ENCODING="gzip")
+    plain = Client().get("/api/site/")
+
+    assert compressed.status_code == 200
+    assert compressed["Content-Encoding"] == "gzip"
+    assert not plain.has_header("Content-Encoding")

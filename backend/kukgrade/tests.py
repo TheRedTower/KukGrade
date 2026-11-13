@@ -481,3 +481,9 @@ def test_vite_hashed_assets_are_cached_for_good(path: str) -> None:
 def test_files_without_a_vite_hash_are_not_cached_for_good(path: str) -> None:
     assert not re.match(settings.WHITENOISE_IMMUTABLE_FILE_TEST, path)
 
+
+def test_database_connections_are_kept_and_checked_before_reuse() -> None:
+    database = settings.DATABASES["default"]
+    assert database["CONN_MAX_AGE"] == 600
+    assert database["CONN_HEALTH_CHECKS"] is True
+

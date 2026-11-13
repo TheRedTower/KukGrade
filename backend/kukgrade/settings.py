@@ -212,7 +212,7 @@ WSGI_APPLICATION = "kukgrade.wsgi.application"
 # gradings/services.py depends on. A developer who found that switch got a
 # bare SQL syntax error rather than a reason, so it was removed rather than
 # fixed: nothing in this codebase can honestly run against SQLite.
-DATABASES = {
+DATABASES: dict[str, dict[str, str | int | bool]] = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("POSTGRES_DB", "kukgrade"),
@@ -227,6 +227,12 @@ DATABASES = {
         or os.environ.get("KUKGRADE_EMBEDDED_SOCKET")
         or "127.0.0.1",
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        # Each thread keeps its connection for ten minutes instead of opening one
+        # per request (1.9 ms with the built-in database, 14.6 ms with an
+        # external one), and checks it still answers before reusing it. The
+        # server runs 4 threads (16 in the demo) against 100 connections.
+        "CONN_MAX_AGE": 600,
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 

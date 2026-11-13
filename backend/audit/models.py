@@ -34,6 +34,10 @@ class AuditAction(models.TextChoices):
     SESSION_DELETED = "SESSION_DELETED", "Grading session deleted"
     SESSION_ARCHIVED = "SESSION_ARCHIVED", "Grading session archived"
     SESSION_RESTORED = "SESSION_RESTORED", "Grading session restored from the archive"
+    # One event per file made, whatever it holds (owner, 2026-11-13).
+    RECORDS_DOWNLOADED = "RECORDS_DOWNLOADED", "Grading records downloaded"
+    SUMMARY_DOWNLOADED = "SUMMARY_DOWNLOADED", "Grading summary downloaded"
+    GRADING_SHEETS_PRINTED = "GRADING_SHEETS_PRINTED", "Grading sheets printed"
 
     CANDIDATE_REGISTERED = "CANDIDATE_REGISTERED", "Candidate registered"
     CANDIDATE_UPDATED = "CANDIDATE_UPDATED", "Candidate updated"

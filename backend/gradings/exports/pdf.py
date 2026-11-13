@@ -47,6 +47,9 @@ from reportlab.platypus import (
     PageBreak,
     PageTemplate,
     Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
 )
 
 FONTS = Path(__file__).resolve().parent / "fonts"
@@ -71,6 +74,12 @@ BODY = ParagraphStyle("body", fontName=REGULAR, fontSize=9.5, leading=13, textCo
 SMALL = ParagraphStyle("small", parent=BODY, fontSize=9, leading=12)
 NOTE = ParagraphStyle("note", parent=SMALL, textColor=MUTED)
 TITLE = ParagraphStyle("title", parent=BODY, fontName=BOLD, fontSize=16, leading=20)
+LABEL = ParagraphStyle("label", parent=SMALL, textColor=MUTED)
+STAMP = ParagraphStyle(
+    "stamp", parent=BODY, fontName=BOLD, fontSize=11, leading=14, alignment=1
+)
+# The thinnest rule drawn: a pixel on screen, and still printed.
+HAIRLINE = 0.75
 HEADING = ParagraphStyle(
     "heading",
     parent=BODY,
@@ -123,6 +132,84 @@ def markup(value: object) -> str:
 def paragraph(value: object, style: ParagraphStyle = BODY) -> Paragraph:
     """Typed text as a paragraph of its own."""
     return Paragraph(markup(value), style)
+
+
+def bold(value: object, style: ParagraphStyle = BODY) -> Paragraph:
+    """Typed text, in bold."""
+    return Paragraph(f"<b>{markup(value)}</b>", style)
+
+
+def facts(rows: Sequence[tuple[str, object]], label_width: float = 38 * mm) -> Table:
+    """Label and value, one pair to a line; the values are typed text."""
+    table = Table(
+        [[paragraph(label, LABEL), paragraph(value)] for label, value in rows],
+        colWidths=[label_width, WIDTH - label_width],
+        hAlign="LEFT",
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+            ],
+        ),
+    )
+    return table
+
+
+def title_block(lines: Sequence[Flowable], stamp: str) -> Table:
+    """The document's title lines, with its state stamped in a box beside
+    them: FINAL RECORD, PROVISIONAL."""
+    box = Table([[Paragraph(markup(stamp), STAMP)]], colWidths=[46 * mm])
+    box.setStyle(
+        TableStyle(
+            [
+                ("BOX", (0, 0), (-1, -1), 1.5, INK),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ],
+        ),
+    )
+    table = Table([[list(lines), box]], colWidths=[WIDTH - 50 * mm, 50 * mm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ],
+        ),
+    )
+    return table
+
+
+def signature(master: str) -> Table:
+    """A line for the Master to sign and one to date, the deciding Master
+    named under the first once the decision is recorded."""
+    signed = f"Signed · Master: {master}" if master else "Signed · Master:"
+    table = Table(
+        [["", "", ""], [paragraph(signed, LABEL), "", paragraph("Date", LABEL)]],
+        colWidths=[WIDTH * 0.6, WIDTH * 0.08, WIDTH * 0.32],
+        rowHeights=[14 * mm, None],
+        hAlign="LEFT",
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("LINEBELOW", (0, 0), (0, 0), HAIRLINE, INK),
+                ("LINEBELOW", (2, 0), (2, 0), HAIRLINE, INK),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ],
+        ),
+    )
+    return table
+
+
+def gap(height: float = 4 * mm) -> Spacer:
+    return Spacer(WIDTH, height)
 
 
 def day(value: date) -> str:

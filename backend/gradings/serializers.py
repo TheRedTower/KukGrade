@@ -15,6 +15,7 @@ from gradings.assessment_services import (
     item_change_needs_reason,
     item_mark_can_be_cleared,
 )
+from gradings.exports.records import record_can_be_downloaded
 from gradings.legacy_matching import Suggestion
 from gradings.models import (
     AssessmentItemComment,
@@ -345,6 +346,35 @@ class BulkCandidateStatusUpdateSerializer(serializers.Serializer):
                 {"withdrawal_reason": [WITHDRAWAL_REASON_REQUIRED_MESSAGE]},
             )
         return attrs
+
+
+# One file's worth: the largest grading's whole roster, made well inside the
+# server's time limit (gradings.exports).
+EXPORT_LIMIT = 60
+
+
+class CandidateExportSerializer(serializers.Serializer):
+    """POST sessions/<id>/exports/records/: the candidates a file holds."""
+
+    candidates = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        max_length=EXPORT_LIMIT,
+        help_text=(
+            "The candidates to include, all registered in this session, all or "
+            "nothing: a refusal is keyed by candidate id. The file lists them "
+            "in the grading's order, whatever order they are given in."
+        ),
+        error_messages={
+            "empty": "Choose at least one candidate.",
+            "max_length": f"Choose at most {EXPORT_LIMIT} candidates for one file.",
+        },
+    )
+
+    def validate_candidates(self, value: list[int]) -> list[int]:
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError("A candidate is chosen twice.")
+        return value
 
 
 class BulkAssessmentStartSerializer(serializers.Serializer):
@@ -748,6 +778,12 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "and the viewer holds the locked-session override."
         ),
     )
+    can_download_record = serializers.SerializerMethodField(
+        help_text=(
+            "Whether this candidate's record can be downloaded as a PDF: their "
+            "assessment is sealed."
+        ),
+    )
 
     class Meta(GradingCandidateSerializer.Meta):
         fields = (
@@ -760,6 +796,7 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "can_be_withdrawn_after_lock",
             "can_be_marked_absent",
             "can_prepare_assessment",
+            "can_download_record",
         )
 
     @extend_schema_field(PromotionSerializer(allow_null=True))
@@ -779,6 +816,9 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
 
     def get_can_prepare_assessment(self, instance: GradingCandidate) -> bool:
         return assessment_can_be_prepared(instance)
+
+    def get_can_download_record(self, instance: GradingCandidate) -> bool:
+        return record_can_be_downloaded(instance)
 
     def get_can_be_withdrawn_after_lock(self, instance: GradingCandidate) -> bool:
         # Asked once for the whole list: the context is shared by every row.

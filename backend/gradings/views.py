@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any, cast
 
 from django.db.models import Prefetch, Q, QuerySet, prefetch_related_objects
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from django.http import HttpResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -28,6 +30,7 @@ from gradings.assessment_services import (
     update_candidate_assessment,
     update_candidate_assessment_item,
 )
+from gradings.exports import pdf, records
 from gradings.legacy_matching import (
     SET_ASIDE_CHOICES,
     SHEET_NOTE_NAME,
@@ -49,8 +52,6 @@ from gradings.legacy_services import (
 )
 from gradings.models import (
     ROSTER_OPEN,
-    AssessmentItemComment,
-    AssessmentItemResultChange,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -69,7 +70,11 @@ from gradings.outcome_services import (
     stage_final_decision,
     staged_decisions_for_session,
 )
-from gradings.read_models import candidate_assessment_summary, with_overall_counts
+from gradings.read_models import (
+    candidate_assessment_summary,
+    item_remarks,
+    with_overall_counts,
+)
 from gradings.serializers import (
     AssessmentItemCommentRequestSerializer,
     AssessmentItemCommentSerializer,
@@ -89,6 +94,7 @@ from gradings.serializers import (
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
     CandidateAssessmentSummarySerializer,
+    CandidateExportSerializer,
     CandidateOutcomeFinaliseSerializer,
     CandidateOutcomeProposalSerializer,
     CandidateOutcomeSerializer,
@@ -261,6 +267,14 @@ class GradingSessionViewSet(
         # Whether the actor may is each service's own rule, with its own message.
         "archive": (DELETE_ANY_SESSION_PERMISSION,),
         "restore": (DELETE_ANY_SESSION_PERMISSION,),
+        # Whoever can open the records may print them (owner, 2026-11-13).
+        "export_records": (
+            "gradings.view_gradingsession",
+            "gradings.view_gradingcandidate",
+            "gradings.view_candidateassessment",
+            "gradings.view_candidateassessmentitem",
+            "gradings.view_candidateoutcome",
+        ),
     }
 
     query_filters = (
@@ -329,6 +343,28 @@ class GradingSessionViewSet(
         """Bring an archived session back into the lists."""
         restored = restore_grading_session(self.get_object(), cast(User, request.user))
         return Response(self.get_serializer(restored).data)
+
+    @extend_schema(
+        request=CandidateExportSerializer,
+        responses={
+            (200, "application/pdf"): OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="The records, one candidate after another.",
+            ),
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="exports/records")
+    def export_records(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> HttpResponse:
+        """Download the sealed records of the candidates chosen as one PDF,
+        all or nothing."""
+        payload = CandidateExportSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        made = records.export_records(
+            self.get_object(), payload.validated_data["candidates"], self.actor
+        )
+        return pdf.response(made.document, made.content)
 
     @extend_schema(
         request=None,
@@ -706,19 +742,6 @@ class CandidateAssessmentViewSet(
         )
 
 
-def _item_remarks() -> tuple[Prefetch[Any], ...]:
-    return (
-        Prefetch(
-            "comments",
-            queryset=AssessmentItemComment.objects.select_related("author"),
-        ),
-        Prefetch(
-            "changes",
-            queryset=AssessmentItemResultChange.objects.select_related("changed_by"),
-        ),
-    )
-
-
 class CandidateAssessmentItemViewSet(
     mixins.ListModelMixin,
     mixins.UpdateModelMixin,
@@ -745,7 +768,7 @@ class CandidateAssessmentItemViewSet(
             assessor=self.actor,
         )
         # Served as the list serves it: its comments and changes read once each.
-        prefetch_related_objects([saved], *_item_remarks())
+        prefetch_related_objects([saved], *item_remarks())
         serializer.instance = saved
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
@@ -770,7 +793,7 @@ class CandidateAssessmentItemViewSet(
                 "assessor",
                 "assessment__candidate__session",
             )
-            .prefetch_related(*_item_remarks())
+            .prefetch_related(*item_remarks())
             .order_by("assessment_id", "position")
         )
 

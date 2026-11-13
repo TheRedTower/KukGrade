@@ -326,6 +326,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     can_be_marked_absent: true,
     can_prepare_assessment: true,
     can_be_finalised: false,
+    can_download_record: false,
     ...overrides,
   };
 }

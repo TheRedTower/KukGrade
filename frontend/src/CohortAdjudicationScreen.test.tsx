@@ -239,6 +239,7 @@ const servedRoster = cohort.map((row): GradingCandidateRoster => {
     can_be_marked_absent: false,
     can_prepare_assessment: false,
     can_be_finalised: found?.status === "PROPOSED",
+    can_download_record: true,
   };
 });
 // The board asks for the candidates still being graded (withdrawn=false).

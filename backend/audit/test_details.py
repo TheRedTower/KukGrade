@@ -155,8 +155,16 @@ def _metadata_keys() -> set[str]:
     source: the dicts passed as `metadata=` and the snapshots `before` and
     `after` are built from."""
     keys: set[str] = set()
-    for path in BACKEND.glob("*/*.py"):
-        if path.name.startswith("test") or path.parent.name in {"audit", "kukgrade"}:
+    # An app's own packages too (gradings.exports), not its migrations.
+    paths = [*BACKEND.glob("*/*.py"), *BACKEND.glob("*/*/*.py")]
+    for path in paths:
+        app = path.relative_to(BACKEND).parts[0]
+        if (
+            path.name.startswith("test")
+            or app.startswith(".")
+            or app in {"audit", "kukgrade"}
+            or path.parent.name == "migrations"
+        ):
             continue
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):

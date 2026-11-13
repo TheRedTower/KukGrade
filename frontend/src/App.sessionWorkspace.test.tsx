@@ -274,6 +274,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         can_be_marked_absent:
           rosterOpen && candidate.status === "REGISTERED" && (!assessment || assessment.status === "NOT_STARTED"),
         can_prepare_assessment: rosterOpen && candidate.status !== "WITHDRAWN" && !assessment,
+        // gradings.exports.records.record_can_be_downloaded
+        can_download_record: assessment?.status === "COMPLETED",
       };
     });
   }

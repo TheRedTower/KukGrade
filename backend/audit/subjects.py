@@ -8,7 +8,8 @@ done to their account and what they did.
 
 Events name what they are about by `entity_type` and `entity_id`, and the
 grading ones also carry `session_id`, `candidate_id` and `student_id` in their
-details (audit.recording.grading_context). Older events carry fewer, so the
+details (audit.recording.grading_context); a downloaded file that holds many
+candidates carries `candidate_ids` and `student_ids`. Older events carry fewer, so the
 records that still exist are followed by their ids too, and the two together
 cover both. The apps recorded are reached by name, so the log keeps no import of
 them.
@@ -110,12 +111,15 @@ def events_of(queryset: QuerySet[AuditEvent], value: str) -> QuerySet[AuditEvent
             # candidate's registration and removal are still in the log).
             Q(entity_type=AuditEntity.GRADING_CANDIDATE, entity_id=ident)
             | _belonging_to_candidates(candidates.filter(pk=number))
-            | Q(metadata__candidate_id=number),
+            | Q(metadata__candidate_id=number)
+            # A file that held them, among others (gradings.exports).
+            | Q(metadata__candidate_ids__contains=[number]),
         )
     return queryset.filter(
         Q(entity_type=AuditEntity.STUDENT, entity_id=ident)
         | _belonging_to_candidates(candidates.filter(student_id=number))
-        | Q(metadata__student_id=number),
+        | Q(metadata__student_id=number)
+        | Q(metadata__student_ids__contains=[number]),
     )
 
 

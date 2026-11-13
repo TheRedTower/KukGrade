@@ -1,7 +1,5 @@
 import { type APIRequestContext, type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
 
-import debt from "./widthDebt.json" with { type: "json" };
-import webkitDebt from "./widthDebtWebkit.json" with { type: "json" };
 import { findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
 import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
 
@@ -17,7 +15,7 @@ interface Ids {
 }
 
 interface Screen {
-  /** The name used in the width debt lists. */
+  /** The test's name. */
   name: string;
   role: Role;
   path: (ids: Ids) => string;
@@ -139,8 +137,6 @@ const SCREENS: Screen[] = [
 ];
 
 const quick = Boolean(process.env.KUKGRADE_E2E_QUICK);
-const known = new Set(SCREENS.map((screen) => screen.name));
-const authoritative = Boolean(process.env.CI);
 const contexts = new Map<Role, BrowserContext>();
 let ids: Ids;
 
@@ -217,16 +213,6 @@ test.beforeAll(async ({ browser }) => {
     sessions,
     candidate: String(candidates[0].id),
   };
-});
-
-test("the debt lists name only screens that exist", () => {
-  const testInfo = test.info();
-  const webkitProjects = testInfo.config.projects
-    .map((project) => project.name)
-    .filter((name) => name.startsWith("webkit"));
-  expect(Object.keys(webkitDebt).sort()).toEqual(webkitProjects.sort());
-  expect(Object.keys(WEBKIT_WIDTHS).sort()).toEqual(webkitProjects.sort());
-  expect([...debt, ...Object.values(webkitDebt).flat()].filter((name) => !known.has(name))).toEqual([]);
 });
 
 test("the edit-student dialog can be scrolled to Save on a short landscape screen", async () => {
@@ -348,19 +334,6 @@ for (const screen of SCREENS) {
     const widths = webkit ? WEBKIT_WIDTHS[testInfo.project.name] : quick ? QUICK_WIDTHS : ALL_WIDTHS;
     // Touch targets are judged on the phone, at its own width.
     const phone = testInfo.project.name === "webkit-iphone";
-    // WebKit checks the same few widths in every run, so only Chrome's quick run is partial.
-    const partial = quick && !webkit;
-    const debtFile = webkit ? `widthDebtWebkit.json (${testInfo.project.name})` : "widthDebt.json";
-    const owedHere = (
-      (webkit ? webkitDebt[testInfo.project.name as keyof typeof webkitDebt] : debt) as string[]
-    ).includes(screen.name);
-    // A screen on the debt list is expected not to fit yet. Where the run is
-    // authoritative (CI, all widths) Playwright reports a pass of an expected
-    // failure as a failure: remove the screen from widthDebt.json. Fonts differ
-    // from machine to machine, so a local run only notes what it finds, and the
-    // quick run checks too few widths to tell.
-    test.skip(partial && owedHere, "owed: only the full run checks it");
-    test.fail(owedHere && authoritative && !partial, `still owed: listed in ${debtFile}`);
     const page = await trackedPage(screen.role);
     const problems: string[] = [];
     for (const width of widths) {
@@ -379,15 +352,6 @@ for (const screen of SCREENS) {
       }
     }
     await page.close();
-    if (owedHere && !authoritative) {
-      if (process.env.KUKGRADE_E2E_REPORT && problems.length)
-        console.log(`${screen.name}:\n  ${problems.join("\n  ")}`);
-      test.info().annotations.push({
-        type: "owed",
-        description: problems.length ? "does not fit yet" : `fits here: remove it from ${debtFile} once CI agrees`,
-      });
-      return;
-    }
     expect(problems, `${screen.name} does not fit:\n  ${problems.join("\n  ")}`).toEqual([]);
   });
 }

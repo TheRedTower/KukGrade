@@ -25,7 +25,7 @@ Want something here, or something that is missing? Open an
       About box. Until `latest` exists, `deploy/compose.demo.yml` asks for `KUKGRADE_VERSION`;
       give it the default `latest` again with the first stable release.
 - [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check
-      (`frontend/src/layout.css`, Playwright width check, `frontend/e2e/widthDebt.json` empty).
+      (`frontend/src/layout.css`, Playwright width check).
       Done when the owner has checked the demo site on a real phone and tablet.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.

@@ -309,7 +309,9 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        # Compressed, not renamed: Vite's names already carry a content hash,
+        # and index.html links those, so a renamed copy would be dead weight.
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
     "import_uploads": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",

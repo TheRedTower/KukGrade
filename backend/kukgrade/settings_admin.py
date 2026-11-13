@@ -11,7 +11,6 @@ used from the host only. The network app does not use this module.
 from __future__ import annotations
 
 from kukgrade.settings import *  # noqa: F403
-from kukgrade.settings import STORAGES
 
 ROOT_URLCONF = "kukgrade.urls_admin"
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
@@ -21,13 +20,3 @@ SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = 0
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
-
-# The admin's own static files are not in the collected, public set (the
-# image leaves them out), so they are served from the installed apps by
-# runserver --insecure rather than from a manifest.
-STORAGES = {
-    **STORAGES,
-    "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-    },
-}

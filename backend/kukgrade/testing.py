@@ -120,14 +120,6 @@ def interleave(
 
 
 def render_admin_pages(settings: Any) -> None:
-    """Let admin pages render in a test, and serve them: the network app does
-    not mount the admin (kukgrade.urls_admin does), and the pages' templates
-    resolve hashed static files, which need collectstatic. Call with pytest's
-    `settings` fixture."""
+    """Serve admin pages in a test: the network app does not mount the admin
+    (kukgrade.urls_admin does). Call with pytest's `settings` fixture."""
     settings.ROOT_URLCONF = "kukgrade.urls_admin"
-    settings.STORAGES = {
-        **settings.STORAGES,
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        },
-    }

@@ -112,7 +112,7 @@ def test_production_settings_are_hardened(
     assert settings.CSRF_COOKIE_SECURE is True
     assert settings.STATIC_URL == "/static/"
     assert settings.STORAGES["staticfiles"]["BACKEND"] == (
-        "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        "whitenoise.storage.CompressedStaticFilesStorage"
     )
     assert settings.MIDDLEWARE[1] == "whitenoise.middleware.WhiteNoiseMiddleware"
     # After WhiteNoise, so the files it serves are never compressed again.

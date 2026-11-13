@@ -119,7 +119,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Pinned to an LTS line that Vite 8 and jsdom 30 support (Node 22.22.2 or
+      # Pinned to an LTS line that Vite 8 and jsdom 31 support (Node 22.22.2 or
       # newer; "22" takes the latest 22.x). Local development is
       # currently on a newer Node; add an .nvmrc if that drift ever bites.
       - uses: actions/setup-node@v7

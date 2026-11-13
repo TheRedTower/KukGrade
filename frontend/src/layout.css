@@ -1143,11 +1143,13 @@ select:not([multiple]):not([size]) {
 }
 
 /* A checkbox and what it means (`<label class="check">`): the box at the start,
-   the words beside it, a second line in .check__text if it needs one. */
+   the words beside it, a second line in .check__text if it needs one. A box on
+   its own (a table's tick) is still a finger-sized target. */
 .check {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
+  min-width: var(--target-min);
   min-height: var(--target-min);
   line-height: var(--line-height-snug);
   cursor: pointer;

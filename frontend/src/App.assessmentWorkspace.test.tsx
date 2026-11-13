@@ -816,7 +816,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Disposition": "attachment; filename*=utf-8''2027-03-20%20Alex%20Carter%20-%20Record.pdf",
+          "Content-Disposition":
+            "attachment; filename*=utf-8''2027-03-20%20Autumn%20Grading%20%E2%80%93%20Record%20%E2%80%93%20Alex%20Carter.pdf",
         },
       });
 
@@ -831,8 +832,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       render(<App />);
       await user.click(await screen.findByRole("button", { name: "Download PDF" }));
 
-      expect(await screen.findByText("2027-03-20 Alex Carter - Record.pdf")).toBeVisible();
-      expect(mockSaveFile).toHaveBeenCalledWith(expect.anything(), "2027-03-20 Alex Carter - Record.pdf");
+      expect(await screen.findByText("2027-03-20 Autumn Grading – Record – Alex Carter.pdf")).toBeVisible();
+      expect(mockSaveFile).toHaveBeenCalledWith(
+        expect.anything(),
+        "2027-03-20 Autumn Grading – Record – Alex Carter.pdf",
+      );
       const [, init] = fetch.mock.calls.find(([url]) => String(url).includes("/exports/records/"))!;
       expect(JSON.parse(String(init.body))).toEqual({ candidates: [101] });
     });

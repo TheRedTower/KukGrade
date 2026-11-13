@@ -552,9 +552,9 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
       registeredCandidate({ can_print_grading_sheet: true }),
       ben({ can_print_grading_sheet: true, can_download_record: true }),
     );
-    mockDownloadCandidateRecords.mockReset().mockResolvedValue(pdf("2027-03-20 March - Records.pdf"));
-    mockPrintGradingSheets.mockReset().mockResolvedValue(pdf("2027-03-20 March - Grading sheets.pdf"));
-    mockDownloadSessionSummary.mockReset().mockResolvedValue(pdf("2027-03-20 March - Summary.pdf"));
+    mockDownloadCandidateRecords.mockReset().mockResolvedValue(pdf("2027-03-20 March – Records (1).pdf"));
+    mockPrintGradingSheets.mockReset().mockResolvedValue(pdf("2027-03-20 March – Grading sheets.pdf"));
+    mockDownloadSessionSummary.mockReset().mockResolvedValue(pdf("2027-03-20 March – Summary.pdf"));
     mockSaveFile.mockReset();
   });
 
@@ -567,8 +567,8 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
     await user.click(screen.getByRole("button", { name: "Print grading sheets (PDF)" }));
 
     await waitFor(() => expect(mockPrintGradingSheets).toHaveBeenCalledWith(7, [31, 32]));
-    expect(await screen.findByRole("status")).toHaveTextContent("Saved as 2027-03-20 March - Grading sheets.pdf");
-    expect(mockSaveFile).toHaveBeenCalledWith(expect.any(Blob), "2027-03-20 March - Grading sheets.pdf");
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved as 2027-03-20 March – Grading sheets.pdf");
+    expect(mockSaveFile).toHaveBeenCalledWith(expect.any(Blob), "2027-03-20 March – Grading sheets.pdf");
   });
 
   it("downloads records only once every candidate chosen has a sealed record", async () => {
@@ -605,6 +605,8 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
     renderScreen();
 
     expect(await screen.findByLabelText("Select Mia Okafor")).toBeDisabled();
+    expect(within(screen.getByTestId("candidate-row-31")).getByText("No sealed record to download")).toBeVisible();
+    expect(within(screen.getByTestId("candidate-row-32")).queryByText("No sealed record to download")).toBeNull();
     expect(screen.getByLabelText("Select Ben Hall")).toBeEnabled();
     expect(screen.getByLabelText("Select all that can be downloaded (1)")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Print grading sheets (PDF)" })).toBeNull();
@@ -667,7 +669,7 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
     await user.click(screen.getByRole("menuitem", { name: "Download summary (PDF)" }));
 
     await waitFor(() => expect(mockDownloadSessionSummary).toHaveBeenCalledWith(7));
-    expect(await screen.findByRole("status")).toHaveTextContent("Saved as 2027-03-20 March - Summary.pdf");
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved as 2027-03-20 March – Summary.pdf");
   });
 
   it("does not offer the summary before the server does", async () => {

@@ -6,8 +6,11 @@ import { refusalOf } from "./pdfDownloads";
 describe("the name a PDF is saved under", () => {
   it("is the server's own, decoded", () => {
     expect(
-      fileNameOf("attachment; filename*=utf-8''2027-03-20%20October%20%E2%80%93%20Juniors%20-%20Summary.pdf", "x.pdf"),
-    ).toBe("2027-03-20 October – Juniors - Summary.pdf");
+      fileNameOf(
+        "attachment; filename*=utf-8''2027-03-20%20October%20%E2%80%93%20Juniors%20%E2%80%93%20Summary.pdf",
+        "x.pdf",
+      ),
+    ).toBe("2027-03-20 October – Juniors – Summary.pdf");
   });
 
   it("reads a plain file name when that is all there is", () => {

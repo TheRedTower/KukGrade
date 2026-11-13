@@ -177,10 +177,13 @@ export function SessionCandidateTable({
               <input
                 type="checkbox"
                 aria-label={`Select ${item.candidate.student_display_name}`}
-                checked={selection.isChoosable(item) && selection.isChosen(item)}
+                checked={selection.isChosen(item)}
                 disabled={!selection.isChoosable(item)}
                 onChange={() => selection.toggle(item)}
               />
+              {!selection.isChoosable(item) && (
+                <span className="meta visually-hidden--phone">No sealed record to download</span>
+              )}
             </label>
           ),
         },

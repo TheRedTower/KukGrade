@@ -165,6 +165,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Compresses the API's answers. Outside everything that reads or writes a
+    # body (the CSP middleware reads index.html), and inside WhiteNoise, which
+    # is inserted before it below and serves its own pre-compressed files.
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -180,7 +184,8 @@ MIDDLEWARE = [
     "kukgrade.csp.ContentSecurityPolicyMiddleware",
 ]
 # Development uses Django's staticfiles handler; only the collected image
-# needs WhiteNoise, immediately after SecurityMiddleware.
+# needs WhiteNoise, immediately after SecurityMiddleware (and so before
+# GZipMiddleware, which would otherwise compress fonts again on every request).
 if not DEBUG:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 

@@ -17,6 +17,7 @@ from types import ModuleType
 import pytest
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.test import Client
 
 SETTINGS_PATH = Path(__file__).resolve().parent / "settings.py"
 
@@ -114,6 +115,8 @@ def test_production_settings_are_hardened(
         "whitenoise.storage.CompressedManifestStaticFilesStorage"
     )
     assert settings.MIDDLEWARE[1] == "whitenoise.middleware.WhiteNoiseMiddleware"
+    # After WhiteNoise, so the files it serves are never compressed again.
+    assert settings.MIDDLEWARE[2] == "django.middleware.gzip.GZipMiddleware"
     assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 0
     # Pinned so that deleting either half of the throttle - the class or the
     # rate - is caught here rather than only by a scoped view becoming
@@ -487,3 +490,12 @@ def test_database_connections_are_kept_and_checked_before_reuse() -> None:
     assert database["CONN_MAX_AGE"] == 600
     assert database["CONN_HEALTH_CHECKS"] is True
 
+
+@pytest.mark.django_db
+def test_api_answers_are_compressed_for_a_browser_that_accepts_it() -> None:
+    compressed = Client().get("/api/site/", HTTP_ACCEPT_ENCODING="gzip")
+    plain = Client().get("/api/site/")
+
+    assert compressed.status_code == 200
+    assert compressed["Content-Encoding"] == "gzip"
+    assert not plain.has_header("Content-Encoding")

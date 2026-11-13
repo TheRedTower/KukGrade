@@ -11,6 +11,7 @@ dependencies = [
     "gunicorn>=26.2,<27.0",
     "openpyxl>=3.1,<4.0",
     "psycopg[binary]>=3.2,<4.0",
+    "reportlab>=4.4,<5.0",
     "whitenoise[brotli]>=6.12,<7.0",
 ]
 
@@ -19,6 +20,8 @@ dev = [
     "django-stubs>=5.2,<6.0",
     "djangorestframework-stubs>=3.16,<4.0",
     "mypy>=1.18,<3.0",
+    # Reads the text back out of the PDFs the exports make, in their tests.
+    "pypdf>=6.0,<7.0",
     # Held below 9.2: pytest-xdist 3.8.0 (the newest) cannot group tests under
     # pytest 9.2, so demo/test_club.py would build its club on every worker. Lift
     # with the Dependabot ignore once a newer pytest-xdist is out.
@@ -26,6 +29,7 @@ dev = [
     "pytest-django>=4.11,<5.0",
     "pytest-xdist>=3.8,<4.0",
     "ruff>=0.14,<1.0",
+    "types-reportlab>=5.1,<6.0",
 ]
 
 [tool.pytest.ini_options]

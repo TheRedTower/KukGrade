@@ -82,7 +82,7 @@ npm audit --audit-level=high
 
 ```sh
 docker build --target production -t kukgrade:ci .
-.github/scripts/image-smoke.sh kukgrade:ci   # starts it as deployed, signs in, stops it cleanly
+.github/scripts/image-smoke.sh kukgrade:ci   # starts it as deployed, signs in, stops it cleanly (--keep-demo leaves the demo on 6943)
 ```
 
 **Width check** (the demo image running on port 6943; see `frontend/e2e/README.md`):

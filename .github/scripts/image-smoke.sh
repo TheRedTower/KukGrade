@@ -5,16 +5,23 @@
 #   2. as deploy/compose.external-db.yml runs it: UID 10001, a read-only root, every
 #      capability dropped, an external PostgreSQL and two proxies declared;
 #   3. as deploy/compose.demo.yml runs it: demo mode, read-only, in-memory data.
+# All three start together, since starting is most of the wait, and are then
+# checked one by one. With --keep-demo the demo is left running on
+# https://localhost:6943 when every check passes, for the width check.
 #
-#   .github/scripts/image-smoke.sh kukgrade:ci
+#   .github/scripts/image-smoke.sh kukgrade:ci [--keep-demo]
 set -eu
 
-image="${1:?usage: image-smoke.sh IMAGE}"
+image="${1:?usage: image-smoke.sh IMAGE [--keep-demo]}"
+keep_demo="${2:-}"
+[ -z "$keep_demo" ] || [ "$keep_demo" = --keep-demo ] || { echo "unknown option: $keep_demo"; exit 2; }
+passed=
 data="$(mktemp -d)"
 jar="$(mktemp)"
 body="$(mktemp)"
 cleanup() {
-    docker rm -f kg-own kg-prod kg-db kg-demo >/dev/null 2>&1 || true
+    docker rm -f kg-own kg-prod kg-db >/dev/null 2>&1 || true
+    [ -n "$passed" ] && [ -n "$keep_demo" ] || docker rm -f kg-demo >/dev/null 2>&1 || true
     docker network rm kg-smoke >/dev/null 2>&1 || true
     docker volume rm kg-uploads >/dev/null 2>&1 || true
 }
@@ -26,7 +33,7 @@ trap 'exit 1' INT TERM
 fail() {
     echo "FAIL: $*"
     cat "$body" 2>/dev/null && echo
-    for name in kg-own kg-prod; do
+    for name in kg-own kg-prod kg-demo; do
         docker logs "$name" 2>&1 | tail -40 || true
     done
     exit 1
@@ -48,6 +55,34 @@ status() {
     curl -ks -o "$body" -w '%{http_code}' "$@"
 }
 
+echo "== Starting the three containers"
+docker run -d --name kg-own -p 127.0.0.1:6942:6942 \
+    -e DJANGO_ALLOWED_HOSTS=localhost \
+    -e DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost:6942 \
+    -v "$data:/var/lib/kukgrade" "$image" >/dev/null
+docker network create kg-smoke >/dev/null
+docker run -d --name kg-db --network kg-smoke \
+    -e POSTGRES_DB=kukgrade -e POSTGRES_USER=kukgrade -e POSTGRES_PASSWORD=smoke \
+    postgres:17-alpine >/dev/null
+# Restarted until the database answers, as unless-stopped does in compose.external-db.yml.
+docker run -d --name kg-prod --network kg-smoke -p 127.0.0.1:16942:6942 \
+    --restart on-failure --user 10001:10001 --read-only \
+    -v kg-uploads:/var/lib/kukgrade/import_uploads \
+    --tmpfs /tmp:rw,noexec,nosuid,size=64m,mode=1777 \
+    --cap-drop ALL --security-opt no-new-privileges:true \
+    -e POSTGRES_HOST=kg-db -e POSTGRES_PASSWORD=smoke \
+    -e DJANGO_SECRET_KEY=ci-only-secret-key-000000000000000000000000000000000000 \
+    -e DJANGO_ALLOWED_HOSTS=www.kukgrade.example.com -e DJANGO_NUM_PROXIES=2 \
+    "$image" >/dev/null
+docker run -d --name kg-demo -p 127.0.0.1:6943:6942 \
+    --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+    --shm-size 256m \
+    --tmpfs /var/lib/kukgrade:uid=10001,gid=10001,mode=0700,size=512m \
+    --tmpfs /tmp:rw,noexec,nosuid,size=64m,mode=1777 \
+    -e KUKGRADE_DEMO_MODE=1 -e KUKGRADE_CLUB_NAME="Riverside Kuk Sool Won" \
+    -e DJANGO_ALLOWED_HOSTS=localhost -e DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost:6943 \
+    "$image" >/dev/null
+
 echo "== Setuid files and the tools kept for repairs"
 docker run --rm --entrypoint sh "$image" -c '
     [ -z "$(find / -xdev -perm /6000 -type f 2>/dev/null)" ] || exit 1
@@ -57,10 +92,6 @@ docker run --rm --entrypoint sh "$image" -c '
 ' || fail "setuid files present or a repair tool missing"
 
 echo "== With its own database"
-docker run -d --name kg-own -p 127.0.0.1:6942:6942 \
-    -e DJANGO_ALLOWED_HOSTS=localhost \
-    -e DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost:6942 \
-    -v "$data:/var/lib/kukgrade" "$image" >/dev/null
 wait_healthy kg-own
 base=https://localhost:6942
 for path in /admin/ /admin/login/ /static/admin/css/base.css /api/ready/; do
@@ -113,20 +144,6 @@ wait_healthy kg-own
 docker rm -f kg-own >/dev/null
 
 echo "== As compose.external-db.yml runs it"
-docker network create kg-smoke >/dev/null
-docker run -d --name kg-db --network kg-smoke \
-    -e POSTGRES_DB=kukgrade -e POSTGRES_USER=kukgrade -e POSTGRES_PASSWORD=smoke \
-    postgres:17-alpine >/dev/null
-# Restarted until the database answers, as unless-stopped does in compose.external-db.yml.
-docker run -d --name kg-prod --network kg-smoke -p 127.0.0.1:16942:6942 \
-    --restart on-failure --user 10001:10001 --read-only \
-    -v kg-uploads:/var/lib/kukgrade/import_uploads \
-    --tmpfs /tmp:rw,noexec,nosuid,size=64m,mode=1777 \
-    --cap-drop ALL --security-opt no-new-privileges:true \
-    -e POSTGRES_HOST=kg-db -e POSTGRES_PASSWORD=smoke \
-    -e DJANGO_SECRET_KEY=ci-only-secret-key-000000000000000000000000000000000000 \
-    -e DJANGO_ALLOWED_HOSTS=www.kukgrade.example.com -e DJANGO_NUM_PROXIES=2 \
-    "$image" >/dev/null
 wait_healthy kg-prod
 [ "$(status -H 'Host: www.kukgrade.example.com' -H 'X-Forwarded-Proto: https' \
     -H 'X-Forwarded-For: 203.0.113.1, 198.51.100.1' \
@@ -135,14 +152,6 @@ docker exec kg-prod sh -c 'touch /var/lib/kukgrade/import_uploads/probe && rm /v
     || fail "the import folder is not writable"
 
 echo "== As the demo site runs it (compose.demo.yml)"
-docker run -d --name kg-demo -p 127.0.0.1:6943:6942 \
-    --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true \
-    --shm-size 256m \
-    --tmpfs /var/lib/kukgrade:uid=10001,gid=10001,mode=0700,size=512m \
-    --tmpfs /tmp:rw,noexec,nosuid,size=64m,mode=1777 \
-    -e KUKGRADE_DEMO_MODE=1 -e KUKGRADE_CLUB_NAME="Riverside Kuk Sool Won" \
-    -e DJANGO_ALLOWED_HOSTS=localhost -e DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost:6943 \
-    "$image" >/dev/null
 wait_healthy kg-demo
 base=https://localhost:6943
 demo_login='{"email":"administrator@demo.example.com","password":"KukGradeDemo2026!"}'
@@ -155,4 +164,5 @@ done
 status -b "$jar" "$base/api/about/" >/dev/null
 grep -q 'Riverside Kuk Sool Won' "$body" || fail "the administrator does not see the school"
 
+passed=1
 echo "OK"

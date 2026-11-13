@@ -378,7 +378,7 @@ describe("CohortAdjudicationScreen", () => {
     // Another screen, before the pause that would have saved it.
     board.unmount();
 
-    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11, true));
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11, false));
     expect(mockStage).toHaveBeenCalledTimes(1);
   });
 
@@ -397,6 +397,35 @@ describe("CohortAdjudicationScreen", () => {
     await passTypingPause();
     // Already sent: the pause sends nothing again.
     expect(mockStage).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends every unsaved row at once when the page is left, without waiting for one another", async () => {
+    const user = userEvent.setup();
+    // Never answers: a queued save would wait behind it for good.
+    mockStage.mockImplementation(() => new Promise(() => {}));
+    renderBoard();
+
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
+    await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
+    window.dispatchEvent(new Event("pagehide"));
+
+    expect(mockStage).toHaveBeenCalledWith(11, expect.objectContaining({ final_outcome: "PASS" }), true);
+    expect(mockStage).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }), true);
+  });
+
+  it("sends a change made while an earlier save is still on its way when the page is left", async () => {
+    const user = userEvent.setup();
+    mockStage.mockImplementation(() => new Promise(() => {}));
+    renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    // Taken off while the save of Pass has not been answered, and the page left.
+    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    window.dispatchEvent(new Event("pagehide"));
+
+    expect(mockDiscard).toHaveBeenCalledWith(11, true);
   });
 
   it("does not drop the server's copy of a recorded decision itself", async () => {

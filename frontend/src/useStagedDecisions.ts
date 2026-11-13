@@ -21,6 +21,20 @@ const KEEP_DELAY_MS = 600;
 // Stands for a row whose last save failed: no staged decision matches it.
 const UNKNOWN = "";
 
+/** Keeps one row's staged decision on the server, or drops it (`null`). */
+async function write(outcomeId: number, decision: StagedDecision | null, keepalive: boolean): Promise<void> {
+  if (!decision) return discardStagedDecision(outcomeId, keepalive);
+  await stageDecision(
+    outcomeId,
+    {
+      final_outcome: decision.outcome,
+      decision_notes: decision.notes,
+      conditional_requirements: decision.conditionalRequirements,
+    },
+    keepalive,
+  );
+}
+
 interface Options {
   sessionId: number;
   /** The session id is usable. */
@@ -81,33 +95,20 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // Each write goes through the mutation cache, so an expired session signs the viewer out.
   const keepMutation = useMutation({
     scope,
-    mutationFn: async ({
-      outcomeId,
-      decision,
-      leaving,
-    }: {
-      outcomeId: number;
-      decision: StagedDecision | null;
-      leaving: boolean;
-    }) => {
-      if (!decision) return discardStagedDecision(outcomeId, leaving);
-      await stageDecision(
-        outcomeId,
-        {
-          final_outcome: decision.outcome,
-          decision_notes: decision.notes,
-          conditional_requirements: decision.conditionalRequirements,
-        },
-        leaving,
-      );
-    },
+    mutationFn: ({ outcomeId, decision }: { outcomeId: number; decision: StagedDecision | null }) =>
+      write(outcomeId, decision, false),
   });
   const keep = keepMutation.mutateAsync;
 
   // Sends what differs between `target` and what the server will hold. Not
   // before the server's copy is read, and not while recording (recording
   // removes the server's copy itself).
-  function sendChanges(target: Record<number, StagedDecision>, leaving: boolean) {
+  //
+  // `closing` is for a page that is going (a closed tab, a reload): a write
+  // still waiting in the queue would die with it, so each is sent at once, on
+  // its own, and kept alive past the page. Leaving for another screen keeps
+  // the queue, since the page and its queue live on.
+  function sendChanges(target: Record<number, StagedDecision>, closing: boolean) {
     if (restored === null || isRecording) return;
     sent.current ??= Object.fromEntries(
       Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
@@ -122,7 +123,11 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
       const seq = (writeSeq.current[outcomeId] ?? 0) + 1;
       writeSeq.current[outcomeId] = seq;
       const isLatest = () => writeSeq.current[outcomeId] === seq;
-      keep({ outcomeId, decision: decision ?? null, leaving }).then(
+      if (closing) {
+        void write(outcomeId, decision ?? null, true).catch(() => {});
+        return;
+      }
+      keep({ outcomeId, decision: decision ?? null }).then(
         () => {
           if (isLatest()) setKeepFailures((current) => without(current, outcomeId));
         },
@@ -153,13 +158,13 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // Leaving the board (another screen, a closed tab, a reload) keeps at once
   // what is staged now, so a change made just before is not lost: a decision
   // taken off the board must not come back on the next visit.
-  const leave = useEffectEvent(() => sendChanges(staged, true));
+  const leave = useEffectEvent((closing: boolean) => sendChanges(staged, closing));
   useEffect(() => {
-    const onPageHide = () => leave();
+    const onPageHide = () => leave(true);
     window.addEventListener("pagehide", onPageHide);
     return () => {
       window.removeEventListener("pagehide", onPageHide);
-      leave();
+      leave(false);
     };
   }, []);
 

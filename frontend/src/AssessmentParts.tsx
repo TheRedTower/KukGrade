@@ -151,7 +151,7 @@ export function AssessmentItemRow({
 
   return (
     <div
-      className={`caw-row caw-row-${(item.result ?? "NOT_ASSESSED").toLowerCase().replace("_", "-")}`}
+      className={cx("caw-row", `caw-row-${(item.result ?? "NOT_ASSESSED").toLowerCase().replace("_", "-")}`)}
       data-testid={`caw-item-${item.id}`}
     >
       <div className="caw-row-detail">

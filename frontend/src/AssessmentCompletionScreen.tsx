@@ -416,7 +416,7 @@ export function AssessmentCompletionScreen() {
               {assessment?.marks_open && (
                 <Link
                   to={scoringPath}
-                  className={`${buttonClass({ variant: "secondary" })} acp-correct`}
+                  className={buttonClass({ variant: "secondary" }, "acp-correct")}
                   data-testid="acp-correct-link"
                 >
                   Correct a mark

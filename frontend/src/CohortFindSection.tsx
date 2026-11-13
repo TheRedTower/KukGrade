@@ -1,5 +1,3 @@
-import { Link } from "react-router-dom";
-
 import { Alert } from "./Alert";
 
 import { type AgeBand, type Rank, type StudentListItem, errorMessage } from "./api";
@@ -17,6 +15,7 @@ import { counted } from "./plural";
 import { CheckIcon, InfoIcon } from "./Icons";
 import { Field } from "./Field";
 import { Select } from "./Select";
+import { ExternalLink } from "./ExternalLink";
 
 export type StatusFilter = "ACTIVE_INACTIVE" | "ACTIVE" | "INACTIVE";
 
@@ -194,10 +193,9 @@ export function CohortFindSection({
                 primary: true,
                 render: (student) => (
                   <>
-                    <Link to={`/students/${student.id}`} target="_blank" rel="noreferrer">
+                    <ExternalLink to={`/students/${student.id}`}>
                       {student.first_name} {student.last_name}
-                      <span className="visually-hidden"> (opens in a new tab)</span>
-                    </Link>
+                    </ExternalLink>
                     <span className="bgc-student-id meta">{student.wksa_id || "—"}</span>
                   </>
                 ),

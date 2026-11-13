@@ -17,7 +17,7 @@ export function Meter({ segments, className }: MeterProps) {
     <span aria-hidden="true" className={cx("meter", className)}>
       {segments.map((segment) => (
         <span
-          className={`meter__fill meter__fill--${segment.tone}`}
+          className={cx("meter__fill", `meter__fill--${segment.tone}`)}
           key={segment.tone}
           style={{ width: `${segment.percent}%` }}
         />

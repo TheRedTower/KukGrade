@@ -1,4 +1,5 @@
 import { Fragment, type Key, type ReactNode } from "react";
+import { cx } from "./cx";
 
 export interface Column<Row> {
   key: string;
@@ -60,7 +61,7 @@ export function ResponsiveTable<Row>({
   const box = flush ? "rtable rtable--flush" : "rtable";
   if (rows.length === 0 && empty !== undefined) {
     return (
-      <div className={`${box} rtable__empty`} role="group" aria-label={label} data-testid={testId}>
+      <div className={cx(box, "rtable__empty")} role="group" aria-label={label} data-testid={testId}>
         {empty}
       </div>
     );

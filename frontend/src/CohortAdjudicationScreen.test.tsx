@@ -329,6 +329,7 @@ describe("CohortAdjudicationScreen", () => {
         conditional_requirements: "Re-test Dwi Cha Gi.",
         revision: 1,
         updated_at: "2026-11-12T15:00:00Z",
+        discarded: false,
       },
     ]);
     renderBoard();
@@ -441,6 +442,7 @@ describe("CohortAdjudicationScreen", () => {
         conditional_requirements: "",
         revision: ahead,
         updated_at: "2026-11-12T15:00:00Z",
+        discarded: false,
       },
     ]);
     const user = userEvent.setup();
@@ -456,6 +458,37 @@ describe("CohortAdjudicationScreen", () => {
     const discarded = mockDiscard.mock.calls[0][1] as number;
     expect(staged.revision).toBe(ahead + 1);
     expect(discarded).toBeGreaterThan(staged.revision);
+  });
+
+  it("starts above a decision taken off on a device whose clock is ahead, and does not show it", async () => {
+    const ahead = Date.now() + 60 * 60 * 1000;
+    mockGetStaged.mockResolvedValue([
+      {
+        outcome: 11,
+        final_outcome: "",
+        decision_notes: "",
+        conditional_requirements: "",
+        revision: ahead,
+        updated_at: "2026-11-12T15:00:00Z",
+        discarded: true,
+      },
+    ]);
+    const user = userEvent.setup();
+    renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    const pass = await within(mia).findByRole("button", { name: "Pass" });
+    await waitFor(() => expect(pass).toBeEnabled());
+    // Taken off is not staged: nothing is shown or counted.
+    for (const name of ["Pass", "Fail", "Conditional"]) {
+      expect(within(mia).getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
+    }
+    await user.click(pass);
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+
+    expect((mockStage.mock.calls[0][1] as { revision: number }).revision).toBe(ahead + 1);
+    // Nothing is taken off again: the server already holds it taken off.
+    expect(mockDiscard).not.toHaveBeenCalled();
   });
 
   it("does not drop the server's copy of a recorded decision itself", async () => {
@@ -523,6 +556,7 @@ describe("CohortAdjudicationScreen", () => {
         conditional_requirements: "",
         revision: 1,
         updated_at: "2026-11-12T15:00:00Z",
+        discarded: false,
       },
     ]);
 

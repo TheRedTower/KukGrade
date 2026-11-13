@@ -53,6 +53,11 @@ def listed_url(outcome: CandidateOutcome) -> str:
     )
 
 
+def live(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    """The rows still staged: what the board shows."""
+    return [row for row in rows if not row["discarded"]]
+
+
 def test_a_master_stages_changes_and_reads_back_their_own_decision() -> None:
     outcome = proposed_outcome("stage-own")
     actor = master("stage-own-master@example.com")
@@ -88,6 +93,7 @@ def test_a_master_stages_changes_and_reads_back_their_own_decision() -> None:
             "conditional_requirements": "",
             "revision": 2,
             "updated_at": second.json()["updated_at"],
+            "discarded": False,
         },
     ]
     # Staging decides nothing, so it is not audited; recording it is.
@@ -101,13 +107,13 @@ def test_each_master_sees_only_their_own_staged_decisions() -> None:
     stage_final_decision(outcome, "PASS", "First's note.", "", first, revision=1)
     stage_final_decision(outcome, "FAIL", "Second's note.", "", second, revision=1)
 
-    seen_by_second = client_for(second).get(listed_url(outcome)).json()
+    seen_by_second = live(client_for(second).get(listed_url(outcome)).json())
     discarded = client_for(second).delete(f"{staged_url(outcome)}?revision=2")
 
     assert [row["decision_notes"] for row in seen_by_second] == ["Second's note."]
     assert discarded.status_code == 204
     # The second Master's is taken off; the first's is untouched.
-    assert client_for(second).get(listed_url(outcome)).json() == []
+    assert live(client_for(second).get(listed_url(outcome)).json()) == []
     assert [
         row["decision_notes"]
         for row in client_for(first).get(listed_url(outcome)).json()
@@ -229,7 +235,7 @@ def test_a_save_that_arrives_after_the_decision_was_taken_off_is_refused() -> No
     assert late.json()["error"]["fields"]["revision"] == [
         "A newer change to this decision has already been saved."
     ]
-    assert client.get(listed_url(outcome)).json() == []
+    assert live(client.get(listed_url(outcome)).json()) == []
 
 
 def test_a_take_off_that_arrives_after_a_newer_save_is_refused() -> None:
@@ -267,8 +273,46 @@ def test_a_decision_taken_off_can_be_staged_again_by_a_newer_change() -> None:
     )
 
     assert restaged.status_code == 200
-    assert client.get(listed_url(outcome)).json() == [restaged.json()]
+    assert client.get(listed_url(outcome)).json() == [
+        {**restaged.json(), "discarded": False}
+    ]
     assert StagedDecision.objects.count() == 1
+
+
+def test_a_decision_taken_off_is_listed_with_its_revision() -> None:
+    # Another device, whose clock is behind, starts its changes above this.
+    outcome = proposed_outcome("stage-off-listed")
+    client = client_for(master("stage-off-listed-master@example.com"))
+    client.put(
+        staged_url(outcome),
+        {"final_outcome": "PASS", "decision_notes": "Gone.", "revision": 1},
+        format="json",
+    )
+    client.delete(f"{staged_url(outcome)}?revision=900")
+
+    listed = client.get(listed_url(outcome)).json()
+
+    assert [
+        {
+            key: row[key]
+            for key in (
+                "outcome",
+                "final_outcome",
+                "decision_notes",
+                "revision",
+                "discarded",
+            )
+        }
+        for row in listed
+    ] == [
+        {
+            "outcome": outcome.pk,
+            "final_outcome": "",
+            "decision_notes": "",
+            "revision": 900,
+            "discarded": True,
+        }
+    ]
 
 
 def test_every_change_says_which_change_it_is() -> None:

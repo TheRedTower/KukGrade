@@ -437,11 +437,13 @@ def staged_decisions_for_session(
     session_id: int,
     actor: User,
 ) -> QuerySet[StagedDecision]:
-    """The actor's own staged decisions in a session that can still be recorded."""
+    """
+    The actor's own staged decisions in a session that can still be recorded,
+    with those taken off (`discarded`), whose revisions still count.
+    """
     validate_final_decision_actor(actor)
     return StagedDecision.objects.filter(
         author=actor,
-        discarded=False,
         outcome__candidate__session_id=session_id,
         outcome__in=CandidateOutcome.objects.can_be_finalised(),
     ).order_by("outcome_id")

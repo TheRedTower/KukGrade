@@ -25,6 +25,7 @@ export type CandidateAssessmentItem = components["schemas"]["CandidateAssessment
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type StagedDecision = Schemas["StagedDecision"];
+export type KeptStagedDecision = Schemas["KeptStagedDecision"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type Promotion = components["schemas"]["Promotion"];
 export type CategoryAssessmentSummary = Schemas["AssessmentCategorySummary"];

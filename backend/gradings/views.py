@@ -96,6 +96,7 @@ from gradings.serializers import (
     GradingCandidateSerializer,
     GradingSessionSerializer,
     GradingYearsSerializer,
+    KeptStagedDecisionSerializer,
     LegacyGradingRecordSerializer,
     LegacyPeopleSummarySerializer,
     LegacyPersonSerializer,
@@ -847,7 +848,7 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
 
     @extend_schema(
         parameters=[SessionQuerySerializer],
-        responses=StagedDecisionSerializer(many=True),
+        responses=KeptStagedDecisionSerializer(many=True),
     )
     @action(
         detail=False,
@@ -863,7 +864,7 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         """The viewer's own decisions staged in a session and not yet recorded."""
         session = read_query(request, SessionQuerySerializer)["session"]
         staged = staged_decisions_for_session(session, cast(User, request.user))
-        return Response(StagedDecisionSerializer(staged, many=True).data)
+        return Response(KeptStagedDecisionSerializer(staged, many=True).data)
 
     @extend_schema(
         methods=["PUT"],

@@ -2633,6 +2633,22 @@ export interface components {
             label: string;
         };
         /**
+         * @description A staged decision as the board reads it back. A decision taken off is
+         *     listed too, `discarded` and with no outcome, so the board knows its
+         *     revision and starts every later change above it, whatever this device's
+         *     clock says.
+         */
+        KeptStagedDecision: {
+            readonly outcome: number;
+            readonly final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["BlankEnum"];
+            decision_notes?: string;
+            conditional_requirements?: string;
+            revision: number;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly discarded: boolean;
+        };
+        /**
          * @description * `STUDENT_ROSTER` - Students
          *     * `LEGACY_GRADINGS` - Past gradings
          * @enum {string}
@@ -5274,7 +5290,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StagedDecision"][];
+                    "application/json": components["schemas"]["KeptStagedDecision"][];
                 };
             };
         };

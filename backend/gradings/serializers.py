@@ -854,6 +854,25 @@ class StagedDecisionSerializer(ModelSerializer):
         read_only_fields = ["outcome", "updated_at"]
 
 
+class KeptStagedDecisionSerializer(StagedDecisionSerializer):
+    """
+    A staged decision as the board reads it back. A decision taken off is
+    listed too, `discarded` and with no outcome, so the board knows its
+    revision and starts every later change above it, whatever this device's
+    clock says.
+    """
+
+    final_outcome = serializers.ChoiceField(
+        choices=CandidateOutcome.Outcome.choices,
+        allow_blank=True,
+        read_only=True,
+    )
+
+    class Meta(StagedDecisionSerializer.Meta):
+        fields = [*StagedDecisionSerializer.Meta.fields, "discarded"]
+        read_only_fields = fields
+
+
 class StagedDecisionDiscardQuerySerializer(serializers.Serializer):
     """Which change taking a staged decision off is."""
 

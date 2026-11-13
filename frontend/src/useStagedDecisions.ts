@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   type CandidateOutcomeOutcome,
-  type StagedDecision as ApiStagedDecision,
+  type KeptStagedDecision,
   discardStagedDecision,
   errorMessage,
   finaliseCandidateOutcome,
@@ -73,9 +73,11 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // latest, so only its answer counts.
   const sent = useRef<Record<number, string> | null>(null);
   const writeSeq = useRef<Record<number, number>>({});
-  // The revision of each row's last change, so the next is always later.
+  // The revision of each row's last change, so the next is always later. A
+  // decision taken off is read back for this alone: its revision may have come
+  // from another device whose clock is ahead.
   const revisions = useRef<Record<number, number> | null>(null);
-  const [restored, setRestored] = useState<ApiStagedDecision[] | null>(null);
+  const [restored, setRestored] = useState<KeptStagedDecision[] | null>(null);
   const [keepFailures, setKeepFailures] = useState<Record<number, string>>({});
 
   // Recording unmounts or disables the control that started it, so focus

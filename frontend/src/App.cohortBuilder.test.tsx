@@ -50,6 +50,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     can_be_archived: false,
     can_be_restored: false,
     can_download_summary: false,
+    can_print_grading_sheets: false,
     notes: "",
   };
 

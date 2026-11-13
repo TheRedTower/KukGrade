@@ -90,6 +90,7 @@ const mockSession: GradingSession = {
   can_be_archived: false,
   can_be_restored: false,
   can_download_summary: false,
+  can_print_grading_sheets: false,
   grading_date: "2026-10-15",
   location: "Main Dojang",
   notes: "Annual autumn examination",

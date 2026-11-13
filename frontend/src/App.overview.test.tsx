@@ -182,6 +182,7 @@ describe("Overview screen (Operational Ledger)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
     } satisfies GradingSession;
 
@@ -200,6 +201,7 @@ describe("Overview screen (Operational Ledger)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Ipswich Central",
     } satisfies GradingSession;
 
@@ -385,6 +387,7 @@ describe("Overview screen (Operational Ledger)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
     } satisfies GradingSession;
 

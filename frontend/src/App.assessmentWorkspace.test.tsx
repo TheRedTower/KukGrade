@@ -41,6 +41,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     can_be_archived: false,
     can_be_restored: false,
     can_download_summary: false,
+    can_print_grading_sheets: false,
     notes: "",
   };
 
@@ -2700,6 +2701,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         can_be_archived: false,
         can_be_restored: false,
         can_download_summary: false,
+        can_print_grading_sheets: false,
       } satisfies GradingSession;
       const generatedAssessment: CandidateAssessment = {
         ...mockAssessment,

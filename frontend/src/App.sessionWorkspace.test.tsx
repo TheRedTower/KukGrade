@@ -73,6 +73,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     can_be_archived: false,
     can_be_restored: false,
     can_download_summary: false,
+    can_print_grading_sheets: false,
     location: "Riverside Dojang",
     notes: "Please arrive 15 minutes before the start time.",
   } satisfies GradingSession;
@@ -275,8 +276,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         can_be_marked_absent:
           rosterOpen && candidate.status === "REGISTERED" && (!assessment || assessment.status === "NOT_STARTED"),
         can_prepare_assessment: rosterOpen && candidate.status !== "WITHDRAWN" && !assessment,
-        // gradings.exports.records.record_can_be_downloaded
+        // gradings.exports: record_can_be_downloaded, sheet_can_be_printed
         can_download_record: assessment?.status === "COMPLETED",
+        can_print_grading_sheet: rosterOpen && candidate.status !== "WITHDRAWN",
       };
     });
   }
@@ -1245,6 +1247,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
     });
     stubFetch(fetchMock);
     const user = userEvent.setup();
@@ -1269,6 +1272,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           can_be_archived: false,
           can_be_restored: false,
           can_download_summary: false,
+          can_print_grading_sheets: false,
         });
       }
       if (url.includes("/api/gradings/candidates/")) {
@@ -1329,6 +1333,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
     });
     stubFetch(fetchMock);
     const user = userEvent.setup();

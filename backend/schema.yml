@@ -2314,6 +2314,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/GradingSession'
           description: ''
+  /api/gradings/sessions/{id}/exports/grading-sheets/:
+    post:
+      operationId: gradings_sessions_exports_grading_sheets_create
+      description: |-
+        Print the grading sheets of the candidates chosen as one PDF, while
+        the grading is a draft or open, all or nothing.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: The grading form for each candidate, a page each.
   /api/gradings/sessions/{id}/exports/records/:
     post:
       operationId: gradings_sessions_exports_records_create
@@ -4860,6 +4897,11 @@ components:
           readOnly: true
           description: 'Whether this candidate''s record can be downloaded as a PDF:
             their assessment is sealed.'
+        can_print_grading_sheet:
+          type: boolean
+          readOnly: true
+          description: 'Whether a grading sheet can be printed for this candidate:
+            they are not withdrawn and the session is a draft or open.'
       required:
       - age_band_display
       - assessment
@@ -4870,6 +4912,7 @@ components:
       - can_be_withdrawn_after_lock
       - can_download_record
       - can_prepare_assessment
+      - can_print_grading_sheet
       - from_rank
       - from_rank_name
       - id
@@ -5078,6 +5121,11 @@ components:
           readOnly: true
           description: 'Whether the session''s summary can be downloaded as a PDF:
             it is locked (provisional) or completed (final).'
+        can_print_grading_sheets:
+          type: boolean
+          readOnly: true
+          description: 'Whether grading sheets can be printed for its candidates:
+            the session is a draft or open.'
       required:
       - archived_at
       - awaiting_decision_count
@@ -5089,6 +5137,7 @@ components:
       - can_download_summary
       - can_lock
       - can_open
+      - can_print_grading_sheets
       - cancel_reason_required
       - candidate_count
       - completed_assessment_count

@@ -32,6 +32,7 @@ from gradings.assessment_services import (
 )
 from gradings.exports import pdf
 from gradings.exports.records import export_records
+from gradings.exports.sheets import export_sheets
 from gradings.exports.summary import export_summary
 from gradings.legacy_matching import (
     SET_ASIDE_CHOICES,
@@ -283,6 +284,7 @@ class GradingSessionViewSet(
         # Whoever can open the records may print them (owner, 2026-11-13).
         "export_records": _READS_RECORDS,
         "export_summary": _READS_RECORDS,
+        "export_grading_sheets": _READS_RECORDS,
     }
 
     query_filters = (
@@ -389,6 +391,28 @@ class GradingSessionViewSet(
     ) -> HttpResponse:
         """Download the session's summary as a PDF, once it is locked."""
         made = export_summary(self.get_object(), self.actor)
+        return pdf.response(made.document, made.content)
+
+    @extend_schema(
+        request=CandidateExportSerializer,
+        responses={
+            (200, "application/pdf"): OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="The grading form for each candidate, a page each.",
+            ),
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="exports/grading-sheets")
+    def export_grading_sheets(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> HttpResponse:
+        """Print the grading sheets of the candidates chosen as one PDF, while
+        the grading is a draft or open, all or nothing."""
+        payload = CandidateExportSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        made = export_sheets(
+            self.get_object(), payload.validated_data["candidates"], self.actor
+        )
         return pdf.response(made.document, made.content)
 
     @extend_schema(

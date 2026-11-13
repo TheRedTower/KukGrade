@@ -92,6 +92,7 @@ function lockedSession(): GradingSession {
     can_be_archived: false,
     can_be_restored: false,
     can_download_summary: false,
+    can_print_grading_sheets: false,
     location: "Riverside",
     notes: "",
   };
@@ -258,6 +259,7 @@ describe("GradingSessionDetailScreen archiving", () => {
       archived_at: "2027-04-01T10:00:00Z",
       can_be_restored: true,
       can_download_summary: false,
+      can_print_grading_sheets: false,
     });
     mockRestoreGradingSession.mockResolvedValue(completed());
     const user = userEvent.setup();
@@ -329,6 +331,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     can_prepare_assessment: true,
     can_be_finalised: false,
     can_download_record: false,
+    can_print_grading_sheet: false,
     ...overrides,
   };
 }

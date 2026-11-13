@@ -16,6 +16,7 @@ from gradings.assessment_services import (
     item_mark_can_be_cleared,
 )
 from gradings.exports.records import record_can_be_downloaded
+from gradings.exports.sheets import sheet_can_be_printed, sheets_can_be_printed
 from gradings.exports.summary import summary_can_be_downloaded
 from gradings.legacy_matching import Suggestion
 from gradings.models import (
@@ -131,6 +132,12 @@ class GradingSessionSerializer(ModelSerializer):
             "locked (provisional) or completed (final)."
         ),
     )
+    can_print_grading_sheets = serializers.SerializerMethodField(
+        help_text=(
+            "Whether grading sheets can be printed for its candidates: the "
+            "session is a draft or open."
+        ),
+    )
 
     class Meta:
         model = GradingSession
@@ -160,6 +167,7 @@ class GradingSessionSerializer(ModelSerializer):
             "can_be_archived",
             "can_be_restored",
             "can_download_summary",
+            "can_print_grading_sheets",
         )
         read_only_fields = (
             "id",
@@ -210,6 +218,9 @@ class GradingSessionSerializer(ModelSerializer):
 
     def get_can_download_summary(self, obj: GradingSession) -> bool:
         return summary_can_be_downloaded(obj)
+
+    def get_can_print_grading_sheets(self, obj: GradingSession) -> bool:
+        return sheets_can_be_printed(obj)
 
     def to_representation(self, instance: GradingSession) -> dict[str, Any]:
         # A session just created or edited was not loaded through the
@@ -795,6 +806,12 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "assessment is sealed."
         ),
     )
+    can_print_grading_sheet = serializers.SerializerMethodField(
+        help_text=(
+            "Whether a grading sheet can be printed for this candidate: they "
+            "are not withdrawn and the session is a draft or open."
+        ),
+    )
 
     class Meta(GradingCandidateSerializer.Meta):
         fields = (
@@ -808,6 +825,7 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "can_be_marked_absent",
             "can_prepare_assessment",
             "can_download_record",
+            "can_print_grading_sheet",
         )
 
     @extend_schema_field(PromotionSerializer(allow_null=True))
@@ -830,6 +848,9 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
 
     def get_can_download_record(self, instance: GradingCandidate) -> bool:
         return record_can_be_downloaded(instance)
+
+    def get_can_print_grading_sheet(self, instance: GradingCandidate) -> bool:
+        return sheet_can_be_printed(instance)
 
     def get_can_be_withdrawn_after_lock(self, instance: GradingCandidate) -> bool:
         # Asked once for the whole list: the context is shared by every row.

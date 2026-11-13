@@ -35,6 +35,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -53,6 +54,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -71,6 +73,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
       notes: "",
     },
@@ -131,6 +134,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
         can_be_archived: false,
         can_be_restored: false,
         can_download_summary: false,
+        can_print_grading_sheets: false,
       },
     ] satisfies GradingSession[];
     stubFetch(makeFetch(sessions));
@@ -320,6 +324,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -368,6 +373,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -425,6 +431,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -477,6 +484,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -700,6 +708,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       can_be_archived: false,
       can_be_restored: false,
       can_download_summary: false,
+      can_print_grading_sheets: false,
       location: "Riverside Central Dojang",
       notes: "High rank candidates expected",
     } satisfies GradingSession;

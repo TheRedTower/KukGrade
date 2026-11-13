@@ -1180,6 +1180,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/sessions/{id}/exports/grading-sheets/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Print the grading sheets of the candidates chosen as one PDF, while
+         *     the grading is a draft or open, all or nothing.
+         */
+        post: operations["gradings_sessions_exports_grading_sheets_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/sessions/{id}/exports/records/": {
         parameters: {
             query?: never;
@@ -2284,6 +2304,8 @@ export interface components {
             readonly can_prepare_assessment: boolean;
             /** @description Whether this candidate's record can be downloaded as a PDF: their assessment is sealed. */
             readonly can_download_record: boolean;
+            /** @description Whether a grading sheet can be printed for this candidate: they are not withdrawn and the session is a draft or open. */
+            readonly can_print_grading_sheet: boolean;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -2368,6 +2390,8 @@ export interface components {
             readonly can_be_restored: boolean;
             /** @description Whether the session's summary can be downloaded as a PDF: it is locked (provisional) or completed (final). */
             readonly can_download_summary: boolean;
+            /** @description Whether grading sheets can be printed for its candidates: the session is a draft or open. */
+            readonly can_print_grading_sheets: boolean;
         };
         GradingSessionRequest: {
             title: string;
@@ -5496,6 +5520,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GradingSession"];
+                };
+            };
+        };
+    };
+    gradings_sessions_exports_grading_sheets_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this grading session. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateExportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandidateExportRequest"];
+                "multipart/form-data": components["schemas"]["CandidateExportRequest"];
+            };
+        };
+        responses: {
+            /** @description The grading form for each candidate, a page each. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
                 };
             };
         };

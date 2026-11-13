@@ -1,4 +1,12 @@
-import type { CandidateAssessment, CandidateOutcome, GradingSessionStatus, StudentStatus } from "./api";
+import type { ReactNode } from "react";
+
+import type {
+  CandidateAssessment,
+  CandidateOutcome,
+  CandidateOutcomeOutcome,
+  GradingSessionStatus,
+  StudentStatus,
+} from "./api";
 import { Badge } from "./Badge";
 import { type BadgeTone, outcomeTone } from "./badgeClass";
 import { CheckIcon, CrossIcon, LockIcon, WarningIcon, XCircleIcon } from "./Icons";
@@ -80,17 +88,39 @@ const OUTCOME_ICONS = {
   FAIL: <CrossIcon size={12} />,
 } as const;
 
+/**
+ * A grading result: Pass, Conditional or Fail. The one way every screen draws
+ * one: its colour and mark come from the result, its words from the server.
+ * `absent` is a grading the student did not attend, which has no result.
+ */
+export function ResultBadge({
+  result,
+  absent = false,
+  children,
+}: {
+  result: CandidateOutcomeOutcome | null | undefined;
+  absent?: boolean;
+  children: ReactNode;
+}) {
+  if (absent) return <Badge tone="neutral">{children}</Badge>;
+  return (
+    <Badge tone={outcomeTone(result)} icon={result ? OUTCOME_ICONS[result] : undefined}>
+      {children}
+    </Badge>
+  );
+}
+
 /** A candidate's outcome: proposed by an instructor, or finalised by the Master. */
-export function OutcomeBadge({ outcome }: { outcome?: CandidateOutcome }) {
+export function OutcomeBadge({ outcome }: { outcome?: CandidateOutcome | null }) {
   if (!outcome) return <Badge tone="neutral">Not proposed</Badge>;
   const finalised = outcome.status === "FINALISED";
   const result = finalised ? outcome.final_outcome : outcome.status === "PROPOSED" ? outcome.proposed_outcome : null;
   if (!result) return <Badge tone="neutral">{finalised ? "Finalised" : "Not proposed"}</Badge>;
   const label = finalised ? outcome.final_outcome_display : outcome.proposed_outcome_display;
   return (
-    <Badge tone={outcomeTone(result)} icon={OUTCOME_ICONS[result]}>
+    <ResultBadge result={result}>
       {outcome.status_display}: {label}
-    </Badge>
+    </ResultBadge>
   );
 }
 

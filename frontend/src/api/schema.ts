@@ -2237,6 +2237,8 @@ export interface components {
             source_testing_for_rank_text: string;
             outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             attendance_status: components["schemas"]["AttendanceStatusEnum"];
+            /** @description The result as the history names it: the outcome, that the student did not attend, or that a historical outcome is not one KukGrade knows. */
+            readonly result_display: string;
             /** @description The grading report: decision notes, or a historical record's comments. */
             comments: string;
             /** @description Anything else a historical sheet said beside the record. */

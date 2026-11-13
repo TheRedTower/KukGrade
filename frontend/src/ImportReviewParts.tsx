@@ -7,6 +7,7 @@ import { importKinds } from "./importKinds";
 import { Button } from "./Button";
 import { Exclusion, Tile } from "./importReviewRows";
 import { cx } from "./cx";
+import { LoadingState } from "./LoadingState";
 
 /** Counts that double as filters. */
 export function CountTiles<View extends string>({
@@ -105,9 +106,9 @@ export function RowsList({
       {rows.query.isError ? (
         <ErrorText className="ix-row">{errorMessage(rows.query.error, "The rows could not be loaded.")}</ErrorText>
       ) : rows.query.isPending ? (
-        <p className="ix-row subtext" role="status">
-          Loading…
-        </p>
+        <div className="ix-row">
+          <LoadingState compact>Loading the rows…</LoadingState>
+        </div>
       ) : list.length === 0 ? (
         <p className="ix-row subtext">{empty}</p>
       ) : (

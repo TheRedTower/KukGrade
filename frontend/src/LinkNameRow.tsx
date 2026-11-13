@@ -12,6 +12,7 @@ import { Button } from "./Button";
 import { type Column, ResponsiveTable } from "./ResponsiveTable";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
+import { LoadingState } from "./LoadingState";
 
 export type NameView = "todo" | "clear" | "choose" | "none" | "left" | "done";
 
@@ -73,8 +74,8 @@ function NameDetails({
         </h3>
         <ul className="list-plain ix-detail-list">
           {records.isPending ? (
-            <li className="subtext" role="status">
-              Loading the records…
+            <li>
+              <LoadingState compact>Loading the records…</LoadingState>
             </li>
           ) : records.isError ? (
             <ErrorText as="li">{errorMessage(records.error, "The records could not be loaded.")}</ErrorText>

@@ -296,6 +296,54 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     });
   }
 
+  it("says the students are loading, not that none match, until the list arrives", async () => {
+    const answered = setupCohortMock();
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url.includes("/api/students/")) await held;
+        return answered(url, init);
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Loading eligible students…")).toBeVisible();
+    expect(screen.queryByText(/students? match/)).toBeNull();
+    expect(screen.queryByText(/No eligible students/)).toBeNull();
+    expect(screen.getByTestId("bgc-add-all-filtered-btn")).toBeDisabled();
+
+    release();
+    expect(await screen.findByText("3 students match")).toBeVisible();
+    expect(screen.queryByText("Loading eligible students…")).toBeNull();
+    expect(screen.getByTestId("bgc-add-all-filtered-btn")).toBeEnabled();
+  });
+
+  it("says when the students could not be loaded, and tries again", async () => {
+    const answered = setupCohortMock();
+    let failing = true;
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url.includes("/api/students/") && failing) {
+          return jsonResponse(500, { error: { code: "server_error", message: "The server had a problem." } });
+        }
+        return answered(url, init);
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByText("The server had a problem.")).toBeVisible();
+    expect(screen.queryByText(/No eligible students/)).toBeNull();
+    expect(screen.getByTestId("bgc-add-all-filtered-btn")).toBeDisabled();
+
+    failing = false;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("3 students match")).toBeVisible();
+  });
+
   it("renders cohort builder workspace layout, session info, and eligible rank groups", async () => {
     stubFetch(setupCohortMock());
 

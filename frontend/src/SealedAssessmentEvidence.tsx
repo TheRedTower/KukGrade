@@ -20,6 +20,7 @@ import { WarningIcon } from "./Icons";
 import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
 import "./SealedAssessmentEvidence.css";
 import { cx } from "./cx";
+import { LoadingState } from "./LoadingState";
 
 export function SealedAssessmentEvidence({
   assessmentId,
@@ -67,9 +68,7 @@ export function SealedAssessmentEvidence({
           {overall.not_met > 0 ? `${overall.not_met} not met` : "none not met"}
         </p>
       ) : (
-        <p className="evd-muted subtext" role="status">
-          Loading the assessment…
-        </p>
+        <LoadingState compact>Loading the assessment…</LoadingState>
       )}
       {[shortfalls, otherNotes].map(
         (group, index) =>

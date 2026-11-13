@@ -12,6 +12,7 @@ import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
 import { cx } from "./cx";
 import { CheckIcon } from "./Icons";
+import { LoadingState } from "./LoadingState";
 
 const LINK_GROUPS_SHOWN = 4;
 
@@ -89,9 +90,9 @@ export function LinkPanel({ batch }: { batch: DataImportBatch }) {
       {!canLink ? (
         <p className="ix-row subtext">An administrator links these records to students.</p>
       ) : people.isPending ? (
-        <p className="ix-row subtext" role="status">
-          Loading suggestions…
-        </p>
+        <div className="ix-row">
+          <LoadingState compact>Loading suggestions…</LoadingState>
+        </div>
       ) : people.isError ? (
         <ErrorText className="ix-row">{errorMessage(people.error, "Suggestions could not be loaded.")}</ErrorText>
       ) : shown.length === 0 ? (

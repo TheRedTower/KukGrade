@@ -272,9 +272,10 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [FRONTEND_DIST] if FRONTEND_DIST.is_dir() else []
-# Vite already puts a content hash in each production asset name. Keep its
-# original URL in index.html while WhiteNoise applies immutable caching.
-WHITENOISE_IMMUTABLE_FILE_TEST = r"^/static/assets/.+-[A-Za-z0-9_-]{8}\.(?:js|css)$"
+# Vite already puts a content hash in each production asset name (scripts,
+# stylesheets, fonts, images). Keep its original URL in index.html while
+# WhiteNoise applies immutable caching to every one of them.
+WHITENOISE_IMMUTABLE_FILE_TEST = r"^/static/assets/.+-[A-Za-z0-9_-]{8}\.[a-z0-9]+$"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 

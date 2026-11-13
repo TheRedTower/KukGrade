@@ -8,12 +8,14 @@ environment so that the production branch is exercised directly.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
 from types import ModuleType
 
 import pytest
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 SETTINGS_PATH = Path(__file__).resolve().parent / "settings.py"
@@ -457,3 +459,25 @@ def test_the_database_is_the_images_own_socket_unless_a_host_is_given(
 
     plain = load_settings(monkeypatch, **PRODUCTION_ENV, POSTGRES_HOST="  ")
     assert plain.DATABASES["default"]["HOST"] == "127.0.0.1"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/static/assets/index-Bj8YU-O_.js",
+        "/static/assets/index-C8x7JIdx.css",
+        "/static/assets/PretendardVariable.subset.0-BHUkWNFR.woff2",
+        "/static/assets/kukgrade-mark-Wjvxuljx.svg",
+    ],
+)
+def test_vite_hashed_assets_are_cached_for_good(path: str) -> None:
+    assert re.match(settings.WHITENOISE_IMMUTABLE_FILE_TEST, path)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/static/assets/logo.svg", "/static/assets/app.js", "/static/index.html"],
+)
+def test_files_without_a_vite_hash_are_not_cached_for_good(path: str) -> None:
+    assert not re.match(settings.WHITENOISE_IMMUTABLE_FILE_TEST, path)
+

@@ -7034,6 +7034,9 @@ components:
             and 'today' is today there.
         imports:
           $ref: '#/components/schemas/ImportSettings'
+        largest_page_size:
+          type: integer
+          description: The most rows one page of a list serves (`page_size`).
         password_policy:
           $ref: '#/components/schemas/PasswordPolicy'
         wksa_id:
@@ -7046,6 +7049,7 @@ components:
       required:
       - club_name
       - imports
+      - largest_page_size
       - password_policy
       - time_zone
       - wksa_id

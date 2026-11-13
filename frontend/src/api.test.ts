@@ -15,6 +15,7 @@ import {
   getManagedUsers,
   loginUser,
   resetManagedUserPassword,
+  setLargestPage,
   updateManagedUser,
   updateManagedUserAuthority,
   withdrawLockedCandidate,
@@ -32,6 +33,7 @@ function nonJsonResponse(status: number): Response {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  setLargestPage(undefined);
   document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 });
 
@@ -246,13 +248,26 @@ describe("API pagination", () => {
       .mockResolvedValue(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }));
     stubFetch(fetchMock);
 
+    setLargestPage(150);
     await getAllCandidateAssessmentItems({ assessment: 42 });
 
     const url = String(fetchMock.mock.calls[0][0]);
     expect(url).toContain("assessment=42");
     expect(url).toContain("page=1");
-    expect(url).toContain("page_size=200");
+    // The largest page the site settings say a list serves.
+    expect(url).toContain("page_size=150");
     expect(url).not.toContain("limit=");
+  });
+
+  it("asks for the server's own page size until the site settings say the largest", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }));
+    stubFetch(fetchMock);
+
+    await getAllCandidateAssessmentItems({ assessment: 42 });
+
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain("page_size=");
   });
 });
 

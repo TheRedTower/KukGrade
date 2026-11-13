@@ -47,7 +47,7 @@ its password is refused with `password_change_required` until it does.
 {"count": 373, "next": "…?page=2", "previous": null, "results": []}
 ```
 
-The default page size is 50; `?page_size=` goes up to 200. A page out of range is a 404.
+The default page size is 50; `?page_size=` goes up to 200, which the site settings serve as `largest_page_size` so the frontend asks for no more than the server gives. A page out of range is a 404.
 
 **Filters** follow one rule on every list. A blank or absent parameter does not filter.
 A value that cannot match (a non-numeric id, an unknown choice, a malformed date) returns

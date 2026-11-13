@@ -12,6 +12,7 @@ const served: SiteSettings = {
   club_name: "Test Club",
   time_zone: "Europe/London",
   imports: SITE.imports,
+  largest_page_size: SITE.largest_page_size,
   password_policy: {
     min_length: 5,
     max_length: 6,

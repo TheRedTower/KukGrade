@@ -113,6 +113,7 @@ export const CHOICES: Choices = {
 export const SITE: SiteSettings = {
   club_name: "Kuk Sool Won Testville",
   time_zone: "Europe/London",
+  largest_page_size: 200,
   imports: {
     max_bytes: 5 * 1024 * 1024,
     max_rows: 1000,

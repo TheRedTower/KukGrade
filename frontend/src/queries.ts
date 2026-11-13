@@ -13,7 +13,8 @@ import {
   getPledge,
   getRanks,
   getSiteSettings,
-  LARGEST_PAGE,
+  largestPageSize,
+  setLargestPage,
 } from "./api";
 
 // How long each kind of data is used before it is read again. Ranks, age
@@ -28,7 +29,7 @@ const SITE_SETTINGS_FRESH_MS = 5 * 60 * 1000;
 export function useRanksQuery() {
   return useQuery({
     queryKey: keys.ranks(),
-    queryFn: () => getRanks({ page_size: LARGEST_PAGE }),
+    queryFn: () => getRanks({ page_size: largestPageSize() }),
     staleTime: UNTIL_RELEASE,
   });
 }
@@ -45,6 +46,7 @@ export function useSiteSettingsQuery() {
     queryFn: async () => {
       const site = await getSiteSettings();
       setClubTimeZone(site.time_zone);
+      setLargestPage(site.largest_page_size);
       return site;
     },
   });

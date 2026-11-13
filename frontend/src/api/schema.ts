@@ -3288,6 +3288,8 @@ export interface components {
             /** @description The club's time zone (an IANA name). Times are shown in it, and 'today' is today there. */
             time_zone: string;
             imports: components["schemas"]["ImportSettings"];
+            /** @description The most rows one page of a list serves (`page_size`). */
+            largest_page_size: number;
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
             /** @description Present only on the public demo: its accounts and when it resets. */

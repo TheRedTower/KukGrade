@@ -24,7 +24,10 @@ flowchart LR
    eligible; a student can be in only one unfinished grading at a time, and a
    student who has left cannot be registered. Each candidate tests for their own
    next rank, so a mixed-belt group registers in one step. Candidates can be
-   moved or removed while the session is a draft or open.
+   moved or removed while the session is a draft or open. Every list of a
+   grading's candidates (the roster, the decision board, the promotion ledger)
+   puts them as they line up on the mat: the lowest rank held first, then by
+   surname and first name.
 3. **Assess.** Each candidate's assessment is generated (singly or for a whole
    cohort) as a copy of the **cumulative syllabus** for their age band, from White
    up to the rank they are testing for, and started deliberately. Assessors mark

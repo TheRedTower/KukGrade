@@ -57,6 +57,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
+    candidate_order,
 )
 from gradings.outcome_services import (
     bulk_promote_candidates,
@@ -445,11 +446,7 @@ class GradingCandidateViewSet(
             )
         else:
             candidates = candidates.select_related("assessment")
-        return candidates.order_by(
-            "session__grading_date",
-            "student__last_name",
-            "student__first_name",
-        )
+        return candidates.order_by(*candidate_order())
 
     @extend_schema(request=None, responses={201: CandidateAssessmentSerializer})
     @action(detail=True, methods=["post"], url_path="generate-assessment")
@@ -665,11 +662,7 @@ class CandidateAssessmentViewSet(
             if self.action == "list"
             else assessments.prefetch_related("items")
         )
-        return assessments.order_by(
-            "candidate__session__grading_date",
-            "candidate__student__last_name",
-            "candidate__student__first_name",
-        )
+        return assessments.order_by(*candidate_order("candidate__"))
 
     @extend_schema(responses=CandidateAssessmentSummarySerializer)
     @action(detail=True, methods=["get"])

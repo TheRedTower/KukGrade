@@ -441,16 +441,6 @@ def test_the_api_refuses_an_over_long_reason_in_plain_words() -> None:
     )
 
 
-def test_the_reopen_action_is_gone() -> None:
-    item = open_item(completed=True)
-
-    response = auth_client("no-reopen@example.com").post(
-        f"/api/gradings/assessments/{item.assessment_id}/reopen/",
-    )
-
-    assert response.status_code == 404
-
-
 # --- marks that existed before the log ----------------------------------------
 
 

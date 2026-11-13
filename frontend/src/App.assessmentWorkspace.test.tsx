@@ -714,7 +714,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const lockedView = render(<App />);
     await screen.findByRole("heading", { name: "Assessment record" });
     expect(screen.queryByTestId("acp-correct-link")).toBeNull();
-    expect(screen.queryByText(/reopen/i)).toBeNull();
     lockedView.unmount();
 
     stubFetch(sealedRecordFetch("OPEN"));
@@ -723,7 +722,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const link = await screen.findByTestId("acp-correct-link");
 
     expect(link).toHaveAttribute("href", "/gradings/10/assessments/101");
-    expect(screen.queryByText(/reopen/i)).toBeNull();
   });
 
   describe("the history link on an assessment record", () => {

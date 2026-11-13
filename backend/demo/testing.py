@@ -5,7 +5,13 @@ from __future__ import annotations
 from rest_framework.test import APIClient
 
 from demo.personas import DEMO_PASSWORD
+from demo.reset import club_models
 from gradings.models import GradingSession
+
+
+def club_tables() -> list[str]:
+    """The tables a demo reset empties."""
+    return [model._meta.db_table for model in club_models()]
 
 
 def session_named(title: str) -> GradingSession:

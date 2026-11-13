@@ -252,9 +252,10 @@ test("an import step's Cancel and Continue stack on a phone and share a row with
   await page.close();
 });
 
-/** How many decisions the Master has staged and kept in the locked session. */
+/** How many decisions the Master has staged and kept in the locked session. One taken off is listed only for its revision. */
 async function stagedCount(page: Page): Promise<number> {
-  return (await list(page.request, `/api/gradings/outcomes/staged-decisions/?session=${ids.sessions.LOCKED}`)).length;
+  const rows = await list(page.request, `/api/gradings/outcomes/staged-decisions/?session=${ids.sessions.LOCKED}`);
+  return rows.filter((row) => !row.discarded).length;
 }
 
 test("a tap anywhere on a decision card brings it into focus, and its buttons still answer for themselves", async () => {

@@ -183,10 +183,22 @@ async function done(call: Promise<{ error?: unknown; response: Response }>): Pro
   await answer(call);
 }
 
-// The largest page a list serves (DefaultPagination.max_page_size). Asking for
-// it keeps a read of every page to as few requests as it can be; a smaller
-// server limit costs requests, never rows, as the pages are followed to the end.
-export const LARGEST_PAGE = 200;
+// The largest page a list serves, as the site settings say (`largest_page_size`).
+// Asking for it keeps a read of every page to as few requests as it can be.
+// Until the settings are read, or if they cannot be, a list is asked for at the
+// server's own page size: more requests, never fewer rows, as the pages are
+// followed to the end.
+let largestPage: number | undefined;
+
+/** Sets the largest page size, as the site settings arrive (queries.ts). */
+export function setLargestPage(size: number | undefined): void {
+  largestPage = size;
+}
+
+/** The largest page a list serves, or undefined for the server's own page size. */
+export function largestPageSize(): number | undefined {
+  return largestPage;
+}
 
 type Page<T> = { count: number; next?: string | null; results: T[] };
 
@@ -313,7 +325,7 @@ export function getGradingSessions(query?: ListQuery<"gradings_sessions_list">) 
 }
 
 export function getAllGradingSessions(query: Omit<ListQuery<"gradings_sessions_list">, "page" | "page_size"> = {}) {
-  return collectAllPages((page) => getGradingSessions({ ...query, page, page_size: LARGEST_PAGE }));
+  return collectAllPages((page) => getGradingSessions({ ...query, page, page_size: largestPage }));
 }
 
 export async function getGradingSessionYears(): Promise<number[]> {
@@ -356,7 +368,7 @@ export function getGradingCandidate(id: number) {
 }
 
 export function getAllGradingCandidates(query: Omit<ListQuery<"gradings_candidates_list">, "page" | "page_size"> = {}) {
-  return collectAllPages((page) => getGradingCandidates({ ...query, page, page_size: LARGEST_PAGE }));
+  return collectAllPages((page) => getGradingCandidates({ ...query, page, page_size: largestPage }));
 }
 
 /** Move a registration to another draft or open session. */
@@ -388,11 +400,7 @@ export function bulkUpdateCandidateStatus(body: Schemas["BulkCandidateStatusUpda
   return answer(api.POST("/api/gradings/candidates/bulk-update-status/", { body }));
 }
 
-export type WithdrawalReason = Schemas["WithdrawalReason"];
-
-export function getWithdrawalReasons() {
-  return answer(api.GET("/api/gradings/withdrawal-reasons/"));
-}
+export type WithdrawalReason = Schemas["WithdrawalReasonChoice"];
 
 export type LockedCandidateWithdrawal = Schemas["LockedCandidateWithdrawalRequest"];
 
@@ -423,7 +431,7 @@ function getCandidateAssessmentItems(query?: ListQuery<"gradings_assessment_item
 export function getAllCandidateAssessmentItems(
   query: Omit<ListQuery<"gradings_assessment_items_list">, "page" | "page_size"> = {},
 ) {
-  return collectAllPages((page) => getCandidateAssessmentItems({ ...query, page, page_size: LARGEST_PAGE }));
+  return collectAllPages((page) => getCandidateAssessmentItems({ ...query, page, page_size: largestPage }));
 }
 
 /** Mark an item; the answer carries the assessment's counts as the save left them. */
@@ -499,7 +507,7 @@ export function getStudents(query?: ListQuery<"students_list">) {
 }
 
 export function getAllStudents(query: Omit<ListQuery<"students_list">, "page" | "page_size"> = {}) {
-  return collectAllPages((page) => getStudents({ ...query, page, page_size: LARGEST_PAGE }));
+  return collectAllPages((page) => getStudents({ ...query, page, page_size: largestPage }));
 }
 
 export function getRanks(query?: ListQuery<"ranks_list">) {
@@ -516,7 +524,7 @@ export function getAllEffectiveSyllabusRequirements(
   return collectAllPages((page) =>
     answer(
       api.GET("/api/syllabus/requirements/effective/", {
-        params: { query: { ...query, page, page_size: LARGEST_PAGE } },
+        params: { query: { ...query, page, page_size: largestPage } },
       }),
     ),
   );
@@ -580,7 +588,7 @@ export function getDataImportBatches(query?: ListQuery<"data_imports_batches_lis
 
 /** Complete import choices for filters, regardless of how many were committed. */
 export function getAllDataImportBatches(query: Omit<ListQuery<"data_imports_batches_list">, "page" | "page_size">) {
-  return collectAllPages((page) => getDataImportBatches({ ...query, page, page_size: LARGEST_PAGE }));
+  return collectAllPages((page) => getDataImportBatches({ ...query, page, page_size: largestPage }));
 }
 
 export function getDataImportBatch(id: number) {
@@ -682,7 +690,7 @@ export function linkLegacyGradingRecord(id: number, student: number, replace = f
 export function getAllLegacyGradingRecords(
   query: Omit<ListQuery<"gradings_legacy_records_list">, "page" | "page_size">,
 ) {
-  return collectAllPages((page) => getLegacyGradingRecords({ ...query, page, page_size: LARGEST_PAGE }));
+  return collectAllPages((page) => getLegacyGradingRecords({ ...query, page, page_size: largestPage }));
 }
 
 export type LegacyPerson = Schemas["LegacyPerson"];

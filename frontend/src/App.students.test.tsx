@@ -1232,7 +1232,7 @@ describe("Student detail screen (/students/:id)", () => {
             ...student,
             wksa_id: "A-20819",
             wksa_id_can_change: false,
-            previous_wksa_ids: [{ wksa_id: testStudent.wksa_id, replaced_at: "2026-10-20T09:00:00Z" }],
+            previous_wksa_ids: [{ wksa_id: testStudent.wksa_id }],
           };
           return jsonResponse(200, student);
         }

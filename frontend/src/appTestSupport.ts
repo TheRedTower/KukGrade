@@ -48,6 +48,12 @@ export const CHOICES: Choices = {
     { value: "MET", label: "Met" },
     { value: "NOT_MET", label: "Not met" },
   ],
+  withdrawal_reasons: [
+    { value: "INJURY", label: "Injured during grading", note_required: false },
+    { value: "WITHDREW", label: "Withdrew voluntarily", note_required: false },
+    { value: "ABSENT", label: "Did not attend", note_required: false },
+    { value: "OTHER", label: "Other", note_required: true },
+  ],
   outcomes: [
     { value: "PASS", label: "Pass" },
     { value: "CONDITIONAL", label: "Conditional" },
@@ -107,6 +113,7 @@ export const CHOICES: Choices = {
 export const SITE: SiteSettings = {
   club_name: "Kuk Sool Won Testville",
   time_zone: "Europe/London",
+  largest_page_size: 200,
   imports: {
     max_bytes: 5 * 1024 * 1024,
     max_rows: 1000,
@@ -160,8 +167,6 @@ export const authUser = {
   can_import_data: false,
   can_reconcile_imported_history: false,
   can_delete_students: false,
-  can_delete_assessments: false,
-  can_delete_any_session: false,
   can_read_audit_log: false,
   must_change_password: false,
 } satisfies AuthUser;
@@ -172,8 +177,6 @@ export const ADMINISTRATOR_CAPABILITIES = {
   can_import_data: true,
   can_reconcile_imported_history: true,
   can_delete_students: true,
-  can_delete_assessments: true,
-  can_delete_any_session: true,
   can_read_audit_log: true,
 } satisfies Partial<AuthUser>;
 

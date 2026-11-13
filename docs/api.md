@@ -47,7 +47,7 @@ its password is refused with `password_change_required` until it does.
 {"count": 373, "next": "…?page=2", "previous": null, "results": []}
 ```
 
-The default page size is 50; `?page_size=` goes up to 200. A page out of range is a 404.
+The default page size is 50; `?page_size=` goes up to 200, which the site settings serve as `largest_page_size` so the frontend asks for no more than the server gives. A page out of range is a 404.
 
 **Filters** follow one rule on every list. A blank or absent parameter does not filter.
 A value that cannot match (a non-numeric id, an unknown choice, a malformed date) returns
@@ -70,8 +70,8 @@ or `ANOTHER_GRADING`), so a client tells those apart without reading message tex
 
 **Choices** a screen lists are served as `{"value": …, "label": …}`, plus anything a
 choice needs said about it, such as whether a withdrawal reason needs a note. The shared
-lists come from `/api/choices/`; lists that belong to one area (audit event and record
-types, withdrawal reasons) come with it. A record names its own value in a `*_display`
+lists come from `/api/choices/`, withdrawal reasons among them; lists that belong to
+one area (audit event and record types) come with it. A record names its own value in a `*_display`
 field beside it (`status_display`, `outcome_display`, `from_result_display`), so a client
 never keeps its own copy of the names.
 

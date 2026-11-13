@@ -10,7 +10,7 @@ import {
   cancelDataImportBatch,
   errorMessage,
   getDataImportBatches,
-  LARGEST_PAGE,
+  largestPageSize,
   getLegacyRecordCounts,
 } from "./api";
 import { ErrorText } from "./ErrorText";
@@ -294,7 +294,7 @@ export function ImportsHubScreen() {
 
   const unfinished = useQuery({
     queryKey: keys.imports.unfinished(),
-    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: LARGEST_PAGE }),
+    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: largestPageSize() }),
   });
   const awaitingLink = useQuery({
     queryKey: keys.legacyRecords.awaitingLinkCount(),

@@ -24,8 +24,6 @@ let mockCurrentUser: AuthUser = {
   can_import_data: false,
   can_reconcile_imported_history: false,
   can_delete_students: false,
-  can_delete_assessments: false,
-  can_delete_any_session: false,
   can_read_audit_log: true,
   must_change_password: false,
 };
@@ -47,7 +45,8 @@ const mockGetPromotions = vi.fn();
 async function roster(...args: unknown[]) {
   const candidates = await mockGetGradingCandidates(...args);
   const outcomes = (await mockGetCandidateOutcomes()).results as CandidateOutcome[];
-  const promotions = (await mockGetPromotions()).results as Promotion[];
+  // Each stand-in promotion names its candidate, which the roster folds it into.
+  const promotions = (await mockGetPromotions()).results as (Promotion & { grading_candidate: number })[];
   return {
     ...candidates,
     results: (candidates.results as GradingCandidate[]).map((candidate) => ({
@@ -375,8 +374,6 @@ describe("PromotionLedgerScreen", () => {
       can_import_data: false,
       can_reconcile_imported_history: false,
       can_delete_students: false,
-      can_delete_assessments: false,
-      can_delete_any_session: false,
       can_read_audit_log: true,
       must_change_password: false,
     };

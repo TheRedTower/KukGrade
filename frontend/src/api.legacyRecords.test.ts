@@ -1,9 +1,12 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-import { getAllLegacyGradingRecords } from "./api";
+import { getAllLegacyGradingRecords, setLargestPage } from "./api";
 import { jsonResponse, stubFetch } from "./appTestSupport";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setLargestPage(undefined);
+});
 
 it("reads every page of the server's historical name group within one import", async () => {
   const fetchMock = vi.fn().mockImplementation(async (rawUrl: string) => {
@@ -18,6 +21,7 @@ it("reads every page of the server's historical name group within one import", a
     });
   });
   stubFetch(fetchMock);
+  setLargestPage(200);
 
   const group = await getAllLegacyGradingRecords({
     group_key: "zac w",

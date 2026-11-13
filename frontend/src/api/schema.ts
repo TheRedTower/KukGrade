@@ -1214,26 +1214,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/withdrawal-reasons/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description The reasons a candidate can be withdrawn for, as every withdrawal
-         *     control lists them.
-         */
-        get: operations["gradings_withdrawal_reasons_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/health/": {
         parameters: {
             query?: never;
@@ -1673,9 +1653,7 @@ export interface components {
         AssessmentItemResultChange: {
             /** @description Its place in the item's history, from 1. */
             readonly sequence: number;
-            readonly from_result: components["schemas"]["ResultEnum"];
             readonly from_result_display: string;
-            readonly to_result: components["schemas"]["ResultEnum"];
             readonly to_result_display: string;
             /** @description Who changed by is, as the record names them: their rank then and their name. */
             readonly changed_by_name: string;
@@ -2070,6 +2048,8 @@ export interface components {
             candidate_statuses: components["schemas"]["CandidateStatusChoice"][];
             assessment_statuses: components["schemas"]["AssessmentStatusChoice"][];
             item_results: components["schemas"]["ItemResultChoice"][];
+            /** @description Why a candidate may be withdrawn, in the order the controls offer. */
+            withdrawal_reasons: components["schemas"]["WithdrawalReasonChoice"][];
             /** @description The grading outcomes, in the order the outcome controls offer them. */
             outcomes: components["schemas"]["OutcomeChoice"][];
             import_kinds: components["schemas"]["ImportKindChoice"][];
@@ -2644,8 +2624,6 @@ export interface components {
             decision_notes?: string;
             conditional_requirements?: string;
             revision: number;
-            /** Format: date-time */
-            readonly updated_at: string;
             readonly discarded: boolean;
         };
         /**
@@ -2667,7 +2645,6 @@ export interface components {
             readonly record_kind_display: string;
             readonly cycle_year: number;
             readonly cycle_month: number;
-            readonly source_batch: number;
             readonly source_section: string;
             readonly source_name: string;
             readonly source_current_rank_text: string;
@@ -2676,7 +2653,6 @@ export interface components {
             readonly current_rank_name: string | null;
             readonly source_testing_for_rank_text: string;
             readonly testing_for_rank: number | null;
-            readonly testing_for_rank_code: string | null;
             readonly testing_for_rank_name: string | null;
             readonly outcome_display: string | null;
             readonly attendance_status_display: string;
@@ -2696,7 +2672,6 @@ export interface components {
             did_not_attend: number;
             unresolved_current_rank: number;
             unresolved_testing_for_rank: number;
-            unresolved_outcome: number;
             excluded: number;
             /** @description Records not left out that have issues: a reason to look. */
             worth_a_look: number;
@@ -3045,21 +3020,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["UserManagement"][];
         };
-        PaginatedWithdrawalReasonList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["WithdrawalReason"][];
-        };
         PasswordCharacterRule: {
             code: string;
             label: string;
@@ -3180,8 +3140,6 @@ export interface components {
         };
         PreviousWksaId: {
             readonly wksa_id: string;
-            /** Format: date-time */
-            readonly replaced_at: string;
         };
         /**
          * @description * `JUNIOR` - Junior & Little Dragon
@@ -3192,7 +3150,6 @@ export interface components {
         Promotion: {
             readonly id: number;
             readonly student_display_name: string;
-            readonly grading_candidate: number;
             readonly to_rank_name: string;
             /** Format: date */
             readonly effective_date: string;
@@ -3321,6 +3278,8 @@ export interface components {
             /** @description The club's time zone (an IANA name). Times are shown in it, and 'today' is today there. */
             time_zone: string;
             imports: components["schemas"]["ImportSettings"];
+            /** @description The most rows one page of a list serves (`page_size`). */
+            largest_page_size: number;
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
             /** @description Present only on the public demo: its accounts and when it resets. */
@@ -3344,8 +3303,6 @@ export interface components {
             decision_notes?: string;
             conditional_requirements?: string;
             revision: number;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /** @description A final decision chosen but not yet recorded, seen only by whoever chose it. */
         StagedDecisionRequest: {
@@ -3540,8 +3497,6 @@ export interface components {
             readonly can_import_data: boolean;
             readonly can_reconcile_imported_history: boolean;
             readonly can_delete_students: boolean;
-            readonly can_delete_assessments: boolean;
-            readonly can_delete_any_session: boolean;
             readonly can_read_audit_log: boolean;
             readonly must_change_password: boolean;
         };
@@ -3611,11 +3566,15 @@ export interface components {
         VoidLegacyRecordRequest: {
             reason: string;
         };
-        /** @description One withdrawal reason, and whether it needs a note. */
-        WithdrawalReason: {
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        WithdrawalReasonChoice: {
             value: components["schemas"]["WithdrawalReasonEnum"];
             label: string;
-            readonly note_required: boolean;
+            /** @description Whether a withdrawal for this reason must say why. */
+            note_required: boolean;
         };
         /**
          * @description * `INJURY` - Injured during grading
@@ -5488,30 +5447,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GradingYears"];
-                };
-            };
-        };
-    };
-    gradings_withdrawal_reasons_list: {
-        parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedWithdrawalReasonList"];
                 };
             };
         };

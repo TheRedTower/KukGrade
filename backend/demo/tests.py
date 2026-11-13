@@ -13,9 +13,9 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from demo import seed
 from demo.personas import PERSONA_EMAILS
-from demo.reset import club_tables, reset
+from demo.reset import reset
 from demo.schedule import next_reset_at
-from demo.testing import session_named, sign_in
+from demo.testing import club_tables, session_named, sign_in
 from gradings.models import (
     GradingSession,
     Promotion,

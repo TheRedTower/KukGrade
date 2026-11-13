@@ -570,10 +570,11 @@ def test_bulk_promote_promotes_every_eligible_outcome_in_one_request() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["errors"] == {}
-    assert {item["grading_candidate"] for item in payload["promoted"]} == {
-        first_candidate.id,
-        second_candidate.id,
-    }
+    assert {item["id"] for item in payload["promoted"]} == set(
+        Promotion.objects.filter(
+            grading_candidate__in=[first_candidate, second_candidate],
+        ).values_list("pk", flat=True),
+    )
     first_candidate.student.refresh_from_db()
     second_candidate.student.refresh_from_db()
     assert first_candidate.student.current_rank.code == "YELLOW_STRIPE"
@@ -609,8 +610,8 @@ def test_bulk_promote_is_independent_per_row() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert [item["grading_candidate"] for item in payload["promoted"]] == [
-        eligible_outcome.candidate_id,
+    assert [item["id"] for item in payload["promoted"]] == [
+        Promotion.objects.get(grading_candidate=eligible_outcome.candidate).pk,
     ]
     assert list(payload["errors"].keys()) == [str(ineligible_outcome.id)]
     assert Promotion.objects.filter(outcome=eligible_outcome).exists()

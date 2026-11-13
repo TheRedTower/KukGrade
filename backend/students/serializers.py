@@ -225,7 +225,7 @@ class StudentListSerializer(NextRankFields, ModelSerializer[Student]):
 class PreviousWksaIdSerializer(ModelSerializer[PreviousWksaId]):
     class Meta:
         model = PreviousWksaId
-        fields = ("wksa_id", "replaced_at")
+        fields = ("wksa_id",)
         read_only_fields = fields
 
 

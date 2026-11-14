@@ -1585,7 +1585,7 @@ export interface components {
             version: string;
             /** @description The version as it is named to people: the version, followed by -rc.N on a release candidate. */
             release: string;
-            /** @description The commit it was built from; blank when run from a checkout. */
+            /** @description The commit it was built from, shortened to its first seven characters; blank when run from a checkout. */
             commit: string;
             /**
              * Format: date-time

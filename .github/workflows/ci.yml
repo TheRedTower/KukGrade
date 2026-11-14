@@ -227,6 +227,10 @@ jobs:
           target: production
           load: true
           tags: kukgrade:ci
+          # A real commit, as a release has, so the width check sees the About
+          # page's full-length commit and not an empty row.
+          build-args: |
+            KUKGRADE_BUILD_COMMIT=${{ github.sha }}
           cache-from: type=gha,scope=ci
           cache-to: type=gha,scope=ci,mode=max
 

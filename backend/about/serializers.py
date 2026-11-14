@@ -19,7 +19,10 @@ class AboutSerializer(serializers.Serializer):
         ),
     )
     commit = serializers.CharField(
-        help_text="The commit it was built from; blank when run from a checkout.",
+        help_text=(
+            "The commit it was built from, shortened to its first seven "
+            "characters; blank when run from a checkout."
+        ),
     )
     built_at = serializers.DateTimeField(
         allow_null=True,

@@ -50,7 +50,9 @@ def about(request: Request) -> Response:
         "release": f"{VERSION}-{settings.BUILD_PRE_RELEASE}"
         if settings.BUILD_PRE_RELEASE
         else VERSION,
-        "commit": settings.BUILD_COMMIT,
+        # Seven characters, as GitHub and `git rev-parse --short` show it: enough
+        # to find the commit, and short enough for a phone's row.
+        "commit": settings.BUILD_COMMIT[:7],
         "built_at": _build_time(),
         "time_zone": settings.TIME_ZONE,
         "database": "ok" if database_reachable() else "unavailable",

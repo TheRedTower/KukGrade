@@ -3118,7 +3118,8 @@ components:
             by -rc.N on a release candidate.'
         commit:
           type: string
-          description: The commit it was built from; blank when run from a checkout.
+          description: The commit it was built from, shortened to its first seven
+            characters; blank when run from a checkout.
         built_at:
           type: string
           format: date-time

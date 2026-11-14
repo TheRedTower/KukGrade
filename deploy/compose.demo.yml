@@ -1,7 +1,7 @@
 # The public demo site: made-up data, shared sign-ins, wiped every few hours.
 # Read docs/demo.md first. Run it on a machine of its own, not beside a real
 # KukGrade.
-#   KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.12 \
+#   KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.13 \
 #     docker compose -f compose.demo.yml up -d
 # KUKGRADE_VERSION is the image tag. There is no `latest` until the first
 # stable release, so it has no default yet.

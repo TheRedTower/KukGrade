@@ -52,22 +52,24 @@ export function CandidateDownloadBar({
   return (
     <div className="stack stack--2" data-testid="gsd-download-bar">
       <div className="action-row">
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={selection.allShownChosen}
-            disabled={selection.shownChoosable.length === 0}
-            onChange={selection.toggleAllShown}
-          />
-          <span>
-            {sheets
-              ? `Select all (${selection.shownChoosable.length})`
-              : `Select all that can be downloaded (${selection.shownChoosable.length})`}
+        <div className="row row--wrap row--3">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={selection.allShownChosen}
+              disabled={selection.shownChoosable.length === 0}
+              onChange={selection.toggleAllShown}
+            />
+            <span>
+              {sheets
+                ? `Select all (${selection.shownChoosable.length})`
+                : `Select all that can be downloaded (${selection.shownChoosable.length})`}
+            </span>
+          </label>
+          <span className="meta" aria-live="polite">
+            {chosen.length === 0 ? "None selected" : `${chosen.length} selected`}
           </span>
-        </label>
-        <span className="meta" aria-live="polite">
-          {chosen.length === 0 ? "None selected" : `${chosen.length} selected`}
-        </span>
+        </div>
         <div className="action-row">
           <Button variant="ghost" onClick={selection.clear} disabled={chosen.length === 0 || busy}>
             Clear

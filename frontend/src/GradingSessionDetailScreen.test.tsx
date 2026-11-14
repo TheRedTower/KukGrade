@@ -605,8 +605,7 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
     renderScreen();
 
     expect(await screen.findByLabelText("Select Mia Okafor")).toBeDisabled();
-    expect(within(screen.getByTestId("candidate-row-31")).getByText("No sealed record to download")).toBeVisible();
-    expect(within(screen.getByTestId("candidate-row-32")).queryByText("No sealed record to download")).toBeNull();
+    expect(screen.getByText("Only candidates with a sealed record can be chosen.")).toBeVisible();
     expect(screen.getByLabelText("Select Ben Hall")).toBeEnabled();
     expect(screen.getByLabelText("Select all that can be downloaded (1)")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Print grading sheets (PDF)" })).toBeNull();

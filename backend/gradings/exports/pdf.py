@@ -68,6 +68,10 @@ PAGE_WIDTH, PAGE_HEIGHT = A4
 SIDE = 15 * mm
 TOP = 22 * mm
 BOTTOM = 20 * mm
+# A form has no running heading, so its page starts higher and ends lower:
+# the room goes to writing (still clear of the demo bands and its foot).
+FORM_TOP = 14 * mm
+FORM_BOTTOM = 16 * mm
 WIDTH = PAGE_WIDTH - 2 * SIDE
 
 DEMO_BAND = "DEMO – MADE-UP DATA"
@@ -361,21 +365,33 @@ def build(document: Document, *, made_at: datetime | None = None) -> bytes:
     nothing in it depends on when ReportLab ran, only on what it printed.
     """
     _typeface()
+    top, bottom = (FORM_TOP, FORM_BOTTOM) if document.form else (TOP, BOTTOM)
     buffer = io.BytesIO()
     template = BaseDocTemplate(
         buffer,
         pagesize=A4,
         leftMargin=SIDE,
         rightMargin=SIDE,
-        topMargin=TOP,
-        bottomMargin=BOTTOM,
+        topMargin=top,
+        bottomMargin=bottom,
         title=document.file_name.removesuffix(".pdf"),
         author="KukGrade",
         creator="KukGrade",
         lang="en",
         invariant=True,
     )
-    frame = Frame(SIDE, BOTTOM, WIDTH, PAGE_HEIGHT - TOP - BOTTOM, id="page")
+    # No padding: a table as wide as WIDTH lines up with the text beside it.
+    frame = Frame(
+        SIDE,
+        bottom,
+        WIDTH,
+        PAGE_HEIGHT - top - bottom,
+        leftPadding=0,
+        rightPadding=0,
+        topPadding=0,
+        bottomPadding=0,
+        id="page",
+    )
     template.addPageTemplates([PageTemplate(id="page", frames=[frame])])
     story: list[Flowable] = []
     for index, part in enumerate(document.parts):

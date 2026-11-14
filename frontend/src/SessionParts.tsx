@@ -181,9 +181,6 @@ export function SessionCandidateTable({
                 disabled={!selection.isChoosable(item)}
                 onChange={() => selection.toggle(item)}
               />
-              {!selection.isChoosable(item) && (
-                <span className="meta visually-hidden--phone">No sealed record to download</span>
-              )}
             </label>
           ),
         },

@@ -6,9 +6,12 @@ the rank they hold and the testing date on the lines; the six core grading
 areas their age band's chart examines through the rank they are testing for,
 each with a Pass and a Fail box; and a Subject and Comments table in two tall
 blocks filling the rest of the page. The marks are made on paper and never
-typed into the app. No grey fills, and no version number: the form is frozen.
-Headed as the paper form is, with a small foot naming the grading and the day
-it was printed; a demo sheet still says so at the top and foot.
+typed into the app. No grey fills, and no version number. The school's v3.3
+form, revised (the owner's 3.4, 2026-11-13): the heading, the candidate's
+lines and the core areas are kept small and the Subject column narrow, so most
+of the page is room to write comments. Headed as the paper form is, with a
+small foot naming the grading and the day it was printed; a demo sheet still
+says so at the top and foot.
 """
 
 from __future__ import annotations
@@ -44,9 +47,9 @@ NOT_OPEN = "Grading sheets are printed before a grading is locked."
 WITHDRAWN = "Withdrawn from this grading."
 
 FORM_TITLE = ParagraphStyle(
-    "form-title", parent=pdf.TITLE, alignment=1, fontSize=18, leading=22
+    "form-title", parent=pdf.TITLE, alignment=1, fontSize=13, leading=16
 )
-FORM_CLUB = ParagraphStyle("form-club", parent=pdf.BODY, alignment=1, fontSize=11)
+FORM_CLUB = ParagraphStyle("form-club", parent=pdf.SMALL, alignment=1)
 CENTRED = ParagraphStyle("centred", parent=pdf.SMALL, alignment=1)
 HEADER = ParagraphStyle("form-header", parent=pdf.BODY, fontName=pdf.BOLD)
 # A box to tick, as on the paper form.
@@ -149,40 +152,56 @@ def _sheet(
     story: list[Flowable] = [
         pdf.paragraph("Grading Form", FORM_TITLE),
         pdf.paragraph(settings.CLUB_NAME, FORM_CLUB),
-        pdf.gap(6 * mm),
+        pdf.gap(2 * mm),
         _lines(
-            [
-                ("Student's Name", f"{student.full_name} · {student.wksa_id}"),
-                ("Current Rank", candidate.from_rank.name),
-                ("Testing date", pdf.day(session.grading_date)),
-            ]
+            f"{student.full_name} · {student.wksa_id}",
+            candidate.from_rank.name,
+            pdf.day(session.grading_date),
         ),
-        pdf.gap(6 * mm),
+        pdf.gap(3 * mm),
     ]
     if core:
-        story += [_core_boxes(core), pdf.gap(6 * mm)]
+        story += [_core_boxes(core), pdf.gap(3 * mm)]
     story.append(_Comments())
     return story
 
 
-def _lines(rows: list[tuple[str, str]]) -> Table:
-    """Each label with its value written on a line, as on the paper form."""
-    label_width = 34 * mm
+def _lines(name: str, rank: str, testing_date: str) -> Table:
+    """Each label with its value written on a line, as on the paper form: the
+    name on a line of its own, the rank and testing date sharing the next."""
+    label = 28 * mm
+    half = pdf.WIDTH / 2
+    gutter = 6 * mm
     table = Table(
         [
-            [pdf.paragraph(label, pdf.LABEL), pdf.paragraph(value)]
-            for label, value in rows
+            [
+                pdf.paragraph("Student's Name", pdf.LABEL),
+                pdf.paragraph(name),
+                "",
+                "",
+            ],
+            [
+                pdf.paragraph("Current Rank", pdf.LABEL),
+                pdf.paragraph(rank),
+                pdf.paragraph("Testing date", pdf.LABEL),
+                pdf.paragraph(testing_date),
+            ],
         ],
-        colWidths=[label_width, pdf.WIDTH - label_width],
+        colWidths=[label, half - label - gutter, label + gutter, half - label],
         hAlign="LEFT",
     )
     table.setStyle(
         TableStyle(
             [
+                ("SPAN", (1, 0), (3, 0)),
                 ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-                ("LINEBELOW", (1, 0), (1, -1), pdf.HAIRLINE, pdf.INK),
+                ("LINEBELOW", (1, 0), (3, 0), pdf.HAIRLINE, pdf.INK),
+                ("LINEBELOW", (1, 1), (1, 1), pdf.HAIRLINE, pdf.INK),
+                ("LINEBELOW", (3, 1), (3, 1), pdf.HAIRLINE, pdf.INK),
                 ("LEFTPADDING", (0, 0), (0, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("LEFTPADDING", (2, 1), (2, 1), gutter),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
             ],
         ),
     )
@@ -203,8 +222,8 @@ def _core_boxes(core: list[tuple[str, str]]) -> Table:
             [
                 ("GRID", (0, 0), (-1, -1), pdf.HAIRLINE, pdf.INK),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 1), (-1, 1), 6),
-                ("BOTTOMPADDING", (0, 1), (-1, 1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ],
         ),
     )
@@ -215,10 +234,11 @@ class _Comments(Flowable):
     """Subject and Comments, in two tall blocks filling what is left of the
     page, so the sheet is always one page whatever stood above it."""
 
-    _SUBJECT = 40 * mm
+    # Narrow: the subject is a word or two, the comments are the page.
+    _SUBJECT = 26 * mm
 
     def wrap(self, avail_width: float, avail_height: float) -> tuple[float, float]:
-        header = 8 * mm
+        header = 6 * mm
         # A point short of the room, so rounding never pushes it over.
         block = (avail_height - 2 * header - 1) / 2
         rows: list[list[object]] = []

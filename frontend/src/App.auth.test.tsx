@@ -189,7 +189,10 @@ describe("App authentication", () => {
     expect(loginCall).toBeDefined();
     const loginHeaders = (loginCall![1] as RequestInit).headers as Headers;
     expect(loginHeaders.get("X-CSRFToken")).toBe("test-csrf-token");
-    expect(window.location.pathname).toBe("/");
+    // The signed-in shell is drawn first and the address follows it, a moment later.
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/");
+    });
   });
 
   it("uses a generic login error for failed credentials", async () => {

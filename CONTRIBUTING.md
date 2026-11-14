@@ -1,7 +1,7 @@
 # Contributing to KukGrade
 
 Thanks for helping. KukGrade is a small project with a specific job (grading
-management for Kuk Sool Won schools), so the most useful contributions are bug
+management for Kuk Sool Won of Colchester), so the most useful contributions are bug
 reports, fixes, and improvements that fit that job.
 
 By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).

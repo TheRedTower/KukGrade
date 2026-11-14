@@ -26,8 +26,8 @@ export function AboutOverview() {
           </h2>
           <p className="st-eyebrow eyebrow--muted">People · Progress · Purpose</p>
           <p className="st-row-description subtext">
-            Grading management for Kuk Sool Won schools: students, syllabus, gradings and promotions. Free and open
-            source, and run by your own school.
+            Grading management for Kuk Sool Won of Colchester: students, syllabus, gradings and promotions. Free and
+            open source, and run by your own school.
           </p>
         </div>
         <p className="st-version-tile">

@@ -19,10 +19,9 @@ Want something here, or something that is missing? Open an
 - [ ] **Go live and prove it**: run a real deployment end to end, including a tested backup and
       restore and a request-size cap at the proxy, before calling a release production-ready.
 - [ ] **Release assurance**: a repeatable pre-release checklist covering the install paths.
-- [ ] **Put the demo site online**: it is built (see [demo.md](demo.md)); what is left is to run it
-      on its own machine behind a tunnel, first from a release candidate and then following
-      `latest` (the newest stable release, cut from `prod`), and to link it from the repository's
-      About box. Until `latest` exists, `deploy/compose.demo.yml` asks for `KUKGRADE_VERSION`;
+- [ ] **Have the demo site follow `latest`**: [the demo](https://demo.kukgrade.co.uk/) is online
+      (see [demo.md](demo.md)) and runs a release candidate. Until `latest` exists (the newest
+      stable release, cut from `prod`), `deploy/compose.demo.yml` asks for `KUKGRADE_VERSION`;
       give it the default `latest` again with the first stable release.
 - [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check
       (`frontend/src/layout.css`, Playwright width check).

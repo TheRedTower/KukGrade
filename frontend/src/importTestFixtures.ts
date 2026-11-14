@@ -2,10 +2,6 @@ import type { DataImportBatch, DataImportRow, LegacyGradingRecord, LegacyPerson,
 
 // Invented data for the import screens' tests.
 
-export function page<T>(results: T[], count = results.length) {
-  return { count, next: null, previous: null, results };
-}
-
 export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch {
   return {
     id: 7,
@@ -104,7 +100,6 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
     record_kind_display: "Grading result",
     cycle_year: 2025,
     cycle_month: 3,
-    source_batch: 7,
     source_section: "",
     source_name: "Mia R",
     source_current_rank_text: "White Belt",
@@ -113,7 +108,6 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
     current_rank_name: "White",
     source_testing_for_rank_text: "Yellow stripe",
     testing_for_rank: 2,
-    testing_for_rank_code: "YELLOW_STRIPE",
     testing_for_rank_name: "Yellow stripe",
     outcome_display: "Pass",
     attendance_status_display: "Attended",

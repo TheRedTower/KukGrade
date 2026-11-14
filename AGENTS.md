@@ -21,7 +21,7 @@ Before implementation, read:
 - `docs/api.md` - the API conventions (`backend/schema.yml` is the contract)
 - `docs/roadmap.md` - what is still to come and what needs a decision
 
-Implemented stack: Django, Django REST Framework, React, TypeScript, Vite,
+Implemented stack: Django, Django REST Framework, ReportLab, React, TypeScript, Vite,
 openapi-fetch, PostgreSQL, pytest, Ruff, mypy, ESLint, Stylelint, Prettier,
 React Testing Library, Vitest, Playwright (the width check), GitHub Actions CI, local Docker Compose for PostgreSQL, and a single-container production
 image (`docs/installation.md`).
@@ -41,7 +41,7 @@ image (`docs/installation.md`).
   or deleted; it records both shortfalls and positive observations.
   `CandidateAssessment.notes` carries the overall observation for the
   assessment. There is no separate praise or positive-observation field, and
-  none is planned. The old single `assessor_notes` column is gone (migration 0024).
+  none is planned. The old single `assessor_notes` column is gone.
 - Every change to a mark after the first needs a written reason and is kept in
   an append-only log (`AssessmentItemResultChange`); there is no reopen. After
   the session locks only the authorised Master may correct a mark or comment,

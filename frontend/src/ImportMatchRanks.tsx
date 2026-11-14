@@ -16,6 +16,7 @@ import { useRanksQuery } from "./queries";
 import { Button } from "./Button";
 import { keys } from "./queryKeys";
 import { counted } from "./plural";
+import { LoadingState } from "./LoadingState";
 
 const EXAMPLES = 5;
 
@@ -103,9 +104,7 @@ export function ImportMatchRanks({
         </div>
 
         {preview.isPending ? (
-          <p className="subtext" role="status">
-            Reading the ranks…
-          </p>
+          <LoadingState compact>Reading the ranks…</LoadingState>
         ) : preview.isError ? (
           <ErrorText>{errorMessage(preview.error, "The ranks could not be read. Try again in a moment.")}</ErrorText>
         ) : spellings.length === 0 ? (

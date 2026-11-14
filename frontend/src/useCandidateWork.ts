@@ -8,7 +8,6 @@ import {
   deleteGradingCandidate,
   errorMessage,
   getAllGradingSessions,
-  getWithdrawalReasons,
   moveGradingCandidate,
   withdrawLockedCandidate,
 } from "./api";
@@ -16,6 +15,7 @@ import { formatSessionDate } from "./dates";
 import { keys, refresh } from "./queryKeys";
 import type { EnrichedCandidate } from "./sessionDetail";
 import { counted } from "./plural";
+import { useChoices } from "./choices";
 
 interface Feedback {
   setError: (message: string | null) => void;
@@ -29,6 +29,7 @@ interface Feedback {
  */
 export function useCandidateWork(sessionId: number, { setError, setMessage }: Feedback) {
   const queryClient = useQueryClient();
+  const { withdrawal_reasons: withdrawalReasons } = useChoices();
   const refreshCandidateWork = () => refresh.sessionWork(queryClient, sessionId);
 
   /** The message after a bulk action: how many worked, and the server's reasons for the rest. */
@@ -94,11 +95,6 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
     },
     onError: (err: unknown) => setWithdrawalError(errorMessage(err, "The candidate could not be withdrawn.")),
   });
-  const withdrawalReasons = useQuery({
-    queryKey: keys.withdrawalReasons(),
-    queryFn: getWithdrawalReasons,
-    enabled: withdrawing !== null,
-  });
 
   const [registrationAction, setRegistrationAction] = useState<{
     kind: "move" | "remove";
@@ -152,7 +148,7 @@ export function useCandidateWork(sessionId: number, { setError, setMessage }: Fe
     withdrawal: {
       candidate: withdrawing,
       error: withdrawalError,
-      reasons: withdrawalReasons.data?.results ?? [],
+      reasons: withdrawalReasons,
       mutation: withdrawal,
       begin: (item: EnrichedCandidate) => {
         setWithdrawalError(null);

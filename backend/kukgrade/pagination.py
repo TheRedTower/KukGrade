@@ -14,7 +14,7 @@ from rest_framework.pagination import PageNumberPagination
 class DefaultPagination(PageNumberPagination):
     # The default page. A screen that needs a whole list, such as an
     # assessment's items, asks for pages of up to max_page_size and reads
-    # every page.
+    # every page; the site settings serve it (`largest_page_size`).
     page_size = 50
     page_size_query_param = "page_size"
     max_page_size = 200

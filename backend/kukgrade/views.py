@@ -22,6 +22,7 @@ from data_imports.models import COMMITTED_ROWS_KEPT_FOR, ImportBatch
 from data_imports.parsers import FILE_TYPE_NAMES, MAX_ROWS
 from data_imports.services import ALLOWED_SUFFIXES, IMPORT_STEP_NAMES, ImportStep
 from gradings.serializers import BULK_LINK_LIMIT
+from kukgrade.pagination import DefaultPagination
 from kukgrade.serializers import ChoiceSerializer
 from students import wksa_ids
 
@@ -142,6 +143,9 @@ class SiteSettingsSerializer(serializers.Serializer):
         ),
     )
     imports = ImportSettingsSerializer()
+    largest_page_size = serializers.IntegerField(
+        help_text="The most rows one page of a list serves (`page_size`).",
+    )
     password_policy = PasswordPolicySerializer()
     wksa_id = WksaIdSchemeSerializer()
     demo = DemoSerializer(
@@ -213,6 +217,7 @@ def site_settings(_request: Request) -> Response:
                 "club_name": settings.CLUB_NAME,
                 "time_zone": settings.TIME_ZONE,
                 "imports": _imports(),
+                "largest_page_size": DefaultPagination.max_page_size,
                 "password_policy": password_policy(),
                 "wksa_id": wksa_ids.described(),
                 **({"demo": _demo()} if settings.DEMO_MODE else {}),

@@ -11,6 +11,7 @@ from data_imports.testing import legacy_record
 from gradings.legacy_services import void_legacy_record
 from gradings.models import CandidateOutcome
 from gradings.testing import finalised_outcome, locked_completed_candidate, user
+from students.serializers import UNRESOLVED_RESULT
 
 pytestmark = pytest.mark.django_db
 
@@ -132,6 +133,7 @@ def test_a_conditional_native_item_carries_its_conditions_and_where_to_find_it()
 
     item = response.json()["items"][0]
     assert item["outcome"] == CandidateOutcome.Outcome.CONDITIONAL
+    assert item["result_display"] == "Conditional"
     assert (
         item["conditional_requirements"]
         == "Repeat the kicking set within three months."
@@ -157,3 +159,28 @@ def test_a_legacy_item_carries_no_native_record_fields() -> None:
     assert item["from_rank_name"] is None
     assert item["session_id"] is None
     assert item["candidate_id"] is None
+
+
+@pytest.mark.parametrize(
+    ("overrides", "named"),
+    [
+        ({"outcome": "PASS", "attendance_status": "ATTENDED"}, "Pass"),
+        ({"outcome": "FAIL", "attendance_status": "ATTENDED"}, "Fail"),
+        ({"attendance_status": "DID_NOT_ATTEND"}, "Did not attend"),
+        (
+            {"source_outcome_text": "Testing? No", "attendance_status": "ATTENDED"},
+            UNRESOLVED_RESULT,
+        ),
+    ],
+)
+def test_each_item_names_its_result(overrides: dict[str, str], named: str) -> None:
+    built, _generated = locked_completed_candidate()
+    legacy_record(student=built.student, **overrides)
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-result@example.com"))
+    [item] = client.get(f"/api/students/{built.student.pk}/grading-history/").json()[
+        "items"
+    ]
+
+    assert item["result_display"] == named

@@ -25,11 +25,13 @@
  */
 import { useState } from "react";
 import { useAuth } from "./auth";
-import { refresh } from "./queryKeys";
+import { keys, refresh } from "./queryKeys";
 import { BackLink } from "./BackLink";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateCandidateAssessment, errorMessage } from "./api";
+import { downloadCandidateRecords, updateCandidateAssessment, errorMessage } from "./api";
+import { usePdfDownload } from "./pdfDownloads";
+import { PdfDownloadNotice } from "./PdfDownloadNotice";
 import { RecordPage } from "./RecordPage";
 import { type RecordStatus, useIdParam } from "./recordStatus";
 import { Alert } from "./Alert";
@@ -62,6 +64,7 @@ export function AssessmentCompletionScreen() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [hasProofread, setHasProofread] = useState(false);
+  const download = usePdfDownload();
 
   const { session, candidate, assessment, items, categoryGroups, stats, isLoading, hasLoadError } =
     useCandidateAssessmentData(numSessionId, numCandidateId);
@@ -183,6 +186,16 @@ export function AssessmentCompletionScreen() {
             History
           </Link>
         )}
+        {candidate.can_download_record && (
+          <Button
+            variant="secondary"
+            small
+            disabled={download.isPending}
+            onClick={() => download.mutate(() => downloadCandidateRecords(session.id, [candidate.id]))}
+          >
+            {download.isPending ? "Preparing PDF…" : "Download PDF"}
+          </Button>
+        )}
         <span className="meta">
           {isSealed
             ? assessment?.marks_open
@@ -195,6 +208,14 @@ export function AssessmentCompletionScreen() {
       </header>
 
       {actionError && <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>}
+      <PdfDownloadNotice
+        download={download}
+        nameOf={(id) => (id === candidate.id ? candidate.student_display_name : undefined)}
+        onRefresh={() => {
+          void queryClient.invalidateQueries({ queryKey: keys.gradingSessions.detail(session.id) });
+          void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.detail(candidate.id) });
+        }}
+      />
 
       <div className="acp-layout">
         {/* ── The record ─────────────────────────────────────────────────── */}
@@ -416,7 +437,7 @@ export function AssessmentCompletionScreen() {
               {assessment?.marks_open && (
                 <Link
                   to={scoringPath}
-                  className={`${buttonClass({ variant: "secondary" })} acp-correct`}
+                  className={buttonClass({ variant: "secondary" }, "acp-correct")}
                   data-testid="acp-correct-link"
                 >
                   Correct a mark

@@ -20,6 +20,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     Promotion,
+    candidate_order,
 )
 from kukgrade.admin_mixins import ViewOnlyAdmin
 
@@ -137,7 +138,7 @@ class GradingCandidateAdmin(ViewOnlyAdmin):
         "student__last_name",
         "student__wksa_id",
     )
-    ordering = ("session__grading_date", "student__last_name", "student__first_name")
+    ordering = candidate_order()
     list_select_related = ("session", "student", "from_rank", "testing_for_rank")
 
 

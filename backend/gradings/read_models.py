@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping
 from datetime import date
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from django.db import models
 from django.db.models import (
@@ -11,6 +11,7 @@ from django.db.models import (
     CharField,
     Count,
     OuterRef,
+    Prefetch,
     Q,
     QuerySet,
     Subquery,
@@ -20,6 +21,8 @@ from django.db.models import (
 
 from gradings.assessment_services import assessment_can_complete, holds_final_decision
 from gradings.models import (
+    AssessmentItemComment,
+    AssessmentItemResultChange,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -320,6 +323,21 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
 
     dated_items.sort(key=lambda pair: pair[0], reverse=True)
     return {"items": [item for _sort_date, item in dated_items]}
+
+
+def item_remarks() -> tuple[Prefetch[Any], ...]:
+    """What is written on an item - its comments and its mark changes, each
+    with who wrote it - read once for every item fetched."""
+    return (
+        Prefetch(
+            "comments",
+            queryset=AssessmentItemComment.objects.select_related("author"),
+        ),
+        Prefetch(
+            "changes",
+            queryset=AssessmentItemResultChange.objects.select_related("changed_by"),
+        ),
+    )
 
 
 def _summary_from_tally(tally: Mapping[str, int]) -> OverallAssessmentSummary:

@@ -48,6 +48,7 @@ LABELS: dict[str, str] = {
     "reason": "Reason",
     "discarded_proposal": "Proposal discarded",
     "cascaded_candidates": "Candidates removed",
+    "candidates": "Candidates",
     "age_band": "Age band",
     "rebanded": "Age band moved",
     "item_count": "Requirements",
@@ -96,6 +97,10 @@ HIDDEN: frozenset[str] = frozenset(
         "student",
         "sha256_prefix",
         "changed_fields",
+        # Who a downloaded file holds, for the histories; `candidates` names
+        # them by WKSA ID.
+        "candidate_ids",
+        "student_ids",
     },
 )
 

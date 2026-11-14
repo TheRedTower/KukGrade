@@ -29,6 +29,7 @@ from gradings.models import (
     GradingOutcome,
     GradingSessionStatus,
     ItemResult,
+    WithdrawalReason,
 )
 from kukgrade.serializers import ChoiceSerializer
 from ranks.models import Rank
@@ -54,6 +55,13 @@ class AuthorityChoiceSerializer(ChoiceSerializer):
     description = serializers.CharField()
 
 
+class WithdrawalReasonChoiceSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=WithdrawalReason.choices)
+    note_required = serializers.BooleanField(
+        help_text="Whether a withdrawal for this reason must say why.",
+    )
+
+
 class StaffRankChoiceSerializer(serializers.Serializer):
     value = serializers.IntegerField(help_text="The rank's id, as a user's `rank`.")
     # DRF lifts declared fields off the class (see ChoiceSerializer).
@@ -68,6 +76,10 @@ class ChoicesSerializer(serializers.Serializer):
         many=True,
     )
     item_results = _of("ItemResult", ItemResult)(many=True)
+    withdrawal_reasons = WithdrawalReasonChoiceSerializer(
+        many=True,
+        help_text="Why a candidate may be withdrawn, in the order the controls offer.",
+    )
     outcomes = _of("Outcome", GradingOutcome)(
         many=True,
         help_text="The grading outcomes, in the order the outcome controls offer them.",
@@ -114,6 +126,13 @@ def choices(_request: Request) -> Response:
                 "candidate_statuses": _listed(GradingCandidateStatus),
                 "assessment_statuses": _listed(CandidateAssessmentStatus),
                 "item_results": _listed(ItemResult),
+                "withdrawal_reasons": [
+                    {
+                        **choice,
+                        "note_required": choice["value"] == WithdrawalReason.OTHER,
+                    }
+                    for choice in _listed(WithdrawalReason)
+                ],
                 "outcomes": _listed(GradingOutcome),
                 "import_kinds": _listed(ImportBatch.Kind),
                 "finished_import_statuses": finished,

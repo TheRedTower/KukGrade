@@ -74,6 +74,7 @@ export function BuildGradingCohortScreen() {
   // While a new filter is typed or loading, the list on screen is not yet the
   // list "Add all" would mean.
   const rosterUpdating = studentsQuery.isPlaceholderData || search.trim() !== debouncedSearch;
+  const roster = studentsQuery.isError ? "failed" : studentsQuery.isPending ? "loading" : "ready";
 
   const ranks: Rank[] = useMemo(
     () => [...(ranksQuery.data?.results ?? [])].sort((a, b) => a.order - b.order),
@@ -164,6 +165,9 @@ export function BuildGradingCohortScreen() {
             ageBands={ageBands}
             students={eligibleStudents}
             updating={rosterUpdating}
+            roster={roster}
+            rosterError={studentsQuery.error}
+            onRetry={() => void studentsQuery.refetch()}
             inCohort={inCohort}
             onAdd={(student) => addStudents([student])}
             onRemove={removeStudent}
@@ -172,6 +176,7 @@ export function BuildGradingCohortScreen() {
           <CohortRankGroupsSection
             groups={rankGroups}
             filteredCount={eligibleStudents.length}
+            ready={roster === "ready"}
             inCohort={inCohort}
             onAddGroup={(group) =>
               addStudents(group.students, () => ({ currentRank: group.rank, destinationRank: group.destinationRank }))

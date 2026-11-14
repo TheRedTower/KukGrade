@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any, cast
 
 from django.db.models import Prefetch, Q, QuerySet, prefetch_related_objects
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from django.http import HttpResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -28,6 +30,10 @@ from gradings.assessment_services import (
     update_candidate_assessment,
     update_candidate_assessment_item,
 )
+from gradings.exports import pdf
+from gradings.exports.records import export_records
+from gradings.exports.sheets import export_sheets
+from gradings.exports.summary import export_summary
 from gradings.legacy_matching import (
     SET_ASIDE_CHOICES,
     SHEET_NOTE_NAME,
@@ -49,14 +55,13 @@ from gradings.legacy_services import (
 )
 from gradings.models import (
     ROSTER_OPEN,
-    AssessmentItemComment,
-    AssessmentItemResultChange,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
+    candidate_order,
 )
 from gradings.outcome_services import (
     bulk_promote_candidates,
@@ -68,7 +73,11 @@ from gradings.outcome_services import (
     stage_final_decision,
     staged_decisions_for_session,
 )
-from gradings.read_models import candidate_assessment_summary, with_overall_counts
+from gradings.read_models import (
+    candidate_assessment_summary,
+    item_remarks,
+    with_overall_counts,
+)
 from gradings.serializers import (
     AssessmentItemCommentRequestSerializer,
     AssessmentItemCommentSerializer,
@@ -88,6 +97,7 @@ from gradings.serializers import (
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
     CandidateAssessmentSummarySerializer,
+    CandidateExportSerializer,
     CandidateOutcomeFinaliseSerializer,
     CandidateOutcomeProposalSerializer,
     CandidateOutcomeSerializer,
@@ -96,6 +106,7 @@ from gradings.serializers import (
     GradingCandidateSerializer,
     GradingSessionSerializer,
     GradingYearsSerializer,
+    KeptStagedDecisionSerializer,
     LegacyGradingRecordSerializer,
     LegacyPeopleSummarySerializer,
     LegacyPersonSerializer,
@@ -107,9 +118,9 @@ from gradings.serializers import (
     ResolveLegacyRankSerializer,
     SessionQuerySerializer,
     SetAsideNamesSerializer,
+    StagedDecisionDiscardQuerySerializer,
     StagedDecisionSerializer,
     VoidLegacyRecordSerializer,
-    WithdrawalReasonSerializer,
 )
 from gradings.services import (
     ALREADY_IN_SESSION,
@@ -184,25 +195,6 @@ def _records_for_group(
     return queryset.filter(source_name__in=matching)
 
 
-class WithdrawalReasonViewSet(KukGradeViewSet[GradingCandidate]):
-    """The reasons a candidate can be withdrawn for, as every withdrawal
-    control lists them."""
-
-    serializer_class = WithdrawalReasonSerializer
-    permission_classes = [HasRequiredPermissions]
-    permission_map = {"list": ("gradings.view_gradingcandidate",)}
-
-    def list(self, request: Request) -> Response:
-        # Paginated like every list endpoint, as the syllabus age bands are.
-        page: list[dict[str, str]] | None = self.paginate_queryset(
-            [  # type: ignore[arg-type]
-                {"value": value, "label": label}
-                for value, label in GradingCandidate.WithdrawalReason.choices
-            ],
-        )
-        return self.get_paginated_response(self.get_serializer(page, many=True).data)
-
-
 def _apply_archived(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     if value == "only":
         return queryset.filter(archived_at__isnull=False)
@@ -211,6 +203,17 @@ def _apply_archived(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     if value == "include":
         return queryset
     return queryset.none()
+
+
+# What reading a grading's records takes: whoever can may also download them
+# as a PDF (owner, 2026-11-13).
+_READS_RECORDS = (
+    "gradings.view_gradingsession",
+    "gradings.view_gradingcandidate",
+    "gradings.view_candidateassessment",
+    "gradings.view_candidateassessmentitem",
+    "gradings.view_candidateoutcome",
+)
 
 
 class GradingSessionViewSet(
@@ -258,6 +261,10 @@ class GradingSessionViewSet(
         # Whether the actor may is each service's own rule, with its own message.
         "archive": (DELETE_ANY_SESSION_PERMISSION,),
         "restore": (DELETE_ANY_SESSION_PERMISSION,),
+        # Whoever can open the records may print them (owner, 2026-11-13).
+        "export_records": _READS_RECORDS,
+        "export_summary": _READS_RECORDS,
+        "export_grading_sheets": _READS_RECORDS,
     }
 
     query_filters = (
@@ -326,6 +333,67 @@ class GradingSessionViewSet(
         """Bring an archived session back into the lists."""
         restored = restore_grading_session(self.get_object(), cast(User, request.user))
         return Response(self.get_serializer(restored).data)
+
+    @extend_schema(
+        request=CandidateExportSerializer,
+        responses={
+            (200, "application/pdf"): OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="The records, one candidate after another.",
+            ),
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="exports/records")
+    def export_records(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> HttpResponse:
+        """Download the sealed records of the candidates chosen as one PDF,
+        all or nothing."""
+        payload = CandidateExportSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        made = export_records(
+            self.get_object(), payload.validated_data["candidates"], self.actor
+        )
+        return pdf.response(made.document, made.content)
+
+    @extend_schema(
+        request=None,
+        responses={
+            (200, "application/pdf"): OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="Who passed and who did not, and passes by rank.",
+            ),
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="exports/summary")
+    def export_summary(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> HttpResponse:
+        """Download the session's summary as a PDF, once it is locked."""
+        made = export_summary(self.get_object(), self.actor)
+        return pdf.response(made.document, made.content)
+
+    @extend_schema(
+        request=CandidateExportSerializer,
+        responses={
+            (200, "application/pdf"): OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="The grading form for each candidate, a page each.",
+            ),
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="exports/grading-sheets")
+    def export_grading_sheets(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> HttpResponse:
+        """Print the grading sheets of the candidates chosen as one PDF, while
+        the grading is a draft or open, all or nothing."""
+        payload = CandidateExportSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        made = export_sheets(
+            self.get_object(), payload.validated_data["candidates"], self.actor
+        )
+        return pdf.response(made.document, made.content)
 
     @extend_schema(
         request=None,
@@ -443,11 +511,7 @@ class GradingCandidateViewSet(
             )
         else:
             candidates = candidates.select_related("assessment")
-        return candidates.order_by(
-            "session__grading_date",
-            "student__last_name",
-            "student__first_name",
-        )
+        return candidates.order_by(*candidate_order())
 
     @extend_schema(request=None, responses={201: CandidateAssessmentSerializer})
     @action(detail=True, methods=["post"], url_path="generate-assessment")
@@ -663,11 +727,7 @@ class CandidateAssessmentViewSet(
             if self.action == "list"
             else assessments.prefetch_related("items")
         )
-        return assessments.order_by(
-            "candidate__session__grading_date",
-            "candidate__student__last_name",
-            "candidate__student__first_name",
-        )
+        return assessments.order_by(*candidate_order("candidate__"))
 
     @extend_schema(responses=CandidateAssessmentSummarySerializer)
     @action(detail=True, methods=["get"])
@@ -711,19 +771,6 @@ class CandidateAssessmentViewSet(
         )
 
 
-def _item_remarks() -> tuple[Prefetch[Any], ...]:
-    return (
-        Prefetch(
-            "comments",
-            queryset=AssessmentItemComment.objects.select_related("author"),
-        ),
-        Prefetch(
-            "changes",
-            queryset=AssessmentItemResultChange.objects.select_related("changed_by"),
-        ),
-    )
-
-
 class CandidateAssessmentItemViewSet(
     mixins.ListModelMixin,
     mixins.UpdateModelMixin,
@@ -750,7 +797,7 @@ class CandidateAssessmentItemViewSet(
             assessor=self.actor,
         )
         # Served as the list serves it: its comments and changes read once each.
-        prefetch_related_objects([saved], *_item_remarks())
+        prefetch_related_objects([saved], *item_remarks())
         serializer.instance = saved
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
@@ -775,7 +822,7 @@ class CandidateAssessmentItemViewSet(
                 "assessor",
                 "assessment__candidate__session",
             )
-            .prefetch_related(*_item_remarks())
+            .prefetch_related(*item_remarks())
             .order_by("assessment_id", "position")
         )
 
@@ -846,7 +893,7 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
 
     @extend_schema(
         parameters=[SessionQuerySerializer],
-        responses=StagedDecisionSerializer(many=True),
+        responses=KeptStagedDecisionSerializer(many=True),
     )
     @action(
         detail=False,
@@ -862,14 +909,19 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         """The viewer's own decisions staged in a session and not yet recorded."""
         session = read_query(request, SessionQuerySerializer)["session"]
         staged = staged_decisions_for_session(session, cast(User, request.user))
-        return Response(StagedDecisionSerializer(staged, many=True).data)
+        return Response(KeptStagedDecisionSerializer(staged, many=True).data)
 
     @extend_schema(
         methods=["PUT"],
         request=StagedDecisionSerializer,
         responses=StagedDecisionSerializer,
     )
-    @extend_schema(methods=["DELETE"], request=None, responses={204: None})
+    @extend_schema(
+        methods=["DELETE"],
+        parameters=[StagedDecisionDiscardQuerySerializer],
+        request=None,
+        responses={204: None},
+    )
     @action(
         detail=True,
         methods=["put", "delete"],
@@ -882,7 +934,10 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         """Keep, or drop, the viewer's chosen decision until it is recorded."""
         outcome = self.get_object()
         if request.method == "DELETE":
-            discard_staged_decision(outcome, cast(User, request.user))
+            revision = read_query(request, StagedDecisionDiscardQuerySerializer)[
+                "revision"
+            ]
+            discard_staged_decision(outcome, cast(User, request.user), revision)
             return Response(status=status.HTTP_204_NO_CONTENT)
         serializer = StagedDecisionSerializer(
             data=request.data,
@@ -897,6 +952,7 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
                 serializer.validated_data.get("conditional_requirements", ""),
             ),
             actor=self.actor,
+            revision=int(serializer.validated_data["revision"]),
         )
         return Response(StagedDecisionSerializer(staged).data)
 

@@ -11,6 +11,7 @@ from data_imports.models import COMMITTED_ROWS_KEPT_FOR
 from data_imports.parsers import MAX_ROWS
 from data_imports.services import ALLOWED_SUFFIXES, IMPORT_STEP_NAMES, ImportStep
 from gradings.serializers import BULK_LINK_LIMIT
+from kukgrade.pagination import DefaultPagination
 
 
 def test_site_settings_serve_the_configured_club_name(settings: Any) -> None:
@@ -54,6 +55,12 @@ def test_site_settings_serve_the_import_limits_the_server_enforces() -> None:
         assert [step["label"] for step in served["steps"]] == list(
             IMPORT_STEP_NAMES[served["kind"]].values()
         )
+
+
+def test_site_settings_serve_the_largest_page_a_list_serves() -> None:
+    served = APIClient().get("/api/site/").json()["largest_page_size"]
+
+    assert served == DefaultPagination.max_page_size
 
 
 def test_the_template_headers_are_the_ones_the_import_recognises() -> None:

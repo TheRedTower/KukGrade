@@ -1,4 +1,4 @@
-import Markdown from "react-markdown";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Alert } from "./Alert";
@@ -8,20 +8,37 @@ import { buttonClass } from "./buttonClass";
 import { mediaMatches } from "./useMediaQuery";
 import { ExternalLink } from "./ExternalLink";
 import { ChevronRightIcon, ExternalLinkIcon } from "./Icons";
+import { LoadingState } from "./LoadingState";
+import { slug } from "./aboutSlug";
 
-const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
+// The Markdown reader is the largest part of Settings and only these documents
+// use it, so it is loaded on its own, alongside the first document's text.
+// Not through Suspense: once a fallback shows, React holds the text back
+// a further 300 ms, longer than the reader takes to arrive.
+type Reader = typeof import("./MarkdownText").renderMarkdown;
+let reader: Reader | null = null;
 
-function slug(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function textOf(node: unknown): string {
-  if (typeof node === "string") return node;
-  if (Array.isArray(node)) return node.map(textOf).join("");
-  return "";
+/** The Markdown reader once loaded; `failed` when it could not be. */
+function useMarkdownReader(): { render: Reader | null; failed: boolean } {
+  const [loaded, setLoaded] = useState(() => reader);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (loaded) return;
+    let current = true;
+    import("./MarkdownText").then(
+      (module) => {
+        reader = module.renderMarkdown;
+        if (current) setLoaded(() => module.renderMarkdown);
+      },
+      () => {
+        if (current) setFailed(true);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [loaded]);
+  return { render: loaded, failed };
 }
 
 /** The section headings of a Markdown document, for its contents list. */
@@ -30,48 +47,6 @@ function sections(content: string): { id: string; text: string }[] {
     id: slug(match[1]),
     text: match[1],
   }));
-}
-
-function MarkdownText({ content, repositoryUrl }: { content: string; repositoryUrl: string }) {
-  // The page already carries the document's title, so the file's own is left out.
-  const body = content.replace(/^\s*#\s+.*\n/, "");
-  return (
-    <Markdown
-      components={{
-        // The page's h2 is the document's title, so its headings sit below it.
-        h2: ({ children }) => (
-          <h3 id={slug(textOf(children))} tabIndex={-1}>
-            {children}
-          </h3>
-        ),
-        h3: ({ children }) => (
-          <h4 id={slug(textOf(children))} tabIndex={-1}>
-            {children}
-          </h4>
-        ),
-        a: ({ href = "", children }) => {
-          // A link to another file in the repository points at it on GitHub.
-          const target =
-            EXTERNAL.test(href) || href.startsWith("#")
-              ? href
-              : `${repositoryUrl}/blob/HEAD/${href.replace(/^\.?\//, "")}`;
-          const opensTab = /^https?:/i.test(target);
-          return (
-            <a
-              href={target}
-              rel={opensTab ? "noopener noreferrer" : undefined}
-              target={opensTab ? "_blank" : undefined}
-            >
-              {children}
-              {opensTab ? <span className="visually-hidden"> (opens in a new tab)</span> : null}
-            </a>
-          );
-        },
-      }}
-    >
-      {body}
-    </Markdown>
-  );
 }
 
 function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitle?: string; sourceUrl?: string }) {
@@ -96,6 +71,7 @@ function Problem({ error }: { error: unknown }) {
 
 function ReadableDocument({ slugName, label }: { slugName: string; label: string }) {
   const query = useAboutDocumentQuery(slugName);
+  const markdown = useMarkdownReader();
   const repositoryUrl = useAboutQuery().data?.repository_url ?? "";
   const doc = query.data;
   const contents = doc ? sections(doc.content) : [];
@@ -125,7 +101,13 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
             </nav>
           ) : null}
           <article aria-label={`${label} text`} className="card card--flush ab-prose">
-            <MarkdownText content={doc.content} repositoryUrl={repositoryUrl} />
+            {markdown.render ? (
+              markdown.render(doc.content, repositoryUrl)
+            ) : markdown.failed ? (
+              <Alert>The text could not be loaded. Reload the page to try again.</Alert>
+            ) : (
+              <LoadingState compact>Loading the text…</LoadingState>
+            )}
           </article>
         </div>
       ) : null}

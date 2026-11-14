@@ -1,3 +1,7 @@
+import { mkdir, rmdir, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { type APIRequestContext, type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
 
 import { findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
@@ -252,8 +256,48 @@ test("an import step's Cancel and Continue stack on a phone and share a row with
   await page.close();
 });
 
+/** How many decisions the Master has staged and kept in the locked session. One taken off is listed only for its revision. */
+async function stagedCount(page: Page): Promise<number> {
+  const rows = await list(page.request, `/api/gradings/outcomes/staged-decisions/?session=${ids.sessions.LOCKED}`);
+  return rows.filter((row) => !row.discarded).length;
+}
+
+/**
+ * One browser at a time through `work`. The three browsers run side by side as
+ * the demo's one Master, who has one set of staged decisions: two of them
+ * staging on the same row at once each undo the other's. Making a folder is
+ * the lock, since only one process can make it; one left by a run that was
+ * stopped is taken over once it is older than a test may last.
+ */
+async function oneBrowserAtATime(name: string, work: () => Promise<void>): Promise<void> {
+  const lock = join(tmpdir(), `kukgrade-widths-${name}.lock`);
+  for (;;) {
+    try {
+      await mkdir(lock);
+      break;
+    } catch {
+      const made = await stat(lock).then(
+        (found) => found.mtimeMs,
+        () => Date.now(),
+      );
+      if (Date.now() - made > 120_000) await rmdir(lock).catch(() => undefined);
+      else await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  try {
+    await work();
+  } finally {
+    await rmdir(lock).catch(() => undefined);
+  }
+}
+
 test("a tap anywhere on a decision card brings it into focus, and its buttons still answer for themselves", async () => {
   const page = await contexts.get("master")!.newPage();
+  await oneBrowserAtATime("staged-decisions", () => tapAndStage(page));
+  await page.close();
+});
+
+async function tapAndStage(page: Page): Promise<void> {
   // An iPad mini on its side (cards, the focus pane under them) and a desktop (table rows).
   for (const width of [1133, 1440]) {
     await page.setViewportSize({ width, height: 744 });
@@ -279,11 +323,14 @@ test("a tap anywhere on a decision card brings it into focus, and its buttons st
     await pass.click();
     await expect(pass).toHaveAttribute("aria-pressed", "true");
     await expect(decidable.locator(".cab-row-name")).toHaveAttribute("aria-pressed", "true");
-    await pass.click(); // and unstaged again, leaving the demo as it was
+    // Kept on the server, then dropped again once unstaged, leaving the demo
+    // as it was for the other browsers.
+    await expect.poll(() => stagedCount(page)).toBe(1);
+    await pass.click();
     await expect(pass).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(() => stagedCount(page)).toBe(0);
   }
-  await page.close();
-});
+}
 
 test("a record's back link returns to the page it was opened from, and to the page above otherwise", async () => {
   const page = await contexts.get("master")!.newPage();

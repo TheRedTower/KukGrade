@@ -58,7 +58,7 @@ its own; it expects the one you already run.
 1. Start it, naming the image tag to run (there is no `latest` until the first stable release,
    so use the newest release candidate under
    [Releases](https://github.com/TheRedTower/KukGrade/releases)):
-   `KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.11 docker compose -f deploy/compose.demo.yml up -d`
+   `KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.12 docker compose -f deploy/compose.demo.yml up -d`
 2. Connect your tunnel to the demo's network, once. If it is a plain container:
    `docker network connect kukgrade-demo <your-cloudflared-container>`. If it is in a Compose
    file, add the network to it instead:
@@ -91,8 +91,8 @@ A new release reaches it with two commands, run from the repository folder on th
 machine, with `KUKGRADE_VERSION` set to the new tag:
 
 ```sh
-KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.11 docker compose -f deploy/compose.demo.yml pull
-KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.11 docker compose -f deploy/compose.demo.yml up -d
+KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.12 docker compose -f deploy/compose.demo.yml pull
+KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.12 docker compose -f deploy/compose.demo.yml up -d
 ```
 
 The data is rebuilt on every start, so there is nothing to migrate or back up. Every release's

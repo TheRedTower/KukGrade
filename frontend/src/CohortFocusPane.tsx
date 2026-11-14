@@ -1,9 +1,8 @@
 import type { Ref } from "react";
 
-import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { type BoardRow, type StagedDecision, missingRequirements } from "./adjudicationBoard";
-import { outcomeTone } from "./badgeClass";
+import { ResultBadge } from "./StatusBadge";
 import { formatTime } from "./dates";
 import { labelOf, useChoices } from "./choices";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
@@ -63,7 +62,7 @@ export function CohortFocusPane({
         {row.outcome?.proposed_outcome ? (
           <>
             <p>
-              <Badge tone={outcomeTone(row.outcome.proposed_outcome)}>{row.outcome.proposed_outcome_display}</Badge>{" "}
+              <ResultBadge result={row.outcome.proposed_outcome}>{row.outcome.proposed_outcome_display}</ResultBadge>{" "}
               <span className="subtext">
                 {row.outcome.proposed_by_name}
                 {row.outcome.proposed_at ? ` · ${formatTime(row.outcome.proposed_at)}` : ""}
@@ -80,7 +79,7 @@ export function CohortFocusPane({
         <section className="stack stack--2 cab-detail-section" aria-labelledby="cab-decision-title">
           <h3 id="cab-decision-title">Final decision</h3>
           <p>
-            <Badge tone={outcomeTone(row.outcome.final_outcome)}>{row.outcome.final_outcome_display}</Badge>{" "}
+            <ResultBadge result={row.outcome.final_outcome}>{row.outcome.final_outcome_display}</ResultBadge>{" "}
             <span className="subtext">
               {row.outcome.decided_by_name}
               {row.outcome.decided_at ? ` · ${formatTime(row.outcome.decided_at)}` : ""}

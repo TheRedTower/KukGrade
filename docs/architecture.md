@@ -17,10 +17,10 @@ flowchart LR
 
 | Layer | Technology |
 | --- | --- |
-| Backend | Python 3.14, Django 5.2 (LTS), Django REST Framework, drf-spectacular |
+| Backend | Python 3.14, Django 5.2 (LTS), Django REST Framework, drf-spectacular, ReportLab (the PDFs) |
 | Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, openapi-fetch, plain CSS on design tokens, one shipped typeface (Pretendard) |
 | Database | PostgreSQL 17 |
-| Testing | pytest, Vitest and React Testing Library; Playwright for the width check (dev only) |
+| Testing | pytest (pypdf to read the PDFs), Vitest and React Testing Library; Playwright for the width check (dev only) |
 | Quality | Ruff, mypy, ESLint, Stylelint, Prettier, GitHub Actions |
 | Packaging | One multi-stage `Dockerfile`; WhiteNoise serves the built frontend |
 
@@ -44,7 +44,7 @@ Dockerfile  The production image
 | `ranks` | The seeded rank catalogue |
 | `students` | Students, status, WKSA IDs, rank and grading history |
 | `syllabus` | Syllabus items, per-rank and age-band requirements, and the cumulative resolver |
-| `gradings` | Sessions, candidates, assessment snapshots, outcomes, promotions, imported legacy records |
+| `gradings` | Sessions, candidates, assessment snapshots, outcomes, promotions, imported legacy records, the PDF exports (`gradings/exports/`) |
 | `data_imports` | Import batches and stored rows; roster import and the historical workbook adapter |
 | `about` | What is running and on what terms: the project's own facts (`project.py`), its documents read from the repository's files, the Kuk Sool Won pledge, and the credits written when an image is built |
 | `health` | Liveness and database checks used by the container health check |
@@ -109,7 +109,10 @@ an `ApiError`. Tests stand in for the server with `stubFetch` (`appTestSupport.t
 `frontend/src/queryKeys.ts` names every
 query and mutation the app keeps (`keys`; a lint rule refuses a key written anywhere else)
 and says what to read again after the changes several screens make (`refresh`), so a screen
-that changes data and one that shows it agree.
+that changes data and one that shows it agree. `frontend/src/queries.ts` says how long
+reference data is kept: ranks, age bands, the choices and the About pages are read once a
+visit, the site settings every five minutes, and records again on every visit. Every screen
+is in the one bundle; only the About documents' Markdown reader is loaded on its own.
 
 Two behaviours worth knowing:
 

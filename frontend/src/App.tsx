@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
@@ -6,7 +6,6 @@ import "./theme.css";
 import "./layout.css";
 import "./controls.css";
 import "./App.css";
-import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { AuthProvider, SIGN_OUT_ERROR, useAuth } from "./auth";
 import { DemoBanner } from "./DemoSignIn";
@@ -27,40 +26,17 @@ import { SyllabusScreen } from "./SyllabusScreen";
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
 import { AuditScreen } from "./AuditScreen";
+import { UsersScreen } from "./UsersScreen";
+import { UserDetailScreen } from "./UserDetailScreen";
+import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
+import { SettingsScreen } from "./SettingsScreen";
+import { ImportsHubScreen } from "./ImportsHubScreen";
+import { ImportStartScreen } from "./ImportStartScreen";
+import { ImportScreen } from "./ImportScreen";
+import { LinkRecordsScreen } from "./LinkRecordsScreen";
+import { HistoricalRecordsScreen } from "./HistoricalRecordsScreen";
 import { LoadingPage, LoginRoute, RequireAccess, RequireAuth, SetupGate } from "./AuthGates";
 import { PageTrailProvider } from "./PageTrailProvider";
-
-const UsersScreen = lazy(() => import("./UsersScreen").then((module) => ({ default: module.UsersScreen })));
-const UserDetailScreen = lazy(() =>
-  import("./UserDetailScreen").then((module) => ({ default: module.UserDetailScreen })),
-);
-const GradingSessionDetailScreen = lazy(() =>
-  import("./GradingSessionDetailScreen").then((module) => ({
-    default: module.GradingSessionDetailScreen,
-  })),
-);
-const SettingsScreen = lazy(() => import("./SettingsScreen").then((module) => ({ default: module.SettingsScreen })));
-const ImportsHubScreen = lazy(() =>
-  import("./ImportsHubScreen").then((module) => ({ default: module.ImportsHubScreen })),
-);
-const ImportStartScreen = lazy(() =>
-  import("./ImportStartScreen").then((module) => ({ default: module.ImportStartScreen })),
-);
-const ImportScreen = lazy(() => import("./ImportScreen").then((module) => ({ default: module.ImportScreen })));
-const LinkRecordsScreen = lazy(() =>
-  import("./LinkRecordsScreen").then((module) => ({ default: module.LinkRecordsScreen })),
-);
-const HistoricalRecordsScreen = lazy(() =>
-  import("./HistoricalRecordsScreen").then((module) => ({ default: module.HistoricalRecordsScreen })),
-);
-
-function UserManagementFallback(): React.ReactElement {
-  return <LoadingState>Loading user management…</LoadingState>;
-}
-
-function ImportFallback(): React.ReactElement {
-  return <LoadingState>Loading import…</LoadingState>;
-}
 
 function ApplicationShell() {
   const { user, logout } = useAuth();
@@ -175,30 +151,14 @@ function App() {
                       element={<CandidateAssessmentScreen />}
                       path="gradings/:sessionId/assessments/:candidateId"
                     />
-                    <Route
-                      element={
-                        <Suspense fallback={<LoadingState>Loading grading session…</LoadingState>}>
-                          <GradingSessionDetailScreen />
-                        </Suspense>
-                      }
-                      path="gradings/:id"
-                    />
+                    <Route element={<GradingSessionDetailScreen />} path="gradings/:id" />
                     <Route element={<GradingSessionsScreen />} path="gradings" />
                     <Route element={<SyllabusScreen />} path="syllabus" />
-                    <Route
-                      element={
-                        <Suspense fallback={<LoadingState>Loading settings…</LoadingState>}>
-                          <SettingsScreen />
-                        </Suspense>
-                      }
-                      path="settings/*"
-                    />
+                    <Route element={<SettingsScreen />} path="settings/*" />
                     <Route
                       element={
                         <RequireAccess flag="can_import_data">
-                          <Suspense fallback={<ImportFallback />}>
-                            <ImportsHubScreen />
-                          </Suspense>
+                          <ImportsHubScreen />
                         </RequireAccess>
                       }
                       path="imports"
@@ -206,9 +166,7 @@ function App() {
                     <Route
                       element={
                         <RequireAccess flag="can_import_data">
-                          <Suspense fallback={<ImportFallback />}>
-                            <ImportStartScreen />
-                          </Suspense>
+                          <ImportStartScreen />
                         </RequireAccess>
                       }
                       path="imports/new"
@@ -216,9 +174,7 @@ function App() {
                     <Route
                       element={
                         <RequireAccess flag="can_reconcile_imported_history">
-                          <Suspense fallback={<ImportFallback />}>
-                            <LinkRecordsScreen />
-                          </Suspense>
+                          <LinkRecordsScreen />
                         </RequireAccess>
                       }
                       path="imports/records"
@@ -226,9 +182,7 @@ function App() {
                     <Route
                       element={
                         <RequireAccess flag="can_reconcile_imported_history">
-                          <Suspense fallback={<ImportFallback />}>
-                            <HistoricalRecordsScreen />
-                          </Suspense>
+                          <HistoricalRecordsScreen />
                         </RequireAccess>
                       }
                       path="imports/history/:id?"
@@ -236,9 +190,7 @@ function App() {
                     <Route
                       element={
                         <RequireAccess flag="can_import_data">
-                          <Suspense fallback={<ImportFallback />}>
-                            <ImportScreen />
-                          </Suspense>
+                          <ImportScreen />
                         </RequireAccess>
                       }
                       path="imports/:id"
@@ -254,9 +206,7 @@ function App() {
                     <Route
                       element={
                         <RequireAccess flag="can_manage_users">
-                          <Suspense fallback={<UserManagementFallback />}>
-                            <UsersScreen />
-                          </Suspense>
+                          <UsersScreen />
                         </RequireAccess>
                       }
                       path="users"
@@ -264,9 +214,7 @@ function App() {
                     <Route
                       element={
                         <RequireAccess flag="can_manage_users">
-                          <Suspense fallback={<UserManagementFallback />}>
-                            <UserDetailScreen />
-                          </Suspense>
+                          <UserDetailScreen />
                         </RequireAccess>
                       }
                       path="users/:id"

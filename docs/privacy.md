@@ -72,6 +72,16 @@ into their details. They are permanent, and the app refuses every change to them
 - Leaves every event, its action, actor and time exactly as they were, and is safe to run
   twice (the second run changes nothing).
 
+## Printed and downloaded files
+
+A record, summary or grading sheet saved as a PDF ([Downloads and printing](features.md#downloads-and-printing-pdf))
+or printed is outside the app's reach. Correcting a student's details, deleting a student,
+erasing details from the audit log and any retention rule change nothing in a file already
+made, nor on paper. The school owns those copies and must keep, share and destroy them under
+its own rules. The app records each file made (who, when, and the WKSA IDs in it) but keeps
+no copy. A PDF never holds a date of birth, an email address or anything only the audit log
+shows, but it does hold names, marks, comments and outcomes.
+
 ## What this does not do
 
 - It does not delete the student or their grading history. Deleting a student (their page)

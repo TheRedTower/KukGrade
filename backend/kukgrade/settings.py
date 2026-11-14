@@ -165,6 +165,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Compresses the API's answers. Outside everything that reads or writes a
+    # body (the CSP middleware reads index.html), and inside WhiteNoise, which
+    # is inserted before it below and serves its own pre-compressed files.
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -180,7 +184,8 @@ MIDDLEWARE = [
     "kukgrade.csp.ContentSecurityPolicyMiddleware",
 ]
 # Development uses Django's staticfiles handler; only the collected image
-# needs WhiteNoise, immediately after SecurityMiddleware.
+# needs WhiteNoise, immediately after SecurityMiddleware (and so before
+# GZipMiddleware, which would otherwise compress fonts again on every request).
 if not DEBUG:
     MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
@@ -206,13 +211,13 @@ TEMPLATES = [
 WSGI_APPLICATION = "kukgrade.wsgi.application"
 
 # PostgreSQL only. A SQLite fallback branch used to exist here; it could not
-# actually run this application - migration 0006 issues raw PostgreSQL
+# actually run this application - the gradings migration issues raw PostgreSQL
 # ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY DDL, and SQLite does not
 # support the SELECT ... FOR UPDATE locking every write path in
 # gradings/services.py depends on. A developer who found that switch got a
 # bare SQL syntax error rather than a reason, so it was removed rather than
 # fixed: nothing in this codebase can honestly run against SQLite.
-DATABASES = {
+DATABASES: dict[str, dict[str, str | int | bool]] = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("POSTGRES_DB", "kukgrade"),
@@ -227,6 +232,12 @@ DATABASES = {
         or os.environ.get("KUKGRADE_EMBEDDED_SOCKET")
         or "127.0.0.1",
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        # Each thread keeps its connection for ten minutes instead of opening one
+        # per request (1.9 ms with the built-in database, 14.6 ms with an
+        # external one), and checks it still answers before reusing it. The
+        # server runs 4 threads (16 in the demo) against 100 connections.
+        "CONN_MAX_AGE": 600,
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 
@@ -272,9 +283,10 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [FRONTEND_DIST] if FRONTEND_DIST.is_dir() else []
-# Vite already puts a content hash in each production asset name. Keep its
-# original URL in index.html while WhiteNoise applies immutable caching.
-WHITENOISE_IMMUTABLE_FILE_TEST = r"^/static/assets/.+-[A-Za-z0-9_-]{8}\.(?:js|css)$"
+# Vite already puts a content hash in each production asset name (scripts,
+# stylesheets, fonts, images). Keep its original URL in index.html while
+# WhiteNoise applies immutable caching to every one of them.
+WHITENOISE_IMMUTABLE_FILE_TEST = r"^/static/assets/.+-[A-Za-z0-9_-]{8}\.[a-z0-9]+$"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
@@ -297,7 +309,9 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        # Compressed, not renamed: Vite's names already carry a content hash,
+        # and index.html links those, so a renamed copy would be dead weight.
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
     "import_uploads": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",

@@ -18,7 +18,7 @@ cp .env.example .env
 > **Until the first stable release there is no `latest` image**, so the compose file's
 > `image:` line cannot be pulled yet. Change it to the newest release candidate listed under
 > [Releases](https://github.com/TheRedTower/KukGrade/releases), for example
-> `ghcr.io/theredtower/kukgrade:0.2.0-rc.11`. (A release candidate is a build to try; see the
+> `ghcr.io/theredtower/kukgrade:0.2.0-rc.12`. (A release candidate is a build to try; see the
 > [roadmap](roadmap.md) for what a first stable release needs.)
 
 Then start it:

@@ -1143,22 +1143,86 @@ select:not([multiple]):not([size]) {
 }
 
 /* A checkbox and what it means (`<label class="check">`): the box at the start,
-   the words beside it, a second line in .check__text if it needs one. */
+   the words beside it, a second line in .check__text if it needs one. A box on
+   its own (a table's tick) is still a finger-sized target. */
 .check {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
+  min-width: var(--target-min);
   min-height: var(--target-min);
   line-height: var(--line-height-snug);
   cursor: pointer;
 }
 
-.check input {
+/* A check that sits in a row of buttons, or in a table's row, lines up on
+   their middle. */
+:is(.action-row, .row, .rtable__value) > .check {
+  align-items: center;
+}
+
+/* The box itself is drawn here, in the theme's own look: a sunken box with
+   the control radius, filled with the primary gold and a tick once checked. */
+.check input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-content: center;
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   margin: 1px 0 0;
-  accent-color: var(--color-gold-strong);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken);
+  cursor: pointer;
+  transition:
+    background var(--duration) ease,
+    border-color var(--duration) ease;
+}
+
+.check input[type="checkbox"]::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background: var(--btn-primary-text);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+  transition: transform var(--duration) ease;
+}
+
+.check input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--color-gold-strong);
+}
+
+.check input[type="checkbox"]:checked {
+  border-color: var(--btn-primary-border);
+  background: var(--btn-primary-bg);
+}
+
+.check input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+
+.check input[type="checkbox"]:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.check input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Windows high contrast draws no backgrounds: give the box back to the browser. */
+@media (forced-colors: active) {
+  .check input[type="checkbox"] {
+    appearance: auto;
+  }
+
+  .check input[type="checkbox"]::before {
+    content: none;
+  }
 }
 
 .check__text {

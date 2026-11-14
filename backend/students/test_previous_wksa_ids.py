@@ -6,12 +6,10 @@ kept as a previous ID, and nobody else may ever take it.
 
 from __future__ import annotations
 
-import importlib
 from datetime import date
 from typing import Any
 
 import pytest
-from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -292,66 +290,6 @@ def test_a_roster_row_quoting_an_old_id_is_an_existing_student() -> None:
         preview.counts["review_required"],
     ) == (0, 1, 0)
     assert f"now holds {NEW}" in " ".join(preview.rows[0].issues)
-
-
-def test_the_migration_carries_over_ids_replaced_before_it_existed() -> None:
-    migration = importlib.import_module("students.migrations.0007_previous_wksa_ids")
-    student = dahn_bo()
-    Student.objects.filter(pk=student.pk).update(wksa_id=NEW)
-    for before, after in ((OLD, NEW), (NEW, "A-20820"), ("junk", NEW), (OLD, OLD)):
-        AuditEvent.objects.create(
-            action=AuditAction.STUDENT_UPDATED,
-            entity_type="Student",
-            entity_id=str(student.pk),
-            summary="x",
-            metadata={"before": {"wksa_id": before}, "after": {"wksa_id": after}},
-        )
-    AuditEvent.objects.create(
-        action=AuditAction.STUDENT_UPDATED,
-        entity_type="Student",
-        entity_id="999999",
-        summary="a student since deleted",
-        metadata={"before": {"wksa_id": "123-4-999"}, "after": {"wksa_id": "A-20999"}},
-    )
-    deletion = AuditEvent.objects.create(
-        action=AuditAction.STUDENT_DELETED,
-        entity_type="Student",
-        entity_id="999999",
-        summary="deleted after receiving a black belt ID",
-        metadata={"wksa_id": "A-20999"},
-    )
-
-    AuditEvent.objects.create(
-        action=AuditAction.STUDENT_DELETED,
-        entity_type="Student",
-        entity_id="888888",
-        summary="deleted before retirement existed",
-        metadata={"wksa_id": "A-30000", "previous_wksa_ids": ["123-4-300"]},
-    )
-    AuditEvent.objects.create(
-        action=AuditAction.STUDENT_DELETED,
-        entity_type="Student",
-        entity_id="777777",
-        summary="an older deletion, with an ID in neither form",
-        metadata={"wksa_id": "DEMO-001"},
-    )
-
-    migration.carry_over_from_audit(django_apps, None)
-
-    assert list(PreviousWksaId.objects.values_list("wksa_id", flat=True)) == [OLD]
-    assert sorted(RetiredWksaId.objects.values_list("wksa_id", flat=True)) == [
-        "123-4-300",
-        "123-4-999",
-        "A-20999",
-        "A-30000",
-    ]
-    assert (
-        RetiredWksaId.objects.get(wksa_id="123-4-999").retired_at
-        == deletion.occurred_at
-    )
-    migration.carry_over_from_audit(django_apps, None)
-    assert PreviousWksaId.objects.count() == 1
-    assert RetiredWksaId.objects.count() == 4
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)

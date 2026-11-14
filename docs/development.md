@@ -34,6 +34,11 @@ The dev server forwards `/api` to the backend, so the browser only ever talks to
 <http://localhost:5173>. Open it, enter the setup code on the setup page and create the
 first administrator. The API's health check is <http://localhost:8000/api/health/>.
 
+Each app's migrations were rebuilt from scratch on 13 November 2026, before any club
+had installed KukGrade: one `0001_initial` each, plus a seed for the ranks and one for
+the syllabus. A database made before then cannot follow them; recreate it (drop the
+database, then `migrate`).
+
 With `DJANGO_DEBUG=true` the database defaults match `compose.yaml`, so no `.env`
 file is needed. The Django browsable API is available only in debug. See
 [configuration.md](configuration.md) for every setting.
@@ -113,54 +118,19 @@ serializers and the committed frontend types match the schema.
 - **Frontend tests mock the API at the `./api` module boundary**, or stand in for the
   server with `stubFetch` (`appTestSupport.ts`, never `vi.stubGlobal("fetch")` directly,
   since the client sends a `Request`), with fixtures declared `satisfies <GeneratedType>`,
-  so a contract change breaks the test instead of hiding.
+  so a contract change breaks the test instead of hiding. Answer GET requests with
+  `serve({ "/api/students/{id}/": student, ... })`: each key is a schema path and each value
+  must be that path's response type, and a list's page comes from `page()`. A test file
+  moves to `serve` when a change already touches it.
 - **Never hand-write an API type** in the frontend. Declare the shape in the backend
   (`@extend_schema`), regenerate `schema.yml`, then `npm run generate:types`.
-- **Layout numbers live in `frontend/src/layout.css`, nowhere else.** A screen adds its
-  root class `page` (one width for every page) and writes no
-  width, gutter, max-width or breakpoint of its own; `layoutRules.test.ts` fails if a
-  stylesheet adds `nowrap`, sideways scroll, a fixed `min-width`, or a width query that is
-  not at a breakpoint, or a box that scrolls up and down inside the page. **The page is the
-  only scroller** (a box scrolling inside it traps a swipe and hides what is under it): a side
-  panel stays in view with `.split__aside` and `stickyAside`, a bar at the foot of the window
-  with `position: sticky; bottom: 0` (and `footBar` when a side panel must stay above it),
-  and long text reads in the page, folded in a `.disclosure` if need be. The sidebar beside the
-  page and a dialog over it are the two exceptions. Breakpoints
-  (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
-  does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
-  Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
-  on a narrow page), `Dialog` for every modal (a sheet on a phone) and `ConfirmDialog` for every one that asks to confirm (a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive), `.page` for a screen's root, which stacks its sections itself (header to content is always `--space-6`, section to section `--section-gap`; a section never sets its own margin, and a stack clears its sections' default margins), `.stack` on any other box of sections or fields (a card, a form; `--1` to `--4` and `--6` for parts that sit closer, a step of the space scale), `.row` for things side by side on one line (`--wrap`, `--inline`, `--1`, `--3`, `--4`), `.tiles` for cards, fields or facts side by side that wrap onto more rows (each at least `--tile-min`: 14rem, `--narrowest` 10rem, `--narrow` 12rem, `--broad` 18rem, `--broadest` 20rem; `.tile-full` for one on a row of its own), whose short last row shares its width so a row never ends in a gap, and `.even-set` around a set that always holds the same number of things (`.even-set__items`: six go 2, 3 or 6 to a row, four 1 or 2, three 1 or 3), so every row holds the same (`layoutRules.test.ts` fails on a new `auto-fit` grid, and the width check on a row that ends in a gap), `.list-plain` for a list with no bullets, `.visually-hidden--phone` for words a phone's row has no room to show (still read out), `.filter-bar` for every set of filters (its
-  `.filter-bar__count` for how many results they leave) and
-  `.field` (`.field--search` (through `SearchField`) for every search box, which draws its own magnifier; `.field--sentence` for a form's own labels; `aria-invalid` draws the error edge; `.field__hint` for help; `Field` writes a form field's label, required star, error and help and wires them to its control) for every labelled text box, select and date box (one size and one iOS date-box fix, in
-  `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
-  Cancel and Save) for a row of buttons or a header, `.stats` for key figures (side by side, wrapping only when a label's longest word no longer fits), `.split` for a main
-  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `PageHeader` for every page's title area (title, subtitle, `back` link and the page's `actions`), `BackLink`, the one way back (inside a `PageHeader` or, on a screen without one, on its own): to the page this one was opened from, named by its title, or to the page above when it was opened any other way (`pageTrail.ts`; a `PageHeader` names its page, and a screen without one calls `usePageLabel`), `Icons.tsx` for every icon, `RankTransition` (and `CandidateRanks`) for every rank-to-rank line, `.disclosure` on a `<details>` for every section that folds open, `.check` for every checkbox with its words, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `.card` (with `.card--flush` when its contents bring their own padding) for every boxed section, text through a heading element (`h1` to `h4`, sized once in `layout.css`) or a type role there (`.eyebrow` and `.eyebrow--muted` for small capitals, `.item-title` for the name a row or tile is about, `.subtext` for a sentence under a heading, `.meta` for a time, count or by-line, `.menu-link` for a place to go in a menu, rail or row of tabs, `.section-title` (`--display` for the About page's name) for a section's title, and one look for inline `code`; a screen stylesheet sets no `font-size` or `font-weight` of its own, which `tokenRules.test.ts` counts as `ownType`), `.mark` (`--success`, `--warning`, `--danger`, `--neutral`; `--small`, `--large`, `--display`) for a single symbol, initials or a number in a circle (a screen may set the circle's size and colours), `Badge` for every short status label (a label: its text is centred; a `Button`'s text reads from the start when it wraps, so an arrow stays beside its words; one rule each in `controls.css`, never a per-screen text-align), `ChoiceGroup` for a pick-one row of buttons (a switch, or filter chips with counts), `Pagination` for page controls (it writes "Showing 1–10 of 25 students" itself; `flush` at the foot of a flush card) fed by `usePagedQuery`, `useUrlFilters` for a list's filters and page (kept in the address, so a reload, a shared link and Back keep them; changing a filter goes back to the first page), `SearchField` for every search box (type-to-search: the list follows as you type, with no Search button), `RecordPage` with `recordStatus` and `useIdParam` for every record's page until its record is there (loading, not found, could not be loaded, each with the way back), `ExternalLink` for every link out of the app (it opens a new tab and says so to a screen reader), `useClipboard` for every Copy button, `useDirtySet` for a screen that warns about unsaved edits across many rows, `useMutation` for every form's save (no hand-rolled busy and error flags), a mutation `scope` wherever writes to one thing must land in the order they were made (each assessment item has its own, as `useItemWrites` sets up; a session's staged decisions and their recording share one), `cx` to join class names, `ScrollRail` for a row
-  of choices too long for the screen (a plain native scroller: swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch; the
-  one place a screen may scroll a row sideways; `.scroll-region` is the other, for a grid that is wide by nature, such as a preview of the user's own spreadsheet). A `ResponsiveTable` has one
-  `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
-  the table when there are no rows; `selected` marks the row a side panel shows, and `.row-target` on the control that selects it makes a tap anywhere on the row or card a tap on that control (the row's other buttons still answer for themselves); `flush` drops the border for a table that fills a card;
-  `detail` shows what a row's own button opened beneath it, across the table. Rows sit in the middle of their line, and an
-  `actions` column's buttons sit side by side at the end of the row, on one line while it is a table; a screen does not
-  wrap them in its own box or build its own row grid.
-  Every screen must fit at every width; there is no list for parking one that does not.
+- **Layout numbers live in `frontend/src/layout.css`, nowhere else**, and the page is the
+  only thing that scrolls. See [Layout](#layout).
+- **Build with the shared pieces, not your own CSS.** There is one piece for each job; see
+  [Shared pieces](#shared-pieces).
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
   or `layout.css` (widths and the shared pieces), and every class a screen uses is defined.**
-  The one typeface is Pretendard (`--font-sans`, loaded in `main.tsx` and served by the app
-  itself, never a font host): Latin as in Inter and Korean to match, but no hanja, so text
-  in Chinese characters would fall back to a system font and needs a different typeface.
-  The scales are: type `--font-size-xs` to `-3xl` (eight steps, 0.75rem to 2rem) and
-  `--font-weight-normal` to `-title` (400 to 800); corners `--radius-xs`, `-sm`, `-control`,
-  `--radius` and `-pill`; elevation `--shadow-xs` to `-lg` and `--shadow-up`; and the focus and
-  validation marks `--ring-*` and `--edge-accent`; space `--space-1` to `-7` (0.25rem to 3rem; a hairline offset of 0.2rem or less and a clearance over 3.25rem are not steps); letter-spacing `--tracking-label`, `-display` and `-tight`; line height `--line-height-tight`, `-snug` and `-body`; and one change time, `--duration` (a `transition` names what changes, never `all`). A change the person asks for that redraws the page (the sidebar, the theme, a settings or About section) goes through `smoothly` (`smoothly.ts`; `SmoothNavLink` for a link between views of one screen), a view transition styled in `layout.css` that a browser without one, or reduced motion, skips; `e2e/motion.spec.ts` checks both. What opens takes the `reveal` animation. A value that sits between two steps takes the
-  nearer one; if a design really needs a new step, add it to the scale for everyone.
-  Stylelint (`stylelint.config.mjs`, part of `npm run lint`) rejects invalid CSS and what is already at zero everywhere: a named colour, an id selector, `!important` (the reduced-motion rule in `theme.css` is the one exception) and a word-splitting `overflow-wrap: anywhere` or `word-break: break-all`. An email address goes through `EmailAddress`, which lets it wrap after the `@` or before a dot; a Korean name carries `lang="ko"`, which keeps it whole.
-  `tokenRules.test.ts` fails on anything a stylesheet holds outside them (raw colours,
-  dark-mode patches, `!important`, its own type, space, letter-spacing, line-height, transition, radius and shadow literals, z-index, a button class of its own),
-  with no list of exceptions. It also fails on a `var()`
-  fallback, a token that is used but not defined (or defined but never used), a design token
-  defined outside those two files, and a class used in the code that no stylesheet defines. Before adding a style, look for the shared piece that already does it; if
-  there is none and a second screen will want it, add it to `layout.css` or `theme.css`
-  once, not to the screen.
+  See [Design values](#design-values).
 - **A button is `<Button variant="primary|secondary|ghost|danger|danger-quiet|link">`** (or a link given
   `buttonClass({ variant })`), styled in `frontend/src/controls.css` and nowhere else: primary
   for the one thing to do, secondary or ghost beside it, danger for what cannot be undone, danger-quiet for a smaller risky action in a list, link for one that reads as a link,
@@ -193,6 +163,140 @@ serializers and the committed frontend types match the schema.
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API
   returns.
+
+### Layout
+
+- A screen adds its root class `page` (one width for every page) and writes no width,
+  gutter, max-width or breakpoint of its own. Breakpoints (`compact` 40rem, `wide` 56rem)
+  are in `layout.ts` and must match the CSS.
+- `layoutRules.test.ts` fails if a stylesheet adds `nowrap`, sideways scroll, a fixed
+  `min-width`, a width query that is not at a breakpoint, a box that scrolls up and down
+  inside the page, or a new `auto-fit` grid.
+- **The page is the only scroller.** A box scrolling inside it traps a swipe and hides what
+  is under it. A side panel stays in view with `.split__aside` and `stickyAside`; a bar at
+  the foot of the window with `position: sticky; bottom: 0` (and `footBar` when a side panel
+  must stay above it); long text reads in the page, folded in a `.disclosure` if need be.
+  The sidebar beside the page and a dialog over it are the two exceptions.
+- `.page` stacks its sections itself: header to content is always `--space-6`, section to
+  section `--section-gap`. A section never sets its own margin, and a stack clears its
+  sections' default margins.
+- Every screen must fit at every width; there is no list for parking one that does not. If
+  a screen does not fit at some width, look in `layout.css` and at how the screen uses it;
+  nowhere else.
+
+### Shared pieces
+
+Before adding a style, look for the piece that already does the job. If there is none and a
+second screen will want it, add it to `layout.css` or `theme.css` once, not to the screen.
+
+**Page structure**
+
+| For | Use |
+| --- | --- |
+| A screen's root | `.page` |
+| A page's title area (title, subtitle, way back, the page's actions) | `PageHeader`, with `back` and `actions` |
+| The one way back: to the page this one was opened from, named by its title, or to the page above when it was opened any other way | `BackLink`, inside a `PageHeader` or on its own (`pageTrail.ts`; a `PageHeader` names its page, and a screen without one calls `usePageLabel`) |
+| A record's page until its record is there (loading, not found, could not be loaded, each with the way back) | `RecordPage` with `recordStatus` and `useIdParam` |
+| A boxed section | `.card` (`.card--flush` when its contents bring their own padding) |
+| A box of sections or fields that is not the page (a card, a form) | `.stack` (`--1` to `--4` and `--6` for parts that sit closer, a step of the space scale) |
+| Things side by side on one line | `.row` (`--wrap`, `--inline`, `--1`, `--3`, `--4`) |
+| Cards, fields or facts side by side that wrap onto more rows | `.tiles`: each at least `--tile-min` (14rem; `--narrowest` 10rem, `--narrow` 12rem, `--broad` 18rem, `--broadest` 20rem), `.tile-full` for one on a row of its own. A short last row shares its width, so a row never ends in a gap (the width check fails on one that does) |
+| A set that always holds the same number of things | `.even-set` around `.even-set__items`: six go 2, 3 or 6 to a row, four 1 or 2, three 1 or 3, so every row holds the same |
+| A main column with a side panel | `.split` (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it) |
+| A row of buttons or a header | `.action-row` (`--end` for a form's Cancel and Save) |
+| Key figures | `.stats` (side by side, wrapping only when a label's longest word no longer fits) |
+| A section that folds open | `.disclosure` on a `<details>` |
+| A list with no bullets | `.list-plain` |
+| Words a phone's row has no room to show (still read out) | `.visually-hidden--phone` |
+| A row of choices too long for the screen | `ScrollRail`: a plain native scroller (swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch). The one place a screen may scroll a row sideways |
+| A grid that is wide by nature, such as a preview of the user's own spreadsheet | `.scroll-region`, the only other sideways scroller |
+
+**Tables, lists and filters**
+
+| For | Use |
+| --- | --- |
+| Every table (cards on a narrow page) | `ResponsiveTable` (see below) |
+| A list with nothing to show yet | `EmptyState` and `LoadingState` |
+| Page controls | `Pagination` (it writes "Showing 1–10 of 25 students" itself; `flush` at the foot of a flush card), fed by `usePagedQuery` |
+| A list's filters and page, kept in the address so a reload, a shared link and Back keep them | `useUrlFilters` (changing a filter goes back to the first page) |
+| A set of filters | `.filter-bar` (`.filter-bar__count` for how many results they leave) |
+| A search box | `SearchField` (`.field--search`, which draws its own magnifier): the list follows as you type, with no Search button |
+
+A `ResponsiveTable` has one `primary` column (the card's title) and at most one
+`actions: "inline"` column. `empty` replaces the table when there are no rows. `selected`
+marks the row a side panel shows, and `.row-target` on the control that selects it makes a
+tap anywhere on the row or card a tap on that control (the row's other buttons still answer
+for themselves). `flush` drops the border for a table that fills a card, and `detail` shows
+what a row's own button opened beneath it, across the table. Rows sit in the middle of their
+line, and an `actions` column's buttons sit side by side at the end of the row, on one line
+while it is a table; a screen does not wrap them in its own box or build its own row grid.
+
+**Forms and controls**
+
+| For | Use |
+| --- | --- |
+| A labelled text box, select or date box | `.field`, through `Field`, which writes the label, required star, error and help and wires them to the control. `.field--sentence` for a form's own labels, `.field__hint` for help, and `aria-invalid` draws the error edge. One size and one iOS date-box fix, in `layout.css`; `.form-text-input` and `.form-select-input` share it |
+| A drop-down of `{value, label}` options | `Select` inside a `Field` (`all` adds a filter's "All ..." entry) |
+| A pick-one row of buttons (a switch, or filter chips with counts) | `ChoiceGroup` |
+| A checkbox with its words | `.check` |
+| A modal (a sheet on a phone) | `Dialog` |
+| A modal that asks to confirm | `ConfirmDialog`: a form, so Enter confirms; Cancel before the action, and focused first when the action is destructive |
+| A form's save | `useMutation` (no hand-rolled busy and error flags) |
+| Writes to one thing that must land in the order they were made | A mutation `scope`: each assessment item has its own, as `useItemWrites` sets up; a session's staged decisions and their recording share one |
+| A screen that warns about unsaved edits across many rows | `useDirtySet` |
+| A Copy button | `useClipboard` |
+
+**Text, messages and marks**
+
+| For | Use |
+| --- | --- |
+| Text | A heading element (`h1` to `h4`, sized once in `layout.css`) or a type role: `.eyebrow` and `.eyebrow--muted` for small capitals, `.item-title` for the name a row or tile is about, `.subtext` for a sentence under a heading, `.meta` for a time, count or by-line, `.menu-link` for a place to go in a menu, rail or row of tabs, `.section-title` (`--display` for the About page's name) for a section's title, and one look for inline `code`. A screen stylesheet sets no `font-size` or `font-weight` of its own (`tokenRules.test.ts` counts it as `ownType`) |
+| A boxed message | `Alert` |
+| One line of error text | `ErrorText` |
+| A short status label | `Badge`. Its text is centred; a `Button`'s text reads from the start when it wraps, so an arrow stays beside its words. One rule each in `controls.css`, never a per-screen text-align |
+| A single symbol, initials or a number in a circle | `.mark` (`--success`, `--warning`, `--danger`, `--neutral`; `--small`, `--large`, `--display`); a screen may set the circle's size and colours |
+| An icon | `Icons.tsx` |
+| A rank-to-rank line | `RankTransition` (and `CandidateRanks`) |
+| A link that opens a new tab, out of the app (`href`) or to a page of it kept beside this one (`to`) | `ExternalLink` (it says so to a screen reader) |
+| An email address | `EmailAddress`, which lets it wrap after the `@` or before a dot |
+| A Korean name | `lang="ko"`, which keeps it whole |
+| Joining class names | `cx` |
+
+### Design values
+
+- **The one typeface is Pretendard** (`--font-sans`, loaded in `main.tsx` and served by the
+  app itself, never a font host): Latin as in Inter and Korean to match, but no hanja, so
+  text in Chinese characters would fall back to a system font and needs a different typeface.
+- **The scales.** A value that sits between two steps takes the nearer one; if a design
+  really needs a new step, add it to the scale for everyone.
+
+  | Scale | Tokens |
+  | --- | --- |
+  | Type size | `--font-size-xs` to `-3xl` (eight steps, 0.75rem to 2rem) |
+  | Type weight | `--font-weight-normal` to `-title` (400 to 800) |
+  | Corners | `--radius-xs`, `-sm`, `-control`, `--radius` and `-pill` |
+  | Elevation | `--shadow-xs` to `-lg` and `--shadow-up` |
+  | Focus and validation marks | `--ring-*` and `--edge-accent` |
+  | Space | `--space-1` to `-7` (0.25rem to 3rem; a hairline offset of 0.2rem or less and a clearance over 3.25rem are not steps) |
+  | Letter-spacing | `--tracking-label`, `-display` and `-tight` |
+  | Line height | `--line-height-tight`, `-snug` and `-body` |
+  | Change time | `--duration`, the only one (a `transition` names what changes, never `all`) |
+
+- **Motion.** A change the person asks for that redraws the page (the sidebar, the theme, a
+  settings or About section) goes through `smoothly` (`smoothly.ts`; `SmoothNavLink` for a
+  link between views of one screen), a view transition styled in `layout.css` that a browser
+  without one, or reduced motion, skips; `e2e/motion.spec.ts` checks both. What opens takes
+  the `reveal` animation.
+- **Stylelint** (`stylelint.config.mjs`, part of `npm run lint`) rejects invalid CSS and what
+  is already at zero everywhere: a named colour, an id selector, `!important` (the
+  reduced-motion rule in `theme.css` is the one exception) and a word-splitting
+  `overflow-wrap: anywhere` or `word-break: break-all`.
+- **`tokenRules.test.ts`** fails on anything a stylesheet holds outside the tokens, with no
+  list of exceptions: raw colours, dark-mode patches, `!important`, its own type, space,
+  letter-spacing, line-height, transition, radius and shadow literals, z-index, and a button
+  class of its own. It also fails on a `var()` fallback, a token that is used but not defined
+  (or defined but never used), a design token defined outside those two files, and a class
+  used in the code that no stylesheet defines.
 
 ## Search
 
@@ -289,8 +393,8 @@ The version is a single number in `backend/kukgrade/version.py`, kept equal to
    (not a squash), so `prod` holds the same commits `dev` proved. Nothing is committed to
    `prod` directly.
 5. **Release**: tag the merge on `prod` as `vX.Y.Z` (no `-rc`). The workflow publishes
-   `0.2.0`, `0.2` and `latest`, plus the major from 1.0. The demo site, once there is one
-   (see the [roadmap](roadmap.md)), follows `latest`.
+   `0.2.0`, `0.2` and `latest`, plus the major from 1.0. The demo site follows `latest`
+   once there is one (see the [roadmap](roadmap.md)).
 6. **A fix to a release already out** takes the same road: it is made on `dev`, tried as a
    new candidate (`v0.2.1-rc.1`), promoted and tagged `v0.2.1`. There is no shortcut into
    `prod`, so `prod` is never ahead of `dev`.

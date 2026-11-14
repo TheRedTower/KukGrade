@@ -72,6 +72,20 @@ def test_a_session_serves_the_moves_its_status_allows(
     assert served["marking_open"] is marking_open
     assert served["decisions_open"] is (status == Status.LOCKED)
     assert served["cancel_reason_required"] is (status == Status.LOCKED)
+    assert served["marking_begun"] is (status != Status.DRAFT)
+    assert served["results_open"] is (status in {Status.LOCKED, Status.COMPLETED})
+
+
+def test_a_session_serves_whether_work_is_recorded_in_it() -> None:
+    session = grading_session(status=Status.OPEN)
+    registered = candidate(session=session)
+    prepared = assessment(candidate=registered)
+
+    assert session_as_served(session)["has_recorded_work"] is False
+
+    start_assessment(prepared)
+
+    assert session_as_served(session)["has_recorded_work"] is True
 
 
 def test_cancelling_a_locked_session_is_served_only_to_the_override() -> None:

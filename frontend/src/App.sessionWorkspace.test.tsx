@@ -72,6 +72,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     archived_at: null,
     can_be_archived: false,
     can_be_restored: false,
+    can_download_summary: false,
+    can_print_grading_sheets: false,
     location: "Riverside Dojang",
     notes: "Please arrive 15 minutes before the start time.",
   } satisfies GradingSession;
@@ -274,6 +276,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         can_be_marked_absent:
           rosterOpen && candidate.status === "REGISTERED" && (!assessment || assessment.status === "NOT_STARTED"),
         can_prepare_assessment: rosterOpen && candidate.status !== "WITHDRAWN" && !assessment,
+        // gradings.exports: record_can_be_downloaded, sheet_can_be_printed
+        can_download_record: assessment?.status === "COMPLETED",
+        can_print_grading_sheet: rosterOpen && candidate.status !== "WITHDRAWN",
       };
     });
   }
@@ -359,19 +364,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
-      if (url.includes("/api/gradings/withdrawal-reasons/")) {
-        return jsonResponse(200, {
-          count: 4,
-          next: null,
-          previous: null,
-          results: [
-            { value: "INJURY", label: "Injured during grading", note_required: false },
-            { value: "WITHDREW", label: "Withdrew voluntarily", note_required: false },
-            { value: "ABSENT", label: "Did not attend", note_required: false },
-            { value: "OTHER", label: "Other", note_required: true },
-          ],
-        });
-      }
       if (url.includes("/api/gradings/candidates/bulk-generate-assessments/") && init?.method === "POST") {
         return jsonResponse(200, { created: [], errors: {}, already_registered: {} });
       }
@@ -1241,6 +1233,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       archived_at: null,
       can_be_archived: false,
       can_be_restored: false,
+      can_download_summary: false,
+      can_print_grading_sheets: false,
     });
     stubFetch(fetchMock);
     const user = userEvent.setup();
@@ -1264,6 +1258,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           archived_at: null,
           can_be_archived: false,
           can_be_restored: false,
+          can_download_summary: false,
+          can_print_grading_sheets: false,
         });
       }
       if (url.includes("/api/gradings/candidates/")) {
@@ -1323,6 +1319,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       archived_at: null,
       can_be_archived: false,
       can_be_restored: false,
+      can_download_summary: false,
+      can_print_grading_sheets: false,
     });
     stubFetch(fetchMock);
     const user = userEvent.setup();

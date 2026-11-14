@@ -26,12 +26,21 @@ import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { keys } from "./queryKeys";
+import { LoadingState } from "./LoadingState";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 type Filter = "all" | "unlinked" | "linked" | "voided";
 
 const PAGE_SIZE = 50;
 
 /** A persistent view of imported history, including records no longer in the linking queue. */
+const RECORD_FILTERS = [
+  { value: "unlinked", label: "Unlinked" },
+  { value: "linked", label: "Linked" },
+  { value: "voided", label: "Voided" },
+];
+
 export function HistoricalRecordsScreen() {
   // The record open beside the list, if any.
   const id = useIdParam();
@@ -106,7 +115,7 @@ export function HistoricalRecordsScreen() {
           {id === null ? (
             <p className="card subtext">Choose a record to inspect and correct it.</p>
           ) : detail.isPending ? (
-            <p role="status">Loading record…</p>
+            <LoadingState>Loading record…</LoadingState>
           ) : detail.isError || !record ? (
             <ErrorText>{errorMessage(detail.error, "This record could not be loaded.")}</ErrorText>
           ) : (
@@ -164,33 +173,36 @@ export function HistoricalRecordsScreen() {
         </div>
         <div className="card card--flush stack stack--3">
           <div className="stack stack--3 ix-queue-head">
-            <label className="field field--sentence">
-              <span>Show</span>
-              <select
-                value={filter}
-                onChange={(event) => filters.set({ filter: event.target.value === "all" ? null : event.target.value })}
-              >
-                <option value="all">All records</option>
-                <option value="unlinked">Unlinked</option>
-                <option value="linked">Linked</option>
-                <option value="voided">Voided</option>
-              </select>
-            </label>
-            <label className="field field--sentence">
-              <span>Import</span>
-              <select value={batch ?? ""} onChange={(event) => filters.set({ batch: event.target.value })}>
-                <option value="">Every import</option>
-                {(imports.data?.results ?? []).map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.original_filename}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Field label="Show">
+              {(control) => (
+                <Select
+                  {...control}
+                  all="All records"
+                  allValue="all"
+                  options={RECORD_FILTERS}
+                  value={filter}
+                  onChange={(value) => filters.set({ filter: value === "all" ? null : value })}
+                />
+              )}
+            </Field>
+            <Field label="Import">
+              {(control) => (
+                <Select
+                  {...control}
+                  all="Every import"
+                  options={(imports.data?.results ?? []).map((item) => ({
+                    value: String(item.id),
+                    label: item.original_filename,
+                  }))}
+                  value={String(batch ?? "")}
+                  onChange={(value) => filters.set({ batch: value })}
+                />
+              )}
+            </Field>
             <SearchField label="Name as written" value={search} onChange={(value) => filters.set({ search: value })} />
           </div>
           {records.isPending ? (
-            <p role="status">Loading records…</p>
+            <LoadingState>Loading records…</LoadingState>
           ) : records.isError ? (
             <ErrorText>{errorMessage(records.error, "Records could not be loaded.")}</ErrorText>
           ) : (

@@ -171,6 +171,18 @@ class GradingSession(models.Model):
         marked and completed now."""
         return self.status == self.Status.OPEN
 
+    @property
+    def marking_begun(self) -> bool:
+        """Past draft: the session has been opened (or cancelled), so how many
+        assessments are complete is worth showing."""
+        return self.status != self.Status.DRAFT
+
+    @property
+    def results_open(self) -> bool:
+        """Locked or completed: its final decisions and promotions can be
+        looked at."""
+        return self.status in {self.Status.LOCKED, self.Status.COMPLETED}
+
 
 class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
     def delete(self) -> tuple[int, dict[str, int]]:
@@ -179,6 +191,26 @@ class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
         for candidate in self:
             validate_candidate_can_be_deleted(candidate)
         return super().delete()
+
+
+def candidate_order(path: str = "") -> list[str]:
+    """How a grading's candidates are listed: the one statement of it.
+
+    Grading by grading (two on one date stay apart), then as they line up on
+    the mat - the lowest rank held at the front, seniors at the back - then by
+    name. `path` reaches the candidate from another model ("candidate__").
+    """
+    return [
+        f"{path}{field}"
+        for field in (
+            "session__grading_date",
+            "session_id",
+            "from_rank__order",
+            "student__last_name",
+            "student__first_name",
+            "id",
+        )
+    ]
 
 
 CANDIDATE_STUDENT_FIXED_MESSAGE = (
@@ -272,11 +304,7 @@ class GradingCandidate(models.Model):
     objects = GradingCandidateQuerySet.as_manager()
 
     class Meta:
-        ordering = [
-            "session__grading_date",
-            "student__last_name",
-            "student__first_name",
-        ]
+        ordering = candidate_order()
         indexes = [
             models.Index(
                 fields=["session", "status"],
@@ -419,7 +447,7 @@ class CandidateAssessment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["candidate__session__grading_date", "candidate__student__last_name"]
+        ordering = candidate_order("candidate__")
         indexes = [
             models.Index(fields=["status"], name="cand_assess_status_idx"),
             models.Index(
@@ -579,11 +607,7 @@ class CandidateOutcome(KeptModel):
     )
 
     class Meta:
-        ordering = [
-            "candidate__session__grading_date",
-            "candidate__student__last_name",
-            "candidate__student__first_name",
-        ]
+        ordering = candidate_order("candidate__")
         indexes = [
             models.Index(fields=["status"], name="cand_outcome_status_idx"),
             models.Index(
@@ -748,6 +772,11 @@ class StagedDecision(models.Model):
     A final decision the Master has chosen but not yet recorded. It is the
     Master's own working copy, kept so a session that times out loses
     nothing; it decides nothing, and recording the decision removes it.
+
+    Each change carries a revision that only goes up, and an older change
+    that arrives late (a save still on its way when the page was left) is
+    refused. So taking a decision off leaves the row `discarded` rather than
+    deleting it: the revision it carries is what refuses the late save.
     """
 
     if TYPE_CHECKING:
@@ -770,6 +799,8 @@ class StagedDecision(models.Model):
     )
     decision_notes = models.TextField(blank=True)
     conditional_requirements = models.TextField(blank=True)
+    revision = models.PositiveBigIntegerField(default=0)
+    discarded = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -779,8 +810,10 @@ class StagedDecision(models.Model):
                 fields=["outcome", "author"],
                 name="staged_decision_one_per_author",
             ),
+            # A decision taken off keeps no outcome, only its revision.
             models.CheckConstraint(
-                condition=Q(final_outcome__in=GradingOutcome.values),
+                condition=Q(final_outcome__in=GradingOutcome.values)
+                | Q(discarded=True, final_outcome=""),
                 name="staged_decision_outcome_valid",
             ),
         ]

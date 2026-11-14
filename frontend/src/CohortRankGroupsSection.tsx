@@ -9,6 +9,8 @@ interface CohortRankGroupsSectionProps {
   groups: RankGroup[];
   /** How many students the filters leave, to say why there are no groups. */
   filteredCount: number;
+  /** Whether the students have arrived; until they have, step 1 says why there are no groups. */
+  ready: boolean;
   inCohort: Set<number>;
   onAddGroup: (group: RankGroup) => void;
   onRemoveGroup: (rankId: number) => void;
@@ -18,6 +20,7 @@ interface CohortRankGroupsSectionProps {
 export function CohortRankGroupsSection({
   groups,
   filteredCount,
+  ready,
   inCohort,
   onAddGroup,
   onRemoveGroup,
@@ -31,83 +34,88 @@ export function CohortRankGroupsSection({
         Students are grouped by their current rank. Add whole groups to register them for the next rank.
       </p>
 
-      <ResponsiveTable
-        label="Eligible rank groups"
-        rows={groups}
-        rowKey={(group) => group.rank.id}
-        empty={
-          filteredCount === 0
-            ? "No eligible students match the selected filters."
-            : "No eligible students found to register."
-        }
-        columns={[
-          {
-            key: "rank",
-            header: "Rank",
-            primary: true,
-            render: (group) => (
-              <RankTransition from={{ rank: group.rank, name: group.rank.name }} to={rankEnd(group.destinationRank)} />
-            ),
-          },
-          {
-            key: "age-mix",
-            header: "Age mix",
-            render: (group) => (
-              <Badge tone="neutral">
-                {group.programmeCounts.map((entry) => `${entry.label} ${entry.count}`).join(" | ")}
-              </Badge>
-            ),
-          },
-          {
-            key: "eligible",
-            header: "Eligible",
-            render: (group) => (
-              <div className="bgc-eligible-count-cell">
-                <span className="item-title">{group.students.length}</span>
-                <span className="meta">
-                  ({group.activeCount} active
-                  {group.inactiveCount > 0 && (
-                    <>
-                      , <span className="bgc-inactive-alert">{group.inactiveCount} inactive</span>
-                    </>
-                  )}
-                  )
-                </span>
-              </div>
-            ),
-          },
-          {
-            key: "action",
-            header: "Action",
-            actions: "inline",
-            render: (group) => {
-              const allGroupAdded = group.students.every((student) => inCohort.has(student.id));
-              const someGroupAdded = group.students.some((student) => inCohort.has(student.id));
-              return allGroupAdded ? (
-                <Button
-                  variant="ghost"
-                  small
-                  onClick={() => onRemoveGroup(group.rank.id)}
-                  aria-label={`Added: remove the ${group.rank.name} group from the cohort`}
-                  title="Click to remove the group"
-                  data-testid={`bgc-group-added-${group.rank.id}`}
-                >
-                  Added <CheckIcon />
-                </Button>
-              ) : (
-                <Button
-                  variant="primary"
-                  small
-                  onClick={() => onAddGroup(group)}
-                  data-testid={`bgc-add-group-${group.rank.id}`}
-                >
-                  {someGroupAdded ? `Add remaining` : `Add all ${group.students.length}`}
-                </Button>
-              );
+      {ready && (
+        <ResponsiveTable
+          label="Eligible rank groups"
+          rows={groups}
+          rowKey={(group) => group.rank.id}
+          empty={
+            filteredCount === 0
+              ? "No eligible students match the selected filters."
+              : "No eligible students found to register."
+          }
+          columns={[
+            {
+              key: "rank",
+              header: "Rank",
+              primary: true,
+              render: (group) => (
+                <RankTransition
+                  from={{ rank: group.rank, name: group.rank.name }}
+                  to={rankEnd(group.destinationRank)}
+                />
+              ),
             },
-          },
-        ]}
-      />
+            {
+              key: "age-mix",
+              header: "Age mix",
+              render: (group) => (
+                <Badge tone="neutral">
+                  {group.programmeCounts.map((entry) => `${entry.label} ${entry.count}`).join(" | ")}
+                </Badge>
+              ),
+            },
+            {
+              key: "eligible",
+              header: "Eligible",
+              render: (group) => (
+                <div className="bgc-eligible-count-cell">
+                  <span className="item-title">{group.students.length}</span>
+                  <span className="meta">
+                    ({group.activeCount} active
+                    {group.inactiveCount > 0 && (
+                      <>
+                        , <span className="bgc-inactive-alert">{group.inactiveCount} inactive</span>
+                      </>
+                    )}
+                    )
+                  </span>
+                </div>
+              ),
+            },
+            {
+              key: "action",
+              header: "Action",
+              actions: "inline",
+              render: (group) => {
+                const allGroupAdded = group.students.every((student) => inCohort.has(student.id));
+                const someGroupAdded = group.students.some((student) => inCohort.has(student.id));
+                return allGroupAdded ? (
+                  <Button
+                    variant="ghost"
+                    small
+                    onClick={() => onRemoveGroup(group.rank.id)}
+                    aria-label={`Added: remove the ${group.rank.name} group from the cohort`}
+                    title="Click to remove the group"
+                    data-testid={`bgc-group-added-${group.rank.id}`}
+                  >
+                    Added <CheckIcon />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    small
+                    onClick={() => onAddGroup(group)}
+                    data-testid={`bgc-add-group-${group.rank.id}`}
+                  >
+                    {someGroupAdded ? `Add remaining` : `Add all ${group.students.length}`}
+                  </Button>
+                );
+              },
+            },
+          ]}
+        />
+      )}
     </section>
   );
 }

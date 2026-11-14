@@ -25,6 +25,8 @@ from students.models import PreviousWksaId, Student, StudentExtraInfo
 from students.services import student_deletion_blocker
 from syllabus.models import AgeBand
 
+UNRESOLVED_RESULT = "Unresolved"
+
 
 class PromotionRankHistorySerializer(ModelSerializer[Promotion]):
     from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
@@ -70,6 +72,12 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
         allow_null=True,
     )
     attendance_status = serializers.ChoiceField(choices=LegacyAttendance.choices)
+    result_display = serializers.SerializerMethodField(
+        help_text=(
+            "The result as the history names it: the outcome, that the student "
+            "did not attend, or that a historical outcome is not one KukGrade knows."
+        ),
+    )
     comments = serializers.CharField(
         help_text=(
             "The grading report: decision notes, or a historical record's comments."
@@ -95,6 +103,13 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
     age_band_display = serializers.CharField(allow_blank=True)
     session_id = serializers.IntegerField(allow_null=True)
     candidate_id = serializers.IntegerField(allow_null=True)
+
+    def get_result_display(self, item: GradingHistoryItem) -> str:
+        if item["attendance_status"] == LegacyAttendance.DID_NOT_ATTEND:
+            return LegacyAttendance.DID_NOT_ATTEND.label
+        if item["outcome"]:
+            return CandidateOutcome.Outcome(item["outcome"]).label
+        return UNRESOLVED_RESULT
 
 
 class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHistory]):
@@ -225,7 +240,7 @@ class StudentListSerializer(NextRankFields, ModelSerializer[Student]):
 class PreviousWksaIdSerializer(ModelSerializer[PreviousWksaId]):
     class Meta:
         model = PreviousWksaId
-        fields = ("wksa_id", "replaced_at")
+        fields = ("wksa_id",)
         read_only_fields = fields
 
 

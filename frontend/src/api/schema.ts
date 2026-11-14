@@ -1180,6 +1180,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/sessions/{id}/exports/grading-sheets/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Print the grading sheets of the candidates chosen as one PDF, while
+         *     the grading is a draft or open, all or nothing.
+         */
+        post: operations["gradings_sessions_exports_grading_sheets_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/sessions/{id}/exports/records/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Download the sealed records of the candidates chosen as one PDF,
+         *     all or nothing.
+         */
+        post: operations["gradings_sessions_exports_records_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/sessions/{id}/exports/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Download the session's summary as a PDF, once it is locked. */
+        post: operations["gradings_sessions_exports_summary_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/sessions/{id}/restore/": {
         parameters: {
             query?: never;
@@ -1206,26 +1263,6 @@ export interface paths {
         };
         /** @description Every year that has a grading session, newest first. */
         get: operations["gradings_sessions_years_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/withdrawal-reasons/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description The reasons a candidate can be withdrawn for, as every withdrawal
-         *     control lists them.
-         */
-        get: operations["gradings_withdrawal_reasons_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1588,6 +1625,9 @@ export interface components {
          *     * `SESSION_DELETED` - Grading session deleted
          *     * `SESSION_ARCHIVED` - Grading session archived
          *     * `SESSION_RESTORED` - Grading session restored from the archive
+         *     * `RECORDS_DOWNLOADED` - Grading records downloaded
+         *     * `SUMMARY_DOWNLOADED` - Grading summary downloaded
+         *     * `GRADING_SHEETS_PRINTED` - Grading sheets printed
          *     * `CANDIDATE_REGISTERED` - Candidate registered
          *     * `CANDIDATE_UPDATED` - Candidate updated
          *     * `CANDIDATE_WITHDRAWN` - Candidate withdrawn
@@ -1621,7 +1661,7 @@ export interface components {
          *     * `AUDIT_REDACTED` - Personal details erased from the audit log
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "SESSION_ARCHIVED" | "SESSION_RESTORED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED" | "AUDIT_REDACTED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "SESSION_ARCHIVED" | "SESSION_RESTORED" | "RECORDS_DOWNLOADED" | "SUMMARY_DOWNLOADED" | "GRADING_SHEETS_PRINTED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED" | "AUDIT_REDACTED";
         /** @description One age band, from its code: label, description and programme. */
         AgeBand: {
             readonly code: components["schemas"]["AgeBandEnum"];
@@ -1673,9 +1713,7 @@ export interface components {
         AssessmentItemResultChange: {
             /** @description Its place in the item's history, from 1. */
             readonly sequence: number;
-            readonly from_result: components["schemas"]["ResultEnum"];
             readonly from_result_display: string;
-            readonly to_result: components["schemas"]["ResultEnum"];
             readonly to_result_display: string;
             /** @description Who changed by is, as the record names them: their rank then and their name. */
             readonly changed_by_name: string;
@@ -1986,6 +2024,11 @@ export interface components {
             readonly overall: components["schemas"]["AssessmentSummaryCounts"];
             readonly categories: components["schemas"]["AssessmentCategorySummary"][];
         };
+        /** @description POST sessions/<id>/exports/records/: the candidates a file holds. */
+        CandidateExportRequest: {
+            /** @description The candidates to include, all registered in this session, all or nothing: a refusal is keyed by candidate id. The file lists them in the grading's order, whatever order they are given in. */
+            candidates: number[];
+        };
         CandidateOutcome: {
             readonly id: number;
             readonly candidate: number;
@@ -2070,6 +2113,8 @@ export interface components {
             candidate_statuses: components["schemas"]["CandidateStatusChoice"][];
             assessment_statuses: components["schemas"]["AssessmentStatusChoice"][];
             item_results: components["schemas"]["ItemResultChoice"][];
+            /** @description Why a candidate may be withdrawn, in the order the controls offer. */
+            withdrawal_reasons: components["schemas"]["WithdrawalReasonChoice"][];
             /** @description The grading outcomes, in the order the outcome controls offer them. */
             outcomes: components["schemas"]["OutcomeChoice"][];
             import_kinds: components["schemas"]["ImportKindChoice"][];
@@ -2237,6 +2282,10 @@ export interface components {
             readonly can_be_marked_absent: boolean;
             /** @description Whether the candidate's assessment form can be prepared now: they have none, are not withdrawn, and the session is draft or open. */
             readonly can_prepare_assessment: boolean;
+            /** @description Whether this candidate's record can be downloaded as a PDF: their assessment is sealed. */
+            readonly can_download_record: boolean;
+            /** @description Whether a grading sheet can be printed for this candidate: they are not withdrawn and the session is a draft or open. */
+            readonly can_print_grading_sheet: boolean;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -2257,6 +2306,8 @@ export interface components {
             source_testing_for_rank_text: string;
             outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             attendance_status: components["schemas"]["AttendanceStatusEnum"];
+            /** @description The result as the history names it: the outcome, that the student did not attend, or that a historical outcome is not one KukGrade knows. */
+            readonly result_display: string;
             /** @description The grading report: decision notes, or a historical record's comments. */
             comments: string;
             /** @description Anything else a historical sheet said beside the record. */
@@ -2298,6 +2349,12 @@ export interface components {
             readonly marking_open: boolean;
             /** @description Whether final decisions are being made now: the session is locked. */
             readonly decisions_open: boolean;
+            /** @description Whether the session has left draft, so its count of complete assessments means something. */
+            readonly marking_begun: boolean;
+            /** @description Whether its final decisions and promotion ledger can be opened: the session is locked or completed. */
+            readonly results_open: boolean;
+            /** @description Whether any assessment work has been recorded in it, which deleting the session would erase. */
+            readonly has_recorded_work: boolean;
             /** @description Whether the viewer may open this session now. */
             readonly can_open: boolean;
             /** @description Whether the viewer may ask to lock this session now. Locking itself checks that every assessment is complete. */
@@ -2319,6 +2376,10 @@ export interface components {
             readonly can_be_archived: boolean;
             /** @description Whether the viewer may restore this archived session. */
             readonly can_be_restored: boolean;
+            /** @description Whether the session's summary can be downloaded as a PDF: it is locked (provisional) or completed (final). */
+            readonly can_download_summary: boolean;
+            /** @description Whether grading sheets can be printed for its candidates: the session is a draft or open. */
+            readonly can_print_grading_sheets: boolean;
         };
         GradingSessionRequest: {
             title: string;
@@ -2633,6 +2694,20 @@ export interface components {
             label: string;
         };
         /**
+         * @description A staged decision as the board reads it back. A decision taken off is
+         *     listed too, `discarded` and with no outcome, so the board knows its
+         *     revision and starts every later change above it, whatever this device's
+         *     clock says.
+         */
+        KeptStagedDecision: {
+            readonly outcome: number;
+            readonly final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["BlankEnum"];
+            decision_notes?: string;
+            conditional_requirements?: string;
+            revision: number;
+            readonly discarded: boolean;
+        };
+        /**
          * @description * `STUDENT_ROSTER` - Students
          *     * `LEGACY_GRADINGS` - Past gradings
          * @enum {string}
@@ -2651,7 +2726,6 @@ export interface components {
             readonly record_kind_display: string;
             readonly cycle_year: number;
             readonly cycle_month: number;
-            readonly source_batch: number;
             readonly source_section: string;
             readonly source_name: string;
             readonly source_current_rank_text: string;
@@ -2660,7 +2734,6 @@ export interface components {
             readonly current_rank_name: string | null;
             readonly source_testing_for_rank_text: string;
             readonly testing_for_rank: number | null;
-            readonly testing_for_rank_code: string | null;
             readonly testing_for_rank_name: string | null;
             readonly outcome_display: string | null;
             readonly attendance_status_display: string;
@@ -2680,7 +2753,6 @@ export interface components {
             did_not_attend: number;
             unresolved_current_rank: number;
             unresolved_testing_for_rank: number;
-            unresolved_outcome: number;
             excluded: number;
             /** @description Records not left out that have issues: a reason to look. */
             worth_a_look: number;
@@ -3029,21 +3101,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["UserManagement"][];
         };
-        PaginatedWithdrawalReasonList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["WithdrawalReason"][];
-        };
         PasswordCharacterRule: {
             code: string;
             label: string;
@@ -3164,8 +3221,6 @@ export interface components {
         };
         PreviousWksaId: {
             readonly wksa_id: string;
-            /** Format: date-time */
-            readonly replaced_at: string;
         };
         /**
          * @description * `JUNIOR` - Junior & Little Dragon
@@ -3176,7 +3231,6 @@ export interface components {
         Promotion: {
             readonly id: number;
             readonly student_display_name: string;
-            readonly grading_candidate: number;
             readonly to_rank_name: string;
             /** Format: date */
             readonly effective_date: string;
@@ -3305,6 +3359,8 @@ export interface components {
             /** @description The club's time zone (an IANA name). Times are shown in it, and 'today' is today there. */
             time_zone: string;
             imports: components["schemas"]["ImportSettings"];
+            /** @description The most rows one page of a list serves (`page_size`). */
+            largest_page_size: number;
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
             /** @description Present only on the public demo: its accounts and when it resets. */
@@ -3327,14 +3383,14 @@ export interface components {
             final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             decision_notes?: string;
             conditional_requirements?: string;
-            /** Format: date-time */
-            readonly updated_at: string;
+            revision: number;
         };
         /** @description A final decision chosen but not yet recorded, seen only by whoever chose it. */
         StagedDecisionRequest: {
             final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             decision_notes?: string;
             conditional_requirements?: string;
+            revision: number;
         };
         /**
          * @description Detail, create and update.
@@ -3522,8 +3578,6 @@ export interface components {
             readonly can_import_data: boolean;
             readonly can_reconcile_imported_history: boolean;
             readonly can_delete_students: boolean;
-            readonly can_delete_assessments: boolean;
-            readonly can_delete_any_session: boolean;
             readonly can_read_audit_log: boolean;
             readonly must_change_password: boolean;
         };
@@ -3593,11 +3647,15 @@ export interface components {
         VoidLegacyRecordRequest: {
             reason: string;
         };
-        /** @description One withdrawal reason, and whether it needs a note. */
-        WithdrawalReason: {
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        WithdrawalReasonChoice: {
             value: components["schemas"]["WithdrawalReasonEnum"];
             label: string;
-            readonly note_required: boolean;
+            /** @description Whether a withdrawal for this reason must say why. */
+            note_required: boolean;
         };
         /**
          * @description * `INJURY` - Injured during grading
@@ -3727,7 +3785,7 @@ export interface operations {
     audit_events_list: {
         parameters: {
             query?: {
-                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "AUDIT_REDACTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_ARCHIVED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_RESTORED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
+                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "AUDIT_REDACTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "GRADING_SHEETS_PRINTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "RECORDS_DOWNLOADED" | "SESSION_ARCHIVED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_RESTORED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "SUMMARY_DOWNLOADED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
                 entity_id?: string;
                 entity_type?: "AuditLog" | "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
@@ -5189,7 +5247,9 @@ export interface operations {
     };
     gradings_outcomes_staged_decision_destroy: {
         parameters: {
-            query?: never;
+            query: {
+                revision: number;
+            };
             header?: never;
             path: {
                 /** @description A unique integer value identifying this candidate outcome. */
@@ -5270,7 +5330,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StagedDecision"][];
+                    "application/json": components["schemas"]["KeptStagedDecision"][];
                 };
             };
         };
@@ -5431,6 +5491,87 @@ export interface operations {
             };
         };
     };
+    gradings_sessions_exports_grading_sheets_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this grading session. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateExportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandidateExportRequest"];
+                "multipart/form-data": components["schemas"]["CandidateExportRequest"];
+            };
+        };
+        responses: {
+            /** @description The grading form for each candidate, a page each. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
+    gradings_sessions_exports_records_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this grading session. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateExportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandidateExportRequest"];
+                "multipart/form-data": components["schemas"]["CandidateExportRequest"];
+            };
+        };
+        responses: {
+            /** @description The records, one candidate after another. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
+    gradings_sessions_exports_summary_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this grading session. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Who passed and who did not, and passes by rank. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+        };
+    };
     gradings_sessions_restore_create: {
         parameters: {
             query?: never;
@@ -5468,30 +5609,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GradingYears"];
-                };
-            };
-        };
-    };
-    gradings_withdrawal_reasons_list: {
-        parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedWithdrawalReasonList"];
                 };
             };
         };

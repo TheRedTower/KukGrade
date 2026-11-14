@@ -35,6 +35,7 @@ from accounts.permissions import (
     can_see_school_settings,
     can_view_audit_log,
 )
+from accounts.serializers import EMAIL_TAKEN_MESSAGE, WRONG_CURRENT_PASSWORD_MESSAGE
 from accounts.services import (
     delete_platform_user,
     reset_password,
@@ -277,8 +278,6 @@ def test_current_user_returns_authenticated_user() -> None:
         "can_import_data": False,
         "can_reconcile_imported_history": False,
         "can_delete_students": False,
-        "can_delete_assessments": False,
-        "can_delete_any_session": False,
         # A Master may read the audit log.
         "can_read_audit_log": True,
         "must_change_password": False,
@@ -290,8 +289,6 @@ CAPABILITY_FLAGS = (
     "can_import_data",
     "can_reconcile_imported_history",
     "can_delete_students",
-    "can_delete_assessments",
-    "can_delete_any_session",
     "can_read_audit_log",
 )
 
@@ -305,8 +302,8 @@ def test_current_user_capabilities_follow_permissions_not_role() -> None:
     granted = create_user(email="capabilities-granted@example.com")
     granted.user_permissions.add(
         Permission.objects.get(
-            content_type__app_label="gradings",
-            codename="delete_any_gradingsession",
+            content_type__app_label="students",
+            codename="delete_student",
         ),
     )
 
@@ -318,7 +315,7 @@ def test_current_user_capabilities_follow_permissions_not_role() -> None:
 
     assert all(flags(administrator).values())
     assert flags(granted) == {
-        name: name == "can_delete_any_session" for name in CAPABILITY_FLAGS
+        name: name == "can_delete_students" for name in CAPABILITY_FLAGS
     }
 
 
@@ -435,7 +432,9 @@ def test_change_password_requires_the_correct_current_password() -> None:
     )
 
     assert response.status_code == 400
-    assert "current_password" in response.json()["error"]["fields"]
+    assert response.json()["error"]["fields"]["current_password"] == [
+        WRONG_CURRENT_PASSWORD_MESSAGE,
+    ]
     user.refresh_from_db()
     assert user.check_password("OldPassw0rd!")
 
@@ -871,7 +870,7 @@ def test_duplicate_email_is_a_field_error_not_a_server_error() -> None:
     )
 
     assert response.status_code == 400
-    assert "email" in response.json()["error"]["fields"]
+    assert response.json()["error"]["fields"]["email"] == [EMAIL_TAKEN_MESSAGE]
 
 
 def test_is_staff_and_is_superuser_cannot_be_granted_through_create() -> None:

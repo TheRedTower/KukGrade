@@ -29,7 +29,6 @@ from gradings.testing import (
     override_master,
     user,
 )
-from kukgrade.testing import results
 
 pytestmark = pytest.mark.django_db
 
@@ -293,20 +292,6 @@ def test_withdraw_api_records_the_withdrawal() -> None:
     built.refresh_from_db()
     assert built.withdrawn_by == master_user
     assert built.withdrawn_at is not None
-
-
-def test_withdrawal_reasons_are_served_with_which_needs_a_note() -> None:
-    response = auth_client("withdrawal-reasons@example.com").get(
-        "/api/gradings/withdrawal-reasons/",
-    )
-
-    assert response.status_code == 200
-    assert results(response) == [
-        {"value": "INJURY", "label": "Injured during grading", "note_required": False},
-        {"value": "WITHDREW", "label": "Withdrew voluntarily", "note_required": False},
-        {"value": "ABSENT", "label": "Did not attend", "note_required": False},
-        {"value": "OTHER", "label": "Other", "note_required": True},
-    ]
 
 
 def test_an_other_withdrawal_needs_a_note() -> None:

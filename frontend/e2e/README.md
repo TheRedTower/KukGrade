@@ -25,6 +25,12 @@ Three projects run the same screens: `chromium` (the nine widths), `webkit-iphon
 `webkit-ipad` (768, 820, 1024). WebKit is Safari's engine, so it catches layout that only Safari gets wrong.
 Run one with `npx playwright test --project=webkit-iphone`.
 
+A screen is checked once it shows what it loads: its heading, no loading line, every `/api/` answer in full,
+and its fonts. The check does not wait for every picture and script to arrive. WebKit on Linux (CI) now and
+then loses a request outright, the page's own address included, though the server answers in a tenth of a
+second, so an address with no answer in 15 seconds is opened once more and the log says
+`no answer in 15 seconds, opened again`. A wait that runs out names the answers the screen is still waiting for.
+
 Besides overflow, `overflow.ts` flags a date input wider than its box and two cards stacked with no gap, and
 the `grading-*-actions` screens open the Session actions menu so a menu running off the screen is caught.
 

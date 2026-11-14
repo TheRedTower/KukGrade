@@ -1649,7 +1649,6 @@ class LegacyImportPreview:
     did_not_attend: int
     unresolved_current_rank: int
     unresolved_testing_for_rank: int
-    unresolved_outcome: int
     warnings: list[str]
     rank_suggestions: list[RankMappingSuggestion]
     excluded: int = 0
@@ -1779,7 +1778,6 @@ def preview_legacy_grading_import(
             for row in rows
             if _rank_unresolved(row.source_testing_for_rank_text, resolve)
         ),
-        unresolved_outcome=sum(1 for row in rows if _outcome_unresolved(row)),
         warnings=[*locked.configuration.warnings, *duplicate_warning],
         rank_suggestions=suggestions,
         excluded=locked.rows.filter(excluded=True).count(),

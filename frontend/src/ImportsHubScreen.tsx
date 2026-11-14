@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -10,7 +9,7 @@ import {
   cancelDataImportBatch,
   errorMessage,
   getDataImportBatches,
-  LARGEST_PAGE,
+  largestPageSize,
   getLegacyRecordCounts,
 } from "./api";
 import { ErrorText } from "./ErrorText";
@@ -28,24 +27,18 @@ import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useChoices } from "./choices";
+import { ImportStatusBadge } from "./StatusBadge";
 import { keys } from "./queryKeys";
 import { agreeing, counted } from "./plural";
 import { LoadingState } from "./LoadingState";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 const PAST_PAGE_SIZE = 10;
 
 /** What a finished import did, in a line. */
 function finishedResult(batch: DataImportBatch): string {
   return batch.status === "COMMITTED" ? importKinds[batch.kind].finished(batch.summary_json) : "Nothing saved";
-}
-
-function statePill(batch: DataImportBatch) {
-  const tone = batch.status === "COMMITTED" ? "success" : batch.status === "UPLOADED" ? "warning" : "neutral";
-  return (
-    <Badge dot tone={tone}>
-      {batch.status_display}
-    </Badge>
-  );
 }
 
 function UnfinishedImports({
@@ -201,28 +194,28 @@ function PastImports() {
         Past imports
       </h2>
       <div className="filter-bar" role="search" aria-label="Import filters">
-        <label className="field">
-          <span>What</span>
-          <select value={kind} onChange={(event) => filters.set({ kind: event.target.value })}>
-            <option value="">Everything</option>
-            {choices.import_kinds.map((choice) => (
-              <option key={choice.value} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>State</span>
-          <select value={state} onChange={(event) => filters.set({ state: event.target.value })}>
-            <option value="">Any</option>
-            {choices.finished_import_statuses.map((choice) => (
-              <option key={choice.value} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="What" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="Everything"
+              options={choices.import_kinds}
+              value={kind}
+              onChange={(value) => filters.set({ kind: value })}
+            />
+          )}
+        </Field>
+        <Field label="State" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="Any"
+              options={choices.finished_import_statuses}
+              value={state}
+              onChange={(value) => filters.set({ state: value })}
+            />
+          )}
+        </Field>
       </div>
       <div className="card card--flush">
         {past.isPending ? (
@@ -250,7 +243,11 @@ function PastImports() {
                   render: (batch) => <strong>{batch.original_filename}</strong>,
                 },
                 { key: "what", header: "What", render: (batch) => batch.kind_display },
-                { key: "state", header: "State", render: (batch) => statePill(batch) },
+                {
+                  key: "state",
+                  header: "State",
+                  render: (batch) => <ImportStatusBadge status={batch.status} label={batch.status_display} />,
+                },
                 { key: "result", header: "Result", render: (batch) => finishedResult(batch) },
                 {
                   key: "when",
@@ -294,7 +291,7 @@ export function ImportsHubScreen() {
 
   const unfinished = useQuery({
     queryKey: keys.imports.unfinished(),
-    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: LARGEST_PAGE }),
+    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: largestPageSize() }),
   });
   const awaitingLink = useQuery({
     queryKey: keys.legacyRecords.awaitingLinkCount(),

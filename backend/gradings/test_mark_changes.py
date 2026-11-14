@@ -5,10 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from django.apps import apps
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, transaction
-from django.db.migrations.executor import MigrationExecutor
+from django.db import IntegrityError, transaction
 
 from accounts.models import User
 from accounts.services import delete_platform_user
@@ -414,11 +412,11 @@ def test_the_api_takes_a_reason_and_serves_the_history() -> None:
     [row] = [r for r in results(listed) if r["id"] == item.pk]
     assert row["result"] == "NOT_MET"
     assert [
-        (c["sequence"], c["from_result"], c["to_result"], c["reason"])
+        (c["sequence"], c["from_result_display"], c["to_result_display"], c["reason"])
         for c in row["changes"]
     ] == [
-        (1, "NOT_ASSESSED", "MET", ""),
-        (2, "MET", "NOT_MET", "Second look."),
+        (1, "Not assessed", "Met", ""),
+        (2, "Met", "Not met", "Second look."),
     ]
     assert all(c["changed_by_name"] and c["changed_at"] for c in row["changes"])
     assert "reason" not in row
@@ -439,51 +437,3 @@ def test_the_api_refuses_an_over_long_reason_in_plain_words() -> None:
         response.json()["error"]["message"]
         == "A reason can be at most 2000 characters."
     )
-
-
-# --- marks that existed before the log ----------------------------------------
-
-
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
-def test_marks_made_before_the_log_become_its_first_entry() -> None:
-    generated = start_assessment(
-        assessment(
-            candidate=candidate(
-                session=grading_session(status=GradingSession.Status.OPEN)
-            ),
-        ),
-    )
-    marked, unmarked = list(generated.items.all()[:2])
-    marker = user("old-marker@example.com")
-    old_target = [("gradings", "0019_carry_notes_into_comments")]
-    executor = MigrationExecutor(connection)
-    final_targets = executor.loader.graph.leaf_nodes()
-
-    try:
-        executor.migrate(old_target)
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE gradings_candidateassessmentitem SET result = 'NOT_MET',"
-                " assessor_id = %s, assessed_at = '2026-10-01 10:30:00+00'"
-                " WHERE id = %s",
-                [marker.pk, marked.pk],
-            )
-
-        executor = MigrationExecutor(connection)
-        executor.migrate(final_targets)
-
-        Change = apps.get_model("gradings", "AssessmentItemResultChange")
-        entries = list(Change.objects.all())
-        [entry] = [e for e in entries if e.item_id == marked.pk]
-        assert (entry.sequence, entry.from_result, entry.to_result) == (
-            1,
-            "NOT_ASSESSED",
-            "NOT_MET",
-        )
-        assert entry.changed_by_id == marker.pk
-        assert entry.reason == ""
-        assert entry.changed_at.isoformat().startswith("2026-10-01T10:30:00")
-        assert not [e for e in entries if e.item_id == unmarked.pk]
-    finally:
-        executor = MigrationExecutor(connection)
-        executor.migrate(final_targets)

@@ -5,7 +5,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HistoricalRecordsScreen } from "./HistoricalRecordsScreen";
-import { legacyRecord, page, RANKS } from "./importTestFixtures";
+import { legacyRecord, RANKS } from "./importTestFixtures";
+import { page } from "./appTestSupport";
 
 const api = vi.hoisted(() => ({
   getAllDataImportBatches: vi.fn(),

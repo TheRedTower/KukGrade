@@ -171,6 +171,18 @@ class GradingSession(models.Model):
         marked and completed now."""
         return self.status == self.Status.OPEN
 
+    @property
+    def marking_begun(self) -> bool:
+        """Past draft: the session has been opened (or cancelled), so how many
+        assessments are complete is worth showing."""
+        return self.status != self.Status.DRAFT
+
+    @property
+    def results_open(self) -> bool:
+        """Locked or completed: its final decisions and promotions can be
+        looked at."""
+        return self.status in {self.Status.LOCKED, self.Status.COMPLETED}
+
 
 class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
     def delete(self) -> tuple[int, dict[str, int]]:

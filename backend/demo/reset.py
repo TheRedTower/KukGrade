@@ -32,10 +32,6 @@ def club_models() -> list[type[Model]]:
     ]
 
 
-def club_tables() -> list[str]:
-    return [model._meta.db_table for model in club_models()]
-
-
 def deletion_order() -> list[str]:
     """The club's tables, those that point at others first.
 

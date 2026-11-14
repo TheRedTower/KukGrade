@@ -39,7 +39,6 @@ export const keys = {
   assessmentNotesDraft: (assessmentId: Id) => ["assessmentNotesDraft", assessmentId] as const,
   stagedDecisions: (sessionId: Id) => ["stagedDecisions", sessionId] as const,
   promotionEligibility: (sessionId: Id) => ["promotionEligibility", sessionId] as const,
-  withdrawalReasons: () => ["withdrawalReasons"] as const,
   students: {
     all: () => ["students"] as const,
     list: (...filters: unknown[]) => ["students", "list", ...filters] as const,

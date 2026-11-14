@@ -18,6 +18,14 @@ interface ServerErrors {
 /** The fields of a staff account a form shows its errors beside. */
 export const ACCOUNT_FIELDS = ["first_name", "last_name", "email", "rank"] as const;
 
+/** The labels of a student's own details, for their form and its "is required" messages. */
+export const STUDENT_LABELS = {
+  wksa_id: "WKSA ID",
+  first_name: "First name",
+  last_name: "Last name",
+  date_of_birth: "Date of birth",
+} as const;
+
 export function splitServerErrors(err: unknown, shown: readonly string[], fallback: string): ServerErrors {
   if (!(err instanceof ApiError)) return { fields: {}, banner: errorMessage(err, fallback) };
 
@@ -34,6 +42,19 @@ export function splitServerErrors(err: unknown, shown: readonly string[], fallba
   if (rest.length > 0) return { fields, banner: rest.join(" ") };
   if (Object.keys(fields).length > 0) return { fields, banner: null };
   return { fields, banner: errorMessage(err, fallback) };
+}
+
+/**
+ * The browser's own check that every needed field is filled in: "<label> is
+ * required." for each one left empty, keyed by field, as a form shows them.
+ */
+export function requiredErrors(needed: Record<string, [value: unknown, label: string]>): Record<string, string[]> {
+  const errors: Record<string, string[]> = {};
+  for (const [name, [value, label]] of Object.entries(needed)) {
+    const empty = typeof value === "string" ? !value.trim() : value === null || value === undefined;
+    if (empty) errors[name] = [`${label} is required.`];
+  }
+  return errors;
 }
 
 /** The field errors and banner of one form, filled from the browser's own checks or from the server. */

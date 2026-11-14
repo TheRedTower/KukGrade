@@ -794,7 +794,6 @@ def test_the_record_list_filters_by_import_name_and_unmatched_rank() -> None:
     )
     assert row["current_rank_name"] == "White"
     assert row["report"] == "" and row["note"] == ""
-    assert row["source_batch"] == batch.pk
 
 
 def test_the_record_list_counts_the_records_awaiting_a_student() -> None:

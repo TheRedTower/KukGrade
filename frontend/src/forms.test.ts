@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ApiError, NETWORK_ERROR, errorMessage } from "./api";
-import { splitServerErrors, useServerForm } from "./forms";
+import { requiredErrors, splitServerErrors, useServerForm } from "./forms";
 
 const shown = ["first_name", "wksa_id"];
 const invalid = (fields: ConstructorParameters<typeof ApiError>[3], message = "Some details need correcting.") =>
@@ -44,5 +44,21 @@ describe("useServerForm", () => {
     act(() => result.current.setClientErrors({ email: ["Enter an email.", "Use your club address."] }));
     expect(result.current.errorFor("email")).toBe("Enter an email. Use your club address.");
     expect(result.current.errorFor("name")).toBeNull();
+  });
+});
+
+describe("requiredErrors", () => {
+  it("names each needed field left empty, and only those", () => {
+    expect(
+      requiredErrors({
+        first_name: ["  ", "First name"],
+        last_name: ["Carter", "Last name"],
+        current_rank: [null, "Current rank"],
+        date_of_birth: ["2012-04-24", "Date of birth"],
+      }),
+    ).toEqual({
+      first_name: ["First name is required."],
+      current_rank: ["Current rank is required."],
+    });
   });
 });

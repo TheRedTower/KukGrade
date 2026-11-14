@@ -15,6 +15,8 @@ import { ArrowRightIcon } from "./Icons";
 import type { usePdfDownload } from "./pdfDownloads";
 import { CandidateDownloadBar } from "./CandidateDownloadBar";
 import { useCandidateSelection } from "./useCandidateSelection";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 interface SessionCandidatesSectionProps {
   session: GradingSession;
@@ -104,18 +106,22 @@ export function SessionCandidatesSection({
           />
         </label>
 
-        <label className="field">
-          <span>Assessment</span>
-          <select value={statusFilter} onChange={(e) => onStatusFilter(e.target.value)} data-testid="gsd-status-filter">
-            <option value="ALL">Any status</option>
-            {choices.assessment_statuses.map((choice) => (
-              <option key={choice.value} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-            <option value="WITHDRAWN">{labelOf(choices.candidate_statuses, "WITHDRAWN")}</option>
-          </select>
-        </label>
+        <Field label="Assessment" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="Any status"
+              allValue="ALL"
+              options={[
+                ...choices.assessment_statuses,
+                { value: "WITHDRAWN", label: labelOf(choices.candidate_statuses, "WITHDRAWN") },
+              ]}
+              value={statusFilter}
+              onChange={onStatusFilter}
+              data-testid="gsd-status-filter"
+            />
+          )}
+        </Field>
         <p className="filter-bar__count">{counted(shown.length, "candidate", "candidates")}</p>
       </div>
 

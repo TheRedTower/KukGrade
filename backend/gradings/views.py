@@ -121,7 +121,6 @@ from gradings.serializers import (
     StagedDecisionDiscardQuerySerializer,
     StagedDecisionSerializer,
     VoidLegacyRecordSerializer,
-    WithdrawalReasonSerializer,
 )
 from gradings.services import (
     ALREADY_IN_SESSION,
@@ -194,25 +193,6 @@ def _records_for_group(
     names = queryset.order_by().values_list("source_name", flat=True).distinct()
     matching = [name for name in names if group_key(name) == key]
     return queryset.filter(source_name__in=matching)
-
-
-class WithdrawalReasonViewSet(KukGradeViewSet[GradingCandidate]):
-    """The reasons a candidate can be withdrawn for, as every withdrawal
-    control lists them."""
-
-    serializer_class = WithdrawalReasonSerializer
-    permission_classes = [HasRequiredPermissions]
-    permission_map = {"list": ("gradings.view_gradingcandidate",)}
-
-    def list(self, request: Request) -> Response:
-        # Paginated like every list endpoint, as the syllabus age bands are.
-        page: list[dict[str, str]] | None = self.paginate_queryset(
-            [  # type: ignore[arg-type]
-                {"value": value, "label": label}
-                for value, label in GradingCandidate.WithdrawalReason.choices
-            ],
-        )
-        return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
 
 def _apply_archived(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:

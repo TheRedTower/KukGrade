@@ -30,6 +30,8 @@ import { SearchField } from "./SearchField";
 import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
 import { ArrowRightIcon } from "./Icons";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 const PAGE_SIZE = 10;
 
@@ -175,29 +177,29 @@ export function AuditScreen(): React.ReactElement {
           onChange={(value) => filters.set({ search: value })}
         />
 
-        <label className="field">
-          <span>Action</span>
-          <select value={action} onChange={(event) => filters.set({ action: event.target.value })}>
-            <option value="">All actions</option>
-            {labels.data?.actions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Action" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All actions"
+              options={labels.data?.actions ?? []}
+              value={action}
+              onChange={(value) => filters.set({ action: value })}
+            />
+          )}
+        </Field>
 
-        <label className="field">
-          <span>Record type</span>
-          <select value={entityType} onChange={(event) => filters.set({ entity_type: event.target.value })}>
-            <option value="">All record types</option>
-            {labels.data?.entities.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Field label="Record type" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All record types"
+              options={labels.data?.entities ?? []}
+              value={entityType}
+              onChange={(value) => filters.set({ entity_type: value })}
+            />
+          )}
+        </Field>
 
         <label className="field">
           <span>Date from</span>

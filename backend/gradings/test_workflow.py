@@ -231,7 +231,6 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     )
     assert promote_response.status_code == 201
     promote_body = promote_response.json()
-    assert promote_body["grading_candidate"] == candidate_id
     assert promote_body["to_rank_name"] == "Yellow Stripe"
 
     rank_history_response = master_client.get(

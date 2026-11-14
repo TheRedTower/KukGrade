@@ -102,6 +102,13 @@ function unknownClasses(): string[] {
   return [...unknown].sort();
 }
 
+describe("usedClasses", () => {
+  it("reads the names cx() joins, and not the values beside them", () => {
+    const source = 'cx("belt", `belt-${colour}`, open && "is-open", (result ?? "NOT_MET") === "MET" && "caw-met")';
+    expect([...usedClasses(source)].sort()).toEqual(["belt", "caw-met", "is-open"]);
+  });
+});
+
 describe("token rules", () => {
   it.each(files)("%s holds no raw values of its own", (file) => {
     expect(countFile(file)).toEqual({});

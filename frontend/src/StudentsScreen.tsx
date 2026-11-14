@@ -19,6 +19,8 @@ import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
 import { Button } from "./Button";
 import { counted } from "./plural";
+import { Field } from "./Field";
+import { Select } from "./Select";
 
 const PAGE_SIZE = 15;
 
@@ -95,33 +97,29 @@ export function StudentsScreen() {
           onChange={(value) => filters.set({ search: value })}
         />
 
-        <div className="field">
-          <label htmlFor="status-filter-select">Status</label>
-          <select
-            id="status-filter-select"
-            value={statusFilter}
-            onChange={(e) => filters.set({ status: e.target.value })}
-          >
-            <option value="">All statuses</option>
-            {studentStatuses.map((choice) => (
-              <option key={choice.value} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field label="Status" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All statuses"
+              options={studentStatuses}
+              value={statusFilter}
+              onChange={(value) => filters.set({ status: value })}
+            />
+          )}
+        </Field>
 
-        <div className="field">
-          <label htmlFor="rank-filter-select">Rank</label>
-          <select id="rank-filter-select" value={rankFilter} onChange={(e) => filters.set({ rank: e.target.value })}>
-            <option value="">All ranks</option>
-            {ranks.map((r) => (
-              <option key={r.code} value={r.code}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Field label="Rank" look="label">
+          {(control) => (
+            <Select
+              {...control}
+              all="All ranks"
+              options={ranks.map((r) => ({ value: r.code, label: r.name }))}
+              value={rankFilter}
+              onChange={(value) => filters.set({ rank: value })}
+            />
+          )}
+        </Field>
 
         <div className="action-row filter-bar__full">
           {sourceImport ? (

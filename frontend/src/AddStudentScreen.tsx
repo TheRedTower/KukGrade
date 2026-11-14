@@ -8,10 +8,10 @@ import { useNavigate } from "react-router-dom";
 import { type Rank, type StudentStatus, createStudent } from "./api";
 import { Field } from "./Field";
 import { Alert } from "./Alert";
-import { useServerForm } from "./forms";
+import { requiredErrors, STUDENT_LABELS, useServerForm } from "./forms";
+import { StudentFields, type StudentValues } from "./StudentFields";
 import { useRanksQuery, useSiteSettingsQuery } from "./queries";
 import "./StudentScreens.css";
-import { todayIsoDate } from "./dates";
 import { LockIcon } from "./Icons";
 import { Button } from "./Button";
 
@@ -22,10 +22,12 @@ export function AddStudentScreen() {
   const idScheme = useSiteSettingsQuery().data?.wksa_id;
 
   // Form State
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [wksaId, setWksaId] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [details, setDetails] = useState<StudentValues>({
+    wksa_id: "",
+    first_name: "",
+    last_name: "",
+    date_of_birth: "",
+  });
   const [currentRank, setCurrentRank] = useState<number | null>(null);
   const [status, setStatus] = useState<StudentStatus>("ACTIVE");
   const studentStatuses = useChoices().student_statuses;
@@ -66,22 +68,13 @@ export function AddStudentScreen() {
     form.reset();
 
     // Client-side validations
-    const errors: Record<string, string[]> = {};
-    if (!firstName.trim()) {
-      errors.first_name = ["First name is required."];
-    }
-    if (!lastName.trim()) {
-      errors.last_name = ["Last name is required."];
-    }
-    if (!wksaId.trim()) {
-      errors.wksa_id = ["WKSA ID is required."];
-    }
-    if (!dateOfBirth) {
-      errors.date_of_birth = ["Date of birth is required."];
-    }
-    if (!effectiveRankId) {
-      errors.current_rank = ["Current rank is required."];
-    }
+    const errors = requiredErrors({
+      first_name: [details.first_name, STUDENT_LABELS.first_name],
+      last_name: [details.last_name, STUDENT_LABELS.last_name],
+      wksa_id: [details.wksa_id, STUDENT_LABELS.wksa_id],
+      date_of_birth: [details.date_of_birth, STUDENT_LABELS.date_of_birth],
+      current_rank: [effectiveRankId, "Current rank"],
+    });
 
     if (Object.keys(errors).length > 0) {
       form.setClientErrors(errors);
@@ -89,11 +82,11 @@ export function AddStudentScreen() {
     }
 
     createMutation.mutate({
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
+      first_name: details.first_name.trim(),
+      last_name: details.last_name.trim(),
       // As typed: the server tidies spacing and case, and checks the form.
-      wksa_id: wksaId,
-      date_of_birth: dateOfBirth,
+      wksa_id: details.wksa_id,
+      date_of_birth: details.date_of_birth,
       current_rank: effectiveRankId!,
       status,
     });
@@ -115,51 +108,16 @@ export function AddStudentScreen() {
         <div className="card stack">
           <h2 className="section-title section-title--ruled">Identity</h2>
 
-          <div className="form-row-grid-2 tiles">
-            <Field label="First name" required error={form.errorFor("first_name")}>
-              {(control) => (
-                <input
-                  {...control}
-                  type="text"
-                  placeholder="e.g. Alex"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              )}
-            </Field>
-
-            <Field label="Last name" required error={form.errorFor("last_name")}>
-              {(control) => (
-                <input
-                  {...control}
-                  type="text"
-                  placeholder="e.g. Carter"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              )}
-            </Field>
-          </div>
-
-          <Field
-            label="WKSA ID"
-            required
-            error={form.errorFor("wksa_id")}
-            hint={`${idScheme ? `${idScheme.hint} ` : ""}A student ID changes only once, to the black belt ID handed out at the national grading.`}
-          >
-            {(control) => (
-              <input
-                {...control}
-                type="text"
-                placeholder={idScheme ? `e.g. ${idScheme.forms.map((form) => form.example).join(" or ")}` : undefined}
-                value={wksaId}
-                onChange={(e) => setWksaId(e.target.value)}
-                disabled={isSubmitting}
-              />
-            )}
-          </Field>
+          <StudentFields
+            parts={["names", "wksa_id"]}
+            values={details}
+            onChange={(changes) => setDetails((current) => ({ ...current, ...changes }))}
+            form={form}
+            disabled={isSubmitting}
+            wksaIdRequired
+            wksaIdHint={`${idScheme ? `${idScheme.hint} ` : ""}A student ID changes only once, to the black belt ID handed out at the national grading.`}
+            wksaIdPlaceholder={idScheme ? `e.g. ${idScheme.forms.map((form) => form.example).join(" or ")}` : undefined}
+          />
         </div>
 
         {/* Card 2: Grading details */}
@@ -167,28 +125,19 @@ export function AddStudentScreen() {
           <h2 className="section-title section-title--ruled">Grading details</h2>
 
           <div className="form-row-grid-3 tiles">
-            <Field
-              label="Date of birth"
-              required
-              error={form.errorFor("date_of_birth")}
-              hint={
+            <StudentFields
+              parts={["date_of_birth"]}
+              values={details}
+              onChange={(changes) => setDetails((current) => ({ ...current, ...changes }))}
+              form={form}
+              disabled={isSubmitting}
+              dateOfBirthHint={
                 <span className="privacy-badge-line">
                   <LockIcon size={14} className="privacy-icon" />
                   <span>Date of birth is visible only on the individual student record.</span>
                 </span>
               }
-            >
-              {(control) => (
-                <input
-                  {...control}
-                  type="date"
-                  value={dateOfBirth}
-                  max={todayIsoDate()}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              )}
-            </Field>
+            />
 
             <Field label="Current rank" required error={form.errorFor("current_rank")}>
               {(control) => (

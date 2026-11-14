@@ -57,7 +57,7 @@ from gradings.services import (
     session_may_move_to,
     with_session_progress,
 )
-from kukgrade.serializers import ChoiceSerializer, ModelSerializer
+from kukgrade.serializers import ModelSerializer
 from ranks.models import Rank
 from students.models import Student
 from syllabus.models import CORE_CATEGORIES, SyllabusItem
@@ -96,6 +96,27 @@ class GradingSessionSerializer(ModelSerializer):
         read_only=True,
         help_text=(
             "Whether final decisions are being made now: the session is locked."
+        ),
+    )
+    marking_begun = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether the session has left draft, so its count of complete "
+            "assessments means something."
+        ),
+    )
+    results_open = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether its final decisions and promotion ledger can be opened: "
+            "the session is locked or completed."
+        ),
+    )
+    has_recorded_work = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "Whether any assessment work has been recorded in it, which "
+            "deleting the session would erase."
         ),
     )
     can_open = serializers.SerializerMethodField(
@@ -157,6 +178,9 @@ class GradingSessionSerializer(ModelSerializer):
             "roster_open",
             "marking_open",
             "decisions_open",
+            "marking_begun",
+            "results_open",
+            "has_recorded_work",
             "can_open",
             "can_lock",
             "can_complete",
@@ -559,9 +583,7 @@ class AssessmentItemResultChangeSerializer(ModelSerializer):
         model = AssessmentItemResultChange
         fields = (
             "sequence",
-            "from_result",
             "from_result_display",
-            "to_result",
             "to_result_display",
             "changed_by_name",
             "changed_at",
@@ -753,7 +775,6 @@ class PromotionSerializer(ModelSerializer):
         fields = (
             "id",
             "student_display_name",
-            "grading_candidate",
             "to_rank_name",
             "effective_date",
         )
@@ -921,9 +942,8 @@ class StagedDecisionSerializer(ModelSerializer):
             "decision_notes",
             "conditional_requirements",
             "revision",
-            "updated_at",
         ]
-        read_only_fields = ["outcome", "updated_at"]
+        read_only_fields = ["outcome"]
 
 
 class KeptStagedDecisionSerializer(StagedDecisionSerializer):
@@ -1107,12 +1127,6 @@ class LegacyGradingRecordSerializer(ModelSerializer):
         allow_null=True,
         default=None,
     )
-    testing_for_rank_code = serializers.CharField(
-        source="testing_for_rank.code",
-        read_only=True,
-        allow_null=True,
-        default=None,
-    )
     voided_by_name = PersonNameField("voided_by")
     current_rank_name = serializers.CharField(
         source="current_rank.name",
@@ -1147,7 +1161,6 @@ class LegacyGradingRecordSerializer(ModelSerializer):
             "record_kind_display",
             "cycle_year",
             "cycle_month",
-            "source_batch",
             "source_section",
             "source_name",
             "source_current_rank_text",
@@ -1156,7 +1169,6 @@ class LegacyGradingRecordSerializer(ModelSerializer):
             "current_rank_name",
             "source_testing_for_rank_text",
             "testing_for_rank",
-            "testing_for_rank_code",
             "testing_for_rank_name",
             "outcome_display",
             "attendance_status_display",
@@ -1335,13 +1347,3 @@ class ResolveLegacyRankSerializer(serializers.Serializer):
 
 class VoidLegacyRecordSerializer(serializers.Serializer):
     reason = serializers.CharField()
-
-
-class WithdrawalReasonSerializer(ChoiceSerializer):
-    """One withdrawal reason, and whether it needs a note."""
-
-    value = serializers.ChoiceField(choices=GradingCandidate.WithdrawalReason.choices)
-    note_required = serializers.SerializerMethodField()
-
-    def get_note_required(self, reason: dict[str, str]) -> bool:
-        return reason["value"] == GradingCandidate.WithdrawalReason.OTHER

@@ -9,6 +9,7 @@ import type {
   GradingSessionStatus,
   SiteSettings,
 } from "./api";
+import type { paths } from "./api/schema";
 
 /** /api/choices/ as the server serves it. */
 export const CHOICES: Choices = {
@@ -47,6 +48,12 @@ export const CHOICES: Choices = {
     { value: "NOT_ASSESSED", label: "Not assessed" },
     { value: "MET", label: "Met" },
     { value: "NOT_MET", label: "Not met" },
+  ],
+  withdrawal_reasons: [
+    { value: "INJURY", label: "Injured during grading", note_required: false },
+    { value: "WITHDREW", label: "Withdrew voluntarily", note_required: false },
+    { value: "ABSENT", label: "Did not attend", note_required: false },
+    { value: "OTHER", label: "Other", note_required: true },
   ],
   outcomes: [
     { value: "PASS", label: "Pass" },
@@ -107,6 +114,7 @@ export const CHOICES: Choices = {
 export const SITE: SiteSettings = {
   club_name: "Kuk Sool Won Testville",
   time_zone: "Europe/London",
+  largest_page_size: 200,
   imports: {
     max_bytes: 5 * 1024 * 1024,
     max_rows: 1000,
@@ -160,8 +168,6 @@ export const authUser = {
   can_import_data: false,
   can_reconcile_imported_history: false,
   can_delete_students: false,
-  can_delete_assessments: false,
-  can_delete_any_session: false,
   can_read_audit_log: false,
   must_change_password: false,
 } satisfies AuthUser;
@@ -172,8 +178,6 @@ export const ADMINISTRATOR_CAPABILITIES = {
   can_import_data: true,
   can_reconcile_imported_history: true,
   can_delete_students: true,
-  can_delete_assessments: true,
-  can_delete_any_session: true,
   can_read_audit_log: true,
 } satisfies Partial<AuthUser>;
 
@@ -190,6 +194,37 @@ export function jsonResponse(status: number, body: unknown): Response {
     json: async () => body,
     text: async () => text,
   } as Response;
+}
+
+/** One page of a list, as every paged endpoint serves it. */
+export function page<T>(results: T[], count = results.length) {
+  return { count, next: null, previous: null, results };
+}
+
+/** The schema paths that answer a GET with JSON. */
+type ReadPath = {
+  [P in keyof paths]: paths[P] extends { get: { responses: { 200: { content: { "application/json": unknown } } } } }
+    ? P
+    : never;
+}[keyof paths];
+type ReadBody<P extends ReadPath> = paths[P]["get"]["responses"][200]["content"]["application/json"];
+
+/**
+ * The server's answers to GET requests, each keyed by its schema path
+ * ("/api/students/{id}/") and typed as that path's response, so a fixture in a
+ * shape the server no longer sends fails the type check. A path matches whole,
+ * its {parameters} standing for any one segment, whatever the query.
+ * Gives undefined for a request it holds no answer to.
+ */
+export function serve(answers: { [P in ReadPath]?: ReadBody<P> }): (url: string) => Response | undefined {
+  const routes = Object.entries(answers).map(
+    ([path, body]) => [new RegExp(`^${path.replace(/\{[^/]+\}/g, "[^/]+")}$`), body] as const,
+  );
+  return (url) => {
+    const path = url.split("?")[0];
+    const found = routes.find(([pattern]) => pattern.test(path));
+    return found ? jsonResponse(200, found[1]) : undefined;
+  };
 }
 
 /**
@@ -294,6 +329,9 @@ export function sessionServed(status: GradingSessionStatus, { withOverride = fal
     roster_open: roster,
     marking_open: status === "OPEN",
     decisions_open: status === "LOCKED",
+    marking_begun: status !== "DRAFT",
+    results_open: status === "LOCKED" || status === "COMPLETED",
+    has_recorded_work: false,
     can_open: status === "DRAFT",
     can_lock: status === "OPEN",
     can_complete: status === "LOCKED",

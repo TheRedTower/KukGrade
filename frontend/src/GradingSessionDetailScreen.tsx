@@ -235,8 +235,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     else updateSessionMutation.mutate({ status: "COMPLETED" });
   };
 
-  const decided = session.status === "LOCKED" || session.status === "COMPLETED";
-
   return (
     <section aria-labelledby="gsd-title" className="page" data-testid="gsd-page">
       <PageHeader
@@ -248,7 +246,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         subtitle={<SessionFacts session={session} />}
         actions={
           <>
-            {decided && (
+            {session.results_open && (
               <Link
                 to={`/gradings/${session.id}/decisions`}
                 className={buttonClass({ variant: "secondary" })}
@@ -257,7 +255,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 Final decisions <ArrowRightIcon />
               </Link>
             )}
-            {decided && (
+            {session.results_open && (
               <Link
                 to={`/gradings/${session.id}/promotions`}
                 className={buttonClass({ variant: "secondary" })}

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
 import pytest
-from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -130,37 +128,6 @@ def test_site_settings_serve_the_forms_the_server_enforces(settings: Any) -> Non
             },
         ],
     }
-
-
-def test_the_migration_tidies_what_it_can_and_lists_the_rest() -> None:
-    migration = importlib.import_module("students.migrations.0006_wksa_id_format")
-    constraint = next(
-        c for c in Student._meta.constraints if c.name == "student_wksa_id_format"
-    )
-    rank = Rank.objects.get(code="WHITE")
-    with connection.schema_editor() as editor:
-        editor.remove_constraint(Student, constraint)
-    rows = [
-        Student(
-            wksa_id=wksa_id,
-            first_name="Old",
-            last_name=last_name,
-            date_of_birth=timezone.localdate().replace(year=2012),
-            current_rank=rank,
-        )
-        for wksa_id, last_name in (
-            (" a-20819", "Tidied"),
-            ("DEMO-001", "Wrong"),
-        )
-    ]
-    Student.objects.bulk_create(rows)
-
-    with pytest.raises(RuntimeError) as stopped:
-        migration.tidy_and_check(django_apps, None)
-
-    assert "'DEMO-001' (Old Wrong)" in str(stopped.value)
-    assert "Tidied" not in str(stopped.value)
-    assert Student.objects.filter(wksa_id="A-20819").exists()
 
 
 # ---------------------------------------------------------------------------

@@ -5,9 +5,9 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AuthUser, type CreateDataImportBatchResponse } from "./api";
-import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, SITE } from "./appTestSupport";
+import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, page, SITE } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
-import { batch, page, person, row } from "./importTestFixtures";
+import { batch, person, row } from "./importTestFixtures";
 import { ImportStartScreen } from "./ImportStartScreen";
 import { ImportsHubScreen } from "./ImportsHubScreen";
 

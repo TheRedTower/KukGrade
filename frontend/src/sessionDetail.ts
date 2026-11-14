@@ -96,10 +96,9 @@ export function confirmDetails(action: SessionAction, session: GradingSession, r
     case "DELETE":
       return {
         title: "Delete Grading Session",
-        message:
-          session.status === "DRAFT"
-            ? `Are you sure you want to permanently delete ${session.title}? This action cannot be undone.`
-            : `Are you sure you want to permanently delete ${session.title}? This erases its registrations and every assessment recorded in it. This action cannot be undone.`,
+        message: session.has_recorded_work
+          ? `Are you sure you want to permanently delete ${session.title}? This erases its registrations and every assessment recorded in it. This action cannot be undone.`
+          : `Are you sure you want to permanently delete ${session.title}? This action cannot be undone.`,
       };
     case "ARCHIVE":
       return {

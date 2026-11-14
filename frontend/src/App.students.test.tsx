@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import type { Rank, StudentDetail, StudentListItem, StudentRankHistory } from "./api";
-import { authUser, jsonResponse, CHOICES, stubFetch } from "./appTestSupport";
+import { authUser, jsonResponse, CHOICES, page, serve, stubFetch } from "./appTestSupport";
 
 describe("Students registry screen (/students)", () => {
   beforeEach(() => {
@@ -979,72 +979,60 @@ describe("Student detail screen (/students/:id)", () => {
       },
     ] satisfies StudentRankHistory["promotions"];
 
-    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
-      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
-      if (url.includes("/api/auth/me/")) {
-        return jsonResponse(200, authUser);
-      }
-      if (url.includes("/api/ranks/")) {
-        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
-      }
-      if (url.includes("/api/students/10/rank-history/")) {
-        return jsonResponse(200, {
-          student: 10,
-          student_display_name: "Alex Carter (UK-5001)",
-          student_wksa_id: "UK-5001",
-          current_rank: 2,
-          current_rank_code: "YS",
-          current_rank_name: "Yellow Stripe",
-          promotions: testPromotions,
-        });
-      }
-      if (url.includes("/api/students/10/grading-history/")) {
-        return jsonResponse(200, {
-          student: 10,
-          student_display_name: "Alex Carter (UK-5001)",
-          student_wksa_id: "UK-5001",
-          items: [
-            {
-              source: "KUKGRADE",
-              record_id: 12,
-              date: "2025-12-12",
-              cycle_year: 2025,
-              cycle_month: 12,
-              date_precision: "DAY",
-              testing_for_rank_code: "YS",
-              testing_for_rank_name: "Yellow Stripe",
-              source_testing_for_rank_text: "",
-              outcome: "PASS",
-              attendance_status: "ATTENDED",
-              comments: "Excellent forms and techniques.",
-              note: "",
-              promotion_id: 101,
-            },
-            {
-              source: "LEGACY",
-              record_id: 7,
-              date: null,
-              cycle_year: 2025,
-              cycle_month: 3,
-              date_precision: "MONTH",
-              testing_for_rank_code: "Y",
-              testing_for_rank_name: "Yellow",
-              source_testing_for_rank_text: "Yellow",
-              outcome: "PASS",
-              attendance_status: "ATTENDED",
-              comments: "",
-              note: "",
-              promotion_id: null,
-            },
-          ],
-        });
-      }
-      if (url.includes("/api/students/10/")) {
-        return jsonResponse(200, testStudent);
-      }
-      return jsonResponse(404, {});
+    const answer = serve({
+      "/api/choices/": CHOICES,
+      "/api/auth/me/": authUser,
+      "/api/ranks/": page(testRanks),
+      "/api/students/{id}/rank-history/": { promotions: testPromotions },
+      "/api/students/{id}/grading-history/": {
+        items: [
+          {
+            source: "KUKGRADE",
+            record_id: 12,
+            date: "2025-12-12",
+            cycle_year: 2025,
+            cycle_month: 12,
+            date_precision: "DAY",
+            testing_for_rank_name: "Yellow Stripe",
+            source_testing_for_rank_text: "",
+            outcome: "PASS",
+            attendance_status: "ATTENDED",
+            result_display: "Pass",
+            comments: "Excellent forms and techniques.",
+            note: "",
+            conditional_requirements: "",
+            from_rank_name: "White Belt",
+            age_band: "AGE_13_TO_17",
+            age_band_display: "13-17",
+            session_id: 4,
+            candidate_id: 12,
+          },
+          {
+            source: "LEGACY",
+            record_id: 7,
+            date: null,
+            cycle_year: 2025,
+            cycle_month: 3,
+            date_precision: "MONTH",
+            testing_for_rank_name: "Yellow",
+            source_testing_for_rank_text: "Yellow",
+            outcome: "PASS",
+            attendance_status: "ATTENDED",
+            result_display: "Pass",
+            comments: "",
+            note: "",
+            conditional_requirements: "",
+            from_rank_name: null,
+            age_band: null,
+            age_band_display: "",
+            session_id: null,
+            candidate_id: null,
+          },
+        ],
+      },
+      "/api/students/{id}/": testStudent,
     });
-    stubFetch(fetchMock);
+    stubFetch((url) => answer(url) ?? jsonResponse(404, {}));
 
     render(<App />);
 
@@ -1057,7 +1045,11 @@ describe("Student detail screen (/students/:id)", () => {
     expect(tableScope.getByText("12 Dec 2025")).toBeVisible();
     // A month-only record reads like every other month in the app.
     expect(tableScope.getByText("Mar 2025")).toBeVisible();
-    expect(tableScope.getByText("KukGrade")).toBeVisible();
+    // A KukGrade grading links to the assessment it was decided on.
+    expect(tableScope.getByRole("link", { name: "KukGrade · view assessment" })).toHaveAttribute(
+      "href",
+      "/gradings/4/assessments/12/review",
+    );
     expect(tableScope.getByText("Yellow Stripe")).toBeVisible();
     expect(tableScope.getAllByText("Pass")).toHaveLength(2);
     expect(tableScope.getByText("Excellent forms and techniques.")).toBeVisible();
@@ -1232,7 +1224,7 @@ describe("Student detail screen (/students/:id)", () => {
             ...student,
             wksa_id: "A-20819",
             wksa_id_can_change: false,
-            previous_wksa_ids: [{ wksa_id: testStudent.wksa_id, replaced_at: "2026-10-20T09:00:00Z" }],
+            previous_wksa_ids: [{ wksa_id: testStudent.wksa_id }],
           };
           return jsonResponse(200, student);
         }

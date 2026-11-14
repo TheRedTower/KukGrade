@@ -2448,36 +2448,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/GradingYears'
           description: ''
-  /api/gradings/withdrawal-reasons/:
-    get:
-      operationId: gradings_withdrawal_reasons_list
-      description: |-
-        The reasons a candidate can be withdrawn for, as every withdrawal
-        control lists them.
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedWithdrawalReasonList'
-          description: ''
   /api/health/:
     get:
       operationId: health_retrieve
@@ -3419,16 +3389,8 @@ components:
           type: integer
           readOnly: true
           description: Its place in the item's history, from 1.
-        from_result:
-          allOf:
-          - $ref: '#/components/schemas/ResultEnum'
-          readOnly: true
         from_result_display:
           type: string
-          readOnly: true
-        to_result:
-          allOf:
-          - $ref: '#/components/schemas/ResultEnum'
           readOnly: true
         to_result_display:
           type: string
@@ -3453,11 +3415,9 @@ components:
       - after_lock
       - changed_at
       - changed_by_name
-      - from_result
       - from_result_display
       - reason
       - sequence
-      - to_result
       - to_result_display
     AssessmentStatusChoice:
       type: object
@@ -4451,6 +4411,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ItemResultChoice'
+        withdrawal_reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/WithdrawalReasonChoice'
+          description: Why a candidate may be withdrawn, in the order the controls
+            offer.
         outcomes:
           type: array
           items:
@@ -4497,6 +4463,7 @@ components:
       - session_statuses
       - staff_ranks
       - student_statuses
+      - withdrawal_reasons
     Credit:
       type: object
       properties:
@@ -4971,6 +4938,12 @@ components:
           - $ref: '#/components/schemas/NullEnum'
         attendance_status:
           $ref: '#/components/schemas/AttendanceStatusEnum'
+        result_display:
+          type: string
+          readOnly: true
+          description: 'The result as the history names it: the outcome, that the
+            student did not attend, or that a historical outcome is not one KukGrade
+            knows.'
         comments:
           type: string
           description: 'The grading report: decision notes, or a historical record''s
@@ -5020,6 +4993,7 @@ components:
       - note
       - outcome
       - record_id
+      - result_display
       - session_id
       - source
       - source_testing_for_rank_text
@@ -5074,6 +5048,21 @@ components:
           readOnly: true
           description: 'Whether final decisions are being made now: the session is
             locked.'
+        marking_begun:
+          type: boolean
+          readOnly: true
+          description: Whether the session has left draft, so its count of complete
+            assessments means something.
+        results_open:
+          type: boolean
+          readOnly: true
+          description: 'Whether its final decisions and promotion ledger can be opened:
+            the session is locked or completed.'
+        has_recorded_work:
+          type: boolean
+          readOnly: true
+          description: Whether any assessment work has been recorded in it, which
+            deleting the session would erase.
         can_open:
           type: boolean
           readOnly: true
@@ -5143,8 +5132,11 @@ components:
       - completed_assessment_count
       - decisions_open
       - grading_date
+      - has_recorded_work
       - id
+      - marking_begun
       - marking_open
+      - results_open
       - roster_open
       - status_display
       - title
@@ -5886,10 +5878,6 @@ components:
         revision:
           type: integer
           minimum: 1
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
         discarded:
           type: boolean
           readOnly: true
@@ -5898,7 +5886,6 @@ components:
       - final_outcome
       - outcome
       - revision
-      - updated_at
     KindEnum:
       enum:
       - STUDENT_ROSTER
@@ -5938,9 +5925,6 @@ components:
         cycle_month:
           type: integer
           readOnly: true
-        source_batch:
-          type: integer
-          readOnly: true
         source_section:
           type: string
           readOnly: true
@@ -5967,10 +5951,6 @@ components:
           readOnly: true
         testing_for_rank:
           type: integer
-          readOnly: true
-          nullable: true
-        testing_for_rank_code:
-          type: string
           readOnly: true
           nullable: true
         testing_for_rank_name:
@@ -6017,7 +5997,6 @@ components:
       - record_kind
       - record_kind_display
       - report
-      - source_batch
       - source_current_rank_text
       - source_name
       - source_section
@@ -6025,7 +6004,6 @@ components:
       - student
       - student_display_name
       - testing_for_rank
-      - testing_for_rank_code
       - testing_for_rank_name
       - void_reason
       - voided_by_name
@@ -6043,8 +6021,6 @@ components:
         unresolved_current_rank:
           type: integer
         unresolved_testing_for_rank:
-          type: integer
-        unresolved_outcome:
           type: integer
         excluded:
           type: integer
@@ -6067,7 +6043,6 @@ components:
       - rank_suggestions
       - total
       - unresolved_current_rank
-      - unresolved_outcome
       - unresolved_testing_for_rank
       - warnings
       - worth_a_look
@@ -6638,29 +6613,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserManagement'
-    PaginatedWithdrawalReasonList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/WithdrawalReason'
     PasswordCharacterRule:
       type: object
       properties:
@@ -6888,12 +6840,7 @@ components:
         wksa_id:
           type: string
           readOnly: true
-        replaced_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - replaced_at
       - wksa_id
     ProgrammeEnum:
       enum:
@@ -6912,9 +6859,6 @@ components:
         student_display_name:
           type: string
           readOnly: true
-        grading_candidate:
-          type: integer
-          readOnly: true
         to_rank_name:
           type: string
           readOnly: true
@@ -6924,7 +6868,6 @@ components:
           readOnly: true
       required:
       - effective_date
-      - grading_candidate
       - id
       - student_display_name
       - to_rank_name
@@ -7225,6 +7168,9 @@ components:
             and 'today' is today there.
         imports:
           $ref: '#/components/schemas/ImportSettings'
+        largest_page_size:
+          type: integer
+          description: The most rows one page of a list serves (`page_size`).
         password_policy:
           $ref: '#/components/schemas/PasswordPolicy'
         wksa_id:
@@ -7237,6 +7183,7 @@ components:
       required:
       - club_name
       - imports
+      - largest_page_size
       - password_policy
       - time_zone
       - wksa_id
@@ -7276,15 +7223,10 @@ components:
         revision:
           type: integer
           minimum: 1
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
       - final_outcome
       - outcome
       - revision
-      - updated_at
     StagedDecisionRequest:
       type: object
       description: A final decision chosen but not yet recorded, seen only by whoever
@@ -7728,12 +7670,6 @@ components:
         can_delete_students:
           type: boolean
           readOnly: true
-        can_delete_assessments:
-          type: boolean
-          readOnly: true
-        can_delete_any_session:
-          type: boolean
-          readOnly: true
         can_read_audit_log:
           type: boolean
           readOnly: true
@@ -7741,8 +7677,6 @@ components:
           type: boolean
           readOnly: true
       required:
-      - can_delete_any_session
-      - can_delete_assessments
       - can_delete_students
       - can_import_data
       - can_make_final_grading_decision
@@ -7905,9 +7839,11 @@ components:
           minLength: 1
       required:
       - reason
-    WithdrawalReason:
+    WithdrawalReasonChoice:
       type: object
-      description: One withdrawal reason, and whether it needs a note.
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
       properties:
         value:
           $ref: '#/components/schemas/WithdrawalReasonEnum'
@@ -7915,7 +7851,7 @@ components:
           type: string
         note_required:
           type: boolean
-          readOnly: true
+          description: Whether a withdrawal for this reason must say why.
       required:
       - label
       - note_required

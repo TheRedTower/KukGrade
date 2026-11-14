@@ -364,19 +364,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
-      if (url.includes("/api/gradings/withdrawal-reasons/")) {
-        return jsonResponse(200, {
-          count: 4,
-          next: null,
-          previous: null,
-          results: [
-            { value: "INJURY", label: "Injured during grading", note_required: false },
-            { value: "WITHDREW", label: "Withdrew voluntarily", note_required: false },
-            { value: "ABSENT", label: "Did not attend", note_required: false },
-            { value: "OTHER", label: "Other", note_required: true },
-          ],
-        });
-      }
       if (url.includes("/api/gradings/candidates/bulk-generate-assessments/") && init?.method === "POST") {
         return jsonResponse(200, { created: [], errors: {}, already_registered: {} });
       }

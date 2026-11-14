@@ -50,18 +50,20 @@ Want something here, or something that is missing? Open an
       search every list uses ([features.md](features.md#search)) already matches every word in any
       order, ignores accents and capitals, finds part of a word, forgives a slip in a longer word of
       letters and ranks the best match first, as you type. Not yet done:
-      - *Sound-alike matching* for names ("Smyth" for Smith, "Catherine" for Katherine) with
-        PostgreSQL's built-in `fuzzystrmatch` (double metaphone); to be tried on real data first
-        so it does not add noise.
-      - *Short words and some spellings*: words under four letters get no typo tolerance, and
-        "Ayesha" for Aisha is not found.
-      - *Nicknames* ("Bob" for Robert): a small, administrator-editable list, which is a policy
-        choice to make with the owner.
-      - *Highlighting* which part of a result matched, and a *"did you mean…?"* when nothing is
-        found.
-      A separate search engine (Meilisearch, Typesense) or a BM25 extension (ParadeDB `pg_search`,
-      Timescale `pg_textsearch`) was considered and set aside: each adds a second service or an
-      extension to install on a school's own PostgreSQL, for little gain on short names and titles.
+
+  - _Sound-alike matching_ for names ("Smyth" for Smith, "Catherine" for Katherine) with
+    PostgreSQL's built-in `fuzzystrmatch` (double metaphone); to be tried on real data first
+    so it does not add noise.
+  - _Short words and some spellings_: words under four letters get no typo tolerance, and
+    "Ayesha" for Aisha is not found.
+  - _Nicknames_ ("Bob" for Robert): a small, administrator-editable list, which is a policy
+    choice to make with the owner.
+  - _Highlighting_ which part of a result matched, and a _"did you mean…?"_ when nothing is
+    found.
+
+  A separate search engine (Meilisearch, Typesense) or a BM25 extension (ParadeDB `pg_search`,
+  Timescale `pg_textsearch`) was considered and set aside: each adds a second service or an
+  extension to install on a school's own PostgreSQL, for little gain on short names and titles.
 
 ## Needs a decision first
 

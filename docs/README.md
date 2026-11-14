@@ -1,5 +1,6 @@
 # KukGrade documentation
 
+<!-- prettier-ignore -->
 | I want to… | Read |
 | --- | --- |
 | Run KukGrade and put it on the internet | [Installation](installation.md) |

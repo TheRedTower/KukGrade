@@ -6,6 +6,7 @@ import part-way and come back to it.
 
 There are two kinds:
 
+<!-- prettier-ignore -->
 | | Student roster | Historical gradings |
 | --- | --- | --- |
 | For | The school's current list of students | Records of past gradings from an old spreadsheet |

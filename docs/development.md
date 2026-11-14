@@ -191,6 +191,7 @@ second screen will want it, add it to `layout.css` or `theme.css` once, not to t
 
 **Page structure**
 
+<!-- prettier-ignore -->
 | For | Use |
 | --- | --- |
 | A screen's root | `.page` |
@@ -213,6 +214,7 @@ second screen will want it, add it to `layout.css` or `theme.css` once, not to t
 
 **Tables, lists and filters**
 
+<!-- prettier-ignore -->
 | For | Use |
 | --- | --- |
 | Every table (cards on a narrow page) | `ResponsiveTable` (see below) |
@@ -233,6 +235,7 @@ while it is a table; a screen does not wrap them in its own box or build its own
 
 **Forms and controls**
 
+<!-- prettier-ignore -->
 | For | Use |
 | --- | --- |
 | A labelled text box, select or date box | `.field`, through `Field`, which writes the label, required star, error and help and wires them to the control. `.field--sentence` for a form's own labels, `.field__hint` for help, and `aria-invalid` draws the error edge. One size and one iOS date-box fix, in `layout.css`; `.form-text-input` and `.form-select-input` share it |
@@ -248,6 +251,7 @@ while it is a table; a screen does not wrap them in its own box or build its own
 
 **Text, messages and marks**
 
+<!-- prettier-ignore -->
 | For | Use |
 | --- | --- |
 | Text | A heading element (`h1` to `h4`, sized once in `layout.css`) or a type role: `.eyebrow` and `.eyebrow--muted` for small capitals, `.item-title` for the name a row or tile is about, `.subtext` for a sentence under a heading, `.meta` for a time, count or by-line, `.menu-link` for a place to go in a menu, rail or row of tabs, `.section-title` (`--display` for the About page's name) for a section's title, and one look for inline `code`. A screen stylesheet sets no `font-size` or `font-weight` of its own (`tokenRules.test.ts` counts it as `ownType`) |
@@ -270,6 +274,7 @@ while it is a table; a screen does not wrap them in its own box or build its own
 - **The scales.** A value that sits between two steps takes the nearer one; if a design
   really needs a new step, add it to the scale for everyone.
 
+  <!-- prettier-ignore -->
   | Scale | Tokens |
   | --- | --- |
   | Type size | `--font-size-xs` to `-3xl` (eight steps, 0.75rem to 2rem) |
@@ -313,6 +318,7 @@ names and titles are matched by likeness. `kukgrade/test_search.py` holds the be
 `backend/gradings/test_query_baseline.py` holds the hot paths to a ceiling, and the
 roster and list tests hold their counts flat as data grows. Measured 2026-11-05:
 
+<!-- prettier-ignore -->
 | Request                                                                                                | Queries        | Ceiling |
 | ------------------------------------------------------------------------------------------------------ | -------------- | ------- |
 | Mark an item (first mark, or a later change with a reason), with the assessment's counts in the answer | 18 (76 before) | 20      |

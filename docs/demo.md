@@ -7,6 +7,7 @@ real install, started with `KUKGRADE_DEMO_MODE=1`. A real club never uses this.
 
 The sign-in page offers three shared accounts, each one click away:
 
+<!-- prettier-ignore -->
 | Account | What it shows |
 | --- | --- |
 | **Instructor** | Building a grading, ticking and commenting on an assessment, recommending a verdict. Cannot make the final decision. |

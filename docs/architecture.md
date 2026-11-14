@@ -15,6 +15,7 @@ flowchart LR
     end
 ```
 
+<!-- prettier-ignore -->
 | Layer | Technology |
 | --- | --- |
 | Backend | Python 3.14, Django 5.2 (LTS), Django REST Framework, drf-spectacular, ReportLab (the PDFs) |
@@ -36,6 +37,7 @@ Dockerfile  The production image
 
 ## Backend apps
 
+<!-- prettier-ignore -->
 | App | Owns |
 | --- | --- |
 | `kukgrade` | Settings, routing, the error envelope, pagination, query filters, serving the frontend |

@@ -48,6 +48,7 @@ into their details. They are permanent, and the app refuses every change to them
    ```
 
    In the container: `docker compose exec -it kukgrade python manage.py redact_student_audit …`.
+
 4. Run it again without `--dry-run`. It prints how many events changed. Repeat for each
    other name.
 5. A new event, "Personal details erased from the audit log", records that it was done: the

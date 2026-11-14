@@ -163,14 +163,20 @@ async function signIn(browser: Browser, role: Role): Promise<BrowserContext> {
 }
 
 /**
- * Opens a screen and returns once the server has answered the address, not
- * once every picture and font has arrived ("load"): WebKit on Linux now and
- * then loses one of those requests, and the page then never reaches "load"
- * although the screen is whole. What the screen shows is waited for after
- * (its heading, then `settled`).
+ * Opens a screen and returns once the server has answered its address, not
+ * once every picture and font has arrived ("load"); what the screen shows is
+ * waited for after (its heading, then `settled`). WebKit on Linux now and then
+ * loses a request outright, the page's own address included, although the
+ * server answers in a tenth of a second: an address with no answer in 15
+ * seconds is opened once more, and the log says so.
  */
 async function show(page: Page, path: string): Promise<void> {
-  await page.goto(path, { waitUntil: "commit" });
+  try {
+    await page.goto(path, { waitUntil: "commit", timeout: 15_000 });
+  } catch {
+    console.warn(`${path}: no answer in 15 seconds, opened again`);
+    await page.goto(path, { waitUntil: "commit", timeout: 15_000 });
+  }
 }
 
 /** The data requests (`/api/`) each page has sent and not yet had an answer to. */
@@ -184,9 +190,15 @@ async function trackedPage(role: Role): Promise<Page> {
   page.on("request", (request) => {
     if (new URL(request.url()).pathname.startsWith("/api/")) open.add(request);
   });
-  // The answer's arrival is enough: WebKit sometimes never reports a request
-  // as finished, though its answer is on the screen.
-  page.on("response", (response) => done(response.request()));
+  // Answered once its whole body has arrived, not at its headers: WebKit
+  // sometimes never reports a request as finished, though its answer is in.
+  page.on("response", (response) => {
+    const request = response.request();
+    response.body().then(
+      () => done(request),
+      () => done(request),
+    );
+  });
   page.on("requestfinished", done);
   page.on("requestfailed", done);
   return page;

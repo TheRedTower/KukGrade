@@ -55,6 +55,12 @@ def test_about_serves_the_version_the_build_and_the_clubs_zone(settings: Any) ->
     assert served["database"] == "ok"
 
 
+def test_a_full_length_commit_is_served_short(settings: Any) -> None:
+    settings.BUILD_COMMIT = "1f36bda3e1f01a07594cac4bb47080d8c4b48366"
+
+    assert signed_in().get("/api/about/").json()["commit"] == "1f36bda"
+
+
 def test_a_release_candidate_is_named_with_its_number(settings: Any) -> None:
     settings.BUILD_PRE_RELEASE = "rc.4"
 

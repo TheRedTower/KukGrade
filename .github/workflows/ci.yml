@@ -227,6 +227,10 @@ jobs:
           target: production
           load: true
           tags: kukgrade:ci
+          # A real commit, as a release has, so the width check sees the About
+          # page's full-length commit and not an empty row.
+          build-args: |
+            KUKGRADE_BUILD_COMMIT=${{ github.sha }}
           cache-from: type=gha,scope=ci
           cache-to: type=gha,scope=ci,mode=max
 
@@ -274,3 +278,9 @@ jobs:
           # `cond && '' || '1'` would always give '1' ('' is falsy), so the
           # quick case is the one tested.
           KUKGRADE_E2E_QUICK: ${{ (github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/')) && '1' || '' }}
+
+      # What the server saw, with each request's time in microseconds, so a
+      # page that never loaded can be matched to the request that stalled.
+      - name: Show the demo's log when the width check fails
+        if: failure()
+        run: docker logs kg-demo 2>&1 | tail -n 400

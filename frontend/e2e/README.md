@@ -7,7 +7,7 @@ steps that need an uploaded file (matching columns, reviewing rows) are not cove
 they are covered by the unit tests, and a real-device look is still needed for them.
 
 ```sh
-docker build --target production -t kukgrade:local .
+docker build --target production --build-arg KUKGRADE_BUILD_COMMIT="$(git rev-parse HEAD)" -t kukgrade:local .
 docker run -d --name kg-widths -p 127.0.0.1:6943:6942 --shm-size 256m -e KUKGRADE_DEMO_MODE=1 \
   -e DJANGO_ALLOWED_HOSTS=localhost -e DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost:6943 kukgrade:local
 cd frontend

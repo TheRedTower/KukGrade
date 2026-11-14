@@ -359,6 +359,67 @@ export function deleteGradingSession(id: number) {
   return done(api.DELETE("/api/gradings/sessions/{id}/", { params: { path: { id } } }));
 }
 
+/** A file the server made, and the name it gave it. */
+export type MadeFile = { blob: Blob; name: string };
+
+/**
+ * The name in a download's Content-Disposition: `filename*` (UTF-8, how the
+ * server always names a PDF, since every name holds a "–"), else `filename`.
+ */
+export function fileNameOf(disposition: string | null, fallback: string): string {
+  const encoded = disposition?.match(/filename\*=utf-8''([^;]+)/i)?.[1];
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {
+      return fallback;
+    }
+  }
+  return disposition?.match(/filename="?([^";]+)"?/i)?.[1] ?? fallback;
+}
+
+/** A file the server made, named as the server named it; a refusal is an ApiError, as for any request. */
+async function madeFile(
+  call: Promise<{ data?: Blob; error?: unknown; response: Response }>,
+  fallback: string,
+): Promise<MadeFile> {
+  const { response } = await call;
+  const blob = await answer(call);
+  return { blob, name: fileNameOf(response.headers.get("Content-Disposition"), fallback) };
+}
+
+/** The sealed records of the candidates chosen, as one PDF, all or nothing. */
+export function downloadCandidateRecords(session: number, candidates: number[]) {
+  return madeFile(
+    api.POST("/api/gradings/sessions/{id}/exports/records/", {
+      params: { path: { id: session } },
+      body: { candidates },
+      parseAs: "blob",
+    }),
+    "Records.pdf",
+  );
+}
+
+/** The session's summary as a PDF, once it is locked. */
+export function downloadSessionSummary(session: number) {
+  return madeFile(
+    api.POST("/api/gradings/sessions/{id}/exports/summary/", { params: { path: { id: session } }, parseAs: "blob" }),
+    "Summary.pdf",
+  );
+}
+
+/** The grading sheets of the candidates chosen, a page each, as one PDF. */
+export function printGradingSheets(session: number, candidates: number[]) {
+  return madeFile(
+    api.POST("/api/gradings/sessions/{id}/exports/grading-sheets/", {
+      params: { path: { id: session } },
+      body: { candidates },
+      parseAs: "blob",
+    }),
+    "Grading sheets.pdf",
+  );
+}
+
 function getGradingCandidates(query?: ListQuery<"gradings_candidates_list">) {
   return answer(api.GET("/api/gradings/candidates/", { params: { query } }));
 }

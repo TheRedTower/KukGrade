@@ -23,6 +23,11 @@ import {
   stubFetch,
 } from "./appTestSupport";
 
+const mockSaveFile = vi.fn();
+vi.mock("./saveFile", () => ({
+  saveFile: (...args: unknown[]) => mockSaveFile(...args),
+}));
+
 // Candidate Assessment Workspace Screen (/gradings/:sessionId/assessments/:candidateId)
 describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessments/:candidateId)", () => {
   const mockSession: GradingSession = {
@@ -40,6 +45,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     archived_at: null,
     can_be_archived: false,
     can_be_restored: false,
+    can_download_summary: false,
+    can_print_grading_sheets: false,
     notes: "",
   };
 
@@ -766,6 +773,101 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
       await screen.findByRole("heading", { name: "Assessment record" });
       expect(screen.queryByTestId("acp-history-link")).toBeNull();
+    });
+  });
+
+  describe("downloading a sealed record", () => {
+    function recordFetch(candidate: Record<string, unknown>, exported: () => Response) {
+      const sealed: CandidateAssessment = {
+        ...mockAssessment,
+        status: "COMPLETED",
+        status_display: "Completed",
+        completed_at: "2026-09-18T11:30:00Z",
+        marks_open: false,
+        can_start: false,
+      };
+      const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
+      const fetch = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/exports/records/") && init?.method === "POST") return exported();
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/gradings/sessions/10/"))
+          return jsonResponse(200, { ...mockSession, status: "LOCKED", ...sessionServed("LOCKED") });
+        if (/\/api\/gradings\/candidates\/\d+\/$/.test(url))
+          return jsonResponse(200, { ...mockCandidate, ...candidate });
+        if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+        if (url.includes("/api/gradings/assessments/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [sealed] });
+        }
+        if (url.includes("/api/gradings/assessment-items/")) {
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      });
+      return fetch;
+    }
+    const madePdf = () =>
+      new Response("%PDF", {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition":
+            "attachment; filename*=utf-8''2027-03-20%20Autumn%20Grading%20%E2%80%93%20Record%20%E2%80%93%20Alex%20Carter.pdf",
+        },
+      });
+
+    beforeEach(() => mockSaveFile.mockReset());
+
+    it("saves this candidate's record as a PDF under the server's name", async () => {
+      const fetch = recordFetch({ can_download_record: true }, madePdf);
+      stubFetch(fetch);
+      window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+      const user = userEvent.setup();
+
+      render(<App />);
+      await user.click(await screen.findByRole("button", { name: "Download PDF" }));
+
+      expect(await screen.findByText("2027-03-20 Autumn Grading – Record – Alex Carter.pdf")).toBeVisible();
+      expect(mockSaveFile).toHaveBeenCalledWith(
+        expect.anything(),
+        "2027-03-20 Autumn Grading – Record – Alex Carter.pdf",
+      );
+      const [, init] = fetch.mock.calls.find(([url]) => String(url).includes("/exports/records/"))!;
+      expect(JSON.parse(String(init.body))).toEqual({ candidates: [101] });
+    });
+
+    it("says why when the record cannot be downloaded", async () => {
+      stubFetch(
+        recordFetch({ can_download_record: true }, () =>
+          jsonResponse(400, {
+            error: {
+              code: "invalid",
+              message: "Invalid input.",
+              fields: { "101": ["Their assessment is not sealed yet."] },
+            },
+          }),
+        ),
+      );
+      window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+      const user = userEvent.setup();
+
+      render(<App />);
+      await user.click(await screen.findByRole("button", { name: "Download PDF" }));
+
+      const refusal = await screen.findByTestId("pdf-refusal");
+      expect(refusal).toHaveTextContent("Alex Carter: Their assessment is not sealed yet.");
+      expect(mockSaveFile).not.toHaveBeenCalled();
+    });
+
+    it("is not offered until the server says the record can be downloaded", async () => {
+      stubFetch(recordFetch({ can_download_record: false }, madePdf));
+      window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+      render(<App />);
+
+      await screen.findByRole("heading", { name: "Assessment record" });
+      expect(screen.queryByRole("button", { name: "Download PDF" })).toBeNull();
     });
   });
 
@@ -2686,6 +2788,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         archived_at: null,
         can_be_archived: false,
         can_be_restored: false,
+        can_download_summary: false,
+        can_print_grading_sheets: false,
       } satisfies GradingSession;
       const generatedAssessment: CandidateAssessment = {
         ...mockAssessment,

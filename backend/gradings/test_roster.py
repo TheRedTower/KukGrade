@@ -29,7 +29,9 @@ from gradings.testing import (
     master,
     override_master,
     promoter,
+    rank,
     start_assessment,
+    student,
     user,
 )
 from kukgrade.testing import results
@@ -415,3 +417,57 @@ def test_the_roster_with_promotions_costs_the_same_queries_however_many_candidat
         response = client.get(url)
 
     assert all(row["promotion"] for row in results(response))
+
+
+def test_a_gradings_candidates_line_up_lowest_rank_first_then_by_name() -> None:
+    """As on the mat: white belts at the front, seniors at the back.
+
+    The roster, the assessments and the promotion ledger all follow it, and two
+    gradings on one date never interleave (features.md, Register candidates).
+    """
+    session = grading_session(status=GradingSession.Status.OPEN)
+    same_day = grading_session(
+        title="Adults", grading_date=session.grading_date, status=session.status
+    )
+    held = {
+        "WHITE": "YELLOW_STRIPE",
+        "YELLOW_STRIPE": "YELLOW",
+        "YELLOW": "BLUE_STRIPE",
+    }
+
+    def registered(
+        first: str, last: str, code: str, into: GradingSession = session
+    ) -> GradingCandidate:
+        return candidate(
+            session=into,
+            student=student(first_name=first, last_name=last, current_rank=rank(code)),
+            testing_for_rank=rank(held[code]),
+        )
+
+    # Registered out of order, as a mixed group is.
+    yellow = registered("Amy", "Adams", "YELLOW")
+    ben = registered("Ben", "Young", "WHITE")
+    yellow_stripe = registered("Dan", "Ash", "YELLOW_STRIPE")
+    ava = registered("Ava", "Young", "WHITE")
+    cal = registered("Cal", "Brown", "WHITE")
+    other = registered("Aaron", "Abbott", "WHITE", into=same_day)
+    expected = [cal.pk, ava.pk, ben.pk, yellow_stripe.pk, yellow.pk]
+
+    client = auth_client("roster-order@example.com")
+    roster = results(client.get(f"/api/gradings/candidates/?session={session.pk}"))
+    assert [row["id"] for row in roster] == expected
+    everyone = [row["id"] for row in results(client.get("/api/gradings/candidates/"))]
+    assert everyone in (expected + [other.pk], [other.pk, *expected])
+
+    for built in (yellow, ben, yellow_stripe, ava, cal):
+        complete_assessment(assessment(candidate=built))
+    forms = results(client.get(f"/api/gradings/assessments/?session={session.pk}"))
+    assert [row["candidate"] for row in forms] == expected
+
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    for built in (yellow, ben, yellow_stripe, ava, cal):
+        finalised_outcome(built)
+    ledger = client.get(
+        f"/api/gradings/outcomes/promotion-eligibility/?session={session.pk}"
+    ).json()
+    assert [row["candidate"] for row in ledger] == expected

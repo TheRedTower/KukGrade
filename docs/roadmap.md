@@ -63,8 +63,6 @@ Want something here, or something that is missing? Open an
       A separate search engine (Meilisearch, Typesense) or a BM25 extension (ParadeDB `pg_search`,
       Timescale `pg_textsearch`) was considered and set aside: each adds a second service or an
       extension to install on a school's own PostgreSQL, for little gain on short names and titles.
-- [ ] **Reports and exports**, from an agreed reporting specification (for example a session
-      summary or a student's grading history as a document).
 
 ## Needs a decision first
 

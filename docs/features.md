@@ -24,7 +24,10 @@ flowchart LR
    eligible; a student can be in only one unfinished grading at a time, and a
    student who has left cannot be registered. Each candidate tests for their own
    next rank, so a mixed-belt group registers in one step. Candidates can be
-   moved or removed while the session is a draft or open.
+   moved or removed while the session is a draft or open. Every list of a
+   grading's candidates (the roster, the decision board, the promotion ledger)
+   puts them as they line up on the mat: the lowest rank held first, then by
+   surname and first name.
 3. **Assess.** Each candidate's assessment is generated (singly or for a whole
    cohort) as a copy of the **cumulative syllabus** for their age band, from White
    up to the rank they are testing for, and started deliberately. Assessors mark
@@ -72,6 +75,38 @@ flowchart LR
      and it can be restored.
 
 Every step is recorded in the [audit log](#audit-log).
+
+## Downloads and printing (PDF)
+
+Three documents can be made from a grading, as A4 PDFs in greyscale, cheap to print. Anyone who
+can read the grading's assessments can make them; no further permission is needed. The server
+builds each file, and the app saves it under a name that sorts by date
+(`2027-03-20 October grading – Juniors – Summary.pdf`; a single record adds the candidate's name).
+
+- **Candidate records**, once a candidate's assessment is sealed. Tick the candidates on the
+  session page (with Select all, up to 60 at a time) and choose **Download records (PDF)**, or
+  use **Download PDF** on a sealed record. Each record starts on a new page and holds what the
+  record screen shows: who they are (never a date of birth), the outcome and proposal, the
+  promotion or withdrawal, the core areas and every requirement with its mark, comments and
+  mark changes, the overall note, the changes after the lock, and a signature line for the
+  Master. Each is stamped **Provisional** until the final decision, **Final** after, or
+  **Withdrawn**.
+- **The session summary**, from the session's actions once it is locked or completed: each
+  candidate's rank held and tested for, the decision and the promotion, those not graded and
+  why, and a count of passes by rank achieved (every rank on its own, stripes included; only
+  final passes count, the rest are counted apart). It ends with a signature line for the Master.
+- **Grading sheets**, while the session is a draft or open: the school's paper grading form, one
+  page per registered candidate, with their name, WKSA ID, current rank and the testing date
+  filled in and the six core areas taken from the syllabus. Marks written on paper are never
+  typed back into the app.
+
+Every document lists candidates in the grading's own order. It is all or nothing: if any
+candidate chosen cannot be included (a record not yet sealed, a withdrawn candidate for a
+sheet), nothing is made and the app names each one and why. Each file made is one
+[audit](#audit-log) event about the grading, naming everyone in it by WKSA ID, so it shows in
+the grading's history and in each student's. In the [demo mode](#the-demo-mode) every page is
+marked as made-up data. A file that has left the app is the school's to keep safe
+([Privacy](privacy.md#printed-and-downloaded-files)).
 
 ## Students
 
@@ -273,5 +308,5 @@ a real club. See [demo.md](demo.md) for how to run it.
 
 ## What KukGrade does not do (yet)
 
-Reports and exports, certificates, notifications and offline use, and it has no syllabus
+Certificates, notifications and offline use, and it has no syllabus
 for the ranks above Jo Kyo Nim. See the [roadmap](roadmap.md).

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import itertools
 from datetime import date
 from typing import Any, cast
@@ -12,6 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.http import HttpRequest
 from django.test import RequestFactory
 from django.utils import timezone
+from pypdf import PdfReader
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -251,3 +253,53 @@ def locked_session_with_undecided_candidate() -> tuple[
     # once a session locks, since locking requires every assessment complete.
     built, _ = locked_completed_candidate()
     return GradingSession.objects.get(pk=built.session_id), built
+
+
+def staff(email: str, **overrides: Any) -> User:
+    """A staff account with a name and, unless an administrator, a rank, so
+    a record names them as "KSN Jane Smith"."""
+    administrator = overrides.get("role") == User.Role.ADMINISTRATOR
+    return user(
+        email,
+        first_name=overrides.pop("first_name", "Jane"),
+        last_name=overrides.pop("last_name", "Smith"),
+        rank=overrides.pop("rank", None if administrator else rank("KSN")),
+        **overrides,
+    )
+
+
+def client_for(account: User) -> APIClient:
+    client = APIClient()
+    client.force_authenticate(user=account)
+    return client
+
+
+def sealed(
+    session: GradingSession,
+    *,
+    first_name: str = "Priya",
+    last_name: str = "Nair",
+    held: str = "WHITE",
+    testing_for: str = "YELLOW_STRIPE",
+) -> GradingCandidate:
+    """A candidate whose assessment is sealed, in an open session."""
+    built = candidate(
+        session=session,
+        student=student(
+            first_name=first_name, last_name=last_name, current_rank=rank(held)
+        ),
+        testing_for_rank=rank(testing_for),
+    )
+    complete_assessment(assessment(candidate=built), staff(f"marker-{built.pk}@x.org"))
+    built.refresh_from_db()
+    return built
+
+
+def pdf_pages(content: bytes) -> list[str]:
+    """Each page's text, read back out of a PDF."""
+    return [page.extract_text() for page in PdfReader(io.BytesIO(content)).pages]
+
+
+def pdf_text(content: bytes) -> str:
+    """A PDF's words, however its lines happened to wrap."""
+    return " ".join(" ".join(pdf_pages(content)).split())

@@ -113,6 +113,7 @@ paths:
           - CANDIDATE_REGISTERED
           - CANDIDATE_UPDATED
           - CANDIDATE_WITHDRAWN
+          - GRADING_SHEETS_PRINTED
           - IMPORT_BATCH_CANCELLED
           - IMPORT_BATCH_COMMITTED
           - IMPORT_BATCH_EXPIRED
@@ -126,6 +127,7 @@ paths:
           - OUTCOME_FINALISED
           - OUTCOME_PROPOSED
           - PROMOTION_RECORDED
+          - RECORDS_DOWNLOADED
           - SESSION_ARCHIVED
           - SESSION_CREATED
           - SESSION_DELETED
@@ -136,6 +138,7 @@ paths:
           - STUDENT_DELETED
           - STUDENT_STATUS_CHANGED
           - STUDENT_UPDATED
+          - SUMMARY_DOWNLOADED
           - USER_AUTHORITY_CHANGED
           - USER_CREATED
           - USER_DELETED
@@ -2311,6 +2314,103 @@ paths:
               schema:
                 $ref: '#/components/schemas/GradingSession'
           description: ''
+  /api/gradings/sessions/{id}/exports/grading-sheets/:
+    post:
+      operationId: gradings_sessions_exports_grading_sheets_create
+      description: |-
+        Print the grading sheets of the candidates chosen as one PDF, while
+        the grading is a draft or open, all or nothing.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: The grading form for each candidate, a page each.
+  /api/gradings/sessions/{id}/exports/records/:
+    post:
+      operationId: gradings_sessions_exports_records_create
+      description: |-
+        Download the sealed records of the candidates chosen as one PDF,
+        all or nothing.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateExportRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: The records, one candidate after another.
+  /api/gradings/sessions/{id}/exports/summary/:
+    post:
+      operationId: gradings_sessions_exports_summary_create
+      description: Download the session's summary as a PDF, once it is locked.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: Who passed and who did not, and passes by rank.
   /api/gradings/sessions/{id}/restore/:
     post:
       operationId: gradings_sessions_restore_create
@@ -3082,6 +3182,9 @@ components:
       - SESSION_DELETED
       - SESSION_ARCHIVED
       - SESSION_RESTORED
+      - RECORDS_DOWNLOADED
+      - SUMMARY_DOWNLOADED
+      - GRADING_SHEETS_PRINTED
       - CANDIDATE_REGISTERED
       - CANDIDATE_UPDATED
       - CANDIDATE_WITHDRAWN
@@ -3121,6 +3224,9 @@ components:
         * `SESSION_DELETED` - Grading session deleted
         * `SESSION_ARCHIVED` - Grading session archived
         * `SESSION_RESTORED` - Grading session restored from the archive
+        * `RECORDS_DOWNLOADED` - Grading records downloaded
+        * `SUMMARY_DOWNLOADED` - Grading summary downloaded
+        * `GRADING_SHEETS_PRINTED` - Grading sheets printed
         * `CANDIDATE_REGISTERED` - Candidate registered
         * `CANDIDATE_UPDATED` - Candidate updated
         * `CANDIDATE_WITHDRAWN` - Candidate withdrawn
@@ -4091,6 +4197,21 @@ components:
       - can_complete
       - categories
       - overall
+    CandidateExportRequest:
+      type: object
+      description: 'POST sessions/<id>/exports/records/: the candidates a file holds.'
+      properties:
+        candidates:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: 'The candidates to include, all registered in this session,
+            all or nothing: a refusal is keyed by candidate id. The file lists them
+            in the grading''s order, whatever order they are given in.'
+          maxItems: 60
+      required:
+      - candidates
     CandidateOutcome:
       type: object
       properties:
@@ -4738,6 +4859,16 @@ components:
           readOnly: true
           description: 'Whether the candidate''s assessment form can be prepared now:
             they have none, are not withdrawn, and the session is draft or open.'
+        can_download_record:
+          type: boolean
+          readOnly: true
+          description: 'Whether this candidate''s record can be downloaded as a PDF:
+            their assessment is sealed.'
+        can_print_grading_sheet:
+          type: boolean
+          readOnly: true
+          description: 'Whether a grading sheet can be printed for this candidate:
+            they are not withdrawn and the session is a draft or open.'
       required:
       - age_band_display
       - assessment
@@ -4746,7 +4877,9 @@ components:
       - can_be_moved
       - can_be_removed
       - can_be_withdrawn_after_lock
+      - can_download_record
       - can_prepare_assessment
+      - can_print_grading_sheet
       - from_rank
       - from_rank_name
       - id
@@ -4972,6 +5105,16 @@ components:
           type: boolean
           readOnly: true
           description: Whether the viewer may restore this archived session.
+        can_download_summary:
+          type: boolean
+          readOnly: true
+          description: 'Whether the session''s summary can be downloaded as a PDF:
+            it is locked (provisional) or completed (final).'
+        can_print_grading_sheets:
+          type: boolean
+          readOnly: true
+          description: 'Whether grading sheets can be printed for its candidates:
+            the session is a draft or open.'
       required:
       - archived_at
       - awaiting_decision_count
@@ -4980,8 +5123,10 @@ components:
       - can_be_restored
       - can_cancel
       - can_complete
+      - can_download_summary
       - can_lock
       - can_open
+      - can_print_grading_sheets
       - cancel_reason_required
       - candidate_count
       - completed_assessment_count

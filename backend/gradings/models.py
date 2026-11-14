@@ -193,6 +193,26 @@ class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
         return super().delete()
 
 
+def candidate_order(path: str = "") -> list[str]:
+    """How a grading's candidates are listed: the one statement of it.
+
+    Grading by grading (two on one date stay apart), then as they line up on
+    the mat - the lowest rank held at the front, seniors at the back - then by
+    name. `path` reaches the candidate from another model ("candidate__").
+    """
+    return [
+        f"{path}{field}"
+        for field in (
+            "session__grading_date",
+            "session_id",
+            "from_rank__order",
+            "student__last_name",
+            "student__first_name",
+            "id",
+        )
+    ]
+
+
 CANDIDATE_STUDENT_FIXED_MESSAGE = (
     "A registration's student cannot be changed. Remove the candidate and "
     "register the right student instead."
@@ -284,11 +304,7 @@ class GradingCandidate(models.Model):
     objects = GradingCandidateQuerySet.as_manager()
 
     class Meta:
-        ordering = [
-            "session__grading_date",
-            "student__last_name",
-            "student__first_name",
-        ]
+        ordering = candidate_order()
         indexes = [
             models.Index(
                 fields=["session", "status"],
@@ -431,7 +447,7 @@ class CandidateAssessment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["candidate__session__grading_date", "candidate__student__last_name"]
+        ordering = candidate_order("candidate__")
         indexes = [
             models.Index(fields=["status"], name="cand_assess_status_idx"),
             models.Index(
@@ -591,11 +607,7 @@ class CandidateOutcome(KeptModel):
     )
 
     class Meta:
-        ordering = [
-            "candidate__session__grading_date",
-            "candidate__student__last_name",
-            "candidate__student__first_name",
-        ]
+        ordering = candidate_order("candidate__")
         indexes = [
             models.Index(fields=["status"], name="cand_outcome_status_idx"),
             models.Index(

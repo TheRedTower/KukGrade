@@ -11,14 +11,28 @@ interface SessionActionsMenuProps {
   user: AuthUser | null;
   menu: ReturnType<typeof useActionsMenu>;
   onAction: (action: SessionAction) => void;
+  /** Download the summary; the menu stays open, saying so, until the file is made. */
+  onDownloadSummary: () => void;
+  preparingSummary: boolean;
 }
 
-function MenuItem({ danger, onClick, children }: { danger?: boolean; onClick: () => void; children: string }) {
+function MenuItem({
+  danger,
+  disabled,
+  onClick,
+  children,
+}: {
+  danger?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: string;
+}) {
   return (
     <button
       type="button"
       role="menuitem"
       className={cx("gsd-dropdown-item", danger && "gsd-danger-text")}
+      disabled={disabled}
       onClick={onClick}
     >
       {children}
@@ -27,7 +41,14 @@ function MenuItem({ danger, onClick, children }: { danger?: boolean; onClick: ()
 }
 
 /** What this viewer may still do to the session, as a menu under one button. */
-export function SessionActionsMenu({ session, user, menu, onAction }: SessionActionsMenuProps) {
+export function SessionActionsMenu({
+  session,
+  user,
+  menu,
+  onAction,
+  onDownloadSummary,
+  preparingSummary,
+}: SessionActionsMenuProps) {
   const { open, setOpen, menuRef, buttonRef, panelRef, onMenuKeyDown } = menu;
 
   return (
@@ -66,6 +87,11 @@ export function SessionActionsMenu({ session, user, menu, onAction }: SessionAct
             >
               View history
             </Link>
+          )}
+          {session.can_download_summary && (
+            <MenuItem disabled={preparingSummary} onClick={onDownloadSummary}>
+              {preparingSummary ? "Preparing PDF…" : "Download summary (PDF)"}
+            </MenuItem>
           )}
           {session.can_be_archived && <MenuItem onClick={() => onAction("ARCHIVE")}>Archive session</MenuItem>}
           {session.can_be_restored && <MenuItem onClick={() => onAction("RESTORE")}>Restore from archive</MenuItem>}

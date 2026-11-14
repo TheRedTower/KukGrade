@@ -7,6 +7,7 @@ import {
   GradingSession,
   archiveGradingSession,
   deleteGradingSession,
+  downloadSessionSummary,
   restoreGradingSession,
   errorMessage,
   getAllGradingCandidates,
@@ -37,6 +38,8 @@ import {
 } from "./sessionDetail";
 import { useActionsMenu } from "./useActionsMenu";
 import { useCandidateWork } from "./useCandidateWork";
+import { usePdfDownload } from "./pdfDownloads";
+import { PdfDownloadNotice } from "./PdfDownloadNotice";
 import { counted } from "./plural";
 
 export function GradingSessionDetailScreen(): React.ReactElement {
@@ -82,7 +85,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       currentUser?.can_read_audit_log ||
       session.can_be_deleted ||
       session.can_be_archived ||
-      session.can_be_restored),
+      session.can_be_restored ||
+      session.can_download_summary),
   );
   // Finishing a session can take the menu's button away with focus still on it.
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -146,6 +150,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     updateSessionMutation.isPending || deleteSessionMutation.isPending || archiveMutation.isPending;
 
   const work = useCandidateWork(sessionId, { setError: setActionError, setMessage: setActionMessage });
+  // One PDF at a time from this page: the chosen candidates' or the summary.
+  const download = usePdfDownload();
 
   const enrichedCandidates = useMemo(
     () => enrichCandidates(candidatesQuery.data?.results ?? []),
@@ -259,7 +265,21 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               </Link>
             )}
             {hasSessionActions && (
-              <SessionActionsMenu session={session} user={currentUser} menu={menu} onAction={handleAction} />
+              <SessionActionsMenu
+                session={session}
+                user={currentUser}
+                menu={menu}
+                onAction={handleAction}
+                preparingSummary={download.isPending}
+                onDownloadSummary={() =>
+                  download.mutate(() => downloadSessionSummary(session.id), {
+                    onSettled: () => {
+                      menu.setOpen(false);
+                      menu.buttonRef.current?.focus();
+                    },
+                  })
+                }
+              />
             )}
             {session.roster_open && (
               <Link
@@ -280,6 +300,17 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           {actionMessage}
         </Alert>
       )}
+
+      <PdfDownloadNotice
+        download={download}
+        nameOf={(candidateId) =>
+          enrichedCandidates.find((item) => item.candidate.id === candidateId)?.candidate.student_display_name
+        }
+        onRefresh={() => {
+          void queryClient.invalidateQueries({ queryKey: keys.gradingSessions.detail(sessionId) });
+          void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.session(sessionId) });
+        }}
+      />
 
       {session.archived_at && (
         <Alert tone="info" data-testid="gsd-archived-note">
@@ -329,6 +360,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           setActionError(null);
           work.attendance.setOpen(true);
         }}
+        download={download}
       />
 
       <SessionNotes

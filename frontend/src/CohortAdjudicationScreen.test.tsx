@@ -85,6 +85,8 @@ const lockedSession: GradingSession = {
   archived_at: null,
   can_be_archived: false,
   can_be_restored: false,
+  can_download_summary: false,
+  can_print_grading_sheets: false,
   grading_date: "2026-11-12",
   location: "Riverside",
   notes: "",
@@ -237,6 +239,8 @@ const servedRoster = cohort.map((row): GradingCandidateRoster => {
     can_be_marked_absent: false,
     can_prepare_assessment: false,
     can_be_finalised: found?.status === "PROPOSED",
+    can_download_record: true,
+    can_print_grading_sheet: false,
   };
 });
 // The board asks for the candidates still being graded (withdrawn=false).

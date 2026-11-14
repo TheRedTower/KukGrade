@@ -2,7 +2,15 @@ import { mkdir, rmdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { type APIRequestContext, type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Page,
+  type Request,
+  expect,
+  test,
+} from "@playwright/test";
 
 import { findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
 import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
@@ -147,45 +155,66 @@ let ids: Ids;
 async function signIn(browser: Browser, role: Role): Promise<BrowserContext> {
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto("/login");
+  await show(page, "/login");
   await page.getByRole("button", { name: new RegExp(`Sign in as ${role}`, "i") }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
   await page.close();
   return context;
 }
 
-/** The requests each page has sent and not yet had an answer to. */
-const inFlight = new WeakMap<Page, Set<unknown>>();
+/**
+ * Opens a screen and returns once the server has answered the address, not
+ * once every picture and font has arrived ("load"): WebKit on Linux now and
+ * then loses one of those requests, and the page then never reaches "load"
+ * although the screen is whole. What the screen shows is waited for after
+ * (its heading, then `settled`).
+ */
+async function show(page: Page, path: string): Promise<void> {
+  await page.goto(path, { waitUntil: "commit" });
+}
+
+/** The data requests (`/api/`) each page has sent and not yet had an answer to. */
+const inFlight = new WeakMap<Page, Set<Request>>();
 
 async function trackedPage(role: Role): Promise<Page> {
   const page = await contexts.get(role)!.newPage();
-  const open = new Set<unknown>();
+  const open = new Set<Request>();
   inFlight.set(page, open);
-  page.on("request", (request) => open.add(request));
-  page.on("requestfinished", (request) => open.delete(request));
-  page.on("requestfailed", (request) => open.delete(request));
+  const done = (request: Request) => open.delete(request);
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.startsWith("/api/")) open.add(request);
+  });
+  // The answer's arrival is enough: WebKit sometimes never reports a request
+  // as finished, though its answer is on the screen.
+  page.on("response", (response) => done(response.request()));
+  page.on("requestfinished", done);
+  page.on("requestfailed", done);
   return page;
 }
 
 /**
- * Waits until the screen has drawn what it loads: no loading line, no request
- * still waiting for its answer (some screens fill in without a loading line),
- * and the same two frames later, since an answer can start the next request.
- * Then its fonts. Waiting for the network to fall silent instead cost half a
- * second on every load.
+ * Waits until the screen shows what it loads: no loading line, every data
+ * request answered (some screens fill in without a loading line), and the
+ * same two frames later, since an answer can start the next request. Then its
+ * fonts. Pictures, scripts and styles are not counted one by one: the heading
+ * is already drawn, and the fonts are checked themselves. A wait that runs out
+ * names what the screen is still waiting for.
  */
 async function settled(page: Page): Promise<void> {
   const open = inFlight.get(page)!;
+  const waitingFor = () => [...open].map((request) => new URL(request.url()).pathname + new URL(request.url()).search);
   const loading = page.locator(".loading-state");
   for (;;) {
-    await expect(loading).toHaveCount(0);
-    await expect.poll(() => open.size, { intervals: [10] }).toBe(0);
+    await expect(loading, "the screen still shows a loading line").toHaveCount(0);
+    await expect
+      .poll(waitingFor, { intervals: [10], message: "the screen is still waiting for these answers" })
+      .toEqual([]);
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     if (open.size === 0 && (await loading.count()) === 0) break;
   }
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await expect
+    .poll(() => page.evaluate(() => document.fonts.status), { message: "the screen's fonts are still loading" })
+    .toBe("loaded");
 }
 
 async function list(request: APIRequestContext, path: string): Promise<Record<string, unknown>[]> {
@@ -222,7 +251,7 @@ test.beforeAll(async ({ browser }) => {
 test("the edit-student dialog can be scrolled to Save on a short landscape screen", async () => {
   const page = await contexts.get("administrator")!.newPage();
   await page.setViewportSize({ width: 667, height: 320 });
-  await page.goto(`/students/${ids.student}`);
+  await show(page, `/students/${ids.student}`);
   await page.getByRole("button", { name: "Edit student", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.waitFor();
@@ -242,7 +271,7 @@ test("an import step's Cancel and Continue stack on a phone and share a row with
     [1400, true],
   ] as const) {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("/imports/new?kind=STUDENT_ROSTER");
+    await show(page, "/imports/new?kind=STUDENT_ROSTER");
     const cancel = page.getByRole("button", { name: "Cancel import" });
     const next = page.getByRole("button", { name: /^Continue to match/ });
     await next.waitFor();
@@ -301,7 +330,7 @@ async function tapAndStage(page: Page): Promise<void> {
   // An iPad mini on its side (cards, the focus pane under them) and a desktop (table rows).
   for (const width of [1133, 1440]) {
     await page.setViewportSize({ width, height: 744 });
-    await page.goto(`/gradings/${ids.sessions.LOCKED}/decisions`);
+    await show(page, `/gradings/${ids.sessions.LOCKED}/decisions`);
     const rows = page.locator("[data-testid^=cab-row-]");
     await rows.nth(1).waitFor();
     const row = rows.nth(1);
@@ -336,7 +365,7 @@ test("a record's back link returns to the page it was opened from, and to the pa
   const page = await contexts.get("master")!.newPage();
   await page.setViewportSize({ width: 1133, height: 744 });
   const board = `/gradings/${ids.sessions.LOCKED}/decisions`;
-  await page.goto(board);
+  await show(page, board);
   const title = (await page.getByRole("heading", { level: 1 }).textContent())!;
   await page.evaluate(() => scrollTo(0, 300));
   await page.getByRole("link", { name: "Open the full assessment record" }).click();
@@ -351,7 +380,7 @@ test("a record's back link returns to the page it was opened from, and to the pa
   await expect(page.locator(".back-link")).not.toHaveText(/record/i);
 
   // Opened directly, the record goes back to its scoring page, as before.
-  await page.goto(`/gradings/${ids.sessions.COMPLETED}/assessments/${ids.completedCandidate}/review`);
+  await show(page, `/gradings/${ids.sessions.COMPLETED}/assessments/${ids.completedCandidate}/review`);
   await expect(page.locator(".back-link")).toHaveText("Back to scoring");
   await page.close();
 });
@@ -361,7 +390,7 @@ for (const path of ["/", "/students", "/gradings"]) {
     const page = await contexts.get("master")!.newPage();
     for (const width of [390, 768]) {
       await page.setViewportSize({ width, height: 844 });
-      await page.goto(path);
+      await show(page, path);
       await page.getByRole("heading", { level: 1 }).waitFor();
       const left = (selector: string) =>
         page
@@ -386,7 +415,7 @@ for (const screen of SCREENS) {
     for (const width of widths) {
       await page.setViewportSize({ width, height: 844 });
       const path = screen.path(ids);
-      await page.goto(path);
+      await show(page, path);
       await page.getByRole("heading").first().waitFor();
       // A redirect or a not-found page would fit and prove nothing.
       expect(new URL(page.url()).pathname, "the screen was not shown").toBe(path.split("?")[0]);

@@ -151,6 +151,8 @@ def facts(rows: Sequence[tuple[str, object]], label_width: float = 38 * mm) -> T
         [[paragraph(label, LABEL), paragraph(value)] for label, value in rows],
         colWidths=[label_width, WIDTH - label_width],
         hAlign="LEFT",
+        # A note longer than a page runs on to the next one.
+        splitInRow=1,
     )
     table.setStyle(
         TableStyle(

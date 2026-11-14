@@ -231,6 +231,52 @@ def test_a_withdrawn_candidates_record_says_so_and_why() -> None:
     assert "No final decision recorded" in printed
 
 
+def test_a_core_areas_comments_and_changed_marks_are_printed_too() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = sealed(session)
+    core = (
+        CandidateAssessmentItem.objects.filter(
+            assessment__candidate=built, category__in=CORE_CATEGORIES
+        )
+        .order_by("position")
+        .first()
+    )
+    assert core is not None
+    coach = staff("core-coach@x.org")
+    add_item_comment(core, "Bowed late but kept good etiquette.", coach)
+    # As for any requirement, the first recorded change is the mark itself.
+    for result, reason in (
+        (CandidateAssessmentItem.Result.NOT_MET, "Forgot to bow out."),
+        (CandidateAssessmentItem.Result.MET, "Bowed out properly on the retry."),
+    ):
+        update_candidate_assessment_item(
+            core, result=result, reason=reason, assessor=coach
+        )
+
+    printed = pdf_text(download(session, [built.pk]).content)
+
+    assert "“Bowed late but kept good etiquette.”" in printed
+    assert "Changed from Not met to Met: “Bowed out properly on the retry.”" in printed
+
+
+def test_a_note_longer_than_a_page_runs_on() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = sealed(session)
+    lock(session)
+    withdraw_locked_candidate(
+        built,
+        GradingCandidate.WithdrawalReason.INJURY,
+        "\n".join(f"Line {n} of a very long note." for n in range(120)),
+        user("long-note@x.org", is_superuser=True),
+    )
+
+    response = download(session, [built.pk])
+
+    assert response.status_code == 200
+    printed = pdf_text(response.content)
+    assert "Line 0 of" in printed and "Line 119 of" in printed
+
+
 def test_a_record_with_nothing_written_says_so_in_words() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
     built = sealed(session)

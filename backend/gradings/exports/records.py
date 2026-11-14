@@ -17,8 +17,9 @@ from typing import Any
 from django.conf import settings
 from django.db.models import Prefetch, QuerySet
 from django.utils import timezone
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import Flowable, Paragraph, Table, TableStyle
+from reportlab.platypus import Flowable, KeepTogether, Paragraph, Table, TableStyle
 
 from accounts.models import User
 from accounts.people import named
@@ -196,6 +197,7 @@ def _part(
         story += [
             pdf.paragraph("Core grading areas", pdf.HEADING),
             _core_table(core),
+            *_core_remarks(core),
         ]
     story += [pdf.gap(1.5 * mm), pdf.paragraph(_counts(assessment), pdf.NOTE)]
     for heading, group in _ledgers(items):
@@ -348,6 +350,30 @@ def _core_table(core: list[CandidateAssessmentItem]) -> Table:
         ),
     )
     return table
+
+
+_REMARK = ParagraphStyle("remark", parent=pdf.SMALL, leftIndent=10)
+
+
+def _core_remarks(core: list[CandidateAssessmentItem]) -> list[Flowable]:
+    """Every comment and changed mark on a core area, under the core table:
+    the record screen lists them as it does any other requirement's."""
+    story: list[Flowable] = []
+    for item in core:
+        remarks = _remark_list(item)
+        if not remarks:
+            continue
+        story += [
+            pdf.gap(1.5 * mm),
+            KeepTogether(
+                [
+                    _requirement(item),
+                    pdf.paragraph(_remark_text(remarks[0]), _REMARK),
+                ]
+            ),
+            *(pdf.paragraph(_remark_text(remark), _REMARK) for remark in remarks[1:]),
+        ]
+    return story
 
 
 def _ledgers(

@@ -2,7 +2,7 @@
 
 <img src="docs/assets/logo.png" alt="KukGrade" width="360">
 
-### Grading management for Kuk Sool Won schools
+### Grading management for Kuk Sool Won of Colchester
 
 Plan a grading, assess every candidate against the syllabus, record the Master's
 decision, and promote students, with a permanent audit trail behind every step.
@@ -50,6 +50,7 @@ and shows who decided what.
 | **Grading sessions** | Draft → Open → Locked → Completed, with a cohort builder that registers a whole mixed-belt group in one step |
 | **Assessment** | Item-level *Met / Not met* with comments, results rolled up by category, attendance confirmed in bulk |
 | **Decisions** | Instructor proposals, a Master's decision board, Pass / Fail / Conditional, then promotion with permanent rank history |
+| **PDFs to print** | Candidate records, a session summary and blank grading sheets, as A4 pages made by the server |
 | **Students** | Records, status (active, inactive, left), school and national IDs, and one timeline of every grading |
 | **Syllabus** | WKSA charts for the ranks up to Jo Kyo Nim and every age band, held as data, never hard-coded |
 | **Import** | Bring in an existing roster, and past gradings from an old spreadsheet, with a guided review |
@@ -72,7 +73,7 @@ cp .env.example .env
 There is no `latest` image until the first stable release, so set the `image:` line in
 `deploy/compose.yml` to the newest release candidate under
 [Releases](https://github.com/TheRedTower/KukGrade/releases) (for example
-`ghcr.io/theredtower/kukgrade:0.2.0-rc.11`). Then start it; the first run pulls the image,
+`ghcr.io/theredtower/kukgrade:0.2.0-rc.12`). Then start it; the first run pulls the image,
 which takes a minute or two:
 
 ```sh
@@ -146,6 +147,8 @@ flowchart LR
 | [Configuration](docs/configuration.md) | Every setting |
 | [Features](docs/features.md) | What it does, and who can do what |
 | [Importing data](docs/importing-data.md) | Rosters and historical gradings |
+| [Demo site](docs/demo.md) | Run a public demo with made-up data |
+| [Privacy](docs/privacy.md) | Personal data, and erasing a student's details from the audit log |
 | [API](docs/api.md) | The HTTP API and its OpenAPI schema |
 | [Architecture](docs/architecture.md) | How it is built |
 | [Development](docs/development.md) | Run from source, run the tests |

@@ -45,6 +45,7 @@ and shows who decided what.
 
 ## Features
 
+<!-- prettier-ignore -->
 | | |
 | --- | --- |
 | **Grading sessions** | Draft → Open → Locked → Completed, with a cohort builder that registers a whole mixed-belt group in one step |
@@ -124,7 +125,7 @@ Pangolin: see the [installation guide](docs/installation.md). Every setting is i
   </tr>
 </table>
 
-*All data shown is made up.*
+_All data shown is made up._
 
 ## How a grading flows
 
@@ -141,18 +142,18 @@ flowchart LR
 
 ## Documentation
 
-| | |
-| --- | --- |
-| [Installation](docs/installation.md) | Run it, put it on the internet, back it up, update it |
-| [Configuration](docs/configuration.md) | Every setting |
-| [Features](docs/features.md) | What it does, and who can do what |
-| [Importing data](docs/importing-data.md) | Rosters and historical gradings |
-| [Demo site](docs/demo.md) | Run a public demo with made-up data |
-| [Privacy](docs/privacy.md) | Personal data, and erasing a student's details from the audit log |
-| [API](docs/api.md) | The HTTP API and its OpenAPI schema |
-| [Architecture](docs/architecture.md) | How it is built |
-| [Development](docs/development.md) | Run from source, run the tests |
-| [Roadmap](docs/roadmap.md) | What is coming, and what is not |
+|                                          |                                                                   |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| [Installation](docs/installation.md)     | Run it, put it on the internet, back it up, update it             |
+| [Configuration](docs/configuration.md)   | Every setting                                                     |
+| [Features](docs/features.md)             | What it does, and who can do what                                 |
+| [Importing data](docs/importing-data.md) | Rosters and historical gradings                                   |
+| [Demo site](docs/demo.md)                | Run a public demo with made-up data                               |
+| [Privacy](docs/privacy.md)               | Personal data, and erasing a student's details from the audit log |
+| [API](docs/api.md)                       | The HTTP API and its OpenAPI schema                               |
+| [Architecture](docs/architecture.md)     | How it is built                                                   |
+| [Development](docs/development.md)       | Run from source, run the tests                                    |
+| [Roadmap](docs/roadmap.md)               | What is coming, and what is not                                   |
 
 ## Built with
 

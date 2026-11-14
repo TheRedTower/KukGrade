@@ -55,6 +55,7 @@ exists. A restart issues a new setup code only while no administrator exists.
 
 Everything is configured in `deploy/.env`. The three you should look at first:
 
+<!-- prettier-ignore -->
 | Setting | What to put |
 | --- | --- |
 | `DJANGO_ALLOWED_HOSTS` | The name people type to reach KukGrade, with no scheme or port (`grading.example.org`). |
@@ -71,6 +72,7 @@ With no extra setup the app serves HTTPS itself on port 6942 using a certificate
 it makes for itself. It encrypts the connection but browsers warn about it, so
 for real use put something in front, or bring a real certificate.
 
+<!-- prettier-ignore -->
 | File (in `deploy/`) | Who handles HTTPS | Open on the host | Set in `.env` |
 | --- | --- | --- | --- |
 | `compose.yml` | The app (self-signed, or your own certificate) | 6942 | nothing |
@@ -127,6 +129,7 @@ and `KUKGRADE_TLS_KEY=/var/lib/kukgrade/tls/your.key`.
 Everything is under `deploy/data/`, mounted into the container at
 `/var/lib/kukgrade`. There is no other data or config folder.
 
+<!-- prettier-ignore -->
 | Inside `data/` | What it holds | If you lose it |
 | --- | --- | --- |
 | `postgres/` | The database | Everything. Restore from a backup. |
@@ -250,6 +253,7 @@ checks it and records it. Account recovery is the one thing the admin can still 
 
 ## Troubleshooting
 
+<!-- prettier-ignore -->
 | Symptom | Likely cause |
 | --- | --- |
 | `grep "setup code"` prints nothing | An administrator already exists (setup is finished), or the container is still starting: `docker compose logs`. |

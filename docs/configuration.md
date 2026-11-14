@@ -6,6 +6,7 @@ are case-sensitive; a value left out uses the default shown.
 
 ## Your school
 
+<!-- prettier-ignore -->
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `KUKGRADE_CLUB_NAME` | `Kuk Sool Won` | The school's name, shown in the sidebar. |
@@ -14,6 +15,7 @@ are case-sensitive; a value left out uses the default shown.
 
 ## Reaching the app
 
+<!-- prettier-ignore -->
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated host names people use, without scheme or port. |
@@ -28,6 +30,7 @@ The app listens on port **6942**. To expose it on another host port, change the
 
 ## Secrets and accounts
 
+<!-- prettier-ignore -->
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `DJANGO_SECRET_KEY` | made on first start | A long random value that signs sessions. Leave it out and the image makes one and keeps it in `data/secret_key`. To choose your own: `python3 -c "import secrets; print(secrets.token_urlsafe(64))"`. |
@@ -39,6 +42,7 @@ By default the image runs its own PostgreSQL and none of these are needed. To us
 a PostgreSQL you already run, set `POSTGRES_HOST`; the container then starts no
 database of its own.
 
+<!-- prettier-ignore -->
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `POSTGRES_HOST` | unset (use the built-in database) | Host of your own PostgreSQL. |
@@ -49,6 +53,7 @@ database of its own.
 
 ## Imports
 
+<!-- prettier-ignore -->
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `KUKGRADE_UPLOAD_MAX_BYTES` | `5242880` (5 MiB) | Largest spreadsheet an import will accept. Also cap request size at your proxy, a little above this. |
@@ -58,6 +63,7 @@ database of its own.
 When `DJANGO_DEBUG` is off, each of these defaults to its secure value. They only
 need setting to opt out.
 
+<!-- prettier-ignore -->
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `DJANGO_SECURE_SSL_REDIRECT` | on | Redirect HTTP to HTTPS. |
@@ -72,6 +78,7 @@ need setting to opt out.
 
 The image sets these itself. Leave them alone unless you are running the app another way.
 
+<!-- prettier-ignore -->
 | Variable | Set to | Meaning |
 | --- | --- | --- |
 | `KUKGRADE_IMPORT_UPLOAD_ROOT` | `/var/lib/kukgrade/import_uploads` | Where uploaded spreadsheets wait for review. Part of the folder you back up. |
@@ -103,6 +110,7 @@ list.
 
 Only for [the demo site](demo.md). Leave these unset on a real install.
 
+<!-- prettier-ignore -->
 | Variable | Meaning |
 | --- | --- |
 | `KUKGRADE_DEMO_MODE` | `1` runs the image as the demo: builds a made-up club, publishes three shared accounts on the sign-in page, closes password changes, account changes and uploads, and wipes the club on a timer. It refuses to run on a database that holds any other account. Default off. |
@@ -110,6 +118,7 @@ Only for [the demo site](demo.md). Leave these unset on a real install.
 
 ## Development only
 
+<!-- prettier-ignore -->
 | Variable | Meaning |
 | --- | --- |
 | `DJANGO_DEBUG` | `true` for local development. Defaults to `false`; with it off, a missing secret key stops the app from starting rather than falling back to a known one. |

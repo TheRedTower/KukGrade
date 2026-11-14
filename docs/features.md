@@ -248,6 +248,7 @@ ranks were kept show the name alone, and no audit event is rewritten. An account
 (created, changed, authority, password, deleted) name it the same way and keep its email
 address in their details.
 
+<!-- prettier-ignore -->
 | Capability                                                                     |            Instructor             | Administrator | Master permissions |
 | ------------------------------------------------------------------------------ | :-------------------------------: | :-----------: | :----------------: |
 | View ranks, syllabus, students, history                                        |                 ✓                 |       ✓       |                    |

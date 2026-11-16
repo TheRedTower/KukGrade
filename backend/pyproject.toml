@@ -21,7 +21,7 @@ dev = [
     "djangorestframework-stubs>=3.16,<4.0",
     "mypy>=1.18,<3.0",
     # Reads the text back out of the PDFs the exports make, in their tests.
-    "pypdf>=6.0,<7.0",
+    "pypdf>=6.0,<8.0",
     # Held below 9.2: pytest-xdist 3.8.0 (the newest) cannot group tests under
     # pytest 9.2, so demo/test_club.py would build its club on every worker. Lift
     # with the Dependabot ignore once a newer pytest-xdist is out.

@@ -12,6 +12,7 @@ import {
   test,
 } from "@playwright/test";
 
+import type { GradingCandidateRoster } from "../src/api";
 import { findChoicesLostOnHover, findCoveredBars, findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
 import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
 
@@ -237,7 +238,9 @@ async function settled(page: Page): Promise<void> {
     .toBe("loaded");
 }
 
-async function list(request: APIRequestContext, path: string): Promise<Record<string, unknown>[]> {
+// What a row holds is named by the caller from the generated contract, never
+// written out here.
+async function list<Row = Record<string, unknown>>(request: APIRequestContext, path: string): Promise<Row[]> {
   const response = await request.get(path);
   expect(response.ok(), path).toBe(true);
   const body = await response.json();
@@ -255,13 +258,11 @@ test.beforeAll(async ({ browser }) => {
     sessions[String(session.status)] ??= String(session.id);
   }
   const open = sessions.OPEN;
-  const candidates = await list(master, `/api/gradings/candidates/?session=${open}`);
+  const candidates = await list<GradingCandidateRoster>(master, `/api/gradings/candidates/?session=${open}`);
   const completed = await list(master, `/api/gradings/candidates/?session=${sessions.COMPLETED}`);
-  type Marked = { marks_open: boolean; overall: { met: number; not_met: number } } | null;
-  const marking = candidates.find((candidate) => {
-    const assessment = candidate.assessment as Marked;
-    return assessment?.marks_open && assessment.overall.met > 0 && assessment.overall.not_met > 0;
-  });
+  const marking = candidates.find(
+    ({ assessment }) => assessment?.marks_open && assessment.overall.met > 0 && assessment.overall.not_met > 0,
+  );
   const withdrawn = candidates.find((candidate) => candidate.status === "WITHDRAWN");
   expect(marking, "the demo has a candidate being marked, with a Met and a Not met").toBeTruthy();
   expect(withdrawn, "the demo has a withdrawn candidate in its open session").toBeTruthy();

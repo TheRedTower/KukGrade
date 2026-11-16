@@ -292,3 +292,117 @@ export async function findLayoutFaults(page: Page): Promise<string[]> {
     return out;
   });
 }
+
+/**
+ * A bar kept at the foot of the window (`position: sticky; bottom: 0`, or
+ * fixed) with something else drawn over it: a control from the page showing
+ * through the bar, as a row's buttons once did on the decision board. The page
+ * is scrolled from top to bottom, since what passes under the bar changes, and
+ * left at the top. A dialog or a menu opened over the bar is meant to cover it.
+ */
+export async function findCoveredBars(page: Page): Promise<string[]> {
+  return page.evaluate(async () => {
+    const label = (el: Element): string => {
+      const cls = [...el.classList]
+        .slice(0, 2)
+        .map((c) => `.${c}`)
+        .join("");
+      const text = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 32);
+      return `${el.tagName.toLowerCase()}${cls}${text ? ` "${text}"` : ""}`;
+    };
+    const bars = [...document.body.querySelectorAll<HTMLElement>("*")].filter((el) => {
+      const style = getComputedStyle(el);
+      const pinned = style.position === "fixed" || (style.position === "sticky" && style.bottom === "0px");
+      return pinned && !el.closest(".dialog-backdrop, [role=menu], .nav-rail") && el.getBoundingClientRect().height > 0;
+    });
+    const found = new Set<string>();
+    if (bars.length === 0) return [];
+    const frame = () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    const step = Math.max(100, Math.floor(window.innerHeight / 3));
+    for (let top = 0; top <= document.documentElement.scrollHeight; top += step) {
+      window.scrollTo(0, top);
+      await frame();
+      for (const bar of bars) {
+        const box = bar.getBoundingClientRect();
+        const [left, right] = [Math.max(box.left, 0), Math.min(box.right, window.innerWidth)];
+        const [above, below] = [Math.max(box.top, 0), Math.min(box.bottom, window.innerHeight)];
+        if (right - left < 8 || below - above < 8) continue;
+        for (let across = 1; across < 16; across++) {
+          for (let down = 1; down < 4; down++) {
+            const hit = document.elementFromPoint(
+              left + ((right - left) * across) / 16,
+              above + ((below - above) * down) / 4,
+            );
+            if (!hit || bar.contains(hit) || hit.contains(bar) || hit.closest(".dialog-backdrop, [role=menu]"))
+              continue;
+            found.add(`drawn over the bar at the foot of the window (${label(bar).slice(0, 24)}): ${label(hit)}`);
+          }
+        }
+      }
+    }
+    window.scrollTo(0, 0);
+    await frame();
+    return [...found].slice(0, 6);
+  });
+}
+
+/**
+ * A chosen control that stops looking chosen under the pointer: a pressed
+ * button, one that carries a tone (a mark, an outcome), the current page's
+ * link or a ticked choice whose text colour changes on hover, or whose fill or
+ * border is replaced. A touch screen leaves the pointer on a button after a
+ * tap, so a hover that wins hides the choice just made until the next touch,
+ * as it once did for Met and Not met. One of each kind of control is tried.
+ */
+export async function findChoicesLostOnHover(page: Page): Promise<string[]> {
+  const out: string[] = [];
+  const chosen = page.locator(
+    'button[aria-pressed="true"], button[data-tone], a[data-tone], a[aria-current], [role="tab"][aria-selected="true"], label:has(input:checked)',
+  );
+  const look = (el: Element) => {
+    const style = getComputedStyle(el);
+    // No colour at all: rgba(…, 0), or the newer "… / 0)".
+    const clear = (colour: string) => colour === "transparent" || /^rgba\([^)]*,\s*0\)$|\/\s*0\)$/.test(colour);
+    return {
+      text: style.color,
+      // A wash that appears on a control with no fill of its own is the hover saying "here".
+      fill: clear(style.backgroundColor) ? "" : style.backgroundColor,
+      border: parseFloat(style.borderTopWidth) > 0 && !clear(style.borderTopColor) ? style.borderTopColor : "",
+    };
+  };
+  // Read once it has stopped changing: colours ease over `--duration`.
+  const settledLook = async (index: number) => {
+    let last = "";
+    for (let tries = 0; tries < 20; tries++) {
+      const now = JSON.stringify(await chosen.nth(index).evaluate(look));
+      if (now === last) break;
+      last = now;
+      await page.waitForTimeout(120);
+    }
+    return JSON.parse(last) as ReturnType<typeof look>;
+  };
+  const seen = new Set<string>();
+  const count = Math.min(await chosen.count(), 60);
+  for (let index = 0; index < count; index++) {
+    const control = chosen.nth(index);
+    if (!(await control.isVisible()) || !(await control.isEnabled())) continue;
+    const kind = await control.evaluate(
+      (el) => `${el.tagName.toLowerCase()}.${[...el.classList].join(".")}${el.getAttribute("data-tone") ?? ""}`,
+    );
+    if (seen.has(kind)) continue;
+    seen.add(kind);
+    await page.mouse.move(0, 0);
+    const rest = await settledLook(index);
+    await control.scrollIntoViewIfNeeded();
+    await control.hover({ force: true });
+    if (!(await control.evaluate((el) => el.matches(":hover")))) continue;
+    const over = await settledLook(index);
+    const lost = (["text", "fill", "border"] as const).filter((part) => rest[part] !== "" && rest[part] !== over[part]);
+    if (lost.length > 0) {
+      const text = ((await control.textContent()) ?? "").trim().slice(0, 24);
+      out.push(`a chosen control loses its ${lost.join(" and ")} under the pointer: ${kind.slice(0, 60)} "${text}"`);
+    }
+  }
+  await page.mouse.move(0, 0);
+  return out;
+}

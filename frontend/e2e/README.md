@@ -41,6 +41,14 @@ button left in the browser's own colours, and a box that scrolls up and down ins
 one scroller; the sidebar beside it and a dialog over it are the exceptions), a row of `.tiles` that ends in a hole or an even set whose rows differ, and a `gap` on a box that is neither grid nor flex (its layout was lost). `layoutFaults.spec.ts` plants one of each, so a check that stops
 finding anything fails there.
 
+Two more checks need the page to move. `findCoveredBars` scrolls each screen from top to bottom and flags anything
+drawn over a bar kept at the foot of the window (a row's buttons showing through the bar). `findChoicesLostOnHover`
+puts the pointer on one of each kind of chosen control (a pressed button, a mark or outcome with a tone, the current
+page's link, a ticked choice) and flags one whose text colour, fill or border changes: a touch screen leaves the
+pointer on a button after a tap, so the choice just made would not show until the next touch. It runs once for each
+browser, at its widest. Both have a planted fault in `layoutFaults.spec.ts`. The `assessment` screen is a candidate
+being marked, with a Met and a Not met already made; `assessment-withdrawn` is the same page with every mark closed.
+
 What it cannot reproduce: Safari's address bar, the on-screen keyboard, safe areas, real touch scrolling, or
 iOS's own date control (Linux and Mac WebKit draw dates differently). Real-device checks stay in the release
 checklist. CI's fonts differ from a Mac's, so a result can differ there.

@@ -207,7 +207,8 @@
     color var(--duration) ease;
 }
 
-.caw-verdict:hover:not(:disabled) {
+/* Only a verdict not chosen: the chosen one keeps its colour under the pointer. */
+.caw-verdict:hover:not(:disabled, [data-tone]) {
   border-color: var(--color-text-muted);
   color: var(--color-text);
 }

@@ -28,6 +28,11 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: django-stubs
         update-types: ["version-update:semver-major"]
+      # djangorestframework-stubs 3.17 and later need django-stubs 6, held back
+      # with Django above, so the lockfile cannot be resolved and the whole
+      # weekly run is marked as failed. Lift together with django-stubs.
+      - dependency-name: djangorestframework-stubs
+        versions: [">=3.17"]
       # pytest-xdist 3.8.0 (the newest) cannot group tests under pytest 9.2, so
       # demo/test_club.py would build its club on every worker. Lift together
       # with the pin in pyproject.toml once a newer pytest-xdist is out.

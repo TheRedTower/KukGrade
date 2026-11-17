@@ -356,7 +356,8 @@ CI. Merge one once its checks are green.
   `backend/pyproject.toml` (then `uv lock`), `backend/.python-version`, `node:22-alpine`
   and `node-version` in `.github/workflows/ci.yml`, together.
 - Held back on purpose (ignored in the Dependabot config): Django 6 and django-stubs 6
-  (Django 5.2 is long-term support to 2028) and TypeScript 7 (`openapi-typescript` does
+  (Django 5.2 is long-term support to 2028), djangorestframework-stubs 3.17 and later
+  (they need django-stubs 6) and TypeScript 7 (`openapi-typescript` does
   not support it yet). Security updates are still taken.
 - An override in `frontend/package.json` lifts a package that a tool pins below its
   security fix. Today: `minimatch` 10 to 11 (GHSA-g3hv-75wg-m249), which ESLint and

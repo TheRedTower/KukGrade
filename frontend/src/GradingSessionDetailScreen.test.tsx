@@ -361,6 +361,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     can_be_withdrawn_after_lock: false,
     can_be_marked_absent: true,
     can_prepare_assessment: true,
+    prepare_assessment_blocked_by: null,
     can_be_finalised: false,
     can_download_record: false,
     can_print_grading_sheet: false,

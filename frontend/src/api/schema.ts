@@ -1946,6 +1946,8 @@ export interface components {
             readonly marks_open: boolean;
             /** @description Whether the assessment can be started now: not started, its candidate not withdrawn, and the session open. */
             readonly can_start: boolean;
+            /** @description Why a not-started assessment cannot be started now, as a sentence to show; null when it can be started, or already has been. */
+            readonly start_blocked_by: string | null;
             /** @description Whether the viewer may permanently delete this assessment: an administrator, while its candidate's final decision is not recorded. */
             readonly can_delete: boolean;
         };
@@ -2282,6 +2284,8 @@ export interface components {
             readonly can_be_marked_absent: boolean;
             /** @description Whether the candidate's assessment form can be prepared now: they have none, are not withdrawn, and the session is draft or open. */
             readonly can_prepare_assessment: boolean;
+            /** @description Why the candidate's assessment form cannot be prepared now, as a sentence to show; null when it can be, or they already have one. */
+            readonly prepare_assessment_blocked_by: string | null;
             /** @description Whether this candidate's record can be downloaded as a PDF: their assessment is sealed. */
             readonly can_download_record: boolean;
             /** @description Whether a grading sheet can be printed for this candidate: they are not withdrawn and the session is a draft or open. */

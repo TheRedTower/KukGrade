@@ -239,27 +239,27 @@ export function CandidateAssessmentScreen() {
 
       {actionError && <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>}
 
+      {/* When no form can be prepared, the server says why: the reason is not guessed here. */}
       {isAssessmentMissing && (
         <div className="action-row caw-not-started-banner" data-testid="caw-missing-assessment-banner">
           <div className="caw-not-started-content">
-            <h2>Prepare assessment form</h2>
+            <h2>{canPrepare ? "Prepare assessment form" : "No assessment form"}</h2>
             <p className="subtext">
-              Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as
-              it is today, so later changes to the syllabus never alter it.
+              {canPrepare
+                ? "Prepare the candidate\u2019s assessment form from the syllabus before starting. It keeps the syllabus as it is today, so later changes to the syllabus never alter it."
+                : candidate.prepare_assessment_blocked_by}
             </p>
           </div>
-          <Button
-            variant="primary"
-            onClick={() => generateAssessmentMutation.mutate(candidate.id)}
-            disabled={generateAssessmentMutation.isPending || !canPrepare}
-            data-testid="generate-assessment-btn"
-          >
-            {generateAssessmentMutation.isPending
-              ? "Preparing…"
-              : !canPrepare
-                ? "The form cannot be prepared now"
-                : "Prepare assessment form"}
-          </Button>
+          {canPrepare && (
+            <Button
+              variant="primary"
+              onClick={() => generateAssessmentMutation.mutate(candidate.id)}
+              disabled={generateAssessmentMutation.isPending}
+              data-testid="generate-assessment-btn"
+            >
+              {generateAssessmentMutation.isPending ? "Preparing…" : "Prepare assessment form"}
+            </Button>
+          )}
         </div>
       )}
 
@@ -271,27 +271,28 @@ export function CandidateAssessmentScreen() {
         </Alert>
       )}
 
-      {/* A generated snapshot is started separately once the session is open. */}
+      {/* A generated snapshot is started separately once the session is open.
+          When it cannot be, the server says why: the reason is not guessed here. */}
       {isAssessmentNotStarted && (
         <div className="action-row caw-not-started-banner" data-testid="caw-not-started-banner">
           <div className="caw-not-started-content">
-            <h2>Assessment ready to begin</h2>
+            <h2>{canStart ? "Assessment ready to begin" : "Assessment not started"}</h2>
             <p className="subtext">
-              Candidates must have their assessment started before individual syllabus items can be scored.
+              {canStart
+                ? "Candidates must have their assessment started before individual syllabus items can be scored."
+                : assessment.start_blocked_by}
             </p>
           </div>
-          <Button
-            variant="primary"
-            onClick={() => startAssessmentMutation.mutate()}
-            disabled={startAssessmentMutation.isPending || !canStart}
-            data-testid="start-assessment-btn"
-          >
-            {startAssessmentMutation.isPending
-              ? "Starting…"
-              : !canStart
-                ? "Session must be Open to start"
-                : "Start assessment"}
-          </Button>
+          {canStart && (
+            <Button
+              variant="primary"
+              onClick={() => startAssessmentMutation.mutate()}
+              disabled={startAssessmentMutation.isPending}
+              data-testid="start-assessment-btn"
+            >
+              {startAssessmentMutation.isPending ? "Starting…" : "Start assessment"}
+            </Button>
+          )}
         </div>
       )}
 

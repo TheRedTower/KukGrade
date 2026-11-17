@@ -3942,6 +3942,12 @@ components:
           readOnly: true
           description: 'Whether the assessment can be started now: not started, its
             candidate not withdrawn, and the session open.'
+        start_blocked_by:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Why a not-started assessment cannot be started now, as a sentence
+            to show; null when it can be started, or already has been.
         can_delete:
           type: boolean
           readOnly: true
@@ -3958,6 +3964,7 @@ components:
       - id
       - marks_open
       - overall
+      - start_blocked_by
       - started_at
       - status_display
     CandidateAssessmentItem:
@@ -4860,6 +4867,12 @@ components:
           readOnly: true
           description: 'Whether the candidate''s assessment form can be prepared now:
             they have none, are not withdrawn, and the session is draft or open.'
+        prepare_assessment_blocked_by:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Why the candidate's assessment form cannot be prepared now,
+            as a sentence to show; null when it can be, or they already have one.
         can_download_record:
           type: boolean
           readOnly: true
@@ -4886,6 +4899,7 @@ components:
       - id
       - next_action
       - outcome
+      - prepare_assessment_blocked_by
       - promotion
       - session
       - status

@@ -34,8 +34,10 @@
   cursor: pointer;
 }
 
-.demo-account:hover:not(:disabled) {
-  border-color: var(--color-info);
+@media (hover: hover) {
+  .demo-account:hover:not(:disabled) {
+    border-color: var(--color-info);
+  }
 }
 
 .demo-account:focus-visible {

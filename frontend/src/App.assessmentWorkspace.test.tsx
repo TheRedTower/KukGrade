@@ -1622,6 +1622,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     render(<App />);
 
     expect(await screen.findByTestId("caw-review-unavailable")).toBeVisible();
+    // The page says what it is and whose, though there is no record to proof yet.
+    expect(screen.getByRole("heading", { level: 1, name: "Assessment review" })).toBeVisible();
+    expect(screen.getByText("Alex Carter")).toBeVisible();
     expect(screen.getByText(/1 required item remains unassessed/)).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Assessment record" })).toBeNull();
     expect(screen.getByRole("link", { name: /Return to scoring/ })).toHaveAttribute(

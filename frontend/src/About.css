@@ -12,8 +12,10 @@
   color: var(--color-text);
 }
 
-.ab-rail a:hover {
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .ab-rail a:hover {
+    background: var(--color-surface-sunken);
+  }
 }
 
 .ab-rail a.active {
@@ -98,8 +100,10 @@
   margin-left: auto;
 }
 
-.st-links a:hover {
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .st-links a:hover {
+    background: var(--color-surface-sunken);
+  }
 }
 
 .st-links a:focus-visible {
@@ -155,8 +159,10 @@
   text-align: left;
 }
 
-.ab-contents button:hover {
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .ab-contents button:hover {
+    background: var(--color-surface-sunken);
+  }
 }
 
 /* Long text runs down the page: the page is the one thing that scrolls up and

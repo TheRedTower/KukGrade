@@ -143,7 +143,16 @@ serializers and the committed frontend types match the schema.
   Their look is in `controls.css`; a tone is a `data-tone` attribute, written once there for badges, marks and a chosen outcome alike, and the status colours (`--color-status-*`) are tokens in
   `theme.css`, with a dark value each. A button that carries a tone keeps it under the pointer: a
   hover that repaints a button leaves toned ones alone (`:hover:not(:disabled, [data-tone])`), since
-  a touch screen leaves the pointer on a button after a tap and the choice just made would not show.
+  the pointer is still on a button that was just pressed and the choice just made would not show.
+- **A hover style is only for a pointer that can hover.** Every `:hover` rule sits inside
+  `@media (hover: hover)`: a touch screen leaves `:hover` on whatever was tapped until the next
+  touch, so a row or a button would stay shaded as though it were chosen. The one hover written
+  outside is a selector paired with itself at rest (`.x, .x:hover`), which keeps a chosen look
+  under the pointer. What has the keyboard is styled with `:focus-visible`, never with the hover.
+- **No control is left in the browser's own blue.** Every input, select and text box takes the
+  theme's focus ring from one rule in `layout.css` (no weight, so a screen's own ring still wins),
+  and a radio, tick or progress bar the browser draws takes the theme's gold from `accent-color`
+  on the root in `App.css`. A screen sets neither again unless it means another tone.
 - **A link in running text is a plain `<Link>` or `<a>`, with no class.** `App.css` gives every
   unclassed link one look (the accent, underlined, the same once visited), and `layout.css`
   gives a name in a `ResponsiveTable` the cell's own colour with an accent underline and a
@@ -173,8 +182,9 @@ serializers and the committed frontend types match the schema.
   are in `layout.ts` and must match the CSS.
 - `layoutRules.test.ts` fails if a stylesheet adds `nowrap`, sideways scroll, a fixed
   `min-width`, a width query that is not at a breakpoint, a box that scrolls up and down
-  inside the page, a new `auto-fit` grid, a bar at the foot of the window with no layer, or a
-  button hover that repaints a toned button.
+  inside the page, a new `auto-fit` grid, a bar at the foot of the window with no layer, a
+  button hover that repaints a toned button, a hover outside `@media (hover: hover)`, or a
+  screen that repeats the root's accent colour.
 - **The page is the only scroller.** A box scrolling inside it traps a swipe and hides what
   is under it. A side panel stays in view with `.split__aside` and `stickyAside`; a bar at
   the foot of the window with `position: sticky; bottom: 0; z-index: var(--z-bar)` (and `footBar`

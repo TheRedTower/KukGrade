@@ -794,6 +794,18 @@ describe("CohortAdjudicationScreen", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("says how recording works in the page, and keeps the bar pinned to the window for its button", async () => {
+    renderBoard();
+
+    await screen.findByTestId("cab-row-1");
+    const note = screen.getByTestId("cab-recording-note");
+    expect(note).toHaveTextContent(/Decisions are recorded one candidate at a time/);
+    const bar = screen.getByTestId("cab-record-staged").closest(".cab-bar")!;
+    expect(bar).not.toContainElement(note);
+    // Nothing staged and nothing failed: the bar holds its one button and no words.
+    expect(bar.textContent).toBe("No decisions staged");
+  });
+
   it("offers no decision controls without Master authority", async () => {
     mockCurrentUser = { ...masterUser, can_make_final_grading_decision: false };
     renderBoard();
@@ -802,6 +814,7 @@ describe("CohortAdjudicationScreen", () => {
     expect(screen.getByText(/Final decisions are made by an authorised Master/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Pass" })).toBeNull();
     expect(screen.queryByTestId("cab-record-staged")).toBeNull();
+    expect(screen.queryByTestId("cab-recording-note")).toBeNull();
   });
 
   it("offers no decision controls until the session is locked", async () => {

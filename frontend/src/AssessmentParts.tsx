@@ -181,7 +181,7 @@ export function AssessmentItemRow({
         {(attribution || hasRemarks(item)) && (
           <div className="stack stack--1 caw-row-meta">
             {attribution && (
-              <span>
+              <span className="row row--inline row--1">
                 <PersonIcon size={12} />
                 {attribution}
               </span>

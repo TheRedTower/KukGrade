@@ -39,8 +39,10 @@
   box-shadow: var(--btn-primary-shadow);
 }
 
-.btn--primary:hover:not(:disabled) {
-  filter: brightness(1.07);
+@media (hover: hover) {
+  .btn--primary:hover:not(:disabled) {
+    filter: brightness(1.07);
+  }
 }
 
 .btn--secondary {
@@ -50,11 +52,13 @@
 }
 
 /* A button that carries a tone (a chosen mark, a chosen outcome) keeps it under
-   the pointer: no hover below repaints one. A touch screen leaves the pointer on
-   a button after a tap, so a hover that won would hide the choice just made
-   until the next touch. */
-.btn--secondary:hover:not(:disabled, [data-tone]) {
-  background: var(--color-surface-sunken);
+   the pointer: no hover below repaints one. The pointer is still on a button
+   that was just pressed, so a hover that won would hide the choice just made
+   until the pointer moved away. */
+@media (hover: hover) {
+  .btn--secondary:hover:not(:disabled, [data-tone]) {
+    background: var(--color-surface-sunken);
+  }
 }
 
 .btn--ghost {
@@ -63,9 +67,11 @@
   color: var(--color-text);
 }
 
-.btn--ghost:hover:not(:disabled, [data-tone]) {
-  border-color: var(--color-text-muted);
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .btn--ghost:hover:not(:disabled, [data-tone]) {
+    border-color: var(--color-text-muted);
+    background: var(--color-surface-sunken);
+  }
 }
 
 /* A button that stays down (aria-pressed): the choice in a row of choices.
@@ -82,8 +88,10 @@
   color: var(--color-danger);
 }
 
-.btn--danger-quiet:hover:not(:disabled, [data-tone]) {
-  background: var(--color-danger-surface);
+@media (hover: hover) {
+  .btn--danger-quiet:hover:not(:disabled, [data-tone]) {
+    background: var(--color-danger-surface);
+  }
 }
 
 /* Reads as a link, still a 44px target: for an action inside a sentence, a table cell or an
@@ -94,8 +102,10 @@
   color: var(--color-accent-text);
 }
 
-.btn--link:hover:not(:disabled) {
-  text-decoration: underline;
+@media (hover: hover) {
+  .btn--link:hover:not(:disabled) {
+    text-decoration: underline;
+  }
 }
 
 .btn--danger {
@@ -104,8 +114,10 @@
   color: var(--color-on-danger);
 }
 
-.btn--danger:hover:not(:disabled) {
-  filter: brightness(1.08);
+@media (hover: hover) {
+  .btn--danger:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
 }
 
 .btn--block {

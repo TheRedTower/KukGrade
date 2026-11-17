@@ -536,6 +536,14 @@ select:not([multiple]):not([size]) {
   text-align: left;
 }
 
+/* Every box that is typed in or chosen from takes the theme's ring when it
+   has the keyboard, never the browser's blue one. :where() gives it no weight,
+   so the field rule below and any screen's own still win. */
+:where(input, select, textarea):focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
 :where(.field input, .field select, .field textarea):focus {
   border-color: var(--color-gold-strong);
   outline: 2px solid var(--color-accent-strong);
@@ -639,8 +647,10 @@ select:not([multiple]):not([size]) {
   border-top: 0;
 }
 
-.rtable tbody tr:hover {
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .rtable tbody tr:hover {
+    background: var(--color-surface-sunken);
+  }
 }
 
 /* An editor opened from the row above it, across the table's width. */
@@ -1194,8 +1204,10 @@ select:not([multiple]):not([size]) {
   transition: transform var(--duration) ease;
 }
 
-.check input[type="checkbox"]:hover:not(:disabled) {
-  border-color: var(--color-gold-strong);
+@media (hover: hover) {
+  .check input[type="checkbox"]:hover:not(:disabled) {
+    border-color: var(--color-gold-strong);
+  }
 }
 
 .check input[type="checkbox"]:checked {
@@ -1205,11 +1217,6 @@ select:not([multiple]):not([size]) {
 
 .check input[type="checkbox"]:checked::before {
   transform: scale(1);
-}
-
-.check input[type="checkbox"]:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
 }
 
 .check input[type="checkbox"]:disabled {
@@ -1324,8 +1331,10 @@ select:not([multiple]):not([size]) {
   text-decoration: none;
 }
 
-.back-link:hover {
-  color: var(--color-text);
+@media (hover: hover) {
+  .back-link:hover {
+    color: var(--color-text);
+  }
 }
 
 /* Every page's title area: the way back, then the title and its subtitle,
@@ -1503,9 +1512,11 @@ select:not([multiple]):not([size]) {
   cursor: pointer;
 }
 
-.pager__buttons button:hover:not(:disabled) {
-  border-color: var(--color-border);
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .pager__buttons button:hover:not(:disabled) {
+    border-color: var(--color-border);
+    background: var(--color-surface-sunken);
+  }
 }
 
 .pager__buttons button.is-current {
@@ -1599,9 +1610,11 @@ select:not([multiple]):not([size]) {
   cursor: pointer;
 }
 
-.rail__arrow:hover:not([aria-disabled="true"]) {
-  border-color: var(--color-text-muted);
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .rail__arrow:hover:not([aria-disabled="true"]) {
+    border-color: var(--color-text-muted);
+    background: var(--color-surface-sunken);
+  }
 }
 
 .rail__arrow[aria-disabled="true"] {

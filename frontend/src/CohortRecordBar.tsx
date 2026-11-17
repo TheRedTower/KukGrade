@@ -16,7 +16,11 @@ interface CohortRecordBarProps {
   onRecord: (outcomeIds: number[]) => void;
 }
 
-/** The bar that records what is staged, and says what happened to the last attempt. */
+/**
+ * The bar that records what is staged, and says what happened to the last
+ * attempt. It is kept at the foot of the window, so it holds only what is
+ * needed there: how recording works is said once in the page, above the list.
+ */
 export function CohortRecordBar({
   stagedIds,
   failedIds,
@@ -29,10 +33,6 @@ export function CohortRecordBar({
 }: CohortRecordBarProps) {
   return (
     <footer className="cab-bar" ref={footBar}>
-      <p className="cab-bar-text meta">
-        Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest are
-        kept. What you stage is saved for you until it is recorded, even if you are signed out.
-      </p>
       {Object.keys(keepFailures).length > 0 && (
         <ErrorText field>
           {Object.values(keepFailures)[0]}{" "}

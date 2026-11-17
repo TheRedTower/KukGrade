@@ -113,8 +113,10 @@
   padding: var(--space-3) var(--space-4);
 }
 
-.bgc-successful-section > summary:hover {
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .bgc-successful-section > summary:hover {
+    background: var(--color-surface-sunken);
+  }
 }
 
 .bgc-accordion-count {

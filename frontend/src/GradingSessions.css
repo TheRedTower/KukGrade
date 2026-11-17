@@ -157,16 +157,20 @@
   min-height: var(--target-min);
 }
 
-.gsd-dropdown-item:hover {
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .gsd-dropdown-item:hover {
+    background: var(--color-surface-sunken);
+  }
 }
 
 .gsd-dropdown-item.gsd-danger-text {
   color: var(--color-danger);
 }
 
-.gsd-dropdown-item.gsd-danger-text:hover {
-  background: var(--color-danger-surface);
+@media (hover: hover) {
+  .gsd-dropdown-item.gsd-danger-text:hover {
+    background: var(--color-danger-surface);
+  }
 }
 
 /* ── Lifecycle Progression Track ─────────────────────────────────────────── */

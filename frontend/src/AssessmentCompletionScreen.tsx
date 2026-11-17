@@ -50,6 +50,7 @@ import { CandidateRanks } from "./RankTransition";
 import { cx } from "./cx";
 import { stickyAside } from "./stickyParts";
 import { usePageLabel } from "./pageTrail";
+import { PageHeader } from "./PageHeader";
 
 export function AssessmentCompletionScreen() {
   const sessionId = useIdParam("sessionId");
@@ -133,7 +134,8 @@ export function AssessmentCompletionScreen() {
   // this state explains itself rather than showing an empty proof.
   if (!assessment || (!isSealed && !stats.canComplete)) {
     return (
-      <section aria-label="Assessment completion review" className="page" data-testid="caw-review-unavailable">
+      <section aria-labelledby="acp-title" className="page" data-testid="caw-review-unavailable">
+        <PageHeader subtitle={candidate.student_display_name} title="Assessment review" titleId="acp-title" />
         <Alert
           action={
             <Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>

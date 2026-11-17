@@ -13,7 +13,14 @@ import {
 } from "@playwright/test";
 
 import type { GradingCandidateRoster } from "../src/api";
-import { findChoicesLostOnHover, findCoveredBars, findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
+import {
+  findBrowserDrawnControls,
+  findChoicesLostOnHover,
+  findCoveredBars,
+  findLayoutFaults,
+  findOverflow,
+  findSmallTargets,
+} from "./overflow";
 import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
 
 type Role = "master" | "administrator";
@@ -51,6 +58,15 @@ const SCREENS: Screen[] = [
     path: (ids) => `/students/${ids.student}`,
     after: async (page) => {
       await page.getByRole("button", { name: "Edit student", exact: true }).click();
+      await page.getByRole("dialog").waitFor();
+    },
+  },
+  {
+    name: "student-status-dialog",
+    role: "administrator",
+    path: (ids) => `/students/${ids.student}`,
+    after: async (page) => {
+      await page.getByRole("button", { name: "Change status", exact: true }).click();
       await page.getByRole("dialog").waitFor();
     },
   },
@@ -95,6 +111,16 @@ const SCREENS: Screen[] = [
     name: "assessment",
     role: "master",
     path: (ids) => `/gradings/${ids.sessions.OPEN}/assessments/${ids.candidate}`,
+  },
+  // A comment box opened on a row: nothing is typed, so nothing is kept.
+  {
+    name: "assessment-comment-box",
+    role: "master",
+    path: (ids) => `/gradings/${ids.sessions.OPEN}/assessments/${ids.candidate}`,
+    after: async (page) => {
+      await page.getByRole("button", { name: "Add comment" }).first().click();
+      await page.getByPlaceholder(/^Add a comment/).waitFor();
+    },
   },
   // Nothing on it can be pressed: the same page with every mark closed.
   {
@@ -350,6 +376,32 @@ async function oneBrowserAtATime(name: string, work: () => Promise<void>): Promi
   }
 }
 
+test("a bar pinned to a phone's window holds only what is needed there", async () => {
+  const page = await trackedPage("master");
+  // A phone's own height: the bar is judged against what is left of the screen.
+  await page.setViewportSize({ width: 390, height: 660 });
+  await show(page, `/gradings/${ids.sessions.LOCKED}/decisions`);
+  const record = page.getByTestId("cab-record-staged");
+  await record.waitFor();
+  await settled(page);
+  // How recording works is said in the page; the bar is its one button and a little room.
+  await expect(page.getByTestId("cab-recording-note")).toBeVisible();
+  const bar = (await page.locator(".cab-bar").boundingBox())!;
+  const button = (await record.boundingBox())!;
+  expect(bar.height, "the record bar is one row of buttons").toBeLessThanOrEqual(button.height + 32);
+
+  // The mat bar drops the count its first figure and its button already give.
+  await show(page, `/gradings/${ids.sessions.OPEN}/assessments/${ids.candidate}`);
+  await page.getByTestId("caw-mat-bar").waitFor();
+  await settled(page);
+  await expect(page.locator(".caw-mat-tally-remaining")).toBeHidden();
+  const mat = (await page.getByTestId("caw-mat-bar").boundingBox())!;
+  expect(mat.height / 660, "the mat bar leaves most of a phone's screen to the form").toBeLessThan(0.22);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(page.locator(".caw-mat-tally-remaining")).toBeVisible();
+  await page.close();
+});
+
 test("a tap anywhere on a decision card brings it into focus, and its buttons still answer for themselves", async () => {
   const page = await contexts.get("master")!.newPage();
   await oneBrowserAtATime("staged-decisions", () => tapAndStage(page));
@@ -461,6 +513,7 @@ for (const screen of SCREENS) {
       // Once for each browser, at its widest: colours do not change with the width.
       if (width === widths[widths.length - 1]) {
         for (const issue of await findChoicesLostOnHover(page)) problems.push(`${width}px  ${issue}`);
+        for (const issue of await findBrowserDrawnControls(page)) problems.push(`${width}px  ${issue}`);
       }
       if (phone && width === 390) {
         for (const small of await findSmallTargets(page)) problems.push(`${width}px  under 44px: ${small}`);

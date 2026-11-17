@@ -143,3 +143,57 @@ describe("no row ends in a gap", () => {
     expect(found.sort()).toEqual([...OWN_GRIDS].sort());
   });
 });
+
+/**
+ * A bar kept at the foot of the window is drawn over the page that scrolls
+ * under it, so it names its layer (`--z-bar`). Without one, anything on the
+ * page with a layer of its own shows through the bar, as a decision row's
+ * buttons once did. (A real browser checks what is drawn: e2e/overflow.ts.)
+ */
+function footBarsOffLayer(file: string, css: string): string[] {
+  return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, , body]) => /position:\s*sticky/.test(body) && /(?:^|[;\s])bottom:\s*0\s*(?:;|$)/.test(body))
+    .filter(([, , body]) => !/z-index:\s*var\(--z-bar\)/.test(body))
+    .map(([, selector]) => `${file}: ${selector.trim()}`);
+}
+
+describe("a bar at the foot of the window", () => {
+  it("finds a bar with no layer, and passes one on the bar layer", () => {
+    expect(footBarsOffLayer("a.css", ".a { position: sticky; bottom: 0; }")).toEqual(["a.css: .a"]);
+    expect(footBarsOffLayer("a.css", ".b { position: sticky; bottom: 0; z-index: var(--z-bar); }")).toEqual([]);
+    expect(footBarsOffLayer("a.css", ".c { position: sticky; top: 0; } .d { bottom: 0; }")).toEqual([]);
+  });
+
+  it("is on the bar layer in every stylesheet", () => {
+    expect(allCssFiles().flatMap((file) => footBarsOffLayer(file, readCss(file)))).toEqual([]);
+  });
+});
+
+/**
+ * A button that carries a tone (`data-tone`: a chosen mark, a chosen outcome)
+ * keeps it under the pointer. A hover is written with two pseudo-classes, so
+ * it outweighs the tone unless it leaves toned buttons alone; and a touch
+ * screen leaves the pointer on a button after a tap, which hid the Met or Not
+ * met just chosen until the next touch.
+ */
+function hoversOverATone(file: string, css: string): string[] {
+  return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, selector]) => /\.btn[\w-]*[^,{]*:hover/.test(selector))
+    .filter(([, , body]) => /(?:^|[;\s])(?:background|border-color|color)\s*:/.test(body))
+    .filter(([, selector]) => !selector.includes("[data-tone]"))
+    .map(([, selector]) => `${file}: ${selector.trim()}`);
+}
+
+describe("a tone outranks a hover", () => {
+  it("finds a button hover that repaints a toned button, and passes one that leaves it alone", () => {
+    expect(hoversOverATone("a.css", ".btn--x:hover:not(:disabled) { background: var(--a); }")).toEqual([
+      "a.css: .btn--x:hover:not(:disabled)",
+    ]);
+    expect(hoversOverATone("a.css", ".btn--x:hover:not(:disabled, [data-tone]) { background: var(--a); }")).toEqual([]);
+    expect(hoversOverATone("a.css", ".btn--y:hover { filter: brightness(1.1); }")).toEqual([]);
+  });
+
+  it("no button hover repaints a toned button", () => {
+    expect(allCssFiles().flatMap((file) => hoversOverATone(file, readCss(file)))).toEqual([]);
+  });
+});

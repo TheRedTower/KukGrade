@@ -141,7 +141,9 @@ serializers and the committed frontend types match the schema.
   (`SessionStatusBadge`, `StudentStatusBadge`, `AssessmentBadge`, `OutcomeBadge`,
   `RequirementBadge`): the one way to show it, so it cannot look different on two screens.
   Their look is in `controls.css`; a tone is a `data-tone` attribute, written once there for badges, marks and a chosen outcome alike, and the status colours (`--color-status-*`) are tokens in
-  `theme.css`, with a dark value each.
+  `theme.css`, with a dark value each. A button that carries a tone keeps it under the pointer: a
+  hover that repaints a button leaves toned ones alone (`:hover:not(:disabled, [data-tone])`), since
+  a touch screen leaves the pointer on a button after a tap and the choice just made would not show.
 - **A link in running text is a plain `<Link>` or `<a>`, with no class.** `App.css` gives every
   unclassed link one look (the accent, underlined, the same once visited), and `layout.css`
   gives a name in a `ResponsiveTable` the cell's own colour with an accent underline and a
@@ -171,11 +173,13 @@ serializers and the committed frontend types match the schema.
   are in `layout.ts` and must match the CSS.
 - `layoutRules.test.ts` fails if a stylesheet adds `nowrap`, sideways scroll, a fixed
   `min-width`, a width query that is not at a breakpoint, a box that scrolls up and down
-  inside the page, or a new `auto-fit` grid.
+  inside the page, a new `auto-fit` grid, a bar at the foot of the window with no layer, or a
+  button hover that repaints a toned button.
 - **The page is the only scroller.** A box scrolling inside it traps a swipe and hides what
   is under it. A side panel stays in view with `.split__aside` and `stickyAside`; a bar at
-  the foot of the window with `position: sticky; bottom: 0` (and `footBar` when a side panel
-  must stay above it); long text reads in the page, folded in a `.disclosure` if need be.
+  the foot of the window with `position: sticky; bottom: 0; z-index: var(--z-bar)` (and `footBar`
+  when a side panel must stay above it), so nothing on the page is drawn over it; long text reads
+  in the page, folded in a `.disclosure` if need be.
   The sidebar beside the page and a dialog over it are the two exceptions.
 - `.page` stacks its sections itself: header to content is always `--space-6`, section to
   section `--section-gap`. A section never sets its own margin, and a stack clears its

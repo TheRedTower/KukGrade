@@ -212,7 +212,9 @@
   color: var(--color-text-on-ink);
 }
 
-.nav-tool.active {
+/* The page you are on stays gold under the pointer. */
+.nav-tool.active,
+.nav-tool.active:hover {
   color: var(--color-gold);
 }
 

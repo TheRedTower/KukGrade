@@ -12,7 +12,8 @@ import {
   test,
 } from "@playwright/test";
 
-import { findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
+import type { GradingCandidateRoster } from "../src/api";
+import { findChoicesLostOnHover, findCoveredBars, findLayoutFaults, findOverflow, findSmallTargets } from "./overflow";
 import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
 
 type Role = "master" | "administrator";
@@ -22,7 +23,9 @@ interface Ids {
   student: string;
   user: string;
   sessions: Record<string, string>;
+  /** A candidate being marked: marks open, and some already made. */
   candidate: string;
+  withdrawnCandidate: string;
   completedCandidate: string;
 }
 
@@ -92,6 +95,12 @@ const SCREENS: Screen[] = [
     name: "assessment",
     role: "master",
     path: (ids) => `/gradings/${ids.sessions.OPEN}/assessments/${ids.candidate}`,
+  },
+  // Nothing on it can be pressed: the same page with every mark closed.
+  {
+    name: "assessment-withdrawn",
+    role: "master",
+    path: (ids) => `/gradings/${ids.sessions.OPEN}/assessments/${ids.withdrawnCandidate}`,
   },
   { name: "syllabus", role: "master", path: () => "/syllabus" },
   { name: "audit", role: "master", path: () => "/audit" },
@@ -229,7 +238,9 @@ async function settled(page: Page): Promise<void> {
     .toBe("loaded");
 }
 
-async function list(request: APIRequestContext, path: string): Promise<Record<string, unknown>[]> {
+// What a row holds is named by the caller from the generated contract, never
+// written out here.
+async function list<Row = Record<string, unknown>>(request: APIRequestContext, path: string): Promise<Row[]> {
   const response = await request.get(path);
   expect(response.ok(), path).toBe(true);
   const body = await response.json();
@@ -247,8 +258,14 @@ test.beforeAll(async ({ browser }) => {
     sessions[String(session.status)] ??= String(session.id);
   }
   const open = sessions.OPEN;
-  const candidates = await list(master, `/api/gradings/candidates/?session=${open}`);
+  const candidates = await list<GradingCandidateRoster>(master, `/api/gradings/candidates/?session=${open}`);
   const completed = await list(master, `/api/gradings/candidates/?session=${sessions.COMPLETED}`);
+  const marking = candidates.find(
+    ({ assessment }) => assessment?.marks_open && assessment.overall.met > 0 && assessment.overall.not_met > 0,
+  );
+  const withdrawn = candidates.find((candidate) => candidate.status === "WITHDRAWN");
+  expect(marking, "the demo has a candidate being marked, with a Met and a Not met").toBeTruthy();
+  expect(withdrawn, "the demo has a withdrawn candidate in its open session").toBeTruthy();
   ids = {
     batch: String((await list(admin, "/api/data-imports/batches/"))[0].id),
     completedCandidate: String(completed[0].id),
@@ -256,7 +273,8 @@ test.beforeAll(async ({ browser }) => {
     // Not the signed-in administrator: their own page has no password reset.
     user: String((await list(admin, "/api/users/")).find((user) => user.id !== me.id)!.id),
     sessions,
-    candidate: String(candidates[0].id),
+    candidate: String(marking!.id),
+    withdrawnCandidate: String(withdrawn!.id),
   };
 });
 
@@ -364,12 +382,16 @@ async function tapAndStage(page: Page): Promise<void> {
     await pass.click();
     await expect(pass).toHaveAttribute("aria-pressed", "true");
     await expect(decidable.locator(".cab-row-name")).toHaveAttribute("aria-pressed", "true");
+    // The pointer is still on the button just pressed: it shows its outcome all the
+    // same (judged below, once the demo is as it was for the other browsers).
+    const lost = await findChoicesLostOnHover(page);
     // Kept on the server, then dropped again once unstaged, leaving the demo
     // as it was for the other browsers.
     await expect.poll(() => stagedCount(page)).toBe(1);
     await pass.click();
     await expect(pass).toHaveAttribute("aria-pressed", "false");
     await expect.poll(() => stagedCount(page)).toBe(0);
+    expect(lost, `${width}px`).toEqual([]);
   }
 }
 
@@ -435,6 +457,11 @@ for (const screen of SCREENS) {
       await screen.after?.(page);
       for (const issue of await findOverflow(page, width)) problems.push(`${width}px  ${issue}`);
       for (const issue of await findLayoutFaults(page)) problems.push(`${width}px  ${issue}`);
+      for (const issue of await findCoveredBars(page)) problems.push(`${width}px  ${issue}`);
+      // Once for each browser, at its widest: colours do not change with the width.
+      if (width === widths[widths.length - 1]) {
+        for (const issue of await findChoicesLostOnHover(page)) problems.push(`${width}px  ${issue}`);
+      }
       if (phone && width === 390) {
         for (const small of await findSmallTargets(page)) problems.push(`${width}px  under 44px: ${small}`);
       }

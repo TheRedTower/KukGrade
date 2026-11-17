@@ -658,9 +658,12 @@ select:not([multiple]):not([size]) {
 /* A row that one control speaks for (the decision board's names): a tap
    anywhere on the row or card is a tap on that control, whose target is
    stretched over the whole row. The row's other controls stay above it and
-   answer for themselves; the keyboard still reaches the control itself. */
+   answer for themselves; the keyboard still reaches the control itself. The
+   row keeps that layering to itself (isolation), so its controls are never
+   drawn over a bar or a header pinned over the page. */
 .rtable tbody tr:has(.row-target) {
   position: relative;
+  isolation: isolate;
   cursor: pointer;
 }
 

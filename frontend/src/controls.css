@@ -49,7 +49,11 @@
   color: var(--color-text);
 }
 
-.btn--secondary:hover:not(:disabled) {
+/* A button that carries a tone (a chosen mark, a chosen outcome) keeps it under
+   the pointer: no hover below repaints one. A touch screen leaves the pointer on
+   a button after a tap, so a hover that won would hide the choice just made
+   until the next touch. */
+.btn--secondary:hover:not(:disabled, [data-tone]) {
   background: var(--color-surface-sunken);
 }
 
@@ -59,7 +63,7 @@
   color: var(--color-text);
 }
 
-.btn--ghost:hover:not(:disabled) {
+.btn--ghost:hover:not(:disabled, [data-tone]) {
   border-color: var(--color-text-muted);
   background: var(--color-surface-sunken);
 }
@@ -78,7 +82,7 @@
   color: var(--color-danger);
 }
 
-.btn--danger-quiet:hover:not(:disabled) {
+.btn--danger-quiet:hover:not(:disabled, [data-tone]) {
   background: var(--color-danger-surface);
 }
 

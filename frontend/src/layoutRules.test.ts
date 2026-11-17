@@ -172,9 +172,9 @@ describe("a bar at the foot of the window", () => {
 /**
  * A button that carries a tone (`data-tone`: a chosen mark, a chosen outcome)
  * keeps it under the pointer. A hover is written with two pseudo-classes, so
- * it outweighs the tone unless it leaves toned buttons alone; and a touch
- * screen leaves the pointer on a button after a tap, which hid the Met or Not
- * met just chosen until the next touch.
+ * it outweighs the tone unless it leaves toned buttons alone; and the pointer
+ * is still on a button that was just pressed, which hid the Met or Not met
+ * just chosen until the pointer moved away.
  */
 function hoversOverATone(file: string, css: string): string[] {
   return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
@@ -195,5 +195,89 @@ describe("a tone outranks a hover", () => {
 
   it("no button hover repaints a toned button", () => {
     expect(allCssFiles().flatMap((file) => hoversOverATone(file, readCss(file)))).toEqual([]);
+  });
+});
+
+/**
+ * No control is left in the browser's own blue. The root gives every radio,
+ * tick and progress bar the theme's gold (`accent-color` is inherited), and one
+ * rule gives every input, select and text box the theme's focus ring. A screen
+ * that sets the same accent again has only repeated the root. (A real browser
+ * checks what is drawn: e2e/overflow.ts.)
+ */
+function repeatsTheAccent(file: string, css: string): string[] {
+  return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, selector]) => selector.trim() !== ":root")
+    .filter(([, , body]) => /accent-color:\s*var\(--color-accent\)/.test(body))
+    .map(([, selector]) => `${file}: ${selector.trim()}`);
+}
+
+describe("no control is left in the browser's own blue", () => {
+  it("finds a screen that repeats the root's accent, and passes another tone", () => {
+    expect(repeatsTheAccent("a.css", ".a input { accent-color: var(--color-accent); }")).toEqual(["a.css: .a input"]);
+    expect(repeatsTheAccent("a.css", ".b { accent-color: var(--color-success); }")).toEqual([]);
+    expect(repeatsTheAccent("a.css", ":root { accent-color: var(--color-accent); }")).toEqual([]);
+  });
+
+  it("the root sets the accent once, and no screen repeats it", () => {
+    expect(readCss("App.css")).toMatch(/:root\s*\{[^}]*accent-color:\s*var\(--color-accent\)/);
+    expect(allCssFiles().flatMap((file) => repeatsTheAccent(file, readCss(file)))).toEqual([]);
+  });
+
+  it("one rule gives every input, select and text box the theme's focus ring", () => {
+    expect(readCss("layout.css")).toMatch(
+      /:where\(input, select, textarea\):focus-visible\s*\{\s*outline:\s*var\(--focus-outline\);\s*outline-offset:\s*var\(--focus-offset\);\s*\}/,
+    );
+  });
+});
+
+/**
+ * A hover style is only for a pointer that can hover. A touch screen leaves
+ * `:hover` on whatever was tapped until the next touch, so a row or a button
+ * stays shaded as though it were chosen; inside `@media (hover: hover)` a
+ * finger never sets it. The one hover written outside is a selector paired
+ * with itself at rest (`.x, .x:hover`), which says "the same under the
+ * pointer" and paints nothing new.
+ */
+function hoversForAnyPointer(file: string, css: string): string[] {
+  const found: string[] = [];
+  const open: string[] = [];
+  let from = 0;
+  for (let at = 0; at < css.length; at++) {
+    if (css[at] === "{") {
+      const prelude = css.slice(from, at).trim();
+      const selectors = prelude.split(/,(?![^()]*\))/).map((selector) => selector.trim());
+      const hovers = selectors.filter((selector) => selector.includes(":hover"));
+      const sameAtRest = hovers.every((selector) => selectors.includes(selector.replace(":hover", "")));
+      if (hovers.length > 0 && !sameAtRest && !open.some((rule) => /^@media\s*\(hover:\s*hover\)$/.test(rule))) {
+        found.push(`${file}: ${prelude.replace(/\s+/g, " ")}`);
+      }
+      open.push(prelude);
+      from = at + 1;
+    } else if (css[at] === "}") {
+      open.pop();
+      from = at + 1;
+    } else if (css[at] === ";") {
+      from = at + 1;
+    }
+  }
+  return found;
+}
+
+describe("a hover style is only for a pointer that can hover", () => {
+  it("finds a hover for any pointer, and passes one for a pointer that can hover", () => {
+    expect(hoversForAnyPointer("a.css", ".a { color: red; } .a:hover { color: blue; }")).toEqual(["a.css: .a:hover"]);
+    expect(hoversForAnyPointer("a.css", ".a:hover, .a:focus-visible { color: blue; }")).toEqual([
+      "a.css: .a:hover, .a:focus-visible",
+    ]);
+    expect(hoversForAnyPointer("a.css", "@media (max-width: 40rem) { .a:hover { color: blue; } }")).toEqual([
+      "a.css: .a:hover",
+    ]);
+    expect(hoversForAnyPointer("a.css", "@media (hover: hover) { .a:hover { color: blue; } }")).toEqual([]);
+    expect(hoversForAnyPointer("a.css", ".a.active, .a.active:hover { color: gold; }")).toEqual([]);
+  });
+
+  it("no stylesheet has a hover for any pointer", () => {
+    expect(allCssFiles().flatMap((file) => hoversForAnyPointer(file, readCss(file)))).toEqual([]);
   });
 });

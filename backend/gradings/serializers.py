@@ -11,6 +11,8 @@ from gradings.assessment_services import (
     assessment_can_be_prepared,
     assessment_can_start,
     assessment_marks_open,
+    assessment_preparation_blocker,
+    assessment_start_blocker,
     holds_final_decision,
     item_change_needs_reason,
     item_mark_can_be_cleared,
@@ -502,6 +504,12 @@ class CandidateAssessmentSerializer(ModelSerializer):
             "candidate not withdrawn, and the session open."
         ),
     )
+    start_blocked_by = serializers.SerializerMethodField(
+        help_text=(
+            "Why a not-started assessment cannot be started now, as a sentence "
+            "to show; null when it can be started, or already has been."
+        ),
+    )
     can_delete = serializers.SerializerMethodField(
         help_text=(
             "Whether the viewer may permanently delete this assessment: an "
@@ -525,6 +533,7 @@ class CandidateAssessmentSerializer(ModelSerializer):
             "overall",
             "marks_open",
             "can_start",
+            "start_blocked_by",
             "can_delete",
         )
         read_only_fields = (
@@ -547,6 +556,9 @@ class CandidateAssessmentSerializer(ModelSerializer):
 
     def get_can_start(self, obj: CandidateAssessment) -> bool:
         return assessment_can_start(obj)
+
+    def get_start_blocked_by(self, obj: CandidateAssessment) -> str | None:
+        return assessment_start_blocker(obj)
 
     def get_can_delete(self, obj: CandidateAssessment) -> bool:
         user = self.context["request"].user
@@ -814,6 +826,12 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "have none, are not withdrawn, and the session is draft or open."
         ),
     )
+    prepare_assessment_blocked_by = serializers.SerializerMethodField(
+        help_text=(
+            "Why the candidate's assessment form cannot be prepared now, as a "
+            "sentence to show; null when it can be, or they already have one."
+        ),
+    )
     can_be_withdrawn_after_lock = serializers.SerializerMethodField(
         help_text=(
             "Whether the viewer may withdraw this candidate now: the session is "
@@ -845,6 +863,7 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "can_be_withdrawn_after_lock",
             "can_be_marked_absent",
             "can_prepare_assessment",
+            "prepare_assessment_blocked_by",
             "can_download_record",
             "can_print_grading_sheet",
         )
@@ -866,6 +885,11 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
 
     def get_can_prepare_assessment(self, instance: GradingCandidate) -> bool:
         return assessment_can_be_prepared(instance)
+
+    def get_prepare_assessment_blocked_by(
+        self, instance: GradingCandidate
+    ) -> str | None:
+        return assessment_preparation_blocker(instance)
 
     def get_can_download_record(self, instance: GradingCandidate) -> bool:
         return record_can_be_downloaded(instance)

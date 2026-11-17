@@ -41,13 +41,19 @@ button left in the browser's own colours, and a box that scrolls up and down ins
 one scroller; the sidebar beside it and a dialog over it are the exceptions), a row of `.tiles` that ends in a hole or an even set whose rows differ, and a `gap` on a box that is neither grid nor flex (its layout was lost). `layoutFaults.spec.ts` plants one of each, so a check that stops
 finding anything fails there.
 
-Two more checks need the page to move. `findCoveredBars` scrolls each screen from top to bottom and flags anything
+Three more checks need the page to move. `findCoveredBars` scrolls each screen from top to bottom and flags anything
 drawn over a bar kept at the foot of the window (a row's buttons showing through the bar). `findChoicesLostOnHover`
 puts the pointer on one of each kind of chosen control (a pressed button, a mark or outcome with a tone, the current
-page's link, a ticked choice) and flags one whose text colour, fill or border changes: a touch screen leaves the
-pointer on a button after a tap, so the choice just made would not show until the next touch. It runs once for each
-browser, at its widest. Both have a planted fault in `layoutFaults.spec.ts`. The `assessment` screen is a candidate
-being marked, with a Met and a Not met already made; `assessment-withdrawn` is the same page with every mark closed.
+page's link, a ticked choice) and flags one whose text colour, fill or border changes: the pointer is still on a
+button that was just pressed, so the choice just made would not show until the pointer moved away. `findBrowserDrawnControls` flags a radio, tick or progress bar left in the browser's own blue, and gives the keyboard
+to one of each kind of text box to flag one that shows the browser's focus ring instead of the theme's; nothing is
+typed. These two run once for each browser, at its widest. All three have a planted fault in `layoutFaults.spec.ts`.
+The `assessment` screen is a candidate being marked, with a Met and a Not met already made; `assessment-comment-box`
+is that page with a comment box opened on a row, `assessment-withdrawn` the same page with every mark closed, and
+`student-status-dialog` the dialog whose choices are radios. One more test holds the two bars pinned to a phone's
+window to what is needed there: the decision board's bar is its one row of buttons (how recording works is said in the
+page), and the mat bar is two rows down to a 360px phone: the count beside its tallies, the count on one line, then
+the button.
 
 What it cannot reproduce: Safari's address bar, the on-screen keyboard, safe areas, real touch scrolling, or
 iOS's own date control (Linux and Mac WebKit draw dates differently). Real-device checks stay in the release

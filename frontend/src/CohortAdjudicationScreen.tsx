@@ -159,6 +159,13 @@ export function CohortAdjudicationScreen() {
           {withdrawnCount} withdrawn {agreeing(withdrawnCount, "candidate is", "candidates are")} not shown.
         </p>
       )}
+      {/* Said here, not in the bar pinned to the window: there it took a quarter of a phone's screen. */}
+      {canDecide && (
+        <p className="subtext" data-testid="cab-recording-note">
+          Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest
+          are kept. What you stage is saved for you until it is recorded, even if you are signed out.
+        </p>
+      )}
 
       <div className="split">
         <div>

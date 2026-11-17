@@ -89,10 +89,11 @@
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
+  /* One line, the same shape for every category: a long name wraps inside its
+     own space and never pushes the count under it. */
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-5);
   background: var(--color-surface-sunken);
   border-top: 1px solid var(--color-border);
@@ -100,6 +101,7 @@
 }
 
 .caw-band-title {
+  min-width: 0;
   margin: 0;
 }
 
@@ -109,7 +111,9 @@
   background: var(--color-border);
 }
 
+/* Never squeezed, so the count stays on its line. */
 .caw-band-progress {
+  flex: none;
   font-variant-numeric: tabular-nums;
 }
 
@@ -208,9 +212,11 @@
 }
 
 /* Only a verdict not chosen: the chosen one keeps its colour under the pointer. */
-.caw-verdict:hover:not(:disabled, [data-tone]) {
-  border-color: var(--color-text-muted);
-  color: var(--color-text);
+@media (hover: hover) {
+  .caw-verdict:hover:not(:disabled, [data-tone]) {
+    border-color: var(--color-text-muted);
+    color: var(--color-text);
+  }
 }
 
 .caw-verdict:disabled {
@@ -243,8 +249,10 @@
   text-underline-offset: 3px;
 }
 
-.caw-row-tool:hover {
-  color: var(--color-text);
+@media (hover: hover) {
+  .caw-row-tool:hover {
+    color: var(--color-text);
+  }
 }
 
 .caw-row-note-edit {
@@ -307,13 +315,27 @@
   box-shadow: var(--shadow-up);
 }
 
+/* The count, meter and tallies share a row and take the room the button
+   leaves. */
+.caw-mat-summary {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .caw-mat-count {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
 }
 
+.caw-mat-summary > [class*="caw-mat-tally"] {
+  flex: none;
+}
+
 .caw-mat-figure {
+  flex: none;
   font-variant-numeric: tabular-nums;
 }
 
@@ -349,6 +371,32 @@
 
   .caw-mat-meter {
     display: none;
+  }
+}
+
+/* A phone has no room for a category's bar beside a longer name; the count
+   beside it says the same. The mat bar is pinned to the window, so it is two
+   rows there, the count and its tallies closer together and then the button
+   across the bar, and it drops the count its first figure and button give. */
+@media (max-width: 40rem) {
+  .caw-band-meter,
+  .caw-mat-tally-remaining {
+    display: none;
+  }
+
+  .caw-mat-summary {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  /* Measured at its narrowest, so the count's words wrap before a tally
+     leaves the row; a tally wraps only on the narrowest phone. */
+  .caw-mat-count {
+    flex: 1 1 min-content;
+  }
+
+  .caw-mat-action {
+    flex: 1 1 100%;
   }
 }
 

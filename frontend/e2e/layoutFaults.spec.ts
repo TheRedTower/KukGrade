@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { findChoicesLostOnHover, findCoveredBars, findLayoutFaults } from "./overflow";
+import { findBrowserDrawnControls, findChoicesLostOnHover, findCoveredBars, findLayoutFaults } from "./overflow";
 
 // The checks in findLayoutFaults pass on every screen, so this proves they
 // still find something: one of each fault, on a page made to have them.
@@ -96,4 +96,28 @@ test("findChoicesLostOnHover reports a chosen control repainted under the pointe
   const faults = await findChoicesLostOnHover(page);
   expect(faults, faults.join("\n")).toHaveLength(1);
   expect(faults[0]).toContain("loses its fill under the pointer: button.lost");
+});
+
+test("findBrowserDrawnControls reports a radio in the browser's colour and a box with its focus ring, and passes themed ones", async ({
+  page,
+}) => {
+  const body = (css: string) => `<!doctype html><body>
+    <style>${css}</style>
+    <label><input type="radio" name="status" class="plain" checked> Active</label>
+    <textarea class="note"></textarea>
+    <input class="named" value="Alex">
+  </body>`;
+  await page.setContent(body(""));
+  const faults = await findBrowserDrawnControls(page);
+  expect(faults, faults.join("\n")).toEqual([
+    "a control is drawn in the browser's own colour: input.plain",
+    "a box shows the browser's focus ring: textarea.note",
+    "a box shows the browser's focus ring: input.named",
+  ]);
+  expect(await page.evaluate(() => document.activeElement === document.body), "no box is left focused").toBe(true);
+
+  await page.setContent(
+    body(":root { accent-color: rgb(200, 150, 0); } input, textarea { outline: 2px solid rgb(200, 150, 0); }"),
+  );
+  expect(await findBrowserDrawnControls(page)).toEqual([]);
 });

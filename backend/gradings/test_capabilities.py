@@ -8,15 +8,17 @@ import itertools
 from typing import Any
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from gradings.assessment_services import generate_candidate_assessment
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     GradingCandidate,
     GradingSession,
 )
-from gradings.services import session_may_move_to
+from gradings.services import apply_candidate_update, session_may_move_to
 from gradings.testing import (
     assessment,
     auth_client,
@@ -159,6 +161,56 @@ def test_who_can_be_marked_absent_and_prepared_follows_the_writes() -> None:
     assert withdrawn.pk not in preparable
 
 
+def test_a_candidate_says_why_no_form_can_be_prepared_as_preparing_is_refused() -> None:
+    session = grading_session(status=Status.OPEN)
+    unprepared = candidate(session=session)
+    prepared = assessment(candidate=candidate(session=session)).candidate
+    withdrawn = candidate(session=session, status=GradingCandidate.Status.WITHDRAWN)
+    locked, _ = locked_completed_candidate()
+    closed = candidate(session=grading_session())
+    GradingSession.objects.filter(pk=closed.session_id).update(status=Status.LOCKED)
+    # Withdrawn in a session that is closed too: the withdrawal is the reason.
+    withdrawn_and_closed = candidate(
+        session=grading_session(), status=GradingCandidate.Status.WITHDRAWN
+    )
+    GradingSession.objects.filter(pk=withdrawn_and_closed.session_id).update(
+        status=Status.LOCKED
+    )
+
+    def served(built: GradingCandidate) -> dict[str, Any]:
+        return next(row for row in roster(built.session) if row["id"] == built.pk)
+
+    # Nothing stands in the way, or there is a form already: no reason either way.
+    for free in (unprepared, prepared, locked):
+        assert served(free)["prepare_assessment_blocked_by"] is None
+    for blocked, said in (
+        (
+            closed,
+            "An assessment form can only be prepared while the session is "
+            "draft or open.",
+        ),
+        (withdrawn, "An assessment form cannot be prepared for a withdrawn candidate."),
+        (
+            withdrawn_and_closed,
+            "An assessment form cannot be prepared for a withdrawn candidate.",
+        ),
+    ):
+        row = served(blocked)
+        assert (
+            row["can_prepare_assessment"],
+            row["prepare_assessment_blocked_by"],
+        ) == (
+            False,
+            said,
+        )
+        blocked.refresh_from_db()
+        with pytest.raises(ValidationError) as refused:
+            generate_candidate_assessment(
+                blocked, user(f"prep-{blocked.pk}@example.com")
+            )
+        assert refused.value.messages == [said]
+
+
 def test_nobody_is_marked_absent_or_prepared_once_the_roster_closes() -> None:
     built, _ = locked_completed_candidate()
 
@@ -187,6 +239,50 @@ def test_an_assessment_can_be_started_only_when_the_session_is_open() -> None:
     assert assessment_as_served(open_one)["can_start"] is True
     assert assessment_as_served(draft_one)["can_start"] is False
     assert assessment_as_served(start_assessment(open_one))["can_start"] is False
+
+
+def withdrawn_after_preparing(session: GradingSession) -> CandidateAssessment:
+    generated = assessment(candidate=candidate(session=session))
+    apply_candidate_update(
+        generated.candidate,
+        status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.ABSENT,
+        actor=user(f"withdrawer-{generated.pk}@example.com"),
+    )
+    generated.refresh_from_db()
+    return generated
+
+
+def test_an_assessment_says_why_it_cannot_be_started_as_the_start_is_refused() -> None:
+    open_session = grading_session(status=Status.OPEN)
+    ready = assessment(candidate=candidate(session=open_session))
+    draft = assessment(candidate=candidate(session=grading_session()))
+    withdrawn = withdrawn_after_preparing(open_session)
+    # Withdrawn in a session that is not open either: the withdrawal is the
+    # reason, since opening the session would not change it.
+    withdrawn_in_draft = withdrawn_after_preparing(grading_session())
+
+    assert assessment_as_served(ready)["start_blocked_by"] is None
+    for blocked, said in (
+        (draft, "Assessments can only be started in open sessions."),
+        (withdrawn, "Withdrawn candidates cannot be assessed."),
+        (withdrawn_in_draft, "Withdrawn candidates cannot be assessed."),
+    ):
+        served = assessment_as_served(blocked)
+        assert (served["can_start"], served["start_blocked_by"]) == (False, said)
+        with pytest.raises(ValidationError) as refused:
+            start_assessment(blocked)
+        assert refused.value.messages == [said]
+
+
+def test_a_started_assessment_gives_no_reason_it_cannot_be_started() -> None:
+    started = start_assessment(
+        assessment(candidate=candidate(session=grading_session(status=Status.OPEN)))
+    )
+
+    served = assessment_as_served(started)
+
+    assert (served["can_start"], served["start_blocked_by"]) == (False, None)
 
 
 def mark_all(generated: CandidateAssessment, **only: object) -> None:

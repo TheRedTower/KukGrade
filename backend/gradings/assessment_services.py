@@ -116,31 +116,46 @@ def delete_candidate_assessment(
 
 
 def validate_assessment_generation_candidate(candidate: GradingCandidate) -> None:
+    # A withdrawal is said first: reopening the roster would not change it.
+    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+        raise ValidationError(
+            {
+                "candidate": [
+                    "An assessment form cannot be prepared for a withdrawn candidate.",
+                ],
+            },
+        )
     if not candidate.session.roster_open:
         raise ValidationError(
             {
                 "session": [
-                    "Assessments can only be generated while the session is "
-                    "draft or open.",
+                    "An assessment form can only be prepared while the session "
+                    "is draft or open.",
                 ],
             },
         )
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
-        raise ValidationError(
-            {"candidate": ["Cannot generate an assessment for a withdrawn candidate."]},
-        )
+
+
+def assessment_preparation_blocker(candidate: GradingCandidate) -> str | None:
+    """Why this candidate's assessment form cannot be prepared now, in the
+    words the preparing itself is refused with; None when it can be, or they
+    already have one."""
+    if getattr(candidate, "assessment", None) is not None:
+        return None
+    try:
+        validate_assessment_generation_candidate(candidate)
+    except ValidationError as error:
+        return str(error.messages[0])
+    return None
 
 
 def assessment_can_be_prepared(candidate: GradingCandidate) -> bool:
     """Whether this candidate's assessment form can be prepared now: they
     have none yet, and the generation's own rule allows it."""
-    if getattr(candidate, "assessment", None) is not None:
-        return False
-    try:
-        validate_assessment_generation_candidate(candidate)
-    except ValidationError:
-        return False
-    return True
+    return (
+        getattr(candidate, "assessment", None) is None
+        and assessment_preparation_blocker(candidate) is None
+    )
 
 
 def _snapshot_item(
@@ -270,13 +285,14 @@ def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
         raise ValidationError(
             {"status": ["Only not-started assessments can be started."]},
         )
-    if not assessment.candidate.session.marking_open:
-        raise ValidationError(
-            {"session": ["Assessments can only be started in open sessions."]},
-        )
+    # A withdrawal is said first: opening the session would not change it.
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
             {"candidate": [WITHDRAWN_MESSAGE]},
+        )
+    if not assessment.candidate.session.marking_open:
+        raise ValidationError(
+            {"session": ["Assessments can only be started in open sessions."]},
         )
 
 
@@ -286,6 +302,18 @@ def assessment_can_start(assessment: CandidateAssessment) -> bool:
     except ValidationError:
         return False
     return True
+
+
+def assessment_start_blocker(assessment: CandidateAssessment) -> str | None:
+    """Why a not-started assessment cannot be started now, in the words the
+    start itself is refused with; None when it can be, or already has been."""
+    if assessment.status != CandidateAssessment.Status.NOT_STARTED:
+        return None
+    try:
+        validate_assessment_can_start(assessment)
+    except ValidationError as error:
+        return str(error.messages[0])
+    return None
 
 
 def validate_assessment_can_complete(

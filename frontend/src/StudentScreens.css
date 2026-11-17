@@ -180,9 +180,11 @@
   background: var(--color-surface);
 }
 
-.status-radio-card:hover {
-  border-color: var(--color-text-muted);
-  background: var(--color-surface-sunken);
+@media (hover: hover) {
+  .status-radio-card:hover {
+    border-color: var(--color-text-muted);
+    background: var(--color-surface-sunken);
+  }
 }
 
 .status-radio-card.selected {

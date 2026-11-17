@@ -17,8 +17,10 @@
   color: var(--color-text-muted);
 }
 
-.st-tab:hover {
-  color: var(--color-text);
+@media (hover: hover) {
+  .st-tab:hover {
+    color: var(--color-text);
+  }
 }
 
 .st-tab.active {

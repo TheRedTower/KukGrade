@@ -2,6 +2,9 @@
   color: var(--color-text);
   background: var(--color-page-bg);
   font-family: var(--font-sans);
+  /* A radio, a tick or a progress bar the browser draws takes the theme's
+     gold, never its own blue; a screen may set another tone on its own. */
+  accent-color: var(--color-accent);
 }
 
 * {
@@ -28,8 +31,10 @@
   min-height: 48px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-scrollbar-thumb-hover);
+@media (hover: hover) {
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-scrollbar-thumb-hover);
+  }
 }
 
 ::-webkit-scrollbar-corner {
@@ -62,8 +67,10 @@ a:not([class]) {
   text-underline-offset: 3px;
 }
 
-a:not([class]):hover {
-  text-decoration-thickness: 2px;
+@media (hover: hover) {
+  a:not([class]):hover {
+    text-decoration-thickness: 2px;
+  }
 }
 
 a:not([class]):focus-visible {
@@ -248,12 +255,14 @@ button:not(.theme-toggle-option, .visually-hidden) {
   color: var(--color-accent-text);
 }
 
-.theme-toggle-option:hover {
-  color: var(--color-text);
-}
+@media (hover: hover) {
+  .theme-toggle-option:hover {
+    color: var(--color-text);
+  }
 
-.theme-toggle-option[aria-pressed="true"]:hover {
-  color: var(--color-accent-text);
+  .theme-toggle-option[aria-pressed="true"]:hover {
+    color: var(--color-accent-text);
+  }
 }
 
 .login-content {
@@ -325,8 +334,10 @@ button:not(.theme-toggle-option, .visually-hidden) {
   margin: var(--space-2) 0 0;
 }
 
-.password-toggle:hover {
-  color: var(--color-text);
+@media (hover: hover) {
+  .password-toggle:hover {
+    color: var(--color-text);
+  }
 }
 
 .login-help {

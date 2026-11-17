@@ -157,6 +157,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
       can_start: false,
+      start_blocked_by: null,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
@@ -173,6 +174,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
       can_start: false,
+      start_blocked_by: null,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
@@ -189,6 +191,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       overall: assessmentSummaryFor([]).overall,
       marks_open: true,
       can_start: true,
+      start_blocked_by: null,
       can_delete: false,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: null,
@@ -276,6 +279,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         can_be_marked_absent:
           rosterOpen && candidate.status === "REGISTERED" && (!assessment || assessment.status === "NOT_STARTED"),
         can_prepare_assessment: rosterOpen && candidate.status !== "WITHDRAWN" && !assessment,
+        prepare_assessment_blocked_by: null,
         // gradings.exports: record_can_be_downloaded, sheet_can_be_printed
         can_download_record: assessment?.status === "COMPLETED",
         can_print_grading_sheet: rosterOpen && candidate.status !== "WITHDRAWN",

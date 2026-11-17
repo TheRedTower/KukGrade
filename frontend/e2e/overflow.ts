@@ -350,9 +350,9 @@ export async function findCoveredBars(page: Page): Promise<string[]> {
  * A chosen control that stops looking chosen under the pointer: a pressed
  * button, one that carries a tone (a mark, an outcome), the current page's
  * link or a ticked choice whose text colour changes on hover, or whose fill or
- * border is replaced. A touch screen leaves the pointer on a button after a
- * tap, so a hover that wins hides the choice just made until the next touch,
- * as it once did for Met and Not met. One of each kind of control is tried.
+ * border is replaced. The pointer is still on a button that was just pressed,
+ * so a hover that wins hides the choice just made until the pointer moves
+ * away, as it once did for Met and Not met. One of each kind of control is tried.
  */
 export async function findChoicesLostOnHover(page: Page): Promise<string[]> {
   const out: string[] = [];
@@ -404,5 +404,50 @@ export async function findChoicesLostOnHover(page: Page): Promise<string[]> {
     }
   }
   await page.mouse.move(0, 0);
+  return out;
+}
+
+/**
+ * A control the browser draws in its own blue instead of the theme's colours:
+ * a radio, a tick, a slider or a progress bar with no accent colour, or a box
+ * that is typed in or chosen from which shows the browser's focus ring. One of
+ * each kind of box is given the keyboard and let go again; nothing is typed.
+ */
+export async function findBrowserDrawnControls(page: Page): Promise<string[]> {
+  const kindOf = (el: Element) => `${el.tagName.toLowerCase()}${[...el.classList].map((name) => `.${name}`).join("")}`;
+  const out = await page.evaluate(() => {
+    const faults: string[] = [];
+    const drawn = 'input[type="radio"], input[type="checkbox"], input[type="range"], progress';
+    const seen = new Set<string>();
+    for (const el of document.body.querySelectorAll(drawn)) {
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      // One the app draws itself (appearance: none), or hides, has no colour of the browser's.
+      if (style.appearance === "none" || box.width < 4 || el.closest(".visually-hidden")) continue;
+      if (style.accentColor !== "auto") continue;
+      const kind = `${el.tagName.toLowerCase()}${[...el.classList].map((name) => `.${name}`).join("")}`;
+      if (seen.has(kind)) continue;
+      seen.add(kind);
+      faults.push(`a control is drawn in the browser's own colour: ${kind}`);
+    }
+    return faults;
+  });
+  const boxes = page.locator(
+    'textarea, select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="file"])',
+  );
+  const seen = new Set<string>();
+  const count = Math.min(await boxes.count(), 80);
+  for (let index = 0; index < count; index++) {
+    const box = boxes.nth(index);
+    if (!(await box.isVisible()) || !(await box.isEnabled())) continue;
+    const kind = await box.evaluate(kindOf);
+    if (seen.has(kind)) continue;
+    seen.add(kind);
+    await box.focus();
+    // The browser's ring is the one drawn `auto`; the theme's is a solid line.
+    const ring = await box.evaluate((el) => (el.matches(":focus") ? getComputedStyle(el).outlineStyle : ""));
+    await box.blur();
+    if (ring === "auto") out.push(`a box shows the browser's focus ring: ${kind.slice(0, 60)}`);
+  }
   return out;
 }

@@ -98,6 +98,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     overall: assessmentSummaryFor([]).overall,
     marks_open: true,
     can_start: false,
+    start_blocked_by: null,
     can_delete: false,
     generated_at: "2026-09-18T10:00:00Z",
     started_at: "2026-09-18T10:05:00Z",
@@ -736,6 +737,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         completed_at: "2026-09-18T11:30:00Z",
         marks_open: false,
         can_start: false,
+        start_blocked_by: null,
       };
       const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
       return vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -785,6 +787,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         completed_at: "2026-09-18T11:30:00Z",
         marks_open: false,
         can_start: false,
+        start_blocked_by: null,
       };
       const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
       const fetch = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
@@ -1619,6 +1622,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     render(<App />);
 
     expect(await screen.findByTestId("caw-review-unavailable")).toBeVisible();
+    // The page says what it is and whose, though there is no record to proof yet.
+    expect(screen.getByRole("heading", { level: 1, name: "Assessment review" })).toBeVisible();
+    expect(screen.getByText("Alex Carter")).toBeVisible();
     expect(screen.getByText(/1 required item remains unassessed/)).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Assessment record" })).toBeNull();
     expect(screen.getByRole("link", { name: /Return to scoring/ })).toHaveAttribute(
@@ -1988,6 +1994,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         status_display: "Completed",
         marks_open: marksOpen,
         can_start: false,
+        start_blocked_by: null,
       };
       stubFetch(
         vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
@@ -2704,6 +2711,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       status_display: "Not started",
       started_at: null,
       can_start: true,
+      start_blocked_by: null,
     };
 
     let startPayload: Record<string, unknown> | null = null;
@@ -2773,6 +2781,74 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(startPayload).toEqual({ status: "IN_PROGRESS" });
   });
 
+  it("says why a not-started assessment cannot be started, in the server's words, and offers no start", async () => {
+    const blockedAssessment: CandidateAssessment = {
+      ...mockAssessment,
+      status: "NOT_STARTED",
+      status_display: "Not started",
+      started_at: null,
+      can_start: false,
+      start_blocked_by: "Withdrawn candidates cannot be assessed.",
+    };
+    stubFetch(
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        // The session is open: the reason is the server's, not read off the session.
+        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+        if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) return jsonResponse(200, mockCandidate);
+        if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([mockItem3]));
+        if (url.includes("/api/gradings/assessments/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [blockedAssessment] });
+        }
+        if (url.includes("/api/gradings/assessment-items/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockItem3] });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      }),
+    );
+
+    render(<App />);
+
+    const banner = await screen.findByTestId("caw-not-started-banner");
+    expect(within(banner).getByRole("heading", { name: "Assessment not started" })).toBeVisible();
+    expect(within(banner).getByText("Withdrawn candidates cannot be assessed.")).toBeVisible();
+    expect(screen.queryByText("Assessment ready to begin")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("start-assessment-btn")).not.toBeInTheDocument();
+    expect(screen.queryByText(/must be open/i)).not.toBeInTheDocument();
+  });
+
+  it("says why no form can be prepared, in the server's words, and offers no button", async () => {
+    stubFetch(
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+        if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
+          return jsonResponse(200, {
+            ...mockCandidate,
+            can_prepare_assessment: false,
+            prepare_assessment_blocked_by: "An assessment form cannot be prepared for a withdrawn candidate.",
+          });
+        }
+        if (url.includes("/api/gradings/assessments/")) {
+          return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      }),
+    );
+
+    render(<App />);
+
+    const banner = await screen.findByTestId("caw-missing-assessment-banner");
+    expect(within(banner).getByRole("heading", { name: "No assessment form" })).toBeVisible();
+    expect(within(banner).getByText("An assessment form cannot be prepared for a withdrawn candidate.")).toBeVisible();
+    expect(screen.queryByTestId("generate-assessment-btn")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Prepare the candidate/)).not.toBeInTheDocument();
+  });
+
   it.each(["DRAFT", "OPEN"] as const)(
     "prepares a missing assessment snapshot before offering start (%s)",
     async (sessionStatus) => {
@@ -2797,6 +2873,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         status_display: "Not started",
         started_at: null,
         can_start: sessionStatus === "OPEN",
+        start_blocked_by: sessionStatus === "OPEN" ? null : "Assessments can only be started in open sessions.",
       };
       let generationRequested = false;
 

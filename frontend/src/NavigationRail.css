@@ -34,8 +34,10 @@
   color: var(--color-text-on-ink);
 }
 
-.nav-brand:hover {
-  background: var(--color-rail-wash);
+@media (hover: hover) {
+  .nav-brand:hover {
+    background: var(--color-rail-wash);
+  }
 }
 
 .nav-brand:focus-visible,
@@ -71,9 +73,11 @@
   color: var(--color-text-on-ink);
 }
 
-.nav-menu:hover:not(:disabled) {
-  border-color: var(--color-rail-border);
-  background: var(--color-rail-wash-strong);
+@media (hover: hover) {
+  .nav-menu:hover:not(:disabled) {
+    border-color: var(--color-rail-border);
+    background: var(--color-rail-wash-strong);
+  }
 }
 
 .nav-panel {
@@ -127,9 +131,11 @@
     background-color var(--duration) ease;
 }
 
-.nav-link:hover {
-  color: var(--color-text-on-ink);
-  background: var(--color-rail-wash);
+@media (hover: hover) {
+  .nav-link:hover {
+    color: var(--color-text-on-ink);
+    background: var(--color-rail-wash);
+  }
 }
 
 .nav-link.active {
@@ -207,9 +213,11 @@
   color: var(--color-text-on-ink-muted);
 }
 
-.nav-tool:hover:not(:disabled) {
-  background: var(--color-rail-wash-strong);
-  color: var(--color-text-on-ink);
+@media (hover: hover) {
+  .nav-tool:hover:not(:disabled) {
+    background: var(--color-rail-wash-strong);
+    color: var(--color-text-on-ink);
+  }
 }
 
 /* The page you are on stays gold under the pointer. */
@@ -236,9 +244,11 @@
   text-decoration: none;
 }
 
-.nav-about-line a:hover {
-  color: var(--color-text-on-ink);
-  text-decoration: underline;
+@media (hover: hover) {
+  .nav-about-line a:hover {
+    color: var(--color-text-on-ink);
+    text-decoration: underline;
+  }
 }
 
 /* A small ghost button (Button), across the rail's foot, in its colours. */
@@ -253,9 +263,11 @@
   padding: 0 var(--space-3);
 }
 
-.nav-collapse:hover:not(:disabled) {
-  color: var(--color-text-on-ink);
-  background: var(--color-rail-wash);
+@media (hover: hover) {
+  .nav-collapse:hover:not(:disabled) {
+    color: var(--color-text-on-ink);
+    background: var(--color-rail-wash);
+  }
 }
 
 /* The strip of icons (desktop only: a phone always gets the full menu). */

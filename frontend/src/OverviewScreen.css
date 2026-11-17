@@ -53,13 +53,16 @@
     border-color var(--duration) ease;
 }
 
-.attention-item-row:hover,
-.attention-item-row:focus-visible {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-border);
+@media (hover: hover) {
+  .attention-item-row:hover {
+    background: var(--color-surface-sunken);
+    border-color: var(--color-border);
+  }
 }
 
 .attention-item-row:focus-visible {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-border);
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
@@ -87,13 +90,16 @@
     border-color var(--duration) ease;
 }
 
-.upcoming-session-row:hover,
-.upcoming-session-row:focus-visible {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-border);
+@media (hover: hover) {
+  .upcoming-session-row:hover {
+    background: var(--color-surface-sunken);
+    border-color: var(--color-border);
+  }
 }
 
 .upcoming-session-row:focus-visible {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-border);
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }

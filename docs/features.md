@@ -30,7 +30,11 @@ flowchart LR
    surname and first name.
 3. **Assess.** Each candidate's assessment is generated (singly or for a whole
    cohort) as a copy of the **cumulative syllabus** for their age band, from White
-   up to the rank they are testing for, and started deliberately. Assessors mark
+   up to the rank they are testing for, and started deliberately. A form is
+   prepared only while the session is draft or open, and started only once it is
+   open; neither for a withdrawn candidate. When a candidate's form cannot be
+   prepared or started, their page says why, in the same words as the refusal,
+   and offers no button. Assessors mark
    each item **Met** or **Not met**. Anyone marking or reviewing can add comments
    to an item, including one that is already marked and from several people (each
    adds their own observations); they keep their author and time and are never

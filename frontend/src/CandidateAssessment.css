@@ -315,13 +315,27 @@
   box-shadow: var(--shadow-up);
 }
 
+/* The count, meter and tallies share a row and take the room the button
+   leaves. */
+.caw-mat-summary {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .caw-mat-count {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
 }
 
+.caw-mat-summary > [class*="caw-mat-tally"] {
+  flex: none;
+}
+
 .caw-mat-figure {
+  flex: none;
   font-variant-numeric: tabular-nums;
 }
 
@@ -361,12 +375,28 @@
 }
 
 /* A phone has no room for a category's bar beside a longer name; the count
-   beside it says the same. The mat bar is pinned to the window, so it drops
-   the count its first figure and its button already give. */
+   beside it says the same. The mat bar is pinned to the window, so it is two
+   rows there, the count and its tallies closer together and then the button
+   across the bar, and it drops the count its first figure and button give. */
 @media (max-width: 40rem) {
   .caw-band-meter,
   .caw-mat-tally-remaining {
     display: none;
+  }
+
+  .caw-mat-summary {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  /* Measured at its narrowest, so the count's words wrap before a tally
+     leaves the row; a tally wraps only on the narrowest phone. */
+  .caw-mat-count {
+    flex: 1 1 min-content;
+  }
+
+  .caw-mat-action {
+    flex: 1 1 100%;
   }
 }
 

@@ -52,7 +52,8 @@ The `assessment` screen is a candidate being marked, with a Met and a Not met al
 is that page with a comment box opened on a row, `assessment-withdrawn` the same page with every mark closed, and
 `student-status-dialog` the dialog whose choices are radios. One more test holds the two bars pinned to a phone's
 window to what is needed there: the decision board's bar is its one row of buttons (how recording works is said in the
-page), and the mat bar drops the count its button already gives.
+page), and the mat bar is two rows down to a 360px phone: the count beside its tallies, the count on one line, then
+the button.
 
 What it cannot reproduce: Safari's address bar, the on-screen keyboard, safe areas, real touch scrolling, or
 iOS's own date control (Linux and Mac WebKit draw dates differently). Real-device checks stay in the release

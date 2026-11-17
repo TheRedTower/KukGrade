@@ -395,8 +395,26 @@ test("a bar pinned to a phone's window holds only what is needed there", async (
   await page.getByTestId("caw-mat-bar").waitFor();
   await settled(page);
   await expect(page.locator(".caw-mat-tally-remaining")).toBeHidden();
-  const mat = (await page.getByTestId("caw-mat-bar").boundingBox())!;
-  expect(mat.height / 660, "the mat bar leaves most of a phone's screen to the form").toBeLessThan(0.22);
+  // Two rows on a phone: the count beside its tallies, then the button.
+  for (const width of [390, 360]) {
+    await page.setViewportSize({ width, height: 660 });
+    const layout = await page.getByTestId("caw-mat-bar").evaluate((bar) => {
+      const box = (selector: string) => bar.querySelector(selector)!.getBoundingClientRect();
+      const count = box(".caw-mat-count");
+      const figure = box(".caw-mat-figure");
+      const size = parseFloat(getComputedStyle(bar.querySelector(".caw-mat-figure")!).fontSize);
+      return {
+        besideCount: [".caw-mat-tally-met", ".caw-mat-tally-not-met"].every((selector) => {
+          const tally = box(selector);
+          return tally.top < count.bottom && tally.bottom > count.top;
+        }),
+        // Two lines would be at least twice the type's size.
+        figureOneLine: figure.height < size * 2,
+        buttonBelow: box(".caw-mat-action").top >= count.bottom,
+      };
+    });
+    expect(layout, `the mat bar at ${width}px`).toEqual({ besideCount: true, figureOneLine: true, buttonBelow: true });
+  }
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(page.locator(".caw-mat-tally-remaining")).toBeVisible();
   await page.close();

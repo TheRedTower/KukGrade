@@ -37,6 +37,7 @@ from data_imports.ksw_adapter import (
     WorkbookParseResult,
     WorkbookStructureError,
     parse_ksw_workbook,
+    workbook_checks,
 )
 from data_imports.mappings import (
     EXTRA_LABEL_MAX_LENGTH,
@@ -337,7 +338,11 @@ def _store_roster_rows(batch: ImportBatch, dataset: TabularData) -> None:
 
 
 def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
-    issues = _legacy_issue_finder({}, _committed_legacy_keys(parsed.rows))
+    issues = _legacy_issue_finder(
+        {},
+        _committed_legacy_keys(parsed.rows),
+        workbook_checks(parsed.rows),
+    )
     ImportRow.objects.bulk_create(
         [
             ImportRow(
@@ -1300,11 +1305,10 @@ def set_import_row_excluded(
         # brought back is ready.
         row.outcome = ImportRow.Outcome.READY
     row.save(update_fields=["excluded", "outcome"])
-    if (
-        locked.kind == ImportBatch.Kind.STUDENT_ROSTER
-        and locked.configuration.column_mapping
-    ):
-        # Every row again: a row left out, or back, can end or make a repeat.
+    # Every row again: a row left out, or back, can end or make a repeat.
+    if locked.kind == ImportBatch.Kind.LEGACY_GRADINGS:
+        _find_legacy_issues(locked)
+    elif locked.configuration.column_mapping:
         _classify_roster(locked)
     row.refresh_from_db()
     return row
@@ -1561,10 +1565,12 @@ def _outcome_unresolved(row: CanonicalLegacyRow) -> bool:
 
 def _legacy_issue_finder(
     normalised_mappings: dict[str, str],
-    already_held: set[LegacyKey] | None = None,
+    already_held: set[LegacyKey],
+    checks: dict[str, list[str]],
 ) -> Callable[[CanonicalLegacyRow], list[str]]:
     """Why a historical record is worth a look before importing. None of it
-    stops the import: every record is kept exactly as the workbook has it."""
+    stops the import: every record is kept exactly as the workbook has it.
+    `checks` is what the workbook itself shows (workbook_checks), by locator."""
     resolve = _rank_resolver(normalised_mappings)
     ranks = active_rank_lookup()
 
@@ -1579,11 +1585,12 @@ def _legacy_issue_finder(
         if _outcome_unresolved(row):
             outcome_text = row.source_outcome_text.strip()
             found.append(f"Outcome {outcome_text!r} is not one KukGrade knows.")
+        found.extend(checks.get(row.source_locator, []))
         if row.record_kind == LegacyRecordKind.AUXILIARY_NOTE:
             found.append(
                 "A note on the sheet, kept with that grading, not as anyone's result.",
             )
-        if already_held and _row_legacy_key(row) in already_held:
+        if _row_legacy_key(row) in already_held:
             found.append(DUPLICATE_OF_EARLIER_IMPORT)
         return found
 
@@ -1595,13 +1602,20 @@ def _find_legacy_issues(locked: ImportBatch) -> None:
 
     Against the rank choices and the records as they are now, not as they
     were at upload: another upload may have been committed since, or an
-    earlier record voided. Only the rows whose reasons changed are written.
+    earlier record voided. The workbook's own checks see only the rows still
+    in the import, so leaving out one of a name written twice ends the
+    other's. Only the rows whose reasons changed are written.
     """
     stored_rows = list(locked.rows.all())
     canonical = [CanonicalLegacyRow(**stored.raw) for stored in stored_rows]
     issues = _legacy_issue_finder(
         locked.configuration.rank_mappings,
         _committed_legacy_keys(canonical),
+        workbook_checks(
+            row
+            for stored, row in zip(stored_rows, canonical, strict=True)
+            if not stored.excluded
+        ),
     )
     changed: list[ImportRow] = []
     for stored, row in zip(stored_rows, canonical, strict=True):

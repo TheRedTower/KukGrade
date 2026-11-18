@@ -65,6 +65,14 @@ KukGrade:
   at once). A wrong link can be moved; a wrong record can be **voided**, never deleted.
   A name can be **left for now** to come back to; that list is each administrator's own
   and is kept on the server, not in the browser.
+- A note written beside a person's row, outside any table, is kept on that person's
+  record and says where it was written; a note merged down several rows is kept on each
+  person beside it. A note beside no one (a title above the table, say) is kept as a
+  note on the sheet.
+- The review marks what the workbook itself leaves in doubt: a result with no outcome,
+  a missing rank, a name written twice on one sheet (the same person twice, or two
+  people with one name), and someone listed as missing or absent and also graded on
+  the same sheet. Nothing is guessed or blocked; leave a record out if it is a repeat.
 - A month stays a month: an exact day is never invented.
 - "Did not attend" counts as attendance, not as a fail.
 - A workbook saved again and uploaded a second time is noticed: unlike the roster, a

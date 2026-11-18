@@ -12,9 +12,14 @@ import pytest
 from openpyxl.workbook import Workbook
 
 from data_imports.ksw_adapter import (
+    MAX_NOTE_ROWS,
+    NO_CURRENT_RANK,
+    NO_OUTCOME,
+    NO_TESTING_FOR_RANK,
     CanonicalLegacyRow,
     WorkbookStructureError,
     parse_ksw_workbook,
+    workbook_checks,
 )
 from data_imports.testing import MAIN_TABLE_HEADER, standard_workbook, workbook_bytes
 from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
@@ -417,7 +422,7 @@ def test_a_repeated_main_column_is_read_once_with_a_warning() -> None:
     ]
 
 
-def test_notes_in_no_table_are_kept_with_a_warning_never_dropped() -> None:
+def test_a_note_beside_a_person_is_kept_on_their_record() -> None:
     content = sheet(
         [*MAIN_TABLE_HEADER, None, "General Comments - juniors"],
         ["A. Example", "White", "Yellow", "Pass", "", None, "Low stances."],
@@ -426,17 +431,34 @@ def test_notes_in_no_table_are_kept_with_a_warning_never_dropped() -> None:
     )
 
     result = parse_ksw_workbook(content)
+
+    assert [(row.source_name, row.admin_note) for row in result.rows] == [
+        (
+            "A. Example",
+            "Written beside this row, under General Comments - juniors: Low stances.",
+        ),
+        ("B. Example", "Written beside this row: These two need more."),
+    ]
+    assert result.warnings == []
+
+
+def test_a_note_beside_a_row_with_no_name_is_a_sheet_note() -> None:
+    content = sheet(
+        [*MAIN_TABLE_HEADER, None, "General Comments - juniors"],
+        ["A. Example", "White", "Yellow", "Pass", ""],
+        [None, None, None, None, None, None, "Low stances."],
+        title="062026",
+    )
+
+    result = parse_ksw_workbook(content)
     notes = [row for row in result.rows if row.source_name == "Sheet note"]
 
     assert [
         (row.source_section, row.admin_note, row.source_locator) for row in notes
-    ] == [
-        ("General Comments - juniors", "Low stances.", "062026!Note!G2"),
-        ("Beside the table", "These two need more.", "062026!Note!F3"),
-    ]
-    assert all(row.record_kind == LegacyRecordKind.AUXILIARY_NOTE for row in notes)
+    ] == [("General Comments - juniors", "Low stances.", "062026!Note!G3")]
+    assert result.rows[0].admin_note == ""
     assert result.warnings == [
-        "Sheet '062026' has 2 note(s) in no table; each is kept as a note named "
+        "Sheet '062026' has 1 note(s) in no table; each is kept as a note named "
         "'Sheet note'.",
     ]
 
@@ -485,14 +507,17 @@ def test_a_row_with_no_name_under_a_side_section_is_kept_as_a_note() -> None:
 
 
 def test_a_note_far_to_the_right_cannot_be_mistaken_for_a_main_row() -> None:
-    # Column R row 2 is "R2" - the main table's own row 2 is "062025!R2".
-    far = [None] * 17 + ["far note"]
-    row = ["A. Example", "White", "Yellow", "Pass", "", *far[5:]]
-    content = sheet(MAIN_TABLE_HEADER, row)
+    # Column R row 3 is "R3" - the main table's own row 3 is "062025!R3".
+    far: list[object] = [None] * 17 + ["far note"]
+    content = sheet(
+        MAIN_TABLE_HEADER,
+        ["A. Example", "White", "Yellow", "Pass", ""],
+        far,
+    )
 
     locators = [r.source_locator for r in parse_ksw_workbook(content).rows]
 
-    assert locators == ["062025!R2", "062025!Note!R2"]
+    assert locators == ["062025!R2", "062025!Note!R3"]
 
 
 def test_a_main_table_column_kukgrade_has_no_field_for_is_kept_on_the_record() -> None:
@@ -573,6 +598,223 @@ def test_every_non_blank_cell_of_a_grading_sheet_is_kept_somewhere() -> None:
             *row.admin_note.split("\n"),
         ):
             kept.add(value)
+            # A note says where it was written: "Written beside ...: n1".
+            kept.add(value.split(": ", 1)[-1])
     data_cells = {str(cell) for row in rows[1:] for cell in row if cell}
 
     assert data_cells - kept == set()
+
+
+# --- notes merged down several rows -------------------------------------------
+
+
+def merged_sheet(rows: Sequence[Sequence[object]], *merges: str) -> bytes:
+    def build(workbook: Workbook) -> None:
+        ws = workbook.create_sheet("062025")
+        for row in rows:
+            ws.append(row)
+        for cells in merges:
+            ws.merge_cells(cells)
+
+    return workbook_bytes(build)
+
+
+def test_a_merged_note_is_on_each_person_it_spans_and_on_no_one_else() -> None:
+    content = merged_sheet(
+        [
+            MAIN_TABLE_HEADER,
+            ["A. Example", "White", "Yellow", "Pass", "", "Both need focus."],
+            [None, None, None, None, "run on"],
+            ["B. Example", "White", "Yellow", "Pass", ""],
+            ["C. Example", "White", "Yellow", "Pass", ""],
+        ],
+        "F2:G4",
+    )
+
+    result = parse_ksw_workbook(content)
+    notes = {row.source_name: row.admin_note for row in result.rows}
+
+    assert (
+        notes["A. Example"]
+        == notes["B. Example"]
+        == ("Written beside rows 2 to 4: Both need focus.")
+    )
+    assert notes["C. Example"] == ""
+    # The run-on comment is in the main table's own column: a sheet note.
+    assert notes["Sheet note"] == "run on"
+
+
+def test_a_merged_note_beside_no_one_is_a_sheet_note() -> None:
+    content = merged_sheet(
+        [
+            MAIN_TABLE_HEADER,
+            ["A. Example", "White", "Yellow", "Pass", ""],
+            [],
+            [None, None, None, None, None, "For next time."],
+        ],
+        "F4:F5",
+    )
+
+    result = parse_ksw_workbook(content)
+
+    assert [(row.source_name, row.admin_note) for row in result.rows] == [
+        ("A. Example", ""),
+        ("Sheet note", "For next time."),
+    ]
+
+
+def test_a_note_merged_down_most_of_the_sheet_is_about_no_one_in_particular() -> None:
+    people = [
+        [f"Person {index}", "White", "Yellow", "Pass", ""]
+        for index in range(MAX_NOTE_ROWS + 1)
+    ]
+    people[0].append("The whole class: more spirit.")
+    content = merged_sheet(
+        [MAIN_TABLE_HEADER, *people],
+        f"F2:F{MAX_NOTE_ROWS + 2}",
+    )
+
+    result = parse_ksw_workbook(content)
+
+    people_notes = [r.admin_note for r in result.rows if r.source_name != "Sheet note"]
+    [note] = [r for r in result.rows if r.source_name == "Sheet note"]
+    assert people_notes == [""] * (MAX_NOTE_ROWS + 1)
+    # In its place, after the row it was written on.
+    assert result.rows[1] == note
+    assert (note.admin_note, note.source_locator) == (
+        "The whole class: more spirit.",
+        "062025!Note!F2",
+    )
+
+
+def test_a_merge_inside_the_main_table_changes_no_record() -> None:
+    content = merged_sheet(
+        [
+            MAIN_TABLE_HEADER,
+            ["A. Example", "White", "Yellow", "Pass", "Shared comment."],
+            ["B. Example", "White", "Yellow", "Pass", None],
+        ],
+        "E2:E3",
+    )
+
+    first, second = parse_ksw_workbook(content).rows
+
+    assert (first.comments, second.comments) == ("Shared comment.", "")
+    assert first.admin_note == second.admin_note == ""
+
+
+# --- what the workbook itself shows is worth a look ---------------------------
+
+
+def row(
+    name: str,
+    *,
+    sheet: str = "062025",
+    section: str = "",
+    kind: str = LegacyRecordKind.GRADING_RESULT,
+    number: int = 2,
+    current: str = "White",
+    testing: str = "Yellow",
+    outcome: str = "Pass",
+) -> CanonicalLegacyRow:
+    prefix = f"{sheet}!{section}!" if section else f"{sheet}!"
+    return CanonicalLegacyRow(
+        source_sheet=sheet,
+        source_section=section,
+        source_locator=f"{prefix}R{number}",
+        cycle_year=2025,
+        cycle_month=6,
+        record_kind=kind,
+        source_name=name,
+        source_current_rank_text=current,
+        source_testing_for_rank_text=testing,
+        source_outcome_text=outcome,
+    )
+
+
+def test_a_blank_outcome_is_checked_on_results_only() -> None:
+    checks = workbook_checks(
+        [
+            row("A. Example", outcome=""),
+            row("B. Side", section="Unaccounted", current="", testing="", outcome=""),
+            row(
+                "C. Away",
+                kind=LegacyRecordKind.DID_NOT_ATTEND,
+                number=3,
+                outcome="",
+                testing="",
+            ),
+        ],
+    )
+
+    assert checks == {
+        "062025!R2": [NO_OUTCOME],
+        # A side table has no rank columns: only the outcome is missing.
+        "062025!Unaccounted!R2": [NO_OUTCOME],
+    }
+
+
+def test_a_missing_rank_is_checked_in_the_main_table() -> None:
+    checks = workbook_checks(
+        [
+            row("A. Example", current=""),
+            row("B. Example", number=3, testing=""),
+            row(
+                "C. Away",
+                kind=LegacyRecordKind.DID_NOT_ATTEND,
+                number=4,
+                current="",
+                testing="",
+                outcome="DNA",
+            ),
+        ],
+    )
+
+    assert checks == {
+        "062025!R2": [NO_CURRENT_RANK],
+        "062025!R3": [NO_TESTING_FOR_RANK],
+        # Not attending, nothing was tested: only the rank held is missing.
+        "062025!R4": [NO_CURRENT_RANK],
+    }
+
+
+def test_names_that_cannot_be_one_person_or_are_on_other_sheets_are_not_checked() -> (
+    None
+):
+    checks = workbook_checks(
+        [
+            row("Cara P"),
+            row("Cara K", number=3),
+            row("Cara P", sheet="092025"),
+            row(
+                "Cara K",
+                sheet="092025",
+                section="Missing",
+                kind=LegacyRecordKind.AUXILIARY_NOTE,
+                number=3,
+            ),
+        ],
+    )
+
+    assert checks == {}
+
+
+def test_a_sheet_naming_too_many_people_is_not_checked_for_names_with_a_warning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("data_imports.ksw_adapter.MAX_CHECKED_NAMES", 2)
+    content = standard_workbook(
+        [
+            ["Kit B", "White", "Yellow", "Pass", ""],
+            ["Kit B", "White", "Yellow", "Pass", ""],
+            ["Sam P", "White", "Yellow", "Pass", ""],
+        ],
+    )
+
+    result = parse_ksw_workbook(content)
+
+    assert workbook_checks(result.rows) == {}
+    assert result.warnings == [
+        "Sheet '06-2025' names more than 2 people, so it was not checked for "
+        "anyone written twice.",
+    ]

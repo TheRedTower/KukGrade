@@ -19,8 +19,14 @@ showed is handled here: bare `MMYYYY` sheet titles; side tables written
 beside the main table, in the same rows - "Unaccounted" with its own outcome
 and comments, "Missing" with a note, "Did not attend" with the current
 belt; a second copy of a main column; and notes in no table at all. Nothing
-non-blank on a grading sheet is dropped: a cell no table claims is kept as
-a sheet note, with a warning saying so.
+non-blank on a grading sheet is dropped: a cell no table claims is a note on
+the person whose row it is written beside (on each person, when it is merged
+down several rows), and any other is kept as a sheet note, with a warning
+saying so.
+
+It also says what the workbook itself shows is worth a look - a blank
+outcome, a missing rank, a name written twice on a sheet, or both graded and
+missing there (workbook_checks) - without changing or guessing anything.
 """
 
 from __future__ import annotations
@@ -39,9 +45,10 @@ from data_imports.parsers import (
     is_blank,
     normalised_text,
     open_workbook,
+    worksheet_merged_ranges,
     worksheet_rows,
 )
-from gradings.legacy_matching import SHEET_NOTE_NAME
+from gradings.legacy_matching import SHEET_NOTE_NAME, name_tokens, names_compatible
 from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 
 # Budgets for the whole workbook, every sheet counted, known or not.
@@ -91,8 +98,16 @@ _SIDE_COLUMNS = {
     "current rank": "current rank",
 }
 
-# A cell no table claims is kept, never dropped, as a note on its sheet,
+# A cell no table claims, on a main-table row, is a note on the person on
+# that row; merged down several rows, on each person beside it. Merged down
+# more rows than this, it is about the sheet, not the people beside it. Any
+# other cell no table claims is kept, never dropped, as a note on its sheet,
 # named SHEET_NOTE_NAME (shared with the record matching, which skips them).
+MAX_NOTE_ROWS = 20
+
+# The most people one sheet may name for its names to be checked against
+# each other (workbook_checks). A real sheet names a few dozen.
+MAX_CHECKED_NAMES = 300
 
 _DNA_VALUES = {"dna", "did not attend"}
 _DETERMINISTIC_OUTCOMES = {
@@ -417,12 +432,79 @@ def _with_extra(row: CanonicalLegacyRow, extra: list[str]) -> CanonicalLegacyRow
     return replace(row, admin_note=note)
 
 
+@dataclass(frozen=True)
+class _LooseCell:
+    """A cell in no table on a row of the main table, kept until every row
+    is read: it is a note on the people beside it, or else a sheet note."""
+
+    text: str
+    heading: str
+    column: int
+    row_index: int
+    place: _Place
+
+
+def _beside_note(cell: _LooseCell, last_row_index: int) -> str:
+    """A loose cell's text as a note on a record, saying where it was."""
+    where = (
+        "this row"
+        if last_row_index == cell.row_index
+        else f"rows {cell.row_index + 1} to {last_row_index + 1}"
+    )
+    under = f", under {cell.heading}" if cell.heading else ""
+    return f"Written beside {where}{under}: {cell.text}"
+
+
+def _place_loose_cells(
+    entries: list[CanonicalLegacyRow | _LooseCell],
+    *,
+    person_at: dict[int, int],
+    merged: dict[tuple[int, int], int],
+) -> list[CanonicalLegacyRow]:
+    """Each loose cell as a note on the main-table records of the rows it
+    covers - its own row, or every row a merged cell spans - or, when none
+    of them names anyone, as a sheet note in its place."""
+    beside: dict[int, list[str]] = {}
+    sheet_notes: dict[int, CanonicalLegacyRow] = {}
+    for position, entry in enumerate(entries):
+        if not isinstance(entry, _LooseCell):
+            continue
+        last = merged.get((entry.row_index, entry.column), entry.row_index)
+        # Merged down most of the sheet, it is about everyone, so no one.
+        targets = (
+            []
+            if last - entry.row_index + 1 > MAX_NOTE_ROWS
+            else [
+                person_at[index]
+                for index in range(entry.row_index, last + 1)
+                if index in person_at
+            ]
+        )
+        for target in targets:
+            beside.setdefault(target, []).append(_beside_note(entry, last))
+        if not targets:
+            sheet_notes[position] = _sheet_note(
+                entry.text,
+                heading=entry.heading,
+                column=entry.column,
+                **entry.place,
+            )
+    return [
+        _with_extra(entry, beside.get(position, []))
+        if isinstance(entry, CanonicalLegacyRow)
+        else sheet_notes[position]
+        for position, entry in enumerate(entries)
+        if isinstance(entry, CanonicalLegacyRow) or position in sheet_notes
+    ]
+
+
 def _parse_cycle_sheet(
     rows: list[tuple[Any, ...]],
     *,
     sheet_name: str,
     cycle_year: int,
     cycle_month: int,
+    merged_ranges: Iterable[tuple[int, int, int, int]] = (),
 ) -> tuple[list[CanonicalLegacyRow], list[str]]:
     warnings: list[str] = []
     header = _find_header_row(rows)
@@ -441,7 +523,11 @@ def _parse_cycle_sheet(
             f"Sheet '{sheet_name}' repeats a column of the main table; only the "
             "first was read.",
         )
-    canonical_rows: list[CanonicalLegacyRow] = []
+    # Every record in sheet order, with each cell in no table kept in its
+    # place until every row is read (_place_loose_cells).
+    entries: list[CanonicalLegacyRow | _LooseCell] = []
+    # Row index -> position in `entries` of the main-table record on it.
+    person_at: dict[int, int] = {}
     current_section: str | None = None
     claimed = (
         set(columns.values())
@@ -451,7 +537,11 @@ def _parse_cycle_sheet(
         | {index for table in layout.side_tables for index in table.columns.values()}
         | {index for table in layout.side_tables for index in table.note_columns}
     )
-    sheet_notes = 0
+    # A merged cell's first row and column -> its last row (0-based).
+    merged = {
+        (first_row - 1, first_col - 1): last_row - 1
+        for first_col, first_row, _last_col, last_row in merged_ranges
+    }
 
     def place_of(row_index: int) -> _Place:
         # row_number is the 1-based Excel row number (rows is 0-indexed).
@@ -485,14 +575,14 @@ def _parse_cycle_sheet(
 
     # Anything written above the table - a title, a date - is kept too.
     for row_index in range(header_index):
-        found = notes_for(
-            rows[row_index],
-            range(len(rows[row_index])),
-            place_of(row_index),
-            heading="Above the table",
+        entries.extend(
+            notes_for(
+                rows[row_index],
+                range(len(rows[row_index])),
+                place_of(row_index),
+                heading="Above the table",
+            ),
         )
-        canonical_rows.extend(found)
-        sheet_notes += len(found)
 
     # Do not stop at the first blank row - auxiliary sections
     # may follow one further down the same sheet.
@@ -506,21 +596,17 @@ def _parse_cycle_sheet(
         if section is not None:
             current_section = section
             # The section's heading row holds nothing else, or a note.
-            found = notes_for(row, range(1, len(row)), place, heading="")
-            canonical_rows.extend(found)
-            sheet_notes += len(found)
+            entries.extend(notes_for(row, range(1, len(row)), place, heading=""))
             continue
 
         if current_section is not None:
             parsed = _parse_auxiliary_row(row, section_name=current_section, **place)
             if parsed is not None:
-                canonical_rows.append(parsed)
+                entries.append(parsed)
             else:
                 # No name in the first cell - a note run on from the row
                 # above, say - is nobody's record, but its cells are kept.
-                found = notes_for(row, range(1, len(row)), place, heading="")
-                canonical_rows.extend(found)
-                sheet_notes += len(found)
+                entries.extend(notes_for(row, range(1, len(row)), place, heading=""))
             continue
 
         parsed = _parse_main_table_row(row, columns, **place)
@@ -530,35 +616,37 @@ def _parse_cycle_sheet(
                 for index, heading in layout.extra.items()
                 if index < len(row) and cell_text(row[index])
             ]
-            canonical_rows.append(_with_extra(parsed, extra))
+            person_at[row_index] = len(entries)
+            entries.append(_with_extra(parsed, extra))
         else:
             # A main-table row with no name - a comment run on from the row
             # above, say - is nobody's record, but its cells are kept.
-            found = notes_for(
-                row,
-                sorted({*columns.values(), *layout.extra}),
-                place,
+            entries.extend(
+                notes_for(row, sorted({*columns.values(), *layout.extra}), place),
             )
-            canonical_rows.extend(found)
-            sheet_notes += len(found)
         for table in layout.side_tables:
             side = _parse_side_row(row, table, **place)
             if side is not None:
-                canonical_rows.append(side)
+                entries.append(side)
         for index in range(len(row)):
             text = cell_text(row[index])
-            if not text or index in claimed:
-                continue
-            canonical_rows.append(
-                _sheet_note(
-                    text,
-                    heading=layout.note_headings.get(index, ""),
-                    column=index,
-                    **place,
-                ),
-            )
-            sheet_notes += 1
+            if text and index not in claimed:
+                entries.append(
+                    _LooseCell(
+                        text=text,
+                        heading=layout.note_headings.get(index, ""),
+                        column=index,
+                        row_index=row_index,
+                        place=place,
+                    ),
+                )
 
+    canonical_rows = _place_loose_cells(
+        entries,
+        person_at=person_at,
+        merged=merged,
+    )
+    sheet_notes = sum(1 for row in canonical_rows if row.source_name == SHEET_NOTE_NAME)
     if sheet_notes:
         warnings.append(
             f"Sheet '{sheet_name}' has {sheet_notes} note(s) in no table; each "
@@ -618,14 +706,21 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
             continue
 
         cycle_month, cycle_year = int(match.group(1)), int(match.group(2))
+        worksheet = workbook[sheet_name]
         sheet_rows, sheet_warnings = _parse_cycle_sheet(
-            list(budget.rows(workbook[sheet_name])),
+            list(budget.rows(worksheet)),
             sheet_name=cleaned_name,
             cycle_year=cycle_year,
             cycle_month=cycle_month,
+            merged_ranges=worksheet_merged_ranges(worksheet),
         )
         all_rows.extend(sheet_rows)
         warnings.extend(sheet_warnings)
+        if len(_named_entries(sheet_rows)) > MAX_CHECKED_NAMES:
+            warnings.append(
+                f"Sheet '{cleaned_name}' names more than {MAX_CHECKED_NAMES} "
+                "people, so it was not checked for anyone written twice.",
+            )
         sheets.append(cleaned_name)
 
     _check_locators_unique(all_rows)
@@ -639,3 +734,122 @@ def _check_locators_unique(rows: list[CanonicalLegacyRow]) -> None:
             msg = f"The workbook lists the same row twice: {row.source_locator}"
             raise WorkbookStructureError(msg)
         seen.add(row.source_locator)
+
+
+# --- what the workbook itself shows is worth a look --------------------------
+
+# The sheet row a record's locator names ("062025!Missing!R7" is row 7).
+_LOCATOR_ROW = re.compile(r"!R(\d+)$")
+# Names listed in one check before the rest are counted.
+_NAMES_LISTED = 3
+
+NO_OUTCOME = "No outcome is written."
+NO_CURRENT_RANK = "No current rank is written."
+NO_TESTING_FOR_RANK = "No rank tested for is written."
+
+
+@dataclass(frozen=True)
+class _NamedEntry:
+    """A record that names someone as graded, or as missing or absent."""
+
+    row: CanonicalLegacyRow
+    tokens: list[str]
+    graded: bool
+
+
+def _named_entries(rows: Iterable[CanonicalLegacyRow]) -> list[_NamedEntry]:
+    entries: list[_NamedEntry] = []
+    for row in rows:
+        graded = row.record_kind == LegacyRecordKind.GRADING_RESULT
+        absent = (
+            row.record_kind == LegacyRecordKind.DID_NOT_ATTEND
+            or row.source_section == _SIDE_TABLE_KINDS["missing"]
+        )
+        tokens = name_tokens(row.source_name)
+        if (graded or absent) and tokens:
+            entries.append(_NamedEntry(row, tokens, graded))
+    return entries
+
+
+def _listed(entries: list[_NamedEntry]) -> str:
+    """Names and where they are on the sheet: “Rubi Moss” (row 5)."""
+    shown = []
+    for entry in entries[:_NAMES_LISTED]:
+        found = _LOCATOR_ROW.search(entry.row.source_locator)
+        where = f" (row {found.group(1)})" if found else ""
+        shown.append(f"“{entry.row.source_name}”{where}")
+    rest = len(entries) - _NAMES_LISTED
+    return ", ".join(shown) + (f" and {rest} more" if rest > 0 else "")
+
+
+def _name_checks(entries: list[_NamedEntry]) -> Iterator[tuple[str, str]]:
+    """One sheet's names written twice, or both graded and missing: each as
+    (locator, message), naming the other entries to look at."""
+    by_initial: dict[str, list[_NamedEntry]] = {}
+    for entry in entries:
+        by_initial.setdefault(entry.tokens[0][0], []).append(entry)
+    alike: dict[int, list[_NamedEntry]] = {}
+    for group in by_initial.values():
+        for index, entry in enumerate(group):
+            for other in group[index + 1 :]:
+                if names_compatible(entry.tokens, other.tokens):
+                    alike.setdefault(id(entry), []).append(other)
+                    alike.setdefault(id(other), []).append(entry)
+    for entry in entries:
+        # In sheet order: each initial's entries are, and are paired in turn.
+        others = alike.get(id(entry), [])
+        graded = [other for other in others if other.graded]
+        absent = [other for other in others if not other.graded]
+        locator = entry.row.source_locator
+        if entry.graded and graded:
+            yield (
+                locator,
+                f"Also graded on this sheet: {_listed(graded)}. If that is the "
+                "same person written twice, leave one out.",
+            )
+        if entry.graded and absent:
+            yield (
+                locator,
+                "Also listed as missing or not attending on this sheet: "
+                f"{_listed(absent)}. Check which is right.",
+            )
+        if not entry.graded and graded:
+            yield (
+                locator,
+                f"Also graded on this sheet: {_listed(graded)}. Check which is right.",
+            )
+
+
+def workbook_checks(rows: Iterable[CanonicalLegacyRow]) -> dict[str, list[str]]:
+    """What the workbook itself shows is worth a look, by record locator: a
+    result with no outcome, a main-table row missing a rank, and a name
+    written twice on one sheet, or both graded and missing there.
+
+    None of it stops an import, and nothing is guessed: every record stays
+    as written. `rows` are the records still in the import, so leaving out
+    one of a pair ends the other's check. A sheet naming more than
+    MAX_CHECKED_NAMES people is not checked for names (a warning says so).
+    """
+    rows = list(rows)
+    found: dict[str, list[str]] = {}
+    for row in rows:
+        messages = found.setdefault(row.source_locator, [])
+        graded = row.record_kind == LegacyRecordKind.GRADING_RESULT
+        if graded and not row.source_outcome_text:
+            messages.append(NO_OUTCOME)
+        # Only the main table has rank columns (a sheet note has a section).
+        if row.source_section == "":
+            if not row.source_current_rank_text:
+                messages.append(NO_CURRENT_RANK)
+            if graded and not row.source_testing_for_rank_text:
+                messages.append(NO_TESTING_FOR_RANK)
+    by_sheet: dict[str, list[CanonicalLegacyRow]] = {}
+    for row in rows:
+        by_sheet.setdefault(row.source_sheet, []).append(row)
+    for sheet_rows in by_sheet.values():
+        entries = _named_entries(sheet_rows)
+        if len(entries) > MAX_CHECKED_NAMES:
+            continue
+        for locator, message in _name_checks(entries):
+            found[locator].append(message)
+    return {locator: messages for locator, messages in found.items() if messages}

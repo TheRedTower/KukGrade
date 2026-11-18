@@ -470,6 +470,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-imports/batches/{id}/sheets/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description A historical import's grading sheets: each one's records, whether
+         *     it is chosen, and whether KukGrade already holds it - new, already
+         *     imported, or changed since, with what differs.
+         */
+        get: operations["data_imports_batches_sheets_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * @description Choose which grading sheets come in. Only what KukGrade does not
+         *     hold yet comes in from any of them.
+         */
+        patch: operations["data_imports_batches_sheets_partial_update"];
+        trace?: never;
+    };
     "/api/data-imports/batches/{id}/void-records/": {
         parameters: {
             query?: never;
@@ -2590,6 +2615,7 @@ export interface components {
             review_required: number;
             skip_existing: number;
             excluded: number;
+            sheet_left_out: number;
         };
         ImportRowExclusionRequest: {
             /** @description True leaves the row out of the import; false brings it back. */
@@ -2839,6 +2865,40 @@ export interface components {
         LegacyRecordLinkRequest: {
             record: number;
             student: number;
+        };
+        /** @description A historical import's grading sheet, against what KukGrade holds. */
+        LegacySheet: {
+            name: string;
+            cycle_year: number;
+            cycle_month: number;
+            /** @description The records read from it. */
+            records: number;
+            /** @description Its records are chosen to come in. */
+            included: boolean;
+            /**
+             * @description NEW: KukGrade holds nothing for its month. IMPORTED: it holds exactly these records. CHANGED: it holds others for the month.
+             *
+             *     * `NEW` - New
+             *     * `IMPORTED` - Already imported
+             *     * `CHANGED` - Changed since imported
+             */
+            state: components["schemas"]["StateEnum"];
+            readonly state_display: string;
+            /** @description The finished imports holding records for its month. */
+            held_by: number[];
+            /** @description A changed sheet's records KukGrade does not hold (the first 50). */
+            added: components["schemas"]["LegacySheetRecord"][];
+            /** @description Records KukGrade holds for a changed sheet's month that the sheet no longer has (the first 50). */
+            removed: components["schemas"]["LegacySheetRecord"][];
+            added_count: number;
+            removed_count: number;
+        };
+        /** @description A record named in what differs, as the workbook writes it. */
+        LegacySheetRecord: {
+            name: string;
+            current_rank: string;
+            testing_for_rank: string;
+            outcome: string;
         };
         LinkLegacyRecordRequest: {
             student: number;
@@ -3152,6 +3212,11 @@ export interface components {
             current_rank?: string | null;
             status?: string | null;
         };
+        /** @description PATCH /{id}/sheets/: the grading sheets whose records come in. */
+        PatchedLegacySheetChoiceRequest: {
+            /** @description Every sheet to bring in, by name; the others are left out. */
+            included?: string[];
+        };
         /**
          * @description PATCH /api/auth/me/.
          *
@@ -3397,6 +3462,13 @@ export interface components {
             revision: number;
         };
         /**
+         * @description * `NEW` - New
+         *     * `IMPORTED` - Already imported
+         *     * `CHANGED` - Changed since imported
+         * @enum {string}
+         */
+        StateEnum: "NEW" | "IMPORTED" | "CHANGED";
+        /**
          * @description Detail, create and update.
          *
          *     One serializer rather than three: create and update share every field,
@@ -3454,9 +3526,10 @@ export interface components {
          *     * `REVIEW_REQUIRED` - Needs attention
          *     * `SKIP_EXISTING` - Already in KukGrade
          *     * `EXCLUDED` - Left out
+         *     * `SHEET_LEFT_OUT` - Sheet not chosen
          * @enum {string}
          */
-        StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING" | "EXCLUDED";
+        StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING" | "EXCLUDED" | "SHEET_LEFT_OUT";
         /**
          * @description The list representation. Deliberately excludes date of birth.
          *
@@ -4051,7 +4124,7 @@ export interface operations {
                 /** @description A roster's rows whose value for this field the file did not give and nobody typed in, so the whole-file value or KukGrade's default was used. */
                 filled?: "current_rank" | "status";
                 /** @description Only rows with this outcome. */
-                outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+                outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SHEET_LEFT_OUT" | "SKIP_EXISTING";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
@@ -4333,6 +4406,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
+    data_imports_batches_sheets_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacySheet"][];
+                };
+            };
+        };
+    };
+    data_imports_batches_sheets_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["PatchedLegacySheetChoiceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLegacySheetChoiceRequest"];
+                "application/json": components["schemas"]["PatchedLegacySheetChoiceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacySheet"][];
                 };
             };
         };

@@ -257,7 +257,7 @@ describe("Choosing the file", () => {
       batch({
         sheet: "Leavers",
         sheet_names: ["Members", "Leavers"],
-        row_counts: { total: 2, ready: 2, review_required: 0, skip_existing: 0, excluded: 0 },
+        row_counts: { total: 2, ready: 2, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
       }),
     );
 
@@ -278,7 +278,7 @@ describe("Choosing the file", () => {
         sheet_names: ["Cover", "Members"],
         detected_headers: [],
         sheet_error: "The file has no header row.",
-        row_counts: { total: 0, ready: 0, review_required: 0, skip_existing: 0, excluded: 0 },
+        row_counts: { total: 0, ready: 0, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
       }),
     );
     api.chooseDataImportSheet.mockResolvedValue(batch({ sheet: "Members", sheet_names: ["Cover", "Members"] }));
@@ -317,7 +317,7 @@ describe("Choosing the file", () => {
         original_filename: "grading-record-2025.xlsx",
         grading_sheets: ["03-2025", "06-2025"],
         warnings: ["Unknown sheet 'Notes' was not imported."],
-        row_counts: { total: 99, ready: 99, review_required: 0, skip_existing: 0, excluded: 0 },
+        row_counts: { total: 99, ready: 99, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
       }),
     );
 
@@ -340,7 +340,7 @@ describe("An import's results", () => {
     committed_by_name: "Sam Taylor",
     defaults: { status: "ACTIVE" },
     extra_columns: ["Parent phone"],
-    summary_json: { total: 212, created: 203, skipped_existing: 5, review_required: 0, excluded: 4 },
+    summary_json: { total: 212, created: 203, skipped_existing: 5, review_required: 0, excluded: 4, sheet_left_out: 0 },
   });
 
   it("shows what a roster import did, with a second look and every row", async () => {

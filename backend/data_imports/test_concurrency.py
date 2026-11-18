@@ -118,3 +118,26 @@ def test_a_transition_after_expiry_in_flight_is_refused(other: str) -> None:
     assert batch_events(batch) == [AuditAction.IMPORT_BATCH_EXPIRED]
     assert not Student.objects.filter(wksa_id=CLEAN_ROW[0]).exists()
     assert not import_upload_storage().exists(name)
+
+
+def test_two_imports_of_the_same_sheet_at_once_add_it_once() -> None:
+    from data_imports.services import commit_legacy_grading_import
+    from data_imports.testing import legacy_batch, standard_workbook
+    from gradings.models import LegacyGradingRecord
+
+    admin = admin_user()
+    rows: list[list[object]] = [["A. Example", "White", "Yellow Stripe", "Pass", ""]]
+    first = legacy_batch(standard_workbook(rows), uploaded_by=admin)
+    second = legacy_batch(standard_workbook(rows), uploaded_by=admin)
+
+    won, refused = interleave(
+        lambda: commit_legacy_grading_import(fresh(first), actor=admin),
+        lambda: commit_legacy_grading_import(fresh(second), actor=admin),
+        pause_first_at=PAUSE_AT,
+    )
+
+    assert isinstance(won, ImportBatch), won
+    assert isinstance(refused, ValidationError), refused
+    assert "Nothing to import" in str(refused)
+    assert LegacyGradingRecord.objects.count() == 1
+    assert fresh(second).status == ImportBatch.Status.UPLOADED

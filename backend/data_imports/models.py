@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Any, overload
+from typing import Any, TypedDict, overload
 
 from django.conf import settings
 from django.db import models
@@ -49,6 +49,20 @@ class _Setting[T]:
         configuration.stored.pop(self.key, None)
 
 
+class GradingSheet(TypedDict):
+    """One grading sheet of a historical workbook, as read at upload."""
+
+    name: str
+    cycle_year: int
+    cycle_month: int
+    # Its records, and a fingerprint of what they say (legacy_content_key
+    # of each, in order of key), to compare with what KukGrade holds.
+    records: int
+    fingerprint: str
+    # Whether its records come in: the importer's choice.
+    included: bool
+
+
 class ImportConfiguration:
     """An import's configuration_json, by name: what the file's reading found
     and the importer's choices - never row content, which lives on ImportRow.
@@ -68,9 +82,9 @@ class ImportConfiguration:
     column_mapping = _Setting[dict[str, str]](dict)
     defaults = _Setting[dict[str, str]](dict)
     extra_columns = _Setting[list[str]](list)
-    # A historical workbook: its grading sheets, and the chosen rank code for
-    # each lower-cased spelling.
-    grading_sheets = _Setting[list[str]](list)
+    # A historical workbook: its grading sheets in workbook order, and the
+    # chosen rank code for each lower-cased spelling.
+    sheets = _Setting[list[GradingSheet]](list)
     rank_mappings = _Setting[dict[str, str]](dict)
 
     def __init__(self, stored: dict[str, Any]) -> None:
@@ -201,6 +215,8 @@ class ImportRowOutcome(models.TextChoices):
     REVIEW_REQUIRED = "REVIEW_REQUIRED", "Needs attention"
     SKIP_EXISTING = "SKIP_EXISTING", "Already in KukGrade"
     EXCLUDED = "EXCLUDED", "Left out"
+    # A historical record on a sheet the importer has not chosen.
+    SHEET_LEFT_OUT = "SHEET_LEFT_OUT", "Sheet not chosen"
 
 
 class ImportRow(models.Model):

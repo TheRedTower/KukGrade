@@ -23,6 +23,7 @@ from gradings.legacy_matching import (
     PersonGroup,
     group_records,
     name_tokens,
+    names_compatible,
     score_student,
     suggest_for_groups,
 )
@@ -104,6 +105,38 @@ def test_a_name_is_compared_without_titles_or_punctuation(
     tokens: list[str],
 ) -> None:
     assert name_tokens(written) == tokens
+
+
+@pytest.mark.parametrize(
+    ("one", "other"),
+    [
+        ("Kit B", "Kit B"),
+        ("Omar", "Omar Haddad"),
+        ("Finn C", "Fin Cole"),
+        ("Ruby Moss", "Rubi Moss"),
+        ("Mara Quinlan", "Mara Quinlen"),
+        ("JKN Cara", "cara"),
+    ],
+)
+def test_names_that_could_be_one_person_are_compatible(one: str, other: str) -> None:
+    assert names_compatible(name_tokens(one), name_tokens(other))
+    assert names_compatible(name_tokens(other), name_tokens(one))
+
+
+@pytest.mark.parametrize(
+    ("one", "other"),
+    [
+        ("Cara P", "Cara K"),
+        ("Omar Haddad", "Omar Smith"),
+        ("Zac", "Max"),
+        ("Mo", "Mi"),
+        ("Ruby Moss", "Ruby Mossington"),
+        ("", "Cara"),
+    ],
+)
+def test_names_that_cannot_be_one_person_are_not(one: str, other: str) -> None:
+    assert not names_compatible(name_tokens(one), name_tokens(other))
+    assert not names_compatible(name_tokens(other), name_tokens(one))
 
 
 @pytest.mark.parametrize(

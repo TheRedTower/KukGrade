@@ -67,6 +67,117 @@ def standard_workbook(main_rows: list[list[object]], sheet: str = "06-2025") -> 
     return workbook_bytes(build)
 
 
+# A made-up history with every layout the real workbook has (2026-11-18): a
+# cover sheet; a title above the table; side tables - "Unaccounted" results,
+# "Missing" with a note, "Did not attend" with the current belt and a note;
+# catch-up rows after a gap; a run-on comment with no name; a note beside a
+# person's row; a second "Name" column; a note merged down three rows. And
+# what it holds: one person under three spellings along a rank chain (Theo
+# R, Theo Rowan, Teo Rowan), one spelling for two people on one sheet (Sam
+# P), a name written twice (Kit B; Ruby and Rubi Moss), people both missing
+# and graded (Omar and Omar Haddad; Finn C and Fin Cole), a blank outcome,
+# missing ranks, rank spellings no rank reads ("Bown Stripe", "DNB") or that
+# the workbook doubts ("Red stripe?"), a DBN testing for DBN, outcomes as
+# written ("Pass.", "N/A", "DNA", free text) and a bad entry.
+HISTORY_SHEETS: dict[str, list[list[object]]] = {
+    "Information": [
+        ["Key"],
+        ["Conditional", "The school owner decides."],
+    ],
+    "062025": [
+        ["Grading, June 2025"],
+        [*MAIN_TABLE_HEADER, None, "Unaccounted", "Outcome", "Comments"],
+        [
+            "Theo R",
+            "White Belt",
+            "Yellow Stripe",
+            "Pass.",
+            "Good stances.",
+            None,
+            "Priya N",
+            "Conditional.",
+            "Etiquette.",
+        ],
+        ["Wren Hale", "DBN", "DBN", "Pass", "Forms 1-3."],
+        ["Kit B", "White", "Yellow Stripe", "Pass", ""],
+        ["Omar Haddad", "Yellow", "Blue Stripe", "Fail", "Kicks."],
+        [],
+        ["Ruby Moss", "Blue Stripe", "Blue", "Pass", "Caught up a week later."],
+    ],
+    "122025": [
+        [*MAIN_TABLE_HEADER, None, None, "Missing"],
+        [
+            "Theo Rowan",
+            "Yellow Stripe",
+            "Yellow",
+            "Pass",
+            "",
+            None,
+            None,
+            "Omar",
+            "Away, rang in",
+        ],
+        ["Omar Haddad", None, "Blue Stripe", "Pass", "Second try."],
+        ["Ruby Moss", "Blue", "Red Stripe", "Fail", ""],
+        ["Rubi Moss", "Blue", "Red Stripe", "Fail", ""],
+        ["Test entry", None, None, "System error", ""],
+        [None, None, None, None, "Ran on: needs more power."],
+    ],
+    "032026": [
+        [*MAIN_TABLE_HEADER, None, "Did not attend", "Current belt"],
+        [
+            "Teo Rowan",
+            "Yellow",
+            "Blue Stripe",
+            "Pass",
+            "",
+            "Good spirit, talk to parents.",
+            "Finn C",
+            "Red stripe?",
+            "Paid?",
+        ],
+        ["Fin Cole", "Red Stripe", "Red", "Pass", ""],
+        ["Sam P", "White", "Yellow Stripe", "Pass", ""],
+        ["Sam P", "DBN", "DBN", "Conditional", "Owner to decide."],
+        ["Kit B", "Yellow Stripe", "Yellow", "Pass", ""],
+        ["Kit B", "Yellow Stripe", "Yellow", None, ""],
+        ["Wren Hale", "DBN", "DNB", "N/A", ""],
+        ["Ruby Moss", "Bown Stripe", "Red Stripe", "Testing? KSN Example: No", ""],
+    ],
+    "092026": [
+        ["Name", "Name", "Current Rank", "Testing For", "Outcome", "Comments"],
+        ["Theo Rowan", "Theo Rowan", "Blue Stripe", "Blue", "Pass", ""],
+        ["Fin Cole", "Fin Cole", "Red", "Brown Stripe", "DNA", ""],
+        [
+            "Lena Ash",
+            "Lena Ash",
+            "White",
+            "Yellow Stripe",
+            "Pass",
+            "",
+            "These three: work on breathing.",
+        ],
+        ["Mo Ito", "Mo Ito", "White", "Yellow Stripe", "Pass", ""],
+        ["Ari Lund", "Ari Lund", "White", "Yellow Stripe", "Fail", ""],
+    ],
+}
+HISTORY_MERGES: dict[str, list[str]] = {"092026": ["G4:G6"]}
+
+
+def history_workbook() -> bytes:
+    """HISTORY_SHEETS as a workbook, with HISTORY_MERGES merged."""
+
+    def build(workbook: Workbook) -> None:
+        for title, rows in HISTORY_SHEETS.items():
+            ws = workbook.create_sheet(title)
+            for row in rows:
+                ws.append(row)
+            for cells in HISTORY_MERGES.get(title, []):
+                ws.merge_cells(cells)
+
+    return workbook_bytes(build)
+
+
 def check_roster(
     batch: ImportBatch,
     *,

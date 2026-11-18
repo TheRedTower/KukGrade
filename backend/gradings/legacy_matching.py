@@ -16,7 +16,7 @@ students fit equally well, that is said rather than one picked.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
@@ -51,6 +51,47 @@ def group_key(name: str) -> str:
 
 def _close(a: str, b: str) -> bool:
     return a[:1] == b[:1] and SequenceMatcher(None, a, b).ratio() >= _CLOSE
+
+
+def _one_edit_apart(a: str, b: str) -> bool:
+    """Whether one letter added, dropped or changed turns `a` into `b`."""
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) > len(b):
+        a, b = b, a
+    for index, (x, y) in enumerate(zip(a, b, strict=False)):
+        if x != y:
+            # The rest must agree once the slip is skipped.
+            skip = 1 if len(a) == len(b) else 0
+            return a[index + skip :] == b[index + 1 :]
+    return True
+
+
+def _spelt_alike(a: str, b: str) -> bool:
+    """The same word, or the same word with one slip ("Fin", "Finn"; "Ruby",
+    "Rubi"), keeping its first letter. A word under three letters must be
+    the same."""
+    if a == b:
+        return True
+    return min(len(a), len(b)) >= 3 and a[0] == b[0] and _one_edit_apart(a, b)
+
+
+def names_compatible(first: Sequence[str], second: Sequence[str]) -> bool:
+    """Whether two names as written, each as its name_tokens, could be the
+    same person.
+
+    The first names are the same or spelt alike. The rest is missing on one
+    side ("Omar", "Omar Haddad"), the same, spelt alike, or an initial
+    that matches ("Finn C", "Fin Cole").
+    """
+    if not first or not second or not _spelt_alike(first[0], second[0]):
+        return False
+    rest_a, rest_b = " ".join(first[1:]), " ".join(second[1:])
+    if not rest_a or not rest_b:
+        return True
+    if min(len(rest_a), len(rest_b)) == 1:
+        return rest_a[0] == rest_b[0]
+    return _spelt_alike(rest_a, rest_b)
 
 
 class Suggestion(models.TextChoices):

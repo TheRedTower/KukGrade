@@ -26,6 +26,8 @@ from data_imports.parsers import (
     MAX_COLUMNS,
     UnsupportedImportFileError,
     load_tabular_dataset,
+    open_workbook,
+    worksheet_merged_ranges,
 )
 from data_imports.services import create_import_batch
 from data_imports.storage import import_upload_storage
@@ -238,6 +240,37 @@ def test_a_workbook_with_too_many_sheets_is_refused() -> None:
         pytest.raises(WorkbookStructureError, match="more than 2 sheets"),
     ):
         parse_ksw_workbook(cycle_sheets(3))
+
+
+def merges_workbook(*merges: str) -> bytes:
+    def build(workbook: Workbook) -> None:
+        sheet = workbook.create_sheet("06-2025")
+        sheet.append(MAIN_TABLE_HEADER)
+        sheet.append(["A. Example", "White", "Yellow", "Pass", ""])
+        for cells in merges:
+            sheet.merge_cells(cells)
+
+    return workbook_bytes(build)
+
+
+def test_only_merges_down_several_rows_are_read() -> None:
+    content = merges_workbook("F2:G2", "H2:H5", "J3:K9")
+
+    with open_workbook(content) as workbook:
+        merged = worksheet_merged_ranges(workbook["06-2025"])
+
+    assert merged == [(8, 2, 8, 5), (10, 3, 11, 9)]
+
+
+def test_a_sheet_with_too_many_merged_cells_is_refused() -> None:
+    content = merges_workbook("F2:F3", "G2:G3", "H2:H3")
+    with patch("data_imports.parsers.MAX_MERGED_RANGES", 3):
+        assert len(parse_ksw_workbook(content).rows) == 1
+    with (
+        patch("data_imports.parsers.MAX_MERGED_RANGES", 2),
+        pytest.raises(WorkbookStructureError, match="more than 2 merged cells"),
+    ):
+        parse_ksw_workbook(content)
 
 
 def test_the_row_budget_is_shared_across_every_sheet() -> None:

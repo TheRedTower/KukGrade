@@ -157,7 +157,8 @@ a spreadsheet of past gradings, with a guided review before anything is saved.
 An upload that is abandoned is cleared once it is 24 hours old: each new upload clears
 the stale ones, and so does every start of the container. A past-gradings workbook saved again
 and uploaded twice is warned about, and its repeated records marked, before anything is
-imported. See [importing-data.md](importing-data.md).
+imported. The review also marks what the workbook leaves in doubt: a missing outcome or rank,
+a name written twice on one sheet, and someone both missing and graded there. See [importing-data.md](importing-data.md).
 
 ## Search
 

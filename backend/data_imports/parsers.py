@@ -17,12 +17,16 @@ from io import BytesIO, StringIO
 from typing import Any
 
 import openpyxl
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, range_boundaries
+from openpyxl.xml.constants import SHEET_MAIN_NS
+from openpyxl.xml.functions import iterparse
 
 # One school's roster is a few hundred students; a file needing more is not
 # one school's.
 MAX_ROWS = 1000
 MAX_COLUMNS = 50
+# Merged cells read on one sheet: a real sheet has a handful.
+MAX_MERGED_RANGES = 5000
 # Expanded size of every part of an .xlsx archive together. Sizes are the
 # ones the archive declares; Python's zip reader stops at the declared size,
 # so an archive cannot expand past it.
@@ -131,6 +135,42 @@ def worksheet_rows(worksheet: Any, *, max_col: int) -> Iterator[tuple[Any, ...]]
         yield from worksheet.iter_rows(values_only=True, max_col=max_col)
     except Exception as exc:
         raise UnsupportedImportFileError(_UNREADABLE_XLSX) from exc
+
+
+def worksheet_merged_ranges(worksheet: Any) -> list[tuple[int, int, int, int]]:
+    """A read-only worksheet's merged cells that span more than one row, as
+    (first column, first row, last column, last row), counted from 1.
+
+    Read-only mode does not expose merged cells, so they are read from the
+    sheet's own part of the file, with the XML parser openpyxl itself uses.
+    Only the merged ranges are kept while the sheet streams past.
+    """
+    tag = f"{{{SHEET_MAIN_NS}}}mergeCell"
+    found: list[tuple[int, int, int, int]] = []
+    seen = 0
+    try:
+        # Read-only mode's own way to the sheet's part of the file.
+        with worksheet._get_source() as source:
+            for _event, element in iterparse(source):
+                if element.tag == tag:
+                    seen += 1
+                    if seen > MAX_MERGED_RANGES:
+                        msg = (
+                            f"Sheet {worksheet.title!r} has more than "
+                            f"{MAX_MERGED_RANGES:,} merged cells."
+                        )
+                        raise UnsupportedImportFileError(msg)
+                    first_col, first_row, last_col, last_row = range_boundaries(
+                        element.get("ref", ""),
+                    )
+                    if last_row > first_row:
+                        found.append((first_col, first_row, last_col, last_row))
+                element.clear()
+    except UnsupportedImportFileError:
+        raise
+    except Exception as exc:
+        raise UnsupportedImportFileError(_UNREADABLE_XLSX) from exc
+    return found
 
 
 def _last_filled(cells: Sequence[Any]) -> int:

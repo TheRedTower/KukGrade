@@ -31,15 +31,19 @@ from data_imports.serializers import (
     ImportSheetSerializer,
     LegacyImportPreviewSerializer,
     LegacyImportSerializer,
+    LegacySheetChoiceSerializer,
+    LegacySheetSerializer,
 )
 from data_imports.services import (
     cancel_import_batch,
     choose_import_sheet,
+    choose_legacy_sheets,
     commit_legacy_grading_import,
     commit_student_import,
     correct_import_row,
     create_import_batch,
     leave_out_rows_needing_attention,
+    legacy_sheets,
     preview_legacy_grading_import,
     rows_given_a_value,
     save_import_mapping,
@@ -107,6 +111,8 @@ class ImportBatchViewSet(
         "commit": ("data_imports.can_commit_import",),
         "mapping": ("data_imports.change_importbatch",),
         "sheet": ("data_imports.change_importbatch",),
+        "sheets": ("data_imports.view_importbatch",),
+        "choose_sheets": ("data_imports.change_importbatch",),
         "void_records": ("gradings.can_reconcile_imported_history",),
         "second_look": ("data_imports.view_importbatch",),
     }
@@ -140,6 +146,37 @@ class ImportBatchViewSet(
         payload.is_valid(raise_exception=True)
         choose_import_sheet(batch, sheet=payload.validated_data["sheet"])
         return _served_batch(request, batch)
+
+    @extend_schema(responses=LegacySheetSerializer(many=True))
+    @action(detail=True, methods=["get"], filter_backends=[], pagination_class=None)
+    def sheets(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """A historical import's grading sheets: each one's records, whether
+        it is chosen, and whether KukGrade already holds it - new, already
+        imported, or changed since, with what differs."""
+        sheets = legacy_sheets(self.get_object())
+        return Response(LegacySheetSerializer(sheets, many=True).data)
+
+    @extend_schema(
+        request=LegacySheetChoiceSerializer,
+        responses=LegacySheetSerializer(many=True),
+    )
+    @sheets.mapping.patch
+    def choose_sheets(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Choose which grading sheets come in. Only what KukGrade does not
+        hold yet comes in from any of them."""
+        batch = self.get_object()
+        payload = LegacySheetChoiceSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        sheets = choose_legacy_sheets(
+            batch,
+            included=payload.validated_data["included"],
+        )
+        return Response(LegacySheetSerializer(sheets, many=True).data)
 
     @extend_schema(
         request=ImportRecordsVoidSerializer,

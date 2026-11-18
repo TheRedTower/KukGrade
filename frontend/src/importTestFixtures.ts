@@ -37,7 +37,7 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
     ],
     grading_sheets: [],
     warnings: [],
-    row_counts: { total: 212, ready: 198, review_required: 9, skip_existing: 5, excluded: 0 },
+    row_counts: { total: 212, ready: 198, review_required: 9, skip_existing: 5, excluded: 0, sheet_left_out: 0 },
     summary_json: {},
     ...overrides,
   };

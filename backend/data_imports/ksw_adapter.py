@@ -140,11 +140,20 @@ class CanonicalLegacyRow:
 
 
 @dataclass(frozen=True)
+class ParsedSheet:
+    """A grading sheet read: one grading, named by its month."""
+
+    name: str
+    cycle_year: int
+    cycle_month: int
+
+
+@dataclass(frozen=True)
 class WorkbookParseResult:
     rows: list[CanonicalLegacyRow] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     # The grading sheets read, in workbook order.
-    sheets: list[str] = field(default_factory=list)
+    sheets: list[ParsedSheet] = field(default_factory=list)
 
 
 def _classify_outcome(source_outcome_text: str) -> tuple[str, str | None, str]:
@@ -689,7 +698,7 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
     budget = _RowBudget()
     all_rows: list[CanonicalLegacyRow] = []
     warnings: list[str] = []
-    sheets: list[str] = []
+    sheets: list[ParsedSheet] = []
 
     for sheet_name in workbook.sheetnames:
         cleaned_name = sheet_name.strip()
@@ -706,6 +715,14 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
             continue
 
         cycle_month, cycle_year = int(match.group(1)), int(match.group(2))
+        for other in sheets:
+            if (other.cycle_year, other.cycle_month) == (cycle_year, cycle_month):
+                # A month is one grading: its records are known by it.
+                msg = (
+                    f"Sheets '{other.name}' and '{cleaned_name}' are both for "
+                    f"{cycle_month:02d}/{cycle_year}. Keep one sheet per grading."
+                )
+                raise WorkbookStructureError(msg)
         worksheet = workbook[sheet_name]
         sheet_rows, sheet_warnings = _parse_cycle_sheet(
             list(budget.rows(worksheet)),
@@ -721,7 +738,7 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
                 f"Sheet '{cleaned_name}' names more than {MAX_CHECKED_NAMES} "
                 "people, so it was not checked for anyone written twice.",
             )
-        sheets.append(cleaned_name)
+        sheets.append(ParsedSheet(cleaned_name, cycle_year, cycle_month))
 
     _check_locators_unique(all_rows)
     return WorkbookParseResult(rows=all_rows, warnings=warnings, sheets=sheets)

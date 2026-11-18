@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+import hashlib
+import json
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -1356,6 +1358,62 @@ class LegacyRankField(models.TextChoices):
     TESTING_FOR_RANK = "testing_for_rank", "testing-for rank"
 
 
+class LegacySource(Protocol):
+    """What a historical record says, as an import row or a saved record."""
+
+    @property
+    def record_kind(self) -> str: ...
+
+    @property
+    def cycle_year(self) -> int: ...
+
+    @property
+    def cycle_month(self) -> int: ...
+
+    @property
+    def source_section(self) -> str: ...
+
+    @property
+    def source_name(self) -> str: ...
+
+    @property
+    def source_current_rank_text(self) -> str: ...
+
+    @property
+    def source_testing_for_rank_text(self) -> str: ...
+
+    @property
+    def source_outcome_text(self) -> str: ...
+
+    @property
+    def comments(self) -> str: ...
+
+    @property
+    def admin_note(self) -> str: ...
+
+
+def legacy_content_key(source: LegacySource) -> str:
+    """What a historical record says, as one key: its month, where on the
+    sheet, the name, ranks, outcome and comments as written - and for a note,
+    the note. Not where the row is, so a record is known again when rows move;
+    and not a note written beside a person's row, so adding one later does not
+    make the record new."""
+    said = [
+        source.cycle_year,
+        source.cycle_month,
+        source.source_section,
+        source.source_name,
+        source.source_current_rank_text,
+        source.source_testing_for_rank_text,
+        source.source_outcome_text,
+        source.comments,
+        source.admin_note
+        if source.record_kind == LegacyRecordKind.AUXILIARY_NOTE
+        else "",
+    ]
+    return hashlib.sha256(json.dumps(said).encode()).hexdigest()
+
+
 class LegacyGradingRecord(KeptModel):
     """One row of imported historical grading evidence - never native.
 
@@ -1471,6 +1529,9 @@ class LegacyGradingRecord(KeptModel):
 
     comments = models.TextField(blank=True)
     admin_note = models.TextField(blank=True)
+    # legacy_content_key of the record, set by clean(): how a later import
+    # knows the record is already here.
+    content_key = models.CharField(max_length=64, editable=False)
 
     is_void = models.BooleanField(default=False)
     void_reason = models.TextField(blank=True)
@@ -1521,6 +1582,7 @@ class LegacyGradingRecord(KeptModel):
                 fields=["outcome", "is_void"],
                 name="legacy_record_outcome_void_idx",
             ),
+            models.Index(fields=["content_key"], name="legacy_record_content_idx"),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -1560,6 +1622,7 @@ class LegacyGradingRecord(KeptModel):
         self.source_section = (self.source_section or "").strip()
         self.source_locator = (self.source_locator or "").strip()
         self.source_name = (self.source_name or "").strip()
+        self.content_key = legacy_content_key(self)
 
         errors: dict[str, list[str]] = {}
         if not self.source_sheet:

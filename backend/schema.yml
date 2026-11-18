@@ -490,6 +490,7 @@ paths:
           - EXCLUDED
           - READY
           - REVIEW_REQUIRED
+          - SHEET_LEFT_OUT
           - SKIP_EXISTING
       - name: page
         required: false
@@ -841,6 +842,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/sheets/:
+    get:
+      operationId: data_imports_batches_sheets_list
+      description: |-
+        A historical import's grading sheets: each one's records, whether
+        it is chosen, and whether KukGrade already holds it - new, already
+        imported, or changed since, with what differs.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LegacySheet'
+          description: ''
+    patch:
+      operationId: data_imports_batches_sheets_partial_update
+      description: |-
+        Choose which grading sheets come in. Only what KukGrade does not
+        hold yet comes in from any of them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLegacySheetChoiceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLegacySheetChoiceRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLegacySheetChoiceRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LegacySheet'
           description: ''
   /api/data-imports/batches/{id}/void-records/:
     post:
@@ -5632,10 +5696,13 @@ components:
           type: integer
         excluded:
           type: integer
+        sheet_left_out:
+          type: integer
       required:
       - excluded
       - ready
       - review_required
+      - sheet_left_out
       - skip_existing
       - total
     ImportRowExclusionRequest:
@@ -6210,6 +6277,85 @@ components:
       required:
       - record
       - student
+    LegacySheet:
+      type: object
+      description: A historical import's grading sheet, against what KukGrade holds.
+      properties:
+        name:
+          type: string
+        cycle_year:
+          type: integer
+        cycle_month:
+          type: integer
+        records:
+          type: integer
+          description: The records read from it.
+        included:
+          type: boolean
+          description: Its records are chosen to come in.
+        state:
+          allOf:
+          - $ref: '#/components/schemas/StateEnum'
+          description: |-
+            NEW: KukGrade holds nothing for its month. IMPORTED: it holds exactly these records. CHANGED: it holds others for the month.
+
+            * `NEW` - New
+            * `IMPORTED` - Already imported
+            * `CHANGED` - Changed since imported
+        state_display:
+          type: string
+          readOnly: true
+        held_by:
+          type: array
+          items:
+            type: integer
+          description: The finished imports holding records for its month.
+        added:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacySheetRecord'
+          description: A changed sheet's records KukGrade does not hold (the first
+            50).
+        removed:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacySheetRecord'
+          description: Records KukGrade holds for a changed sheet's month that the
+            sheet no longer has (the first 50).
+        added_count:
+          type: integer
+        removed_count:
+          type: integer
+      required:
+      - added
+      - added_count
+      - cycle_month
+      - cycle_year
+      - held_by
+      - included
+      - name
+      - records
+      - removed
+      - removed_count
+      - state
+      - state_display
+    LegacySheetRecord:
+      type: object
+      description: A record named in what differs, as the workbook writes it.
+      properties:
+        name:
+          type: string
+        current_rank:
+          type: string
+        testing_for_rank:
+          type: string
+        outcome:
+          type: string
+      required:
+      - current_rank
+      - name
+      - outcome
+      - testing_for_rank
     LinkLegacyRecordRequest:
       type: object
       properties:
@@ -6731,6 +6877,16 @@ components:
         status:
           type: string
           nullable: true
+    PatchedLegacySheetChoiceRequest:
+      type: object
+      description: 'PATCH /{id}/sheets/: the grading sheets whose records come in.'
+      properties:
+        included:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          description: Every sheet to bring in, by name; the others are left out.
     PatchedSelfProfileRequest:
       type: object
       description: |-
@@ -7259,6 +7415,16 @@ components:
       required:
       - final_outcome
       - revision
+    StateEnum:
+      enum:
+      - NEW
+      - IMPORTED
+      - CHANGED
+      type: string
+      description: |-
+        * `NEW` - New
+        * `IMPORTED` - Already imported
+        * `CHANGED` - Changed since imported
     Student:
       type: object
       description: |-
@@ -7400,12 +7566,14 @@ components:
       - REVIEW_REQUIRED
       - SKIP_EXISTING
       - EXCLUDED
+      - SHEET_LEFT_OUT
       type: string
       description: |-
         * `READY` - Ready
         * `REVIEW_REQUIRED` - Needs attention
         * `SKIP_EXISTING` - Already in KukGrade
         * `EXCLUDED` - Left out
+        * `SHEET_LEFT_OUT` - Sheet not chosen
     StudentList:
       type: object
       description: |-

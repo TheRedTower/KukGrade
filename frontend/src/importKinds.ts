@@ -226,7 +226,7 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
       },
       ...batch.warnings.map((warning) => ({ ok: false, title: "Something was left out", detail: warning })),
     ],
-    alreadyImported: "Its records would be imported a second time. Check before you go on.",
+    alreadyImported: "The sheets KukGrade already holds are left out, so nothing is added twice.",
     fileCounts: (batch) => `${batch.grading_sheets.length} grading sheets, ${batch.row_counts.total} records`,
     unfinished: (batch) => `${counted(batch.row_counts.total, "record", "records")} found`,
     finished: (summary) => counted(summary.total ?? 0, "record", "records"),

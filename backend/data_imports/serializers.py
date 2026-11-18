@@ -19,6 +19,8 @@ from data_imports.services import (
     ROW_COUNT_NAMES,
     CreateImportBatchResult,
     ImportStep,
+    LegacySheet,
+    SheetState,
     extra_values,
     next_step,
     review_step,
@@ -37,6 +39,7 @@ class ImportRowCountsSerializer(serializers.Serializer):
     review_required = serializers.IntegerField()
     skip_existing = serializers.IntegerField()
     excluded = serializers.IntegerField()
+    sheet_left_out = serializers.IntegerField()
 
 
 class ImportFieldSerializer(serializers.Serializer):
@@ -225,7 +228,7 @@ class ImportBatchSerializer(ModelSerializer):
         return uncovered_fields(batch)
 
     def get_grading_sheets(self, batch: ImportBatch) -> list[str]:
-        return batch.configuration.grading_sheets
+        return [sheet["name"] for sheet in batch.configuration.sheets]
 
     def get_warnings(self, batch: ImportBatch) -> list[str]:
         return batch.configuration.warnings
@@ -390,6 +393,63 @@ class ImportSheetSerializer(serializers.Serializer):
     """POST /{id}/sheet/: read a roster from another sheet of its workbook."""
 
     sheet = serializers.CharField()
+
+
+class LegacySheetRecordSerializer(serializers.Serializer):
+    """A record named in what differs, as the workbook writes it."""
+
+    name = serializers.CharField()
+    current_rank = serializers.CharField(allow_blank=True)
+    testing_for_rank = serializers.CharField(allow_blank=True)
+    outcome = serializers.CharField(allow_blank=True)
+
+
+class LegacySheetSerializer(serializers.Serializer):
+    """A historical import's grading sheet, against what KukGrade holds."""
+
+    name = serializers.CharField()
+    cycle_year = serializers.IntegerField()
+    cycle_month = serializers.IntegerField()
+    records = serializers.IntegerField(help_text="The records read from it.")
+    included = serializers.BooleanField(help_text="Its records are chosen to come in.")
+    state = serializers.ChoiceField(
+        choices=SheetState.choices,
+        help_text=(
+            "NEW: KukGrade holds nothing for its month. IMPORTED: it holds "
+            "exactly these records. CHANGED: it holds others for the month."
+        ),
+    )
+    state_display = serializers.SerializerMethodField()
+    held_by = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="The finished imports holding records for its month.",
+    )
+    added = LegacySheetRecordSerializer(
+        many=True,
+        help_text="A changed sheet's records KukGrade does not hold (the first 50).",
+    )
+    removed = LegacySheetRecordSerializer(
+        many=True,
+        help_text=(
+            "Records KukGrade holds for a changed sheet's month that the sheet "
+            "no longer has (the first 50)."
+        ),
+    )
+    added_count = serializers.IntegerField()
+    removed_count = serializers.IntegerField()
+
+    def get_state_display(self, sheet: LegacySheet) -> str:
+        return SheetState(sheet.state).label
+
+
+class LegacySheetChoiceSerializer(serializers.Serializer):
+    """PATCH /{id}/sheets/: the grading sheets whose records come in."""
+
+    included = serializers.ListField(
+        child=serializers.CharField(),
+        allow_empty=True,
+        help_text="Every sheet to bring in, by name; the others are left out.",
+    )
 
 
 class ImportRecordsVoidSerializer(serializers.Serializer):

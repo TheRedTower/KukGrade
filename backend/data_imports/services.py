@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, time, timedelta
@@ -25,7 +26,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import Storage
 from django.core.files.uploadedfile import UploadedFile
-from django.db import IntegrityError, models, transaction
+from django.db import IntegrityError, connection, models, transaction
 from django.utils import timezone
 
 from accounts.models import User
@@ -68,7 +69,11 @@ from gradings.legacy_services import (
     create_legacy_grading_records,
     void_legacy_records_from,
 )
-from gradings.models import LegacyGradingRecord, LegacyRecordKind
+from gradings.models import (
+    LegacyGradingRecord,
+    LegacyRecordKind,
+    legacy_content_key,
+)
 from ranks.matching import active_rank_lookup, suggest_rank
 from ranks.models import Rank
 from students import wksa_ids
@@ -94,9 +99,9 @@ _SOURCE_FILE_GONE = (
 _MAPPING_FIRST = "Match the file's columns to KukGrade's fields first."
 _NO_SUCH_COLUMN = "The file has no column named {columns}."
 STATUS_NOT_RECOGNISED = "Status {status!r} is not recognised."
-DUPLICATE_OF_EARLIER_IMPORT = (
-    "An earlier import already holds a record with this sheet, position, name "
-    "and month. Importing it again would add it twice; leave it out if so."
+NOTHING_TO_IMPORT = (
+    "Nothing to import: every record is already in KukGrade, left out, or on "
+    "a sheet not chosen."
 )
 
 
@@ -338,11 +343,9 @@ def _store_roster_rows(batch: ImportBatch, dataset: TabularData) -> None:
 
 
 def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
-    issues = _legacy_issue_finder(
-        {},
-        _committed_legacy_keys(parsed.rows),
-        workbook_checks(parsed.rows),
-    )
+    """Every record read, then each sheet against what KukGrade holds: only
+    the new ones are chosen, so a workbook uploaded again with one more sheet
+    brings in that sheet alone. Then each row is classified."""
     ImportRow.objects.bulk_create(
         [
             ImportRow(
@@ -351,7 +354,6 @@ def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
                 source_locator=row.source_locator,
                 raw={name: _jsonable(value) for name, value in asdict(row).items()},
                 outcome=ImportRow.Outcome.READY,
-                issues=issues(row),
                 values=_legacy_values(row),
                 search_text=_search_text(_legacy_values(row)),
             )
@@ -359,9 +361,28 @@ def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
         ],
         batch_size=500,
     )
+    keys: dict[str, list[str]] = {}
+    for row in parsed.rows:
+        keys.setdefault(row.source_sheet, []).append(legacy_content_key(row))
     batch.configuration.warnings = list(parsed.warnings)
-    batch.configuration.grading_sheets = list(parsed.sheets)
+    batch.configuration.sheets = [
+        {
+            "name": sheet.name,
+            "cycle_year": sheet.cycle_year,
+            "cycle_month": sheet.cycle_month,
+            "records": len(keys.get(sheet.name, [])),
+            "fingerprint": _fingerprint(keys.get(sheet.name, [])),
+            "included": False,
+        }
+        for sheet in parsed.sheets
+    ]
+    new = {
+        sheet.name for sheet in legacy_sheets(batch) if sheet.state == SheetState.NEW
+    }
+    for entry in batch.configuration.sheets:
+        entry["included"] = entry["name"] in new
     batch.save(update_fields=["configuration_json", "updated_at"])
+    _classify_legacy(batch)
 
 
 def _search_text(values: dict[str, str]) -> str:
@@ -1307,7 +1328,7 @@ def set_import_row_excluded(
     row.save(update_fields=["excluded", "outcome"])
     # Every row again: a row left out, or back, can end or make a repeat.
     if locked.kind == ImportBatch.Kind.LEGACY_GRADINGS:
-        _find_legacy_issues(locked)
+        _classify_legacy(locked)
     elif locked.configuration.column_mapping:
         _classify_roster(locked)
     row.refresh_from_db()
@@ -1493,60 +1514,165 @@ def _legacy_values(row: CanonicalLegacyRow) -> dict[str, str]:
 
 def _stored_legacy_rows(
     locked: ImportBatch,
-    *,
-    include_excluded: bool = False,
 ) -> list[tuple[ImportRow, CanonicalLegacyRow]]:
-    stored = locked.rows.order_by("row_number")
-    if not include_excluded:
-        stored = stored.filter(excluded=False)
+    """The rows that come in, as the last check found (_classify_legacy): not
+    left out, on a chosen sheet, and not already in KukGrade."""
+    stored = locked.rows.filter(outcome=ImportRow.Outcome.READY).order_by("row_number")
     return [(row, CanonicalLegacyRow(**row.raw)) for row in stored]
 
 
-type LegacyKey = tuple[str, str, str, int, int]
+class SheetState(models.TextChoices):
+    """A grading sheet against what KukGrade already holds for its month."""
 
-# What makes two historical records the same record: a row and a stored
-# record name these alike.
-_LEGACY_KEY_FIELDS = (
-    "source_sheet",
-    "source_locator",
-    "source_name",
-    "cycle_year",
-    "cycle_month",
-)
+    NEW = "NEW", "New"
+    IMPORTED = "IMPORTED", "Already imported"
+    CHANGED = "CHANGED", "Changed since imported"
 
 
-def _legacy_key(
-    sheet: str, locator: str, name: str, year: int, month: int
-) -> LegacyKey:
-    return (sheet.strip(), locator.strip(), name.strip().casefold(), year, month)
+# Records of a changed sheet listed as what differs, each way; the rest counted.
+_DIFFERENCES_SHOWN = 50
 
 
-def _row_legacy_key(row: CanonicalLegacyRow) -> LegacyKey:
-    sheet, locator, name, year, month = (
-        getattr(row, name) for name in _LEGACY_KEY_FIELDS
-    )
-    return _legacy_key(sheet, locator, name, year, month)
+@dataclass(frozen=True)
+class SheetRecord:
+    """A record named in what differs, as the workbook writes it."""
+
+    name: str
+    current_rank: str
+    testing_for_rank: str
+    outcome: str
 
 
-def _committed_legacy_keys(rows: Iterable[CanonicalLegacyRow]) -> set[LegacyKey]:
-    """Which of these rows an earlier import already holds.
+@dataclass(frozen=True)
+class LegacySheet:
+    """A grading sheet of an import, and how it stands against KukGrade."""
 
-    A workbook saved again has different bytes (so the same-file warning misses
-    it) but the same sheets, positions, names and months; importing it would
-    add every record a second time. A voided record does not count: it was
-    set aside, so the row may be wanted again. Returns the keys that match.
-    """
-    wanted = {_row_legacy_key(row) for row in rows}
-    if not wanted:
-        return set()
-    held = LegacyGradingRecord.objects.filter(
+    name: str
+    cycle_year: int
+    cycle_month: int
+    records: int
+    included: bool
+    state: str
+    # The finished imports holding records for its month.
+    held_by: list[int]
+    # A changed sheet's records KukGrade does not hold yet, and those it
+    # holds for the month that the sheet no longer has.
+    added: list[SheetRecord]
+    removed: list[SheetRecord]
+    added_count: int
+    removed_count: int
+
+
+def _fingerprint(keys: Iterable[str]) -> str:
+    """What a sheet's records say, as one value: the same records give the
+    same fingerprint in any order."""
+    return hashlib.sha256("\n".join(sorted(keys)).encode()).hexdigest()
+
+
+def _held_records() -> models.QuerySet[LegacyGradingRecord]:
+    """The historical records KukGrade holds: imported and not voided. A
+    voided record was set aside, so its row may be wanted again."""
+    return LegacyGradingRecord.objects.filter(
         is_void=False,
         source_batch__status=ImportBatch.Status.COMMITTED,
-        cycle_year__in={key[3] for key in wanted},
-        cycle_month__in={key[4] for key in wanted},
-        source_sheet__in={key[0] for key in wanted},
-    ).values_list(*_LEGACY_KEY_FIELDS)
-    return {_legacy_key(*record) for record in held} & wanted
+    )
+
+
+def legacy_sheets(batch: ImportBatch) -> list[LegacySheet]:
+    """Each grading sheet of a historical import, against the records KukGrade
+    holds for its month now: new, already imported, or changed since - with
+    what differs. Read every time, never stored: another import may have
+    finished, or a record been voided, since the upload. A roster has none."""
+    if batch.kind != ImportBatch.Kind.LEGACY_GRADINGS:
+        return []
+    sheets = batch.configuration.sheets
+    keys: dict[str, list[tuple[str, CanonicalLegacyRow]]] = {}
+    for stored in batch.rows.order_by("row_number"):
+        row = CanonicalLegacyRow(**stored.raw)
+        keys.setdefault(row.source_sheet, []).append((legacy_content_key(row), row))
+    months = {(sheet["cycle_year"], sheet["cycle_month"]) for sheet in sheets}
+    held: dict[tuple[int, int], list[LegacyGradingRecord]] = {}
+    for record_ in (
+        _held_records()
+        .filter(
+            cycle_year__in={year for year, _ in months},
+            cycle_month__in={month for _, month in months},
+        )
+        .only(
+            "content_key",
+            "cycle_year",
+            "cycle_month",
+            "source_batch_id",
+            "source_name",
+            "source_current_rank_text",
+            "source_testing_for_rank_text",
+            "source_outcome_text",
+        )
+        .order_by("pk")
+    ):
+        month = (record_.cycle_year, record_.cycle_month)
+        if month in months:
+            held.setdefault(month, []).append(record_)
+
+    found: list[LegacySheet] = []
+    for sheet in sheets:
+        rows = keys.get(sheet["name"], [])
+        records = held.get((sheet["cycle_year"], sheet["cycle_month"]), [])
+        unmatched = Counter(record_.content_key for record_ in records)
+        added: list[CanonicalLegacyRow] = []
+        for key, row in rows:
+            if unmatched[key] > 0:
+                unmatched[key] -= 1
+            else:
+                added.append(row)
+        removed: list[LegacyGradingRecord] = []
+        for record_ in records:
+            if unmatched[record_.content_key] > 0:
+                unmatched[record_.content_key] -= 1
+                removed.append(record_)
+        if not records:
+            state = SheetState.NEW
+        elif _fingerprint(r.content_key for r in records) == sheet["fingerprint"]:
+            state = SheetState.IMPORTED
+        else:
+            state = SheetState.CHANGED
+        changed = state == SheetState.CHANGED
+        found.append(
+            LegacySheet(
+                name=sheet["name"],
+                cycle_year=sheet["cycle_year"],
+                cycle_month=sheet["cycle_month"],
+                records=sheet["records"],
+                included=sheet["included"],
+                state=state,
+                held_by=sorted({record_.source_batch_id for record_ in records}),
+                added=[
+                    SheetRecord(
+                        name=row.source_name,
+                        current_rank=row.source_current_rank_text,
+                        testing_for_rank=row.source_testing_for_rank_text,
+                        outcome=row.source_outcome_text,
+                    )
+                    for row in added[:_DIFFERENCES_SHOWN]
+                ]
+                if changed
+                else [],
+                removed=[
+                    SheetRecord(
+                        name=record_.source_name,
+                        current_rank=record_.source_current_rank_text,
+                        testing_for_rank=record_.source_testing_for_rank_text,
+                        outcome=record_.source_outcome_text,
+                    )
+                    for record_ in removed[:_DIFFERENCES_SHOWN]
+                ]
+                if changed
+                else [],
+                added_count=len(added) if changed else 0,
+                removed_count=len(removed) if changed else 0,
+            ),
+        )
+    return found
 
 
 def _rank_unresolved(text: str, resolve: Callable[[str], Rank | None]) -> bool:
@@ -1565,7 +1691,6 @@ def _outcome_unresolved(row: CanonicalLegacyRow) -> bool:
 
 def _legacy_issue_finder(
     normalised_mappings: dict[str, str],
-    already_held: set[LegacyKey],
     checks: dict[str, list[str]],
 ) -> Callable[[CanonicalLegacyRow], list[str]]:
     """Why a historical record is worth a look before importing. None of it
@@ -1590,40 +1715,66 @@ def _legacy_issue_finder(
             found.append(
                 "A note on the sheet, kept with that grading, not as anyone's result.",
             )
-        if _row_legacy_key(row) in already_held:
-            found.append(DUPLICATE_OF_EARLIER_IMPORT)
         return found
 
     return issues
 
 
-def _find_legacy_issues(locked: ImportBatch) -> None:
-    """Store each historical row's reasons to look at it.
+def _classify_legacy(locked: ImportBatch) -> None:
+    """Store what comes in of a historical import, and why to look at it.
 
-    Against the rank choices and the records as they are now, not as they
-    were at upload: another upload may have been committed since, or an
-    earlier record voided. The workbook's own checks see only the rows still
-    in the import, so leaving out one of a name written twice ends the
-    other's. Only the rows whose reasons changed are written.
+    Each row is left out (the importer's choice), on a sheet not chosen,
+    already in KukGrade, or ready. A record is already in KukGrade when a
+    record held says the same (legacy_content_key) - wherever its row was - so
+    a workbook uploaded again adds nothing twice; a record written twice in
+    the workbook is matched twice. Checked against the records as they are
+    now: another import may have finished since, or a record been voided.
+
+    Only a ready or left-out row has reasons to look, and the workbook's own
+    checks see only the ready rows, so leaving out one of a name written
+    twice ends the other's. Only the rows that changed are written.
     """
-    stored_rows = list(locked.rows.all())
+    stored_rows = list(locked.rows.order_by("row_number"))
     canonical = [CanonicalLegacyRow(**stored.raw) for stored in stored_rows]
+    chosen = {
+        sheet["name"] for sheet in locked.configuration.sheets if sheet["included"]
+    }
+    keys = [legacy_content_key(row) for row in canonical]
+    held = Counter(
+        _held_records()
+        .filter(content_key__in=set(keys))
+        .values_list("content_key", flat=True),
+    )
+    outcomes: list[str] = []
+    for stored, row, key in zip(stored_rows, canonical, keys, strict=True):
+        if stored.excluded:
+            outcomes.append(ImportRow.Outcome.EXCLUDED)
+        elif row.source_sheet not in chosen:
+            outcomes.append(ImportRow.Outcome.SHEET_LEFT_OUT)
+        elif held[key] > 0:
+            held[key] -= 1
+            outcomes.append(ImportRow.Outcome.SKIP_EXISTING)
+        else:
+            outcomes.append(ImportRow.Outcome.READY)
     issues = _legacy_issue_finder(
         locked.configuration.rank_mappings,
-        _committed_legacy_keys(canonical),
         workbook_checks(
             row
-            for stored, row in zip(stored_rows, canonical, strict=True)
-            if not stored.excluded
+            for row, outcome in zip(canonical, outcomes, strict=True)
+            if outcome == ImportRow.Outcome.READY
         ),
     )
     changed: list[ImportRow] = []
-    for stored, row in zip(stored_rows, canonical, strict=True):
-        found = issues(row)
-        if found != stored.issues:
-            stored.issues = found
+    for stored, row, outcome in zip(stored_rows, canonical, outcomes, strict=True):
+        found = (
+            issues(row)
+            if outcome in (ImportRow.Outcome.READY, ImportRow.Outcome.EXCLUDED)
+            else []
+        )
+        if (outcome, found) != (stored.outcome, stored.issues):
+            stored.outcome, stored.issues = outcome, found
             changed.append(stored)
-    ImportRow.objects.bulk_update(changed, ["issues"], batch_size=500)
+    ImportRow.objects.bulk_update(changed, ["outcome", "issues"], batch_size=500)
 
 
 def _require_legacy(locked: ImportBatch) -> None:
@@ -1721,6 +1872,70 @@ def _rank_resolver(
     return resolve
 
 
+def _sheets_left_out(locked: ImportBatch) -> list[str]:
+    """A line for each grading sheet not chosen, saying why it may not be."""
+    lines: list[str] = []
+    for sheet in legacy_sheets(locked):
+        if sheet.included:
+            continue
+        if sheet.state == SheetState.IMPORTED:
+            lines.append(
+                f"Sheet '{sheet.name}' is already imported, so it is left out.",
+            )
+        elif sheet.state == SheetState.CHANGED:
+            lines.append(
+                f"Sheet '{sheet.name}' has changed since it was imported "
+                f"({sheet.added_count} new or changed, {sheet.removed_count} no "
+                "longer in the workbook), so it is left out. Choose it to add "
+                "only what is new.",
+            )
+        else:
+            lines.append(f"Sheet '{sheet.name}' is left out.")
+    return lines
+
+
+def _lock_historical_commits() -> None:
+    """Hold, until this transaction ends, the one lock every historical
+    commit takes, so each sees the records the one before it added."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+            ["historical-import-commit"],
+        )
+
+
+@transaction.atomic
+def choose_legacy_sheets(
+    batch: ImportBatch,
+    *,
+    included: Iterable[str],
+) -> list[LegacySheet]:
+    """Choose which grading sheets of a historical import come in. A sheet
+    already imported or changed since may be chosen: only what KukGrade does
+    not hold yet comes in from it."""
+    locked = _lock_uncommitted(batch, "changed")
+    _require_legacy(locked)
+    chosen = set(included)
+    names = {sheet["name"] for sheet in locked.configuration.sheets}
+    unknown = sorted(chosen - names)
+    if unknown:
+        raise DjangoValidationError(
+            {
+                "included": [
+                    f"This import has no grading sheet named {name!r}."
+                    for name in unknown
+                ],
+            },
+        )
+    locked.configuration.sheets = [
+        {**sheet, "included": sheet["name"] in chosen}
+        for sheet in locked.configuration.sheets
+    ]
+    locked.save(update_fields=["configuration_json", "updated_at"])
+    _classify_legacy(locked)
+    return legacy_sheets(locked)
+
+
 @transaction.atomic
 def preview_legacy_grading_import(
     batch: ImportBatch,
@@ -1733,7 +1948,7 @@ def preview_legacy_grading_import(
     if rank_mappings is not None:
         _save_rank_mappings(locked, rank_mappings)
     # Every preview, since what earlier imports hold can change between two.
-    _find_legacy_issues(locked)
+    _classify_legacy(locked)
     rows = [row for _, row in _stored_legacy_rows(locked)]
     resolve = _rank_resolver(locked.configuration.rank_mappings)
 
@@ -1763,19 +1978,14 @@ def preview_legacy_grading_import(
     def kind_count(kind: str) -> int:
         return sum(1 for row in rows if row.record_kind == kind)
 
-    held_again = locked.rows.filter(excluded=False).exclude(issues=[])
-    repeats = sum(
-        1 for stored in held_again if DUPLICATE_OF_EARLIER_IMPORT in stored.issues
-    )
-    duplicate_warning = (
+    held = locked.rows.filter(outcome=ImportRow.Outcome.SKIP_EXISTING).count()
+    held_warning = (
         [
-            f"{repeats} record{'s' if repeats != 1 else ''} in this workbook "
-            f"{'match' if repeats != 1 else 'matches'} one an earlier import "
-            "already holds (same sheet, position, name and month). Importing "
-            "them again would add them twice; they are marked, and you can "
-            "leave them out."
+            f"{held} record{'' if held == 1 else 's'} on the chosen sheets "
+            f"{'is' if held == 1 else 'are'} already in KukGrade from an earlier "
+            "import, so will not be added again."
         ]
-        if repeats
+        if held
         else []
     )
 
@@ -1792,10 +2002,16 @@ def preview_legacy_grading_import(
             for row in rows
             if _rank_unresolved(row.source_testing_for_rank_text, resolve)
         ),
-        warnings=[*locked.configuration.warnings, *duplicate_warning],
+        warnings=[
+            *locked.configuration.warnings,
+            *_sheets_left_out(locked),
+            *held_warning,
+        ],
         rank_suggestions=suggestions,
         excluded=locked.rows.filter(excluded=True).count(),
-        worth_a_look=locked.rows.filter(excluded=False).exclude(issues=[]).count(),
+        worth_a_look=locked.rows.filter(outcome=ImportRow.Outcome.READY)
+        .exclude(issues=[])
+        .count(),
     )
 
 
@@ -1805,16 +2021,23 @@ def commit_legacy_grading_import(
     *,
     actor: User,
 ) -> ImportBatch:
-    """Create a historical record for every row not left out, all or nothing.
+    """Create a historical record for every row that comes in, all or nothing:
+    not left out, on a chosen sheet, and not already in KukGrade.
 
     The rank choices are the stored ones (preview_legacy_grading_import
-    saves them). Each is resolved again now against the active ranks, so a
-    screen's stale view is never trusted.
+    saves them). Each is resolved again now against the active ranks, and
+    every row classified again against the records held now, so a screen's
+    stale view is never trusted. Historical commits run one at a time, so two
+    imports of the same sheet at once cannot both add it.
     """
     locked = _lock_uncommitted(batch, "imported again")
     _require_legacy(locked)
+    _lock_historical_commits()
+    _classify_legacy(locked)
     resolve = _rank_resolver(locked.configuration.rank_mappings)
     stored_rows = _stored_legacy_rows(locked)
+    if not stored_rows:
+        raise DjangoValidationError({"batch": [NOTHING_TO_IMPORT]})
 
     counts: dict[str, int] = {
         LegacyRecordKind.GRADING_RESULT: 0,
@@ -1857,6 +2080,12 @@ def commit_legacy_grading_import(
             "unresolved_current_rank": unresolved_current,
             "unresolved_testing_for_rank": unresolved_testing,
             "excluded": locked.rows.filter(excluded=True).count(),
+            "skip_existing": locked.rows.filter(
+                outcome=ImportRow.Outcome.SKIP_EXISTING,
+            ).count(),
+            "sheet_left_out": locked.rows.filter(
+                outcome=ImportRow.Outcome.SHEET_LEFT_OUT,
+            ).count(),
         },
         record_count=len(stored_rows),
         what="historical record(s)",

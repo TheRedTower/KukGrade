@@ -445,11 +445,11 @@ describe("Reviewing and confirming a roster", () => {
   const needing = batch({
     next_step: "REVIEW",
     column_mapping: { ...MAPPING, current_rank: "Belt" },
-    row_counts: { total: 212, ready: 198, review_required: 1, skip_existing: 5, excluded: 0 },
+    row_counts: { total: 212, ready: 198, review_required: 1, skip_existing: 5, excluded: 0, sheet_left_out: 0 },
   });
   const sorted = batch({
     ...needing,
-    row_counts: { total: 212, ready: 203, review_required: 0, skip_existing: 5, excluded: 4 },
+    row_counts: { total: 212, ready: 203, review_required: 0, skip_existing: 5, excluded: 4, sheet_left_out: 0 },
     next_step: "CONFIRM",
     review_step: "CONFIRM",
     extra_columns: ["Parent phone"],
@@ -711,7 +711,7 @@ describe("Reviewing and confirming a roster", () => {
       next_step: "RESULTS",
       committed_by_name: "Sam Taylor",
       committed_at: "2026-10-20T10:18:00Z",
-      summary_json: { total: 212, created: 203, skipped_existing: 5, excluded: 4 },
+      summary_json: { total: 212, created: 203, skipped_existing: 5, excluded: 4, sheet_left_out: 0 },
     };
     api.getDataImportBatch.mockResolvedValueOnce(sorted).mockResolvedValue(committed);
     api.getDataImportRows.mockResolvedValue(page([]));
@@ -761,7 +761,7 @@ describe("Reviewing and confirming a roster", () => {
       next_step: "MATCH",
       review_step: "CONFIRM",
       original_filename: "grading-record-2025.xlsx",
-      row_counts: { total: 231, ready: 229, review_required: 0, skip_existing: 0, excluded: 2 },
+      row_counts: { total: 231, ready: 229, review_required: 0, skip_existing: 0, excluded: 2, sheet_left_out: 0 },
     });
     api.getDataImportBatch.mockResolvedValue(gradings);
     api.getDataImportRows.mockResolvedValue(
@@ -806,7 +806,7 @@ describe("Reviewing and confirming a roster", () => {
       kind_display: "Past gradings",
       next_step: "MATCH",
       review_step: "CONFIRM",
-      row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 },
+      row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
     });
     const committed = { ...gradings, status: "COMMITTED" as const, next_step: "RESULTS" as const };
     const onCommitted = vi.fn();
@@ -847,7 +847,7 @@ describe("Reviewing and confirming a roster", () => {
       kind_display: "Past gradings",
       next_step: "MATCH",
       review_step: "CONFIRM",
-      row_counts: { total: 231, ready: 231, review_required: 0, skip_existing: 0, excluded: 0 },
+      row_counts: { total: 231, ready: 231, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
     });
     const theo = row({
       row_number: 9,

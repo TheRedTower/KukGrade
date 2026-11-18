@@ -292,6 +292,7 @@ def test_the_list_and_detail_say_where_each_import_is_up_to() -> None:
         "ready": 1,
         "review_required": 1,
         "skip_existing": 0,
+        "sheet_left_out": 0,
         "excluded": 0,
     }
     assert listed[reviewing.pk]["kind_display"] == "Students"
@@ -351,6 +352,7 @@ def test_a_rows_counts_are_one_rule_served_and_checked_alike() -> None:
         "ready": 1,
         "review_required": 0,
         "skip_existing": 0,
+        "sheet_left_out": 0,
         "excluded": 1,
     }
     assert served == checked
@@ -567,11 +569,13 @@ def test_a_historical_import_finishes_in_the_same_queries_however_many_records()
     None
 ):
     def workbook(count: int) -> bytes:
+        # Each its own grading, so neither holds the other's records.
         return standard_workbook(
             [
                 [f"Person {index}", "White", "Yellow", "Pass", ""]
                 for index in range(count)
             ],
+            sheet=f"{count % 12 + 1:02d}-2025",
         )
 
     admin = admin_user()

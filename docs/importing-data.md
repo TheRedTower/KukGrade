@@ -75,11 +75,15 @@ KukGrade:
   the same sheet. Nothing is guessed or blocked; leave a record out if it is a repeat.
 - A month stays a month: an exact day is never invented.
 - "Did not attend" counts as attendance, not as a fail.
-- A workbook saved again and uploaded a second time is noticed: unlike the roster, a
-  history imported twice would hold every record twice. Any record that matches one an
-  earlier import already holds (same sheet, position, name and month) is marked in the
-  review and counted in a warning. Nothing is blocked; leave those rows out if they are
-  repeats. A voided record does not count as held.
+- The workbook grows a sheet each grading, so upload the whole of it again: it is
+  imported **sheet by sheet**. Each sheet is compared with what KukGrade already holds for
+  its month and is **new**, **already imported**, or **changed since imported** (with the
+  records that differ). Only new sheets are chosen; a changed one comes in only if you
+  choose it. Two sheets for the same month are refused.
+- **Nothing is added twice.** A record already held - known by what it says (month, name,
+  ranks, outcome, comments), wherever its row now is - is never added again, even on a
+  sheet you choose. A note written beside a row later does not make the record new. A
+  voided record does not count as held.
 
 A student's page then shows one timeline of both kinds, each labelled with its
 source.

@@ -31,7 +31,12 @@ def history() -> WorkbookParseResult:
 def test_every_grading_sheet_is_read_and_the_cover_sheet_left_out(
     history: WorkbookParseResult,
 ) -> None:
-    assert history.sheets == ["062025", "122025", "032026", "092026"]
+    assert [sheet.name for sheet in history.sheets] == [
+        "062025",
+        "122025",
+        "032026",
+        "092026",
+    ]
     assert len(history.rows) == 28
     notes = [row for row in history.rows if row.source_name == SHEET_NOTE_NAME]
     assert [row.admin_note for row in notes] == [

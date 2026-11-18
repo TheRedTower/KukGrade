@@ -76,6 +76,7 @@ const ROW_TONES: Record<DataImportRow["outcome"], BadgeTone> = {
   READY: "success",
   SKIP_EXISTING: "neutral",
   EXCLUDED: "neutral",
+  SHEET_LEFT_OUT: "neutral",
   REVIEW_REQUIRED: "warning",
 };
 

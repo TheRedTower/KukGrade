@@ -26,16 +26,18 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any, Protocol
+from typing import Any
 
 from django.db import models
 from django.utils import timezone
 
 from gradings.legacy_matching import (
     Candidate,
+    RankLike,
     StudentPool,
     Suggestion,
     best_candidates,
+    leaves_at,
     name_tokens,
     names_compatible,
     student_pool,
@@ -71,16 +73,6 @@ NOT_ONE_PERSON = (
 )
 
 
-class RankLike(Protocol):
-    """A rank as grouping needs it: a Rank, or one in a migration."""
-
-    @property
-    def name(self) -> str: ...
-
-    @property
-    def order(self) -> int: ...
-
-
 class Chain(IntEnum):
     """What two records' ranks say about their being one person."""
 
@@ -106,18 +98,6 @@ class Entry:
     @property
     def leaves_at(self) -> RankLike | None:
         return leaves_at(self.outcome, self.held, self.testing)
-
-
-def leaves_at[R: RankLike](
-    outcome: str | None,
-    held: R | None,
-    testing: R | None,
-) -> R | None:
-    """The lowest rank a record leaves someone at: the rank passed to, or
-    the rank held."""
-    if outcome == LegacyOutcome.PASS and testing is not None:
-        return testing
-    return held
 
 
 def _period(cycle: tuple[int, int]) -> str:

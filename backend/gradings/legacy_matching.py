@@ -19,10 +19,11 @@ import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
+from typing import Protocol
 
 from django.db import models
 
-from gradings.models import SHEET_NOTE_NAME, LegacyGradingRecord
+from gradings.models import SHEET_NOTE_NAME, LegacyGradingRecord, LegacyOutcome
 from kukgrade.search import apply_search
 from ranks.matching import RANK_TITLES, active_rank_lookup, rank_for_text
 from ranks.models import Rank
@@ -187,20 +188,45 @@ class PersonGroup:
         return None
 
 
+class RankLike(Protocol):
+    """A rank as the matching needs it: a Rank, or one in a migration."""
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def order(self) -> int: ...
+
+
+def leaves_at[R: RankLike](
+    outcome: str | None,
+    held: R | None,
+    testing: R | None,
+) -> R | None:
+    """The lowest rank a record leaves someone at: the rank passed to, or
+    the rank held. A rank tested for and not passed was not reached."""
+    if outcome == LegacyOutcome.PASS and testing is not None:
+        return testing
+    return held
+
+
 def _rank_then(
     group: PersonGroup,
     ranks: dict[str, Rank],
 ) -> Rank | None:
-    """The highest rank the records gave this person, resolved or as written."""
+    """The highest rank the records show this person reached, resolved or as
+    written."""
     found: list[Rank] = []
     for record in group.records:
-        for resolved, text in (
-            (record.current_rank, record.source_current_rank_text),
-            (record.testing_for_rank, record.source_testing_for_rank_text),
-        ):
-            rank = resolved or rank_for_text(text, ranks)
-            if rank is not None:
-                found.append(rank)
+        reached = leaves_at(
+            record.outcome,
+            record.current_rank
+            or rank_for_text(record.source_current_rank_text, ranks),
+            record.testing_for_rank
+            or rank_for_text(record.source_testing_for_rank_text, ranks),
+        )
+        if reached is not None:
+            found.append(reached)
     return max(found, key=lambda rank: rank.order, default=None)
 
 

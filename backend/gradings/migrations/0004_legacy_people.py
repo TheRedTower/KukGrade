@@ -7,7 +7,7 @@ from django.db import migrations, models
 
 def give_records_people(apps: Any, schema_editor: Any) -> None:
     """Every record already saved gets its person, as a save now gives one:
-    grouped by gradings.legacy_people, all records at once."""
+    the live records grouped by gradings.legacy_people, all at once."""
     from gradings.legacy_people import entry_for, group_entries, person_fields
     from gradings.models import SHEET_NOTE_NAME
     from ranks.matching import active_rank_lookup
@@ -21,7 +21,10 @@ def give_records_people(apps: Any, schema_editor: Any) -> None:
         .select_related("current_rank", "testing_for_rank")
         .order_by("pk"),
     )
-    entries = [entry_for(record_, ranks) for record_ in records]
+    # The live records are grouped, as an import groups them; a voided one is
+    # no one's evidence, so each is a person of its own.
+    live = [record_ for record_ in records if not record_.is_void]
+    entries = [entry_for(record_, ranks) for record_ in live]
     grouping = group_entries(entries, [])
     for indices in grouping.new_people:
         person = person_model.objects.create(
@@ -31,7 +34,15 @@ def give_records_people(apps: Any, schema_editor: Any) -> None:
             ),
         )
         for index in indices:
-            records[index].person = person
+            live[index].person = person
+    for record_ in records:
+        if record_.is_void:
+            record_.person = person_model.objects.create(
+                **person_fields(
+                    [entry_for(record_, ranks)],
+                    compared_all=True,
+                ),
+            )
     record_model.objects.bulk_update(records, ["person"], batch_size=500)
 
 

@@ -65,6 +65,12 @@ TOO_MANY_TO_COMPARE = (
 )
 
 
+NOT_ONE_PERSON = (
+    "These records no longer read as one person: two results on one sheet, a "
+    "rank going down, or names that cannot be the same person."
+)
+
+
 class RankLike(Protocol):
     """A rank as grouping needs it: a Rank, or one in a migration."""
 
@@ -251,6 +257,10 @@ def rate(entries: Sequence[Entry]) -> Rating:
                 if one_spelling
                 else LegacyPersonConfidence.LOW,
             )
+    if not holds_together(ordered):
+        # A rank corrected or a record voided since they were grouped.
+        reasons.insert(0, NOT_ONE_PERSON)
+        confidence = LegacyPersonConfidence.LOW
     return Rating(confidence=confidence, reasons=reasons)
 
 
@@ -527,6 +537,34 @@ def assign_people(records: Sequence[LegacyGradingRecord]) -> None:
         person.confidence, person.reasons = rating.confidence, rating.reasons
         person.updated_at = now
         changed.append(person)
+    LegacyPerson.objects.bulk_update(changed, ["confidence", "reasons", "updated_at"])
+
+
+def refresh_people(person_ids: Iterable[int | None]) -> None:
+    """Rate `person_ids` again from their live records, after a record of
+    theirs changed (a rank corrected, a record voided), so how sure each is
+    never rests on what the records said before. A person whose records no
+    longer read as one is the least sure, and says so (rate)."""
+    ids = sorted({pk for pk in person_ids if pk is not None})
+    if not ids:
+        return
+    people = list(
+        LegacyPerson.objects.select_for_update().filter(pk__in=ids).order_by("pk"),
+    )
+    theirs: dict[int, list[LegacyGradingRecord]] = defaultdict(list)
+    for record_ in _live_records(ids):
+        theirs[record_.person_id or 0].append(record_)
+    ranks = active_rank_lookup()
+    now = timezone.now()
+    changed: list[LegacyPerson] = []
+    for person in people:
+        if not theirs[person.pk]:
+            continue
+        rating = rate([entry_for(record_, ranks) for record_ in theirs[person.pk]])
+        if (rating.confidence, rating.reasons) != (person.confidence, person.reasons):
+            person.confidence, person.reasons = rating.confidence, rating.reasons
+            person.updated_at = now
+            changed.append(person)
     LegacyPerson.objects.bulk_update(changed, ["confidence", "reasons", "updated_at"])
 
 

@@ -69,7 +69,8 @@ KukGrade:
   could be one person ("Theo R", "Theo Rowan", "Teo Rowan") and whose ranks tell one story.
   Passing to a rank and holding it on the next sheet is the strongest sign; nobody goes down
   a grade, and two results on one sheet are always two people. Each person says how sure that
-  is and why. A later import's records join the people already there, or become new ones; a
+  is and why, and is rated again when a record's rank is corrected or a record voided. A later
+  import's records join the people already there, or become new ones; a
   person someone has already decided about takes a new record only on that strongest sign,
   and it waits for that decision to be confirmed for it. A suggested student whose rank now is
   below the rank the records gave then is never offered as the clear match.

@@ -30,16 +30,25 @@ def test_records_saved_before_people_are_grouped_into_people() -> None:
         uploaded_by=uploader,
     )
     ranks = {rank.code: rank for rank in rank_model.objects.all()}
-    for number, (sheet, month, name, held, testing) in enumerate(
+    for number, (sheet, month, name, held, testing, void) in enumerate(
         [
-            ("062025", 6, "Theo R", "WHITE", "YELLOW_STRIPE"),
-            ("122025", 12, "Theo Rowan", "YELLOW_STRIPE", "YELLOW"),
-            ("122025", 12, "Ada Park", "WHITE", "YELLOW_STRIPE"),
-            ("122025", 12, "Sheet note", None, None),
+            ("062025", 6, "Theo R", "WHITE", "YELLOW_STRIPE", False),
+            # Voided, and written again below: the live one is Theo's.
+            ("122025", 12, "Theo Rowan", "YELLOW_STRIPE", "YELLOW", True),
+            ("122025", 12, "Theo Rowan", "YELLOW_STRIPE", "YELLOW", False),
+            ("122025", 12, "Ada Park", "WHITE", "YELLOW_STRIPE", False),
+            ("122025", 12, "Sheet note", None, None, False),
         ],
         start=2,
     ):
+        voided = {
+            "is_void": True,
+            "void_reason": "Entered twice.",
+            "voided_by": uploader,
+            "voided_at": batch.created_at,
+        }
         record_model.objects.create(
+            **(voided if void else {}),
             source_batch=batch,
             record_kind="GRADING_RESULT",
             source_sheet=sheet,
@@ -60,10 +69,12 @@ def test_records_saved_before_people_are_grouped_into_people() -> None:
     records = new.get_model("gradings", "LegacyGradingRecord").objects.order_by("pk")
     people = [record_.person_id for record_ in records]
 
-    assert people[0] == people[1]  # Theo R, then Theo Rowan
-    assert people[2] not in {people[0], None}
-    assert people[3] is None  # a sheet note is no one
-    assert new.get_model("gradings", "LegacyPerson").objects.count() == 2
+    theo, voided, theo_again, ada, note = people
+    assert theo == theo_again  # Theo R, then Theo Rowan
+    assert voided not in {theo, ada, None}  # its own, not in anyone's way
+    assert ada not in {theo, None}
+    assert note is None  # a sheet note is no one
+    assert new.get_model("gradings", "LegacyPerson").objects.count() == 3
 
     # Leave the database as every other test expects it.
     executor = MigrationExecutor(connection)

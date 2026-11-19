@@ -23,7 +23,7 @@ from django.utils import timezone
 from accounts.people import title_of
 from audit.models import AuditAction
 from audit.recording import record, student_label
-from gradings.legacy_people import assign_people
+from gradings.legacy_people import assign_people, refresh_people
 from gradings.locking import lock_student, lock_students
 from gradings.models import LegacyGradingRecord, LegacyRankField, SetAsideName
 from students.models import STUDENT_DELETED_MESSAGE
@@ -283,6 +283,7 @@ def resolve_legacy_rank(
         return locked
     setattr(locked, field, rank)
     locked.save()
+    refresh_people([locked.person_id])
     resolved_display = rank.name if rank else "unresolved"
     record(
         AuditAction.LEGACY_GRADING_RANK_RESOLVED,
@@ -354,6 +355,7 @@ def void_legacy_record(
     if locked.is_void:
         raise ValidationError({"is_void": ["This record has already been voided."]})
     _void(locked, reason=cleaned_reason, actor=actor, at=timezone.now())
+    refresh_people([locked.person_id])
     return locked
 
 
@@ -388,6 +390,7 @@ def void_legacy_records_from(
             at=voided_at,
             whole_import=True,
         )
+    refresh_people(record_.person_id for record_ in records)
     return len(records)
 
 

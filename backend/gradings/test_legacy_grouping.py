@@ -32,6 +32,7 @@ from gradings.legacy_matching import (
     suggestion_for,
 )
 from gradings.legacy_people import (
+    NOT_ONE_PERSON,
     TOO_MANY_TO_COMPARE,
     Chain,
     Cluster,
@@ -43,13 +44,18 @@ from gradings.legacy_people import (
     people_in,
     suggest_students,
 )
-from gradings.legacy_services import create_legacy_grading_records
+from gradings.legacy_services import (
+    create_legacy_grading_records,
+    resolve_legacy_rank,
+    void_legacy_record,
+)
 from gradings.models import (
     SHEET_NOTE_NAME,
     LegacyGradingRecord,
     LegacyPerson,
     LegacyPersonConfidence,
     LegacyPersonState,
+    LegacyRankField,
     LegacyRecordKind,
 )
 from gradings.testing import rank, student
@@ -591,3 +597,42 @@ def test_the_rank_then_is_the_highest_the_latest_grading_reached() -> None:
     assert [record_.source_section for record_ in ada.records] == ["", "Unaccounted"]
     assert ada.rank_then(active_rank_lookup()) == rank("YELLOW")
     assert ada.queue != PersonQueue.READY
+
+
+def test_correcting_a_rank_that_breaks_the_story_takes_the_person_off_ready() -> None:
+    student(first_name="Ada", last_name="Park", current_rank=rank("BLUE"))
+    commit(
+        grading_workbook(
+            {
+                "062025": [["Ada Park", "White", "Yellow", "Pass", ""]],
+                "122025": [["Ada Park", "Yellow", "Blue", "Pass", ""]],
+            },
+        ),
+    )
+    assert person_named("Ada Park").queue == PersonQueue.READY
+    december = LegacyGradingRecord.objects.get(source_sheet="122025")
+
+    resolve_legacy_rank(
+        december,
+        LegacyRankField.CURRENT_RANK,
+        rank("WHITE"),
+        actor=admin(),
+    )
+
+    ada = person_named("Ada Park")
+    assert ada.person.confidence == LegacyPersonConfidence.LOW
+    assert ada.person.reasons[0] == NOT_ONE_PERSON
+    assert ada.queue == PersonQueue.NEEDS_A_LOOK
+
+
+def test_voiding_a_record_rates_its_person_again() -> None:
+    commit(history_workbook())
+    assert person_named("Omar Haddad").person.confidence == (LegacyPersonConfidence.LOW)
+    omar = LegacyGradingRecord.objects.get(source_name="Omar")
+
+    void_legacy_record(omar, reason="Not him: a different Omar.", actor=admin())
+
+    # One spelling left, with no ranks to compare: medium.
+    rated = person_named("Omar Haddad").person
+    assert rated.confidence == LegacyPersonConfidence.MEDIUM
+    assert not any("Written as" in reason for reason in rated.reasons)

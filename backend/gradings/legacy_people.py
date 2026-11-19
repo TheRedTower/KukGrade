@@ -33,6 +33,7 @@ from django.utils import timezone
 
 from gradings.legacy_matching import (
     Candidate,
+    StudentPool,
     Suggestion,
     best_candidates,
     name_tokens,
@@ -287,33 +288,57 @@ def _candidate_pairs(
     new: set[int],
 ) -> list[tuple[int, int]] | None:
     """Every pair of entries, one of them new, whose names could be one
-    person; None when there are more than MAX_COMPARED_PAIRS."""
-    by_name: dict[tuple[str, ...], list[int]] = defaultdict(list)
+    person; None when there are more than MAX_COMPARED_PAIRS.
+
+    Only combinations with a new entry are ever looked at - names first,
+    then their records - so a long history costs nothing until a new record
+    shares a name with it.
+    """
+    by_name: dict[tuple[str, ...], tuple[list[int], list[int]]] = {}
     for index, entry in enumerate(entries):
-        by_name[entry.tokens].append(index)
+        fresh, held = by_name.setdefault(entry.tokens, ([], []))
+        (fresh if index in new else held).append(index)
     by_variant: dict[str, list[tuple[str, ...]]] = defaultdict(list)
     for name in by_name:
         for variant in _first_name_variants(name[0]):
             by_variant[variant].append(name)
-    if sum(len(names) ** 2 for names in by_variant.values()) > MAX_COMPARED_PAIRS:
-        return None
+    looked_at = 0
     name_pairs: set[tuple[tuple[str, ...], tuple[str, ...]]] = set()
     for names in by_variant.values():
-        for index, name in enumerate(names):
-            for other in names[index:]:
+        with_new = [name for name in names if by_name[name][0]]
+        looked_at += len(with_new) * len(names)
+        if looked_at > MAX_COMPARED_PAIRS:
+            return None
+        for name in with_new:
+            for other in names:
                 pair = (name, other) if name <= other else (other, name)
                 if pair not in name_pairs and names_compatible(name, other):
                     name_pairs.add(pair)
-    pairs: list[tuple[int, int]] = []
+    pairs: set[tuple[int, int]] = set()
     for name, other in sorted(name_pairs):
-        same = name == other
-        for at, first in enumerate(by_name[name]):
-            for second in by_name[other][at + 1 :] if same else by_name[other]:
-                if first in new or second in new:
-                    pairs.append((min(first, second), max(first, second)))
-                    if len(pairs) > MAX_COMPARED_PAIRS:
-                        return None
-    return pairs
+        fresh, held = by_name[name]
+        other_fresh, other_held = by_name[other]
+        looked_at += len(fresh) * (len(other_fresh) + len(other_held)) + len(
+            held,
+        ) * len(other_fresh)
+        if looked_at > 2 * MAX_COMPARED_PAIRS:
+            return None
+        if name == other:
+            combinations = [
+                (first, second)
+                for at, first in enumerate(fresh)
+                for second in (*fresh[at + 1 :], *held)
+            ]
+        else:
+            combinations = [
+                (first, second)
+                for first in fresh
+                for second in (*other_fresh, *other_held)
+            ] + [(first, second) for first in held for second in other_fresh]
+        pairs.update((min(pair), max(pair)) for pair in combinations)
+        if len(pairs) > MAX_COMPARED_PAIRS:
+            return None
+    return sorted(pairs)
 
 
 def group_entries(entries: Sequence[Entry], fixed: Sequence[Cluster]) -> Grouping:
@@ -542,16 +567,23 @@ class PersonView:
     @property
     def name(self) -> str:
         """The fullest spelling: the most words, then the most records, then
-        the latest written."""
+        the words the other records share most (so "Theo Rowan" over a slip,
+        "Teo Rowan"), then the latest written."""
         counts: dict[str, int] = defaultdict(int)
         latest: dict[str, int] = {}
+        words: dict[str, int] = defaultdict(int)
         for at, record_ in enumerate(self.records):
             counts[record_.source_name] += 1
             latest[record_.source_name] = at
-        return min(
-            counts,
-            key=lambda name: (-len(name_tokens(name)), -counts[name], -latest[name]),
-        )
+            for word in set(name_tokens(record_.source_name)):
+                words[word] += 1
+
+        def fullness(name: str) -> tuple[int, int, int, int]:
+            tokens = name_tokens(name)
+            shared = sum(words[word] for word in set(tokens))
+            return (-len(tokens), -counts[name], -shared, -latest[name])
+
+        return min(counts, key=fullness)
 
     @property
     def awaiting_confirmation(self) -> int:
@@ -631,7 +663,7 @@ def suggest_students(
 ) -> None:
     """Score the students each undecided person may be: their fullest
     spelling, and the rank their latest record leaves them at."""
-    pool = list(students) if students is not None else student_pool()
+    pool = StudentPool(students if students is not None else student_pool())
     ranks = active_rank_lookup()
     for view in views:
         view.suggested = True

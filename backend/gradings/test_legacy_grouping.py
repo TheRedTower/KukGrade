@@ -7,6 +7,7 @@ Real data never enters this repository.
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import pytest
@@ -22,10 +23,18 @@ from data_imports.testing import (
     legacy_record,
 )
 from data_imports.tests import admin_user
-from gradings.legacy_matching import Suggestion, score_student, suggestion_for
+from gradings.legacy_matching import (
+    StudentPool,
+    Suggestion,
+    best_candidates,
+    name_tokens,
+    score_student,
+    suggestion_for,
+)
 from gradings.legacy_people import (
     TOO_MANY_TO_COMPARE,
     Chain,
+    Cluster,
     PersonQueue,
     PersonView,
     chain,
@@ -500,3 +509,65 @@ def test_a_builder_record_is_its_own_person() -> None:
     assert first.person_id is not None
     assert first.person_id != second.person_id
     assert legacy_record(source_name=SHEET_NOTE_NAME).person_id is None
+
+
+def test_a_person_is_named_by_the_spelling_the_others_agree_with() -> None:
+    commit(history_workbook(), sheets=HISTORY_BUT_THE_LAST)
+
+    # "Theo Rowan" and "Teo Rowan" once each: "Theo" is also on "Theo R".
+    assert person_writing("Teo Rowan").name == "Theo Rowan"
+
+
+@pytest.mark.parametrize(
+    "written",
+    ["Ada Park", "Ada P", "Adah", "Park Ada", "JKN Ada", "Kit B", "Zed"],
+)
+def test_names_are_scored_only_against_students_they_could_be(written: str) -> None:
+    pool = [
+        student(first_name="Ada", last_name="Park"),
+        student(first_name="Adam", last_name="Pike"),
+        student(first_name="Kit", last_name="Ada"),
+        student(first_name="Bo", last_name="Park"),
+    ]
+    tokens = name_tokens(written)
+
+    every = [
+        candidate.student.pk
+        for candidate in sorted(
+            filter(None, (score_student(tokens, s, None) for s in pool)),
+            key=lambda candidate: (-candidate.score, candidate.student.pk),
+        )
+    ]
+    pooled = [
+        candidate.student.pk
+        for candidate in best_candidates(tokens, None, StudentPool(pool))
+    ]
+    assert pooled == every[:5]
+
+
+def test_a_long_history_costs_nothing_until_a_new_record_shares_a_name() -> None:
+    ranks = active_rank_lookup()
+
+    def entry(name: str, month: int) -> Any:
+        return entry_for(
+            LegacyGradingRecord(
+                source_name=name,
+                cycle_year=2000 + month // 12,
+                cycle_month=month % 12 + 1,
+                record_kind=LegacyRecordKind.GRADING_RESULT,
+                source_section="",
+            ),
+            ranks,
+        )
+
+    held = [entry("Ada Park", month) for month in range(15_000)]
+    started = time.perf_counter()
+
+    grouping = group_entries(
+        [*held, entry("Kit B", 15_000)],
+        [Cluster(list(range(15_000)), fixed=True)],
+    )
+
+    assert time.perf_counter() - started < 1
+    assert grouping.compared_all
+    assert grouping.new_people == [[15_000]]

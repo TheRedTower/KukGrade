@@ -287,7 +287,7 @@ def suggest_for_groups(
 ) -> None:
     """Score only the groups the caller will actually show."""
 
-    pool = list(students) if students is not None else student_pool()
+    pool = StudentPool(students if students is not None else student_pool())
     ranks = active_rank_lookup()
     for group in groups:
         group.candidates = best_candidates(
@@ -306,15 +306,43 @@ def student_pool() -> list[Student]:
     )
 
 
+class StudentPool:
+    """Students by what score_student first compares - the first name's
+    first letter, and the surname, for a name written surname first - so a
+    name is scored only against the students it could be."""
+
+    def __init__(self, students: Iterable[Student]) -> None:
+        self._by_initial: dict[str, list[Student]] = {}
+        self._by_surname: dict[str, list[Student]] = {}
+        for student in students:
+            self._by_initial.setdefault(student.first_name.lower()[:1], []).append(
+                student,
+            )
+            self._by_surname.setdefault(student.last_name.lower(), []).append(student)
+
+    def could_be(self, tokens: Sequence[str]) -> list[Student]:
+        """The students a name, as its name_tokens, could be, by id."""
+        if not tokens:
+            return []
+        found = {
+            student.pk: student
+            for student in (
+                *self._by_initial.get(tokens[0][:1], []),
+                *self._by_surname.get(tokens[0], []),
+            )
+        }
+        return [found[pk] for pk in sorted(found)]
+
+
 def best_candidates(
     tokens: list[str],
     rank_then: Rank | None,
-    pool: Iterable[Student],
+    pool: StudentPool,
 ) -> list[Candidate]:
     """The students in `pool` that fit a name best, best first."""
     scored = [
         candidate
-        for student in pool
+        for student in pool.could_be(tokens)
         if (candidate := score_student(tokens, student, rank_then)) is not None
     ]
     scored.sort(key=lambda candidate: (-candidate.score, candidate.student.pk))

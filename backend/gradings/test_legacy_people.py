@@ -354,7 +354,9 @@ def test_group_records_remain_paginated_when_more_than_one_page() -> None:
 
 def test_people_scores_only_groups_on_the_requested_page() -> None:
     batch = legacy_batch()
-    student("Zac", "Wood")
+    # Two students each name could be, and one no "Person" could be.
+    student("Pia", "Wood")
+    student("Pat", "Reynolds")
     student("Mia", "Reynolds")
     for index in range(51):
         legacy_record(source_batch=batch, source_name=f"Person {index:02}")

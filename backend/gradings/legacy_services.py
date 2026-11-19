@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from accounts.people import title_of
@@ -136,6 +137,16 @@ def _locked(
     return locked
 
 
+def _changed_person(locked: LegacyGradingRecord) -> None:
+    """Raise the version of the record's person (locked before the record),
+    so a decision made on how the person looked before is refused."""
+    if locked.person_id is not None:
+        LegacyPerson.objects.filter(pk=locked.person_id).update(
+            version=F("version") + 1,
+            updated_at=timezone.now(),
+        )
+
+
 def _refuse_if_decided(locked: LegacyGradingRecord) -> None:
     """A decided person's records carry the decision: changing who one is
     about is a decision about the person, not the record."""
@@ -169,6 +180,7 @@ def _link(
     previous_student_id = locked.student_id
     locked.student = student
     locked.save()
+    _changed_person(locked)
     record(
         AuditAction.LEGACY_GRADING_LINKED,
         locked,
@@ -278,6 +290,7 @@ def _unlink(locked: LegacyGradingRecord, *, actor: User) -> LegacyGradingRecord:
     previous_student_id = locked.student_id
     locked.student = None
     locked.save()
+    _changed_person(locked)
     record(
         AuditAction.LEGACY_GRADING_UNLINKED,
         locked,

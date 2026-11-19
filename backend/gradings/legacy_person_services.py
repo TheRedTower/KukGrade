@@ -357,6 +357,9 @@ def reopen_person(person_id: int, *, version: int, actor: User) -> LegacyPerson:
     if person.state == LegacyPersonState.PROPOSED:
         raise ValidationError({"person": [NOT_DECIDED_MESSAGE]})
     records = _live_records(person)
+    if not records:
+        # Nothing left to decide about: no list shows them any more.
+        raise ValidationError({"person": [NO_RECORDS_MESSAGE]})
     was, student_id = person.state, person.student_id
     if was == LegacyPersonState.LINKED:
         _set_records(records, student=None, person_confirmed=False)

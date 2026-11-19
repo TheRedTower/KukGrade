@@ -773,3 +773,34 @@ def test_an_import_counts_as_a_change_to_the_people_it_adds_to() -> None:
     commit(sheets, only=["062026"])
 
     assert fresh(person).version == person.version + 1
+
+
+def test_a_record_linked_one_by_one_counts_as_a_change_to_its_person() -> None:
+    person, ada_park = ada()
+    first, _ = live(person)
+
+    link_legacy_record_to_student(first, ada_park, actor=admin())
+    assert fresh(person).version == 2
+    unlink_legacy_record_from_student(first, actor=admin())
+    assert fresh(person).version == 3
+
+    # A decision made on the person as first read would undo the link unseen.
+    with pytest.raises(ValidationError) as refused:
+        mark_not_a_student(person.pk, reason="LEFT", version=1, actor=admin())
+    assert refused.value.message_dict == {"version": [CHANGED_MESSAGE]}
+
+
+def test_a_person_whose_every_record_is_voided_is_not_reopened() -> None:
+    person, _ = ada()
+    leave_for_later(person.pk, version=1, actor=admin())
+    for record_ in live(person):
+        void_legacy_record(record_, reason="Not a grading.", actor=admin())
+
+    response = client_for(admin()).post(
+        f"{PEOPLE}{person.pk}/reopen/",
+        {"version": fresh(person).version},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert fresh(person).state == LegacyPersonState.LATER

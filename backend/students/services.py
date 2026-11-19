@@ -507,12 +507,18 @@ def _has_final_decision(registration: GradingCandidate) -> bool:
 def student_has_history(student: Student) -> bool:
     """Whether anything is recorded for this student: any grading they were
     in, a promotion, or an imported grading record."""
-    from gradings.models import GradingCandidate, LegacyGradingRecord, Promotion
+    from gradings.models import (
+        GradingCandidate,
+        LegacyGradingRecord,
+        LegacyPerson,
+        Promotion,
+    )
 
     return (
         GradingCandidate.objects.filter(student=student).exists()
         or Promotion.objects.filter(student=student).exists()
         or LegacyGradingRecord.objects.filter(student=student).exists()
+        or LegacyPerson.objects.filter(student=student).exists()
     )
 
 

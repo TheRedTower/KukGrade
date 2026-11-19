@@ -840,6 +840,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-people/{id}/later/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave the person for later, for every administrator to see. */
+        post: operations["gradings_legacy_people_later_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-people/{id}/link/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Link the person to a student: every record of theirs joins the
+         *     student's history. Again to the same student, it confirms records
+         *     that joined since.
+         */
+        post: operations["gradings_legacy_people_link_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-people/{id}/merge/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Join another person to this one: every record of theirs moves
+         *     here.
+         */
+        post: operations["gradings_legacy_people_merge_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-people/{id}/not-a-student/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Mark the person not a current student: their records stay
+         *     unlinked.
+         */
+        post: operations["gradings_legacy_people_not_a_student_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-people/{id}/reopen/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Undo the decision about the person. */
+        post: operations["gradings_legacy_people_reopen_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-people/{id}/split/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Move the chosen records to a new person; the response is the new
+         *     person.
+         */
+        post: operations["gradings_legacy_people_split_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-people/confirm/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Confirm many people ready to confirm at once, each to the student
+         *     suggested for them, all or nothing.
+         */
+        post: operations["gradings_legacy_people_confirm_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/legacy-people/summary/": {
         parameters: {
             query?: never;
@@ -1741,10 +1876,16 @@ export interface components {
          *     * `LEGACY_GRADING_UNLINKED` - Historical record unlinked
          *     * `LEGACY_GRADING_RANK_RESOLVED` - Historical record rank resolved
          *     * `LEGACY_GRADING_VOIDED` - Historical record voided
+         *     * `LEGACY_PERSON_LINKED` - Historical person linked
+         *     * `LEGACY_PERSON_NOT_A_STUDENT` - Historical person marked not a current student
+         *     * `LEGACY_PERSON_LATER` - Historical person left for later
+         *     * `LEGACY_PERSON_REOPENED` - Historical person reopened
+         *     * `LEGACY_PERSON_SPLIT` - Historical person split
+         *     * `LEGACY_PERSON_MERGED` - Historical people merged
          *     * `AUDIT_REDACTED` - Personal details erased from the audit log
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "SESSION_ARCHIVED" | "SESSION_RESTORED" | "RECORDS_DOWNLOADED" | "SUMMARY_DOWNLOADED" | "GRADING_SHEETS_PRINTED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED" | "AUDIT_REDACTED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "SESSION_ARCHIVED" | "SESSION_RESTORED" | "RECORDS_DOWNLOADED" | "SUMMARY_DOWNLOADED" | "GRADING_SHEETS_PRINTED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED" | "LEGACY_PERSON_LINKED" | "LEGACY_PERSON_NOT_A_STUDENT" | "LEGACY_PERSON_LATER" | "LEGACY_PERSON_REOPENED" | "LEGACY_PERSON_SPLIT" | "LEGACY_PERSON_MERGED" | "AUDIT_REDACTED";
         /** @description One age band, from its code: label, description and programme. */
         AgeBand: {
             readonly code: components["schemas"]["AgeBandEnum"];
@@ -1856,10 +1997,11 @@ export interface components {
          *     * `User` - User
          *     * `ImportBatch` - Import
          *     * `LegacyGradingRecord` - Historical grading record
+         *     * `LegacyPerson` - Historical person
          *     * `AuditLog` - Audit log
          * @enum {string}
          */
-        AuditEntityEnum: "GradingSession" | "GradingCandidate" | "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "Promotion" | "Student" | "User" | "ImportBatch" | "LegacyGradingRecord" | "AuditLog";
+        AuditEntityEnum: "GradingSession" | "GradingCandidate" | "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "Promotion" | "Student" | "User" | "ImportBatch" | "LegacyGradingRecord" | "LegacyPerson" | "AuditLog";
         AuditEvent: {
             readonly id: number;
             /** Format: date-time */
@@ -2219,6 +2361,11 @@ export interface components {
          * @enum {string}
          */
         ConfidenceEnum: "HIGH" | "MEDIUM" | "LOW";
+        /** @description POST legacy-people/confirm/: many people ready to confirm, at once. */
+        ConfirmPeopleRequest: {
+            /** @description All or nothing: each must still be ready to confirm with that student. Errors are keyed by person id. */
+            confirmations: components["schemas"]["PersonConfirmationRequest"][];
+        };
         Credit: {
             name: string;
             version: string;
@@ -2576,6 +2723,23 @@ export interface components {
              */
             suggestion: components["schemas"]["SuggestionEnum"];
             candidates: components["schemas"]["SuggestedStudent"][];
+            /** @description Sent back with a decision, which is refused once the person has changed since. */
+            version: number;
+            /**
+             * @description Why a person is not a current student; blank otherwise.
+             *
+             *     * `INSTRUCTOR` - An instructor
+             *     * `LEFT` - Left before KukGrade
+             *     * `NOT_REAL` - Not a real entry
+             *     * `OTHER` - Other
+             */
+            not_a_student_reason: components["schemas"]["LegacyNotAStudentReasonEnum"] | components["schemas"]["BlankEnum"];
+            not_a_student_reason_display: string;
+            note: string;
+            /** @description Who decided, as they were then; blank before a decision. */
+            readonly decided_by_name: string;
+            /** Format: date-time */
+            decided_at: string | null;
         };
         /** @description A person with every record of theirs, oldest first. */
         HistoricalPersonDetail: {
@@ -2624,6 +2788,23 @@ export interface components {
              */
             suggestion: components["schemas"]["SuggestionEnum"];
             candidates: components["schemas"]["SuggestedStudent"][];
+            /** @description Sent back with a decision, which is refused once the person has changed since. */
+            version: number;
+            /**
+             * @description Why a person is not a current student; blank otherwise.
+             *
+             *     * `INSTRUCTOR` - An instructor
+             *     * `LEFT` - Left before KukGrade
+             *     * `NOT_REAL` - Not a real entry
+             *     * `OTHER` - Other
+             */
+            not_a_student_reason: components["schemas"]["LegacyNotAStudentReasonEnum"] | components["schemas"]["BlankEnum"];
+            not_a_student_reason_display: string;
+            note: string;
+            /** @description Who decided, as they were then; blank before a decision. */
+            readonly decided_by_name: string;
+            /** Format: date-time */
+            decided_at: string | null;
             records: components["schemas"]["LegacyGradingRecord"][];
         };
         /** @description An import: what was uploaded, where it is up to, and its rows' counts. */
@@ -2987,6 +3168,14 @@ export interface components {
             };
         };
         /**
+         * @description * `INSTRUCTOR` - An instructor
+         *     * `LEFT` - Left before KukGrade
+         *     * `NOT_REAL` - Not a real entry
+         *     * `OTHER` - Other
+         * @enum {string}
+         */
+        LegacyNotAStudentReasonEnum: "INSTRUCTOR" | "LEFT" | "NOT_REAL" | "OTHER";
+        /**
          * @description Names still to link, by how clear their suggested students are, and the
          *     other counts the linking screens show.
          */
@@ -3106,6 +3295,17 @@ export interface components {
              */
             replace?: boolean;
         };
+        /** @description POST legacy-people/{id}/link/: the student the person is. */
+        LinkPersonRequest: {
+            /** @description The person's version as read; refused once it has changed. */
+            version: number;
+            student: number;
+            /**
+             * @description Move records already linked to another student.
+             * @default false
+             */
+            replace?: boolean;
+        };
         LockedCandidateWithdrawalRequest: {
             withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"];
             withdrawal_note?: string;
@@ -3114,6 +3314,14 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
+        };
+        /** @description POST legacy-people/{id}/merge/: the person who is the same one. */
+        MergePeopleRequest: {
+            /** @description The person's version as read; refused once it has changed. */
+            version: number;
+            /** @description Merged into this person, and then gone. */
+            other: number;
+            other_version: number;
         };
         /**
          * @description One of a set of choices, as every list of them is served: the value
@@ -3143,6 +3351,17 @@ export interface components {
          * @enum {string}
          */
         NextActionEnum: "PREPARE_ASSESSMENT" | "START_ASSESSMENT" | "CONTINUE_ASSESSMENT" | "VIEW_ASSESSMENT" | "PROPOSE_OUTCOME" | "REVIEW_PROPOSAL" | "REVIEW_DECISION" | "VIEW_DECISION" | "PROMOTION_LEDGER" | "NONE";
+        /** @description POST legacy-people/{id}/not-a-student/: why, and a note if wanted. */
+        NotAStudentRequest: {
+            /** @description The person's version as read; refused once it has changed. */
+            version: number;
+            reason: components["schemas"]["LegacyNotAStudentReasonEnum"];
+            /**
+             * @description Required when the reason is Other.
+             * @default
+             */
+            note?: string;
+        };
         /** @enum {unknown} */
         NullEnum: null;
         /**
@@ -3493,6 +3712,20 @@ export interface components {
             rank?: number | null;
             is_active?: boolean;
         };
+        PersonConfirmationRequest: {
+            person: number;
+            /** @description The student suggested for the person. */
+            student: number;
+            version: number;
+        };
+        /**
+         * @description POST legacy-people/{id}/later/, /reopen/: the decision, made on the
+         *     person as last read.
+         */
+        PersonVersionRequest: {
+            /** @description The person's version as read; refused once it has changed. */
+            version: number;
+        };
         Pledge: {
             title: string;
             points: components["schemas"]["PledgePoint"][];
@@ -3661,6 +3894,13 @@ export interface components {
          * @enum {string}
          */
         SourceEnum: "KUKGRADE" | "LEGACY";
+        /** @description POST legacy-people/{id}/split/: the records that are someone else. */
+        SplitPersonRequest: {
+            /** @description The person's version as read; refused once it has changed. */
+            version: number;
+            /** @description Moved to a new person; at least one record stays. */
+            records: number[];
+        };
         StaffRankChoice: {
             /** @description The rank's id, as a user's `rank`. */
             value: number;
@@ -4075,9 +4315,9 @@ export interface operations {
     audit_events_list: {
         parameters: {
             query?: {
-                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "AUDIT_REDACTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "GRADING_SHEETS_PRINTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "RECORDS_DOWNLOADED" | "SESSION_ARCHIVED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_RESTORED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "SUMMARY_DOWNLOADED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
+                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "AUDIT_REDACTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "GRADING_SHEETS_PRINTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "LEGACY_PERSON_LATER" | "LEGACY_PERSON_LINKED" | "LEGACY_PERSON_MERGED" | "LEGACY_PERSON_NOT_A_STUDENT" | "LEGACY_PERSON_REOPENED" | "LEGACY_PERSON_SPLIT" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "RECORDS_DOWNLOADED" | "SESSION_ARCHIVED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_RESTORED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "SUMMARY_DOWNLOADED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
                 entity_id?: string;
-                entity_type?: "AuditLog" | "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
+                entity_type?: "AuditLog" | "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "LegacyPerson" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
                 occurred_to?: string;
                 /** @description A page number within the paginated result set. */
@@ -5209,6 +5449,199 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_later_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonVersionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PersonVersionRequest"];
+                "multipart/form-data": components["schemas"]["PersonVersionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_link_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkPersonRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LinkPersonRequest"];
+                "multipart/form-data": components["schemas"]["LinkPersonRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_merge_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergePeopleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MergePeopleRequest"];
+                "multipart/form-data": components["schemas"]["MergePeopleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_not_a_student_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotAStudentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["NotAStudentRequest"];
+                "multipart/form-data": components["schemas"]["NotAStudentRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_reopen_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonVersionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PersonVersionRequest"];
+                "multipart/form-data": components["schemas"]["PersonVersionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_split_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SplitPersonRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SplitPersonRequest"];
+                "multipart/form-data": components["schemas"]["SplitPersonRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_confirm_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPeopleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ConfirmPeopleRequest"];
+                "multipart/form-data": components["schemas"]["ConfirmPeopleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPerson"][];
                 };
             };
         };

@@ -73,6 +73,13 @@ LABELS: dict[str, str] = {
     "kind": "Import type",
     "record_count": "Records created",
     "events_changed": "Events changed",
+    "records": "Records",
+    "newly_confirmed": "Records newly confirmed",
+    "confirmed_together": "Confirmed with others ready",
+    "note_given": "Note given",
+    "previous_state": "Was",
+    "records_moved": "Records moved",
+    "decision_kept": "Decision kept",
     **{key: words[0] for key, words in AUTHORITY_WORDS.items()},
 }
 
@@ -86,6 +93,12 @@ HIDDEN: frozenset[str] = frozenset(
         "session_id",
         "batch_id",
         "legacy_record_id",
+        # A historical person and their records (gradings.legacy_person_services).
+        "person_id",
+        "new_person_id",
+        "merged_person_id",
+        "record_ids",
+        "confirmed_record_ids",
         "previous_student_id",
         "change",
         "comment",
@@ -128,7 +141,11 @@ _CHOICES: dict[str, _Field] = {
     "age_band": ("gradings", "GradingCandidate", "age_band"),
     "withdrawal_reason": _WITHDRAWAL,
     "kind": ("data_imports", "ImportBatch", "kind"),
+    "previous_state": ("gradings", "LegacyPerson", "state"),
+    "decision_kept": ("gradings", "LegacyPerson", "state"),
 }
+
+_NOT_A_STUDENT: _Field = ("gradings", "LegacyPerson", "not_a_student_reason")
 
 _RANK_CODES = frozenset(
     {"from_rank", "to_rank", "current_rank", "resolved_rank_code", "rank"},
@@ -187,6 +204,11 @@ class _Words:
             return _choice(_STATUSES[self.event.entity_type], str(value))
         if key == "reason" and self.event.action == AuditAction.CANDIDATE_WITHDRAWN:
             return _choice(_WITHDRAWAL, str(value))
+        if (
+            key == "reason"
+            and self.event.action == AuditAction.LEGACY_PERSON_NOT_A_STUDENT
+        ):
+            return _choice(_NOT_A_STUDENT, str(value))
         if key in _CHOICES:
             return _choice(_CHOICES[key], str(value))
         if key in _RANK_CODES:

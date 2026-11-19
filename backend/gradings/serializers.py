@@ -5,7 +5,7 @@ from typing import Any, cast
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from accounts.people import PersonNameField
+from accounts.people import PersonNameField, named
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.assessment_services import (
     assessment_can_be_prepared,
@@ -31,6 +31,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
+    LegacyNotAStudentReason,
     LegacyPersonConfidence,
     LegacyPersonState,
     LegacyRankField,
@@ -1422,9 +1423,33 @@ class HistoricalPersonSerializer(serializers.Serializer):
         help_text="How clear the suggested students are.",
     )
     candidates = SuggestedStudentSerializer(many=True)
+    version = serializers.IntegerField(
+        source="person.version",
+        help_text=(
+            "Sent back with a decision, which is refused once the person has "
+            "changed since."
+        ),
+    )
+    not_a_student_reason = serializers.ChoiceField(
+        source="person.not_a_student_reason",
+        choices=LegacyNotAStudentReason.choices,
+        allow_blank=True,
+        help_text="Why a person is not a current student; blank otherwise.",
+    )
+    not_a_student_reason_display = serializers.CharField(
+        source="person.get_not_a_student_reason_display",
+    )
+    note = serializers.CharField(source="person.note")
+    decided_by_name = serializers.SerializerMethodField(
+        help_text="Who decided, as they were then; blank before a decision.",
+    )
+    decided_at = serializers.DateTimeField(source="person.decided_at", allow_null=True)
 
     def get_queue_display(self, view: PersonView) -> str | None:
         return view.queue.label if view.queue else None
+
+    def get_decided_by_name(self, view: PersonView) -> str:
+        return named(view.person.decided_by, view.person.decided_by_title)
 
     def get_record_count(self, view: PersonView) -> int:
         return len(view.records)
@@ -1458,6 +1483,93 @@ class HistoricalPeopleSummarySerializer(serializers.Serializer):
     ready = serializers.IntegerField(help_text="Ready to confirm.")
     needs_a_look = serializers.IntegerField()
     no_student = serializers.IntegerField(help_text="No student found.")
+
+
+class PersonVersionSerializer(serializers.Serializer):
+    """POST legacy-people/{id}/later/, /reopen/: the decision, made on the
+    person as last read."""
+
+    version = serializers.IntegerField(
+        min_value=1,
+        help_text="The person's version as read; refused once it has changed.",
+    )
+
+
+class LinkPersonSerializer(PersonVersionSerializer):
+    """POST legacy-people/{id}/link/: the student the person is."""
+
+    student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
+    replace = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Move records already linked to another student.",
+    )
+
+
+class NotAStudentSerializer(PersonVersionSerializer):
+    """POST legacy-people/{id}/not-a-student/: why, and a note if wanted."""
+
+    reason = serializers.ChoiceField(choices=LegacyNotAStudentReason.choices)
+    note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=500,
+        help_text="Required when the reason is Other.",
+    )
+
+
+class SplitPersonSerializer(PersonVersionSerializer):
+    """POST legacy-people/{id}/split/: the records that are someone else."""
+
+    records = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        max_length=BULK_LINK_LIMIT,
+        help_text="Moved to a new person; at least one record stays.",
+    )
+
+
+class MergePeopleSerializer(PersonVersionSerializer):
+    """POST legacy-people/{id}/merge/: the person who is the same one."""
+
+    other = serializers.IntegerField(
+        min_value=1,
+        help_text="Merged into this person, and then gone.",
+    )
+    other_version = serializers.IntegerField(min_value=1)
+
+
+class PersonConfirmationSerializer(serializers.Serializer):
+    person = serializers.IntegerField(min_value=1)
+    student = serializers.IntegerField(
+        min_value=1,
+        help_text="The student suggested for the person.",
+    )
+    version = serializers.IntegerField(min_value=1)
+
+
+class ConfirmPeopleSerializer(serializers.Serializer):
+    """POST legacy-people/confirm/: many people ready to confirm, at once."""
+
+    confirmations = PersonConfirmationSerializer(
+        many=True,
+        allow_empty=False,
+        help_text=(
+            "All or nothing: each must still be ready to confirm with that "
+            "student. Errors are keyed by person id."
+        ),
+    )
+
+    def validate_confirmations(
+        self,
+        value: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if len(value) > BULK_LINK_LIMIT:
+            raise serializers.ValidationError(
+                f"Confirm at most {BULK_LINK_LIMIT} people at a time.",
+            )
+        return value
 
 
 class ResolveLegacyRankSerializer(serializers.Serializer):

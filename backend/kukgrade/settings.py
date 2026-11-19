@@ -400,6 +400,7 @@ SPECTACULAR_SETTINGS = {
         "GradingStageEnum": "gradings.read_models.GradingStage",
         "LegacyRankFieldEnum": "gradings.models.LegacyRankField",
         "LegacyPersonStateEnum": "gradings.models.LegacyPersonState",
+        "LegacyNotAStudentReasonEnum": "gradings.models.LegacyNotAStudentReason",
         "LegacySheetStateEnum": "data_imports.services.SheetState",
         "AuditEntityEnum": "audit.models.AuditEntity",
         "StudentImportRowOutcomeEnum": "data_imports.models.ImportRowOutcome",

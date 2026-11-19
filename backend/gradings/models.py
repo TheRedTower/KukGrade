@@ -1438,6 +1438,22 @@ class LegacyPersonConfidence(models.TextChoices):
     LOW = "LOW", "Low"
 
 
+class LegacyNotAStudentReason(models.TextChoices):
+    """Why a person from the imported history is not a current student."""
+
+    INSTRUCTOR = "INSTRUCTOR", "An instructor"
+    LEFT = "LEFT", "Left before KukGrade"
+    NOT_REAL = "NOT_REAL", "Not a real entry"
+    OTHER = "OTHER", "Other"
+
+
+# A deferred trigger (migration 0005), so a decision may change the person and
+# their records in either order inside one transaction: every live record a
+# decision covers carries what it decided - a Linked person's student, no
+# student for one who is not a student - and none is covered before one.
+PERSON_RECORDS_AGREE_TRIGGER = "legacy_person_records_agree"
+
+
 class LegacyPerson(models.Model):
     """One person the imported history is about: the records that, by their
     names and rank history, are most likely the same person.
@@ -1469,6 +1485,25 @@ class LegacyPerson(models.Model):
     )
     # Why the records are grouped, in plain words (gradings.legacy_people).
     reasons = models.JSONField(default=list, blank=True)
+    # Raised by every change, so a decision made on what someone saw is
+    # refused once the person has changed since (legacy_person_services).
+    version = models.PositiveIntegerField(default=1)
+    not_a_student_reason = models.CharField(
+        max_length=16,
+        choices=LegacyNotAStudentReason.choices,
+        blank=True,
+    )
+    note = models.CharField(max_length=500, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="decided_legacy_people",
+    )
+    # The rank (or "administrator") the decider held then (accounts.people).
+    decided_by_title = models.CharField(max_length=100, blank=True, editable=False)
+    decided_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1478,6 +1513,33 @@ class LegacyPerson(models.Model):
             models.Index(fields=["state"], name="legacy_person_state_idx"),
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(state=LegacyPersonState.NOT_A_STUDENT)
+                    & Q(not_a_student_reason__in=LegacyNotAStudentReason.values)
+                    & (
+                        ~Q(not_a_student_reason=LegacyNotAStudentReason.OTHER)
+                        | ~Q(note="")
+                    )
+                )
+                | (
+                    ~Q(state=LegacyPersonState.NOT_A_STUDENT)
+                    & Q(not_a_student_reason="", note="")
+                ),
+                name="legacy_person_reason_when_not_a_student",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    state=LegacyPersonState.PROPOSED,
+                    decided_by__isnull=True,
+                    decided_at__isnull=True,
+                )
+                | (
+                    ~Q(state=LegacyPersonState.PROPOSED)
+                    & Q(decided_by__isnull=False, decided_at__isnull=False)
+                ),
+                name="legacy_person_decided_by_whom",
+            ),
             models.CheckConstraint(
                 condition=Q(state=LegacyPersonState.LINKED, student__isnull=False)
                 | (~Q(state=LegacyPersonState.LINKED) & Q(student__isnull=True)),

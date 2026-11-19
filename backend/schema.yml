@@ -123,6 +123,12 @@ paths:
           - LEGACY_GRADING_RANK_RESOLVED
           - LEGACY_GRADING_UNLINKED
           - LEGACY_GRADING_VOIDED
+          - LEGACY_PERSON_LATER
+          - LEGACY_PERSON_LINKED
+          - LEGACY_PERSON_MERGED
+          - LEGACY_PERSON_NOT_A_STUDENT
+          - LEGACY_PERSON_REOPENED
+          - LEGACY_PERSON_SPLIT
           - OUTCOME_CREATED
           - OUTCOME_FINALISED
           - OUTCOME_PROPOSED
@@ -164,6 +170,7 @@ paths:
           - GradingSession
           - ImportBatch
           - LegacyGradingRecord
+          - LegacyPerson
           - Promotion
           - Student
           - User
@@ -1581,6 +1588,250 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/{id}/later/:
+    post:
+      operationId: gradings_legacy_people_later_create
+      description: Leave the person for later, for every administrator to see.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonVersionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonVersionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonVersionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/{id}/link/:
+    post:
+      operationId: gradings_legacy_people_link_create
+      description: |-
+        Link the person to a student: every record of theirs joins the
+        student's history. Again to the same student, it confirms records
+        that joined since.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkPersonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LinkPersonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LinkPersonRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/{id}/merge/:
+    post:
+      operationId: gradings_legacy_people_merge_create
+      description: |-
+        Join another person to this one: every record of theirs moves
+        here.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MergePeopleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MergePeopleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MergePeopleRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/{id}/not-a-student/:
+    post:
+      operationId: gradings_legacy_people_not_a_student_create
+      description: |-
+        Mark the person not a current student: their records stay
+        unlinked.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotAStudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NotAStudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NotAStudentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/{id}/reopen/:
+    post:
+      operationId: gradings_legacy_people_reopen_create
+      description: Undo the decision about the person.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonVersionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonVersionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonVersionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/{id}/split/:
+    post:
+      operationId: gradings_legacy_people_split_create
+      description: |-
+        Move the chosen records to a new person; the response is the new
+        person.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SplitPersonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SplitPersonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SplitPersonRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/confirm/:
+    post:
+      operationId: gradings_legacy_people_confirm_create
+      description: |-
+        Confirm many people ready to confirm at once, each to the student
+        suggested for them, all or nothing.
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmPeopleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConfirmPeopleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConfirmPeopleRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoricalPerson'
           description: ''
   /api/gradings/legacy-people/summary/:
     get:
@@ -3390,6 +3641,12 @@ components:
       - LEGACY_GRADING_UNLINKED
       - LEGACY_GRADING_RANK_RESOLVED
       - LEGACY_GRADING_VOIDED
+      - LEGACY_PERSON_LINKED
+      - LEGACY_PERSON_NOT_A_STUDENT
+      - LEGACY_PERSON_LATER
+      - LEGACY_PERSON_REOPENED
+      - LEGACY_PERSON_SPLIT
+      - LEGACY_PERSON_MERGED
       - AUDIT_REDACTED
       type: string
       description: |-
@@ -3432,6 +3689,12 @@ components:
         * `LEGACY_GRADING_UNLINKED` - Historical record unlinked
         * `LEGACY_GRADING_RANK_RESOLVED` - Historical record rank resolved
         * `LEGACY_GRADING_VOIDED` - Historical record voided
+        * `LEGACY_PERSON_LINKED` - Historical person linked
+        * `LEGACY_PERSON_NOT_A_STUDENT` - Historical person marked not a current student
+        * `LEGACY_PERSON_LATER` - Historical person left for later
+        * `LEGACY_PERSON_REOPENED` - Historical person reopened
+        * `LEGACY_PERSON_SPLIT` - Historical person split
+        * `LEGACY_PERSON_MERGED` - Historical people merged
         * `AUDIT_REDACTED` - Personal details erased from the audit log
     AgeBand:
       type: object
@@ -3684,6 +3947,7 @@ components:
       - User
       - ImportBatch
       - LegacyGradingRecord
+      - LegacyPerson
       - AuditLog
       type: string
       description: |-
@@ -3697,6 +3961,7 @@ components:
         * `User` - User
         * `ImportBatch` - Import
         * `LegacyGradingRecord` - Historical grading record
+        * `LegacyPerson` - Historical person
         * `AuditLog` - Audit log
     AuditEvent:
       type: object
@@ -4656,6 +4921,19 @@ components:
         * `HIGH` - High
         * `MEDIUM` - Medium
         * `LOW` - Low
+    ConfirmPeopleRequest:
+      type: object
+      description: 'POST legacy-people/confirm/: many people ready to confirm, at
+        once.'
+      properties:
+        confirmations:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonConfirmationRequest'
+          description: 'All or nothing: each must still be ready to confirm with that
+            student. Errors are keyed by person id.'
+      required:
+      - confirmations
     Credit:
       type: object
       properties:
@@ -5532,15 +5810,47 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SuggestedStudent'
+        version:
+          type: integer
+          description: Sent back with a decision, which is refused once the person
+            has changed since.
+        not_a_student_reason:
+          description: |-
+            Why a person is not a current student; blank otherwise.
+
+            * `INSTRUCTOR` - An instructor
+            * `LEFT` - Left before KukGrade
+            * `NOT_REAL` - Not a real entry
+            * `OTHER` - Other
+          oneOf:
+          - $ref: '#/components/schemas/LegacyNotAStudentReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        not_a_student_reason_display:
+          type: string
+        note:
+          type: string
+        decided_by_name:
+          type: string
+          readOnly: true
+          description: Who decided, as they were then; blank before a decision.
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
       required:
       - awaiting_confirmation
       - candidates
       - confidence
       - confidence_display
+      - decided_at
+      - decided_by_name
       - first_period
       - id
       - last_period
       - name
+      - not_a_student_reason
+      - not_a_student_reason_display
+      - note
       - queue
       - queue_display
       - reasons
@@ -5550,6 +5860,7 @@ components:
       - state_display
       - student
       - suggestion
+      - version
     HistoricalPersonDetail:
       type: object
       description: A person with every record of theirs, oldest first.
@@ -5632,6 +5943,33 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SuggestedStudent'
+        version:
+          type: integer
+          description: Sent back with a decision, which is refused once the person
+            has changed since.
+        not_a_student_reason:
+          description: |-
+            Why a person is not a current student; blank otherwise.
+
+            * `INSTRUCTOR` - An instructor
+            * `LEFT` - Left before KukGrade
+            * `NOT_REAL` - Not a real entry
+            * `OTHER` - Other
+          oneOf:
+          - $ref: '#/components/schemas/LegacyNotAStudentReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        not_a_student_reason_display:
+          type: string
+        note:
+          type: string
+        decided_by_name:
+          type: string
+          readOnly: true
+          description: Who decided, as they were then; blank before a decision.
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
         records:
           type: array
           items:
@@ -5641,10 +5979,15 @@ components:
       - candidates
       - confidence
       - confidence_display
+      - decided_at
+      - decided_by_name
       - first_period
       - id
       - last_period
       - name
+      - not_a_student_reason
+      - not_a_student_reason_display
+      - note
       - queue
       - queue_display
       - reasons
@@ -5655,6 +5998,7 @@ components:
       - state_display
       - student
       - suggestion
+      - version
     ImportBatch:
       type: object
       description: 'An import: what was uploaded, where it is up to, and its rows''
@@ -6513,6 +6857,18 @@ components:
           additionalProperties:
             type: string
             nullable: true
+    LegacyNotAStudentReasonEnum:
+      enum:
+      - INSTRUCTOR
+      - LEFT
+      - NOT_REAL
+      - OTHER
+      type: string
+      description: |-
+        * `INSTRUCTOR` - An instructor
+        * `LEFT` - Left before KukGrade
+        * `NOT_REAL` - Not a real entry
+        * `OTHER` - Other
     LegacyPeopleSummary:
       type: object
       description: |-
@@ -6759,6 +7115,23 @@ components:
           description: Move a record already linked to another student.
       required:
       - student
+    LinkPersonRequest:
+      type: object
+      description: 'POST legacy-people/{id}/link/: the student the person is.'
+      properties:
+        version:
+          type: integer
+          minimum: 1
+          description: The person's version as read; refused once it has changed.
+        student:
+          type: integer
+        replace:
+          type: boolean
+          default: false
+          description: Move records already linked to another student.
+      required:
+      - student
+      - version
     LockedCandidateWithdrawalRequest:
       type: object
       properties:
@@ -6783,6 +7156,25 @@ components:
       required:
       - email
       - password
+    MergePeopleRequest:
+      type: object
+      description: 'POST legacy-people/{id}/merge/: the person who is the same one.'
+      properties:
+        version:
+          type: integer
+          minimum: 1
+          description: The person's version as read; refused once it has changed.
+        other:
+          type: integer
+          minimum: 1
+          description: Merged into this person, and then gone.
+        other_version:
+          type: integer
+          minimum: 1
+      required:
+      - other
+      - other_version
+      - version
     MissingDetail:
       type: object
       description: |-
@@ -6828,6 +7220,24 @@ components:
         * `VIEW_DECISION` - View the final decision
         * `PROMOTION_LEDGER` - Promotion ledger
         * `NONE` - No further action
+    NotAStudentRequest:
+      type: object
+      description: 'POST legacy-people/{id}/not-a-student/: why, and a note if wanted.'
+      properties:
+        version:
+          type: integer
+          minimum: 1
+          description: The person's version as read; refused once it has changed.
+        reason:
+          $ref: '#/components/schemas/LegacyNotAStudentReasonEnum'
+        note:
+          type: string
+          default: ''
+          description: Required when the reason is Other.
+          maxLength: 500
+      required:
+      - reason
+      - version
     NullEnum:
       enum:
       - null
@@ -7398,6 +7808,35 @@ components:
             has none.
         is_active:
           type: boolean
+    PersonConfirmationRequest:
+      type: object
+      properties:
+        person:
+          type: integer
+          minimum: 1
+        student:
+          type: integer
+          minimum: 1
+          description: The student suggested for the person.
+        version:
+          type: integer
+          minimum: 1
+      required:
+      - person
+      - student
+      - version
+    PersonVersionRequest:
+      type: object
+      description: |-
+        POST legacy-people/{id}/later/, /reopen/: the decision, made on the
+        person as last read.
+      properties:
+        version:
+          type: integer
+          minimum: 1
+          description: The person's version as read; refused once it has changed.
+      required:
+      - version
     Pledge:
       type: object
       properties:
@@ -7791,6 +8230,24 @@ components:
       description: |-
         * `KUKGRADE` - A grading in KukGrade
         * `LEGACY` - A historical record
+    SplitPersonRequest:
+      type: object
+      description: 'POST legacy-people/{id}/split/: the records that are someone else.'
+      properties:
+        version:
+          type: integer
+          minimum: 1
+          description: The person's version as read; refused once it has changed.
+        records:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: Moved to a new person; at least one record stays.
+          maxItems: 500
+      required:
+      - records
+      - version
     StaffRankChoice:
       type: object
       properties:

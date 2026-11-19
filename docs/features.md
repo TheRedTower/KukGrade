@@ -160,7 +160,9 @@ uploading the whole workbook again brings in only its new sheets, a changed shee
 and no record is ever added twice. The review also marks what the workbook leaves in doubt: a
 missing outcome or rank, a name written twice on one sheet, and someone both missing and graded
 there. Saved records are grouped into the people they are about, by their names and rank
-history, each with how sure that is and the students they may be. See
+history, each with how sure that is and the students they may be. Each person is linked to a
+student, marked not a current student, or left for later; a person can be split or merged, and
+every decision can be undone and is audited. See
 [importing-data.md](importing-data.md).
 
 ## Search

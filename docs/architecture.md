@@ -93,7 +93,11 @@ deleted.
 **One lock protocol.** Concurrent grading writes lock the grading session first, then
 any students in ascending id order, and validate only against rows re-read under those
 locks (`gradings/locking.py`). Bulk endpoints process each row independently in its own
-savepoint and report per-row errors, so one bad row does not block the rest.
+savepoint and report per-row errors, so one bad row does not block the rest. Imported
+history takes the same shape: a student, then the people from the history in ascending id,
+then their records. A decision about a person names the `version` it was made on and is
+refused once the person has changed since; a deferred database trigger refuses a decided
+person whose records do not carry the decision (`gradings/legacy_person_services.py`).
 
 **The schema is the contract.** Every request and response is declared in the backend
 and published as `backend/schema.yml` (OpenAPI). The frontend's TypeScript types are

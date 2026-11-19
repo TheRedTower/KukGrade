@@ -443,6 +443,11 @@ def _live_records(person_ids: Iterable[int]) -> models.QuerySet[LegacyGradingRec
     )
 
 
+# What re-rating a person changes. The version goes up with it, so a decision
+# made on how the person looked before is refused (legacy_person_services).
+_RATED_FIELDS = ["confidence", "reasons", "updated_at", "version"]
+
+
 def assign_people(records: Sequence[LegacyGradingRecord]) -> None:
     """Give each of `records` - new, not yet saved - its person: one already
     there, or a new one. Every record but a sheet note gets one.
@@ -516,15 +521,17 @@ def assign_people(records: Sequence[LegacyGradingRecord]) -> None:
         rating = rate([entries[index] for index in fixed[at].entries + indices])
         person.confidence, person.reasons = rating.confidence, rating.reasons
         person.updated_at = now
+        person.version += 1
         changed.append(person)
-    LegacyPerson.objects.bulk_update(changed, ["confidence", "reasons", "updated_at"])
+    LegacyPerson.objects.bulk_update(changed, _RATED_FIELDS)
 
 
 def refresh_people(person_ids: Iterable[int | None]) -> None:
     """Rate `person_ids` again from their live records, after a record of
     theirs changed (a rank corrected, a record voided), so how sure each is
     never rests on what the records said before. A person whose records no
-    longer read as one is the least sure, and says so (rate)."""
+    longer read as one is the least sure, and says so (rate). The caller
+    holds the lock on each already, or this takes it."""
     ids = sorted({pk for pk in person_ids if pk is not None})
     if not ids:
         return
@@ -538,14 +545,14 @@ def refresh_people(person_ids: Iterable[int | None]) -> None:
     now = timezone.now()
     changed: list[LegacyPerson] = []
     for person in people:
-        if not theirs[person.pk]:
-            continue
-        rating = rate([entry_for(record_, ranks) for record_ in theirs[person.pk]])
-        if (rating.confidence, rating.reasons) != (person.confidence, person.reasons):
+        if theirs[person.pk]:
+            rating = rate([entry_for(r, ranks) for r in theirs[person.pk]])
             person.confidence, person.reasons = rating.confidence, rating.reasons
-            person.updated_at = now
-            changed.append(person)
-    LegacyPerson.objects.bulk_update(changed, ["confidence", "reasons", "updated_at"])
+        # Their records changed, whatever the rating says now.
+        person.updated_at = now
+        person.version += 1
+        changed.append(person)
+    LegacyPerson.objects.bulk_update(changed, _RATED_FIELDS)
 
 
 def person_fields(entries: Sequence[Entry], *, compared_all: bool) -> dict[str, Any]:
@@ -661,7 +668,9 @@ def person_views(
 ) -> list[PersonView]:
     """Each person with live records, by name: one read for the people, one
     for their records."""
-    found = list(people.select_related("student", "student__current_rank"))
+    found = list(
+        people.select_related("student", "student__current_rank", "decided_by"),
+    )
     theirs: dict[int, list[LegacyGradingRecord]] = defaultdict(list)
     for record_ in (
         LegacyGradingRecord.objects.filter(

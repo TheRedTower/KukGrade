@@ -48,6 +48,15 @@ from gradings.legacy_people import (
     person_views,
     suggest_students,
 )
+from gradings.legacy_person_services import (
+    confirm_people,
+    leave_for_later,
+    link_person,
+    mark_not_a_student,
+    merge_people,
+    reopen_person,
+    split_person,
+)
 from gradings.legacy_services import (
     bulk_link_legacy_records,
     bulk_unlink_legacy_records,
@@ -111,6 +120,7 @@ from gradings.serializers import (
     CandidateOutcomeProposalSerializer,
     CandidateOutcomeSerializer,
     CandidatePromotionSerializer,
+    ConfirmPeopleSerializer,
     GradingCandidateRosterSerializer,
     GradingCandidateSerializer,
     GradingSessionSerializer,
@@ -124,12 +134,17 @@ from gradings.serializers import (
     LegacyPersonSerializer,
     LegacyRecordCountsSerializer,
     LinkLegacyRecordSerializer,
+    LinkPersonSerializer,
     LockedCandidateWithdrawalSerializer,
+    MergePeopleSerializer,
+    NotAStudentSerializer,
+    PersonVersionSerializer,
     PromotionEligibilitySerializer,
     PromotionSerializer,
     ResolveLegacyRankSerializer,
     SessionQuerySerializer,
     SetAsideNamesSerializer,
+    SplitPersonSerializer,
     StagedDecisionDiscardQuerySerializer,
     StagedDecisionSerializer,
     VoidLegacyRecordSerializer,
@@ -1486,6 +1501,13 @@ class HistoricalPersonViewSet(
         "list": ("gradings.can_reconcile_imported_history",),
         "retrieve": ("gradings.can_reconcile_imported_history",),
         "summary": ("gradings.can_reconcile_imported_history",),
+        "link": ("gradings.can_reconcile_imported_history",),
+        "not_a_student": ("gradings.can_reconcile_imported_history",),
+        "later": ("gradings.can_reconcile_imported_history",),
+        "reopen": ("gradings.can_reconcile_imported_history",),
+        "split": ("gradings.can_reconcile_imported_history",),
+        "merge": ("gradings.can_reconcile_imported_history",),
+        "confirm": ("gradings.can_reconcile_imported_history",),
     }
     query_filters = _HISTORICAL_PEOPLE_FILTERS
 
@@ -1547,3 +1569,152 @@ class HistoricalPersonViewSet(
                 },
             ).data,
         )
+
+    # --- decisions (gradings.legacy_person_services) -------------------------
+
+    def _decided(self, person_id: int, *, created: bool = False) -> Response:
+        """The person as the decision left them, with every record."""
+        [view] = person_views(LegacyPerson.objects.filter(pk=person_id))
+        suggest_students([view])
+        return Response(
+            HistoricalPersonDetailSerializer(view).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def _payload[S: BaseSerializer](self, serializer: type[S]) -> S:
+        payload = serializer(data=self.request.data)
+        payload.is_valid(raise_exception=True)
+        return payload
+
+    @extend_schema(
+        request=LinkPersonSerializer,
+        responses=HistoricalPersonDetailSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def link(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Link the person to a student: every record of theirs joins the
+        student's history. Again to the same student, it confirms records
+        that joined since."""
+        person = self.get_object()
+        data = self._payload(LinkPersonSerializer).validated_data
+        link_person(
+            person.pk,
+            data["student"],
+            version=data["version"],
+            actor=self.actor,
+            replace=data["replace"],
+        )
+        return self._decided(person.pk)
+
+    @extend_schema(
+        request=NotAStudentSerializer,
+        responses=HistoricalPersonDetailSerializer,
+    )
+    @action(detail=True, methods=["post"], url_path="not-a-student")
+    def not_a_student(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Mark the person not a current student: their records stay
+        unlinked."""
+        person = self.get_object()
+        data = self._payload(NotAStudentSerializer).validated_data
+        mark_not_a_student(
+            person.pk,
+            reason=data["reason"],
+            note=data["note"],
+            version=data["version"],
+            actor=self.actor,
+        )
+        return self._decided(person.pk)
+
+    @extend_schema(
+        request=PersonVersionSerializer,
+        responses=HistoricalPersonDetailSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def later(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Leave the person for later, for every administrator to see."""
+        person = self.get_object()
+        data = self._payload(PersonVersionSerializer).validated_data
+        leave_for_later(person.pk, version=data["version"], actor=self.actor)
+        return self._decided(person.pk)
+
+    @extend_schema(
+        request=PersonVersionSerializer,
+        responses=HistoricalPersonDetailSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def reopen(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Undo the decision about the person."""
+        person = self.get_object()
+        data = self._payload(PersonVersionSerializer).validated_data
+        reopen_person(person.pk, version=data["version"], actor=self.actor)
+        return self._decided(person.pk)
+
+    @extend_schema(
+        request=SplitPersonSerializer,
+        responses={201: HistoricalPersonDetailSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def split(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Move the chosen records to a new person; the response is the new
+        person."""
+        person = self.get_object()
+        data = self._payload(SplitPersonSerializer).validated_data
+        new_person = split_person(
+            person.pk,
+            data["records"],
+            version=data["version"],
+            actor=self.actor,
+        )
+        return self._decided(new_person.pk, created=True)
+
+    @extend_schema(
+        request=MergePeopleSerializer,
+        responses=HistoricalPersonDetailSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def merge(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Join another person to this one: every record of theirs moves
+        here."""
+        person = self.get_object()
+        data = self._payload(MergePeopleSerializer).validated_data
+        merge_people(
+            person.pk,
+            data["other"],
+            version=data["version"],
+            other_version=data["other_version"],
+            actor=self.actor,
+        )
+        return self._decided(person.pk)
+
+    @extend_schema(
+        request=ConfirmPeopleSerializer,
+        responses=HistoricalPersonSerializer(many=True),
+    )
+    # Not paginated: the response is the people just confirmed, as a list.
+    @action(
+        detail=False,
+        methods=["post"],
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def confirm(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Confirm many people ready to confirm at once, each to the student
+        suggested for them, all or nothing."""
+        data = self._payload(ConfirmPeopleSerializer).validated_data
+        confirmed = confirm_people(
+            [
+                (item["person"], item["student"], item["version"])
+                for item in data["confirmations"]
+            ],
+            actor=self.actor,
+        )
+        views = person_views(
+            LegacyPerson.objects.filter(pk__in=[person.pk for person in confirmed]),
+        )
+        suggest_students(views)
+        return Response(HistoricalPersonSerializer(views, many=True).data)

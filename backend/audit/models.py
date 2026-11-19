@@ -82,6 +82,15 @@ class AuditAction(models.TextChoices):
         "Historical record rank resolved",
     )
     LEGACY_GRADING_VOIDED = "LEGACY_GRADING_VOIDED", "Historical record voided"
+    LEGACY_PERSON_LINKED = "LEGACY_PERSON_LINKED", "Historical person linked"
+    LEGACY_PERSON_NOT_A_STUDENT = (
+        "LEGACY_PERSON_NOT_A_STUDENT",
+        "Historical person marked not a current student",
+    )
+    LEGACY_PERSON_LATER = "LEGACY_PERSON_LATER", "Historical person left for later"
+    LEGACY_PERSON_REOPENED = "LEGACY_PERSON_REOPENED", "Historical person reopened"
+    LEGACY_PERSON_SPLIT = "LEGACY_PERSON_SPLIT", "Historical person split"
+    LEGACY_PERSON_MERGED = "LEGACY_PERSON_MERGED", "Historical people merged"
 
     AUDIT_REDACTED = "AUDIT_REDACTED", "Personal details erased from the audit log"
 
@@ -99,6 +108,7 @@ class AuditEntity(models.TextChoices):
     USER = "User", "User"
     IMPORT_BATCH = "ImportBatch", "Import"
     LEGACY_GRADING_RECORD = "LegacyGradingRecord", "Historical grading record"
+    LEGACY_PERSON = "LegacyPerson", "Historical person"
     AUDIT_LOG = "AuditLog", "Audit log"
 
 

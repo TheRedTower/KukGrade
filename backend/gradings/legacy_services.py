@@ -13,7 +13,7 @@ if a caller tried.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
@@ -25,7 +25,13 @@ from audit.models import AuditAction
 from audit.recording import record, student_label
 from gradings.legacy_people import assign_people, refresh_people
 from gradings.locking import lock_student, lock_students
-from gradings.models import LegacyGradingRecord, LegacyRankField, SetAsideName
+from gradings.models import (
+    LegacyGradingRecord,
+    LegacyPerson,
+    LegacyPersonState,
+    LegacyRankField,
+    SetAsideName,
+)
 from students.models import STUDENT_DELETED_MESSAGE
 
 if TYPE_CHECKING:
@@ -84,11 +90,63 @@ def create_legacy_grading_records(
     return LegacyGradingRecord.objects.bulk_create(records, batch_size=500)
 
 
-def _locked(pk: int, *, allow_void: bool = False) -> LegacyGradingRecord:
+MOVED_MESSAGE = (
+    "This record moved to another person while you were looking. Look at it again."
+)
+DECIDED_PERSON_MESSAGE = (
+    "This record's person has been decided. Reopen the person, or split this "
+    "record off, to change who it is about."
+)
+
+
+def _lock_people_of(record_ids: Iterable[int]) -> dict[int, int | None]:
+    """Lock the people of these records, in id order, before any record: the
+    order every decision about a person takes (legacy_person_services), so
+    the two cannot wait on each other. Returns each record's person as read
+    before the lock, for _locked to confirm."""
+    people: dict[int, int | None] = dict(
+        LegacyGradingRecord.objects.filter(pk__in=set(record_ids))
+        .order_by()
+        .values_list("pk", "person_id"),
+    )
+    list(
+        LegacyPerson.objects.select_for_update()
+        .filter(pk__in={pk for pk in people.values() if pk is not None})
+        .order_by("pk")
+        .values_list("pk", flat=True),
+    )
+    return people
+
+
+def _locked(
+    pk: int,
+    *,
+    allow_void: bool = False,
+    person_of: dict[int, int | None] | None = None,
+) -> LegacyGradingRecord:
+    """The record locked, its person locked before it (_lock_people_of)."""
+    if person_of is None:
+        person_of = _lock_people_of([pk])
     locked = LegacyGradingRecord.objects.select_for_update(of=("self",)).get(pk=pk)
+    if locked.person_id != person_of.get(pk):
+        # Split or merged off between the two reads: its person is not locked.
+        raise ValidationError({"record": [MOVED_MESSAGE]})
     if locked.is_void and not allow_void:
         raise ValidationError({"record": [VOIDED_MESSAGE]})
     return locked
+
+
+def _refuse_if_decided(locked: LegacyGradingRecord) -> None:
+    """A decided person's records carry the decision: changing who one is
+    about is a decision about the person, not the record."""
+    if (
+        locked.person_id is not None
+        and LegacyPerson.objects.filter(
+            pk=locked.person_id,
+            state__in=(LegacyPersonState.LINKED, LegacyPersonState.NOT_A_STUDENT),
+        ).exists()
+    ):
+        raise ValidationError({"student": [DECIDED_PERSON_MESSAGE]})
 
 
 def _link(
@@ -101,6 +159,7 @@ def _link(
     if locked.student_id == student.pk:
         # Already linked there: nothing changes, so nothing is recorded.
         return locked
+    _refuse_if_decided(locked)
     if student.deleted_at is not None:
         # A deleted student keeps the records already theirs, but their
         # record is closed: nothing new is linked to it.
@@ -160,11 +219,12 @@ def bulk_link_legacy_records(
     the record (its id as the error key) and nothing is linked.
     """
     students = lock_students({student.pk for _, student in links})
+    person_of = _lock_people_of(record_.pk for record_, _ in links)
     records: dict[int, LegacyGradingRecord] = {}
     errors: dict[str, list[str]] = {}
     for pk in sorted({record_.pk for record_, _ in links}):
         try:
-            records[pk] = _locked(pk)
+            records[pk] = _locked(pk, person_of=person_of)
         except LegacyGradingRecord.DoesNotExist:
             errors[str(pk)] = ["This record no longer exists."]
         except ValidationError as refused:
@@ -204,11 +264,8 @@ def unlink_legacy_record_from_student(
     record_: LegacyGradingRecord,
     *,
     actor: User,
-    allow_void: bool = False,
 ) -> LegacyGradingRecord:
-    """`allow_void` is for deleting the student: a voided record still has to
-    let go of them (students.services.delete_student)."""
-    return _unlink(_locked(record_.pk, allow_void=allow_void), actor=actor)
+    return _unlink(_locked(record_.pk), actor=actor)
 
 
 NOT_LINKED_MESSAGE = "This record is not linked to a student."
@@ -217,6 +274,7 @@ NOT_LINKED_MESSAGE = "This record is not linked to a student."
 def _unlink(locked: LegacyGradingRecord, *, actor: User) -> LegacyGradingRecord:
     if locked.student_id is None:
         raise ValidationError({"student": [NOT_LINKED_MESSAGE]})
+    _refuse_if_decided(locked)
     previous_student_id = locked.student_id
     locked.student = None
     locked.save()
@@ -247,11 +305,12 @@ def bulk_unlink_legacy_records(
     The records are locked in ascending order, as a bulk link locks them. A
     refusal names the record (its id as the error key) and nothing is unlinked.
     """
+    person_of = _lock_people_of(record_ids)
     records: dict[int, LegacyGradingRecord] = {}
     errors: dict[str, list[str]] = {}
     for pk in sorted(set(record_ids)):
         try:
-            records[pk] = _locked(pk)
+            records[pk] = _locked(pk, person_of=person_of)
         except LegacyGradingRecord.DoesNotExist:
             errors[str(pk)] = ["This record no longer exists."]
             continue
@@ -260,6 +319,11 @@ def bulk_unlink_legacy_records(
             continue
         if records[pk].student_id is None:
             errors[str(pk)] = [NOT_LINKED_MESSAGE]
+            continue
+        try:
+            _refuse_if_decided(records[pk])
+        except ValidationError as refused:
+            errors[str(pk)] = refused.messages
     if errors:
         raise ValidationError(errors)
     return [_unlink(records[pk], actor=actor) for pk in sorted(records)]
@@ -372,6 +436,11 @@ def void_legacy_records_from(
     event marked as part of the whole import's void; all or nothing.
     """
     cleaned_reason = _void_reason(reason)
+    _lock_people_of(
+        LegacyGradingRecord.objects.filter(source_batch_id=batch_id, is_void=False)
+        .order_by()
+        .values_list("pk", flat=True),
+    )
     records = list(
         LegacyGradingRecord.objects.select_for_update(of=("self",))
         .filter(source_batch_id=batch_id, is_void=False)

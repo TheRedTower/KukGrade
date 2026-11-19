@@ -11,7 +11,7 @@ import time
 from typing import Any
 
 import pytest
-from django.db import IntegrityError, models, transaction
+from django.db import IntegrityError, transaction
 
 from accounts.models import User
 from data_imports.models import ImportBatch
@@ -43,6 +43,11 @@ from gradings.legacy_people import (
     group_entries,
     people_in,
     suggest_students,
+)
+from gradings.legacy_person_services import (
+    leave_for_later,
+    link_person,
+    mark_not_a_student,
 )
 from gradings.legacy_services import (
     create_legacy_grading_records,
@@ -365,14 +370,17 @@ def test_a_later_sheet_joins_the_people_already_there() -> None:
 
 
 def decide(view: PersonView, state: str, **fields: Any) -> None:
-    """A decision, as B4's services will make one: the person's state, and
-    every record of theirs covered."""
-    LegacyPerson.objects.filter(pk=view.person.pk).update(state=state, **fields)
-    # Past the guard on ordinary record updates (kukgrade.kept), as a test may.
-    models.QuerySet.update(
-        LegacyGradingRecord.objects.filter(person=view.person),
-        person_confirmed=True,
-    )
+    """A decision, as an administrator makes one
+    (gradings.legacy_person_services)."""
+    person = view.person
+    if state == LegacyPersonState.LINKED:
+        link_person(person.pk, fields["student"], version=person.version, actor=admin())
+    elif state == LegacyPersonState.LATER:
+        leave_for_later(person.pk, version=person.version, actor=admin())
+    else:
+        mark_not_a_student(
+            person.pk, reason="INSTRUCTOR", version=person.version, actor=admin()
+        )
 
 
 def test_a_new_record_joins_a_decided_person_only_on_a_strong_chain() -> None:

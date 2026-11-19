@@ -26,10 +26,10 @@ Want something here, or something that is missing? Open an
 - [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check
       (`frontend/src/layout.css`, Playwright width check).
       Done when the owner has checked the demo site on a real phone and tablet.
-- [ ] **Past gradings, people first**: saved records are now grouped into people. Still to
-      come: deciding about each person (link, not a current student, later, split, merge,
-      confirm many), one list of things to check, then phone-first screens for the whole
-      import. The per-name linking screen and its private "Leave for now" list go when those
+- [ ] **Past gradings, people first**: saved records are grouped into people, and each person
+      can be decided about through the API (link, not a current student, later, reopen, split,
+      merge, confirm many). Still to come: one list of things to check, then phone-first
+      screens for the whole import. The per-name linking screen and its private "Leave for now" list go when those
       screens arrive.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.

@@ -74,6 +74,17 @@ KukGrade:
   person someone has already decided about takes a new record only on that strongest sign,
   and it waits for that decision to be confirmed for it. A suggested student whose rank now is
   below the rank the records gave then is never offered as the clear match.
+- Each person is then decided: **linked** to a student (their records join that student's
+  history), **not a current student** (an instructor, someone who left before KukGrade, an
+  entry that is not a real person, or another reason that needs a note; their records stay
+  unlinked), or **later** (shared by every administrator). A person can be **split** ("these
+  aren't all the same person") or **merged** with another, and every decision can be undone:
+  reopen a decision, merge back a split, split back a merge. People ready to confirm can be
+  confirmed together, all or nothing. Each decision is in the audit log, naming the student
+  by WKSA ID and nobody by a name as written. A decision made on what someone saw is refused
+  once the person has changed since (another administrator, an import, a correction), so two
+  administrators never undo each other unseen. While a person is linked or not a student,
+  their records are changed only through that person.
 - A note written beside a person's row, outside any table, is kept on that person's
   record and says where it was written; a note merged down several rows is kept on each
   person beside it. A note beside no one (a title above the table, say) is kept as a

@@ -38,7 +38,10 @@ from gradings.assessment_services import (
     update_candidate_assessment,
     update_candidate_assessment_item,
 )
-from gradings.legacy_services import link_legacy_record_to_student
+from gradings.legacy_services import (
+    create_legacy_grading_records,
+    link_legacy_record_to_student,
+)
 from gradings.models import (
     AssessmentItemResultChange,
     CandidateAssessment,
@@ -46,7 +49,6 @@ from gradings.models import (
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
-    LegacyGradingRecord,
     LegacyRecordKind,
     Promotion,
 )
@@ -681,7 +683,18 @@ def upcoming(club: Club) -> GradingSession:
 
 
 def legacy_records(club: Club) -> None:
-    """A little imported history, some linked to students and some not."""
+    """A little imported history, saved as an import saves it - each record
+    given its person - some linked to students and some not."""
+    rows = (
+        ("Leo H.", "WHITE", "YELLOW_STRIPE", "PASS", 2023, 3),
+        ("Maya O.", "WHITE", "YELLOW_STRIPE", "PASS", 2023, 3),
+        ("Priya R.", "YELLOW_STRIPE", "YELLOW", "CONDITIONAL", 2022, 11),
+        ("Kai T.", "YELLOW", "BLUE_STRIPE", "PASS", 2022, 11),
+        ("Aaron M.", "BLUE_STRIPE", "BLUE", "FAIL", 2022, 6),
+        ("Greta L.", "BLUE", "RED_STRIPE", "PASS", 2021, 11),
+        ("J. Smith", "YELLOW", "BLUE_STRIPE", "PASS", 2021, 6),
+        ("Sam Ito", "WHITE", "YELLOW_STRIPE", "PASS", 2020, 11),
+    )
     batch = ImportBatch.objects.create(
         kind=ImportBatch.Kind.LEGACY_GRADINGS,
         status=ImportBatch.Status.COMMITTED,
@@ -693,39 +706,42 @@ def legacy_records(club: Club) -> None:
         committed_by=club.administrator,
         committed_by_title=title_of(club.administrator),
         committed_at=timezone.now(),
-    )
-    rows = (
-        ("Leo H.", "WHITE", "YELLOW_STRIPE", "PASS", 2023, 3),
-        ("Maya O.", "WHITE", "YELLOW_STRIPE", "PASS", 2023, 3),
-        ("Priya R.", "YELLOW_STRIPE", "YELLOW", "CONDITIONAL", 2022, 11),
-        ("Kai T.", "YELLOW", "BLUE_STRIPE", "PASS", 2022, 11),
-        ("Aaron M.", "BLUE_STRIPE", "BLUE", "FAIL", 2022, 6),
-        ("Greta L.", "BLUE", "RED_STRIPE", "PASS", 2021, 11),
-        ("J. Smith", "YELLOW", "BLUE_STRIPE", "PASS", 2021, 6),
-        ("Sam Ito", "WHITE", "YELLOW_STRIPE", "PASS", 2020, 11),
+        # What a finished import counts (data_imports.services).
+        summary_json={
+            "total": len(rows),
+            "grading_result": len(rows),
+            "auxiliary_note": 0,
+            "did_not_attend": 0,
+            "unresolved_current_rank": 0,
+            "unresolved_testing_for_rank": 0,
+            "excluded": 0,
+            "skip_existing": 0,
+            "sheet_left_out": 0,
+        },
     )
     ranks = {rank.code: rank for rank in Rank.objects.all()}
-    records = []
-    for number, (name, current, testing, outcome, year, month) in enumerate(
-        rows, start=1
-    ):
-        records.append(
-            LegacyGradingRecord.objects.create(
-                source_batch=batch,
-                record_kind=LegacyRecordKind.GRADING_RESULT,
-                source_sheet=f"{month:02d}-{year}",
-                source_locator=f"{month:02d}-{year}!R{number}",
-                cycle_year=year,
-                cycle_month=month,
-                source_name=name,
-                source_current_rank_text=ranks[current].name,
-                current_rank=ranks[current],
-                source_testing_for_rank_text=ranks[testing].name,
-                testing_for_rank=ranks[testing],
-                source_outcome_text=outcome.title(),
-                outcome=outcome,
-            ),
-        )
+    records = create_legacy_grading_records(
+        batch,
+        [
+            {
+                "record_kind": LegacyRecordKind.GRADING_RESULT,
+                "source_sheet": f"{month:02d}-{year}",
+                "source_locator": f"{month:02d}-{year}!R{number}",
+                "cycle_year": year,
+                "cycle_month": month,
+                "source_name": name,
+                "source_current_rank_text": ranks[current].name,
+                "current_rank": ranks[current],
+                "source_testing_for_rank_text": ranks[testing].name,
+                "testing_for_rank": ranks[testing],
+                "source_outcome_text": outcome.title(),
+                "outcome": outcome,
+            }
+            for number, (name, current, testing, outcome, year, month) in enumerate(
+                rows, start=1
+            )
+        ],
+    )
     # Linked by an administrator to the matching student; the rest are
     # left for a visitor to try the linking screen on.
     for record_, first in zip(

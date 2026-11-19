@@ -213,6 +213,7 @@ def test_records_are_grouped_by_the_name_as_written_with_suggestions() -> None:
         source_batch=batch,
         source_name="Zac W",
         source_testing_for_rank_text="Yellow Belt",
+        outcome="PASS",
     )
     second = legacy_record(source_batch=batch, source_name="zac w.")
     legacy_record(source_batch=batch, source_name="Sheet note")
@@ -231,6 +232,21 @@ def test_records_are_grouped_by_the_name_as_written_with_suggestions() -> None:
         "Rank fits: Red now, Yellow then",
     )
     assert not group.shared
+
+
+def test_a_rank_tested_for_and_not_passed_is_not_a_rank_reached() -> None:
+    student("Ada", "Park", "WHITE")
+    legacy_record(
+        source_name="Ada Park",
+        source_current_rank_text="White",
+        source_testing_for_rank_text="Yellow",
+        outcome="FAIL",
+    )
+
+    [group] = _person_groups()
+
+    assert group.candidates[0].rank_fits is True
+    assert group.suggestion == "clear"
 
 
 def test_two_students_who_fit_equally_well_are_both_shown_and_flagged() -> None:
@@ -354,7 +370,9 @@ def test_group_records_remain_paginated_when_more_than_one_page() -> None:
 
 def test_people_scores_only_groups_on_the_requested_page() -> None:
     batch = legacy_batch()
-    student("Zac", "Wood")
+    # Two students each name could be, and one no "Person" could be.
+    student("Pia", "Wood")
+    student("Pat", "Reynolds")
     student("Mia", "Reynolds")
     for index in range(51):
         legacy_record(source_batch=batch, source_name=f"Person {index:02}")

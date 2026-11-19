@@ -18,6 +18,7 @@ from data_imports.ksw_adapter import (
     NO_TESTING_FOR_RANK,
     CanonicalLegacyRow,
     WorkbookStructureError,
+    names_not_checked,
     parse_ksw_workbook,
     workbook_checks,
 )
@@ -814,7 +815,10 @@ def test_a_sheet_naming_too_many_people_is_not_checked_for_names_with_a_warning(
     result = parse_ksw_workbook(content)
 
     assert workbook_checks(result.rows) == {}
-    assert result.warnings == [
+    assert names_not_checked(result.rows) == [
         "Sheet '06-2025' names more than 2 people, so it was not checked for "
         "anyone written twice.",
     ]
+    # Two of the three are compared, and nothing says they were not.
+    assert workbook_checks(result.rows[:2]) != {}
+    assert names_not_checked(result.rows[:2]) == []

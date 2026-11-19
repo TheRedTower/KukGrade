@@ -17,10 +17,17 @@ from data_imports.ksw_adapter import (
     workbook_checks,
 )
 from data_imports.models import ImportBatch, ImportRow
-from data_imports.services import set_import_row_excluded
-from data_imports.testing import HISTORY_SHEETS, history_workbook, legacy_batch
-from gradings.legacy_matching import SHEET_NOTE_NAME
-from gradings.models import LegacyRecordKind
+from data_imports.services import (
+    preview_legacy_grading_import,
+    set_import_row_excluded,
+)
+from data_imports.testing import (
+    HISTORY_SHEETS,
+    history_workbook,
+    legacy_batch,
+    standard_workbook,
+)
+from gradings.models import SHEET_NOTE_NAME, LegacyRecordKind
 
 
 @pytest.fixture(scope="module")
@@ -183,3 +190,30 @@ def test_leaving_out_one_of_a_name_written_twice_ends_the_others_check() -> None
 
     set_import_row_excluded(batch, row_number=rubi.row_number, excluded=False)
     assert any(issue.startswith(twice) for issue in _issues(batch, "122025!R4"))
+
+
+@pytest.mark.django_db
+def test_a_sheet_too_full_to_check_is_said_only_while_it_is(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("data_imports.ksw_adapter.MAX_CHECKED_NAMES", 2)
+    batch = legacy_batch(
+        standard_workbook(
+            [
+                ["Kit B", "White", "Yellow", "Pass", ""],
+                ["Kit B", "White", "Yellow", "Pass", ""],
+                ["Sam P", "White", "Yellow", "Pass", ""],
+            ],
+        ),
+    )
+    unchecked = (
+        "Sheet '06-2025' names more than 2 people, so it was not checked for "
+        "anyone written twice."
+    )
+
+    assert unchecked in preview_legacy_grading_import(batch).warnings
+    sam = ImportRow.objects.get(batch=batch, source_locator="06-2025!R4")
+    set_import_row_excluded(batch, row_number=sam.row_number, excluded=True)
+    assert unchecked not in preview_legacy_grading_import(batch).warnings
+    kit = _issues(batch, "06-2025!R2")
+    assert any(issue.startswith("Also graded") for issue in kit)

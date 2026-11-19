@@ -1414,6 +1414,85 @@ def legacy_content_key(source: LegacySource) -> str:
     return hashlib.sha256(json.dumps(said).encode()).hexdigest()
 
 
+# A sheet note is a cell in no table, not a person (data_imports.ksw_adapter).
+SHEET_NOTE_NAME = "Sheet note"
+# The section of the sheet that lists people missing from a grading.
+MISSING_SECTION = "Missing"
+
+
+class LegacyPersonState(models.TextChoices):
+    """Where a person from the imported history is: not decided yet, or one
+    of the three ways it ends."""
+
+    PROPOSED = "PROPOSED", "Not decided yet"
+    LINKED = "LINKED", "Linked to a student"
+    NOT_A_STUDENT = "NOT_A_STUDENT", "Not a current student"
+    LATER = "LATER", "Later"
+
+
+class LegacyPersonConfidence(models.TextChoices):
+    """How sure the grouping is that a person's records are one person."""
+
+    HIGH = "HIGH", "High"
+    MEDIUM = "MEDIUM", "Medium"
+    LOW = "LOW", "Low"
+
+
+class LegacyPerson(models.Model):
+    """One person the imported history is about: the records that, by their
+    names and rank history, are most likely the same person.
+
+    Proposed by gradings.legacy_people when records are saved, then decided
+    by a person. The names as written are the records' own (`records`); a
+    record's `student` stays the one source of truth for a student's history.
+    """
+
+    if TYPE_CHECKING:
+        student_id: int | None
+        records: models.Manager[LegacyGradingRecord]
+
+    state = models.CharField(
+        max_length=16,
+        choices=LegacyPersonState.choices,
+        default=LegacyPersonState.PROPOSED,
+    )
+    student = models.ForeignKey(
+        "students.Student",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="legacy_people",
+    )
+    confidence = models.CharField(
+        max_length=8,
+        choices=LegacyPersonConfidence.choices,
+    )
+    # Why the records are grouped, in plain words (gradings.legacy_people).
+    reasons = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["pk"]
+        indexes = [
+            models.Index(fields=["state"], name="legacy_person_state_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(state=LegacyPersonState.LINKED, student__isnull=False)
+                | (~Q(state=LegacyPersonState.LINKED) & Q(student__isnull=True)),
+                name="legacy_person_student_when_linked",
+            ),
+            models.CheckConstraint(
+                condition=Q(confidence__in=LegacyPersonConfidence.values),
+                name="legacy_person_confidence_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Person {self.pk} ({self.get_state_display()})"
+
+
 class LegacyGradingRecord(KeptModel):
     """One row of imported historical grading evidence - never native.
 
@@ -1434,6 +1513,7 @@ class LegacyGradingRecord(KeptModel):
 
     if TYPE_CHECKING:
         student_id: int | None
+        person_id: int | None
         source_batch_id: int
         current_rank_id: int | None
         testing_for_rank_id: int | None
@@ -1446,6 +1526,8 @@ class LegacyGradingRecord(KeptModel):
     _MUTABLE_FIELD_NAMES: frozenset[str] = frozenset(
         {
             "id",
+            "person_id",
+            "person_confirmed",
             "student_id",
             "current_rank_id",
             "testing_for_rank_id",
@@ -1459,6 +1541,19 @@ class LegacyGradingRecord(KeptModel):
         },
     )
 
+    # The person the record is about (LegacyPerson), set when it is saved
+    # (gradings.legacy_people) - every record but a sheet note, which is
+    # about no one.
+    person = models.ForeignKey(
+        "gradings.LegacyPerson",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="records",
+    )
+    # Whether a decision about the person covers this record: false until one
+    # is made, and for a record that joined a person after it was.
+    person_confirmed = models.BooleanField(default=False)
     # Nullable, PROTECT: a legacy record may be committed with no known
     # Student match, but a link once made is never lost: a student with one
     # is kept when deleted, not erased (students.services.delete_student).
@@ -1585,6 +1680,11 @@ class LegacyGradingRecord(KeptModel):
             models.Index(fields=["content_key"], name="legacy_record_content_idx"),
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=Q(source_name=SHEET_NOTE_NAME, person__isnull=True)
+                | (~Q(source_name=SHEET_NOTE_NAME) & Q(person__isnull=False)),
+                name="legacy_record_person_unless_sheet_note",
+            ),
             models.UniqueConstraint(
                 fields=["source_batch", "source_locator"],
                 name="legacy_record_unique_locator_per_batch",

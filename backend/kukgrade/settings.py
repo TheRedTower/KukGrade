@@ -399,6 +399,8 @@ SPECTACULAR_SETTINGS = {
         "AgeBandEnum": "syllabus.models.AgeBand",
         "GradingStageEnum": "gradings.read_models.GradingStage",
         "LegacyRankFieldEnum": "gradings.models.LegacyRankField",
+        "LegacyPersonStateEnum": "gradings.models.LegacyPersonState",
+        "LegacySheetStateEnum": "data_imports.services.SheetState",
         "AuditEntityEnum": "audit.models.AuditEntity",
         "StudentImportRowOutcomeEnum": "data_imports.models.ImportRowOutcome",
         "KindEnum": "data_imports.models.ImportBatch.Kind",

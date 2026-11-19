@@ -94,6 +94,7 @@ export function person(overrides: Partial<LegacyPerson> = {}): LegacyPerson {
 export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): LegacyGradingRecord {
   return {
     id: 101,
+    person: 201,
     student: null,
     student_display_name: null,
     record_kind: "GRADING_RESULT",

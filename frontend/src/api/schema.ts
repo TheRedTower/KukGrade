@@ -802,6 +802,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-people/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description People by name. Only the page shown is scored for suggested
+         *     students, unless the list is narrowed to a queue, which needs them
+         *     all.
+         */
+        get: operations["gradings_legacy_people_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-people/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description A person with every record of theirs, oldest first. */
+        get: operations["gradings_legacy_people_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-people/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description How many people there are, in each state and queue, and how many
+         *     are sorted: decided, with the decision covering every record.
+         */
+        get: operations["gradings_legacy_people_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/legacy-records/": {
         parameters: {
             query?: never;
@@ -2154,6 +2212,13 @@ export interface components {
             /** @description The ranks an instructor's account may hold, lowest first. */
             staff_ranks: components["schemas"]["StaffRankChoice"][];
         };
+        /**
+         * @description * `HIGH` - High
+         *     * `MEDIUM` - Medium
+         *     * `LOW` - Low
+         * @enum {string}
+         */
+        ConfidenceEnum: "HIGH" | "MEDIUM" | "LOW";
         Credit: {
             name: string;
             version: string;
@@ -2443,6 +2508,123 @@ export interface components {
         HealthResponse: {
             service: string;
             status: string;
+        };
+        /** @description How many people there are, where they are, and how many are sorted. */
+        HistoricalPeopleSummary: {
+            /** @description Every person. */
+            people: number;
+            /** @description Decided, with the decision covering every record. */
+            sorted: number;
+            /** @description Not decided yet. */
+            proposed: number;
+            linked: number;
+            not_a_student: number;
+            later: number;
+            /** @description Ready to confirm. */
+            ready: number;
+            needs_a_look: number;
+            /** @description No student found. */
+            no_student: number;
+        };
+        /**
+         * @description A person the imported history is about: their records grouped by name
+         *     and rank history, where they are, and who they may be.
+         */
+        HistoricalPerson: {
+            id: number;
+            /** @description The fullest spelling written. */
+            name: string;
+            /** @description Each name as written, in the order the records give them. */
+            spellings: string[];
+            state: components["schemas"]["LegacyPersonStateEnum"];
+            state_display: string;
+            /**
+             * @description Where the person waits for a decision; null when nothing does.
+             *
+             *     * `READY` - Ready to confirm
+             *     * `NEEDS_A_LOOK` - Needs a look
+             *     * `NO_STUDENT` - No student found
+             */
+            queue: (components["schemas"]["QueueEnum"] | components["schemas"]["NullEnum"]) | null;
+            readonly queue_display: string | null;
+            /**
+             * @description How sure it is that the records are one person.
+             *
+             *     * `HIGH` - High
+             *     * `MEDIUM` - Medium
+             *     * `LOW` - Low
+             */
+            confidence: components["schemas"]["ConfidenceEnum"];
+            confidence_display: string;
+            /** @description Why the records are grouped, in plain words. */
+            reasons: string[];
+            readonly record_count: number;
+            /** @description The earliest record's year and month, as "2025-03". */
+            readonly first_period: string;
+            readonly last_period: string;
+            /** @description Records that joined after the person was decided. */
+            awaiting_confirmation: number;
+            /** @description The student a linked person is. */
+            student: number | null;
+            student_name?: string | null;
+            /**
+             * @description How clear the suggested students are.
+             *
+             *     * `clear` - One student fits clearly
+             *     * `choose` - A person has to choose
+             *     * `none` - No student fits
+             */
+            suggestion: components["schemas"]["SuggestionEnum"];
+            candidates: components["schemas"]["SuggestedStudent"][];
+        };
+        /** @description A person with every record of theirs, oldest first. */
+        HistoricalPersonDetail: {
+            id: number;
+            /** @description The fullest spelling written. */
+            name: string;
+            /** @description Each name as written, in the order the records give them. */
+            spellings: string[];
+            state: components["schemas"]["LegacyPersonStateEnum"];
+            state_display: string;
+            /**
+             * @description Where the person waits for a decision; null when nothing does.
+             *
+             *     * `READY` - Ready to confirm
+             *     * `NEEDS_A_LOOK` - Needs a look
+             *     * `NO_STUDENT` - No student found
+             */
+            queue: (components["schemas"]["QueueEnum"] | components["schemas"]["NullEnum"]) | null;
+            readonly queue_display: string | null;
+            /**
+             * @description How sure it is that the records are one person.
+             *
+             *     * `HIGH` - High
+             *     * `MEDIUM` - Medium
+             *     * `LOW` - Low
+             */
+            confidence: components["schemas"]["ConfidenceEnum"];
+            confidence_display: string;
+            /** @description Why the records are grouped, in plain words. */
+            reasons: string[];
+            readonly record_count: number;
+            /** @description The earliest record's year and month, as "2025-03". */
+            readonly first_period: string;
+            readonly last_period: string;
+            /** @description Records that joined after the person was decided. */
+            awaiting_confirmation: number;
+            /** @description The student a linked person is. */
+            student: number | null;
+            student_name?: string | null;
+            /**
+             * @description How clear the suggested students are.
+             *
+             *     * `clear` - One student fits clearly
+             *     * `choose` - A person has to choose
+             *     * `none` - No student fits
+             */
+            suggestion: components["schemas"]["SuggestionEnum"];
+            candidates: components["schemas"]["SuggestedStudent"][];
+            records: components["schemas"]["LegacyGradingRecord"][];
         };
         /** @description An import: what was uploaded, where it is up to, and its rows' counts. */
         ImportBatch: {
@@ -2750,6 +2932,7 @@ export interface components {
          */
         LegacyGradingRecord: {
             readonly id: number;
+            readonly person: number | null;
             readonly student: number | null;
             readonly student_display_name: string | null;
             readonly record_kind: components["schemas"]["RecordKindEnum"];
@@ -2818,7 +3001,7 @@ export interface components {
             set_aside: number;
             /** @description One student fits clearly. */
             clear: number;
-            /** @description Several students fit equally well. */
+            /** @description A person has to choose: several students fit equally well, or the one that fits ranks lower now than the records gave then. */
             choose: number;
             /** @description No student fits. */
             none: number;
@@ -2834,7 +3017,7 @@ export interface components {
             last_period: string;
             /** @description The student every record here is linked to, if one is. */
             readonly linked_student: number | null;
-            /** @description Several students fit equally well: a person has to choose. */
+            /** @description Several students fit equally well. */
             shared: boolean;
             /** @description That student's name, when every record here is linked to one. */
             readonly linked_student_name: string | null;
@@ -2846,12 +3029,20 @@ export interface components {
              * @description How clear the suggested students are, from the candidates.
              *
              *     * `clear` - One student fits clearly
-             *     * `choose` - Several students fit equally well
+             *     * `choose` - A person has to choose
              *     * `none` - No student fits
              */
             suggestion: components["schemas"]["SuggestionEnum"];
             candidates: components["schemas"]["SuggestedStudent"][];
         };
+        /**
+         * @description * `PROPOSED` - Not decided yet
+         *     * `LINKED` - Linked to a student
+         *     * `NOT_A_STUDENT` - Not a current student
+         *     * `LATER` - Later
+         * @enum {string}
+         */
+        LegacyPersonStateEnum: "PROPOSED" | "LINKED" | "NOT_A_STUDENT" | "LATER";
         /**
          * @description * `current_rank` - current rank
          *     * `testing_for_rank` - testing-for rank
@@ -2882,7 +3073,7 @@ export interface components {
              *     * `IMPORTED` - Already imported
              *     * `CHANGED` - Changed since imported
              */
-            state: components["schemas"]["StateEnum"];
+            state: components["schemas"]["LegacySheetStateEnum"];
             readonly state_display: string;
             /** @description The finished imports holding records for its month. */
             held_by: number[];
@@ -2900,6 +3091,13 @@ export interface components {
             testing_for_rank: string;
             outcome: string;
         };
+        /**
+         * @description * `NEW` - New
+         *     * `IMPORTED` - Already imported
+         *     * `CHANGED` - Changed since imported
+         * @enum {string}
+         */
+        LegacySheetStateEnum: "NEW" | "IMPORTED" | "CHANGED";
         LinkLegacyRecordRequest: {
             student: number;
             /**
@@ -3059,6 +3257,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["GradingSession"][];
+        };
+        PaginatedHistoricalPersonList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["HistoricalPerson"][];
         };
         PaginatedImportBatchList: {
             /** @example 123 */
@@ -3320,6 +3533,13 @@ export interface components {
             /** Format: date */
             readonly effective_date: string;
         };
+        /**
+         * @description * `READY` - Ready to confirm
+         *     * `NEEDS_A_LOOK` - Needs a look
+         *     * `NO_STUDENT` - No student found
+         * @enum {string}
+         */
+        QueueEnum: "READY" | "NEEDS_A_LOOK" | "NO_STUDENT";
         Rank: {
             readonly id: number;
             readonly code: string;
@@ -3461,13 +3681,6 @@ export interface components {
             conditional_requirements?: string;
             revision: number;
         };
-        /**
-         * @description * `NEW` - New
-         *     * `IMPORTED` - Already imported
-         *     * `CHANGED` - Changed since imported
-         * @enum {string}
-         */
-        StateEnum: "NEW" | "IMPORTED" | "CHANGED";
         /**
          * @description Detail, create and update.
          *
@@ -3616,7 +3829,7 @@ export interface components {
         };
         /**
          * @description * `clear` - One student fits clearly
-         *     * `choose` - Several students fit equally well
+         *     * `choose` - A person has to choose
          *     * `none` - No student fits
          * @enum {string}
          */
@@ -4942,6 +5155,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkCandidateStatusUpdateResult"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_list: {
+        parameters: {
+            query?: {
+                /** @description Only people with a record from this import. */
+                batch?: number;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description Only people waiting for a decision here. */
+                queue?: "NEEDS_A_LOOK" | "NO_STUDENT" | "READY";
+                /** @description Part of a name as written, on any of the person's records. */
+                search?: string;
+                /** @description Only people in this state. */
+                state?: "LATER" | "LINKED" | "NOT_A_STUDENT" | "PROPOSED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedHistoricalPersonList"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_summary_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Only people with a record from this import. */
+                batch?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPeopleSummary"];
                 };
             };
         };

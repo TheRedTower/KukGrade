@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any, cast
 
 from django.db.models import Prefetch, Q, QuerySet, prefetch_related_objects
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import mixins, status
@@ -36,11 +37,16 @@ from gradings.exports.sheets import export_sheets
 from gradings.exports.summary import export_summary
 from gradings.legacy_matching import (
     SET_ASIDE_CHOICES,
-    SHEET_NOTE_NAME,
     Suggestion,
     group_key,
     people_groups,
     suggest_for_groups,
+)
+from gradings.legacy_people import (
+    PersonQueue,
+    people_in,
+    person_views,
+    suggest_students,
 )
 from gradings.legacy_services import (
     bulk_link_legacy_records,
@@ -55,12 +61,15 @@ from gradings.legacy_services import (
 )
 from gradings.models import (
     ROSTER_OPEN,
+    SHEET_NOTE_NAME,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
+    LegacyPerson,
+    LegacyPersonState,
     candidate_order,
 )
 from gradings.outcome_services import (
@@ -106,6 +115,9 @@ from gradings.serializers import (
     GradingCandidateSerializer,
     GradingSessionSerializer,
     GradingYearsSerializer,
+    HistoricalPeopleSummarySerializer,
+    HistoricalPersonDetailSerializer,
+    HistoricalPersonSerializer,
     KeptStagedDecisionSerializer,
     LegacyGradingRecordSerializer,
     LegacyPeopleSummarySerializer,
@@ -142,6 +154,7 @@ from kukgrade.filtering import (
     QueryFilter,
     boolean,
     by_id,
+    choice,
     choices_in,
     exact,
     in_year,
@@ -152,6 +165,7 @@ from kukgrade.filtering import (
 )
 from kukgrade.search import (
     ExactOnly,
+    apply_search,
     date_words,
     full_name_of,
     label_of,
@@ -1410,3 +1424,126 @@ class LegacyGradingRecordViewSet(
             actor=self.actor,
         )
         return Response(LegacyGradingRecordSerializer(updated).data)
+
+
+def _live_records_of_people() -> QuerySet[LegacyGradingRecord]:
+    return LegacyGradingRecord.objects.filter(is_void=False, person__isnull=False)
+
+
+def _people_from_batch(
+    queryset: QuerySet[LegacyPerson],
+    value: str,
+) -> QuerySet[LegacyPerson]:
+    if not value.isdecimal():
+        return queryset.none()
+    records = _live_records_of_people().filter(source_batch_id=int(value))
+    return queryset.filter(pk__in=records.values("person_id"))
+
+
+def _people_named(
+    queryset: QuerySet[LegacyPerson],
+    value: str,
+) -> QuerySet[LegacyPerson]:
+    records = apply_search(_live_records_of_people(), value, ("source_name",))
+    return queryset.filter(pk__in=records.values("person_id"))
+
+
+_HISTORICAL_PEOPLE_BATCH = QueryFilter(
+    "batch",
+    _people_from_batch,
+    {"type": "integer"},
+    "Only people with a record from this import.",
+)
+_HISTORICAL_PEOPLE_FILTERS = (
+    _HISTORICAL_PEOPLE_BATCH,
+    choice("state", "state", LegacyPersonState.values, "Only people in this state."),
+    QueryFilter(
+        "search",
+        _people_named,
+        description="Part of a name as written, on any of the person's records.",
+    ),
+    read_by_view(
+        "queue",
+        {"type": "string", "enum": sorted(PersonQueue.values)},
+        "Only people waiting for a decision here.",
+    ),
+)
+
+
+class HistoricalPersonViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    KukGradeViewSet[LegacyPerson],
+):
+    """The people the imported history is about (gradings.legacy_people):
+    the records of each, where they are, and the students they may be. Only
+    people with a record not voided are listed. Suggestions only: nothing is
+    linked here."""
+
+    serializer_class = HistoricalPersonSerializer
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {
+        "list": ("gradings.can_reconcile_imported_history",),
+        "retrieve": ("gradings.can_reconcile_imported_history",),
+        "summary": ("gradings.can_reconcile_imported_history",),
+    }
+    query_filters = _HISTORICAL_PEOPLE_FILTERS
+
+    def get_queryset(self) -> QuerySet[LegacyPerson]:
+        return LegacyPerson.objects.all()
+
+    @extend_schema(responses=HistoricalPersonSerializer(many=True))
+    def list(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """People by name. Only the page shown is scored for suggested
+        students, unless the list is narrowed to a queue, which needs them
+        all."""
+        queue = request.query_params.get("queue", "")
+        views = people_in(self.filter_queryset(self.get_queryset()), queue=queue)
+        page: list[Any] | None = self.paginate_queryset(views)  # type: ignore[arg-type]
+        assert page is not None
+        if page and not queue:
+            suggest_students(page)
+        return self.get_paginated_response(
+            HistoricalPersonSerializer(page, many=True).data,
+        )
+
+    @extend_schema(responses=HistoricalPersonDetailSerializer)
+    def retrieve(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """A person with every record of theirs, oldest first."""
+        person = self.get_object()
+        views = person_views(LegacyPerson.objects.filter(pk=person.pk))
+        if not views:
+            # Every record of theirs is voided: no one to show.
+            raise Http404
+        suggest_students(views)
+        return Response(HistoricalPersonDetailSerializer(views[0]).data)
+
+    @extend_schema(responses=HistoricalPeopleSummarySerializer)
+    @action(
+        detail=False,
+        methods=["get"],
+        pagination_class=None,
+        query_filters=(_HISTORICAL_PEOPLE_BATCH,),
+    )
+    def summary(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """How many people there are, in each state and queue, and how many
+        are sorted: decided, with the decision covering every record."""
+        views = people_in(self.filter_queryset(self.get_queryset()))
+        suggest_students(views)
+        states = Counter(view.person.state for view in views)
+        queues = Counter(view.queue for view in views)
+        return Response(
+            HistoricalPeopleSummarySerializer(
+                {
+                    "people": len(views),
+                    "sorted": sum(1 for view in views if view.sorted),
+                    "proposed": states[LegacyPersonState.PROPOSED],
+                    "linked": states[LegacyPersonState.LINKED],
+                    "not_a_student": states[LegacyPersonState.NOT_A_STUDENT],
+                    "later": states[LegacyPersonState.LATER],
+                    "ready": queues[PersonQueue.READY],
+                    "needs_a_look": queues[PersonQueue.NEEDS_A_LOOK],
+                    "no_student": queues[PersonQueue.NO_STUDENT],
+                },
+            ).data,
+        )

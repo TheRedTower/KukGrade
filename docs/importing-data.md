@@ -65,6 +65,15 @@ KukGrade:
   at once). A wrong link can be moved; a wrong record can be **voided**, never deleted.
   A name can be **left for now** to come back to; that list is each administrator's own
   and is kept on the server, not in the browser.
+- When records are saved, KukGrade groups them into **people**: the records whose names
+  could be one person ("Theo R", "Theo Rowan", "Teo Rowan") and whose ranks tell one story.
+  Passing to a rank and holding it on the next sheet is the strongest sign; nobody goes down
+  a grade, and two results on one sheet are always two people. Each person says how sure that
+  is and why, and is rated again when a record's rank is corrected or a record voided. A later
+  import's records join the people already there, or become new ones; a
+  person someone has already decided about takes a new record only on that strongest sign,
+  and it waits for that decision to be confirmed for it. A suggested student whose rank now is
+  below the rank the records gave then is never offered as the clear match.
 - A note written beside a person's row, outside any table, is kept on that person's
   record and says where it was written; a note merged down several rows is kept on each
   person beside it. A note beside no one (a title above the table, say) is kept as a

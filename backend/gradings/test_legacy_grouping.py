@@ -571,3 +571,23 @@ def test_a_long_history_costs_nothing_until_a_new_record_shares_a_name() -> None
     assert time.perf_counter() - started < 1
     assert grouping.compared_all
     assert grouping.new_people == [[15_000]]
+
+
+def test_the_rank_then_is_the_highest_the_latest_grading_reached() -> None:
+    student(first_name="Ada", last_name="Park", current_rank=rank("WHITE"))
+    commit(grading_workbook({"062025": [["Ada Park", "White", "Yellow", "Pass", ""]]}))
+    # A side-table note on the same sheet, listed after the result, at White.
+    legacy_record(
+        person=person_named("Ada Park").person,
+        source_name="Ada Park",
+        source_sheet="062025",
+        source_section="Unaccounted",
+        source_locator="062025!Unaccounted!R2",
+        record_kind=LegacyRecordKind.AUXILIARY_NOTE,
+        current_rank=rank("WHITE"),
+    )
+
+    ada = person_named("Ada Park")
+    assert [record_.source_section for record_ in ada.records] == ["", "Unaccounted"]
+    assert ada.rank_then(active_rank_lookup()) == rank("YELLOW")
+    assert ada.queue != PersonQueue.READY

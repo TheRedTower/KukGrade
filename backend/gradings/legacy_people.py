@@ -625,13 +625,17 @@ class PersonView:
         )
 
     def rank_then(self, ranks: dict[str, Rank]) -> Rank | None:
-        """The rank their latest record leaves them at, as matched or as
-        written."""
-        for record_ in reversed(self.records):
+        """The highest rank the latest grading with a rank leaves them at,
+        as matched or as written - every record of that grading, whatever
+        its place on the sheet."""
+        by_cycle: dict[tuple[int, int], list[Rank]] = defaultdict(list)
+        for record_ in self.records:
             reached = leaves_at(record_.outcome, *_ranks_of(record_, ranks))
             if reached is not None:
-                return reached
-        return None
+                by_cycle[(record_.cycle_year, record_.cycle_month)].append(reached)
+        if not by_cycle:
+            return None
+        return max(by_cycle[max(by_cycle)], key=lambda rank: rank.order)
 
 
 def person_views(

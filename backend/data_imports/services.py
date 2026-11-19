@@ -37,6 +37,7 @@ from data_imports.ksw_adapter import (
     CanonicalLegacyRow,
     WorkbookParseResult,
     WorkbookStructureError,
+    names_not_checked,
     parse_ksw_workbook,
     workbook_checks,
 )
@@ -2004,6 +2005,7 @@ def preview_legacy_grading_import(
         ),
         warnings=[
             *locked.configuration.warnings,
+            *names_not_checked(rows),
             *_sheets_left_out(locked),
             *held_warning,
         ],

@@ -159,7 +159,9 @@ the stale ones, and so does every start of the container. Past gradings come in 
 uploading the whole workbook again brings in only its new sheets, a changed sheet only if chosen,
 and no record is ever added twice. The review also marks what the workbook leaves in doubt: a
 missing outcome or rank, a name written twice on one sheet, and someone both missing and graded
-there. See [importing-data.md](importing-data.md).
+there. Saved records are grouped into the people they are about, by their names and rank
+history, each with how sure that is and the students they may be. See
+[importing-data.md](importing-data.md).
 
 ## Search
 

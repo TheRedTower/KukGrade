@@ -9,7 +9,7 @@ without colliding on a unique email or locator.
 from __future__ import annotations
 
 import itertools
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from io import BytesIO
 
 import openpyxl
@@ -29,7 +29,13 @@ from data_imports.services import (
 from gradings.legacy_services import (
     link_legacy_record_to_student,
 )
-from gradings.models import LegacyGradingRecord, LegacyRecordKind
+from gradings.models import (
+    SHEET_NOTE_NAME,
+    LegacyGradingRecord,
+    LegacyPerson,
+    LegacyPersonConfidence,
+    LegacyRecordKind,
+)
 from students.models import Student
 
 MAIN_TABLE_HEADER = ["Name", "Current Rank", "Testing For", "Outcome", "Comments"]
@@ -178,6 +184,24 @@ def history_workbook() -> bytes:
     return workbook_bytes(build)
 
 
+type GradingSheets = Mapping[str, Sequence[Sequence[object]]]
+
+
+def grading_workbook(sheets: GradingSheets) -> bytes:
+    """A workbook of grading sheets by title, each with the main table's
+    header and the rows given."""
+
+    def build(workbook: Workbook) -> None:
+        workbook.properties.title = "saved again"
+        for title, rows in sheets.items():
+            ws = workbook.create_sheet(title)
+            ws.append(MAIN_TABLE_HEADER)
+            for row in rows:
+                ws.append(list(row))
+
+    return workbook_bytes(build)
+
+
 def check_roster(
     batch: ImportBatch,
     *,
@@ -233,7 +257,8 @@ def legacy_record(
     student: Student | None = None,
     **overrides: object,
 ) -> LegacyGradingRecord:
-    """One imported record; linked to `student` when one is given."""
+    """One imported record, its own person unless given one (or a sheet
+    note); linked to `student` when one is given."""
     number = next(_sequence)
     data: dict[str, object] = {
         "record_kind": LegacyRecordKind.GRADING_RESULT,
@@ -246,6 +271,10 @@ def legacy_record(
     data.update(overrides)
     if "source_batch" not in data:
         data["source_batch"] = legacy_batch()
+    if "person" not in data and data["source_name"] != SHEET_NOTE_NAME:
+        data["person"] = LegacyPerson.objects.create(
+            confidence=LegacyPersonConfidence.HIGH,
+        )
     # Saved one at a time, through the model's own full validation.
     record = LegacyGradingRecord.objects.create(**data)
     if student is None:

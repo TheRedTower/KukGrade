@@ -8,12 +8,9 @@ is - is never added again. Synthetic workbooks only.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 import pytest
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
-from openpyxl.workbook import Workbook
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -28,7 +25,7 @@ from data_imports.services import (
     preview_legacy_grading_import,
     set_import_row_excluded,
 )
-from data_imports.testing import MAIN_TABLE_HEADER, legacy_batch, workbook_bytes
+from data_imports.testing import GradingSheets, grading_workbook, legacy_batch
 from data_imports.tests import admin_user, instructor_user, student_workbook
 from gradings.legacy_services import void_legacy_record
 from gradings.models import (
@@ -47,22 +44,6 @@ JUNE = [
 ]
 SEPTEMBER = [["A. Example", "Yellow Stripe", "Yellow", "Pass", ""]]
 
-type Sheets = dict[str, Sequence[Sequence[object]]]
-
-
-def history(sheets: Sheets) -> bytes:
-    """A workbook of grading sheets, each with the main table's header."""
-
-    def build(workbook: Workbook) -> None:
-        workbook.properties.title = "saved again"
-        for title, rows in sheets.items():
-            ws = workbook.create_sheet(title)
-            ws.append(MAIN_TABLE_HEADER)
-            for row in rows:
-                ws.append(list(row))
-
-    return workbook_bytes(build)
-
 
 def admin() -> User:
     return User.objects.filter(email="import-admin@example.com").first() or (
@@ -70,8 +51,8 @@ def admin() -> User:
     )
 
 
-def imported(sheets: Sheets) -> ImportBatch:
-    batch = legacy_batch(history(sheets), uploaded_by=admin())
+def imported(sheets: GradingSheets) -> ImportBatch:
+    batch = legacy_batch(grading_workbook(sheets), uploaded_by=admin())
     return commit_legacy_grading_import(batch, actor=admin())
 
 
@@ -86,7 +67,7 @@ def outcomes(batch: ImportBatch) -> dict[str, str]:
 
 
 def test_a_first_upload_chooses_every_sheet_and_brings_in_every_record() -> None:
-    batch = legacy_batch(history({"062025": JUNE, "092025": SEPTEMBER}))
+    batch = legacy_batch(grading_workbook({"062025": JUNE, "092025": SEPTEMBER}))
 
     assert states(batch) == {
         "062025": (SheetState.NEW, True),
@@ -99,7 +80,7 @@ def test_a_first_upload_chooses_every_sheet_and_brings_in_every_record() -> None
 
 def test_the_same_workbook_again_adds_nothing() -> None:
     first = imported({"062025": JUNE, "092025": SEPTEMBER})
-    again = legacy_batch(history({"062025": JUNE, "092025": SEPTEMBER}))
+    again = legacy_batch(grading_workbook({"062025": JUNE, "092025": SEPTEMBER}))
 
     assert states(again) == {
         "062025": (SheetState.IMPORTED, False),
@@ -120,7 +101,7 @@ def test_the_same_workbook_again_adds_nothing() -> None:
 def test_a_copy_with_one_more_sheet_brings_in_only_that_sheet() -> None:
     imported({"062025": JUNE})
     december = [["B. Second", "White", "Yellow Stripe", "Pass", "Second try."]]
-    grown = legacy_batch(history({"062025": JUNE, "122025": december}))
+    grown = legacy_batch(grading_workbook({"062025": JUNE, "122025": december}))
 
     assert states(grown) == {
         "062025": (SheetState.IMPORTED, False),
@@ -141,7 +122,7 @@ def test_a_copy_with_one_more_sheet_brings_in_only_that_sheet() -> None:
 def test_a_row_inserted_in_an_old_sheet_marks_it_changed_and_adds_nothing() -> None:
     imported({"062025": JUNE})
     inserted = [["C. Late", "White", "Yellow Stripe", "Pass", ""], *JUNE]
-    copy = legacy_batch(history({"062025": inserted, "092025": SEPTEMBER}))
+    copy = legacy_batch(grading_workbook({"062025": inserted, "092025": SEPTEMBER}))
 
     [june, september] = legacy_sheets(copy)
     assert (june.state, june.included) == (SheetState.CHANGED, False)
@@ -159,7 +140,9 @@ def test_choosing_a_changed_sheet_brings_in_only_what_is_new() -> None:
     imported({"062025": JUNE})
     # The new row moves every other row down: they are known by what they say.
     copy = legacy_batch(
-        history({"062025": [["C. Late", "White", "Yellow", "Pass", ""], *JUNE]}),
+        grading_workbook(
+            {"062025": [["C. Late", "White", "Yellow", "Pass", ""], *JUNE]},
+        ),
     )
 
     choose_legacy_sheets(copy, included=["062025"])
@@ -173,7 +156,7 @@ def test_choosing_a_changed_sheet_brings_in_only_what_is_new() -> None:
     ) == ["C. Late"]
     assert committed.summary_json["skip_existing"] == 2
     # Now KukGrade holds exactly that sheet.
-    assert states(legacy_batch(history({"062025": [JUNE[0]]}))) == {
+    assert states(legacy_batch(grading_workbook({"062025": [JUNE[0]]}))) == {
         "062025": (SheetState.CHANGED, False),
     }
 
@@ -182,7 +165,7 @@ def test_a_record_changed_in_an_old_sheet_shows_what_it_was_and_what_it_is() -> 
     imported({"062025": JUNE})
     corrected = [JUNE[0], ["B. Second", "White", "Yellow Stripe", "Pass", ""]]
 
-    [june] = legacy_sheets(legacy_batch(history({"062025": corrected})))
+    [june] = legacy_sheets(legacy_batch(grading_workbook({"062025": corrected})))
 
     assert june.state == SheetState.CHANGED
     assert [(r.name, r.outcome) for r in june.added] == [("B. Second", "Pass")]
@@ -193,7 +176,7 @@ def test_rows_that_only_moved_and_a_note_added_beside_one_are_not_a_change() -> 
     imported({"062025": JUNE})
     moved = [JUNE[1], [], [*JUNE[0], "Written later."]]
 
-    assert states(legacy_batch(history({"062025": moved}))) == {
+    assert states(legacy_batch(grading_workbook({"062025": moved}))) == {
         "062025": (SheetState.IMPORTED, False),
     }
 
@@ -201,7 +184,7 @@ def test_rows_that_only_moved_and_a_note_added_beside_one_are_not_a_change() -> 
 def test_a_record_written_twice_is_held_twice() -> None:
     twice = [JUNE[1], JUNE[1]]
     imported({"062025": twice})
-    thrice = legacy_batch(history({"062025": [*twice, JUNE[1]]}))
+    thrice = legacy_batch(grading_workbook({"062025": [*twice, JUNE[1]]}))
 
     assert states(thrice) == {"062025": (SheetState.CHANGED, False)}
     choose_legacy_sheets(thrice, included=["062025"])
@@ -217,7 +200,7 @@ def test_voided_records_are_not_held_so_their_sheet_is_new_again() -> None:
     for record in LegacyGradingRecord.objects.all():
         void_legacy_record(record, reason="Wrong file.", actor=admin())
 
-    again = legacy_batch(history({"062025": JUNE}))
+    again = legacy_batch(grading_workbook({"062025": JUNE}))
 
     assert states(again) == {"062025": (SheetState.NEW, True)}
     commit_legacy_grading_import(again, actor=admin())
@@ -225,8 +208,8 @@ def test_voided_records_are_not_held_so_their_sheet_is_new_again() -> None:
 
 
 def test_an_import_finished_after_another_was_uploaded_is_caught_at_commit() -> None:
-    first = legacy_batch(history({"062025": JUNE}), uploaded_by=admin())
-    second = legacy_batch(history({"062025": JUNE}))
+    first = legacy_batch(grading_workbook({"062025": JUNE}), uploaded_by=admin())
+    second = legacy_batch(grading_workbook({"062025": JUNE}))
     assert states(second) == {"062025": (SheetState.NEW, True)}
 
     commit_legacy_grading_import(first, actor=admin())
@@ -245,7 +228,7 @@ def test_an_import_finished_after_another_was_uploaded_is_caught_at_commit() -> 
 def test_the_preview_counts_what_comes_in_and_says_what_is_left_out() -> None:
     imported({"062025": JUNE})
     copy = legacy_batch(
-        history(
+        grading_workbook(
             {
                 "062025": [*JUNE, ["C. Late", "White", "Yellow", "Pass", ""]],
                 "092025": SEPTEMBER,
@@ -271,7 +254,7 @@ def test_the_preview_counts_what_comes_in_and_says_what_is_left_out() -> None:
 
 
 def test_a_row_left_out_stays_out_and_one_on_a_sheet_not_chosen_stays_with_it() -> None:
-    batch = legacy_batch(history({"062025": JUNE, "092025": SEPTEMBER}))
+    batch = legacy_batch(grading_workbook({"062025": JUNE, "092025": SEPTEMBER}))
     rows = {
         row.source_locator: row.row_number
         for row in ImportRow.objects.filter(batch=batch)
@@ -290,7 +273,7 @@ def test_a_row_left_out_stays_out_and_one_on_a_sheet_not_chosen_stays_with_it() 
 
 
 def test_choosing_no_sheet_leaves_nothing_to_import() -> None:
-    batch = legacy_batch(history({"062025": JUNE}))
+    batch = legacy_batch(grading_workbook({"062025": JUNE}))
 
     choose_legacy_sheets(batch, included=[])
 
@@ -300,7 +283,7 @@ def test_choosing_no_sheet_leaves_nothing_to_import() -> None:
 
 
 def test_a_sheet_the_import_does_not_have_cannot_be_chosen() -> None:
-    batch = legacy_batch(history({"062025": JUNE}))
+    batch = legacy_batch(grading_workbook({"062025": JUNE}))
 
     with pytest.raises(ValidationError) as refusal:
         choose_legacy_sheets(batch, included=["062025", "Notes"])
@@ -323,11 +306,11 @@ def test_a_roster_has_no_grading_sheets_to_choose() -> None:
 
 def test_two_sheets_for_one_month_are_refused() -> None:
     with pytest.raises(ValidationError, match="are both for 06/2025"):
-        legacy_batch(history({"062025": JUNE, "06-2025": SEPTEMBER}))
+        legacy_batch(grading_workbook({"062025": JUNE, "06-2025": SEPTEMBER}))
 
 
 def test_a_record_is_known_by_what_it_says_not_where_it_is() -> None:
-    [row] = parse_ksw_workbook(history({"062025": [JUNE[0]]})).rows
+    [row] = parse_ksw_workbook(grading_workbook({"062025": [JUNE[0]]})).rows
     moved = CanonicalLegacyRow(**{**vars(row), "source_locator": "062025!R9"})
     noted = CanonicalLegacyRow(**{**vars(row), "admin_note": "Written beside."})
     other = CanonicalLegacyRow(**{**vars(row), "comments": "Fine."})
@@ -366,7 +349,7 @@ def client_for(user: User) -> APIClient:
 
 def test_an_administrator_reads_and_chooses_the_sheets() -> None:
     imported({"062025": JUNE})
-    batch = legacy_batch(history({"062025": JUNE, "092025": SEPTEMBER}))
+    batch = legacy_batch(grading_workbook({"062025": JUNE, "092025": SEPTEMBER}))
     client = client_for(admin())
 
     listed = client.get(f"{BASE}{batch.pk}/sheets/")
@@ -406,7 +389,7 @@ def test_an_administrator_reads_and_chooses_the_sheets() -> None:
 
 
 def test_choosing_sheets_needs_the_list_of_names() -> None:
-    batch = legacy_batch(history({"062025": JUNE}))
+    batch = legacy_batch(grading_workbook({"062025": JUNE}))
 
     response = client_for(admin()).patch(
         f"{BASE}{batch.pk}/sheets/",
@@ -418,7 +401,7 @@ def test_choosing_sheets_needs_the_list_of_names() -> None:
 
 
 def test_an_instructor_can_neither_read_nor_choose_the_sheets() -> None:
-    batch = legacy_batch(history({"062025": JUNE}))
+    batch = legacy_batch(grading_workbook({"062025": JUNE}))
     client = client_for(instructor_user())
 
     assert client.get(f"{BASE}{batch.pk}/sheets/").status_code == 403
@@ -434,7 +417,7 @@ def test_an_instructor_can_neither_read_nor_choose_the_sheets() -> None:
 
 
 def test_viewing_imports_reads_the_sheets_but_cannot_choose_them() -> None:
-    batch = legacy_batch(history({"062025": JUNE}))
+    batch = legacy_batch(grading_workbook({"062025": JUNE}))
     viewer = User.objects.create_user(email="import-viewer@example.com")
     viewer.user_permissions.add(
         Permission.objects.get(

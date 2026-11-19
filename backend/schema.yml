@@ -1496,6 +1496,116 @@ paths:
               schema:
                 $ref: '#/components/schemas/BulkCandidateStatusUpdateResult'
           description: ''
+  /api/gradings/legacy-people/:
+    get:
+      operationId: gradings_legacy_people_list
+      description: |-
+        People by name. Only the page shown is scored for suggested
+        students, unless the list is narrowed to a queue, which needs them
+        all.
+      parameters:
+      - name: batch
+        required: false
+        in: query
+        description: Only people with a record from this import.
+        schema:
+          type: integer
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: queue
+        required: false
+        in: query
+        description: Only people waiting for a decision here.
+        schema:
+          type: string
+          enum:
+          - NEEDS_A_LOOK
+          - NO_STUDENT
+          - READY
+      - name: search
+        required: false
+        in: query
+        description: Part of a name as written, on any of the person's records.
+        schema:
+          type: string
+      - name: state
+        required: false
+        in: query
+        description: Only people in this state.
+        schema:
+          type: string
+          enum:
+          - LATER
+          - LINKED
+          - NOT_A_STUDENT
+          - PROPOSED
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedHistoricalPersonList'
+          description: ''
+  /api/gradings/legacy-people/{id}/:
+    get:
+      operationId: gradings_legacy_people_retrieve
+      description: A person with every record of theirs, oldest first.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/summary/:
+    get:
+      operationId: gradings_legacy_people_summary_retrieve
+      description: |-
+        How many people there are, in each state and queue, and how many
+        are sorted: decided, with the decision covering every record.
+      parameters:
+      - name: batch
+        required: false
+        in: query
+        description: Only people with a record from this import.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPeopleSummary'
+          description: ''
   /api/gradings/legacy-records/:
     get:
       operationId: gradings_legacy_records_list
@@ -4536,6 +4646,16 @@ components:
       - staff_ranks
       - student_statuses
       - withdrawal_reasons
+    ConfidenceEnum:
+      enum:
+      - HIGH
+      - MEDIUM
+      - LOW
+      type: string
+      description: |-
+        * `HIGH` - High
+        * `MEDIUM` - Medium
+        * `LOW` - Low
     Credit:
       type: object
       properties:
@@ -5291,6 +5411,250 @@ components:
       required:
       - service
       - status
+    HistoricalPeopleSummary:
+      type: object
+      description: How many people there are, where they are, and how many are sorted.
+      properties:
+        people:
+          type: integer
+          description: Every person.
+        sorted:
+          type: integer
+          description: Decided, with the decision covering every record.
+        proposed:
+          type: integer
+          description: Not decided yet.
+        linked:
+          type: integer
+        not_a_student:
+          type: integer
+        later:
+          type: integer
+        ready:
+          type: integer
+          description: Ready to confirm.
+        needs_a_look:
+          type: integer
+        no_student:
+          type: integer
+          description: No student found.
+      required:
+      - later
+      - linked
+      - needs_a_look
+      - no_student
+      - not_a_student
+      - people
+      - proposed
+      - ready
+      - sorted
+    HistoricalPerson:
+      type: object
+      description: |-
+        A person the imported history is about: their records grouped by name
+        and rank history, where they are, and who they may be.
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: The fullest spelling written.
+        spellings:
+          type: array
+          items:
+            type: string
+          description: Each name as written, in the order the records give them.
+        state:
+          $ref: '#/components/schemas/LegacyPersonStateEnum'
+        state_display:
+          type: string
+        queue:
+          nullable: true
+          description: |-
+            Where the person waits for a decision; null when nothing does.
+
+            * `READY` - Ready to confirm
+            * `NEEDS_A_LOOK` - Needs a look
+            * `NO_STUDENT` - No student found
+          oneOf:
+          - $ref: '#/components/schemas/QueueEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        queue_display:
+          type: string
+          nullable: true
+          readOnly: true
+        confidence:
+          allOf:
+          - $ref: '#/components/schemas/ConfidenceEnum'
+          description: |-
+            How sure it is that the records are one person.
+
+            * `HIGH` - High
+            * `MEDIUM` - Medium
+            * `LOW` - Low
+        confidence_display:
+          type: string
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Why the records are grouped, in plain words.
+        record_count:
+          type: integer
+          readOnly: true
+        first_period:
+          type: string
+          readOnly: true
+          description: The earliest record's year and month, as "2025-03".
+        last_period:
+          type: string
+          readOnly: true
+        awaiting_confirmation:
+          type: integer
+          description: Records that joined after the person was decided.
+        student:
+          type: integer
+          nullable: true
+          description: The student a linked person is.
+        student_name:
+          type: string
+          nullable: true
+        suggestion:
+          allOf:
+          - $ref: '#/components/schemas/SuggestionEnum'
+          description: |-
+            How clear the suggested students are.
+
+            * `clear` - One student fits clearly
+            * `choose` - A person has to choose
+            * `none` - No student fits
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedStudent'
+      required:
+      - awaiting_confirmation
+      - candidates
+      - confidence
+      - confidence_display
+      - first_period
+      - id
+      - last_period
+      - name
+      - queue
+      - queue_display
+      - reasons
+      - record_count
+      - spellings
+      - state
+      - state_display
+      - student
+      - suggestion
+    HistoricalPersonDetail:
+      type: object
+      description: A person with every record of theirs, oldest first.
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: The fullest spelling written.
+        spellings:
+          type: array
+          items:
+            type: string
+          description: Each name as written, in the order the records give them.
+        state:
+          $ref: '#/components/schemas/LegacyPersonStateEnum'
+        state_display:
+          type: string
+        queue:
+          nullable: true
+          description: |-
+            Where the person waits for a decision; null when nothing does.
+
+            * `READY` - Ready to confirm
+            * `NEEDS_A_LOOK` - Needs a look
+            * `NO_STUDENT` - No student found
+          oneOf:
+          - $ref: '#/components/schemas/QueueEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        queue_display:
+          type: string
+          nullable: true
+          readOnly: true
+        confidence:
+          allOf:
+          - $ref: '#/components/schemas/ConfidenceEnum'
+          description: |-
+            How sure it is that the records are one person.
+
+            * `HIGH` - High
+            * `MEDIUM` - Medium
+            * `LOW` - Low
+        confidence_display:
+          type: string
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Why the records are grouped, in plain words.
+        record_count:
+          type: integer
+          readOnly: true
+        first_period:
+          type: string
+          readOnly: true
+          description: The earliest record's year and month, as "2025-03".
+        last_period:
+          type: string
+          readOnly: true
+        awaiting_confirmation:
+          type: integer
+          description: Records that joined after the person was decided.
+        student:
+          type: integer
+          nullable: true
+          description: The student a linked person is.
+        student_name:
+          type: string
+          nullable: true
+        suggestion:
+          allOf:
+          - $ref: '#/components/schemas/SuggestionEnum'
+          description: |-
+            How clear the suggested students are.
+
+            * `clear` - One student fits clearly
+            * `choose` - A person has to choose
+            * `none` - No student fits
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedStudent'
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyGradingRecord'
+      required:
+      - awaiting_confirmation
+      - candidates
+      - confidence
+      - confidence_display
+      - first_period
+      - id
+      - last_period
+      - name
+      - queue
+      - queue_display
+      - reasons
+      - record_count
+      - records
+      - spellings
+      - state
+      - state_display
+      - student
+      - suggestion
     ImportBatch:
       type: object
       description: 'An import: what was uploaded, where it is up to, and its rows''
@@ -5986,6 +6350,10 @@ components:
         id:
           type: integer
           readOnly: true
+        person:
+          type: integer
+          readOnly: true
+          nullable: true
         student:
           type: integer
           readOnly: true
@@ -6076,6 +6444,7 @@ components:
       - is_void
       - note
       - outcome_display
+      - person
       - record_kind
       - record_kind_display
       - report
@@ -6167,7 +6536,8 @@ components:
           description: One student fits clearly.
         choose:
           type: integer
-          description: Several students fit equally well.
+          description: 'A person has to choose: several students fit equally well,
+            or the one that fits ranks lower now than the records gave then.'
         none:
           type: integer
           description: No student fits.
@@ -6208,7 +6578,7 @@ components:
           description: The student every record here is linked to, if one is.
         shared:
           type: boolean
-          description: 'Several students fit equally well: a person has to choose.'
+          description: Several students fit equally well.
         linked_student_name:
           type: string
           nullable: true
@@ -6230,7 +6600,7 @@ components:
             How clear the suggested students are, from the candidates.
 
             * `clear` - One student fits clearly
-            * `choose` - Several students fit equally well
+            * `choose` - A person has to choose
             * `none` - No student fits
         candidates:
           type: array
@@ -6250,6 +6620,18 @@ components:
       - shared
       - source_name
       - suggestion
+    LegacyPersonStateEnum:
+      enum:
+      - PROPOSED
+      - LINKED
+      - NOT_A_STUDENT
+      - LATER
+      type: string
+      description: |-
+        * `PROPOSED` - Not decided yet
+        * `LINKED` - Linked to a student
+        * `NOT_A_STUDENT` - Not a current student
+        * `LATER` - Later
     LegacyRankFieldEnum:
       enum:
       - current_rank
@@ -6295,7 +6677,7 @@ components:
           description: Its records are chosen to come in.
         state:
           allOf:
-          - $ref: '#/components/schemas/StateEnum'
+          - $ref: '#/components/schemas/LegacySheetStateEnum'
           description: |-
             NEW: KukGrade holds nothing for its month. IMPORTED: it holds exactly these records. CHANGED: it holds others for the month.
 
@@ -6356,6 +6738,16 @@ components:
       - name
       - outcome
       - testing_for_rank
+    LegacySheetStateEnum:
+      enum:
+      - NEW
+      - IMPORTED
+      - CHANGED
+      type: string
+      description: |-
+        * `NEW` - New
+        * `IMPORTED` - Already imported
+        * `CHANGED` - Changed since imported
     LinkLegacyRecordRequest:
       type: object
       properties:
@@ -6613,6 +7005,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GradingSession'
+    PaginatedHistoricalPersonList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoricalPerson'
     PaginatedImportBatchList:
       type: object
       required:
@@ -7089,6 +7504,16 @@ components:
       - promoted_at
       - session_title
       - to_rank_name
+    QueueEnum:
+      enum:
+      - READY
+      - NEEDS_A_LOOK
+      - NO_STUDENT
+      type: string
+      description: |-
+        * `READY` - Ready to confirm
+        * `NEEDS_A_LOOK` - Needs a look
+        * `NO_STUDENT` - No student found
     Rank:
       type: object
       properties:
@@ -7415,16 +7840,6 @@ components:
       required:
       - final_outcome
       - revision
-    StateEnum:
-      enum:
-      - NEW
-      - IMPORTED
-      - CHANGED
-      type: string
-      description: |-
-        * `NEW` - New
-        * `IMPORTED` - Already imported
-        * `CHANGED` - Changed since imported
     Student:
       type: object
       description: |-
@@ -7772,7 +8187,7 @@ components:
       type: string
       description: |-
         * `clear` - One student fits clearly
-        * `choose` - Several students fit equally well
+        * `choose` - A person has to choose
         * `none` - No student fits
     SyllabusItemCategoryEnum:
       enum:

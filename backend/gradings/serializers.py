@@ -21,6 +21,7 @@ from gradings.exports.records import record_can_be_downloaded
 from gradings.exports.sheets import sheet_can_be_printed, sheets_can_be_printed
 from gradings.exports.summary import summary_can_be_downloaded
 from gradings.legacy_matching import Suggestion
+from gradings.legacy_people import PersonQueue, PersonView
 from gradings.models import (
     AssessmentItemComment,
     AssessmentItemResultChange,
@@ -30,6 +31,8 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
+    LegacyPersonConfidence,
+    LegacyPersonState,
     LegacyRankField,
     Promotion,
     StagedDecision,
@@ -1179,6 +1182,7 @@ class LegacyGradingRecordSerializer(ModelSerializer):
         model = LegacyGradingRecord
         fields = (
             "id",
+            "person",
             "student",
             "student_display_name",
             "record_kind",
@@ -1283,7 +1287,7 @@ class LegacyPersonSerializer(serializers.Serializer):
         help_text="The student every record here is linked to, if one is.",
     )
     shared = serializers.BooleanField(
-        help_text="Several students fit equally well: a person has to choose.",
+        help_text="Several students fit equally well.",
     )
     linked_student_name = serializers.SerializerMethodField(
         help_text="That student's name, when every record here is linked to one.",
@@ -1354,8 +1358,106 @@ class LegacyPeopleSummarySerializer(serializers.Serializer):
     )
 
     clear = serializers.IntegerField(help_text="One student fits clearly.")
-    choose = serializers.IntegerField(help_text="Several students fit equally well.")
+    choose = serializers.IntegerField(
+        help_text=(
+            "A person has to choose: several students fit equally well, or the "
+            "one that fits ranks lower now than the records gave then."
+        ),
+    )
     none = serializers.IntegerField(help_text="No student fits.")
+
+
+class HistoricalPersonSerializer(serializers.Serializer):
+    """A person the imported history is about: their records grouped by name
+    and rank history, where they are, and who they may be."""
+
+    id = serializers.IntegerField(source="person.pk")
+    name = serializers.CharField(help_text="The fullest spelling written.")
+    spellings = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="Each name as written, in the order the records give them.",
+    )
+    state = serializers.ChoiceField(
+        source="person.state",
+        choices=LegacyPersonState.choices,
+    )
+    state_display = serializers.CharField(source="person.get_state_display")
+    queue = serializers.ChoiceField(
+        choices=PersonQueue.choices,
+        allow_null=True,
+        help_text="Where the person waits for a decision; null when nothing does.",
+    )
+    queue_display = serializers.SerializerMethodField()
+    confidence = serializers.ChoiceField(
+        source="person.confidence",
+        choices=LegacyPersonConfidence.choices,
+        help_text="How sure it is that the records are one person.",
+    )
+    confidence_display = serializers.CharField(source="person.get_confidence_display")
+    reasons = serializers.ListField(
+        child=serializers.CharField(),
+        source="person.reasons",
+        help_text="Why the records are grouped, in plain words.",
+    )
+    record_count = serializers.SerializerMethodField()
+    first_period = serializers.SerializerMethodField(
+        help_text='The earliest record\'s year and month, as "2025-03".',
+    )
+    last_period = serializers.SerializerMethodField()
+    awaiting_confirmation = serializers.IntegerField(
+        help_text="Records that joined after the person was decided.",
+    )
+    student = serializers.IntegerField(
+        source="person.student_id",
+        allow_null=True,
+        help_text="The student a linked person is.",
+    )
+    student_name = serializers.CharField(
+        source="person.student.full_name",
+        allow_null=True,
+        default=None,
+    )
+    suggestion = serializers.ChoiceField(
+        choices=Suggestion.choices,
+        help_text="How clear the suggested students are.",
+    )
+    candidates = SuggestedStudentSerializer(many=True)
+
+    def get_queue_display(self, view: PersonView) -> str | None:
+        return view.queue.label if view.queue else None
+
+    def get_record_count(self, view: PersonView) -> int:
+        return len(view.records)
+
+    def get_first_period(self, view: PersonView) -> str:
+        first = view.records[0]
+        return f"{first.cycle_year}-{first.cycle_month:02d}"
+
+    def get_last_period(self, view: PersonView) -> str:
+        last = view.records[-1]
+        return f"{last.cycle_year}-{last.cycle_month:02d}"
+
+
+class HistoricalPersonDetailSerializer(HistoricalPersonSerializer):
+    """A person with every record of theirs, oldest first."""
+
+    records = LegacyGradingRecordSerializer(many=True)
+
+
+class HistoricalPeopleSummarySerializer(serializers.Serializer):
+    """How many people there are, where they are, and how many are sorted."""
+
+    people = serializers.IntegerField(help_text="Every person.")
+    sorted = serializers.IntegerField(
+        help_text="Decided, with the decision covering every record.",
+    )
+    proposed = serializers.IntegerField(help_text="Not decided yet.")
+    linked = serializers.IntegerField()
+    not_a_student = serializers.IntegerField()
+    later = serializers.IntegerField()
+    ready = serializers.IntegerField(help_text="Ready to confirm.")
+    needs_a_look = serializers.IntegerField()
+    no_student = serializers.IntegerField(help_text="No student found.")
 
 
 class ResolveLegacyRankSerializer(serializers.Serializer):

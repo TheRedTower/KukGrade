@@ -22,14 +22,11 @@ from difflib import SequenceMatcher
 
 from django.db import models
 
-from gradings.models import LegacyGradingRecord
+from gradings.models import SHEET_NOTE_NAME, LegacyGradingRecord
 from kukgrade.search import apply_search
 from ranks.matching import RANK_TITLES, active_rank_lookup, rank_for_text
 from ranks.models import Rank
 from students.models import Student
-
-# A sheet note is a cell in no table, not a person (data_imports.ksw_adapter).
-SHEET_NOTE_NAME = "Sheet note"
 
 _CLOSE = 0.8
 _MINIMUM_SCORE = 35
@@ -98,8 +95,22 @@ class Suggestion(models.TextChoices):
     """How clear the students suggested for a name are."""
 
     CLEAR = "clear", "One student fits clearly"
-    CHOOSE = "choose", "Several students fit equally well"
+    CHOOSE = "choose", "A person has to choose"
     NONE = "none", "No student fits"
+
+
+def suggestion_for(candidates: Sequence[Candidate]) -> Suggestion:
+    """How clear `candidates` (best first) are. One student fits clearly only
+    when no other fits as well and their rank now is not below the rank the
+    records gave then: nobody goes down a grade."""
+    if not candidates:
+        return Suggestion.NONE
+    best = candidates[0]
+    if best.rank_fits is False:
+        return Suggestion.CHOOSE
+    if len(candidates) > 1 and candidates[1].score == best.score:
+        return Suggestion.CHOOSE
+    return Suggestion.CLEAR
 
 
 @dataclass(frozen=True)
@@ -107,6 +118,9 @@ class Candidate:
     student: Student
     score: int
     reasons: tuple[str, ...]
+    # Whether their rank now is at least the rank the records gave then;
+    # None when the records give no rank.
+    rank_fits: bool | None = None
 
 
 @dataclass
@@ -128,9 +142,7 @@ class PersonGroup:
     @property
     def suggestion(self) -> Suggestion:
         """How clear the suggestion is: one student, a choice, or none."""
-        if not self.candidates:
-            return Suggestion.NONE
-        return Suggestion.CHOOSE if self.shared else Suggestion.CLEAR
+        return suggestion_for(self.candidates)
 
     @property
     def needs_rank(self) -> bool:
@@ -231,9 +243,11 @@ def score_student(
         else:
             return None
 
+    rank_fits: bool | None = None
     if rank_then is not None:
         now = student.current_rank
-        if now.order >= rank_then.order:
+        rank_fits = now.order >= rank_then.order
+        if rank_fits:
             score += 10
             reasons.append(f"Rank fits: {now.name} now, {rank_then.name} then")
         else:
@@ -242,7 +256,12 @@ def score_student(
 
     if score < _MINIMUM_SCORE:
         return None
-    return Candidate(student=student, score=score, reasons=tuple(reasons))
+    return Candidate(
+        student=student,
+        score=score,
+        reasons=tuple(reasons),
+        rank_fits=rank_fits,
+    )
 
 
 def group_records(records: Iterable[LegacyGradingRecord]) -> list[PersonGroup]:
@@ -268,24 +287,38 @@ def suggest_for_groups(
 ) -> None:
     """Score only the groups the caller will actually show."""
 
-    pool = list(
-        students
-        if students is not None
-        else Student.objects.filter(deleted_at__isnull=True)
+    pool = list(students) if students is not None else student_pool()
+    ranks = active_rank_lookup()
+    for group in groups:
+        group.candidates = best_candidates(
+            name_tokens(group.source_name),
+            _rank_then(group, ranks),
+            pool,
+        )
+
+
+def student_pool() -> list[Student]:
+    """Every student a record could be about, read once for many names."""
+    return list(
+        Student.objects.filter(deleted_at__isnull=True)
         .select_related("current_rank")
         .order_by("pk"),
     )
-    ranks = active_rank_lookup()
-    for group in groups:
-        tokens = name_tokens(group.source_name)
-        rank_then = _rank_then(group, ranks)
-        scored = [
-            candidate
-            for student in pool
-            if (candidate := score_student(tokens, student, rank_then)) is not None
-        ]
-        scored.sort(key=lambda candidate: (-candidate.score, candidate.student.pk))
-        group.candidates = scored[:_SHOWN]
+
+
+def best_candidates(
+    tokens: list[str],
+    rank_then: Rank | None,
+    pool: Iterable[Student],
+) -> list[Candidate]:
+    """The students in `pool` that fit a name best, best first."""
+    scored = [
+        candidate
+        for student in pool
+        if (candidate := score_student(tokens, student, rank_then)) is not None
+    ]
+    scored.sort(key=lambda candidate: (-candidate.score, candidate.student.pk))
+    return scored[:_SHOWN]
 
 
 # How the people list narrows to the names a viewer has put aside for now.

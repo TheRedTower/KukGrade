@@ -23,6 +23,7 @@ from django.utils import timezone
 from accounts.people import title_of
 from audit.models import AuditAction
 from audit.recording import record, student_label
+from gradings.legacy_people import assign_people
 from gradings.locking import lock_student, lock_students
 from gradings.models import LegacyGradingRecord, LegacyRankField, SetAsideName
 from students.models import STUDENT_DELETED_MESSAGE
@@ -58,13 +59,20 @@ def create_legacy_grading_records(
     that would ask the database once per record - the batch and ranks it
     names, a locator repeated in the batch - are the database's own
     constraints on insert, and the batch and ranks were just read by the
-    caller. All or nothing, like the commit that calls it.
+    caller. Each is given its person (legacy_people.assign_people) before it
+    is saved. All or nothing, like the commit that calls it.
     """
     records = [LegacyGradingRecord(source_batch=source_batch, **row) for row in rows]
     for record_ in records:
         try:
             record_.full_clean(
-                exclude=["source_batch", "student", "current_rank", "testing_for_rank"],
+                exclude=[
+                    "source_batch",
+                    "person",
+                    "student",
+                    "current_rank",
+                    "testing_for_rank",
+                ],
                 validate_unique=False,
                 validate_constraints=False,
             )
@@ -72,6 +80,7 @@ def create_legacy_grading_records(
             raise ValidationError(
                 {"rows": [f"{record_.source_locator}: {' '.join(refused.messages)}"]},
             ) from refused
+    assign_people(records)
     return LegacyGradingRecord.objects.bulk_create(records, batch_size=500)
 
 

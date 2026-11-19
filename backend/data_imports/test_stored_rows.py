@@ -579,6 +579,15 @@ def test_a_historical_import_finishes_in_the_same_queries_however_many_records()
         )
 
     admin = admin_user()
+    # People already there, so both imports compare with them.
+    commit_legacy_grading_import(
+        upload_batch(
+            kind=ImportBatch.Kind.LEGACY_GRADINGS,
+            content=workbook(1),
+            uploaded_by=admin,
+        ),
+        actor=admin,
+    )
     small = upload_batch(
         kind=ImportBatch.Kind.LEGACY_GRADINGS,
         content=workbook(2),
@@ -595,7 +604,7 @@ def test_a_historical_import_finishes_in_the_same_queries_however_many_records()
     with CaptureQueriesContext(connection) as many:
         commit_legacy_grading_import(large, actor=admin)
 
-    assert LegacyGradingRecord.objects.count() == 42
+    assert LegacyGradingRecord.objects.count() == 43
     assert len(many.captured_queries) == len(few.captured_queries)
     assert all(row.created_id for row in large.rows.all())
 

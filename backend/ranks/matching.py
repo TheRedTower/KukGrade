@@ -14,18 +14,21 @@ for differs:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from ranks.models import Rank
 
 
-def active_rank_lookup() -> dict[str, Rank]:
+def active_rank_lookup(ranks: Iterable[Rank] | None = None) -> dict[str, Rank]:
     """Every active rank by upper-cased code and name, read once.
 
     The one rank-text matcher: a rank whose code or name matches, ignoring
     case, the first by catalogue order when several do. One read serves a
     roster of thousands of rows, or every distinct text in a workbook.
+    `ranks` are the active ranks already read (a migration's own).
     """
     lookup: dict[str, Rank] = {}
-    for rank in Rank.objects.filter(active=True):
+    for rank in ranks if ranks is not None else Rank.objects.filter(active=True):
         lookup.setdefault(rank.code.upper(), rank)
         lookup.setdefault(rank.name.upper(), rank)
     return lookup

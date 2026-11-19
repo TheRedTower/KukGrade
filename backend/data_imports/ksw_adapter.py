@@ -48,8 +48,14 @@ from data_imports.parsers import (
     worksheet_merged_ranges,
     worksheet_rows,
 )
-from gradings.legacy_matching import SHEET_NOTE_NAME, name_tokens, names_compatible
-from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
+from gradings.legacy_matching import name_tokens, names_compatible
+from gradings.models import (
+    MISSING_SECTION,
+    SHEET_NOTE_NAME,
+    LegacyAttendance,
+    LegacyOutcome,
+    LegacyRecordKind,
+)
 
 # Budgets for the whole workbook, every sheet counted, known or not.
 # Generous for a club's history - a sheet per grading cycle, tens of rows
@@ -78,7 +84,7 @@ _MAIN_TABLE_HEADER_MATCH_THRESHOLD = 3
 # every word ("Current Belt").
 _AUXILIARY_SECTION_DISPLAY_NAMES = {
     "unaccounted": "Unaccounted",
-    "missing": "Missing",
+    "missing": MISSING_SECTION,
     "did not attend": "Did not attend",
     "current belt": "Current belt",
 }
@@ -88,7 +94,7 @@ _AUXILIARY_SECTION_DISPLAY_NAMES = {
 # named by _SIDE_COLUMNS, and unheaded ones hold its notes.
 _SIDE_TABLE_KINDS = {
     "unaccounted": "Unaccounted",
-    "missing": "Missing",
+    "missing": MISSING_SECTION,
     "did not attend": "Did not attend",
 }
 _SIDE_COLUMNS = {
@@ -733,11 +739,6 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
         )
         all_rows.extend(sheet_rows)
         warnings.extend(sheet_warnings)
-        if len(_named_entries(sheet_rows)) > MAX_CHECKED_NAMES:
-            warnings.append(
-                f"Sheet '{cleaned_name}' names more than {MAX_CHECKED_NAMES} "
-                "people, so it was not checked for anyone written twice.",
-            )
         sheets.append(ParsedSheet(cleaned_name, cycle_year, cycle_month))
 
     _check_locators_unique(all_rows)
@@ -845,7 +846,8 @@ def workbook_checks(rows: Iterable[CanonicalLegacyRow]) -> dict[str, list[str]]:
     None of it stops an import, and nothing is guessed: every record stays
     as written. `rows` are the records still in the import, so leaving out
     one of a pair ends the other's check. A sheet naming more than
-    MAX_CHECKED_NAMES people is not checked for names (a warning says so).
+    MAX_CHECKED_NAMES people is not checked for names (names_not_checked
+    says which).
     """
     rows = list(rows)
     found: dict[str, list[str]] = {}
@@ -860,13 +862,30 @@ def workbook_checks(rows: Iterable[CanonicalLegacyRow]) -> dict[str, list[str]]:
                 messages.append(NO_CURRENT_RANK)
             if graded and not row.source_testing_for_rank_text:
                 messages.append(NO_TESTING_FOR_RANK)
-    by_sheet: dict[str, list[CanonicalLegacyRow]] = {}
-    for row in rows:
-        by_sheet.setdefault(row.source_sheet, []).append(row)
-    for sheet_rows in by_sheet.values():
-        entries = _named_entries(sheet_rows)
+    for entries in _entries_by_sheet(rows).values():
         if len(entries) > MAX_CHECKED_NAMES:
             continue
         for locator, message in _name_checks(entries):
             found[locator].append(message)
     return {locator: messages for locator, messages in found.items() if messages}
+
+
+def _entries_by_sheet(
+    rows: Iterable[CanonicalLegacyRow],
+) -> dict[str, list[_NamedEntry]]:
+    by_sheet: dict[str, list[CanonicalLegacyRow]] = {}
+    for row in rows:
+        by_sheet.setdefault(row.source_sheet, []).append(row)
+    return {sheet: _named_entries(sheet_rows) for sheet, sheet_rows in by_sheet.items()}
+
+
+def names_not_checked(rows: Iterable[CanonicalLegacyRow]) -> list[str]:
+    """A line for each sheet whose names workbook_checks does not compare,
+    for naming more than MAX_CHECKED_NAMES people among `rows` - the records
+    still in the import, so it is said only while it is so."""
+    return [
+        f"Sheet '{sheet}' names more than {MAX_CHECKED_NAMES} people, so it was "
+        "not checked for anyone written twice."
+        for sheet, entries in _entries_by_sheet(rows).items()
+        if len(entries) > MAX_CHECKED_NAMES
+    ]

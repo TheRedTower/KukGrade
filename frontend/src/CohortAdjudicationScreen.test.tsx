@@ -800,7 +800,7 @@ describe("CohortAdjudicationScreen", () => {
     await screen.findByTestId("cab-row-1");
     const note = screen.getByTestId("cab-recording-note");
     expect(note).toHaveTextContent(/Decisions are recorded one candidate at a time/);
-    const bar = screen.getByTestId("cab-record-staged").closest(".cab-bar")!;
+    const bar = screen.getByTestId("cab-record-staged").closest(".action-bar")!;
     expect(bar).not.toContainElement(note);
     // Nothing staged and nothing failed: the bar holds its one button and no words.
     expect(bar.textContent).toBe("No decisions staged");

@@ -219,6 +219,10 @@ second screen will want it, add it to `layout.css` or `theme.css` once, not to t
 | A set that always holds the same number of things | `.even-set` around `.even-set__items`: six go 2, 3 or 6 to a row, four 1 or 2, three 1 or 3, so every row holds the same |
 | A main column with a side panel | `.split` (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it) |
 | A row of buttons or a header | `.action-row` (`--end` for a form's Cancel and Save) |
+| A screen's one primary action, kept at the foot of the window where a thumb reaches it | `ActionBar` (`status` for what it says beside the buttons; on a phone the buttons take the bar's width, the primary lowest). The only bar a screen pins to the foot of the window (`layoutRules.test.ts`) |
+| One thing in full on a page of its own, so Back works, never a panel inside a list | `DetailPage` (`eyebrow` for where it sits in the work, `progress`, and `actions` for its `ActionBar`) |
+| How far through the work, in words and as a bar | `Progress` ("52 of 80 people sorted") |
+| Queues of work, each opening its own list, with how many wait in it | `QueueList` (an empty queue still shows) |
 | Key figures | `.stats` (side by side, wrapping only when a label's longest word no longer fits) |
 | A section that folds open | `.disclosure` on a `<details>` |
 | A list with no bullets | `.list-plain` |

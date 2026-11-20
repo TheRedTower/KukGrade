@@ -1483,6 +1483,125 @@ select:not([multiple]):not([size]) {
   }
 }
 
+/* ── The bar at the foot of the window ─────────────────────────────────── */
+
+/* A screen's one primary action, fixed where a thumb reaches it (ActionBar.tsx).
+   It is kept in view as the page scrolls under it - the page is the only
+   scroller - on the bar layer, so nothing on the page shows through it. What
+   it says takes the room at the start; its buttons sit at the end, and on a
+   phone they take the width of the bar. */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-bar);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4) max(var(--space-3), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-up);
+}
+
+/* As wide as what it says, so a row that will not fit beside the buttons gets
+   a line of its own rather than being squeezed. */
+.action-bar__status {
+  display: grid;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.action-bar__status > p {
+  margin: 0;
+}
+
+/* On a phone, one button above another, the last - the screen's primary
+   action - lowest, nearest the thumb. */
+.action-bar__actions {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.action-bar__actions > * {
+  width: 100%;
+  min-height: var(--target-min);
+}
+
+@container (min-width: 40rem) {
+  .action-bar__actions {
+    flex: 0 1 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-inline-start: auto;
+  }
+
+  .action-bar__actions > * {
+    width: auto;
+  }
+}
+
+/* ── Progress ──────────────────────────────────────────────────────────── */
+
+/* How far through the work: the count in words, then the bar (Progress.tsx). */
+.progress {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.progress__count {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ── Queues ────────────────────────────────────────────────────────────── */
+
+/* Queues of work, each a card that opens its list (QueueList.tsx): what it
+   holds, then how many wait in it. */
+.queue-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.queue-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  padding: var(--card-pad);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .queue-list__item:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.queue-list__item:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.queue-list__text {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
 /* ── Pagination ────────────────────────────────────────────────────────── */
 
 .pager {

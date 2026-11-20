@@ -301,19 +301,8 @@
 
 /* ── Persistent mat bar ──────────────────────────────────────────────────── */
 
-.caw-mat-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: var(--z-bar);
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-5);
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
-  box-shadow: var(--shadow-up);
-}
+/* The bar itself is the shared .action-bar (ActionBar.tsx); these lay out the
+   count it says. */
 
 /* The count, meter and tallies share a row and take the room the button
    leaves. */
@@ -363,7 +352,6 @@
   .caw-identity,
   .caw-band-header,
   .caw-row,
-  .caw-mat-bar,
   .caw-run-end {
     padding-left: var(--space-4);
     padding-right: var(--space-4);
@@ -377,7 +365,7 @@
 /* A phone has no room for a category's bar beside a longer name; the count
    beside it says the same. The mat bar is pinned to the window, so it is two
    rows there, the count and its tallies closer together and then the button
-   across the bar, and it drops the count its first figure and button give. */
+   across the bar (.action-bar), and it drops the count its first figure and button give. */
 @media (max-width: 40rem) {
   .caw-band-meter,
   .caw-mat-tally-remaining {
@@ -393,10 +381,6 @@
      leaves the row; a tally wraps only on the narrowest phone. */
   .caw-mat-count {
     flex: 1 1 min-content;
-  }
-
-  .caw-mat-action {
-    flex: 1 1 100%;
   }
 }
 

@@ -29,7 +29,8 @@ Want something here, or something that is missing? Open an
 - [ ] **Past gradings, people first**: saved records are grouped into people, and each person
       can be decided about through the API (link, not a current student, later, reopen, split,
       merge, confirm many), and what to check before saving is one list of exceptions, each
-      decided through the API. Still to come: phone-first screens for the whole import. The per-name linking screen and its private "Leave for now" list go when those
+      decided through the API. The shared parts the phone screens are built from are in place
+      (`ActionBar`, `DetailPage`, `QueueList`, `Progress`). Still to come: phone-first screens for the whole import. The per-name linking screen and its private "Leave for now" list go when those
       screens arrive.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.

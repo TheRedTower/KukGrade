@@ -122,6 +122,22 @@ describe("A historical record", () => {
     await waitFor(() => expect(api.resolveLegacyRank).toHaveBeenLastCalledWith(101, "current_rank", null));
   });
 
+  it("names each rank picker on screen, and offers testing-for even when the workbook left it blank", async () => {
+    const user = userEvent.setup();
+    api.getLegacyGradingRecord.mockResolvedValue(
+      legacyRecord({ source_testing_for_rank_text: "", testing_for_rank: null, testing_for_rank_name: null }),
+    );
+    api.resolveLegacyRank.mockResolvedValue(linked);
+    renderAt("/imports/history/101");
+
+    await user.click(await screen.findByText("Correct the ranks"));
+    expect(screen.getByRole("heading", { name: /^Rank held/ })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Testing for (written “blank”)" })).toBeVisible();
+    const tested = screen.getByRole("group", { name: /Testing for/ });
+    await user.click(await within(tested).findByRole("button", { name: "Blue" }));
+    expect(api.resolveLegacyRank).toHaveBeenCalledWith(101, "testing_for_rank", 5);
+  });
+
   it("voids a record only with a reason", async () => {
     const user = userEvent.setup();
     api.voidLegacyGradingRecord.mockResolvedValue({ ...linked, is_void: true });

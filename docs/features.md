@@ -166,7 +166,11 @@ screen of its own: the sheets, the things to check (each one on its own page, wi
 large buttons), every record, and the save, which never waits for anything left open. Saved records are grouped into the people they are about, by their names and rank
 history, each with how sure that is and the students they may be. Saving goes straight on to sorting them, a queue at a time and a page for each person. Each person is linked to a
 student, marked not a current student, or left for later; a person can be split or merged, and
-every decision can be undone and is audited. See
+every decision can be undone and is audited. A finished import says how many of its people are
+sorted and goes on to the rest. Every saved record can be found again under Historical records, by
+the name as written, and opens a page of its own: the workbook's text in full, the ranks KukGrade
+read (either can be corrected from the belts, or cleared), the student it is linked to and its
+person. A record can be voided with a written reason; it is kept, marked void. See
 [importing-data.md](importing-data.md).
 
 ## Search

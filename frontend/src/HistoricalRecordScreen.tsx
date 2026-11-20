@@ -48,8 +48,10 @@ function RankPicker({
     mutationFn: (rank: number | null) => resolveLegacyRank(record.id, field, rank),
     onSuccess: refresh,
   });
+  const name = `${label} (written “${written || "blank"}”)`;
   return (
     <div className="stack stack--2">
+      <h3 className="item-title">{name}</h3>
       <ChoiceGroup
         choices={[
           ...ranks.map((rank) => ({
@@ -63,7 +65,7 @@ function RankPicker({
           })),
           { value: NO_RANK, label: "No rank" },
         ]}
-        label={`${label} (written “${written || "blank"}”)`}
+        label={name}
         look="options"
         value={current === null ? NO_RANK : String(current)}
         onChange={(value) => {
@@ -239,15 +241,13 @@ export function HistoricalRecordScreen() {
                 record={record}
                 written={record.source_current_rank_text}
               />
-              {record.source_testing_for_rank_text ? (
-                <RankPicker
-                  current={record.testing_for_rank}
-                  field="testing_for_rank"
-                  label="Testing for"
-                  record={record}
-                  written={record.source_testing_for_rank_text}
-                />
-              ) : null}
+              <RankPicker
+                current={record.testing_for_rank}
+                field="testing_for_rank"
+                label="Testing for"
+                record={record}
+                written={record.source_testing_for_rank_text}
+              />
             </div>
           </details>
         ) : null}

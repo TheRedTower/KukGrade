@@ -79,7 +79,6 @@ export const keys = {
     browse: (...filters: unknown[]) => ["legacyRecords", "browse", ...filters] as const,
     detail: (id: Id) => ["legacyRecords", "detail", id] as const,
     /** How many still await a student: every import, or one. */
-    awaitingLinkCount: (...batch: number[]) => ["legacyRecords", "awaitingLinkCount", ...batch] as const,
   },
   legacyPeople: {
     all: () => ["legacyPeople"] as const,

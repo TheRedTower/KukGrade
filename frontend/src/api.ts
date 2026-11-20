@@ -771,20 +771,6 @@ export function getLegacyGradingRecord(id: number) {
   return answer(api.GET("/api/gradings/legacy-records/{id}/", { params: { path: { id } } }));
 }
 
-export function linkLegacyGradingRecord(id: number, student: number, replace = false) {
-  return answer(
-    api.POST("/api/gradings/legacy-records/{id}/link-student/", {
-      params: { path: { id } },
-      body: { student, replace },
-    }),
-  );
-}
-
-/** How many imported records still wait for a student, counted on the server. */
-export function getLegacyRecordCounts(query?: ListQuery<"gradings_legacy_records_counts_retrieve">) {
-  return answer(api.GET("/api/gradings/legacy-records/counts/", { params: { query } }));
-}
-
 export type HistoricalPerson = Schemas["HistoricalPerson"];
 export type HistoricalPersonDetail = Schemas["HistoricalPersonDetail"];
 
@@ -839,10 +825,6 @@ export function mergeHistoricalPeople(id: number, body: Schemas["MergePeopleRequ
 /** Confirm many people ready to confirm, each to their suggested student, all or nothing. */
 export function confirmHistoricalPeople(confirmations: Schemas["PersonConfirmationRequest"][]) {
   return answer(api.POST("/api/gradings/legacy-people/confirm/", { body: { confirmations } }));
-}
-
-export function unlinkLegacyGradingRecord(id: number) {
-  return answer(api.POST("/api/gradings/legacy-records/{id}/unlink-student/", { params: { path: { id } } }));
 }
 
 export function resolveLegacyRank(id: number, field: Schemas["LegacyRankFieldEnum"], rank: number | null) {

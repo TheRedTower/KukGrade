@@ -1,9 +1,6 @@
 import type { LegacyGradingRecord } from "./api";
 import { formatMonthYear } from "./dates";
 
-/** A student picked to link records to. */
-export type Chosen = { student: number; name: string };
-
 export function recordMonth(record: LegacyGradingRecord): string {
   return formatMonthYear(record.cycle_year, record.cycle_month);
 }

@@ -20,7 +20,6 @@ const api = vi.hoisted(() => ({
   chooseDataImportSheet: vi.fn(),
   voidDataImportRecords: vi.fn(),
   getLegacyGradingRecords: vi.fn(),
-  getLegacyRecordCounts: vi.fn(),
   getDataImportSecondLook: vi.fn(),
   getHistoricalPeopleSummary: vi.fn(),
   getSiteSettings: vi.fn(),
@@ -67,7 +66,17 @@ beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   auth.user = { ...authUser, ...ADMINISTRATOR_CAPABILITIES };
   api.getLegacyGradingRecords.mockResolvedValue(page([], 0));
-  api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 0 });
+  api.getHistoricalPeopleSummary.mockResolvedValue({
+    people: 0,
+    sorted: 0,
+    proposed: 0,
+    linked: 0,
+    not_a_student: 0,
+    later: 0,
+    ready: 0,
+    needs_a_look: 0,
+    no_student: 0,
+  });
   api.getDataImportSecondLook.mockResolvedValue({ corrected: 0, given_status: 0, given_rank: 0 });
   api.getSiteSettings.mockResolvedValue(SITE);
   api.getChoices.mockResolvedValue(CHOICES);
@@ -148,13 +157,28 @@ describe("Imports hub", () => {
     );
   });
 
-  it("says how many imported records still wait for a student", async () => {
+  it("says how many people from past gradings are still to sort", async () => {
     api.getDataImportBatches.mockResolvedValue(page([]));
-    api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 48 });
+    api.getHistoricalPeopleSummary.mockResolvedValue({
+      ...{
+        people: 0,
+        sorted: 0,
+        proposed: 0,
+        linked: 0,
+        not_a_student: 0,
+        later: 0,
+        ready: 0,
+        needs_a_look: 0,
+        no_student: 0,
+      },
+      people: 30,
+      sorted: 12,
+    });
 
     renderAt("/imports");
 
-    expect(await screen.findByText("48 imported records")).toBeInTheDocument();
+    expect(await screen.findByText("18 people")).toBeInTheDocument();
+    expect(api.getHistoricalPeopleSummary).toHaveBeenCalledWith(undefined);
     expect(screen.getByRole("link", { name: "Sort the people" })).toHaveAttribute("href", "/imports/people");
   });
 });
@@ -369,7 +393,10 @@ describe("An import's results", () => {
     expect(api.getDataImportSecondLook).toHaveBeenCalledWith(7);
     expect(screen.getByRole("link", { name: "Open Mia Reynolds" })).toHaveAttribute("href", "/students/31");
     expect(screen.getByText("Already in KukGrade", { selector: ".badge" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to Students" })).toHaveAttribute("href", "/students?source_import=7");
+    expect(screen.getByRole("link", { name: "See the new students" })).toHaveAttribute(
+      "href",
+      "/students?source_import=7",
+    );
 
     await user.click(screen.getByRole("button", { name: "See the 5" }));
     await waitFor(() =>
@@ -418,19 +445,31 @@ describe("An import's results", () => {
     beforeEach(() => {
       api.getDataImportBatch.mockResolvedValue(gradings);
       api.getDataImportRows.mockResolvedValue(page([]));
-      api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 196 });
       api.getHistoricalPeopleSummary.mockResolvedValue(PEOPLE_COUNTS);
     });
 
     it("says how many of its people are sorted and opens them", async () => {
-      api.getHistoricalPeopleSummary.mockResolvedValue({ ...PEOPLE_COUNTS, people: 40, sorted: 12 });
+      api.getHistoricalPeopleSummary.mockResolvedValue({
+        ...PEOPLE_COUNTS,
+        people: 40,
+        sorted: 12,
+        linked: 10,
+        later: 1,
+        not_a_student: 1,
+      });
 
       renderAt("/imports/7");
 
       expect(await screen.findByText("12 of 40 people sorted")).toBeInTheDocument();
       expect(screen.getByText("28 people")).toBeInTheDocument();
       expect(api.getHistoricalPeopleSummary).toHaveBeenCalledWith({ batch: 7 });
-      expect(screen.getByRole("link", { name: "Sort the people" })).toHaveAttribute("href", "/imports/people?batch=7");
+      expect(screen.getByRole("link", { name: "Sort the 28 people left" })).toHaveAttribute(
+        "href",
+        "/imports/people?batch=7",
+      );
+      expect(screen.getByText("10 people linked to a student")).toBeInTheDocument();
+      expect(screen.getByText("1 person not a current student")).toBeInTheDocument();
+      expect(screen.getByText("1 person left for later")).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Match ranks" })).toHaveAttribute("href", "/imports/history?batch=7");
     });
 
@@ -456,6 +495,7 @@ describe("An import's results", () => {
       renderAt("/imports/7");
 
       expect(await screen.findByText("An administrator sorts the people.")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Done" })).toHaveAttribute("href", "/imports");
       expect(api.getHistoricalPeopleSummary).not.toHaveBeenCalled();
       expect(screen.queryByRole("button", { name: "Void this import" })).not.toBeInTheDocument();
     });

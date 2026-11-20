@@ -1,21 +1,22 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "./api";
+import { page } from "./appTestSupport";
+import { HistoricalRecordScreen } from "./HistoricalRecordScreen";
 import { HistoricalRecordsScreen } from "./HistoricalRecordsScreen";
 import { legacyRecord, RANKS } from "./importTestFixtures";
-import { page } from "./appTestSupport";
+
+// Made-up names throughout.
 
 const api = vi.hoisted(() => ({
   getAllDataImportBatches: vi.fn(),
   getLegacyGradingRecords: vi.fn(),
   getLegacyGradingRecord: vi.fn(),
   getRanks: vi.fn(),
-  getStudents: vi.fn(),
-  linkLegacyGradingRecord: vi.fn(),
-  unlinkLegacyGradingRecord: vi.fn(),
   resolveLegacyRank: vi.fn(),
   voidLegacyGradingRecord: vi.fn(),
 }));
@@ -30,69 +31,143 @@ vi.mock("./api", async () => {
   };
 });
 
+function Where() {
+  const location = useLocation();
+  return <p data-testid="where">{`${location.pathname}${location.search}`}</p>;
+}
+
 function renderAt(path: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route element={<HistoricalRecordsScreen />} path="/imports/history/:id?" />
-          <Route element={<h1>Imports</h1>} path="/imports" />
+          <Route element={<HistoricalRecordsScreen />} path="/imports/history" />
+          <Route element={<HistoricalRecordScreen />} path="/imports/history/:id" />
           <Route element={<h1>People</h1>} path="/imports/people" />
         </Routes>
+        <Where />
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
+const where = () => screen.getByTestId("where").textContent;
+
+const linked = legacyRecord({
+  id: 101,
+  student: 31,
+  student_display_name: "Mia Reyes",
+  current_rank: 3,
+  current_rank_name: "Yellow",
+  report: "Good stances.\nKeep the guard up.",
+});
+
 beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   api.getAllDataImportBatches.mockResolvedValue(page([]));
-  api.getLegacyGradingRecords.mockResolvedValue(page([legacyRecord()]));
-  api.getLegacyGradingRecord.mockResolvedValue(legacyRecord());
+  api.getLegacyGradingRecords.mockResolvedValue(page([linked]));
+  api.getLegacyGradingRecord.mockResolvedValue(linked);
   api.getRanks.mockResolvedValue(page(RANKS));
-  api.getStudents.mockResolvedValue(
-    page([{ id: 32, first_name: "Mia", last_name: "Reynolds", current_rank_name: "Blue", wksa_id: "123-4-032" }]),
-  );
 });
 
-describe("Historical record recovery", () => {
-  it("opens a linked record after a direct load and confirms replacement", async () => {
+describe("Historical records", () => {
+  it("lists each record as a card that opens its own page, keeping the filters", async () => {
     const user = userEvent.setup();
-    api.getLegacyGradingRecord.mockResolvedValue(legacyRecord({ student: 31, student_display_name: "Wrong Student" }));
-    api.linkLegacyGradingRecord.mockResolvedValue(legacyRecord({ student: 32, student_display_name: "Mia Reynolds" }));
+    renderAt("/imports/history?filter=linked&search=mia");
+
+    const records = await screen.findByRole("list", { name: "Records" });
+    const card = within(records).getByRole("link");
+    expect(card).toHaveTextContent("Mia Reyes · Yellow");
+    expect(api.getLegacyGradingRecords).toHaveBeenCalledWith(
+      expect.objectContaining({ search: "mia", linked: true, voided: false, page: 1 }),
+    );
+    await user.click(card);
+    expect(where()).toBe("/imports/history/101?filter=linked&search=mia");
+  });
+
+  it("says when nothing matches", async () => {
+    api.getLegacyGradingRecords.mockResolvedValue(page([]));
+    renderAt("/imports/history");
+
+    expect(await screen.findByText("No records match these filters.")).toBeVisible();
+  });
+});
+
+describe("A historical record", () => {
+  it("shows the workbook's text in full, the ranks read, and who it is about", async () => {
     renderAt("/imports/history/101?filter=linked");
 
-    expect(await screen.findByText(/Linked student:/)).toHaveTextContent("Wrong Student");
-    expect(api.getLegacyGradingRecords).toHaveBeenCalledWith(expect.objectContaining({ linked: true, voided: false }));
-    await user.type(screen.getByLabelText("Search every student"), "Mia");
-    await user.click(await screen.findByRole("button", { name: /Mia Reynolds Blue now/ }));
-    await user.click(screen.getByRole("button", { name: "Change linked student" }));
-    expect(api.linkLegacyGradingRecord).not.toHaveBeenCalled();
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Replace link" }));
-    await waitFor(() => expect(api.linkLegacyGradingRecord).toHaveBeenCalledWith(101, 32, true));
+    expect(await screen.findByRole("heading", { name: /Mia R/ })).toBeVisible();
+    expect(screen.getByText(/Good stances\.\s+Keep the guard up\./)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Mia Reyes" })).toHaveAttribute("href", "/students/31");
+    expect(screen.getByRole("link", { name: "Open their person" })).toHaveAttribute("href", "/imports/people/201");
+    expect(screen.getByRole("link", { name: /Historical records/ })).toHaveAttribute(
+      "href",
+      "/imports/history?filter=linked",
+    );
   });
 
-  it("can clear a mapped rank and unlink a record from its persistent detail", async () => {
+  it("corrects a rank from the belts, or clears it", async () => {
     const user = userEvent.setup();
-    api.getLegacyGradingRecord.mockResolvedValue(legacyRecord({ student: 31, student_display_name: "Wrong Student" }));
-    api.resolveLegacyRank.mockResolvedValue(legacyRecord({ current_rank: null }));
-    api.unlinkLegacyGradingRecord.mockResolvedValue(legacyRecord());
+    api.resolveLegacyRank.mockResolvedValue(linked);
     renderAt("/imports/history/101");
 
-    await user.selectOptions(await screen.findByLabelText(/Held rank/), "");
-    await waitFor(() => expect(api.resolveLegacyRank).toHaveBeenCalledWith(101, "current_rank", null));
-    await user.click(screen.getByRole("button", { name: "Unlink student…" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Unlink student" }));
-    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledWith(101));
+    await user.click(await screen.findByText("Correct the ranks"));
+    const held = screen.getByRole("group", { name: /Rank held/ });
+    expect(within(held).getByRole("button", { name: "Yellow" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(held).getByRole("button", { name: "Blue" }));
+    expect(api.resolveLegacyRank).toHaveBeenCalledWith(101, "current_rank", 5);
+    await user.click(within(held).getByRole("button", { name: "No rank" }));
+    await waitFor(() => expect(api.resolveLegacyRank).toHaveBeenLastCalledWith(101, "current_rank", null));
   });
 
-  it("shows a voided record and its reason after a direct load", async () => {
-    api.getLegacyGradingRecord.mockResolvedValue(legacyRecord({ is_void: true, void_reason: "Duplicate row" }));
-    renderAt("/imports/history/101?filter=voided");
+  it("names each rank picker on screen, and offers testing-for even when the workbook left it blank", async () => {
+    const user = userEvent.setup();
+    api.getLegacyGradingRecord.mockResolvedValue(
+      legacyRecord({ source_testing_for_rank_text: "", testing_for_rank: null, testing_for_rank_name: null }),
+    );
+    api.resolveLegacyRank.mockResolvedValue(linked);
+    renderAt("/imports/history/101");
 
-    expect(await screen.findByText(/Voided: Duplicate row/)).toBeInTheDocument();
-    expect(api.getLegacyGradingRecords).toHaveBeenCalledWith(expect.objectContaining({ voided: true }));
-    expect(screen.queryByRole("button", { name: "Link to selected student" })).not.toBeInTheDocument();
+    await user.click(await screen.findByText("Correct the ranks"));
+    expect(screen.getByRole("heading", { name: /^Rank held/ })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Testing for (written “blank”)" })).toBeVisible();
+    const tested = screen.getByRole("group", { name: /Testing for/ });
+    await user.click(await within(tested).findByRole("button", { name: "Blue" }));
+    expect(api.resolveLegacyRank).toHaveBeenCalledWith(101, "testing_for_rank", 5);
+  });
+
+  it("voids a record only with a reason", async () => {
+    const user = userEvent.setup();
+    api.voidLegacyGradingRecord.mockResolvedValue({ ...linked, is_void: true });
+    renderAt("/imports/history/101");
+
+    await user.click(await screen.findByRole("button", { name: "Void this record" }));
+    const dialog = screen.getByRole("dialog");
+    const confirm = within(dialog).getByRole("button", { name: "Void the record" });
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText("Why"), "Entered twice");
+    await user.click(confirm);
+
+    expect(api.voidLegacyGradingRecord).toHaveBeenCalledWith(101, "Entered twice");
+  });
+
+  it("shows a voided record and why, with nothing left to correct", async () => {
+    api.getLegacyGradingRecord.mockResolvedValue(
+      legacyRecord({ is_void: true, void_reason: "Entered twice", voided_by_name: "Sam Taylor" }),
+    );
+    renderAt("/imports/history/101");
+
+    expect(await screen.findByText("Entered twice · Sam Taylor")).toBeVisible();
+    expect(screen.queryByText("Correct the ranks")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Void this record" })).toBeNull();
+  });
+
+  it("says when the record is not there", async () => {
+    api.getLegacyGradingRecord.mockRejectedValue(new ApiError("Not found.", 404));
+    renderAt("/imports/history/999");
+
+    expect(await screen.findByText("Record not found")).toBeVisible();
   });
 });

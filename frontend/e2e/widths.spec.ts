@@ -29,6 +29,8 @@ interface Ids {
   batch: string;
   /** The demo's past-gradings import still open, before it is saved. */
   openImport: string;
+  /** An imported record with comments written about it. */
+  record: string;
   /** A person from the imported history who needs a look, with a student suggested. */
   person: string;
   student: string;
@@ -185,6 +187,7 @@ const SCREENS: Screen[] = [
   { name: "imports-save", role: "administrator", path: (ids) => `/imports/${ids.openImport}?step=save` },
   { name: "imports-missing", role: "administrator", path: () => "/imports/999999" },
   { name: "imports-history", role: "administrator", path: () => "/imports/history" },
+  { name: "imports-history-record", role: "administrator", path: (ids) => `/imports/history/${ids.record}` },
   { name: "imports-people", role: "administrator", path: () => "/imports/people" },
   { name: "imports-people-ready", role: "administrator", path: () => "/imports/people?list=READY" },
   { name: "imports-person", role: "administrator", path: (ids) => `/imports/people/${ids.person}?list=NEEDS_A_LOOK` },
@@ -311,6 +314,10 @@ test.beforeAll(async ({ browser }) => {
   expect(withdrawn, "the demo has a withdrawn candidate in its open session").toBeTruthy();
   ids = {
     batch: String((await list(admin, "/api/data-imports/batches/?status=COMMITTED"))[0].id),
+    record: String(
+      (await list<{ id: number; report: string }>(admin, "/api/gradings/legacy-records/")).find(({ report }) => report)
+        ?.id ?? (await list(admin, "/api/gradings/legacy-records/"))[0].id,
+    ),
     person: String(
       (
         await list<{ id: number; candidates: unknown[] }>(admin, "/api/gradings/legacy-people/?queue=NEEDS_A_LOOK")

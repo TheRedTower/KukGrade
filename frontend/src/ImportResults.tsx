@@ -7,7 +7,8 @@ import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
-import { LinkPanel } from "./ImportLinkPanel";
+import { ActionBar } from "./ActionBar";
+import { LinkPanel, PeopleNext } from "./ImportLinkPanel";
 import { type RowFilter, RowsLedger } from "./ImportRowsLedger";
 import { SecondLook } from "./ImportSecondLook";
 import { VoidDialog } from "./ImportVoidDialog";
@@ -67,14 +68,6 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
           </h2>
           {addsStudents ? (
             <>
-              <AlsoItem body="The Students page, showing only those this import added." title="See the new students">
-                <Link
-                  className={buttonClass({ variant: "secondary" }, "ix-start")}
-                  to={`/students?source_import=${batch.id}`}
-                >
-                  Go to Students
-                </Link>
-              </AlsoItem>
               <AlsoItem
                 body="Import the grading record workbook, then link it to these students."
                 title="Bring in their past gradings"
@@ -117,6 +110,15 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
         </aside>
       </div>
       {voiding ? <VoidDialog batch={batch} onClose={() => setVoiding(false)} /> : null}
+      <ActionBar>
+        {addsStudents ? (
+          <Link className={buttonClass({ variant: "primary" })} to={`/students?source_import=${batch.id}`}>
+            See the new students
+          </Link>
+        ) : (
+          <PeopleNext batch={batch} />
+        )}
+      </ActionBar>
     </section>
   );
 }

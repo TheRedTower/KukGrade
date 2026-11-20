@@ -24,7 +24,7 @@ it("reads every page of the server's historical name group within one import", a
   setLargestPage(200);
 
   const group = await getAllLegacyGradingRecords({
-    group_key: "zac w",
+    group_key: "tom w",
     batch: 7,
     linked: false,
     voided: false,
@@ -35,7 +35,7 @@ it("reads every page of the server's historical name group within one import", a
   expect(fetchMock).toHaveBeenCalledTimes(2);
   for (const [rawUrl] of fetchMock.mock.calls) {
     const url = new URL(rawUrl, "http://localhost");
-    expect(url.searchParams.get("group_key")).toBe("zac w");
+    expect(url.searchParams.get("group_key")).toBe("tom w");
     expect(url.searchParams.get("batch")).toBe("7");
     expect(url.searchParams.get("linked")).toBe("false");
     expect(url.searchParams.get("page_size")).toBe("200");

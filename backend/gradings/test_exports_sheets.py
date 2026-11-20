@@ -65,14 +65,14 @@ def test_each_candidate_gets_one_filled_in_page_in_the_gradings_order() -> None:
         held="YELLOW_STRIPE",
         testing_for="YELLOW",
     )
-    junior = registered(session, first_name="Sam", last_name="Okafor")
+    junior = registered(session, first_name="Sam", last_name="Ndlovu")
 
     response = print_sheets(session, [senior.pk, junior.pk])
 
     assert response.status_code == 200, response.content
     assert "Grading%20sheets.pdf" in response["Content-Disposition"]
     first, second = (" ".join(page.split()) for page in pdf_pages(response.content))
-    assert f"Sam Okafor · {junior.student.wksa_id}" in first
+    assert f"Sam Ndlovu · {junior.student.wksa_id}" in first
     assert f"Ana Adams · {senior.student.wksa_id}" in second
     assert "Grading Form KSW Colchester" in first
     assert "Current Rank White" in first
@@ -226,7 +226,7 @@ def test_anyone_who_can_read_the_grading_may_print_its_sheets(account: Any) -> N
 def test_one_event_names_everyone_printed_by_wksa_id() -> None:
     session = grading_session(title="October")
     first = registered(session, first_name="Priya", last_name="Nair")
-    second = registered(session, first_name="Sam", last_name="Okafor")
+    second = registered(session, first_name="Sam", last_name="Ndlovu")
 
     print_sheets(session, [first.pk, second.pk])
 

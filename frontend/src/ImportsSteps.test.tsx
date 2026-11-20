@@ -901,9 +901,9 @@ describe("Reviewing and confirming a roster", () => {
 describe("Linking historical records", () => {
   const candidate = person().candidates[0];
   const mia = person({ record_ids: [101, 102], records: 2 });
-  const zac = person({
-    source_name: "Zac W",
-    group_key: "zac w",
+  const tom = person({
+    source_name: "Tom W",
+    group_key: "tom w",
     record_ids: [301],
     records: 1,
     ranks: ["Yellow → Yellow stripe"],
@@ -911,7 +911,7 @@ describe("Linking historical records", () => {
       {
         ...candidate,
         student: 50,
-        full_name: "Zac Whitfield",
+        full_name: "Tom Whitfield",
         current_rank_name: "Yellow stripe",
         reasons: ["Same first name"],
       },
@@ -940,7 +940,7 @@ describe("Linking historical records", () => {
     ranks: ["Purple"],
     candidates: [],
   });
-  let waiting = [mia, zac, theo, noah];
+  let waiting = [mia, tom, theo, noah];
   // What the server holds as put aside, as the real endpoint would.
   let setAside: string[] = [];
 
@@ -953,7 +953,7 @@ describe("Linking historical records", () => {
 
   beforeEach(() => {
     window.localStorage.clear();
-    waiting = [mia, zac, theo, noah];
+    waiting = [mia, tom, theo, noah];
     api.getDataImportBatches.mockResolvedValue(page([]));
     api.getAllDataImportBatches.mockResolvedValue(page([]));
     api.getLegacyPeopleSummary.mockImplementation(() =>
@@ -1125,14 +1125,14 @@ describe("Linking historical records", () => {
     );
     expect(await screen.findByText("“Theo”")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^To link/ }));
-    await user.type(screen.getByLabelText("Find a name"), "zac");
+    await user.type(screen.getByLabelText("Find a name"), "tom");
     await waitFor(() =>
       expect(api.getLegacyPeople).toHaveBeenCalledWith({
         batch: undefined,
         linked: false,
         page: 1,
         page_size: 50,
-        search: "zac",
+        search: "tom",
         set_aside: "exclude",
       }),
     );
@@ -1347,9 +1347,9 @@ describe("Linking historical records", () => {
     api.bulkLinkLegacyRecords.mockRejectedValue(new ApiError("That record is already linked.", 400));
     renderAt("/imports/records");
 
-    await user.click(await screen.findByRole("button", { name: "Link “Zac W” to Zac Whitfield" }));
+    await user.click(await screen.findByRole("button", { name: "Link “Tom W” to Tom Whitfield" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("That record is already linked.");
-    expect(screen.getByText("“Zac W”")).toBeInTheDocument();
+    expect(screen.getByText("“Tom W”")).toBeInTheDocument();
   });
 });

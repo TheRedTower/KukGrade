@@ -340,7 +340,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     id: 31,
     session: 7,
     student: 131,
-    student_display_name: "Mia Okafor",
+    student_display_name: "Mia Ndlovu",
     student_first_name: "Mia",
     student_wksa_id: "KG-31",
     from_rank: 1,
@@ -393,8 +393,8 @@ describe("GradingSessionDetailScreen registration actions", () => {
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(await screen.findByRole("button", { name: "Move Mia Okafor to another session" }));
-    const dialog = screen.getByRole("dialog", { name: "Move Mia Okafor" });
+    await user.click(await screen.findByRole("button", { name: "Move Mia Ndlovu to another session" }));
+    const dialog = screen.getByRole("dialog", { name: "Move Mia Ndlovu" });
     const select = within(dialog).getByLabelText("Move to");
     await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(3));
     // The server is asked for only the sessions that accept candidates, and
@@ -406,7 +406,7 @@ describe("GradingSessionDetailScreen registration actions", () => {
     await user.click(within(dialog).getByRole("button", { name: "Move registration" }));
 
     await waitFor(() => expect(mockMoveGradingCandidate).toHaveBeenCalledWith(31, 10));
-    const moved = await screen.findByText("Mia Okafor was moved to another session.");
+    const moved = await screen.findByText("Mia Ndlovu was moved to another session.");
     expect(moved).toBeVisible();
     expect(screen.queryByRole("dialog")).toBeNull();
 
@@ -424,8 +424,8 @@ describe("GradingSessionDetailScreen registration actions", () => {
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(await screen.findByRole("button", { name: "Move Mia Okafor to another session" }));
-    const dialog = screen.getByRole("dialog", { name: "Move Mia Okafor" });
+    await user.click(await screen.findByRole("button", { name: "Move Mia Ndlovu to another session" }));
+    const dialog = screen.getByRole("dialog", { name: "Move Mia Ndlovu" });
     await waitFor(() => expect(within(dialog).getAllByRole("option").length).toBeGreaterThan(1));
     await user.selectOptions(within(dialog).getByLabelText("Move to"), "8");
     await user.click(within(dialog).getByRole("button", { name: "Move registration" }));
@@ -439,13 +439,13 @@ describe("GradingSessionDetailScreen registration actions", () => {
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(await screen.findByRole("button", { name: "Remove Mia Okafor's registration" }));
-    const dialog = screen.getByRole("dialog", { name: "Remove Mia Okafor" });
+    await user.click(await screen.findByRole("button", { name: "Remove Mia Ndlovu's registration" }));
+    const dialog = screen.getByRole("dialog", { name: "Remove Mia Ndlovu" });
     expect(dialog).toHaveTextContent("its assessment, which has not been started");
     await user.click(within(dialog).getByRole("button", { name: "Remove registration" }));
 
     await waitFor(() => expect(mockDeleteGradingCandidate).toHaveBeenCalledWith(31));
-    expect(await screen.findByText("Mia Okafor was removed from this session.")).toBeVisible();
+    expect(await screen.findByText("Mia Ndlovu was removed from this session.")).toBeVisible();
   });
 
   it("offers only the actions the server says the registration allows", async () => {
@@ -467,7 +467,7 @@ describe("GradingSessionDetailScreen registration actions", () => {
 
     await screen.findByText("Ben Hall");
     expect(screen.queryByRole("button", { name: /to another session/ })).toBeNull();
-    expect(screen.getByRole("button", { name: "Remove Mia Okafor's registration" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remove Mia Ndlovu's registration" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Remove Ben Hall's registration" })).toBeNull();
   });
 });
@@ -602,7 +602,7 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
     expect(records).toBeDisabled();
     expect(screen.getByText(/1 of the 2 selected is not sealed yet/)).toBeVisible();
 
-    await user.click(screen.getByLabelText("Select Mia Okafor"));
+    await user.click(screen.getByLabelText("Select Mia Ndlovu"));
     expect(records).toBeEnabled();
     await user.click(records);
 
@@ -626,7 +626,7 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
     roster(registeredCandidate(), ben({ can_download_record: true }));
     renderScreen();
 
-    expect(await screen.findByLabelText("Select Mia Okafor")).toBeDisabled();
+    expect(await screen.findByLabelText("Select Mia Ndlovu")).toBeDisabled();
     expect(screen.getByText("Only candidates with a sealed record can be chosen.")).toBeVisible();
     expect(screen.getByLabelText("Select Ben Hall")).toBeEnabled();
     expect(screen.getByLabelText("Select all that can be downloaded (1)")).toBeVisible();
@@ -638,9 +638,9 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
     roster(registeredCandidate());
     renderScreen();
 
-    await screen.findByText("Mia Okafor");
+    await screen.findByText("Mia Ndlovu");
     expect(screen.queryByTestId("gsd-download-bar")).toBeNull();
-    expect(screen.queryByLabelText("Select Mia Okafor")).toBeNull();
+    expect(screen.queryByLabelText("Select Mia Ndlovu")).toBeNull();
   });
 
   it("names the candidates refused, saves nothing, and refreshes the list on request", async () => {
@@ -655,7 +655,7 @@ describe("GradingSessionDetailScreen PDF downloads", () => {
 
     const refusal = await screen.findByTestId("pdf-refusal");
     expect(refusal).toHaveTextContent("Nothing was downloaded");
-    expect(refusal).toHaveTextContent("Mia Okafor: Withdrawn from this grading.");
+    expect(refusal).toHaveTextContent("Mia Ndlovu: Withdrawn from this grading.");
     expect(mockSaveFile).not.toHaveBeenCalled();
 
     const loads = mockGetAllGradingCandidates.mock.calls.length;

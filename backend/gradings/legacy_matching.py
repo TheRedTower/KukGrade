@@ -1,13 +1,13 @@
 """Suggested students for historical records - suggestions only, never links.
 
 The club's workbook names people the way an instructor writes on the mat:
-"Zac W", "Alex P", "Sucheth", "JKN Alex", and the same person as "Mamdoh"
-one quarter and "Mamdoh Mohamed" the next. There are no WKSA IDs. So records
+"Tom W", "Kai P", "Rhia", "JKN Kai", and the same person as "Odin"
+one quarter and "Odin Varga" the next. There are no WKSA IDs. So records
 are grouped by the name as written, and each group gets the students it most
 plausibly means, with the reasons in plain words, for a person to confirm.
 
 A suggestion weighs the first name (the same, or close - the workbook has
-"Sabastian" for Sebastian), any surname or initial given (a surname that
+"Jonathon" for Jonathan), any surname or initial given (a surname that
 contradicts rules a student out), and whether the student's rank now fits
 the rank the record gave them then (nobody goes down a grade). When several
 students fit equally well, that is said rather than one picked.
@@ -39,7 +39,7 @@ def name_tokens(name: str) -> list[str]:
     anything in brackets off ("Kit (White Belt)" is Kit)."""
     unbracketed = re.sub(r"\([^)]*\)?", " ", name.lower())
     words = re.sub(r"[^\w\s'-]", " ", unbracketed).split()
-    # A rank written before a name ("JKN Alex") is a title, not part of it.
+    # A rank written before a name ("JKN Kai") is a title, not part of it.
     while words and words[0] in RANK_TITLES:
         words.pop(0)
     return words

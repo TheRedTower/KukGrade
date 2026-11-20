@@ -264,14 +264,14 @@ def test_typo_like_rank_text_is_preserved_verbatim() -> None:
 def test_abbreviated_and_duplicate_names_are_preserved_as_separate_rows() -> None:
     content = standard_workbook(
         [
-            ["Alex P", "White", "Yellow Stripe", "Pass", ""],
-            ["Alex P", "Yellow", "Yellow Stripe", "Pass", ""],
+            ["Kai P", "White", "Yellow Stripe", "Pass", ""],
+            ["Kai P", "Yellow", "Yellow Stripe", "Pass", ""],
         ],
     )
     result = parse_ksw_workbook(content)
 
     assert len(result.rows) == 2
-    assert result.rows[0].source_name == result.rows[1].source_name == "Alex P"
+    assert result.rows[0].source_name == result.rows[1].source_name == "Kai P"
     # Distinct locators even for identical names/ranks.
     assert result.rows[0].source_locator != result.rows[1].source_locator
 

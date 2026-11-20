@@ -83,7 +83,7 @@ REAL_USERS_MESSAGE = (
 ROSTER: tuple[tuple[str, str, int, str], ...] = (
     # 8 and under
     ("Leo", "Hartley", 6, "WHITE"),
-    ("Maya", "Okafor", 7, "WHITE"),
+    ("Maya", "Ndlovu", 7, "WHITE"),
     ("Noah", "Lindqvist", 6, "WHITE"),
     ("Isla", "Brennan", 8, "YELLOW_STRIPE"),
     ("Theo", "Marchetti", 7, "YELLOW_STRIPE"),
@@ -687,7 +687,7 @@ def legacy_records(club: Club) -> None:
     given its person - some linked to students and some not."""
     rows = (
         ("Leo H.", "WHITE", "YELLOW_STRIPE", "PASS", 2023, 3),
-        ("Maya O.", "WHITE", "YELLOW_STRIPE", "PASS", 2023, 3),
+        ("Maya N.", "WHITE", "YELLOW_STRIPE", "PASS", 2023, 3),
         ("Priya R.", "YELLOW_STRIPE", "YELLOW", "CONDITIONAL", 2022, 11),
         ("Kai T.", "YELLOW", "BLUE_STRIPE", "PASS", 2022, 11),
         ("Aaron M.", "BLUE_STRIPE", "BLUE", "FAIL", 2022, 6),

@@ -43,7 +43,7 @@ _RANK_TEXT_ALIASES = {
     "DAHN BO NIM": "DAHN_BO",
 }
 
-# The black belt titles the workbook writes before a name ("JKN Alex"),
+# The black belt titles the workbook writes before a name ("JKN Kai"),
 # lower-cased. Fixed, not read from the catalogue: a name's group key is
 # stored (gradings.SetAsideName), so it must not move when a rank does.
 RANK_TITLES = frozenset({"jkn", "ksn", "dbn", "psbn", "sbn", "pkjn", "dahn"})

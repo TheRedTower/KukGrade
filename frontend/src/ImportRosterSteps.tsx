@@ -11,6 +11,7 @@ import {
   chooseDataImportSheet,
   commitDataImport,
   errorMessage,
+  getAllDataImportRows,
   getDataImportRow,
   getDataImportRows,
   leaveOutDataImportRowsNeedingAttention,
@@ -230,15 +231,20 @@ export function RosterRow({
   const refresh = useImportRefresh(batch.id);
   const unsaved = useDirtySet();
   const [announcement, setAnnouncement] = useState("");
+  // Every row still to fix, across the pages, so Next reaches each of them.
   const toFix = useQuery({
     queryKey: keys.imports.rowsPage(batch.id, "to-fix"),
-    queryFn: () => getDataImportRows(batch.id, { outcome: "REVIEW_REQUIRED", page_size: 200 }),
+    queryFn: () => getAllDataImportRows(batch.id, "REVIEW_REQUIRED"),
   });
   const waiting = toFix.data?.results ?? [];
   const shown = rowNumber ?? waiting[0]?.row_number ?? null;
   useEffect(() => {
     if (rowNumber === null && shown !== null) onPin(shown);
   }, [rowNumber, shown, onPin]);
+  // Another row shown (Next, or Back from the cache): what was typed into the
+  // last one is not this one's, so nothing it marked holds Next back.
+  const { clear } = unsaved;
+  useEffect(() => clear(), [shown, clear]);
   const row = useQuery({
     queryKey: keys.imports.row(batch.id, shown ?? 0),
     queryFn: () => getDataImportRow(batch.id, shown!),
@@ -298,6 +304,7 @@ export function RosterRow({
           <RosterRowEditor
             batch={batch}
             exclusion={exclusion}
+            key={`${batch.id}:${row.data.row_number}`}
             row={row.data}
             onEditStateChange={unsaved.mark}
             onFixed={fixed}

@@ -665,6 +665,17 @@ export function getDataImportRows(batch_pk: number, query?: ListQuery<"data_impo
   return answer(api.GET("/api/data-imports/batches/{batch_pk}/rows/", { params: { path: { batch_pk }, query } }));
 }
 
+/** Every row of an import with this outcome, gathered across its pages. */
+export function getAllDataImportRows(batch_pk: number, outcome: DataImportRow["outcome"]) {
+  return collectAllPages((page) =>
+    answer(
+      api.GET("/api/data-imports/batches/{batch_pk}/rows/", {
+        params: { path: { batch_pk }, query: { outcome, page, page_size: largestPage } },
+      }),
+    ),
+  );
+}
+
 /** One row of an import, by its number in the file. */
 export function getDataImportRow(batch_pk: number, row_number: number) {
   return answer(

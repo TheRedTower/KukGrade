@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, type AuthUser, type DataImportBatch, type DataImportRow } from "./api";
@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
   getAllDataImportBatches: vi.fn(),
   getDataImportRows: vi.fn(),
   getDataImportRow: vi.fn(),
+  getAllDataImportRows: vi.fn(),
   saveDataImportMapping: vi.fn(),
   correctDataImportRow: vi.fn(),
   setDataImportRowExcluded: vi.fn(),
@@ -50,6 +51,16 @@ function Where() {
   return <p data-testid="where">{`${location.pathname}${location.search}`}</p>;
 }
 
+/** The browser's own Back, as a button. */
+function BrowserBack() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(-1)}>
+      Browser back
+    </button>
+  );
+}
+
 function renderAt(path: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -60,6 +71,7 @@ function renderAt(path: string) {
           <Route element={<h1>Imports hub</h1>} path="/imports" />
         </Routes>
         <Where />
+        <BrowserBack />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -287,9 +299,8 @@ describe("Checking, fixing and saving a roster", () => {
   });
 
   function rowsNeedingAFix(...list: DataImportRow[]) {
-    api.getDataImportRows.mockImplementation((_id: number, params: { outcome?: string }) =>
-      Promise.resolve(params.outcome === "REVIEW_REQUIRED" ? page(list) : page([])),
-    );
+    api.getAllDataImportRows.mockResolvedValue(page(list));
+    api.getDataImportRows.mockResolvedValue(page([]));
     api.getDataImportRow.mockImplementation((_id: number, number: number) =>
       Promise.resolve(list.find((item) => item.row_number === number) ?? attention),
     );
@@ -329,6 +340,40 @@ describe("Checking, fixing and saving a roster", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByTestId("where")).toHaveTextContent("/imports/7?step=row&row=9");
     expect(await screen.findByRole("heading", { name: "Row 9 · Noah Finch" })).toBeInTheDocument();
+  });
+
+  it("reaches every row to fix with Next, past the first page of them", async () => {
+    const user = userEvent.setup();
+    const far = row({ ...attention, row_number: 250, values: { ...attention.values, first_name: "Ada" } });
+    api.getDataImportBatch.mockResolvedValue(needing);
+    rowsNeedingAFix(attention, far);
+    // One page of the list holds only the first; every page together holds both.
+    api.getDataImportRows.mockResolvedValue({ ...page([attention], 201), next: "?page=2" });
+
+    renderAt("/imports/7?step=row&row=6");
+    await screen.findByRole("heading", { name: "Row 6 · Ella Moss" });
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.getByTestId("where")).toHaveTextContent("/imports/7?step=row&row=250");
+    expect(api.getAllDataImportRows).toHaveBeenCalledWith(7, "REVIEW_REQUIRED");
+  });
+
+  it("shows each row's own fields after Back, never what was typed into another", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(needing);
+    rowsNeedingAFix(attention, later);
+
+    renderAt("/imports/7?step=row&row=6");
+    await screen.findByRole("heading", { name: "Row 6 · Ella Moss" });
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    const name = await screen.findByLabelText("First name, row 9");
+    await user.clear(name);
+    await user.type(name, "Nora");
+    await user.click(screen.getByRole("button", { name: "Browser back" }));
+
+    expect(await screen.findByRole("heading", { name: "Row 6 · Ella Moss" })).toBeInTheDocument();
+    expect(screen.getByLabelText("First name, row 6")).toHaveValue("Ella");
+    expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
 
   it("holds Next back while a fix is unsaved or saving", async () => {

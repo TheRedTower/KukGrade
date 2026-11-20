@@ -29,6 +29,8 @@ interface Ids {
   batch: string;
   /** The demo's past-gradings import still open, before it is saved. */
   openImport: string;
+  /** A student list uploaded and not yet saved, with rows to fix. */
+  openRoster: string;
   /** An imported record with comments written about it. */
   record: string;
   /** A person from the imported history who needs a look, with a student suggested. */
@@ -185,6 +187,12 @@ const SCREENS: Screen[] = [
   },
   { name: "imports-every-record", role: "administrator", path: (ids) => `/imports/${ids.openImport}?step=records` },
   { name: "imports-save", role: "administrator", path: (ids) => `/imports/${ids.openImport}?step=save` },
+  { name: "imports-roster-file", role: "administrator", path: (ids) => `/imports/${ids.openRoster}?step=file` },
+  { name: "imports-roster-checks", role: "administrator", path: (ids) => `/imports/${ids.openRoster}?step=checks` },
+  { name: "imports-roster-match", role: "administrator", path: (ids) => `/imports/${ids.openRoster}?step=match` },
+  { name: "imports-roster-row", role: "administrator", path: (ids) => `/imports/${ids.openRoster}?step=row` },
+  { name: "imports-roster-rows", role: "administrator", path: (ids) => `/imports/${ids.openRoster}?step=rows` },
+  { name: "imports-roster-save", role: "administrator", path: (ids) => `/imports/${ids.openRoster}?step=save` },
   { name: "imports-missing", role: "administrator", path: () => "/imports/999999" },
   { name: "imports-history", role: "administrator", path: () => "/imports/history" },
   { name: "imports-history-record", role: "administrator", path: (ids) => `/imports/history/${ids.record}` },
@@ -325,6 +333,7 @@ test.beforeAll(async ({ browser }) => {
         (await list(admin, "/api/gradings/legacy-people/"))[0].id,
     ),
     openImport: String((await list(admin, "/api/data-imports/batches/?kind=LEGACY_GRADINGS&finished=false"))[0].id),
+    openRoster: String((await list(admin, "/api/data-imports/batches/?kind=STUDENT_ROSTER&finished=false"))[0].id),
     completedCandidate: String(completed[0].id),
     student: String((await list(admin, "/api/students/"))[0].id),
     // Not the signed-in administrator: their own page has no password reset.
@@ -351,22 +360,22 @@ test("the edit-student dialog can be scrolled to Save on a short landscape scree
   await page.close();
 });
 
-test("an import step's Cancel and Continue stack on a phone and share a row with room", async () => {
+test("an import step's Cancel and Continue stack on a phone, the way on nearest the thumb, and share a row with room", async () => {
   const page = await contexts.get("administrator")!.newPage();
   for (const [width, together] of [
     [390, false],
     [1400, true],
   ] as const) {
     await page.setViewportSize({ width, height: 900 });
-    await show(page, "/imports/new?kind=STUDENT_ROSTER");
+    await show(page, `/imports/${ids.openRoster}?step=file`);
     const cancel = page.getByRole("button", { name: "Cancel import" });
-    const next = page.getByRole("button", { name: /^Continue to match/ });
+    const next = page.getByRole("button", { name: "Continue", exact: true });
     await next.waitFor();
     const [c, n] = [(await cancel.boundingBox())!, (await next.boundingBox())!];
     expect(Math.abs(c.y - n.y) < 20, `${width}px: Cancel and Continue on one row`).toBe(together);
     if (!together) {
       expect(Math.abs(c.width - n.width), "stacked buttons are as wide as each other").toBeLessThan(2);
-      expect(n.y, "the way on is above Cancel").toBeLessThan(c.y);
+      expect(n.y, "the way on is below Cancel").toBeGreaterThan(c.y);
     }
   }
   await page.close();

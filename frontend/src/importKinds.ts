@@ -99,7 +99,7 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
       {
         ok: true,
         title: counted(batch.detected_headers.length, "column", "columns"),
-        detail: "You match them to KukGrade in the next step.",
+        detail: "You match them to KukGrade next, under the things to check.",
       },
     ],
     alreadyImported: "Anyone already in KukGrade is skipped, so nobody is added twice.",

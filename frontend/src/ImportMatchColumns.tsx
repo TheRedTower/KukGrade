@@ -1,25 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { BadgeTone } from "./badgeClass";
-import { Badge } from "./Badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   type DataImportBatch,
   type DataImportRow,
-  correctDataImportRow,
   errorMessage,
   getDataImportRows,
   saveDataImportMapping,
 } from "./api";
+import { ActionBar } from "./ActionBar";
 import { Alert } from "./Alert";
-import { ErrorText } from "./ErrorText";
-import { ImportCellInput } from "./ImportCellInput";
 import { useRanksQuery } from "./queries";
 import { Button } from "./Button";
 import { keys } from "./queryKeys";
 import { agreeing } from "./plural";
 import { cx } from "./cx";
-import { useDirtySet } from "./useDirtySet";
 
 const PREVIEW_ROWS = 5;
 const EXTRA = "extra";
@@ -72,37 +67,23 @@ function readChoices(choices: Choices) {
   return { columnFor, clashes };
 }
 
-const ROW_TONES: Record<DataImportRow["outcome"], BadgeTone> = {
-  READY: "success",
-  SKIP_EXISTING: "neutral",
-  EXCLUDED: "neutral",
-  SHEET_LEFT_OUT: "neutral",
-  REVIEW_REQUIRED: "warning",
-};
-
-function rowState(row: DataImportRow): { label: string; tone: BadgeTone } {
-  return { label: row.outcome_display, tone: ROW_TONES[row.outcome] };
+/** A column's first values in the file, as examples of what it holds. */
+function examples(rows: DataImportRow[], header: string): string {
+  const values = rows.map((row) => row.cells[header] ?? "").filter((value) => value.trim() !== "");
+  return values.length ? [...new Set(values)].slice(0, 3).join(", ") : "Blank in the first rows";
 }
 
 /**
- * Step 2 of a roster import: the file's first rows, a field chooser above
- * each column, read live, and every matched cell typable.
+ * A student list's columns to match, one of its things to check: each column
+ * of the file as a card, with its first values and what it holds. Each choice
+ * is saved, and every row read again, straight away; a field no column holds
+ * is set once for everyone, where it can be, or given on each row to fix.
  */
-export function ImportMatchColumns({
-  batch,
-  onBack,
-  onContinue,
-}: {
-  batch: DataImportBatch;
-  onBack: () => void;
-  onContinue: () => void;
-}) {
+export function ImportMatchColumns({ batch, onDone }: { batch: DataImportBatch; onDone: () => void }) {
   const queryClient = useQueryClient();
   const ranks = useRanksQuery().data?.results ?? [];
   const [choices, setChoices] = useState<Choices>(() => initialChoices(batch));
   const [rankDefault, setRankDefault] = useState(batch.defaults.current_rank ?? "");
-  const [typed, setTyped] = useState<string[]>([]);
-  const unsavedCells = useDirtySet();
   const [acknowledged, setAcknowledged] = useState(() =>
     mappingKey({
       column_mapping: batch.column_mapping,
@@ -118,30 +99,19 @@ export function ImportMatchColumns({
   const rows = useQuery({
     queryKey: keys.imports.rowsPreview(batch.id),
     queryFn: () => getDataImportRows(batch.id, { page_size: PREVIEW_ROWS }),
-    enabled: saved,
   });
-
-  async function refresh(updated?: DataImportBatch) {
-    if (updated) queryClient.setQueryData(keys.imports.batch(batch.id), updated);
-    await queryClient.invalidateQueries({ queryKey: keys.imports.rows(batch.id) });
-    if (!updated) await queryClient.invalidateQueries({ queryKey: keys.imports.batch(batch.id) });
-  }
 
   const save = useMutation({
     mutationFn: (payload: MappingPayload) => saveDataImportMapping(batch.id, payload),
     onSuccess: async (updated, payload) => {
       setAcknowledged(mappingKey(payload));
-      await refresh(updated);
+      queryClient.setQueryData(keys.imports.batch(batch.id), updated);
+      await queryClient.invalidateQueries({ queryKey: keys.imports.rows(batch.id) });
     },
   });
-  const correct = useMutation({
-    mutationFn: ({ row, field, value }: { row: number; field: string; value: string | null }) =>
-      correctDataImportRow(batch.id, row, { [field]: value }),
-    onSettled: () => refresh(),
-  });
 
-  // The suggested columns are saved straight away, so the first rows are
-  // read with them; the importer changes any that are wrong.
+  // The suggested columns are saved straight away, so every row is read
+  // with them; the importer changes any that are wrong.
   const suggestionSaved = useRef(saved);
   useEffect(() => {
     if (suggestionSaved.current) return;
@@ -165,15 +135,9 @@ export function ImportMatchColumns({
   const fieldName = (field: string) =>
     batch.target_fields.find((candidate) => candidate.field === field)?.name ?? field;
   const previewRows = rows.data?.results ?? [];
-  // A field typed in without a column: chosen here, or already holding a
-  // saved fix (so it comes back after a reload). One with fixes stays.
-  const withFixes = new Set(previewRows.flatMap((row) => row.corrected_fields));
-  const typedColumns = [...new Set([...typed, ...withFixes])].filter((field) => !(field in columnFor));
-  // The fields the server says nothing covers, less the ones being typed in.
-  const missing = batch.target_fields.filter(
-    (field) => batch.uncovered_fields.includes(field.field) && !typedColumns.includes(field.field),
-  );
-  const readyCount = previewRows.filter((row) => row.outcome === "READY").length;
+  // The fields the server says nothing covers.
+  const missing = batch.target_fields.filter((field) => batch.uncovered_fields.includes(field.field));
+  const counts = batch.row_counts;
   const noColumn = Object.keys(columnFor).length === 0;
   const blockedWhy =
     clashes.size > 0
@@ -182,58 +146,24 @@ export function ImportMatchColumns({
         ? "Match at least one column."
         : null;
 
-  function cell(row: DataImportRow, field: string, header: string | null) {
-    const corrected = row.corrected_fields.includes(field);
-    const shown = corrected ? (row.values[field] ?? "") : header ? (row.cells[header] ?? "") : "";
-    const original = row.file_values[field] ?? "";
-    return (
-      <>
-        <ImportCellInput
-          changed={corrected}
-          disabled={!saved || save.isPending || correct.isPending}
-          invalid={row.outcome === "REVIEW_REQUIRED" && row.issue_fields.includes(field)}
-          label={`${fieldName(field)}, row ${row.row_number}`}
-          placeholder={field === "date_of_birth" ? "dd/mm/yyyy" : undefined}
-          value={shown}
-          onDirtyChange={(isDirty) => unsavedCells.mark(`${row.row_number}:${field}`, isDirty)}
-          onSave={(next) => correct.mutateAsync({ row: row.row_number, field, value: next })}
-        />
-        {corrected ? (
-          <span className="ix-fix-note meta">
-            Your fix · file had “{original || "nothing"}”
-            <Button
-              variant="link"
-              aria-label={`Undo the fix to ${fieldName(field)}, row ${row.row_number}`}
-              onClick={() => correct.mutate({ row: row.row_number, field, value: null })}
-            >
-              Undo
-            </Button>
-          </span>
-        ) : null}
-      </>
-    );
-  }
-
   return (
     <>
       <section aria-labelledby="ix-match-h" className="card stack stack--4">
-        <div className="ix-section-head ix-align-end">
-          <div className="ix-head-text">
-            <h2 className="ix-title" id="ix-match-h" tabIndex={-1}>
-              Match your columns
-            </h2>
-            <p className="subtext">
-              Set what each column holds, above it. Then type into any cell to fix or fill it: the file itself is never
-              changed, and your fix is what KukGrade imports.
-            </p>
-          </div>
-          {saved && previewRows.length ? (
-            <p aria-live="polite" className="ix-flush">
-              <strong className="ix-success-text">{readyCount}</strong> of {previewRows.length} ready ·{" "}
-              <strong className="ix-warning-text">{previewRows.length - readyCount}</strong> need attention
-            </p>
-          ) : null}
+        <div>
+          <h2 className="section-title" id="ix-match-h" tabIndex={-1}>
+            Match your columns
+          </h2>
+          <p className="subtext">
+            Say what each column of your file holds. Every row is read again as you choose; the file itself is never
+            changed.
+          </p>
         </div>
+        {saved ? (
+          <p aria-live="polite" className="subtext">
+            <strong className="ix-success-text">{counts.ready}</strong> of {counts.total} rows ready ·{" "}
+            <strong className="ix-warning-text">{counts.review_required}</strong> to fix
+          </p>
+        ) : null}
 
         {missing.map((field) => (
           <Alert
@@ -242,45 +172,40 @@ export function ImportMatchColumns({
             key={field.field}
             title={`No column holds ${field.name === "WKSA ID" ? "the WKSA ID" : field.name.toLowerCase()}.`}
             action={
-              <>
-                {field.whole_file && field.field === "current_rank" ? (
-                  <label className="field field--sentence">
-                    <span>Same for everyone</span>
-                    <select
-                      disabled={save.isPending || correct.isPending}
-                      value=""
-                      onChange={(event) => {
-                        setRankDefault(event.target.value);
-                        choose(choices, event.target.value);
-                      }}
-                    >
-                      <option value="">Choose a rank…</option>
-                      {ranks.map((rank) => (
-                        <option key={rank.code} value={rank.name}>
-                          {rank.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-                <Button variant="secondary" onClick={() => setTyped([...typed, field.field])}>
-                  Type each one in
-                </Button>
-              </>
+              field.whole_file && field.field === "current_rank" ? (
+                <label className="field field--sentence">
+                  <span>Same for everyone</span>
+                  <select
+                    disabled={save.isPending}
+                    value=""
+                    onChange={(event) => {
+                      setRankDefault(event.target.value);
+                      choose(choices, event.target.value);
+                    }}
+                  >
+                    <option value="">Choose a rank…</option>
+                    {ranks.map((rank) => (
+                      <option key={rank.code} value={rank.name}>
+                        {rank.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : undefined
             }
           >
             {field.whole_file
-              ? "Choose the column above, set one value for everyone, or type each one in."
-              : "Choose the column above, or type each one in if you know them."}
+              ? "Choose its column below, set one value for everyone, or give it on each row to fix."
+              : "Choose its column below, or give it on each row to fix."}
           </Alert>
         ))}
 
         {rankDefault && !columnFor.current_rank ? (
-          <p className="ix-flush">
+          <p>
             Rank for everyone: <strong>{rankDefault}</strong>. A row can still be given its own.{" "}
             <Button
               variant="link"
-              disabled={save.isPending || correct.isPending}
+              disabled={save.isPending}
               onClick={() => {
                 setRankDefault("");
                 choose(choices, "");
@@ -302,174 +227,69 @@ export function ImportMatchColumns({
             {errorMessage(save.error, "The columns could not be saved. Try again in a moment.")}
           </Alert>
         ) : null}
-        {correct.isError ? <ErrorText>{errorMessage(correct.error, "That fix could not be saved.")}</ErrorText> : null}
 
-        {/* The file's own columns side by side, as in the spreadsheet: this one
-            table scrolls sideways, so it can be reached and named by keyboard. */}
-        <div
-          className="card card--flush scroll-region"
-          role="region"
-          aria-label="Your file's columns and first rows"
-          tabIndex={0}
-        >
-          <table className="ix-table ix-table-cells">
-            <thead>
-              <tr className="eyebrow--muted">
-                <th scope="col">Row</th>
-                {batch.detected_headers.map((header, index) => {
-                  const choice = choices[header] ?? "";
-                  const suggested = batch.suggested_mapping[choice] === header;
-                  return (
-                    <th key={header} scope="col">
-                      <span className="ix-col-name">{header}</span>
-                      <label className="visually-hidden" htmlFor={`ix-col-${index}`}>
-                        What “{header}” holds
-                      </label>
-                      <select
-                        className={cx(
-                          "ix-col-select",
-                          clashes.has(choice) ? "ix-col-select-clash" : suggested && "ix-col-select-suggested",
-                        )}
-                        id={`ix-col-${index}`}
-                        disabled={save.isPending || correct.isPending}
-                        value={choice}
-                        onChange={(event) => choose({ ...choices, [header]: event.target.value })}
-                      >
-                        <option value="">Choose…</option>
-                        {batch.target_fields.map((field) => (
-                          <option key={field.field} value={field.field}>
-                            {field.name}
-                          </option>
-                        ))}
-                        <option value={EXTRA}>Extra information</option>
-                        <option value={SKIP}>Leave out</option>
-                      </select>
-                    </th>
-                  );
-                })}
-                {typedColumns.map((field) => (
-                  <th key={`typed-${field}`} scope="col">
-                    <span className="ix-col-name">
-                      {fieldName(field)}{" "}
-                      <Badge dot tone="info">
-                        Typed in
-                      </Badge>
-                    </span>
-                    {withFixes.has(field) ? null : (
-                      <Button variant="link" onClick={() => setTyped(typed.filter((name) => name !== field))}>
-                        Remove this column
-                      </Button>
-                    )}
-                  </th>
-                ))}
-                <th scope="col">As KukGrade reads it</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!saved ? (
-                <tr>
-                  <td colSpan={batch.detected_headers.length + typedColumns.length + 2}>
-                    <span className="subtext">Match a column to see how KukGrade reads the first rows.</span>
-                  </td>
-                </tr>
-              ) : rows.isPending ? (
-                <tr>
-                  <td colSpan={batch.detected_headers.length + typedColumns.length + 2}>
-                    <span className="subtext" role="status">
-                      Reading the first rows…
-                    </span>
-                  </td>
-                </tr>
-              ) : (
-                previewRows.map((row) => {
-                  const state = rowState(row);
-                  return (
-                    <tr key={row.row_number}>
-                      <td className="subtext">{row.row_number}</td>
-                      {batch.detected_headers.map((header) => {
-                        const choice = choices[header] ?? "";
-                        const isField = choice in columnFor && columnFor[choice] === header && !clashes.has(choice);
-                        return (
-                          <td key={header}>
-                            {isField ? (
-                              cell(row, choice, header)
-                            ) : (
-                              <span
-                                className={cx(
-                                  "ix-cell-text scroll-region__nowrap",
-                                  choice === EXTRA ? "subtext" : "ix-struck",
-                                )}
-                              >
-                                {row.cells[header] || "(blank)"}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      {typedColumns.map((field) => (
-                        <td key={`typed-${field}`}>{cell(row, field, null)}</td>
-                      ))}
-                      <td className="ix-cell-reading scroll-region__wide">
-                        <Badge dot tone={state.tone}>
-                          {state.label}
-                        </Badge>
-                        {row.outcome === "REVIEW_REQUIRED" && row.issues.length ? (
-                          <span className="subtext">{row.issues.slice(0, 2).join(" ")}</span>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-        <p className="subtext ix-flush">
-          These are the first {Math.min(PREVIEW_ROWS, batch.row_counts.total)} of {batch.row_counts.total} rows. In the
-          next step every row can be checked and fixed the same way. Columns left out are struck through; Status is
-          Active where none is given.
-        </p>
+        <ul aria-label="Your file's columns" className="list-plain stack stack--3">
+          {batch.detected_headers.map((header) => {
+            const choice = choices[header] ?? "";
+            const suggested = batch.suggested_mapping[choice] === header;
+            return (
+              <li className="ix-column" key={header}>
+                <span className="ix-column__text">
+                  <span className="item-title">{header}</span>
+                  <span className="subtext">{rows.isPending ? "Reading…" : examples(previewRows, header)}</span>
+                </span>
+                <select
+                  aria-label={`What “${header}” holds`}
+                  className={cx(
+                    "ix-col-select",
+                    clashes.has(choice) ? "ix-col-select-clash" : suggested && "ix-col-select-suggested",
+                  )}
+                  disabled={save.isPending}
+                  value={choice}
+                  onChange={(event) => choose({ ...choices, [header]: event.target.value })}
+                >
+                  <option value="">Choose…</option>
+                  {batch.target_fields.map((field) => (
+                    <option key={field.field} value={field.field}>
+                      {field.name}
+                    </option>
+                  ))}
+                  <option value={EXTRA}>Extra information</option>
+                  <option value={SKIP}>Leave out</option>
+                </select>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="subtext">Status is Active where none is given.</p>
       </section>
 
-      <div className="step-foot">
-        <Button variant="ghost" onClick={onBack}>
-          Back to Imports
-        </Button>
-        <div className="row row--wrap">
-          {save.isPending ? (
-            <span className="subtext" role="status">
+      <ActionBar
+        status={
+          save.isPending ? (
+            <p className="subtext" role="status">
               Checking every row…
-            </span>
-          ) : null}
-          {dirty || unsavedCells.any || correct.isPending || correct.isError ? (
-            <span className="ix-why error-text" role="status">
-              Save the visible changes before continuing.
-            </span>
-          ) : null}
-          {blockedWhy ? (
-            <span className="ix-why error-text" id="ix-match-why">
+            </p>
+          ) : dirty ? (
+            <p className="ix-why error-text" role="status">
+              Save the visible changes first.
+            </p>
+          ) : blockedWhy ? (
+            <p className="ix-why error-text" id="ix-match-why">
               {blockedWhy}
-            </span>
-          ) : null}
-          <Button
-            aria-describedby={blockedWhy ? "ix-match-why" : undefined}
-            variant="primary"
-            disabled={
-              Boolean(blockedWhy) ||
-              !saved ||
-              dirty ||
-              save.isPending ||
-              save.isError ||
-              unsavedCells.any ||
-              correct.isPending ||
-              correct.isError
-            }
-            onClick={onContinue}
-          >
-            Continue to review all {batch.row_counts.total} rows
-          </Button>
-        </div>
-      </div>
+            </p>
+          ) : null
+        }
+      >
+        <Button
+          aria-describedby={blockedWhy ? "ix-match-why" : undefined}
+          variant="primary"
+          disabled={Boolean(blockedWhy) || !saved || dirty || save.isPending || save.isError}
+          onClick={onDone}
+        >
+          Done
+        </Button>
+      </ActionBar>
     </>
   );
 }

@@ -6,19 +6,13 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   ApiError,
-  type CreateDataImportBatchResponse,
   type DataImportKind,
   type SiteSettings,
-  cancelDataImportBatch,
-  chooseDataImportSheet,
   createDataImportBatch,
   errorMessage,
-  getDataImportBatch,
   getImportStarts,
 } from "./api";
-import { Alert } from "./Alert";
-import { FoundChecklist } from "./ImportFound";
-import { fileSize, suffixOf } from "./importFiles";
+import { suffixOf } from "./importFiles";
 import { ErrorText } from "./ErrorText";
 import { ImportStepBar } from "./ImportStepBar";
 import { importKinds } from "./importKinds";
@@ -28,7 +22,7 @@ import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 import { keys } from "./queryKeys";
-import { ChevronRightIcon, UploadIcon } from "./Icons";
+import { UploadIcon } from "./Icons";
 import { cx } from "./cx";
 
 function parseKind(value: string | null): DataImportKind {
@@ -106,8 +100,6 @@ export function ImportStartScreen() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [created, setCreated] = useState<CreateDataImportBatchResponse | null>(null);
-  const [guideOpen, setGuideOpen] = useState(false);
 
   // Past gradings wait for the students, as the server says.
   const starts = useQuery({ queryKey: keys.imports.starts(), queryFn: getImportStarts, staleTime: 0 });
@@ -116,27 +108,9 @@ export function ImportStartScreen() {
     mutationFn: (file: File) => createDataImportBatch(file, kind),
     onSuccess: (response) => {
       void queryClient.invalidateQueries({ queryKey: keys.imports.all() });
-      // A workbook of gradings goes straight on to what KukGrade found in it.
-      if (!importKinds[kind].oneSheet) {
-        navigate(`/imports/${response.id}`, { state: { importedBefore: response.already_imported_warning } });
-        return;
-      }
-      setCreated(response);
+      // Straight on to what KukGrade found in the file.
+      navigate(`/imports/${response.id}`, { state: { importedBefore: response.already_imported_warning } });
     },
-  });
-  const batchId = created?.id;
-  const batch = useQuery({
-    queryKey: keys.imports.batch(batchId),
-    queryFn: () => getDataImportBatch(batchId!),
-    enabled: batchId !== undefined,
-  });
-  const sheet = useMutation({
-    mutationFn: (name: string) => chooseDataImportSheet(batchId!, name),
-    onSuccess: (updated) => queryClient.setQueryData(keys.imports.batch(batchId), updated),
-  });
-  const discard = useMutation({
-    mutationFn: (id: number) => cancelDataImportBatch(id),
-    onSettled: () => void queryClient.invalidateQueries({ queryKey: keys.imports.all() }),
   });
 
   function take(file: File | undefined) {
@@ -158,29 +132,9 @@ export function ImportStartScreen() {
     take(event.dataTransfer.files?.[0]);
   }
 
-  async function chooseAnother() {
-    if (batchId !== undefined) await discard.mutateAsync(batchId).catch(() => undefined);
-    setCreated(null);
-    setGuideOpen(false);
-    upload.reset();
-  }
-
-  async function cancelImport() {
-    if (batchId !== undefined) await discard.mutateAsync(batchId).catch(() => undefined);
-    navigate("/imports");
-  }
-
-  const loaded = created && batch.data ? batch.data : null;
-  const fileError =
-    refusal ??
-    (upload.isError
-      ? uploadFailure(upload.error)
-      : batch.isError
-        ? errorMessage(batch.error, "The file was read, but could not be shown. Try again in a moment.")
-        : null);
+  const fileError = refusal ?? (upload.isError ? uploadFailure(upload.error) : null);
   const accept = types.map((type) => `.${type.value}`).join(",");
   const { addsStudents, chooseLead, oneSheet, title } = importKinds[kind];
-  const emptySheet = oneSheet && loaded !== null && (Boolean(loaded.sheet_error) || loaded.row_counts.total === 0);
 
   return (
     <section aria-labelledby="ix-start-title" className="page">
@@ -197,63 +151,6 @@ export function ImportStartScreen() {
           <Link className={buttonClass({ variant: "primary" }, "ix-start")} to="/imports/new?kind=STUDENT_ROSTER">
             Import students
           </Link>
-        </section>
-      ) : loaded && created ? (
-        <section aria-labelledby="ix-your-file" className="card stack stack--4">
-          <h2 className="ix-title ix-flush" id="ix-your-file" tabIndex={-1}>
-            Your file
-          </h2>
-          <div className="ix-file">
-            <div className="ix-row-main">
-              <p className="item-title">{loaded.original_filename}</p>
-              <p className="subtext">{fileSize(loaded.file_size)}</p>
-            </div>
-            <Button variant="ghost" disabled={discard.isPending} onClick={chooseAnother}>
-              Choose a different file
-            </Button>
-          </div>
-          <FoundChecklist batch={loaded} importedBefore={created.already_imported_warning} limit={limit} />
-          {emptySheet ? (
-            <Alert tone="warning">
-              {loaded.sheet_error || "This sheet has no student rows."} Choose the sheet containing the roster before
-              continuing.
-            </Alert>
-          ) : null}
-          {oneSheet && loaded.sheet_names.length > 1 ? (
-            <label className="field field--sentence ix-field-narrow">
-              <span>Sheet to read</span>
-              <select
-                disabled={sheet.isPending}
-                value={loaded.sheet}
-                onChange={(event) => sheet.mutate(event.target.value)}
-              >
-                {loaded.sheet_names.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-              <span className="subtext">
-                {sheet.isPending
-                  ? "Reading that sheet…"
-                  : `The workbook has ${loaded.sheet_names.length} sheets. KukGrade picked the one it opens on.`}
-              </span>
-            </label>
-          ) : null}
-          {sheet.isError ? <ErrorText>{errorMessage(sheet.error, "That sheet could not be read.")}</ErrorText> : null}
-          <details
-            className="disclosure ix-fold"
-            open={guideOpen}
-            onToggle={(event) => setGuideOpen(event.currentTarget.open)}
-          >
-            <summary>
-              <ChevronRightIcon />
-              What KukGrade looks for
-            </summary>
-            <div className="stack stack--3 disclosure__body">
-              <GuideList kind={kind} />
-            </div>
-          </details>
         </section>
       ) : (
         <div className="ix-split">
@@ -287,12 +184,8 @@ export function ImportStartScreen() {
                 type="file"
                 onChange={onPicked}
               />
-              <Button
-                variant="primary"
-                disabled={upload.isPending || (created !== null && batch.isPending)}
-                onClick={() => inputRef.current?.click()}
-              >
-                {upload.isPending || (created !== null && batch.isPending) ? "Reading your file…" : "Choose a file"}
+              <Button variant="primary" disabled={upload.isPending} onClick={() => inputRef.current?.click()}>
+                {upload.isPending ? "Reading your file…" : "Choose a file"}
               </Button>
               <p className="subtext">
                 {types.length ? `${typeWords(types)}, ` : null}
@@ -317,26 +210,9 @@ export function ImportStartScreen() {
       )}
 
       <div className="step-foot">
-        <Button variant="ghost" disabled={discard.isPending} onClick={cancelImport}>
+        <Link className={buttonClass({ variant: "ghost" })} to="/imports">
           Cancel import
-        </Button>
-        {oneSheet ? (
-          <div className="row row--wrap">
-            {!loaded ? (
-              <span className="subtext" id="ix-continue-why">
-                Choose a file first.
-              </span>
-            ) : null}
-            <Button
-              aria-describedby={loaded ? undefined : "ix-continue-why"}
-              variant="primary"
-              disabled={!loaded || sheet.isPending || emptySheet}
-              onClick={() => navigate(`/imports/${batchId}`)}
-            >
-              Continue to match columns
-            </Button>
-          </div>
-        ) : null}
+        </Link>
       </div>
     </section>
   );

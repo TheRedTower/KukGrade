@@ -35,7 +35,9 @@ Want something here, or something that is missing? Open an
       Sorting the people is phone-first too (the queues, a page for each person, split or
       merge, choosing a student), and so are the Imports page, the finished import and the
       historical records (each record on a page of its own, its ranks corrected from the
-      belts). Still to come: the student import moved onto the same screens.
+      belts). The student import is on the same screens (its file, its columns and each row to
+      fix as things to check, every row, save). Done when the owner has checked it on a real
+      phone and tablet, with the item above.
 - [ ] **Measure the audit log's record history** on a real session: the history behind a
       grading or a student filters events by `session_id` and `student_id` in their details,
       which no index serves yet. Add one if it is slow once real data exists.

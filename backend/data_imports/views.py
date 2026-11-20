@@ -419,6 +419,7 @@ class ImportRowViewSet(KukGradeViewSet[ImportRow]):
     lookup_value_regex = "[0-9]+"
     permission_map = {
         "list": ("data_imports.view_importbatch",),
+        "retrieve": ("data_imports.view_importbatch",),
         "partial_update": ("data_imports.change_importbatch",),
         "exclusion": ("data_imports.change_importbatch",),
         "leave_out_attention": ("data_imports.change_importbatch",),
@@ -481,6 +482,12 @@ class ImportRowViewSet(KukGradeViewSet[ImportRow]):
         page = self.paginate_queryset(rows)
         assert page is not None
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
+
+    @extend_schema(parameters=[ROW_NUMBER])
+    def retrieve(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """One row by its number in the file: a row being fixed keeps its own
+        page however its outcome changes."""
+        return Response(self.get_serializer(self.get_object()).data)
 
     @extend_schema(
         parameters=[ROW_NUMBER],

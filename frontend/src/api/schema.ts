@@ -288,7 +288,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * @description One row by its number in the file: a row being fixed keeps its own
+         *     page however its outcome changes.
+         */
+        get: operations["data_imports_batches_rows_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4574,6 +4578,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedImportRowList"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                batch_pk: number;
+                /** @description The row's number in the file. */
+                row_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
                 };
             };
         };

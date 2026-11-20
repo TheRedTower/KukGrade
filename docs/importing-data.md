@@ -20,18 +20,20 @@ malformed file is refused rather than loaded.
 
 ## Student roster
 
-1. **Upload.** The file is read once and its rows are stored for review. If the
-   workbook has several sheets, pick the one that holds the roster.
-2. **Match columns.** KukGrade suggests which of your columns is which (it knows
-   common names like `Member No`, `Forename` and `Belt`); you confirm or change
-   each. Columns KukGrade has no field for are kept as the student's extra
-   information. A field the file lacks, such as everyone's rank, can be set once
-   for the whole file.
-3. **Review.** Each row is checked with the same rules as adding a student by hand
-   and sorted into **ready**, **needs attention** or **already exists**. Fix a row in
-   place or leave it out. A roster is imported only when no row needs attention.
-4. **Commit.** Students are created in one batch, each with an audit event, and
-   remember which import they came from so you can list one import's students.
+1. **Upload.** The file is read once and its rows are stored for review. KukGrade then
+   says what it found; if the workbook has several sheets, pick the one that holds the
+   roster.
+2. **Things to check.** First the columns: KukGrade suggests which of your columns is
+   which (it knows common names like `Member No`, `Forename` and `Belt`); you confirm or
+   change each. Columns KukGrade has no field for are kept as the student's extra
+   information. A field the file lacks, such as everyone's rank, can be set once for the
+   whole file. Then each row is checked with the same rules as adding a student by hand and
+   sorted into **ready**, **needs attention** or **already exists**. Each row that needs
+   attention opens on a page of its own, to fix or leave out, with Next to the one after.
+   Every row can also be looked over, found by name or WKSA ID, and changed the same way.
+3. **Save.** One confirmation adds the students, and only once no row needs attention.
+   They are created in one batch, each with an audit event, and remember which import
+   they came from so you can list one import's students.
 
 The standard layout is:
 

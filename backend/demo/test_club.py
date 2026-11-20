@@ -24,7 +24,7 @@ from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from data_imports.legacy_checks import CheckKind, legacy_checks
 from data_imports.models import ImportBatch
-from data_imports.services import SheetState, legacy_sheets
+from data_imports.services import SheetState, legacy_sheets, row_counts
 from demo import seed
 from demo.personas import DEMO_PASSWORD, PERSONA_EMAILS, PERSONAS
 from demo.testing import session_named, sign_in
@@ -179,7 +179,10 @@ def test_some_imported_history_is_linked_and_some_waits_to_be() -> None:
 
 @pytest.mark.django_db
 def test_a_past_gradings_import_waits_with_one_of_each_thing_to_check() -> None:
-    batch = ImportBatch.objects.get(status=ImportBatch.Status.UPLOADED)
+    batch = ImportBatch.objects.get(
+        status=ImportBatch.Status.UPLOADED,
+        kind=ImportBatch.Kind.LEGACY_GRADINGS,
+    )
 
     states = {sheet.name: sheet.state for sheet in legacy_sheets(batch)}
     assert states == {"11-2022": SheetState.CHANGED, "03-2024": SheetState.NEW}
@@ -190,6 +193,24 @@ def test_a_past_gradings_import_waits_with_one_of_each_thing_to_check() -> None:
         CheckKind.WRITTEN_TWICE,
         CheckKind.NO_OUTCOME,
         CheckKind.NO_RANK,
+    }
+
+
+@pytest.mark.django_db
+def test_a_student_list_waits_with_rows_ready_skipped_and_to_fix() -> None:
+    batch = ImportBatch.objects.get(
+        status=ImportBatch.Status.UPLOADED,
+        kind=ImportBatch.Kind.STUDENT_ROSTER,
+    )
+
+    assert batch.configuration.extra_columns == ["Parent phone"]
+    assert row_counts(batch.rows.all()) == {
+        "total": 5,
+        "ready": 2,
+        "review_required": 2,
+        "skip_existing": 1,
+        "excluded": 0,
+        "sheet_left_out": 0,
     }
 
 

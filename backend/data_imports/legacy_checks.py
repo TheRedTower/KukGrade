@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from django.db import models
 
@@ -161,6 +161,21 @@ def outcome_unread(row: CanonicalLegacyRow) -> bool:
 type Read = list[tuple[ImportRow, CanonicalLegacyRow]]
 
 
+def with_outcomes_read(
+    rows: Iterable[CanonicalLegacyRow],
+    configuration: ImportConfiguration,
+) -> list[CanonicalLegacyRow]:
+    """`rows` with each outcome as it will be saved (outcome_reader), so who
+    counts as graded (gradings.models.legacy_result) is what saving finds."""
+    read_outcome = outcome_reader(configuration)
+    return [replace(row, outcome=read_outcome(row)) for row in rows]
+
+
+def as_read(read: Read, configuration: ImportConfiguration) -> Read:
+    rows = with_outcomes_read((canonical for _, canonical in read), configuration)
+    return [(row, canonical) for (row, _), canonical in zip(read, rows, strict=True)]
+
+
 def legacy_checks(batch: ImportBatch) -> list[LegacyCheck]:
     """Every check of a historical import (none for a roster), open and
     decided, in the order of CheckKind. Read from the rows as last classified
@@ -183,8 +198,9 @@ def legacy_checks(batch: ImportBatch) -> list[LegacyCheck]:
     checks = [
         *_rank_checks(ready, configuration, kept),
         *_outcome_checks(ready, configuration, kept),
-        *_name_checks(read, kept),
-        *_missing_checks(read, kept),
+        # As the records will be saved: an outcome read makes a result.
+        *_name_checks(as_read(read, configuration), kept),
+        *_missing_checks(as_read(read, configuration), kept),
     ]
     order = {kind: index for index, kind in enumerate(CheckKind.values)}
     return sorted(checks, key=lambda check: order[check.kind])

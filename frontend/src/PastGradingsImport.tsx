@@ -34,8 +34,8 @@ export function PastGradingsImport({ batch }: { batch: DataImportBatch }) {
   const location = useLocation();
   const asked = params.get("step") as PastStep | null;
   const step: PastStep = asked && STEPS.includes(asked) ? asked : "sheets";
-  const go = (next: PastStep, extra: Record<string, string> = {}) =>
-    navigate({ search: `?${new URLSearchParams({ step: next, ...extra }).toString()}` });
+  const go = (next: PastStep, extra: Record<string, string> = {}, replace = false) =>
+    navigate({ search: `?${new URLSearchParams({ step: next, ...extra }).toString()}` }, { replace });
   const importedBefore = Boolean((location.state as { importedBefore?: boolean } | null)?.importedBefore);
 
   if (step === "check") {
@@ -46,6 +46,7 @@ export function PastGradingsImport({ batch }: { batch: DataImportBatch }) {
         kind={params.get("kind")}
         onDone={() => go("checks")}
         onOpen={(kind, key) => go("check", { kind, key })}
+        onPin={(kind, key) => go("check", { kind, key }, true)}
       />
     );
   }

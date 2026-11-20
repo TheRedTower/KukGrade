@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import { ActionBar } from "./ActionBar";
 import { Alert } from "./Alert";
@@ -194,12 +195,15 @@ export function ImportCheck({
   kind,
   checkKey,
   onOpen,
+  onPin,
   onDone,
 }: {
   batch: DataImportBatch;
   kind: string | null;
   checkKey: string | null;
   onOpen: (kind: string, key: string) => void;
+  /** Puts the check shown into the address, so answering it never moves the page on. */
+  onPin: (kind: string, key: string) => void;
   onDone: () => void;
 }) {
   const refresh = useImportRefresh(batch.id);
@@ -221,6 +225,12 @@ export function ImportCheck({
     onSuccess: refresh,
   });
   const counts = summary.data;
+  const shownKey = current?.key ?? null;
+  useEffect(() => {
+    // Opened from its queue, the address names only the kind: pin the check
+    // shown before it is answered, or the reload after would show the next.
+    if (kind && shownKey && shownKey !== checkKey) onPin(kind, shownKey);
+  }, [kind, shownKey, checkKey, onPin]);
 
   return (
     <DetailPage

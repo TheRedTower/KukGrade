@@ -286,6 +286,30 @@ describe("One thing to check", () => {
     expect(await screen.findByRole("button", { name: "Red stripe (as it reads)" })).toBeVisible();
   });
 
+  it("stays on the check answered when the answer closes it", async () => {
+    const user = userEvent.setup();
+    const first = check({});
+    const second = check({ key: "RANK:red stripe?", text: "Red stripe?", message: "KukGrade doubts “Red stripe?”." });
+    api.getAllLegacyChecks.mockResolvedValue(page([first, second]));
+    api.resolveLegacyCheck.mockImplementation(async () => {
+      api.getAllLegacyChecks.mockResolvedValue(
+        page([{ ...first, is_open: false, decision: "KEEP", decision_display: "Kept as written" }, second]),
+      );
+      return { ...first, is_open: false };
+    });
+
+    renderAt("/imports/7?step=check&kind=RANK");
+
+    await screen.findByRole("heading", { name: "KukGrade cannot read the rank “Bown Stripe”." });
+    await waitFor(() => expect(where()).toBe("/imports/7?step=check&kind=RANK&key=RANK%3Abown+stripe"));
+    await user.click(screen.getByRole("button", { name: "Keep as written" }));
+
+    expect(await screen.findByText("Decided: Kept as written")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "KukGrade cannot read the rank “Bown Stripe”." })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(where()).toBe("/imports/7?step=check&kind=RANK&key=RANK%3Ared+stripe%3F");
+  });
+
   it("leaves out one of two rows written twice", async () => {
     const user = userEvent.setup();
     api.getAllLegacyChecks.mockResolvedValue(

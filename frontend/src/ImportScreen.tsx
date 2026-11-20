@@ -6,10 +6,10 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { getDataImportBatch } from "./api";
 import { ImportMatchColumns } from "./ImportMatchColumns";
-import { ImportMatchRanks } from "./ImportMatchRanks";
 import { ImportResults } from "./ImportResults";
 import { ImportReview } from "./ImportReview";
 import { ImportStepBar } from "./ImportStepBar";
+import { PastGradingsImport } from "./PastGradingsImport";
 import { RecordPage } from "./RecordPage";
 import { recordStatus, useIdParam } from "./recordStatus";
 import { importKinds } from "./importKinds";
@@ -37,7 +37,7 @@ export function ImportScreen() {
   const asked = searchParams.get("step");
   const upTo = batch.data?.next_step === "MATCH" ? "match" : "review";
   const step = asked === "match" || asked === "review" ? asked : upTo;
-  const open = batch.data?.status === "UPLOADED";
+  const open = batch.data?.status === "UPLOADED" && batch.data.kind === "STUDENT_ROSTER";
   useEffect(() => {
     if (open && !asked && upTo === "match") setSearchParams({ step: "match" }, { replace: true });
   }, [open, asked, upTo, setSearchParams]);
@@ -82,6 +82,9 @@ export function ImportScreen() {
     );
   }
 
+  // Past gradings run through steps of their own, each in the address.
+  if (loaded.kind === "LEGACY_GRADINGS") return <PastGradingsImport batch={loaded} />;
+
   const matching = step === "match";
   const goTo = (step: "match" | "review") => setSearchParams({ step });
 
@@ -100,11 +103,7 @@ export function ImportScreen() {
       />
       <ImportStepBar current={matching ? "MATCH" : loaded.review_step} kind={loaded.kind} />
       {matching ? (
-        importKinds[loaded.kind].match === "columns" ? (
-          <ImportMatchColumns batch={loaded} onBack={() => navigate("/imports")} onContinue={() => goTo("review")} />
-        ) : (
-          <ImportMatchRanks batch={loaded} onBack={() => navigate("/imports")} onContinue={() => goTo("review")} />
-        )
+        <ImportMatchColumns batch={loaded} onBack={() => navigate("/imports")} onContinue={() => goTo("review")} />
       ) : (
         <ImportReview batch={loaded} onCommitted={() => setSearchParams({})} onMatch={() => goTo("match")} />
       )}

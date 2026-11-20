@@ -22,7 +22,7 @@ from data_imports.services import (
     choose_legacy_sheets,
     commit_legacy_grading_import,
     legacy_sheets,
-    preview_legacy_grading_import,
+    row_counts,
     set_import_row_excluded,
 )
 from data_imports.testing import GradingSheets, grading_workbook, legacy_batch
@@ -218,14 +218,21 @@ def test_an_import_finished_after_another_was_uploaded_is_caught_at_commit() -> 
     assert states(second) == {"062025": (SheetState.IMPORTED, True)}
     with pytest.raises(ValidationError, match="Nothing to import"):
         commit_legacy_grading_import(second, actor=admin())
-    preview_legacy_grading_import(second)
+    # The refusal keeps what it found, so the import's counts say nothing is
+    # left to save and the save is not offered again.
+    assert outcomes(second) == {
+        "062025!R2": ImportRow.Outcome.SKIP_EXISTING,
+        "062025!R3": ImportRow.Outcome.SKIP_EXISTING,
+    }
+    # Any later change checks every row again against what KukGrade holds.
+    choose_legacy_sheets(second, included=["062025"])
     assert outcomes(second) == {
         "062025!R2": ImportRow.Outcome.SKIP_EXISTING,
         "062025!R3": ImportRow.Outcome.SKIP_EXISTING,
     }
 
 
-def test_the_preview_counts_what_comes_in_and_says_what_is_left_out() -> None:
+def test_the_rows_count_what_comes_in_and_what_is_left_out() -> None:
     imported({"062025": JUNE})
     copy = legacy_batch(
         grading_workbook(
@@ -236,21 +243,13 @@ def test_the_preview_counts_what_comes_in_and_says_what_is_left_out() -> None:
         ),
     )
 
-    preview = preview_legacy_grading_import(copy)
-
-    assert preview.total == 1
-    assert preview.warnings == [
-        "Sheet '062025' has changed since it was imported (1 new or changed, 0 no "
-        "longer in the workbook), so it is left out. Choose it to add only what "
-        "is new.",
-    ]
+    # The changed sheet is not chosen: only September comes in.
+    counts = row_counts(copy.rows.all())
+    assert (counts["ready"], counts["sheet_left_out"]) == (1, 3)
     choose_legacy_sheets(copy, included=["062025", "092025"])
-    preview = preview_legacy_grading_import(copy)
-    assert preview.total == 2
-    assert preview.warnings == [
-        "2 records on the chosen sheets are already in KukGrade from an earlier "
-        "import, so will not be added again.",
-    ]
+    counts = row_counts(copy.rows.all())
+    # Chosen, the changed sheet brings in only what KukGrade does not hold.
+    assert (counts["ready"], counts["skip_existing"]) == (2, 2)
 
 
 def test_a_row_left_out_stays_out_and_one_on_a_sheet_not_chosen_stays_with_it() -> None:

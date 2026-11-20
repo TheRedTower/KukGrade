@@ -30,11 +30,10 @@ from data_imports.serializers import (
     ImportRowSerializer,
     ImportSecondLookSerializer,
     ImportSheetSerializer,
+    ImportStartSerializer,
     LegacyCheckDecisionSerializer,
     LegacyCheckSerializer,
     LegacyChecksSummarySerializer,
-    LegacyImportPreviewSerializer,
-    LegacyImportSerializer,
     LegacySheetChoiceSerializer,
     LegacySheetSerializer,
 )
@@ -48,35 +47,26 @@ from data_imports.services import (
     create_import_batch,
     leave_out_rows_needing_attention,
     legacy_sheets,
-    preview_legacy_grading_import,
+    legacy_warnings,
     resolve_legacy_check,
     rows_given_a_value,
     save_import_mapping,
     second_look_counts,
     set_import_row_excluded,
     void_import_records,
+    why_not_startable,
     with_row_counts,
 )
 from gradings.models import LegacyRecordKind
 from kukgrade.filtering import (
-    QueryFilter,
     boolean,
     choice,
     choices_in,
+    exact,
     read_by_view,
 )
 from kukgrade.search import search
 from kukgrade.viewsets import KukGradeViewSet
-
-
-def _rows_with_rank_text(rows: QuerySet[ImportRow], value: str) -> QuerySet[ImportRow]:
-    """A historical import's rows that write a rank this way, held or tested
-    for - so a spelling can be judged by the records that use it."""
-    text = value.strip()
-    return rows.filter(
-        Q(values__current_rank__iexact=text) | Q(values__testing_for_rank__iexact=text),
-    )
-
 
 _CHECK_FILTERS = (
     read_by_view(
@@ -123,10 +113,8 @@ class ImportBatchViewSet(
         "list": ("data_imports.view_importbatch",),
         "retrieve": ("data_imports.view_importbatch",),
         "create": ("data_imports.add_importbatch",),
+        "starts": ("data_imports.add_importbatch",),
         "cancel": ("data_imports.change_importbatch",),
-        # A historical preview stores the rank choices it is given, so it
-        # changes the import: the same permission as matching columns.
-        "preview": ("data_imports.change_importbatch",),
         "commit": ("data_imports.can_commit_import",),
         "mapping": ("data_imports.change_importbatch",),
         "sheet": ("data_imports.change_importbatch",),
@@ -157,6 +145,21 @@ class ImportBatchViewSet(
                 "cancelled_by",
             ),
         ).order_by("-uploaded_at", "-pk")
+
+    @extend_schema(responses=ImportStartSerializer(many=True))
+    @action(detail=False, methods=["get"], filter_backends=[], pagination_class=None)
+    def starts(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Whether an import of each kind can start now, and why not when it
+        cannot - past gradings wait for the students to be imported."""
+        return Response(
+            ImportStartSerializer(
+                [
+                    {"kind": kind, "why_not": why_not_startable(kind)}
+                    for kind in ImportBatch.Kind.values
+                ],
+                many=True,
+            ).data,
+        )
 
     @extend_schema(request=ImportSheetSerializer, responses=ImportBatchSerializer)
     @action(detail=True, methods=["post"])
@@ -239,7 +242,8 @@ class ImportBatchViewSet(
         **kwargs: object,
     ) -> Response:
         """How many things there are to check, and how many are still open."""
-        counts = check_counts(legacy_checks(self.get_object()))
+        batch = self.get_object()
+        counts = check_counts(legacy_checks(batch))
         return Response(
             LegacyChecksSummarySerializer(
                 {
@@ -254,6 +258,7 @@ class ImportBatchViewSet(
                         }
                         for kind, (total, still_open) in counts.items()
                     ],
+                    "warnings": legacy_warnings(batch),
                 },
             ).data,
         )
@@ -350,22 +355,6 @@ class ImportBatchViewSet(
         cancel_import_batch(batch, actor=cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @extend_schema(
-        request=LegacyImportSerializer, responses=LegacyImportPreviewSerializer
-    )
-    @action(detail=True, methods=["post"])
-    def preview(self, request: Request, *args: object, **kwargs: object) -> Response:
-        """A historical import's rank choices, saved when given, and what it
-        would do. A roster's columns are matched with mapping/ instead."""
-        batch = self.get_object()
-        legacy_input = LegacyImportSerializer(data=request.data)
-        legacy_input.is_valid(raise_exception=True)
-        legacy_preview = preview_legacy_grading_import(
-            batch,
-            rank_mappings=legacy_input.validated_data.get("rank_mappings"),
-        )
-        return Response(LegacyImportPreviewSerializer(legacy_preview).data)
-
     @extend_schema(responses=ImportSecondLookSerializer)
     @action(
         detail=True,
@@ -442,24 +431,15 @@ class ImportRowViewSet(KukGradeViewSet[ImportRow]):
             "Only rows with this outcome.",
         ),
         search("search", ("search_text",), "Any of the row's values."),
-        QueryFilter(
-            "rank_text",
-            _rows_with_rank_text,
-            description=(
-                "A historical import's rows that write a rank this way, "
-                "held or tested for (any case)."
-            ),
-        ),
         boolean(
             "corrected",
             ~Q(correction={}),
             "Only rows with (or without) a fix of the importer's.",
         ),
-        boolean(
-            "worth_a_look",
-            ~Q(issues=[]),
-            "Only rows with (or without) issues: for a historical import, the "
-            "records worth a look, left out or not.",
+        exact(
+            "sheet",
+            "raw__source_sheet",
+            "A historical import's rows from this grading sheet, by its name.",
         ),
         choices_in(
             "record_kind",

@@ -63,11 +63,15 @@ export const keys = {
     past: (...filters: unknown[]) => ["imports", "past", ...filters] as const,
     /** Every finished historical import, for the record screens' import filter. */
     historical: () => ["imports", "historical"] as const,
-    legacyPreview: (batchId: Id) => ["imports", "legacyPreview", batchId] as const,
+    starts: () => ["imports", "starts"] as const,
+    sheets: (batchId: Id) => ["imports", "sheets", batchId] as const,
+    /** A historical import's things to check: the summary, and each kind's list. */
+    checks: (batchId: Id) => ["imports", "checks", batchId] as const,
+    checksSummary: (batchId: Id) => ["imports", "checks", batchId, "summary"] as const,
+    checksOfKind: (batchId: Id, kind: string) => ["imports", "checks", batchId, "kind", kind] as const,
     rows: (batchId: Id) => ["imports", "rows", batchId] as const,
     rowsPage: (batchId: Id, ...filters: unknown[]) => ["imports", "rows", batchId, ...filters] as const,
     rowsPreview: (batchId: Id) => ["imports", "rows", batchId, "preview"] as const,
-    rowsWithRank: (batchId: Id, text: string | undefined) => ["imports", "rows", batchId, "rank", text] as const,
     secondLook: (batchId: Id) => ["imports", "rows", batchId, "secondLook"] as const,
   },
   legacyRecords: {

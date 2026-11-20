@@ -6,7 +6,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.people import named
-from data_imports.legacy_checks import CheckDecision, CheckKind, LegacyCheck
+from data_imports.legacy_checks import DECISIONS, CheckDecision, CheckKind, LegacyCheck
 from data_imports.mappings import (
     STUDENT_FIELD_LABELS,
     STUDENT_OPTIONAL_FIELDS,
@@ -30,7 +30,7 @@ from data_imports.services import (
     uncovered_fields,
 )
 from gradings.models import LegacyOutcome
-from kukgrade.serializers import ModelSerializer
+from kukgrade.serializers import ChoiceSerializer, ModelSerializer
 
 NOTHING_TO_CHANGE_MESSAGE = "Give at least one field to change."
 
@@ -397,6 +397,16 @@ class ImportSheetSerializer(serializers.Serializer):
     sheet = serializers.CharField()
 
 
+class ImportStartSerializer(serializers.Serializer):
+    """Whether an import of one kind can start now."""
+
+    kind = serializers.ChoiceField(choices=ImportBatch.Kind.choices)
+    why_not = serializers.CharField(
+        allow_null=True,
+        help_text="Why it cannot start now, in plain words; null when it can.",
+    )
+
+
 class LegacySheetRecordSerializer(serializers.Serializer):
     """A record named in what differs, as the workbook writes it."""
 
@@ -458,6 +468,10 @@ class LegacySheetChoiceSerializer(serializers.Serializer):
 CHECK_ROWS_SHOWN = 50
 
 
+class LegacyCheckDecisionChoiceSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=CheckDecision.choices)
+
+
 class LegacyCheckSerializer(serializers.Serializer):
     """One thing to check in a historical import, and where it stands."""
 
@@ -502,12 +516,25 @@ class LegacyCheckSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="The rows, by number, that leaving one out may choose from.",
     )
+    decisions = serializers.SerializerMethodField(
+        help_text=(
+            "The decisions this check can take, named; keeping it as written "
+            "always can."
+        ),
+    )
 
     def get_kind_display(self, check: LegacyCheck) -> str:
         return CheckKind(check.kind).label
 
     def get_decision_display(self, check: LegacyCheck) -> str | None:
         return CheckDecision(check.decision).label if check.decision else None
+
+    @extend_schema_field(LegacyCheckDecisionChoiceSerializer(many=True))
+    def get_decisions(self, check: LegacyCheck) -> list[dict[str, str]]:
+        return [
+            {"value": decision, "label": CheckDecision(decision).label}
+            for decision in DECISIONS[check.kind]
+        ]
 
     def get_row_count(self, check: LegacyCheck) -> int:
         return len(check.rows)
@@ -536,6 +563,14 @@ class LegacyChecksSummarySerializer(serializers.Serializer):
     checks = serializers.IntegerField()
     open = serializers.IntegerField()
     kinds = LegacyCheckKindCountSerializer(many=True)
+    warnings = serializers.ListField(
+        child=serializers.CharField(),
+        help_text=(
+            "What KukGrade could not read or check, in plain words: parts of "
+            "the workbook left out, and sheets with too many people to check "
+            "for anyone written twice."
+        ),
+    )
 
 
 class LegacyCheckDecisionSerializer(serializers.Serializer):
@@ -593,47 +628,3 @@ class ImportRowCorrectionSerializer(serializers.Serializer):
         if not attrs:
             raise serializers.ValidationError(NOTHING_TO_CHANGE_MESSAGE)
         return attrs
-
-
-class LegacyImportSerializer(serializers.Serializer):
-    """The historical preview's request: the rank choices to save, if any.
-
-    Keys are the source rank text exactly as it appeared in the workbook
-    (case-insensitive on the service side); a null value explicitly means
-    "leave unresolved" - never a block on committing that row, unlike the
-    student roster importer's required rank. Left out, the stored choices
-    are kept.
-    """
-
-    rank_mappings = serializers.DictField(
-        child=serializers.CharField(allow_null=True, allow_blank=True, required=False),
-        required=False,
-    )
-
-
-class RankMappingSuggestionSerializer(serializers.Serializer):
-    source_text = serializers.CharField()
-    suggested_rank_code = serializers.CharField(allow_null=True)
-    doubtful = serializers.BooleanField(
-        help_text="The source marks its own doubt, as in 'Red stripe?'.",
-    )
-    rows = serializers.IntegerField(help_text="How many rows use this text.")
-    chosen_rank_code = serializers.CharField(
-        allow_null=True,
-        help_text="The rank chosen for this spelling, or null while it has none.",
-    )
-
-
-class LegacyImportPreviewSerializer(serializers.Serializer):
-    total = serializers.IntegerField()
-    grading_result = serializers.IntegerField()
-    auxiliary_note = serializers.IntegerField()
-    did_not_attend = serializers.IntegerField()
-    unresolved_current_rank = serializers.IntegerField()
-    unresolved_testing_for_rank = serializers.IntegerField()
-    excluded = serializers.IntegerField()
-    worth_a_look = serializers.IntegerField(
-        help_text="Records not left out that have issues: a reason to look.",
-    )
-    warnings = serializers.ListField(child=serializers.CharField())
-    rank_suggestions = RankMappingSuggestionSerializer(many=True)

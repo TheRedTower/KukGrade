@@ -1,35 +1,55 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type DataImportBatch, commitDataImport, errorMessage, previewLegacyGradingImport } from "./api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { type DataImportBatch, commitDataImport, errorMessage } from "./api";
 import { Alert } from "./Alert";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Button } from "./Button";
-import { LegacyReview } from "./ImportLegacyReview";
 import { RosterReview } from "./ImportRosterReview";
 import { keys } from "./queryKeys";
 import { useDirtySet } from "./useDirtySet";
-import { importKinds } from "./importKinds";
+import { counted, agreeing } from "./plural";
 import { CheckIcon } from "./Icons";
+
+// What the seal says: a roster's rows become students.
+const SEAL = {
+  title: (count: number) => `Everything is sorted · ready to add ${counted(count, "student", "students")}`,
+  action: (count: number) => `Add ${counted(count, "student", "students")}`,
+  pending: "Adding…",
+  line: (batch: DataImportBatch) => {
+    const counts = batch.row_counts;
+    return [
+      counts.skip_existing
+        ? `${counts.skip_existing} already in KukGrade ${agreeing(counts.skip_existing, "is", "are")} skipped`
+        : null,
+      counts.excluded ? `${counts.excluded} you left out` : null,
+      batch.extra_columns.length
+        ? `${batch.extra_columns.map((column) => `“${column}”`).join(", ")} kept as extra information`
+        : null,
+      "all are added together, or none are",
+    ];
+  },
+  confirmTitle: (count: number) => `Add ${counted(count, "student", "students")} to KukGrade?`,
+  confirmBody:
+    "They are saved together, so either all are added or none are. You can edit or remove any of them afterwards.",
+};
 
 /** The seal: once every row is sorted, the summary and the import itself. */
 function Seal({
   batch,
-  unresolvedRanks,
   pending,
   blocked,
   onImport,
 }: {
   batch: DataImportBatch;
-  unresolvedRanks: number;
   pending: boolean;
   blocked: boolean;
   onImport: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const words = importKinds[batch.kind].seal;
+  const words = SEAL;
   const count = batch.row_counts.ready;
   const action = words.action(count);
-  const line = words.line(batch, unresolvedRanks);
+  const line = words.line(batch);
   const sentence = line.filter(Boolean).join(", ");
 
   return (
@@ -70,8 +90,8 @@ function Seal({
 }
 
 /**
- * Steps 3 and 4: every row reviewed, the ones needing attention first, and -
- * once all are sorted - the confirmation on the same page.
+ * A roster's steps 3 and 4: every row reviewed, the ones needing attention
+ * first, and - once all are sorted - the confirmation on the same page.
  */
 export function ImportReview({
   batch,
@@ -83,22 +103,15 @@ export function ImportReview({
   onCommitted: () => void;
 }) {
   const queryClient = useQueryClient();
-  const { addsStudents } = importKinds[batch.kind];
   const [announcement, setAnnouncement] = useState("");
   const unsavedCells = useDirtySet();
   // A refused import shows the review again from the top, as it now stands.
   const [refusals, setRefusals] = useState(0);
-  const preview = useQuery({
-    queryKey: keys.imports.legacyPreview(batch.id),
-    queryFn: () => previewLegacyGradingImport(batch.id, {}),
-    enabled: !addsStudents,
-  });
 
   async function refresh() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: keys.imports.batch(batch.id) }),
       queryClient.invalidateQueries({ queryKey: keys.imports.rows(batch.id) }),
-      queryClient.invalidateQueries({ queryKey: keys.imports.legacyPreview(batch.id) }),
     ]);
   }
 
@@ -110,7 +123,8 @@ export function ImportReview({
         queryClient.invalidateQueries({ queryKey: keys.imports.rows(batch.id) }),
         queryClient.invalidateQueries({ queryKey: keys.imports.unfinished() }),
         queryClient.invalidateQueries({ queryKey: keys.imports.past() }),
-        queryClient.invalidateQueries({ queryKey: keys.imports.historical() }),
+        // Past gradings can start once there are students.
+        queryClient.invalidateQueries({ queryKey: keys.imports.starts() }),
       ]);
       onCommitted();
     },
@@ -120,9 +134,6 @@ export function ImportReview({
     },
   });
 
-  const sorted = !addsStudents || batch.row_counts.review_required === 0;
-  const unresolvedRanks =
-    (preview.data?.unresolved_current_rank ?? 0) + (preview.data?.unresolved_testing_for_rank ?? 0);
   return (
     <>
       <p aria-live="polite" className="visually-hidden">
@@ -133,36 +144,24 @@ export function ImportReview({
           {errorMessage(commit.error, "Something changed since the check. Look over the rows and try again.")}
         </Alert>
       ) : null}
-      {sorted ? (
+      {batch.row_counts.review_required === 0 ? (
         <Seal
           batch={batch}
-          blocked={addsStudents && unsavedCells.any}
+          blocked={unsavedCells.any}
           pending={commit.isPending}
-          unresolvedRanks={unresolvedRanks}
           onImport={() => {
             if (!unsavedCells.any) commit.mutate();
           }}
         />
       ) : null}
-      {addsStudents ? (
-        <RosterReview
-          announce={setAnnouncement}
-          batch={batch}
-          key={refusals}
-          onEditStateChange={unsavedCells.mark}
-          onMatch={onMatch}
-          onRefresh={refresh}
-        />
-      ) : (
-        <LegacyReview
-          announce={setAnnouncement}
-          batch={batch}
-          key={refusals}
-          preview={preview.data}
-          onMatch={onMatch}
-          onRefresh={refresh}
-        />
-      )}
+      <RosterReview
+        announce={setAnnouncement}
+        batch={batch}
+        key={refusals}
+        onEditStateChange={unsavedCells.mark}
+        onMatch={onMatch}
+        onRefresh={refresh}
+      />
     </>
   );
 }

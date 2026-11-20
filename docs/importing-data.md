@@ -53,6 +53,9 @@ student's full history appears in one place. The importer was written against on
 school's workbook layout, with one sheet per grading cycle; other layouts may need
 the adapter in `backend/data_imports/ksw_adapter.py` adjusting.
 
+Import the students first: past gradings are linked to students, so KukGrade does not
+start an import of them while it has none.
+
 Imported records are deliberately **weaker evidence** than a grading done in
 KukGrade:
 
@@ -108,6 +111,7 @@ KukGrade:
   replaces an earlier one, so keeping as written brings back a row the check left out. The workbook's text is always kept as written: a chosen rank
   or a reading is applied when the records are saved. Nothing is guessed, and nothing
   to check stops the import.
+
 - A month stays a month: an exact day is never invented.
 - "Did not attend" counts as attendance, not as a fail.
 - The workbook grows a sheet each grading, so upload the whole of it again: it is

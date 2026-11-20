@@ -30,10 +30,12 @@ from data_imports.services import (
     set_import_row_excluded,
 )
 from data_imports.testing import (
+    MAIN_TABLE_HEADER,
     grading_workbook,
     legacy_batch,
     standard_workbook,
     unaccounted_workbook,
+    workbook_bytes,
 )
 from data_imports.tests import (
     admin_user,
@@ -680,6 +682,16 @@ def test_the_checks_are_served_a_page_at_a_time_and_can_be_narrowed() -> None:
     assert first["decision"] is None
     assert first["row_count"] == 1
     assert first["rows"][0]["values"]["name"] == "Bo Lee"
+    # What it can be sorted with is served, so no screen works it out.
+    assert first["decisions"] == [
+        {"value": "RANK", "label": "Rank chosen"},
+        {"value": "KEEP", "label": "Kept as written"},
+    ]
+    twice = served(client, batch, kind="WRITTEN_TWICE")[0]
+    assert [decision["value"] for decision in twice["decisions"]] == [
+        "LEAVE_OUT",
+        "KEEP",
+    ]
 
     assert [found["key"] for found in served(client, batch, kind="OUTCOME")] == [
         "OUTCOME:testing? no",
@@ -716,6 +728,21 @@ def test_the_summary_counts_each_kind_and_what_is_still_open() -> None:
         "open": 1,
     }
     assert [kind["kind"] for kind in summary["kinds"]] == list(CheckKind.values)
+    assert summary["warnings"] == []
+
+
+def test_the_summary_says_what_could_not_be_read_or_checked() -> None:
+    def build(workbook: Any) -> None:
+        ws = workbook.create_sheet("06-2025")
+        ws.append(MAIN_TABLE_HEADER)
+        ws.append(["Ada Park", "White", "Yellow", "Pass", ""])
+        workbook.create_sheet("Scratch notes").append(["Not a grading cycle"])
+
+    batch = legacy_batch(workbook_bytes(build), uploaded_by=admin())
+
+    summary = client_for(admin()).get(f"{BASE}{batch.pk}/checks/summary/").json()
+
+    assert summary["warnings"] == ["Unknown sheet 'Scratch notes' was not imported."]
 
 
 def test_a_decision_is_made_through_the_api_and_the_check_served_back() -> None:

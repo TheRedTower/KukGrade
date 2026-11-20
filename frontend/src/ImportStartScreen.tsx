@@ -2,12 +2,11 @@ import { type ChangeEvent, type DragEvent, useRef, useState } from "react";
 import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   ApiError,
   type CreateDataImportBatchResponse,
-  type DataImportBatch,
   type DataImportKind,
   type SiteSettings,
   cancelDataImportBatch,
@@ -15,8 +14,11 @@ import {
   createDataImportBatch,
   errorMessage,
   getDataImportBatch,
+  getImportStarts,
 } from "./api";
 import { Alert } from "./Alert";
+import { FoundChecklist } from "./ImportFound";
+import { fileSize, suffixOf } from "./importFiles";
 import { ErrorText } from "./ErrorText";
 import { ImportStepBar } from "./ImportStepBar";
 import { importKinds } from "./importKinds";
@@ -24,22 +26,13 @@ import { useTemplateDownload } from "./importTemplate";
 import { useSiteSettingsQuery } from "./queries";
 import "./Imports.css";
 import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 import { keys } from "./queryKeys";
-import { CheckIcon, ChevronRightIcon, ExclamationIcon, UploadIcon } from "./Icons";
+import { ChevronRightIcon, UploadIcon } from "./Icons";
 import { cx } from "./cx";
 
 function parseKind(value: string | null): DataImportKind {
   return value === "LEGACY_GRADINGS" ? "LEGACY_GRADINGS" : "STUDENT_ROSTER";
-}
-
-function suffixOf(name: string): string {
-  return name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
-}
-
-function fileSize(bytes: number): string {
-  return bytes < 1024 * 1024
-    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
-    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function sizeLimit(bytes: number): string {
@@ -99,56 +92,6 @@ function GuideList({ kind }: { kind: DataImportKind }) {
   );
 }
 
-function FoundChecklist({
-  batch,
-  created,
-  kind,
-  limit,
-}: {
-  batch: DataImportBatch;
-  created: CreateDataImportBatchResponse;
-  kind: DataImportKind;
-  limit: string | undefined;
-}) {
-  const items: { ok: boolean; title: string; detail: string }[] = [
-    {
-      ok: true,
-      title:
-        suffixOf(batch.original_filename) === "csv"
-          ? "A CSV file KukGrade can read"
-          : "An Excel workbook KukGrade can read",
-      detail: `${fileSize(batch.file_size)}${limit ? `, under the ${limit} limit` : ""}.`,
-    },
-  ];
-  items.push(...importKinds[kind].found(batch));
-  if (created.already_imported_warning) {
-    items.push({
-      ok: false,
-      title: "This exact file has been imported before",
-      detail: importKinds[kind].alreadyImported,
-    });
-  }
-
-  return (
-    <div>
-      <h3 className="ix-h3">What KukGrade found</h3>
-      <ul className="list-plain ix-checklist">
-        {items.map((item) => (
-          <li key={item.title}>
-            <span aria-hidden="true" className="mark" data-tone={item.ok ? "success" : "warning"}>
-              {item.ok ? <CheckIcon /> : <ExclamationIcon />}
-            </span>
-            <span>
-              <p className="item-title">{item.title}</p>
-              <p className="subtext">{item.detail}</p>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 /** Step 1 of an import: choose the file, see what KukGrade found. */
 export function ImportStartScreen() {
   const [searchParams] = useSearchParams();
@@ -166,11 +109,19 @@ export function ImportStartScreen() {
   const [created, setCreated] = useState<CreateDataImportBatchResponse | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
 
+  // Past gradings wait for the students, as the server says.
+  const starts = useQuery({ queryKey: keys.imports.starts(), queryFn: getImportStarts, staleTime: 0 });
+  const whyNot = starts.data?.find((start) => start.kind === kind)?.why_not ?? null;
   const upload = useMutation({
     mutationFn: (file: File) => createDataImportBatch(file, kind),
     onSuccess: (response) => {
-      setCreated(response);
       void queryClient.invalidateQueries({ queryKey: keys.imports.all() });
+      // A workbook of gradings goes straight on to what KukGrade found in it.
+      if (!importKinds[kind].oneSheet) {
+        navigate(`/imports/${response.id}`, { state: { importedBefore: response.already_imported_warning } });
+        return;
+      }
+      setCreated(response);
     },
   });
   const batchId = created?.id;
@@ -228,7 +179,7 @@ export function ImportStartScreen() {
         ? errorMessage(batch.error, "The file was read, but could not be shown. Try again in a moment.")
         : null);
   const accept = types.map((type) => `.${type.value}`).join(",");
-  const { addsStudents, chooseLead, match, oneSheet, title } = importKinds[kind];
+  const { addsStudents, chooseLead, oneSheet, title } = importKinds[kind];
   const emptySheet = oneSheet && loaded !== null && (Boolean(loaded.sheet_error) || loaded.row_counts.total === 0);
 
   return (
@@ -237,7 +188,17 @@ export function ImportStartScreen() {
 
       <ImportStepBar current="CHOOSE_FILE" kind={kind} />
 
-      {loaded && created ? (
+      {whyNot ? (
+        <section aria-labelledby="ix-first" className="card stack stack--4">
+          <h2 className="ix-title" id="ix-first">
+            Before you start
+          </h2>
+          <p className="subtext">{whyNot}</p>
+          <Link className={buttonClass({ variant: "primary" }, "ix-start")} to="/imports/new?kind=STUDENT_ROSTER">
+            Import students
+          </Link>
+        </section>
+      ) : loaded && created ? (
         <section aria-labelledby="ix-your-file" className="card stack stack--4">
           <h2 className="ix-title ix-flush" id="ix-your-file" tabIndex={-1}>
             Your file
@@ -251,7 +212,7 @@ export function ImportStartScreen() {
               Choose a different file
             </Button>
           </div>
-          <FoundChecklist batch={loaded} created={created} kind={kind} limit={limit} />
+          <FoundChecklist batch={loaded} importedBefore={created.already_imported_warning} limit={limit} />
           {emptySheet ? (
             <Alert tone="warning">
               {loaded.sheet_error || "This sheet has no student rows."} Choose the sheet containing the roster before
@@ -359,21 +320,23 @@ export function ImportStartScreen() {
         <Button variant="ghost" disabled={discard.isPending} onClick={cancelImport}>
           Cancel import
         </Button>
-        <div className="row row--wrap">
-          {!loaded ? (
-            <span className="subtext" id="ix-continue-why">
-              Choose a file first.
-            </span>
-          ) : null}
-          <Button
-            aria-describedby={loaded ? undefined : "ix-continue-why"}
-            variant="primary"
-            disabled={!loaded || sheet.isPending || emptySheet}
-            onClick={() => navigate(`/imports/${batchId}`)}
-          >
-            Continue to match {match}
-          </Button>
-        </div>
+        {oneSheet ? (
+          <div className="row row--wrap">
+            {!loaded ? (
+              <span className="subtext" id="ix-continue-why">
+                Choose a file first.
+              </span>
+            ) : null}
+            <Button
+              aria-describedby={loaded ? undefined : "ix-continue-why"}
+              variant="primary"
+              disabled={!loaded || sheet.isPending || emptySheet}
+              onClick={() => navigate(`/imports/${batchId}`)}
+            >
+              Continue to match columns
+            </Button>
+          </div>
+        ) : null}
       </div>
     </section>
   );

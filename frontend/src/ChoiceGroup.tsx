@@ -17,8 +17,9 @@ interface ChoiceGroupProps<Value extends string> {
   /**
    * "segments": a switch between a few settings, joined in one pill.
    * "chips": a row of filters that wraps, each with its count.
+   * "options": one decision's answers, each a large button, as many to a row as fit.
    */
-  look?: "segments" | "chips";
+  look?: "segments" | "chips" | "options";
   className?: string;
 }
 
@@ -35,7 +36,11 @@ export function ChoiceGroup<Value extends string>({
   className,
 }: ChoiceGroupProps<Value>) {
   return (
-    <div aria-label={label} className={cx("choices", `choices--${look}`, className)} role="group">
+    <div
+      aria-label={label}
+      className={cx("choices", `choices--${look}`, look === "options" && "tiles tiles--narrowest", className)}
+      role="group"
+    >
       {choices.map((choice) => (
         <button
           aria-pressed={choice.value === value}

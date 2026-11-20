@@ -34,7 +34,7 @@ from data_imports.storage import import_upload_storage
 from data_imports.testing import MAIN_TABLE_HEADER, standard_workbook, workbook_bytes
 from data_imports.tests import CLEAN_ROW, admin_user, student_workbook
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("students_exist")]
 
 
 def stored_files() -> set[str]:

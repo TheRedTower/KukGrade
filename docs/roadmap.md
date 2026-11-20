@@ -30,10 +30,11 @@ Want something here, or something that is missing? Open an
       can be decided about through the API (link, not a current student, later, reopen, split,
       merge, confirm many), and what to check before saving is one list of exceptions, each
       decided through the API. The shared parts the phone screens are built from are in place
-      (`ActionBar`, `DetailPage`, `QueueList`, `Progress`). Still to come: phone-first screens for the whole import. The per-name linking screen and its private "Leave for now" list go when those
-      screens arrive.
-- [ ] **Rehearse the historical import** against a sanitised copy of a real school's
-      workbook. The importer has so far only been tried on synthetic workbooks.
+      (`ActionBar`, `DetailPage`, `QueueList`, `Progress`), and the import itself is phone-first
+      from the upload to the save (sheets, things to check one at a time, every record, save).
+      Still to come: phone-first screens for sorting the people, then the hub, the finished
+      import and the student import on the same screens. The per-name linking screen and its
+      private "Leave for now" list go when the people screens arrive.
 - [ ] **Measure the audit log's record history** on a real session: the history behind a
       grading or a student filters events by `session_id` and `student_id` in their details,
       which no index serves yet. Add one if it is slow once real data exists.

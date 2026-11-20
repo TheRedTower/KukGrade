@@ -140,9 +140,9 @@ export const SITE: SiteSettings = {
         file_types: [{ value: "xlsx", label: "Excel" }],
         steps: [
           { value: "CHOOSE_FILE", label: "Choose file" },
-          { value: "MATCH", label: "Match ranks" },
-          { value: "REVIEW", label: "Review records" },
-          { value: "CONFIRM", label: "Confirm" },
+          { value: "MATCH", label: "Sheets" },
+          { value: "REVIEW", label: "Things to check" },
+          { value: "CONFIRM", label: "Save" },
           { value: "RESULTS", label: "Results" },
         ],
       },

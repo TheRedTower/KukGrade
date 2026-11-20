@@ -18,7 +18,7 @@ from data_imports.ksw_adapter import (
 )
 from data_imports.models import ImportBatch, ImportRow
 from data_imports.services import (
-    preview_legacy_grading_import,
+    legacy_warnings,
     set_import_row_excluded,
 )
 from data_imports.testing import (
@@ -211,9 +211,9 @@ def test_a_sheet_too_full_to_check_is_said_only_while_it_is(
         "anyone written twice."
     )
 
-    assert unchecked in preview_legacy_grading_import(batch).warnings
+    assert unchecked in legacy_warnings(batch)
     sam = ImportRow.objects.get(batch=batch, source_locator="06-2025!R4")
     set_import_row_excluded(batch, row_number=sam.row_number, excluded=True)
-    assert unchecked not in preview_legacy_grading_import(batch).warnings
+    assert unchecked not in legacy_warnings(batch)
     kit = _issues(batch, "06-2025!R2")
     assert any(issue.startswith("Also graded") for issue in kit)

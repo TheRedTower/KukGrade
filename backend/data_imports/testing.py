@@ -36,6 +36,7 @@ from gradings.models import (
     LegacyPersonConfidence,
     LegacyRecordKind,
 )
+from gradings.testing import student
 from students.models import Student
 
 MAIN_TABLE_HEADER = ["Name", "Current Rank", "Testing For", "Outcome", "Comments"]
@@ -251,6 +252,14 @@ def commit_roster(
     return commit_student_import(batch, actor=actor)
 
 
+def students_to_link_to() -> None:
+    """Past gradings start only once there are students to link them to
+    (data_imports.services.why_not_startable): one, named like no one in
+    the test workbooks, when there are none yet."""
+    if not Student.objects.exists():
+        student(first_name="Quorra", last_name="Vantablack", wksa_id="999-9-999")
+
+
 def legacy_batch(
     content: bytes | None = None,
     uploaded_by: User | None = None,
@@ -258,6 +267,7 @@ def legacy_batch(
     payload = content or standard_workbook(
         [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
     )
+    students_to_link_to()
     result = create_import_batch(
         kind=ImportBatch.Kind.LEGACY_GRADINGS,
         upload=SimpleUploadedFile("workbook.xlsx", payload),

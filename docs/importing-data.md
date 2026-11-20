@@ -66,6 +66,10 @@ KukGrade:
 - They are not linked to a student automatically. KukGrade suggests a student for each
   person, with the reasons, and an administrator decides. A wrong link can be moved; a
   wrong record can be **voided**, never deleted.
+- Every imported record can be found again under **Historical records**: each opens a page
+  of its own with the workbook's text in full, comments included, the ranks KukGrade read
+  from it (corrected by choosing the belt), the student it is linked to and its person,
+  where who it is about is decided. The Imports page counts the people still to sort.
 - When records are saved, KukGrade groups them into **people**: the records whose names
   could be one person ("Theo R", "Theo Rowan", "Teo Rowan"; "Ben Marsh", "Benjamin Marsh";
   "Ivo Hart", "Ivo Lund-Hart"; anything in brackets after a name is not part of it) and

@@ -1,59 +1,56 @@
-import { useState } from "react";
-import { PageHeader } from "./PageHeader";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import {
-  errorMessage,
-  getAllDataImportBatches,
-  getLegacyGradingRecord,
-  getLegacyGradingRecords,
-  linkLegacyGradingRecord,
-  unlinkLegacyGradingRecord,
-} from "./api";
+import { errorMessage, getAllDataImportBatches, getLegacyGradingRecords, type LegacyGradingRecord } from "./api";
+import { buttonClass } from "./buttonClass";
 import { ErrorText } from "./ErrorText";
-import { formatMonthYear } from "./dates";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { Field } from "./Field";
+import { recordMonth } from "./linkRecords";
+import { LoadingState } from "./LoadingState";
+import { PageHeader } from "./PageHeader";
 import { Pagination } from "./Pagination";
+import { QueueList } from "./QueueList";
+import { keys } from "./queryKeys";
 import { SearchField } from "./SearchField";
+import { Select } from "./Select";
 import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
-import { useIdParam } from "./recordStatus";
-import { type Chosen } from "./linkRecords";
-import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
-import { useLegacyRefresh } from "./useLegacyRefresh";
 import "./Imports.css";
-import { Button } from "./Button";
-import { buttonClass } from "./buttonClass";
-import { keys } from "./queryKeys";
-import { LoadingState } from "./LoadingState";
-import { Field } from "./Field";
-import { Select } from "./Select";
 
 type Filter = "all" | "unlinked" | "linked" | "voided";
 
 const PAGE_SIZE = 50;
 
-/** A persistent view of imported history, including records no longer in the linking queue. */
 const RECORD_FILTERS = [
   { value: "unlinked", label: "Unlinked" },
   { value: "linked", label: "Linked" },
   { value: "voided", label: "Voided" },
 ];
 
+/** A record in a line: who it is linked to, and its ranks and outcome as read. */
+function recordHint(record: LegacyGradingRecord): string {
+  const ranks = [
+    record.current_rank_name ?? record.source_current_rank_text,
+    record.testing_for_rank_name ?? record.source_testing_for_rank_text,
+  ]
+    .filter(Boolean)
+    .join(" → ");
+  const who = record.is_void ? "Voided" : record.student_display_name || "Not linked";
+  return [who, ranks, record.outcome_display || record.attendance_status_display].filter(Boolean).join(" · ");
+}
+
+/**
+ * Every imported record, found again by the name as written, by import and
+ * by whether it is linked: each a two-line card that opens the record's own
+ * page (HistoricalRecordScreen).
+ */
 export function HistoricalRecordsScreen() {
-  // The record open beside the list, if any.
-  const id = useIdParam();
-  const recordId = id ?? 0;
   const filters = useUrlFilters();
   const filter: Filter = filters.oneOf("filter", ["all", "unlinked", "linked", "voided"] as const, "all");
   const page = filters.page;
   const batch = Number(filters.value("batch")) || undefined;
   const search = filters.value("search");
   const searched = search.trim();
-  const [chosen, setChosen] = useState<Chosen | null>(null);
-  const [confirm, setConfirm] = useState<"replace" | "unlink" | "void" | null>(null);
-  const refresh = useLegacyRefresh();
 
   const imports = useQuery({
     queryKey: keys.imports.historical(),
@@ -75,191 +72,70 @@ export function HistoricalRecordsScreen() {
       }),
   });
   const records = paged.query;
-  const detail = useQuery({
-    queryKey: keys.legacyRecords.detail(recordId),
-    queryFn: () => getLegacyGradingRecord(recordId),
-    enabled: id !== null,
-  });
-  const record = detail.data;
-  const link = useMutation({
-    mutationFn: (replace: boolean) => linkLegacyGradingRecord(recordId, chosen!.student, replace),
-    onSuccess: async () => {
-      await refresh();
-      setConfirm(null);
-      setChosen(null);
-    },
-  });
-  const unlink = useMutation({
-    mutationFn: () => unlinkLegacyGradingRecord(recordId),
-    onSuccess: async () => {
-      await refresh();
-      setConfirm(null);
-    },
-  });
+  const query = filters.query ? `?${filters.query}` : "";
 
   return (
     <section aria-labelledby="ix-history-title" className="page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
+        eyebrow="Past gradings"
         title="Historical records"
         titleId="ix-history-title"
-        subtitle="Find an imported record again to correct its link or mapped ranks. The workbook text stays as written."
+        subtitle="Find an imported record again. The workbook's text stays as written."
         actions={
           <Link className={buttonClass({ variant: "secondary" })} to="/imports/people">
             Sort the people
           </Link>
         }
       />
-      <div className="ix-two-col ix-two-col-queue">
-        <div className="stack stack--3">
-          {id === null ? (
-            <p className="card subtext">Choose a record to inspect and correct it.</p>
-          ) : detail.isPending ? (
-            <LoadingState>Loading record…</LoadingState>
-          ) : detail.isError || !record ? (
-            <ErrorText>{errorMessage(detail.error, "This record could not be loaded.")}</ErrorText>
-          ) : (
-            <div className="card stack stack--3" key={record.id}>
-              <h2 className="ix-title ix-flush">
-                “{record.source_name}” · {formatMonthYear(record.cycle_year, record.cycle_month)}
-              </h2>
-              <p className="subtext">
-                {record.record_kind_display} · {record.source_section} ·{" "}
-                {record.outcome_display || record.attendance_status_display}
-              </p>
-              {record.report ? <p>Report as written: {record.report}</p> : null}
-              {record.note ? <p>Other workbook notes: {record.note}</p> : null}
-              {record.is_void ? (
-                <p className="ix-danger-text">
-                  Voided: {record.void_reason} {record.voided_by_name ? `· ${record.voided_by_name}` : ""}
-                </p>
-              ) : (
-                <>
-                  <RankFix record={record} onDone={refresh} showAll />
-                  <p>
-                    Linked student: <strong>{record.student_display_name || "None"}</strong>
-                  </p>
-                  <SomeoneElse chosen={chosen} onChoose={setChosen} />
-                  {link.isError ? (
-                    <ErrorText>{errorMessage(link.error, "The link could not be saved.")}</ErrorText>
-                  ) : null}
-                  {unlink.isError ? (
-                    <ErrorText>{errorMessage(unlink.error, "The link could not be removed.")}</ErrorText>
-                  ) : null}
-                  <div className="row row--wrap">
-                    <Button
-                      variant="primary"
-                      disabled={!chosen || link.isPending}
-                      onClick={() => {
-                        if (record.student && record.student !== chosen?.student) setConfirm("replace");
-                        else link.mutate(false);
-                      }}
-                    >
-                      {record.student ? "Change linked student" : "Link to selected student"}
-                    </Button>
-                    {record.student ? (
-                      <Button variant="ghost" onClick={() => setConfirm("unlink")}>
-                        Unlink student…
-                      </Button>
-                    ) : null}
-                    <Button variant="ghost" className="ix-danger-text" onClick={() => setConfirm("void")}>
-                      Void record…
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
+      <SearchField label="Name as written" value={search} onChange={(value) => filters.set({ search: value })} />
+      <div className="filter-bar">
+        <Field label="Show">
+          {(control) => (
+            <Select
+              {...control}
+              all="All records"
+              allValue="all"
+              options={RECORD_FILTERS}
+              value={filter}
+              onChange={(value) => filters.set({ filter: value === "all" ? null : value })}
+            />
           )}
-        </div>
-        <div className="card card--flush stack stack--3">
-          <div className="stack stack--3 ix-queue-head">
-            <Field label="Show">
-              {(control) => (
-                <Select
-                  {...control}
-                  all="All records"
-                  allValue="all"
-                  options={RECORD_FILTERS}
-                  value={filter}
-                  onChange={(value) => filters.set({ filter: value === "all" ? null : value })}
-                />
-              )}
-            </Field>
-            <Field label="Import">
-              {(control) => (
-                <Select
-                  {...control}
-                  all="Every import"
-                  options={(imports.data?.results ?? []).map((item) => ({
-                    value: String(item.id),
-                    label: item.original_filename,
-                  }))}
-                  value={String(batch ?? "")}
-                  onChange={(value) => filters.set({ batch: value })}
-                />
-              )}
-            </Field>
-            <SearchField label="Name as written" value={search} onChange={(value) => filters.set({ search: value })} />
-          </div>
-          {records.isPending ? (
-            <LoadingState>Loading records…</LoadingState>
-          ) : records.isError ? (
-            <ErrorText>{errorMessage(records.error, "Records could not be loaded.")}</ErrorText>
-          ) : (
-            <>
-              {records.data.results.length === 0 ? (
-                <p className="subtext ix-card-pad">No records match these filters.</p>
-              ) : null}
-              <ol className="list-plain ix-queue">
-                {records.data.results.map((item) => (
-                  <li key={item.id}>
-                    <Link className="ix-queue-text" to={`/imports/history/${item.id}?${filters.query}`}>
-                      <strong>
-                        “{item.source_name}” · {formatMonthYear(item.cycle_year, item.cycle_month)}
-                      </strong>
-                      <span className="subtext">
-                        {item.is_void ? "Voided" : item.student_display_name || "Unlinked"}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ol>
-              <Pagination flush label="Pages of records" noun={["record", "records"]} {...paged.pager} />
-            </>
+        </Field>
+        <Field label="Import">
+          {(control) => (
+            <Select
+              {...control}
+              all="Every import"
+              options={(imports.data?.results ?? []).map((item) => ({
+                value: String(item.id),
+                label: item.original_filename,
+              }))}
+              value={String(batch ?? "")}
+              onChange={(value) => filters.set({ batch: value })}
+            />
           )}
-        </div>
+        </Field>
       </div>
-      {confirm === "replace" && record && chosen ? (
-        <ConfirmDialog
-          cancelLabel="Not yet"
-          title={`Move “${record.source_name}” to ${chosen.name}?`}
-          confirmLabel="Replace link"
-          pending={link.isPending}
-          pendingLabel="Replacing…"
-          error={link.isError ? errorMessage(link.error, "The link could not be replaced.") : null}
-          onClose={() => setConfirm(null)}
-          onConfirm={() => link.mutate(true)}
-        >
-          <p>This replaces the existing link to {record.student_display_name}. The change is recorded.</p>
-        </ConfirmDialog>
-      ) : null}
-      {confirm === "unlink" && record ? (
-        <ConfirmDialog
-          cancelLabel="Not yet"
-          title={`Unlink “${record.source_name}” from ${record.student_display_name}?`}
-          confirmLabel="Unlink student"
-          pending={unlink.isPending}
-          pendingLabel="Unlinking…"
-          error={unlink.isError ? errorMessage(unlink.error, "The link could not be removed.") : null}
-          onClose={() => setConfirm(null)}
-          onConfirm={() => unlink.mutate()}
-        >
-          <p>The historical record remains and returns to the linking queue.</p>
-        </ConfirmDialog>
-      ) : null}
-      {confirm === "void" && record ? (
-        <VoidRecord record={record} onClose={() => setConfirm(null)} onDone={refresh} />
-      ) : null}
+      {records.isPending ? (
+        <LoadingState>Loading records…</LoadingState>
+      ) : records.isError ? (
+        <ErrorText>{errorMessage(records.error, "Records could not be loaded.")}</ErrorText>
+      ) : records.data.results.length === 0 ? (
+        <p className="card subtext">No records match these filters.</p>
+      ) : (
+        <>
+          <QueueList
+            label="Records"
+            queues={records.data.results.map((record) => ({
+              to: `/imports/history/${record.id}${query}`,
+              label: `“${record.source_name}” · ${recordMonth(record)}`,
+              hint: recordHint(record),
+            }))}
+          />
+          <Pagination flush label="Pages of records" noun={["record", "records"]} {...paged.pager} />
+        </>
+      )}
     </section>
   );
 }

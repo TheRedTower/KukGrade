@@ -37,6 +37,7 @@ import { PeopleScreen } from "./PeopleScreen";
 import { PersonScreen } from "./PersonScreen";
 import { PersonSplitScreen } from "./PersonSplitScreen";
 import { PersonStudentScreen } from "./PersonStudentScreen";
+import { HistoricalRecordScreen } from "./HistoricalRecordScreen";
 import { HistoricalRecordsScreen } from "./HistoricalRecordsScreen";
 import { LoadingPage, LoginRoute, RequireAccess, RequireAuth, SetupGate } from "./AuthGates";
 import { PageTrailProvider } from "./PageTrailProvider";
@@ -212,7 +213,15 @@ function App() {
                           <HistoricalRecordsScreen />
                         </RequireAccess>
                       }
-                      path="imports/history/:id?"
+                      path="imports/history"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_reconcile_imported_history">
+                          <HistoricalRecordScreen />
+                        </RequireAccess>
+                      }
+                      path="imports/history/:id"
                     />
                     <Route
                       element={

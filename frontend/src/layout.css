@@ -993,6 +993,11 @@ select:not([multiple]):not([size]) {
   padding-inline: var(--card-pad);
 }
 
+/* A value written over several lines, such as a comment, keeps its lines. */
+.facts-list__text {
+  white-space: pre-wrap;
+}
+
 .facts-list--compact {
   font-size: var(--font-size-sm);
 }

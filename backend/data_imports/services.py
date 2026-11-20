@@ -50,6 +50,7 @@ from data_imports.legacy_checks import (
     outcome_reader,
     outcome_unread,
     rank_reader,
+    with_outcomes_read,
 )
 from data_imports.mappings import (
     EXTRA_LABEL_MAX_LENGTH,
@@ -1770,9 +1771,14 @@ def _classify_legacy(locked: ImportBatch) -> None:
     issues = _legacy_issue_finder(
         locked.configuration,
         workbook_checks(
-            row
-            for row, outcome in zip(canonical, outcomes, strict=True)
-            if outcome == ImportRow.Outcome.READY
+            with_outcomes_read(
+                (
+                    row
+                    for row, outcome in zip(canonical, outcomes, strict=True)
+                    if outcome == ImportRow.Outcome.READY
+                ),
+                locked.configuration,
+            ),
         ),
     )
     changed: list[ImportRow] = []

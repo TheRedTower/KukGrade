@@ -1391,6 +1391,9 @@ class LegacySource(Protocol):
     @property
     def admin_note(self) -> str: ...
 
+    @property
+    def outcome(self) -> str | None: ...
+
 
 def legacy_content_key(source: LegacySource) -> str:
     """What a historical record says, as one key: its month, where on the
@@ -1416,8 +1419,29 @@ def legacy_content_key(source: LegacySource) -> str:
 
 # A sheet note is a cell in no table, not a person (data_imports.ksw_adapter).
 SHEET_NOTE_NAME = "Sheet note"
-# The section of the sheet that lists people missing from a grading.
+# The section of the sheet that lists people missing from a grading, and the
+# one that lists people not accounted for in its results.
 MISSING_SECTION = "Missing"
+UNACCOUNTED_SECTION = "Unaccounted"
+
+
+def legacy_absent(source: LegacySource) -> bool:
+    """A record of someone not graded that day: not attending, listed as
+    missing, or listed as unaccounted for with no outcome KukGrade knows
+    ("N/A"). The one rule grouping and the import's checks share: such a
+    record is no result, so it may stand beside one on its sheet."""
+    return (
+        source.record_kind == LegacyRecordKind.DID_NOT_ATTEND
+        or source.source_section == MISSING_SECTION
+        or (source.source_section == UNACCOUNTED_SECTION and source.outcome is None)
+    )
+
+
+def legacy_result(source: LegacySource) -> bool:
+    """A record of someone graded that day: a result, and not absent."""
+    return source.record_kind == LegacyRecordKind.GRADING_RESULT and not (
+        legacy_absent(source)
+    )
 
 
 class LegacyPersonState(models.TextChoices):

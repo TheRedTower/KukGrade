@@ -98,6 +98,9 @@ def client_for(user: User | None) -> APIClient:
         ("JKN Alex", ["alex"]),
         ("  Alex   P. ", ["alex", "p"]),
         ("Hollie Tierny", ["hollie", "tierny"]),
+        ("Kit (White Belt)", ["kit"]),
+        ("Kit (White", ["kit"]),
+        ("Ivo Lund-Hart", ["ivo", "lund-hart"]),
     ],
 )
 def test_a_name_is_compared_without_titles_or_punctuation(
@@ -116,6 +119,12 @@ def test_a_name_is_compared_without_titles_or_punctuation(
         ("Ruby Moss", "Rubi Moss"),
         ("Mara Quinlan", "Mara Quinlen"),
         ("JKN Cara", "cara"),
+        ("Ben Marsh", "Benjamin Marsh"),
+        ("Benj M", "Benjamin Marsh"),
+        ("Ivo Hart", "Ivo Lund-Hart"),
+        ("Ivo Lund-Hart", "Ivo Lunt Hart"),
+        ("Ivo James Lund-Hart", "Ivo James Hart"),
+        ("Kit (White Belt)", "Kit B"),
     ],
 )
 def test_names_that_could_be_one_person_are_compatible(one: str, other: str) -> None:
@@ -132,6 +141,14 @@ def test_names_that_could_be_one_person_are_compatible(one: str, other: str) -> 
         ("Mo", "Mi"),
         ("Ruby Moss", "Ruby Mossington"),
         ("", "Cara"),
+        # A shortened first name is one person only with a surname to go by.
+        ("Kit", "Kitson"),
+        ("Kit", "Kitson Lee"),
+        ("Ben Marsh", "Benjamin Cole"),
+        ("Al Marsh", "Alan Marsh"),
+        ("Ivo Hart", "Ivo Lund-Smith"),
+        # Only the surname's parts count, never a middle name both give.
+        ("Ivo James Lund-Hart", "Ivo James Cole"),
     ],
 )
 def test_names_that_cannot_be_one_person_are_not(one: str, other: str) -> None:

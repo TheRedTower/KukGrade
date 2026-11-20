@@ -748,11 +748,8 @@ def test_a_blank_outcome_is_checked_on_results_only() -> None:
         ],
     )
 
-    assert checks == {
-        "062025!R2": [NO_OUTCOME],
-        # A side table has no rank columns: only the outcome is missing.
-        "062025!Unaccounted!R2": [NO_OUTCOME],
-    }
+    # Unaccounted for with no outcome is someone not graded that day.
+    assert checks == {"062025!R2": [NO_OUTCOME]}
 
 
 def test_a_missing_rank_is_checked_in_the_main_table() -> None:

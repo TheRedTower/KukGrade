@@ -66,7 +66,11 @@ KukGrade:
   A name can be **left for now** to come back to; that list is each administrator's own
   and is kept on the server, not in the browser.
 - When records are saved, KukGrade groups them into **people**: the records whose names
-  could be one person ("Theo R", "Theo Rowan", "Teo Rowan") and whose ranks tell one story.
+  could be one person ("Theo R", "Theo Rowan", "Teo Rowan"; "Ben Marsh", "Benjamin Marsh";
+  "Ivo Hart", "Ivo Lund-Hart"; anything in brackets after a name is not part of it) and
+  whose ranks tell one story. A shortened first name counts only when both give a surname.
+  Someone in an "Unaccounted" table with no outcome KukGrade knows ("N/A") counts as not
+  graded that day, like someone missing or not attending.
   Passing to a rank and holding it on the next sheet is the strongest sign; nobody goes down
   a grade, and two results on one sheet are always two people. Each person says how sure that
   is and why, and is rated again when a record's rank is corrected or a record voided. A later

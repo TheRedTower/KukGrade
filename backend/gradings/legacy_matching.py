@@ -35,8 +35,10 @@ _SHOWN = 5
 
 
 def name_tokens(name: str) -> list[str]:
-    """A name as compared: lower-cased words, punctuation and rank titles off."""
-    words = re.sub(r"[^\w\s'-]", " ", name.lower()).split()
+    """A name as compared: lower-cased words, punctuation, rank titles and
+    anything in brackets off ("Kit (White Belt)" is Kit)."""
+    unbracketed = re.sub(r"\([^)]*\)?", " ", name.lower())
+    words = re.sub(r"[^\w\s'-]", " ", unbracketed).split()
     # A rank written before a name ("JKN Alex") is a title, not part of it.
     while words and words[0] in RANK_TITLES:
         words.pop(0)
@@ -74,22 +76,53 @@ def _spelt_alike(a: str, b: str) -> bool:
     return min(len(a), len(b)) >= 3 and a[0] == b[0] and _one_edit_apart(a, b)
 
 
+def _shortened(a: str, b: str) -> bool:
+    """One first name the start of the other, of three letters or more
+    ("Ben", "Benjamin")."""
+    short, long = sorted((a, b), key=len)
+    return len(short) >= 3 and long.startswith(short)
+
+
+def _surnames_alike(a: str, b: str) -> bool:
+    """The same surname, spelt alike, or one part of a double-barrelled one
+    ("Hart", "Lund-Hart")."""
+    if _spelt_alike(a.replace("-", " "), b.replace("-", " ")):
+        return True
+    # The surname is the last word: only its parts are compared, never a
+    # middle name both happen to give.
+    last_a, last_b = a.split()[-1], b.split()[-1]
+    if "-" not in last_a and "-" not in last_b:
+        return False
+    return any(
+        _spelt_alike(part, other)
+        for part in last_a.split("-")
+        for other in last_b.split("-")
+        if part and other
+    )
+
+
 def names_compatible(first: Sequence[str], second: Sequence[str]) -> bool:
     """Whether two names as written, each as its name_tokens, could be the
     same person.
 
-    The first names are the same or spelt alike. The rest is missing on one
-    side ("Omar", "Omar Haddad"), the same, spelt alike, or an initial
-    that matches ("Finn C", "Fin Cole").
+    The first names are the same or spelt alike - or one is the other
+    shortened ("Ben", "Benjamin"), when both give a surname. The rest is
+    missing on one side ("Omar", "Omar Haddad"), the same, spelt alike, one
+    part of a double-barrelled surname, or an initial that matches ("Finn C",
+    "Fin Cole").
     """
-    if not first or not second or not _spelt_alike(first[0], second[0]):
+    if not first or not second:
         return False
     rest_a, rest_b = " ".join(first[1:]), " ".join(second[1:])
+    if not _spelt_alike(first[0], second[0]) and not (
+        rest_a and rest_b and _shortened(first[0], second[0])
+    ):
+        return False
     if not rest_a or not rest_b:
         return True
     if min(len(rest_a), len(rest_b)) == 1:
         return rest_a[0] == rest_b[0]
-    return _spelt_alike(rest_a, rest_b)
+    return _surnames_alike(rest_a, rest_b)
 
 
 class Suggestion(models.TextChoices):

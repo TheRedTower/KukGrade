@@ -44,14 +44,14 @@ from gradings.legacy_matching import (
     suggestion_for,
 )
 from gradings.models import (
-    MISSING_SECTION,
     SHEET_NOTE_NAME,
     LegacyGradingRecord,
     LegacyOutcome,
     LegacyPerson,
     LegacyPersonConfidence,
     LegacyPersonState,
-    LegacyRecordKind,
+    legacy_absent,
+    legacy_result,
 )
 from ranks.matching import active_rank_lookup, rank_for_text
 from ranks.models import Rank
@@ -265,11 +265,14 @@ class Grouping:
 
 
 def _first_name_variants(token: str) -> set[str]:
-    """The first name, and each way of dropping one letter: two names one
-    slip apart share one (legacy_matching._spelt_alike)."""
+    """The first name, each way of dropping one letter, and its first three
+    letters: two names one slip apart share one (legacy_matching.
+    _spelt_alike), and so does a name and the name shortened
+    (legacy_matching._shortened)."""
     variants = {token}
     if len(token) >= 3:
         variants |= {token[:at] + token[at + 1 :] for at in range(len(token))}
+        variants.add(token[:3])
     return variants
 
 
@@ -426,9 +429,8 @@ def entry_for(
         or (record_.source_name.lower(),),
         name=record_.source_name,
         cycle=(record_.cycle_year, record_.cycle_month),
-        result=record_.record_kind == LegacyRecordKind.GRADING_RESULT,
-        absent=record_.record_kind == LegacyRecordKind.DID_NOT_ATTEND
-        or record_.source_section == MISSING_SECTION,
+        result=legacy_result(record_),
+        absent=legacy_absent(record_),
         held=held,
         testing=testing,
         outcome=record_.outcome,

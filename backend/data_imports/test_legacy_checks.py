@@ -29,7 +29,12 @@ from data_imports.services import (
     resolve_legacy_check,
     set_import_row_excluded,
 )
-from data_imports.testing import grading_workbook, legacy_batch, standard_workbook
+from data_imports.testing import (
+    grading_workbook,
+    legacy_batch,
+    standard_workbook,
+    unaccounted_workbook,
+)
 from data_imports.tests import (
     admin_user,
     instructor_user,
@@ -767,3 +772,38 @@ def test_no_one_signed_out_can_reach_the_checks() -> None:
         {"key": "RANK:bown stripe", "decision": "KEEP"},
         format="json",
     ).status_code in (401, 403)
+
+
+def test_someone_unaccounted_for_and_graded_is_missing_and_graded() -> None:
+    batch = legacy_batch(unaccounted_workbook("N/A"), uploaded_by=admin())
+
+    assert [found.kind for found in checks_of(batch)] == [
+        CheckKind.OUTCOME,
+        CheckKind.MISSING_AND_GRADED,
+    ]
+    passed = legacy_batch(unaccounted_workbook("Pass"), uploaded_by=admin())
+    assert [found.kind for found in checks_of(passed)] == [CheckKind.WRITTEN_TWICE]
+
+
+def test_an_unaccounted_outcome_read_makes_a_result_as_saving_will() -> None:
+    batch = legacy_batch(unaccounted_workbook("N/A"), uploaded_by=admin())
+
+    resolve(
+        batch,
+        key=check(batch, CheckKind.OUTCOME).key,
+        decision=CheckDecision.OUTCOME,
+        outcome=LegacyOutcome.PASS,
+    )
+
+    # Read as Pass it is a result: two results alike on one sheet.
+    assert [found.kind for found in checks_of(batch)] == [
+        CheckKind.OUTCOME,
+        CheckKind.WRITTEN_TWICE,
+    ]
+    assert any(
+        "Also graded on this sheet" in issue
+        for issue in ImportRow.objects.get(batch=batch, row_number=1).issues
+    )
+    commit_legacy_grading_import(batch, actor=admin())
+    # And saving finds two people, as the checks said.
+    assert LegacyGradingRecord.objects.values("person").distinct().count() == 2

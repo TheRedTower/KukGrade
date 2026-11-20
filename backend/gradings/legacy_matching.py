@@ -88,12 +88,15 @@ def _surnames_alike(a: str, b: str) -> bool:
     ("Hart", "Lund-Hart")."""
     if _spelt_alike(a.replace("-", " "), b.replace("-", " ")):
         return True
-    if "-" not in a and "-" not in b:
+    # The surname is the last word: only its parts are compared, never a
+    # middle name both happen to give.
+    last_a, last_b = a.split()[-1], b.split()[-1]
+    if "-" not in last_a and "-" not in last_b:
         return False
     return any(
         _spelt_alike(part, other)
-        for part in re.split(r"[-\s]+", a)
-        for other in re.split(r"[-\s]+", b)
+        for part in last_a.split("-")
+        for other in last_b.split("-")
         if part and other
     )
 

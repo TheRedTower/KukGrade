@@ -123,6 +123,7 @@ def test_a_name_is_compared_without_titles_or_punctuation(
         ("Benj M", "Benjamin Marsh"),
         ("Ivo Hart", "Ivo Lund-Hart"),
         ("Ivo Lund-Hart", "Ivo Lunt Hart"),
+        ("Ivo James Lund-Hart", "Ivo James Hart"),
         ("Kit (White Belt)", "Kit B"),
     ],
 )
@@ -146,6 +147,8 @@ def test_names_that_could_be_one_person_are_compatible(one: str, other: str) -> 
         ("Ben Marsh", "Benjamin Cole"),
         ("Al Marsh", "Alan Marsh"),
         ("Ivo Hart", "Ivo Lund-Smith"),
+        # Only the surname's parts count, never a middle name both give.
+        ("Ivo James Lund-Hart", "Ivo James Cole"),
     ],
 )
 def test_names_that_cannot_be_one_person_are_not(one: str, other: str) -> None:

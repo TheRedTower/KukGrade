@@ -27,7 +27,11 @@ from data_imports.services import (
     void_import_records,
 )
 from data_imports.storage import import_upload_storage
-from data_imports.testing import standard_workbook, workbook_bytes
+from data_imports.testing import (
+    standard_workbook,
+    students_to_link_to,
+    workbook_bytes,
+)
 from data_imports.tests import (
     CLEAN_ROW,
     STANDARD_MAPPING,
@@ -190,6 +194,7 @@ def test_only_a_roster_workbook_takes_a_sheet_at_upload(
     filename: str,
     content: Any,
 ) -> None:
+    students_to_link_to()
     with pytest.raises(ValidationError, match="Only a roster workbook"):
         create_import_batch(
             kind=kind,

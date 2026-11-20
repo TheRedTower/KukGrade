@@ -27,6 +27,8 @@ type Role = "master" | "administrator";
 
 interface Ids {
   batch: string;
+  /** The demo's past-gradings import still open, before it is saved. */
+  openImport: string;
   student: string;
   user: string;
   sessions: Record<string, string>;
@@ -170,6 +172,15 @@ const SCREENS: Screen[] = [
   { name: "imports", role: "administrator", path: () => "/imports" },
   { name: "imports-new", role: "administrator", path: () => "/imports/new?kind=STUDENT_ROSTER" },
   { name: "imports-batch", role: "administrator", path: (ids) => `/imports/${ids.batch}` },
+  { name: "imports-sheets", role: "administrator", path: (ids) => `/imports/${ids.openImport}` },
+  { name: "imports-checks", role: "administrator", path: (ids) => `/imports/${ids.openImport}?step=checks` },
+  {
+    name: "imports-check",
+    role: "administrator",
+    path: (ids) => `/imports/${ids.openImport}?step=check&kind=RANK`,
+  },
+  { name: "imports-every-record", role: "administrator", path: (ids) => `/imports/${ids.openImport}?step=records` },
+  { name: "imports-save", role: "administrator", path: (ids) => `/imports/${ids.openImport}?step=save` },
   { name: "imports-missing", role: "administrator", path: () => "/imports/999999" },
   { name: "imports-history", role: "administrator", path: () => "/imports/history" },
   { name: "imports-records", role: "administrator", path: () => "/imports/records" },
@@ -293,7 +304,8 @@ test.beforeAll(async ({ browser }) => {
   expect(marking, "the demo has a candidate being marked, with a Met and a Not met").toBeTruthy();
   expect(withdrawn, "the demo has a withdrawn candidate in its open session").toBeTruthy();
   ids = {
-    batch: String((await list(admin, "/api/data-imports/batches/"))[0].id),
+    batch: String((await list(admin, "/api/data-imports/batches/?status=COMMITTED"))[0].id),
+    openImport: String((await list(admin, "/api/data-imports/batches/?kind=LEGACY_GRADINGS&finished=false"))[0].id),
     completedCandidate: String(completed[0].id),
     student: String((await list(admin, "/api/students/"))[0].id),
     // Not the signed-in administrator: their own page has no password reset.

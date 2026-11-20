@@ -511,13 +511,6 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
-      - name: rank_text
-        required: false
-        in: query
-        description: A historical import's rows that write a rank this way, held or
-          tested for (any case).
-        schema:
-          type: string
       - name: record_kind
         required: false
         in: query
@@ -531,13 +524,12 @@ paths:
         description: Any of the row's values.
         schema:
           type: string
-      - name: worth_a_look
+      - name: sheet
         required: false
         in: query
-        description: 'Only rows with (or without) issues: for a historical import,
-          the records worth a look, left out or not.'
+        description: A historical import's rows from this grading sheet, by its name.
         schema:
-          type: boolean
+          type: string
       tags:
       - data-imports
       security:
@@ -875,41 +867,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportBatch'
           description: ''
-  /api/data-imports/batches/{id}/preview/:
-    post:
-      operationId: data_imports_batches_preview_create
-      description: |-
-        A historical import's rank choices, saved when given, and what it
-        would do. A roster's columns are matched with mapping/ instead.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      tags:
-      - data-imports
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/LegacyImportRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/LegacyImportRequest'
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LegacyImportRequest'
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LegacyImportPreview'
-          description: ''
   /api/data-imports/batches/{id}/second-look/:
     get:
       operationId: data_imports_batches_second_look_retrieve
@@ -1066,6 +1023,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportRecordsVoided'
+          description: ''
+  /api/data-imports/batches/starts/:
+    get:
+      operationId: data_imports_batches_starts_list
+      description: |-
+        Whether an import of each kind can start now, and why not when it
+        cannot - past gradings wait for the students to be imported.
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImportStart'
           description: ''
   /api/gradings/assessment-items/:
     get:
@@ -6610,6 +6586,19 @@ components:
           minLength: 1
       required:
       - sheet
+    ImportStart:
+      type: object
+      description: Whether an import of one kind can start now.
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        why_not:
+          type: string
+          nullable: true
+          description: Why it cannot start now, in plain words; null when it can.
+      required:
+      - kind
+      - why_not
     ImportStatusChoice:
       type: object
       description: |-
@@ -6866,9 +6855,17 @@ components:
           items:
             type: integer
           description: The rows, by number, that leaving one out may choose from.
+        decisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyCheckDecisionChoice'
+          readOnly: true
+          description: The decisions this check can take, named; keeping it as written
+            always can.
       required:
       - decision
       - decision_display
+      - decisions
       - is_open
       - key
       - kind
@@ -6881,6 +6878,19 @@ components:
       - rows_to_leave_out
       - suggested_rank_code
       - text
+    LegacyCheckDecisionChoice:
+      type: object
+      description: |-
+        One of a set of choices, as every list of them is served: the value
+        sent back, and its name.
+      properties:
+        value:
+          $ref: '#/components/schemas/LegacyCheckDecisionEnum'
+        label:
+          type: string
+      required:
+      - label
+      - value
     LegacyCheckDecisionEnum:
       enum:
       - RANK
@@ -6968,10 +6978,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LegacyCheckKindCount'
+        warnings:
+          type: array
+          items:
+            type: string
+          description: 'What KukGrade could not read or check, in plain words: parts
+            of the workbook left out, and sheets with too many people to check for
+            anyone written twice.'
       required:
       - checks
       - kinds
       - open
+      - warnings
     LegacyGradingRecord:
       type: object
       description: |-
@@ -7090,61 +7108,6 @@ components:
       - testing_for_rank_name
       - void_reason
       - voided_by_name
-    LegacyImportPreview:
-      type: object
-      properties:
-        total:
-          type: integer
-        grading_result:
-          type: integer
-        auxiliary_note:
-          type: integer
-        did_not_attend:
-          type: integer
-        unresolved_current_rank:
-          type: integer
-        unresolved_testing_for_rank:
-          type: integer
-        excluded:
-          type: integer
-        worth_a_look:
-          type: integer
-          description: 'Records not left out that have issues: a reason to look.'
-        warnings:
-          type: array
-          items:
-            type: string
-        rank_suggestions:
-          type: array
-          items:
-            $ref: '#/components/schemas/RankMappingSuggestion'
-      required:
-      - auxiliary_note
-      - did_not_attend
-      - excluded
-      - grading_result
-      - rank_suggestions
-      - total
-      - unresolved_current_rank
-      - unresolved_testing_for_rank
-      - warnings
-      - worth_a_look
-    LegacyImportRequest:
-      type: object
-      description: |-
-        The historical preview's request: the rank choices to save, if any.
-
-        Keys are the source rank text exactly as it appeared in the workbook
-        (case-insensitive on the service side); a null value explicitly means
-        "leave unresolved" - never a block on committing that row, unlike the
-        student roster importer's required rank. Left out, the stored choices
-        are kept.
-      properties:
-        rank_mappings:
-          type: object
-          additionalProperties:
-            type: string
-            nullable: true
     LegacyNotAStudentReasonEnum:
       enum:
       - INSTRUCTOR
@@ -8311,30 +8274,6 @@ components:
       - order
       - stripe_colour
       - stripe_count
-    RankMappingSuggestion:
-      type: object
-      properties:
-        source_text:
-          type: string
-        suggested_rank_code:
-          type: string
-          nullable: true
-        doubtful:
-          type: boolean
-          description: The source marks its own doubt, as in 'Red stripe?'.
-        rows:
-          type: integer
-          description: How many rows use this text.
-        chosen_rank_code:
-          type: string
-          nullable: true
-          description: The rank chosen for this spelling, or null while it has none.
-      required:
-      - chosen_rank_code
-      - doubtful
-      - rows
-      - source_text
-      - suggested_rank_code
     RecordKindEnum:
       enum:
       - GRADING_RESULT

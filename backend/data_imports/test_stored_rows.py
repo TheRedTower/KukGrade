@@ -33,7 +33,7 @@ from data_imports.services import (
     save_import_mapping,
     set_import_row_excluded,
 )
-from data_imports.testing import check_roster, standard_workbook
+from data_imports.testing import check_roster, grading_workbook, standard_workbook
 from data_imports.tests import (
     CLEAN_ROW,
     STANDARD_MAPPING,
@@ -609,8 +609,7 @@ def test_a_historical_import_finishes_in_the_same_queries_however_many_records()
     assert all(row.created_id for row in large.rows.all())
 
 
-@pytest.mark.parametrize("action", ["preview", "mapping"])
-def test_viewing_imports_is_not_enough_to_check_or_change_one(action: str) -> None:
+def test_viewing_imports_is_not_enough_to_check_or_change_one() -> None:
     """A check stores the mapping and fixes it is sent, so it needs the
     permission matching columns does, not only the permission to look."""
     from django.contrib.auth.models import Permission
@@ -627,7 +626,7 @@ def test_viewing_imports_is_not_enough_to_check_or_change_one(action: str) -> No
 
     assert client.get(f"{BASE}{batch.pk}/rows/").status_code == 200
     response = client.post(
-        f"{BASE}{batch.pk}/{action}/",
+        f"{BASE}{batch.pk}/mapping/",
         {"column_mapping": STANDARD_MAPPING},
         format="json",
     )
@@ -684,25 +683,27 @@ def test_a_historical_row_serves_no_cells() -> None:
     assert served["file_values"] == {}
 
 
-def test_historical_rows_can_be_listed_by_a_rank_spelling_held_or_tested_for() -> None:
+def test_historical_rows_can_be_listed_by_grading_sheet() -> None:
     admin = admin_user()
     batch = upload_batch(
         kind=ImportBatch.Kind.LEGACY_GRADINGS,
-        content=standard_workbook(
-            [
-                ["A. Example", "Brn stripe", "Brown", "Pass", ""],
-                ["B. Example", "Red Belt", "brn STRIPE", "Pass", ""],
-                ["C. Example", "White Belt", "Yellow", "Pass", ""],
-            ],
+        content=grading_workbook(
+            {
+                "062025": [["A. Example", "White", "Yellow", "Pass", ""]],
+                "092025": [
+                    ["A. Example", "Yellow", "Blue Stripe", "Pass", ""],
+                    ["B. Example", "White", "Yellow", "Pass", ""],
+                ],
+            },
         ),
         uploaded_by=admin,
     )
     client = client_for(admin)
 
-    served = results(client.get(f"{BASE}{batch.pk}/rows/", {"rank_text": "Brn stripe"}))
+    served = results(client.get(f"{BASE}{batch.pk}/rows/", {"sheet": "092025"}))
 
-    assert [row["values"]["name"] for row in served] == ["A. Example", "B. Example"]
-    assert results(client.get(f"{BASE}{batch.pk}/rows/", {"rank_text": "Purple"})) == []
+    assert [row["source_locator"] for row in served] == ["092025!R2", "092025!R3"]
+    assert results(client.get(f"{BASE}{batch.pk}/rows/", {"sheet": "Nope"})) == []
 
 
 def test_rows_can_be_listed_by_whether_the_importer_fixed_them() -> None:
@@ -774,29 +775,16 @@ def test_a_roster_import_serves_its_fields_and_suggested_columns() -> None:
     assert rank["needed"] and rank["whole_file"]
 
 
-def test_a_historical_imports_preview_serves_the_rank_chosen_for_each_spelling() -> (
-    None
-):
+def test_a_historical_import_has_no_columns_to_match() -> None:
     admin = admin_user()
     batch = upload_batch(
         kind=ImportBatch.Kind.LEGACY_GRADINGS,
         content=standard_workbook([["A. Example", "Brn stripe", "Brown", "Pass", ""]]),
         uploaded_by=admin,
     )
-    client = client_for(admin)
-    client.post(
-        f"{BASE}{batch.pk}/preview/",
-        {"rank_mappings": {"Brn stripe": "BROWN_STRIPE"}},
-        format="json",
-    )
 
-    # Asked again without choices, it reads the stored ones.
-    preview = client.post(f"{BASE}{batch.pk}/preview/", {}, format="json").json()
-    served = client.get(f"{BASE}{batch.pk}/").json()
+    served = client_for(admin).get(f"{BASE}{batch.pk}/").json()
 
-    assert {
-        s["source_text"]: s["chosen_rank_code"] for s in preview["rank_suggestions"]
-    } == {"Brn stripe": "BROWN_STRIPE", "Brown": None}
     assert served["target_fields"] == [] and served["suggested_mapping"] == {}
 
 
@@ -841,7 +829,7 @@ def test_a_row_names_the_fields_its_issues_are_about() -> None:
     assert served[4]["issue_fields"] == ["current_rank", "wksa_id"]
 
 
-def test_historical_records_worth_a_look_say_why_and_follow_the_rank_choices() -> None:
+def test_historical_records_say_why_they_are_worth_a_look() -> None:
     admin = admin_user()
     batch = upload_batch(
         kind=ImportBatch.Kind.LEGACY_GRADINGS,
@@ -854,47 +842,20 @@ def test_historical_records_worth_a_look_say_why_and_follow_the_rank_choices() -
         ),
         uploaded_by=admin,
     )
-    client = client_for(admin)
-    # Before any rank is chosen, a rank KukGrade reads is taken as read; one
-    # it cannot read, or that the workbook doubts, waits.
-    assert batch.rows.get(row_number=1).issues == []
-    assert batch.rows.get(row_number=2).issues == [
-        "Rank 'Brn stripe' is not matched to a KukGrade rank yet.",
-    ]
 
-    preview = client.post(
-        f"{BASE}{batch.pk}/preview/",
-        {
-            "rank_mappings": {
-                "White Belt": "WHITE",
-                "Yellow Stripe": "YELLOW_STRIPE",
-                "Red Belt": "RED",
-                "Blue Belt": "BLUE",
-                "Red stripe?": "RED_STRIPE",
-            },
-        },
-        format="json",
-    ).json()
+    served = results(client_for(admin).get(f"{BASE}{batch.pk}/rows/"))
 
-    served = results(client.get(f"{BASE}{batch.pk}/rows/", {"worth_a_look": "true"}))
+    # A rank KukGrade reads is taken as read; one it cannot read, or that the
+    # workbook doubts, waits.
     assert {row["row_number"]: row["issues"] for row in served} == {
+        1: [],
         2: ["Rank 'Brn stripe' is not matched to a KukGrade rank yet."],
         3: [
             "The workbook marks rank 'Red stripe?' as uncertain.",
+            "Rank 'Red stripe?' is not matched to a KukGrade rank yet.",
             "Outcome 'Maybe' is not one KukGrade knows.",
         ],
     }
-    assert preview["worth_a_look"] == 2
-    # A record left out still shows among them, but is no longer counted.
-    set_import_row_excluded(batch, row_number=3, excluded=True)
-    again = client.post(f"{BASE}{batch.pk}/preview/", {}, format="json").json()
-    assert again["worth_a_look"] == 1
-    assert (
-        len(results(client.get(f"{BASE}{batch.pk}/rows/", {"worth_a_look": "true"})))
-        == 2
-    )
-    fine = results(client.get(f"{BASE}{batch.pk}/rows/", {"worth_a_look": "false"}))
-    assert [row["row_number"] for row in fine] == [1]
 
 
 def test_historical_rows_can_be_listed_by_kind() -> None:

@@ -154,13 +154,16 @@ SBN and PKJN (Dahn Bo Nim to Pyung Kwahn Jung Nim). Every screen draws ranks as 
 
 Administrators can bring in an existing student list and, if the school has one,
 a spreadsheet of past gradings, with a guided review before anything is saved.
+Past gradings are linked to students, so they can be imported once the students are in.
 An upload that is abandoned is cleared once it is 24 hours old: each new upload clears
 the stale ones, and so does every start of the container. Past gradings come in sheet by sheet:
 uploading the whole workbook again brings in only its new sheets, a changed sheet only if chosen,
 and no record is ever added twice. Ranks and outcomes KukGrade can read are taken as read, and
 only what is left is listed to check, each one decision with "keep as written" always allowed: a
 rank it cannot read or the workbook doubts, an outcome it cannot read, a name written twice on one
-sheet, someone both missing and graded there, and a missing outcome or rank. Saved records are grouped into the people they are about, by their names and rank
+sheet, someone both missing and graded there, and a missing outcome or rank. Each step is a
+screen of its own: the sheets, the things to check (each one on its own page, with its answers as
+large buttons), every record, and the save, which never waits for anything left open. Saved records are grouped into the people they are about, by their names and rank
 history, each with how sure that is and the students they may be. Each person is linked to a
 student, marked not a current student, or left for later; a person can be split or merged, and
 every decision can be undone and is audited. See

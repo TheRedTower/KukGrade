@@ -722,10 +722,43 @@ export function cancelDataImportBatch(id: number) {
   return done(api.POST("/api/data-imports/batches/{id}/cancel/", { params: { path: { id } } }));
 }
 
-export type LegacyImportPreview = Schemas["LegacyImportPreview"];
+/** Whether an import of each kind can start now, and why not when it cannot. */
+export function getImportStarts() {
+  return answer(api.GET("/api/data-imports/batches/starts/"));
+}
 
-export function previewLegacyGradingImport(id: number, body: Schemas["LegacyImportRequest"]) {
-  return answer(api.POST("/api/data-imports/batches/{id}/preview/", { params: { path: { id } }, body }));
+export type LegacySheet = Schemas["LegacySheet"];
+
+/** A historical import's grading sheets, each against what KukGrade holds. */
+export function getLegacySheets(id: number) {
+  return answer(api.GET("/api/data-imports/batches/{id}/sheets/", { params: { path: { id } } }));
+}
+
+/** Choose the grading sheets that come in, by name. */
+export function chooseLegacySheets(id: number, included: string[]) {
+  return answer(api.PATCH("/api/data-imports/batches/{id}/sheets/", { params: { path: { id } }, body: { included } }));
+}
+
+export type LegacyCheck = Schemas["LegacyCheck"];
+
+/** Every thing to check of one kind, in the order the list shows them. */
+export function getAllLegacyChecks(id: number, kind: Schemas["LegacyCheckKindEnum"]) {
+  return collectAllPages((page) =>
+    answer(
+      api.GET("/api/data-imports/batches/{id}/checks/", {
+        params: { path: { id }, query: { kind, page, page_size: largestPage } },
+      }),
+    ),
+  );
+}
+
+export function getLegacyChecksSummary(id: number) {
+  return answer(api.GET("/api/data-imports/batches/{id}/checks/summary/", { params: { path: { id } } }));
+}
+
+/** Decide one check; null when deciding it ended it. */
+export function resolveLegacyCheck(id: number, body: Schemas["LegacyCheckDecisionRequest"]) {
+  return answer(api.POST("/api/data-imports/batches/{id}/checks/resolve/", { params: { path: { id } }, body }));
 }
 
 export type LegacyGradingRecord = Schemas["LegacyGradingRecord"];

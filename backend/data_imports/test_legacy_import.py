@@ -1,5 +1,6 @@
-"""Historical workbook preview/commit: rank suggestions, adapter warnings, and
-the LegacyGradingRecord commit path, on top of the adapter's own tests."""
+"""Historical workbook upload and commit: how ranks are read, the adapter's
+warnings, and the LegacyGradingRecord commit path, on top of the adapter's
+own tests."""
 
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from data_imports.models import ImportBatch
 from data_imports.services import (
     cancel_import_batch,
     commit_legacy_grading_import,
-    preview_legacy_grading_import,
+    legacy_warnings,
 )
 from data_imports.testing import (
     MAIN_TABLE_HEADER,
@@ -23,15 +24,14 @@ from data_imports.testing import (
 )
 from data_imports.tests import admin_user, instructor_user, rank
 from gradings.models import LegacyGradingRecord, LegacyOutcome, LegacyRecordKind
-from ranks.models import Rank
 
-pytestmark = pytest.mark.django_db
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("students_exist")]
 
 
 # --- preview -----------------------------------------------------------
 
 
-def test_preview_reports_the_adapters_structural_warnings() -> None:
+def test_the_adapters_structural_warnings_are_served() -> None:
     # A sheet the adapter cannot place is skipped, not silently lost: the
     # administrator must see it before committing.
     def build(workbook: Workbook) -> None:
@@ -40,10 +40,10 @@ def test_preview_reports_the_adapters_structural_warnings() -> None:
         ws.append(["A. Example", "White", "Yellow Stripe", "Pass", ""])
         workbook.create_sheet("Scratch notes").append(["Not a grading cycle"])
 
-    preview = preview_legacy_grading_import(legacy_batch(workbook_bytes(build)))
+    batch = legacy_batch(workbook_bytes(build))
 
-    assert preview.total == 1
-    assert preview.warnings == ["Unknown sheet 'Scratch notes' was not imported."]
+    assert batch.rows.count() == 1
+    assert legacy_warnings(batch) == ["Unknown sheet 'Scratch notes' was not imported."]
 
 
 def test_an_over_long_cell_is_refused_at_upload_naming_where_it_is() -> None:
@@ -63,7 +63,7 @@ def test_an_over_long_cell_is_refused_at_upload_naming_where_it_is() -> None:
     assert not ImportBatch.objects.exists()
 
 
-def test_preview_counts_rows_by_record_kind() -> None:
+def test_each_row_is_kept_as_its_kind_of_record() -> None:
     def build(workbook: Workbook) -> None:
         ws = workbook.create_sheet("06-2025")
         ws.append(MAIN_TABLE_HEADER)
@@ -73,154 +73,61 @@ def test_preview_counts_rows_by_record_kind() -> None:
         ws.append(["C. Third", "note"])
 
     batch = legacy_batch(workbook_bytes(build))
-    preview = preview_legacy_grading_import(batch)
 
-    assert preview.total == 3
-    assert preview.grading_result == 1
-    assert preview.did_not_attend == 1
-    assert preview.auxiliary_note == 1
-
-
-def test_preview_suggests_an_exact_rank_match() -> None:
-    # The seeded catalogue's Rank.name for "YELLOW" is exactly "Yellow" (see
-    # ranks/migrations/0002_seed_rank_catalogue.py) - an exact match, not a
-    # fuzzy one.
-    content = standard_workbook(
-        [["A. Example", "Yellow", "Blue Stripe", "Pass", ""]],
+    kinds = sorted(batch.rows.values_list("raw__record_kind", flat=True))
+    assert kinds == sorted(
+        [
+            LegacyRecordKind.GRADING_RESULT,
+            LegacyRecordKind.DID_NOT_ATTEND,
+            LegacyRecordKind.AUXILIARY_NOTE,
+        ],
     )
-    batch = legacy_batch(content)
-
-    preview = preview_legacy_grading_import(batch)
-
-    suggestion = next(s for s in preview.rank_suggestions if s.source_text == "Yellow")
-    assert suggestion.suggested_rank_code == "YELLOW"
-
-
-def test_each_spelling_says_the_rank_chosen_for_it_however_it_was_written() -> None:
-    content = standard_workbook(
-        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
-    )
-    batch = legacy_batch(content)
-
-    before = preview_legacy_grading_import(batch)
-    assert {s.source_text: s.chosen_rank_code for s in before.rank_suggestions} == {
-        "Blue Stripe": None,
-        "Yellow Belt": None,
-    }
-    # The choice is matched to the spelling whatever its case or spacing.
-    after = preview_legacy_grading_import(
-        batch, rank_mappings={" yellow belt ": "YELLOW"}
-    )
-    assert {s.source_text: s.chosen_rank_code for s in after.rank_suggestions} == {
-        "Blue Stripe": None,
-        "Yellow Belt": "YELLOW",
-    }
 
 
 @pytest.mark.parametrize(
-    ("text", "code", "doubtful"),
+    ("text", "code"),
     [
+        # The seeded catalogue's own name, read exactly.
+        ("Yellow", "YELLOW"),
         # How the club's workbook writes them (2026-10-20): fixed spellings,
         # read as written - except one the workbook marks with "?", which
         # waits for the importer (data_imports.legacy_checks).
-        ("Yellow Belt", "YELLOW", False),
-        ("red belt", "RED", False),
-        ("DBN", "DAHN_BO", False),
-        ("DBn", "DAHN_BO", False),
-        ("Red stripe?", "RED_STRIPE", True),
-        ("Brown Stripe ?", "BROWN_STRIPE", True),
+        ("Yellow Belt", "YELLOW"),
+        ("red belt", "RED"),
+        ("DBN", "DAHN_BO"),
+        ("DBn", "DAHN_BO"),
+        ("Red stripe?", None),
+        ("Brown Stripe ?", None),
+        # A slip for DBN, but a near miss is never guessed.
+        ("DNB", None),
     ],
 )
-def test_the_workbooks_own_spellings_are_suggested(
+def test_a_spelling_kukgrade_reads_is_saved_as_read_and_any_other_waits(
     text: str,
-    code: str,
-    doubtful: bool,
+    code: str | None,
 ) -> None:
-    content = standard_workbook([["A. Example", text, "", "Pass", ""]])
-    batch = legacy_batch(content)
-
-    preview = preview_legacy_grading_import(batch)
-
-    [suggestion] = preview.rank_suggestions
-    assert (suggestion.suggested_rank_code, suggestion.doubtful) == (code, doubtful)
-    assert suggestion.rows == 1
-    # Read as suggested, unless the workbook doubts it: then it waits.
-    assert preview.unresolved_current_rank == (1 if doubtful else 0)
-
-
-def test_preview_leaves_an_unmatched_rank_text_unsuggested() -> None:
-    content = standard_workbook([["A. Example", "DNB", "Blue Stripe?", "Pass", ""]])
-    batch = legacy_batch(content)
-
-    preview = preview_legacy_grading_import(batch)
-
-    # A slip for DBN, but a near miss is never guessed.
-    suggestion = next(s for s in preview.rank_suggestions if s.source_text == "DNB")
-    assert suggestion.suggested_rank_code is None
-
-
-def test_preview_counts_unresolved_ranks_until_a_mapping_is_supplied() -> None:
-    content = standard_workbook(
-        [["A. Example", "Yelow Belt", "Blue Stripe", "Pass", ""]],
+    admin = admin_user()
+    batch = legacy_batch(
+        standard_workbook([["A. Example", text, "", "Pass", ""]]),
+        uploaded_by=admin,
     )
-    batch = legacy_batch(content)
 
-    # A spelling KukGrade cannot read waits for a choice.
-    unmapped = preview_legacy_grading_import(batch)
-    assert unmapped.unresolved_current_rank == 1
+    commit_legacy_grading_import(batch, actor=admin)
 
-    yellow = rank("YELLOW")
-    mapped = preview_legacy_grading_import(
-        batch,
-        rank_mappings={"Yelow Belt": yellow.code},
-    )
-    assert mapped.unresolved_current_rank == 0
+    record = LegacyGradingRecord.objects.get(source_batch=batch)
+    assert (record.current_rank.code if record.current_rank else None) == code
+    assert record.source_current_rank_text == text
 
 
-def test_every_preview_judges_each_record_against_the_ranks_as_they_are_now() -> None:
-    # The rank choices are saved once, but each preview reads them against
-    # the active ranks again: a rank switched off since is "not matched",
-    # on the row and in the counts alike, as the commit would find it.
-    content = standard_workbook(
-        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
-    )
-    batch = legacy_batch(content)
-    yellow = rank("YELLOW")
-    not_matched = "Rank 'Yellow Belt' is not matched to a KukGrade rank yet."
-
-    chosen = preview_legacy_grading_import(
-        batch,
-        rank_mappings={"Yellow Belt": yellow.code},
-    )
-    assert chosen.unresolved_current_rank == 0
-    assert not_matched not in batch.rows.get().issues
-
-    Rank.objects.filter(pk=yellow.pk).update(active=False)
-    again = preview_legacy_grading_import(batch)
-
-    assert again.unresolved_current_rank == 1
-    assert not_matched in batch.rows.get().issues
-
-
-def test_preview_counts_an_unresolved_free_form_outcome_as_worth_a_look() -> None:
+def test_a_free_form_outcome_is_a_reason_to_look_at_the_record() -> None:
     content = standard_workbook(
         [["A. Example", "White", "Yellow Stripe", "Testing? JKN Example: No", ""]],
     )
     batch = legacy_batch(content)
 
-    preview = preview_legacy_grading_import(batch)
-
-    assert preview.worth_a_look == 1
     assert "Outcome 'Testing? JKN Example: No' is not one KukGrade knows." in (
         batch.rows.get().issues
     )
-
-
-def test_preview_is_recomputed_fresh_and_deterministic() -> None:
-    batch = legacy_batch()
-    first = preview_legacy_grading_import(batch)
-    second = preview_legacy_grading_import(batch)
-    assert first == second
 
 
 # --- commit --------------------------------------------------------------
@@ -251,26 +158,6 @@ def test_commit_creates_one_legacy_record_per_row() -> None:
     assert import_event.metadata["record_count"] == 1
     assert "A. Example" not in import_event.summary
     assert AuditEvent.objects.count() == events_before + 1
-
-
-def test_commit_applies_the_saved_rank_choices() -> None:
-    admin = admin_user()
-    content = standard_workbook(
-        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
-    )
-    batch = legacy_batch(content, uploaded_by=admin)
-    # A choice wins over how KukGrade reads the spelling.
-    stripe = rank("YELLOW_STRIPE")
-
-    preview_legacy_grading_import(batch, rank_mappings={"Yellow Belt": stripe.code})
-    commit_legacy_grading_import(batch, actor=admin)
-
-    record = LegacyGradingRecord.objects.get(source_batch=batch)
-    assert record.current_rank_id == stripe.pk
-    assert record.source_current_rank_text == "Yellow Belt"
-    # No choice for it: read as written.
-    assert record.testing_for_rank == rank("BLUE_STRIPE")
-    assert record.source_testing_for_rank_text == "Blue Stripe"
 
 
 def test_commit_never_creates_a_native_promotion_or_outcome() -> None:
@@ -332,17 +219,17 @@ def test_cancel_a_legacy_batch_deletes_temp_file() -> None:
 # --- API/permissions -----------------------------------------------------
 
 
-def test_instructor_cannot_preview_or_commit_a_legacy_batch() -> None:
+def test_instructor_cannot_decide_a_check_or_commit_a_legacy_batch() -> None:
     client = APIClient()
     client.force_authenticate(user=instructor_user())
     batch = legacy_batch()
 
-    preview_response = client.post(
-        f"/api/data-imports/batches/{batch.pk}/preview/",
-        {"rank_mappings": {}},
+    decided = client.post(
+        f"/api/data-imports/batches/{batch.pk}/checks/resolve/",
+        {"key": "RANK:yellow belt", "decision": "KEEP"},
         format="json",
     )
-    assert preview_response.status_code == 403
+    assert decided.status_code == 403
 
     commit_response = client.post(f"/api/data-imports/batches/{batch.pk}/commit/")
     assert commit_response.status_code == 403
@@ -353,7 +240,7 @@ def test_admin_completes_the_full_legacy_flow_via_the_api() -> None:
     admin = admin_user()
     client.force_authenticate(user=admin)
     content = standard_workbook(
-        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
+        [["A. Example", "Yellow Belt", "Bown Stripe", "Pass", ""]],
     )
 
     create_response = client.post(
@@ -367,21 +254,11 @@ def test_admin_completes_the_full_legacy_flow_via_the_api() -> None:
     assert create_response.status_code == 201
     batch_id = create_response.json()["id"]
 
-    preview_response = client.post(
-        f"/api/data-imports/batches/{batch_id}/preview/",
-        {"rank_mappings": {}},
-        format="json",
-    )
-    assert preview_response.status_code == 200
-    body = preview_response.json()
-    assert body["total"] == 1
-    assert body["grading_result"] == 1
-    assert any(s["source_text"] == "Yellow Belt" for s in body["rank_suggestions"])
-
-    yellow = rank("YELLOW")
+    summary = client.get(f"/api/data-imports/batches/{batch_id}/checks/summary/")
+    assert (summary.status_code, summary.json()["open"]) == (200, 1)
     chosen = client.post(
-        f"/api/data-imports/batches/{batch_id}/preview/",
-        {"rank_mappings": {"Yellow Belt": yellow.code}},
+        f"/api/data-imports/batches/{batch_id}/checks/resolve/",
+        {"key": "RANK:bown stripe", "decision": "RANK", "rank_code": "BROWN_STRIPE"},
         format="json",
     )
     assert chosen.status_code == 200
@@ -391,4 +268,5 @@ def test_admin_completes_the_full_legacy_flow_via_the_api() -> None:
     assert ImportBatch.objects.get(pk=batch_id).status == ImportBatch.Status.COMMITTED
 
     record = LegacyGradingRecord.objects.get(source_batch_id=batch_id)
-    assert record.current_rank_id == yellow.pk
+    assert record.current_rank == rank("YELLOW")
+    assert record.testing_for_rank == rank("BROWN_STRIPE")

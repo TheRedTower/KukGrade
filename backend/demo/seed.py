@@ -16,10 +16,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
+from io import BytesIO
 from zoneinfo import ZoneInfo
 
+import openpyxl
 from django.conf import settings
 from django.contrib.auth.models import Permission
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import CommandError
 from django.db import models, transaction
 from django.utils import timezone
@@ -31,6 +34,7 @@ from accounts.services import set_user_authority
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
 from data_imports.models import ImportBatch
+from data_imports.services import create_import_batch
 from demo.personas import DEMO_PASSWORD, PERSONA_EMAILS, PERSONAS
 from gradings.assessment_services import (
     add_item_comment,
@@ -752,6 +756,49 @@ def legacy_records(club: Club) -> None:
             link_legacy_record_to_student(record_, student, actor=club.administrator)
 
 
+# A grading record workbook still being imported, so the steps before saving
+# can be tried: a sheet KukGrade holds part of, and a new one with one of each
+# thing to check. Made-up people, as everywhere in the demo.
+OPEN_WORKBOOK: dict[str, list[list[str]]] = {
+    # The month legacy_records holds: these two already, and one more.
+    "11-2022": [
+        ["Priya R.", "Yellow Stripe", "Yellow", "Conditional", ""],
+        ["Kai T.", "Yellow", "Blue Stripe", "Pass", ""],
+        ["Nina Holt", "White", "Yellow Stripe", "Pass", "Calm and precise."],
+    ],
+    "03-2024": [
+        ["Mia Cole", "White", "Yellow Stripe", "Pass", "Strong stances."],
+        ["Owen Pratt", "Bown Stripe", "Brown", "Pass", ""],
+        ["Ruth Ames", "Blue", "Red Stripe", "Testing? No", ""],
+        ["Tess Dale", "Yellow", "Blue Stripe", "Pass", ""],
+        ["Tess Dale", "Yellow", "Blue Stripe", "Pass", ""],
+        ["Ivy Lam", "Yellow Stripe", "Yellow", "", ""],
+        ["Luca Venn", "", "Yellow Stripe", "Fail", "Needs more practice."],
+    ],
+}
+
+
+def open_legacy_import(club: Club) -> None:
+    """A past-gradings import uploaded and not yet saved (OPEN_WORKBOOK),
+    read as any upload is."""
+    workbook = openpyxl.Workbook()
+    workbook.remove(workbook.active)
+    for title, rows in OPEN_WORKBOOK.items():
+        sheet = workbook.create_sheet(title)
+        sheet.append(["Name", "Current Rank", "Testing For", "Outcome", "Comments"])
+        for row in rows:
+            sheet.append(row)
+    content = BytesIO()
+    workbook.save(content)
+    create_import_batch(
+        kind=ImportBatch.Kind.LEGACY_GRADINGS,
+        upload=SimpleUploadedFile(
+            "Riverside gradings 2022-2024.xlsx", content.getvalue()
+        ),
+        uploaded_by=club.administrator,
+    )
+
+
 @transaction.atomic
 def build(*, today: date | None = None) -> None:
     """Build the whole demo club in an empty database."""
@@ -780,3 +827,4 @@ def build(*, today: date | None = None) -> None:
     in_progress(club)
     upcoming(club)
     legacy_records(club)
+    open_legacy_import(club)

@@ -541,6 +541,22 @@
   color: var(--color-on-gold);
 }
 
+/* One decision's answers (a rank, an outcome): large buttons that fill their
+   tile, the chosen one filled in gold. */
+.choices--options button {
+  justify-content: flex-start;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-control);
+  text-align: start;
+}
+
+.choices--options button[aria-pressed="true"] {
+  border-color: var(--color-gold);
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+  font-weight: var(--font-weight-strong);
+}
+
 /* A button in the actions column keeps its label whole: the column grows to fit
    it, and the label wraps only between words. */
 .rtable [data-actions] .btn {

@@ -33,7 +33,12 @@ from data_imports.services import (
     remove_orphaned_uploads,
 )
 from data_imports.storage import import_upload_storage
-from data_imports.testing import check_roster, commit_roster, workbook_bytes
+from data_imports.testing import (
+    check_roster,
+    commit_roster,
+    students_to_link_to,
+    workbook_bytes,
+)
 from ranks.matching import active_rank_lookup
 from ranks.models import Rank
 from students.models import Student
@@ -87,6 +92,8 @@ def upload_batch(
     uploaded_by: User | None = None,
 ) -> ImportBatch:
     upload = SimpleUploadedFile(filename, content)
+    if kind == ImportBatch.Kind.LEGACY_GRADINGS:
+        students_to_link_to()
     result = create_import_batch(
         kind=kind,
         upload=upload,
@@ -1011,23 +1018,3 @@ def test_a_mapping_missing_a_needed_field_shows_the_row_waiting() -> None:
     )
     assert response.status_code == 200
     assert response.json()["row_counts"]["review_required"] == 1
-
-
-def test_a_roster_is_matched_with_mapping_not_preview() -> None:
-    # Preview is a historical import's rank choices; a roster's columns are
-    # matched with mapping/ and its rows fixed one at a time.
-    client = APIClient()
-    admin = admin_user()
-    client.force_authenticate(user=admin)
-    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
-
-    response = client.post(
-        f"/api/data-imports/batches/{batch.pk}/preview/",
-        {"column_mapping": STANDARD_MAPPING},
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "not a historical gradings import" in response.json()["error"]["message"]
-    saved = ImportBatch.objects.get(pk=batch.pk).configuration_json
-    assert "column_mapping" not in saved

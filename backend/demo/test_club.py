@@ -22,6 +22,9 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
+from data_imports.legacy_checks import CheckKind, legacy_checks
+from data_imports.models import ImportBatch
+from data_imports.services import SheetState, legacy_sheets
 from demo import seed
 from demo.personas import DEMO_PASSWORD, PERSONA_EMAILS, PERSONAS
 from demo.testing import session_named, sign_in
@@ -172,6 +175,22 @@ def test_the_planned_grading_includes_a_black_belt_candidate() -> None:
 def test_some_imported_history_is_linked_and_some_waits_to_be() -> None:
     assert LegacyGradingRecord.objects.count() == 8
     assert LegacyGradingRecord.objects.filter(student__isnull=False).count() == 5
+
+
+@pytest.mark.django_db
+def test_a_past_gradings_import_waits_with_one_of_each_thing_to_check() -> None:
+    batch = ImportBatch.objects.get(status=ImportBatch.Status.UPLOADED)
+
+    states = {sheet.name: sheet.state for sheet in legacy_sheets(batch)}
+    assert states == {"11-2022": SheetState.CHANGED, "03-2024": SheetState.NEW}
+    kinds = {check.kind for check in legacy_checks(batch)}
+    assert kinds == {
+        CheckKind.RANK,
+        CheckKind.OUTCOME,
+        CheckKind.WRITTEN_TWICE,
+        CheckKind.NO_OUTCOME,
+        CheckKind.NO_RANK,
+    }
 
 
 @pytest.mark.django_db

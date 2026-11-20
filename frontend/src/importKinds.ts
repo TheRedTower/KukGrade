@@ -17,8 +17,6 @@ type Tab = { key: "all" | "READY" | "SKIP_EXISTING" | "EXCLUDED" | "corrected"; 
 
 export type ImportKind = {
   title: string;
-  /** What the file is matched on before review. */
-  match: "columns" | "ranks";
   /** The file is read as one sheet of rows: the sheet can be chosen, and the row limit applies. */
   oneSheet: boolean;
   /** Each row becomes a student, so a template, row edits and a link to the student follow. */
@@ -47,14 +45,6 @@ export type ImportKind = {
   called: (row: DataImportRow) => string;
   /** A row under review, in a line: what it holds, as KukGrade will save it. */
   reviewDetail: (row: DataImportRow) => string;
-  seal: {
-    title: (count: number) => string;
-    action: (count: number) => string;
-    pending: string;
-    line: (batch: DataImportBatch, unresolvedRanks: number) => (string | null)[];
-    confirmTitle: (count: number) => string;
-    confirmBody: string;
-  };
   results: {
     headline: (summary: Summary) => string;
     banner: (summary: Summary) => (string | null)[];
@@ -80,7 +70,6 @@ const leftOut = (count: number | undefined, what: [string, string]) =>
 export const importKinds: Record<DataImportKind, ImportKind> = {
   STUDENT_ROSTER: {
     title: "Import students",
-    match: "columns",
     oneSheet: true,
     addsStudents: true,
     noun: ["row", "rows"],
@@ -137,27 +126,6 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
     called: (row) => `row ${row.row_number}`,
     reviewDetail: (row) =>
       [row.values.wksa_id, row.values.current_rank, row.values.date_of_birth].filter(Boolean).join(" · "),
-    seal: {
-      title: (count) => `Everything is sorted · ready to add ${counted(count, "student", "students")}`,
-      action: (count) => `Add ${counted(count, "student", "students")}`,
-      pending: "Adding…",
-      line: (batch) => {
-        const counts = batch.row_counts;
-        return [
-          counts.skip_existing
-            ? `${counts.skip_existing} already in KukGrade ${agreeing(counts.skip_existing, "is", "are")} skipped`
-            : null,
-          counts.excluded ? `${counts.excluded} you left out` : null,
-          batch.extra_columns.length
-            ? `${batch.extra_columns.map((column) => `“${column}”`).join(", ")} kept as extra information`
-            : null,
-          "all are added together, or none are",
-        ];
-      },
-      confirmTitle: (count) => `Add ${counted(count, "student", "students")} to KukGrade?`,
-      confirmBody:
-        "They are saved together, so either all are added or none are. You can edit or remove any of them afterwards.",
-    },
     results: {
       headline: (summary) => `${counted(summary.created ?? 0, "student", "students")} added`,
       banner: (summary) => [
@@ -192,7 +160,6 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
   },
   LEGACY_GRADINGS: {
     title: "Import past gradings",
-    match: "ranks",
     oneSheet: false,
     addsStudents: false,
     noun: ["record", "records"],
@@ -238,18 +205,6 @@ export const importKinds: Record<DataImportKind, ImportKind> = {
       const ranks = [values.current_rank, values.testing_for_rank].filter(Boolean).join(" → ");
       const words = values.report || values.note;
       return [ranks, values.outcome, words ? `“${words}”` : ""].filter(Boolean).join(" · ");
-    },
-    seal: {
-      title: (count) => `Ready to import ${counted(count, "historical record", "historical records")}`,
-      action: (count) => `Import ${counted(count, "record", "records")}`,
-      pending: "Importing…",
-      line: (batch, unresolvedRanks) => [
-        batch.row_counts.excluded ? `${batch.row_counts.excluded} you left out` : null,
-        unresolvedRanks ? `${counted(unresolvedRanks, "rank", "ranks")} not matched stay as written` : null,
-        "next, KukGrade suggests who each record belongs to",
-      ],
-      confirmTitle: (count) => `Import ${counted(count, "historical record", "historical records")}?`,
-      confirmBody: "They are saved together, exactly as the workbook has them. Next you link them to students.",
     },
     results: {
       headline: (summary) => `${counted(summary.total ?? 0, "historical record", "historical records")} imported`,

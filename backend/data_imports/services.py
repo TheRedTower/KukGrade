@@ -112,6 +112,11 @@ _SOURCE_FILE_GONE = (
 _MAPPING_FIRST = "Match the file's columns to KukGrade's fields first."
 _NO_SUCH_COLUMN = "The file has no column named {columns}."
 STATUS_NOT_RECOGNISED = "Status {status!r} is not recognised."
+STUDENTS_FIRST = (
+    "Import your students first: past gradings are linked to students, and "
+    "KukGrade has none yet."
+)
+
 NOTHING_TO_IMPORT = (
     "Nothing to import: every record is already in KukGrade, left out, or on "
     "a sheet not chosen."
@@ -142,15 +147,24 @@ IMPORT_STEP_NAMES: dict[str, dict[str, str]] = {
     },
     ImportBatch.Kind.LEGACY_GRADINGS: {
         ImportStep.CHOOSE_FILE: "Choose file",
-        ImportStep.MATCH: "Match ranks",
-        ImportStep.REVIEW: "Review records",
-        ImportStep.CONFIRM: "Confirm",
+        ImportStep.MATCH: "Sheets",
+        ImportStep.REVIEW: "Things to check",
+        ImportStep.CONFIRM: "Save",
         ImportStep.RESULTS: "Results",
     },
 }
 
 
 # --- batch lifecycle -------------------------------------------------------
+
+
+def why_not_startable(kind: str) -> str | None:
+    """Why an import of this kind cannot start now, or None when it can.
+    Past gradings are linked to students and never create one, so they wait
+    for the students to be imported first."""
+    if kind == ImportBatch.Kind.LEGACY_GRADINGS and not Student.objects.exists():
+        return STUDENTS_FIRST
+    return None
 
 
 @dataclass(frozen=True)
@@ -233,6 +247,10 @@ def _create_import_batch(
                 ],
             },
         )
+
+    refusal = why_not_startable(kind)
+    if refusal:
+        raise DjangoValidationError({"kind": [refusal]})
 
     # The declared size is checked before reading and the read is capped
     # too, so a wrong declared size cannot make it read past the limit.
@@ -472,8 +490,8 @@ def uncovered_fields(batch: ImportBatch) -> list[str]:
 
 def next_step(batch: ImportBatch, *, rows_needing_review: int) -> str:
     """Where an import is up to, so a screen can resume it: matching until a
-    roster's columns are saved, and always the ranks first for a historical
-    workbook (its rank choices are checked again each time it is resumed)."""
+    roster's columns are saved, and always its sheets first for a historical
+    workbook (what KukGrade holds of them can change between two visits)."""
     if batch.status != ImportBatch.Status.UPLOADED:
         return ImportStep.RESULTS
     if (
@@ -1541,6 +1559,16 @@ def _stored_legacy_rows(
     return [(row, CanonicalLegacyRow(**row.raw)) for row in stored]
 
 
+def legacy_warnings(batch: ImportBatch) -> list[str]:
+    """What a historical import could not read or check, for its things to
+    check: what reading the workbook left out, and a sheet naming too many of
+    the people still coming in to be checked for anyone written twice."""
+    if batch.kind != ImportBatch.Kind.LEGACY_GRADINGS:
+        return []
+    rows = [canonical for _, canonical in _stored_legacy_rows(batch)]
+    return [*batch.configuration.warnings, *names_not_checked(rows)]
+
+
 class SheetState(models.TextChoices):
     """A grading sheet against what KukGrade already holds for its month."""
 
@@ -1801,95 +1829,6 @@ def _require_legacy(locked: ImportBatch) -> None:
         )
 
 
-def _save_rank_mappings(
-    locked: ImportBatch,
-    rank_mappings: dict[str, str | None],
-) -> dict[str, str]:
-    normalised = _normalise_rank_mappings(rank_mappings)
-    locked.configuration.rank_mappings = normalised
-    locked.save(update_fields=["configuration_json", "updated_at"])
-    return normalised
-
-
-@dataclass(frozen=True)
-class RankMappingSuggestion:
-    source_text: str
-    suggested_rank_code: str | None
-    # The source marks its own doubt ("Red stripe?"): the rank it suggests is
-    # what was written, not something known.
-    doubtful: bool = False
-    rows: int = 0
-    # The rank the importer chose for this spelling, if any.
-    chosen_rank_code: str | None = None
-
-
-@dataclass(frozen=True)
-class LegacyImportPreview:
-    total: int
-    grading_result: int
-    auxiliary_note: int
-    did_not_attend: int
-    unresolved_current_rank: int
-    unresolved_testing_for_rank: int
-    warnings: list[str]
-    rank_suggestions: list[RankMappingSuggestion]
-    excluded: int = 0
-    # Records not left out with a reason to look at them (their `issues`).
-    worth_a_look: int = 0
-
-
-def _distinct_rank_texts(rows: list[CanonicalLegacyRow]) -> list[str]:
-    """Distinct source rank strings across the whole batch, not per-row -
-    the admin reviews each value once, however many rows share it."""
-    seen_lower: set[str] = set()
-    distinct: list[str] = []
-    for row in rows:
-        for text in (row.source_current_rank_text, row.source_testing_for_rank_text):
-            cleaned = text.strip()
-            if not cleaned or cleaned.lower() in seen_lower:
-                continue
-            seen_lower.add(cleaned.lower())
-            distinct.append(cleaned)
-    return sorted(distinct, key=str.lower)
-
-
-def _normalise_rank_mappings(
-    rank_mappings: dict[str, str | None] | None,
-) -> dict[str, str]:
-    """Lowercased source text -> chosen Rank code. A missing or null value
-    both mean "leave unresolved" - this never
-    blocks a row, unlike the student roster importer's required rank."""
-    if not rank_mappings:
-        return {}
-    return {
-        text.strip().lower(): code
-        for text, code in rank_mappings.items()
-        if text.strip() and code
-    }
-
-
-def _sheets_left_out(locked: ImportBatch) -> list[str]:
-    """A line for each grading sheet not chosen, saying why it may not be."""
-    lines: list[str] = []
-    for sheet in legacy_sheets(locked):
-        if sheet.included:
-            continue
-        if sheet.state == SheetState.IMPORTED:
-            lines.append(
-                f"Sheet '{sheet.name}' is already imported, so it is left out.",
-            )
-        elif sheet.state == SheetState.CHANGED:
-            lines.append(
-                f"Sheet '{sheet.name}' has changed since it was imported "
-                f"({sheet.added_count} new or changed, {sheet.removed_count} no "
-                "longer in the workbook), so it is left out. Choose it to add "
-                "only what is new.",
-            )
-        else:
-            lines.append(f"Sheet '{sheet.name}' is left out.")
-    return lines
-
-
 def _lock_historical_commits() -> None:
     """Hold, until this transaction ends, the one lock every historical
     commit takes, so each sees the records the one before it added."""
@@ -1933,86 +1872,6 @@ def choose_legacy_sheets(
 
 
 @transaction.atomic
-def preview_legacy_grading_import(
-    batch: ImportBatch,
-    *,
-    rank_mappings: dict[str, str | None] | None = None,
-) -> LegacyImportPreview:
-    """Save the rank choices (when given) and count what the import would do."""
-    locked = _lock_uncommitted(batch, "checked")
-    _require_legacy(locked)
-    if rank_mappings is not None:
-        _save_rank_mappings(locked, rank_mappings)
-    # Every preview, since what earlier imports hold can change between two.
-    _classify_legacy(locked)
-    rows = [row for _, row in _stored_legacy_rows(locked)]
-    resolve = rank_reader(locked.configuration)
-
-    suggestions = []
-    ranks = active_rank_lookup()
-    uses: dict[str, int] = {}
-    for row in rows:
-        for text in {
-            row.source_current_rank_text.strip().lower(),
-            row.source_testing_for_rank_text.strip().lower(),
-        } - {""}:
-            uses[text] = uses.get(text, 0) + 1
-    for text in _distinct_rank_texts(rows):
-        suggested, doubtful = suggest_rank(text, ranks)
-        suggestions.append(
-            RankMappingSuggestion(
-                source_text=text,
-                suggested_rank_code=suggested.code if suggested else None,
-                doubtful=doubtful,
-                rows=uses.get(text.lower(), 0),
-                chosen_rank_code=locked.configuration.rank_mappings.get(
-                    text.lower(),
-                ),
-            ),
-        )
-
-    def kind_count(kind: str) -> int:
-        return sum(1 for row in rows if row.record_kind == kind)
-
-    held = locked.rows.filter(outcome=ImportRow.Outcome.SKIP_EXISTING).count()
-    held_warning = (
-        [
-            f"{held} record{'' if held == 1 else 's'} on the chosen sheets "
-            f"{'is' if held == 1 else 'are'} already in KukGrade from an earlier "
-            "import, so will not be added again."
-        ]
-        if held
-        else []
-    )
-
-    return LegacyImportPreview(
-        total=len(rows),
-        grading_result=kind_count(LegacyRecordKind.GRADING_RESULT),
-        auxiliary_note=kind_count(LegacyRecordKind.AUXILIARY_NOTE),
-        did_not_attend=kind_count(LegacyRecordKind.DID_NOT_ATTEND),
-        unresolved_current_rank=sum(
-            1 for row in rows if _rank_unresolved(row.source_current_rank_text, resolve)
-        ),
-        unresolved_testing_for_rank=sum(
-            1
-            for row in rows
-            if _rank_unresolved(row.source_testing_for_rank_text, resolve)
-        ),
-        warnings=[
-            *locked.configuration.warnings,
-            *names_not_checked(rows),
-            *_sheets_left_out(locked),
-            *held_warning,
-        ],
-        rank_suggestions=suggestions,
-        excluded=locked.rows.filter(excluded=True).count(),
-        worth_a_look=locked.rows.filter(outcome=ImportRow.Outcome.READY)
-        .exclude(issues=[])
-        .count(),
-    )
-
-
-@transaction.atomic
 def commit_legacy_grading_import(
     batch: ImportBatch,
     *,
@@ -2021,10 +1880,10 @@ def commit_legacy_grading_import(
     """Create a historical record for every row that comes in, all or nothing:
     not left out, on a chosen sheet, and not already in KukGrade.
 
-    The rank choices are the stored ones (preview_legacy_grading_import
-    saves them). Each is resolved again now against the active ranks, and
-    every row classified again against the records held now, so a screen's
-    stale view is never trusted. Historical commits run one at a time, so two
+    The rank choices are the stored ones (the checks' decisions). Each is
+    resolved again now against the active ranks, and every row classified
+    again against the records held now, so a screen's stale view is never
+    trusted. Historical commits run one at a time, so two
     imports of the same sheet at once cannot both add it.
     """
     locked = _lock_uncommitted(batch, "imported again")

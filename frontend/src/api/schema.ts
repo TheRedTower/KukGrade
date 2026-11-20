@@ -473,26 +473,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/data-imports/batches/{id}/preview/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * @description A historical import's rank choices, saved when given, and what it
-         *     would do. A roster's columns are matched with mapping/ instead.
-         */
-        post: operations["data_imports_batches_preview_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/data-imports/batches/{id}/second-look/": {
         parameters: {
             query?: never;
@@ -569,6 +549,26 @@ export interface paths {
          *     wrong file imported. Records are never deleted.
          */
         post: operations["data_imports_batches_void_records_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/starts/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Whether an import of each kind can start now, and why not when it
+         *     cannot - past gradings wait for the students to be imported.
+         */
+        get: operations["data_imports_batches_starts_list"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3077,6 +3077,12 @@ export interface components {
         ImportSheetRequest: {
             sheet: string;
         };
+        /** @description Whether an import of one kind can start now. */
+        ImportStart: {
+            kind: components["schemas"]["KindEnum"];
+            /** @description Why it cannot start now, in plain words; null when it can. */
+            why_not: string | null;
+        };
         /**
          * @description One of a set of choices, as every list of them is served: the value
          *     sent back, and its name.
@@ -3198,6 +3204,16 @@ export interface components {
             readonly rows: components["schemas"]["ImportRow"][];
             /** @description The rows, by number, that leaving one out may choose from. */
             rows_to_leave_out: number[];
+            /** @description The decisions this check can take, named; keeping it as written always can. */
+            readonly decisions: components["schemas"]["LegacyCheckDecisionChoice"][];
+        };
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        LegacyCheckDecisionChoice: {
+            value: components["schemas"]["LegacyCheckDecisionEnum"];
+            label: string;
         };
         /**
          * @description * `RANK` - Rank chosen
@@ -3244,6 +3260,8 @@ export interface components {
             checks: number;
             open: number;
             kinds: components["schemas"]["LegacyCheckKindCount"][];
+            /** @description What KukGrade could not read or check, in plain words: parts of the workbook left out, and sheets with too many people to check for anyone written twice. */
+            warnings: string[];
         };
         /**
          * @description Read-mostly, matching PromotionSerializer's idiom - no ordinary
@@ -3278,33 +3296,6 @@ export interface components {
             readonly void_reason: string;
             /** @description Who voided by is, as the record names them: their rank then and their name. */
             readonly voided_by_name: string;
-        };
-        LegacyImportPreview: {
-            total: number;
-            grading_result: number;
-            auxiliary_note: number;
-            did_not_attend: number;
-            unresolved_current_rank: number;
-            unresolved_testing_for_rank: number;
-            excluded: number;
-            /** @description Records not left out that have issues: a reason to look. */
-            worth_a_look: number;
-            warnings: string[];
-            rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
-        };
-        /**
-         * @description The historical preview's request: the rank choices to save, if any.
-         *
-         *     Keys are the source rank text exactly as it appeared in the workbook
-         *     (case-insensitive on the service side); a null value explicitly means
-         *     "leave unresolved" - never a block on committing that row, unlike the
-         *     student roster importer's required rank. Left out, the stored choices
-         *     are kept.
-         */
-        LegacyImportRequest: {
-            rank_mappings?: {
-                [key: string]: string | null;
-            };
         };
         /**
          * @description * `INSTRUCTOR` - An instructor
@@ -3938,16 +3929,6 @@ export interface components {
             readonly next_rank: number | null;
             /** @description False for a rank with no syllabus recorded of its own (White, and the ranks above Jo Kyo Nim until their charts are in). Such a rank is left out of the syllabus screen and cannot be graded for. */
             readonly has_syllabus: boolean;
-        };
-        RankMappingSuggestion: {
-            source_text: string;
-            suggested_rank_code: string | null;
-            /** @description The source marks its own doubt, as in 'Red stripe?'. */
-            doubtful: boolean;
-            /** @description How many rows use this text. */
-            rows: number;
-            /** @description The rank chosen for this spelling, or null while it has none. */
-            chosen_rank_code: string | null;
         };
         /**
          * @description * `GRADING_RESULT` - Grading result
@@ -4736,14 +4717,12 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                /** @description A historical import's rows that write a rank this way, held or tested for (any case). */
-                rank_text?: string;
                 /** @description A historical import's rows of these kinds. Comma-separated; one of AUXILIARY_NOTE, DID_NOT_ATTEND, GRADING_RESULT. */
                 record_kind?: string;
                 /** @description Any of the row's values. */
                 search?: string;
-                /** @description Only rows with (or without) issues: for a historical import, the records worth a look, left out or not. */
-                worth_a_look?: boolean;
+                /** @description A historical import's rows from this grading sheet, by its name. */
+                sheet?: string;
             };
             header?: never;
             path: {
@@ -5027,34 +5006,6 @@ export interface operations {
             };
         };
     };
-    data_imports_batches_preview_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "multipart/form-data": components["schemas"]["LegacyImportRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["LegacyImportRequest"];
-                "application/json": components["schemas"]["LegacyImportRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyImportPreview"];
-                };
-            };
-        };
-    };
     data_imports_batches_second_look_retrieve: {
         parameters: {
             query?: never;
@@ -5179,6 +5130,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportRecordsVoided"];
+                };
+            };
+        };
+    };
+    data_imports_batches_starts_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportStart"][];
                 };
             };
         };

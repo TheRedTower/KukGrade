@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type AuthUser, type DataImportBatch, type DataImportRow } from "./api";
 import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, page, SITE } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
-import { ImportReview } from "./ImportReview";
 import { batch, legacyRecord as record, person, RANKS, row } from "./importTestFixtures";
 import { LinkRecordsScreen } from "./LinkRecordsScreen";
 
@@ -21,7 +20,6 @@ const api = vi.hoisted(() => ({
   setDataImportRowExcluded: vi.fn(),
   leaveOutDataImportRowsNeedingAttention: vi.fn(),
   commitDataImport: vi.fn(),
-  previewLegacyGradingImport: vi.fn(),
   getRanks: vi.fn(),
   getStudents: vi.fn(),
   getLegacyGradingRecords: vi.fn(),
@@ -368,79 +366,6 @@ describe("Typing into a roster's rows", () => {
   });
 });
 
-describe("Matching a historical workbook's ranks", () => {
-  const gradings = batch({
-    kind: "LEGACY_GRADINGS",
-    kind_display: "Past gradings",
-    next_step: "MATCH",
-    review_step: "CONFIRM",
-    original_filename: "grading-record-2025.xlsx",
-    grading_sheets: ["03-2025"],
-  });
-  const preview = {
-    total: 3,
-    grading_result: 3,
-    auxiliary_note: 0,
-    did_not_attend: 0,
-    unresolved_current_rank: 1,
-    unresolved_testing_for_rank: 0,
-    unresolved_outcome: 0,
-    excluded: 0,
-    warnings: [],
-    rank_suggestions: [
-      { source_text: "White Belt", suggested_rank_code: "WHITE", doubtful: false, rows: 42, chosen_rank_code: "WHITE" },
-      { source_text: "Brn stripe", suggested_rank_code: null, doubtful: false, rows: 2, chosen_rank_code: null },
-      {
-        source_text: "Blue stripe?",
-        suggested_rank_code: "BLUE_STRIPE",
-        doubtful: true,
-        rows: 3,
-        chosen_rank_code: null,
-      },
-    ],
-  };
-
-  it("shows each spelling with the records that use it, and saves a choice for every spelling", async () => {
-    const user = userEvent.setup();
-    api.getDataImportBatch.mockResolvedValue(gradings);
-    api.previewLegacyGradingImport.mockResolvedValue(preview);
-    api.getDataImportRows.mockResolvedValue(
-      page([
-        row({
-          source_locator: "06-2025!R14",
-          values: { name: "Leo", current_rank: "Red Belt", testing_for_rank: "Brn stripe", outcome: "Pass" },
-        }),
-      ]),
-    );
-
-    renderAt("/imports/7");
-
-    expect(await screen.findByRole("heading", { name: "Match the ranks" })).toBeInTheDocument();
-    expect(api.previewLegacyGradingImport).toHaveBeenCalledWith(7, {});
-    // The first spelling with no rank yet is the one in focus.
-    expect(await screen.findByText("Records using “Brn stripe”")).toBeInTheDocument();
-    expect(api.getDataImportRows).toHaveBeenCalledWith(7, { rank_text: "Brn stripe", page_size: 5 });
-    expect(await screen.findByText("Red Belt → Brn stripe")).toBeInTheDocument();
-    expect(screen.getByText("1 of 3 matched · Continue")).toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText("“Brn stripe” means"), "BROWN_STRIPE");
-    await waitFor(() =>
-      expect(api.previewLegacyGradingImport).toHaveBeenLastCalledWith(7, {
-        rank_mappings: { "White Belt": "WHITE", "Brn stripe": "BROWN_STRIPE", "Blue stripe?": null },
-      }),
-    );
-
-    await user.click(screen.getByRole("button", { name: /“Blue stripe\?”/ }));
-    expect(await screen.findByText(/The workbook marks this with “\?”/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Use suggestion: Blue stripe" }));
-    await waitFor(() =>
-      expect(api.previewLegacyGradingImport).toHaveBeenLastCalledWith(7, {
-        rank_mappings: { "White Belt": "WHITE", "Brn stripe": null, "Blue stripe?": "BLUE_STRIPE" },
-      }),
-    );
-  });
-});
-
 describe("Reviewing and confirming a roster", () => {
   const needing = batch({
     next_step: "REVIEW",
@@ -751,149 +676,6 @@ describe("Reviewing and confirming a roster", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Nothing was saved. Row 5: the WKSA ID 104-2-205 was taken since the check.",
-    );
-  });
-
-  it("lets a historical workbook be imported whatever is still unmatched", async () => {
-    const gradings = batch({
-      kind: "LEGACY_GRADINGS",
-      kind_display: "Past gradings",
-      next_step: "MATCH",
-      review_step: "CONFIRM",
-      original_filename: "grading-record-2025.xlsx",
-      row_counts: { total: 231, ready: 229, review_required: 0, skip_existing: 0, excluded: 2, sheet_left_out: 0 },
-    });
-    api.getDataImportBatch.mockResolvedValue(gradings);
-    api.getDataImportRows.mockResolvedValue(
-      page([
-        row({
-          source_locator: "06-2025!R3",
-          values: {
-            name: "Theo",
-            current_rank: "Yellow Belt",
-            testing_for_rank: "Blue stripe?",
-            outcome: "Pass.",
-            report: "Needs work on falls.",
-          },
-        }),
-      ]),
-    );
-    api.previewLegacyGradingImport.mockResolvedValue({
-      total: 229,
-      grading_result: 190,
-      auxiliary_note: 33,
-      did_not_attend: 6,
-      unresolved_current_rank: 1,
-      unresolved_testing_for_rank: 2,
-      unresolved_outcome: 0,
-      excluded: 2,
-      warnings: [],
-      rank_suggestions: [],
-    });
-
-    renderAt("/imports/7?step=review");
-
-    expect(await screen.findByRole("heading", { name: "Ready to import 229 historical records" })).toBeInTheDocument();
-    expect(await screen.findByText(/2 you left out, 3 ranks not matched stay as written/)).toBeInTheDocument();
-    expect(await screen.findByText("Needs work on falls.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "229 records will be imported" })).toBeInTheDocument();
-  });
-
-  it("does not refetch a historical preview after the batch is committed", async () => {
-    const user = userEvent.setup();
-    const gradings = batch({
-      kind: "LEGACY_GRADINGS",
-      kind_display: "Past gradings",
-      next_step: "MATCH",
-      review_step: "CONFIRM",
-      row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
-    });
-    const committed = { ...gradings, status: "COMMITTED" as const, next_step: "RESULTS" as const };
-    const onCommitted = vi.fn();
-    api.getDataImportRows.mockResolvedValue(page([row({ values: { name: "Theo" } })]));
-    api.previewLegacyGradingImport.mockResolvedValue({
-      total: 1,
-      grading_result: 1,
-      auxiliary_note: 0,
-      did_not_attend: 0,
-      unresolved_current_rank: 0,
-      unresolved_testing_for_rank: 0,
-      unresolved_outcome: 0,
-      excluded: 0,
-      warnings: [],
-      rank_suggestions: [],
-    });
-    api.commitDataImport.mockResolvedValue(committed);
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ImportReview batch={gradings} onCommitted={onCommitted} onMatch={vi.fn()} />
-      </QueryClientProvider>,
-    );
-    await screen.findByRole("heading", { name: "Ready to import 1 historical record" });
-    await waitFor(() => expect(api.previewLegacyGradingImport).toHaveBeenCalledTimes(1));
-    await user.click(screen.getByRole("button", { name: "Import 1 record" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Import 1 record" }));
-
-    await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
-    expect(api.previewLegacyGradingImport).toHaveBeenCalledTimes(1);
-  });
-
-  it("opens a workbook's review on the records worth a look, saying why", async () => {
-    const user = userEvent.setup();
-    const gradings = batch({
-      kind: "LEGACY_GRADINGS",
-      kind_display: "Past gradings",
-      next_step: "MATCH",
-      review_step: "CONFIRM",
-      row_counts: { total: 231, ready: 231, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
-    });
-    const theo = row({
-      row_number: 9,
-      source_locator: "03-2025!R9",
-      values: { name: "Theo", current_rank: "Yellow Belt", testing_for_rank: "Blue stripe?", outcome: "Pass." },
-      issues: ["The workbook marks rank 'Blue stripe?' as uncertain."],
-    });
-    api.getDataImportBatch.mockResolvedValue(gradings);
-    api.getDataImportRows.mockResolvedValue(page([theo]));
-    api.setDataImportRowExcluded.mockResolvedValue({
-      ...theo,
-      excluded: true,
-      outcome: "EXCLUDED",
-      outcome_display: "Left out",
-    });
-    api.previewLegacyGradingImport.mockResolvedValue({
-      total: 231,
-      grading_result: 196,
-      auxiliary_note: 4,
-      did_not_attend: 31,
-      unresolved_current_rank: 0,
-      unresolved_testing_for_rank: 0,
-      unresolved_outcome: 0,
-      excluded: 0,
-      worth_a_look: 1,
-      warnings: [],
-      rank_suggestions: [],
-    });
-
-    renderAt("/imports/7?step=review");
-
-    expect(await screen.findByRole("heading", { name: "Records worth a look" })).toBeInTheDocument();
-    expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, { worth_a_look: true, page: 1, page_size: 20 });
-    expect(await screen.findByText("The workbook marks rank 'Blue stripe?' as uncertain.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Did not attend and notes/ })).toHaveTextContent("35");
-    await user.click(screen.getByRole("button", { name: "Leave out the record for Theo" }));
-    await waitFor(() => expect(api.setDataImportRowExcluded).toHaveBeenCalledWith(7, 9, true));
-
-    await user.click(screen.getByRole("button", { name: /Grading results/ }));
-    await waitFor(() =>
-      expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, {
-        record_kind: "GRADING_RESULT",
-        outcome: "READY",
-        page: 1,
-        page_size: 20,
-      }),
     );
   });
 });

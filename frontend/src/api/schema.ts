@@ -376,6 +376,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-imports/batches/{id}/checks/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description A historical import's things to check before it is saved - the
+         *     exceptions only, in the order of their kinds - a page at a time.
+         *     A kind or an open value no check can have matches none.
+         */
+        get: operations["data_imports_batches_checks_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/checks/resolve/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Decide one check: a rank chosen, an outcome read, a row left out,
+         *     or what is written kept. A later decision replaces an earlier one.
+         */
+        post: operations["data_imports_batches_checks_resolve_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/checks/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description How many things there are to check, and how many are still open. */
+        get: operations["data_imports_batches_checks_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/data-imports/batches/{id}/commit/": {
         parameters: {
             query?: never;
@@ -3106,6 +3164,85 @@ export interface components {
          * @enum {string}
          */
         KindEnum: "STUDENT_ROSTER" | "LEGACY_GRADINGS";
+        /** @description One thing to check in a historical import, and where it stands. */
+        LegacyCheck: {
+            /** @description Names the check for a decision (checks/resolve/). */
+            key: string;
+            kind: components["schemas"]["LegacyCheckKindEnum"];
+            readonly kind_display: string;
+            /** @description What to check, in plain words. */
+            message: string;
+            /** @description The rank or outcome as the workbook writes it; blank otherwise. */
+            text: string;
+            /** @description A rank marked “?”: the rank it reads as, to offer first. */
+            suggested_rank_code: string | null;
+            /** @description Nothing is decided yet. */
+            is_open: boolean;
+            decision: (components["schemas"]["LegacyCheckDecisionEnum"] | components["schemas"]["NullEnum"]) | null;
+            readonly decision_display: string | null;
+            /** @description The rank chosen for the spelling. */
+            rank_code: string | null;
+            /**
+             * @description What the outcome was read as.
+             *
+             *     * `PASS` - Pass
+             *     * `FAIL` - Fail
+             *     * `CONDITIONAL` - Conditional
+             */
+            outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
+            /** @description The rows it is about. */
+            readonly row_count: number;
+            /** @description The rows it is about, in file order (the first 50). */
+            readonly rows: components["schemas"]["ImportRow"][];
+            /** @description The rows, by number, that leaving one out may choose from. */
+            rows_to_leave_out: number[];
+        };
+        /**
+         * @description * `RANK` - Rank chosen
+         *     * `OUTCOME` - Outcome read
+         *     * `LEAVE_OUT` - Row left out
+         *     * `KEEP` - Kept as written
+         * @enum {string}
+         */
+        LegacyCheckDecisionEnum: "RANK" | "OUTCOME" | "LEAVE_OUT" | "KEEP";
+        /**
+         * @description POST /{id}/checks/resolve/: one decision about one check. RANK needs
+         *     rank_code, OUTCOME needs outcome, LEAVE_OUT needs row_number (one of the
+         *     check's rows_to_leave_out); KEEP needs nothing.
+         */
+        LegacyCheckDecisionRequest: {
+            key: string;
+            decision: components["schemas"]["LegacyCheckDecisionEnum"];
+            rank_code?: string | null;
+            outcome?: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
+            row_number?: number | null;
+        };
+        LegacyCheckKindCount: {
+            kind: components["schemas"]["LegacyCheckKindEnum"];
+            kind_display: string;
+            checks: number;
+            /** @description Of them, those not decided yet. */
+            open: number;
+        };
+        /**
+         * @description * `RANK` - Rank to read
+         *     * `OUTCOME` - Outcome to read
+         *     * `WRITTEN_TWICE` - On one sheet twice
+         *     * `MISSING_AND_GRADED` - Missing and graded
+         *     * `NO_OUTCOME` - No outcome
+         *     * `NO_RANK` - No rank
+         * @enum {string}
+         */
+        LegacyCheckKindEnum: "RANK" | "OUTCOME" | "WRITTEN_TWICE" | "MISSING_AND_GRADED" | "NO_OUTCOME" | "NO_RANK";
+        /**
+         * @description How many things there are to check, and how many are still open,
+         *     in all and of each kind (every kind, in the order the list shows).
+         */
+        LegacyChecksSummary: {
+            checks: number;
+            open: number;
+            kinds: components["schemas"]["LegacyCheckKindCount"][];
+        };
         /**
          * @description Read-mostly, matching PromotionSerializer's idiom - no ordinary
          *     update/delete exists (LegacyGradingRecord is kukgrade.kept), only
@@ -3521,6 +3658,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["ImportRow"][];
+        };
+        PaginatedLegacyCheckList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["LegacyCheck"][];
         };
         PaginatedLegacyGradingRecordList: {
             /** @example 123 */
@@ -4732,6 +4884,87 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    data_imports_batches_checks_list: {
+        parameters: {
+            query?: {
+                /** @description Only checks of this kind. */
+                kind?: "RANK" | "OUTCOME" | "WRITTEN_TWICE" | "MISSING_AND_GRADED" | "NO_OUTCOME" | "NO_RANK";
+                /** @description Only checks not decided yet (true), or only those decided (false). */
+                open?: boolean;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedLegacyCheckList"];
+                };
+            };
+        };
+    };
+    data_imports_batches_checks_resolve_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["LegacyCheckDecisionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LegacyCheckDecisionRequest"];
+                "application/json": components["schemas"]["LegacyCheckDecisionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyCheck"];
+                };
+            };
+        };
+    };
+    data_imports_batches_checks_summary_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyChecksSummary"];
+                };
             };
         };
     };

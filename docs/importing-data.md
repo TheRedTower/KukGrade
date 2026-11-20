@@ -89,10 +89,21 @@ KukGrade:
   record and says where it was written; a note merged down several rows is kept on each
   person beside it. A note beside no one (a title above the table, say) is kept as a
   note on the sheet.
-- The review marks what the workbook itself leaves in doubt: a result with no outcome,
-  a missing rank, a name written twice on one sheet (the same person twice, or two
-  people with one name), and someone listed as missing or absent and also graded on
-  the same sheet. Nothing is guessed or blocked; leave a record out if it is a repeat.
+- KukGrade reads what it can and lists only **what to check**, each one decision:
+  - a rank it cannot read ("Bown Stripe") or that the workbook marks with "?": choose
+    the rank, or keep it as written (unmatched);
+  - an outcome it cannot read ("Testing? No"): read it as Pass, Fail or Conditional,
+    or keep it as written (no outcome);
+  - a name written twice on one sheet (the same person twice, or two people with one
+    name), or someone listed as missing or absent and also graded there: leave one
+    row out, or keep both;
+  - a result with no outcome, or a row with a rank missing: leave it out, or keep it.
+
+  One decision covers every row that writes a spelling the same way. A rank or
+  outcome KukGrade reads is taken as read, with nothing to confirm; a later decision
+  replaces an earlier one. The workbook's text is always kept as written: a chosen rank
+  or a reading is applied when the records are saved. Nothing is guessed, and nothing
+  to check stops the import.
 - A month stays a month: an exact day is never invented.
 - "Did not attend" counts as attendance, not as a fail.
 - The workbook grows a sheet each grading, so upload the whole of it again: it is

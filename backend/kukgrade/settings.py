@@ -402,6 +402,8 @@ SPECTACULAR_SETTINGS = {
         "LegacyPersonStateEnum": "gradings.models.LegacyPersonState",
         "LegacyNotAStudentReasonEnum": "gradings.models.LegacyNotAStudentReason",
         "LegacySheetStateEnum": "data_imports.services.SheetState",
+        "LegacyCheckKindEnum": "data_imports.legacy_checks.CheckKind",
+        "LegacyCheckDecisionEnum": "data_imports.legacy_checks.CheckDecision",
         "AuditEntityEnum": "audit.models.AuditEntity",
         "StudentImportRowOutcomeEnum": "data_imports.models.ImportRowOutcome",
         "KindEnum": "data_imports.models.ImportBatch.Kind",

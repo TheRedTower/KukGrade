@@ -82,10 +82,15 @@ class ImportConfiguration:
     column_mapping = _Setting[dict[str, str]](dict)
     defaults = _Setting[dict[str, str]](dict)
     extra_columns = _Setting[list[str]](list)
-    # A historical workbook: its grading sheets in workbook order, and the
-    # chosen rank code for each lower-cased spelling.
+    # A historical workbook: its grading sheets in workbook order, the
+    # chosen rank code for each lower-cased spelling, the outcome read for
+    # each outcome written in words KukGrade does not know (by
+    # ksw_adapter.outcome_words), and the checks kept as written, by key
+    # (data_imports.legacy_checks).
     sheets = _Setting[list[GradingSheet]](list)
     rank_mappings = _Setting[dict[str, str]](dict)
+    outcome_readings = _Setting[dict[str, str]](dict)
+    checks_kept = _Setting[list[str]](list)
 
     def __init__(self, stored: dict[str, Any]) -> None:
         self.stored = stored

@@ -1,9 +1,9 @@
 import type { Ref } from "react";
 
+import { ActionBar } from "./ActionBar";
 import { Button } from "./Button";
 import { ErrorText } from "./ErrorText";
 import { agreeing } from "./plural";
-import { footBar } from "./stickyParts";
 
 interface CohortRecordBarProps {
   stagedIds: number[];
@@ -31,23 +31,28 @@ export function CohortRecordBar({
   recording,
   onRecord,
 }: CohortRecordBarProps) {
+  const status =
+    Object.keys(keepFailures).length > 0 || incomplete.length > 0 || lastResult ? (
+      <>
+        {Object.keys(keepFailures).length > 0 && (
+          <ErrorText field>
+            {Object.values(keepFailures)[0]}{" "}
+            {agreeing(Object.keys(keepFailures).length, "That decision is", "Those decisions are")} still here, but will
+            be lost if you leave this page.
+          </ErrorText>
+        )}
+        {incomplete.length > 0 && (
+          <ErrorText field>Conditional decisions need re-test requirements before they can be recorded.</ErrorText>
+        )}
+        {lastResult && (
+          <p className="cab-bar-result item-title" role="status" ref={resultRef} tabIndex={-1}>
+            {lastResult}
+          </p>
+        )}
+      </>
+    ) : null;
   return (
-    <footer className="cab-bar" ref={footBar}>
-      {Object.keys(keepFailures).length > 0 && (
-        <ErrorText field>
-          {Object.values(keepFailures)[0]}{" "}
-          {agreeing(Object.keys(keepFailures).length, "That decision is", "Those decisions are")} still here, but will
-          be lost if you leave this page.
-        </ErrorText>
-      )}
-      {incomplete.length > 0 && (
-        <ErrorText field>Conditional decisions need re-test requirements before they can be recorded.</ErrorText>
-      )}
-      {lastResult && (
-        <p className="cab-bar-result item-title" role="status" ref={resultRef} tabIndex={-1}>
-          {lastResult}
-        </p>
-      )}
+    <ActionBar status={status}>
       {failedIds.length > 0 && (
         <Button variant="secondary" disabled={recording} onClick={() => onRecord(failedIds)}>
           Retry {failedIds.length} failed
@@ -66,6 +71,6 @@ export function CohortRecordBar({
             ? "No decisions staged"
             : `Record ${stagedIds.length} staged ${agreeing(stagedIds.length, "decision", "decisions")}`}
       </Button>
-    </footer>
+    </ActionBar>
   );
 }

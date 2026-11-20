@@ -167,6 +167,16 @@ describe("a bar at the foot of the window", () => {
   it("is on the bar layer in every stylesheet", () => {
     expect(allCssFiles().flatMap((file) => footBarsOffLayer(file, readCss(file)))).toEqual([]);
   });
+
+  // Every screen's bar is the one ActionBar, so they look and behave alike.
+  it("is the shared action bar, never a screen's own", () => {
+    const bars = allCssFiles().flatMap((file) =>
+      [...readCss(file).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+        .filter(([, , body]) => /position:\s*sticky/.test(body) && /(?:^|[;\s])bottom:\s*0\s*(?:;|$)/.test(body))
+        .map(([, selector]) => `${file}: ${selector.trim().split("\n").at(-1)}`),
+    );
+    expect(bars).toEqual(["layout.css: .action-bar"]);
+  });
 });
 
 /**

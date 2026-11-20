@@ -6,6 +6,7 @@ import { BackLink } from "./BackLink";
 import { EmptyState } from "./EmptyState";
 import { RecordPage } from "./RecordPage";
 import { type RecordStatus, useIdParam } from "./recordStatus";
+import { ActionBar } from "./ActionBar";
 import { Alert } from "./Alert";
 import {
   addAssessmentItemComment,
@@ -343,46 +344,44 @@ export function CandidateAssessmentScreen() {
         )}
       </div>
 
-      {/* Persistent mat bar: the live count and the only completion action. */}
-      <div className="caw-mat-bar" data-testid="caw-mat-bar">
-        {/* One row at every width, so the bar never needs more than two. */}
-        <div className="caw-mat-summary">
-          <div className="caw-mat-count" role="status" aria-live="polite">
-            {/* Never broken across lines when the row is short; the words beside it wrap instead. */}
-            <span className="caw-mat-figure item-title">{`${stats.requiredAssessed}\u00a0/\u00a0${stats.requiredItems}`}</span>
-            <span className="meta">required assessed</span>
+      {/* Persistent mat bar: the live count and the only completion action. The
+          count is one row at every width, so the bar never needs more than two. */}
+      <ActionBar
+        testId="caw-mat-bar"
+        status={
+          <div className="caw-mat-summary">
+            <div className="caw-mat-count" role="status" aria-live="polite">
+              {/* Never broken across lines when the row is short; the words beside it wrap instead. */}
+              <span className="caw-mat-figure item-title">{`${stats.requiredAssessed}\u00a0/\u00a0${stats.requiredItems}`}</span>
+              <span className="meta">required assessed</span>
+            </div>
+
+            <Meter
+              className="caw-mat-meter"
+              segments={[
+                { percent: metWidth, tone: "success" },
+                { percent: notMetWidth, tone: "danger" },
+              ]}
+            />
+
+            <span className="row row--inline row--1 caw-mat-tally-met">
+              <CheckIcon size={13} />
+              {`${stats.metCount} met`}
+            </span>
+            <span className="row row--inline row--1 caw-mat-tally-not-met">
+              <CrossIcon size={13} />
+              {`${stats.notMetCount} not met`}
+            </span>
+            <span className="row row--inline row--1 caw-mat-tally-remaining">{`${stats.remainingRequired} remaining`}</span>
           </div>
-
-          <Meter
-            className="caw-mat-meter"
-            segments={[
-              { percent: metWidth, tone: "success" },
-              { percent: notMetWidth, tone: "danger" },
-            ]}
-          />
-
-          <span className="row row--inline row--1 caw-mat-tally-met">
-            <CheckIcon size={13} />
-            {`${stats.metCount} met`}
-          </span>
-          <span className="row row--inline row--1 caw-mat-tally-not-met">
-            <CrossIcon size={13} />
-            {`${stats.notMetCount} not met`}
-          </span>
-          <span className="row row--inline row--1 caw-mat-tally-remaining">{`${stats.remainingRequired} remaining`}</span>
-        </div>
-
+        }
+      >
         {isAssessmentCompleted ? (
-          <Link
-            className={buttonClass({ variant: "secondary" }, "caw-mat-action")}
-            to={reviewPath}
-            data-testid="caw-view-review-btn"
-          >
+          <Link className={buttonClass({ variant: "secondary" })} to={reviewPath} data-testid="caw-view-review-btn">
             View completion record <ArrowRightIcon />
           </Link>
         ) : (
           <Button
-            className="caw-mat-action"
             variant={canComplete ? "primary" : "secondary"}
             disabled={!canComplete}
             onClick={() => navigate(reviewPath)}
@@ -406,7 +405,7 @@ export function CandidateAssessmentScreen() {
             )}
           </Button>
         )}
-      </div>
+      </ActionBar>
 
       {deleteOpen && assessment && (
         <DeleteAssessmentDialog

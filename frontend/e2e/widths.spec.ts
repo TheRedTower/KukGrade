@@ -386,7 +386,7 @@ test("a bar pinned to a phone's window holds only what is needed there", async (
   await settled(page);
   // How recording works is said in the page; the bar is its one button and a little room.
   await expect(page.getByTestId("cab-recording-note")).toBeVisible();
-  const bar = (await page.locator(".cab-bar").boundingBox())!;
+  const bar = (await page.locator(".action-bar").boundingBox())!;
   const button = (await record.boundingBox())!;
   expect(bar.height, "the record bar is one row of buttons").toBeLessThanOrEqual(button.height + 32);
 
@@ -410,7 +410,7 @@ test("a bar pinned to a phone's window holds only what is needed there", async (
         }),
         // Two lines would be at least twice the type's size.
         figureOneLine: figure.height < size * 2,
-        buttonBelow: box(".caw-mat-action").top >= count.bottom,
+        buttonBelow: box(".action-bar__actions").top >= count.bottom,
       };
     });
     expect(layout, `the mat bar at ${width}px`).toEqual({ besideCount: true, figureOneLine: true, buttonBelow: true });

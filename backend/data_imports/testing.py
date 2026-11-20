@@ -202,6 +202,20 @@ def grading_workbook(sheets: GradingSheets) -> bytes:
     return workbook_bytes(build)
 
 
+def unaccounted_workbook(outcome: str) -> bytes:
+    """One sheet: Ines graded in the main table, and Inez Varga beside it in
+    an Unaccounted table with `outcome`."""
+
+    def build(workbook: Workbook) -> None:
+        sheet = workbook.create_sheet("062025")
+        sheet.append([*MAIN_TABLE_HEADER, "Unaccounted", "Outcome", "Comments"])
+        sheet.append(
+            ["Ines", "Yellow Stripe", "Yellow", "Pass", "", "Inez Varga", outcome],
+        )
+
+    return workbook_bytes(build)
+
+
 def check_roster(
     batch: ImportBatch,
     *,

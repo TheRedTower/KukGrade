@@ -21,6 +21,7 @@ from data_imports.testing import (
     history_workbook,
     legacy_batch,
     legacy_record,
+    unaccounted_workbook,
 )
 from data_imports.tests import admin_user
 from gradings.legacy_matching import (
@@ -644,3 +645,62 @@ def test_voiding_a_record_rates_its_person_again() -> None:
     rated = person_named("Omar Haddad").person
     assert rated.confidence == LegacyPersonConfidence.MEDIUM
     assert not any("Written as" in reason for reason in rated.reasons)
+
+
+# --- names as the real workbook writes them (rehearsal, 2026-11-20) -------------
+
+
+def test_a_name_shortened_with_the_same_surname_is_one_person() -> None:
+    commit(
+        grading_workbook(
+            {
+                "062025": [["Benj M", "Blue", "Red Stripe", "Conditional", ""]],
+                "092025": [["Ben Marsh", "Red Stripe", "Red", "DNA", ""]],
+                "122025": [["Benjamin Marsh", "Red", "Brown Stripe", "Fail", ""]],
+            },
+        ),
+    )
+
+    assert grouped() == [
+        [("062025", "Benj M"), ("092025", "Ben Marsh"), ("122025", "Benjamin Marsh")],
+    ]
+
+
+def test_one_part_of_a_double_barrelled_surname_is_the_same_surname() -> None:
+    commit(
+        grading_workbook(
+            {
+                "092025": [["Ivo Lund-Hart", "Blue Stripe", "Blue", "Pass", ""]],
+                "122025": [["Ivo Hart", "Blue", "Red Stripe", "Fail", ""]],
+            },
+        ),
+    )
+
+    assert grouped() == [[("092025", "Ivo Lund-Hart"), ("122025", "Ivo Hart")]]
+
+
+def test_a_name_with_a_note_in_brackets_is_grouped_by_the_name() -> None:
+    commit(
+        grading_workbook(
+            {
+                "122025": [["Kit (White Belt)", "", "", "", ""]],
+                "032026": [["Kit B", "White", "Yellow Stripe", "Pass", ""]],
+            },
+        ),
+    )
+
+    assert grouped() == [[("122025", "Kit (White Belt)"), ("032026", "Kit B")]]
+
+
+def test_unaccounted_for_with_no_outcome_known_is_not_a_result() -> None:
+    commit(unaccounted_workbook("N/A"))
+
+    # Not graded that day, so beside a result on the sheet it may be one person.
+    assert grouped() == [[("062025", "Ines"), ("062025", "Inez Varga")]]
+
+
+def test_unaccounted_for_with_an_outcome_is_a_result() -> None:
+    commit(unaccounted_workbook("Pass"))
+
+    # Two results on one sheet are two people.
+    assert len(grouped()) == 2

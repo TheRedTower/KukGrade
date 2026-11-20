@@ -52,9 +52,12 @@ from gradings.legacy_matching import name_tokens, names_compatible
 from gradings.models import (
     MISSING_SECTION,
     SHEET_NOTE_NAME,
+    UNACCOUNTED_SECTION,
     LegacyAttendance,
     LegacyOutcome,
     LegacyRecordKind,
+    legacy_absent,
+    legacy_result,
 )
 
 # Budgets for the whole workbook, every sheet counted, known or not.
@@ -93,7 +96,7 @@ _AUXILIARY_SECTION_DISPLAY_NAMES = {
 # name column is the heading's; the columns after it that it claims are
 # named by _SIDE_COLUMNS, and unheaded ones hold its notes.
 _SIDE_TABLE_KINDS = {
-    "unaccounted": "Unaccounted",
+    "unaccounted": UNACCOUNTED_SECTION,
     "missing": MISSING_SECTION,
     "did not attend": "Did not attend",
 }
@@ -397,7 +400,8 @@ def _parse_side_row(
             LegacyAttendance.DID_NOT_ATTEND,
         )
     elif "outcome" in table.columns:
-        # "Unaccounted": graded, but not in the main table - a result.
+        # "Unaccounted": not in the main table; a result when its outcome
+        # is one KukGrade knows, else someone not graded (legacy_absent).
         record_kind, outcome, attendance = _classify_outcome(outcome_text)
     else:
         record_kind, outcome, attendance = (
@@ -785,11 +789,8 @@ class _NamedEntry:
 def _named_entries(rows: Iterable[CanonicalLegacyRow]) -> list[_NamedEntry]:
     entries: list[_NamedEntry] = []
     for row in rows:
-        graded = row.record_kind == LegacyRecordKind.GRADING_RESULT
-        absent = (
-            row.record_kind == LegacyRecordKind.DID_NOT_ATTEND
-            or row.source_section == _SIDE_TABLE_KINDS["missing"]
-        )
+        graded = legacy_result(row)
+        absent = legacy_absent(row)
         tokens = name_tokens(row.source_name)
         if (graded or absent) and tokens:
             entries.append(_NamedEntry(row, tokens, graded))
@@ -862,7 +863,7 @@ def _name_checks(entries: list[_NamedEntry]) -> Iterator[tuple[str, str]]:
 def missing_written(row: CanonicalLegacyRow) -> list[str]:
     """What a record does not say that a result should: an outcome, and the
     main table's ranks (a side table or sheet note has no rank columns)."""
-    graded = row.record_kind == LegacyRecordKind.GRADING_RESULT
+    graded = legacy_result(row)
     missing: list[str] = []
     if graded and not row.source_outcome_text:
         missing.append(NO_OUTCOME)

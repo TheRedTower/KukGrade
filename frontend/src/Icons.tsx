@@ -83,16 +83,6 @@ export function MinusIcon(props: IconProps) {
   );
 }
 
-/** Passed over: already there, so not added again. */
-export function SkipIcon(props: IconProps) {
-  return (
-    <svg {...iconProps(props)}>
-      <path d="M4 15a8 8 0 0 1 15-4" />
-      <path d="M20 5v6h-6" />
-    </svg>
-  );
-}
-
 /** Opens somewhere outside KukGrade. */
 export function ExternalLinkIcon(props: IconProps) {
   return (

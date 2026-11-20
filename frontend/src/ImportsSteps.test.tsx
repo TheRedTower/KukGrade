@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
   getDataImportBatches: vi.fn(),
   getAllDataImportBatches: vi.fn(),
   getDataImportRows: vi.fn(),
+  getDataImportRow: vi.fn(),
   saveDataImportMapping: vi.fn(),
   correctDataImportRow: vi.fn(),
   setDataImportRowExcluded: vi.fn(),
@@ -138,7 +139,7 @@ describe("Matching a roster's columns", () => {
     api.saveDataImportMapping.mockResolvedValue(saved);
     api.getDataImportRows.mockResolvedValue(page(rows, 212));
 
-    renderAt("/imports/7");
+    renderAt("/imports/7?step=match");
 
     expect(await screen.findByRole("heading", { name: "Match your columns" })).toBeInTheDocument();
     await waitFor(() =>
@@ -148,11 +149,11 @@ describe("Matching a roster's columns", () => {
         extra_columns: [],
       }),
     );
-    expect(await screen.findByLabelText("Date of birth, row 4")).toHaveAttribute("aria-invalid", "true");
-    expect(await screen.findByLabelText("Date of birth, row 2")).toHaveAttribute("aria-invalid", "false");
-    expect(await screen.findAllByText("Needs attention", { selector: ".badge" })).toHaveLength(2);
-    expect(screen.getByText("Date of birth '31/02/2010' is not a valid date.")).toBeInTheDocument();
-    expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Match columns");
+    const columns = await screen.findByRole("list", { name: "Your file's columns" });
+    expect(await within(columns).findByText("104-2-311, 104-2-318")).toBeInTheDocument();
+    expect(within(columns).getByLabelText("What “DOB” holds")).toHaveValue("date_of_birth");
+    expect(screen.getByText(/of 212 rows ready/)).toBeInTheDocument();
+    expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Things to check");
   });
 
   it("keeps a field chosen for two columns from being saved, and says why", async () => {
@@ -165,7 +166,7 @@ describe("Matching a roster's columns", () => {
     await user.selectOptions(await screen.findByLabelText("What “Joined” holds"), "first_name");
 
     expect(screen.getByText("First name is chosen for two columns.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Done" })).toBeDisabled();
     expect(api.saveDataImportMapping).not.toHaveBeenCalled();
 
     await user.selectOptions(screen.getByLabelText("What “Joined” holds"), "extra");
@@ -178,7 +179,7 @@ describe("Matching a roster's columns", () => {
     );
   });
 
-  it("offers one rank for everyone, or typing each in, when no column holds it", async () => {
+  it("offers one rank for everyone when no column holds it", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(saved);
     api.saveDataImportMapping.mockResolvedValue(saved);
@@ -186,10 +187,7 @@ describe("Matching a roster's columns", () => {
 
     renderAt("/imports/7?step=match");
     expect(await screen.findByText("No column holds rank.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Type each one in" }));
-    expect(await screen.findByLabelText("Rank, row 2")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Remove this column" }));
-
+    await screen.findByRole("option", { name: "White" });
     await user.selectOptions(screen.getByLabelText("Same for everyone"), "White");
     await waitFor(() =>
       expect(api.saveDataImportMapping).toHaveBeenCalledWith(
@@ -198,32 +196,6 @@ describe("Matching a roster's columns", () => {
       ),
     );
     expect(screen.getByText(/Rank for everyone:/)).toBeInTheDocument();
-  });
-
-  it("saves a typed fix when the cell is left, and undoes it", async () => {
-    const user = userEvent.setup();
-    api.getDataImportBatch.mockResolvedValue(saved);
-    api.getDataImportRows.mockResolvedValueOnce(page(rows)).mockResolvedValue(
-      page([
-        rows[0],
-        {
-          ...rows[1],
-          values: { ...rows[1].values, date_of_birth: "13/02/2010" },
-          corrected_fields: ["date_of_birth"],
-        },
-      ]),
-    );
-    api.correctDataImportRow.mockResolvedValue(rows[1]);
-
-    renderAt("/imports/7?step=match");
-    const cell = await screen.findByLabelText("Date of birth, row 4");
-    await user.clear(cell);
-    await user.type(cell, "13/02/2010{Enter}");
-
-    await waitFor(() => expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 4, { date_of_birth: "13/02/2010" }));
-    expect(await screen.findByText(/Your fix · file had “31\/02\/2010”/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Undo the fix to Date of birth, row 4" }));
-    await waitFor(() => expect(api.correctDataImportRow).toHaveBeenLastCalledWith(7, 4, { date_of_birth: null }));
   });
 
   it("blocks review after a rejected mapping save and retries the visible choices", async () => {
@@ -235,10 +207,10 @@ describe("Matching a roster's columns", () => {
     renderAt("/imports/7?step=match");
     await user.selectOptions(await screen.findByLabelText("What “Joined” holds"), "extra");
     expect(await screen.findByRole("alert")).toHaveTextContent("The columns could not be saved");
-    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Done" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Retry saving columns" }));
     await waitFor(() => expect(api.saveDataImportMapping).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
     expect(api.saveDataImportMapping).toHaveBeenLastCalledWith(7, {
       column_mapping: MAPPING,
       defaults: {},
@@ -261,12 +233,12 @@ describe("Matching a roster's columns", () => {
     renderAt("/imports/7?step=match");
     await user.selectOptions(await screen.findByLabelText("What “Joined” holds"), "extra");
     expect(screen.getByLabelText("What “First” holds")).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Done" })).toBeDisabled();
     expect(api.saveDataImportMapping).toHaveBeenCalledTimes(1);
     acknowledge(saved);
     await waitFor(() => expect(screen.getByLabelText("What “First” holds")).toBeEnabled());
     expect(api.saveDataImportMapping).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Done" })).toBeEnabled();
   });
 
   it("reopens with the persisted extra-column choice and no duplicate save", async () => {
@@ -275,89 +247,16 @@ describe("Matching a roster's columns", () => {
 
     renderAt("/imports/7?step=match");
     expect(await screen.findByLabelText("What “Joined” holds")).toHaveValue("extra");
-    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Done" })).toBeEnabled();
     expect(api.saveDataImportMapping).not.toHaveBeenCalled();
   });
-
-  it("blocks review while a corrected cell is unsaved or saving", async () => {
-    const user = userEvent.setup();
-    api.getDataImportBatch.mockResolvedValue(saved);
-    api.getDataImportRows.mockResolvedValue(page(rows));
-    let acknowledge!: (value: DataImportRow) => void;
-    api.correctDataImportRow.mockImplementation(
-      () =>
-        new Promise<DataImportRow>((resolve) => {
-          acknowledge = resolve;
-        }),
-    );
-
-    renderAt("/imports/7?step=match");
-    const cell = await screen.findByLabelText("Date of birth, row 4");
-    await user.clear(cell);
-    await user.type(cell, "13/02/2010");
-    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
-    await user.tab();
-    expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 4, { date_of_birth: "13/02/2010" });
-    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
-    acknowledge(rows[1]);
-    await waitFor(() => expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled());
-  });
 });
 
-describe("Typing into a roster's rows", () => {
-  const saved = batch({
-    next_step: "REVIEW",
-    suggested_mapping: MAPPING,
-    column_mapping: MAPPING,
-    uncovered_fields: ["current_rank"],
-  });
-  const typedIn = row({
-    row_number: 2,
-    cells: { "WKSA No": "104-2-311", First: "Mia", Surname: "Reynolds", DOB: "14/03/2015" },
-    values: {
-      wksa_id: "104-2-311",
-      first_name: "Mia",
-      last_name: "Reynolds",
-      date_of_birth: "14/03/2015",
-      current_rank: "Yellow",
-      status: "ACTIVE",
-    },
-    file_values: { date_of_birth: "14/03/2015" },
-    corrected_fields: ["current_rank"],
-  });
-
-  it("brings back a typed-in column after a reload, with its fixes", async () => {
-    api.getDataImportBatch.mockResolvedValue(saved);
-    api.getDataImportRows.mockResolvedValue(page([typedIn]));
-
-    renderAt("/imports/7?step=match");
-
-    expect(await screen.findByLabelText("Rank, row 2")).toHaveValue("Yellow");
-    expect(screen.queryByText("No column holds rank.")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Remove this column" })).not.toBeInTheDocument();
-  });
-
-  it("keeps what was typed when a fix cannot be saved, and says why", async () => {
-    const user = userEvent.setup();
-    api.getDataImportBatch.mockResolvedValue(saved);
-    api.getDataImportRows.mockResolvedValue(page([typedIn]));
-    api.correctDataImportRow.mockRejectedValue(new Error("offline"));
-
-    renderAt("/imports/7?step=match");
-    const cell = await screen.findByLabelText("First name, row 2");
-    await user.clear(cell);
-    await user.type(cell, "Maya{Enter}");
-
-    expect(await screen.findByText("That fix could not be saved.")).toBeInTheDocument();
-    expect(cell).toHaveValue("Maya");
-  });
-});
-
-describe("Reviewing and confirming a roster", () => {
+describe("Checking, fixing and saving a roster", () => {
   const needing = batch({
     next_step: "REVIEW",
     column_mapping: { ...MAPPING, current_rank: "Belt" },
-    row_counts: { total: 212, ready: 198, review_required: 1, skip_existing: 5, excluded: 0, sheet_left_out: 0 },
+    row_counts: { total: 212, ready: 198, review_required: 2, skip_existing: 5, excluded: 7, sheet_left_out: 0 },
   });
   const sorted = batch({
     ...needing,
@@ -381,144 +280,62 @@ describe("Reviewing and confirming a roster", () => {
     issues: ["WKSA ID: This field cannot be blank.", "Rank 'Purple' is not a rank KukGrade recognises."],
     issue_fields: ["current_rank", "wksa_id"],
   });
+  const later = row({
+    ...attention,
+    row_number: 9,
+    values: { ...attention.values, first_name: "Noah", last_name: "Finch" },
+  });
 
-  it("opens on the rows that need attention, each fixable in place", async () => {
+  function rowsNeedingAFix(...list: DataImportRow[]) {
+    api.getDataImportRows.mockImplementation((_id: number, params: { outcome?: string }) =>
+      Promise.resolve(params.outcome === "REVIEW_REQUIRED" ? page(list) : page([])),
+    );
+    api.getDataImportRow.mockImplementation((_id: number, number: number) =>
+      Promise.resolve(list.find((item) => item.row_number === number) ?? attention),
+    );
+  }
+
+  it("lists the columns to match and the rows to fix, each opening its own page", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(needing);
-    api.getDataImportRows.mockResolvedValue(page([attention]));
-    api.correctDataImportRow.mockResolvedValue({ ...attention, outcome: "READY" });
+    rowsNeedingAFix(attention, later);
 
     renderAt("/imports/7");
 
-    expect(await screen.findByText("Row 6 · Ella Moss")).toBeInTheDocument();
-    expect(api.getDataImportRows).toHaveBeenCalledWith(
-      7,
-      expect.objectContaining({ outcome: "REVIEW_REQUIRED", page: 1 }),
-    );
-    expect(screen.getByLabelText("WKSA ID, row 6")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByLabelText("First name, row 6")).toHaveAttribute("aria-invalid", "false");
-    expect(screen.getByRole("option", { name: "Purple (not recognised)" })).toBeInTheDocument();
-    expect(screen.getByText("Fix or leave out the 1 row that needs attention first.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
+    const checks = await screen.findByRole("list", { name: "Things to check" });
+    expect(within(checks).getByRole("link", { name: /Match the columns/ })).toHaveTextContent("5 columns matched");
+    expect(within(checks).getByRole("link", { name: /Rows to fix/ })).toHaveTextContent("2 rows need a fix");
+    expect(screen.getByText("210 of 212 rows sorted")).toBeInTheDocument();
+    await user.click(within(checks).getByRole("link", { name: /Rows to fix/ }));
+    // The first row to fix is pinned into the address, so fixing it never moves the page on.
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/imports/7?step=row&row=6"));
+  });
 
+  it("fixes a row on its own page, then goes on to the next", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(needing);
+    rowsNeedingAFix(attention, later);
+    api.correctDataImportRow.mockResolvedValue({ ...attention, outcome: "READY" });
+
+    renderAt("/imports/7?step=row&row=6");
+
+    expect(await screen.findByRole("heading", { name: "Row 6 · Ella Moss" })).toBeInTheDocument();
+    expect(screen.getByLabelText("WKSA ID, row 6")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("option", { name: "Purple (not recognised)" })).toBeInTheDocument();
     await screen.findByRole("option", { name: "White" });
     await user.selectOptions(screen.getByLabelText("Rank, row 6"), "White");
     await waitFor(() => expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 6, { current_rank: "White" }));
-    await user.type(screen.getByLabelText("WKSA ID, row 6"), "104-2-322");
-    await user.tab();
-    await waitFor(() => expect(api.correctDataImportRow).toHaveBeenLastCalledWith(7, 6, { wksa_id: "104-2-322" }));
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/imports/7?step=row&row=9");
+    expect(await screen.findByRole("heading", { name: "Row 9 · Noah Finch" })).toBeInTheDocument();
   });
 
-  it("leaves one row out, or every row still needing attention", async () => {
+  it("holds Next back while a fix is unsaved or saving", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(needing);
-    api.getDataImportRows.mockResolvedValue(page([attention]));
-    api.setDataImportRowExcluded.mockResolvedValue({ ...attention, outcome: "EXCLUDED", outcome_display: "Left out" });
-    api.leaveOutDataImportRowsNeedingAttention.mockResolvedValue(sorted);
-
-    renderAt("/imports/7");
-    await user.click(await screen.findByRole("button", { name: "Leave this row out, row 6" }));
-    await waitFor(() => expect(api.setDataImportRowExcluded).toHaveBeenCalledWith(7, 6, true));
-
-    await user.click(screen.getByRole("button", { name: "Leave out the 1 left" }));
-    await waitFor(() => expect(api.leaveOutDataImportRowsNeedingAttention).toHaveBeenCalledWith(7));
-  });
-
-  it("shows exactly what will be imported for a last look", async () => {
-    const user = userEvent.setup();
-    api.getDataImportBatch.mockResolvedValue(needing);
-    api.getDataImportRows.mockImplementation((_id: number, params: { outcome?: string }) =>
-      Promise.resolve(
-        params.outcome === "READY"
-          ? page([
-              row({
-                row_number: 4,
-                values: {
-                  wksa_id: "104-2-318",
-                  first_name: "Priya",
-                  last_name: "Shah",
-                  date_of_birth: "13/02/2010",
-                  current_rank: "Red",
-                  status: "ACTIVE",
-                },
-                corrected_fields: ["date_of_birth"],
-              }),
-            ])
-          : page([attention]),
-      ),
-    );
-
-    renderAt("/imports/7");
-    await user.click(await screen.findByRole("button", { name: "Look over all 198 new students" }));
-
-    expect(await screen.findByRole("heading", { name: "198 students will be added" })).toBeInTheDocument();
-    expect(screen.getByText("13/02/2010")).toBeInTheDocument();
-    expect(screen.getByText("Your fix")).toBeInTheDocument();
-  });
-
-  it("corrects a valid seventh row in the last look and reopens the saved fix", async () => {
-    const user = userEvent.setup();
-    let savedFix = false;
-    const seventh = row({
-      row_number: 7,
-      values: {
-        wksa_id: "104-2-307",
-        first_name: "Miaa",
-        last_name: "Reynolds",
-        date_of_birth: "14/03/2015",
-        current_rank: "Yellow",
-        status: "ACTIVE",
-      },
-      file_values: { first_name: "Miaa" },
-    });
-    api.getDataImportBatch.mockResolvedValue(sorted);
-    api.getDataImportRows.mockImplementation(() =>
-      Promise.resolve(
-        page([
-          savedFix
-            ? { ...seventh, values: { ...seventh.values, first_name: "Mia" }, corrected_fields: ["first_name"] }
-            : seventh,
-        ]),
-      ),
-    );
-    api.correctDataImportRow.mockImplementation(() => {
-      savedFix = true;
-      return Promise.resolve({
-        ...seventh,
-        values: { ...seventh.values, first_name: "Mia" },
-        corrected_fields: ["first_name"],
-      });
-    });
-
-    const first = renderAt("/imports/7?step=review");
-    await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
-    const name = screen.getByLabelText("First name, row 7");
-    await user.clear(name);
-    await user.type(name, "Mia{Enter}");
-    await waitFor(() => expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 7, { first_name: "Mia" }));
-    first.unmount();
-
-    renderAt("/imports/7?step=review");
-    await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
-    expect(screen.getByLabelText("First name, row 7")).toHaveValue("Mia");
-    expect(screen.getByText("File had “Miaa”")).toBeInTheDocument();
-  });
-
-  it("keeps roster confirmation closed until a row correction is saved", async () => {
-    const user = userEvent.setup();
-    const seventh = row({
-      row_number: 7,
-      values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", current_rank: "Yellow" },
-    });
-    const corrected = {
-      ...seventh,
-      values: { ...seventh.values, first_name: "Mia" },
-      corrected_fields: ["first_name"],
-    };
+    rowsNeedingAFix(attention, later);
     let acknowledge!: (value: DataImportRow) => void;
-    let saved = false;
-    api.getDataImportBatch.mockResolvedValue(sorted);
-    api.getDataImportRows.mockImplementation(() => Promise.resolve(page([saved ? corrected : seventh])));
     api.correctDataImportRow.mockImplementation(
       () =>
         new Promise<DataImportRow>((resolve) => {
@@ -526,95 +343,74 @@ describe("Reviewing and confirming a roster", () => {
         }),
     );
 
-    renderAt("/imports/7?step=review");
-    await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
-    const input = screen.getByLabelText("First name, row 7");
+    renderAt("/imports/7?step=row&row=6");
+    const input = await screen.findByLabelText("First name, row 6");
     await user.clear(input);
-    await user.type(input, "Mia");
-    expect(screen.getByRole("button", { name: "Add 203 students" })).toBeDisabled();
+    await user.type(input, "Elle");
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
     await user.tab();
-    expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 7, { first_name: "Mia" });
-    expect(screen.getByRole("button", { name: "Add 203 students" })).toBeDisabled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-
-    saved = true;
-    await act(async () => acknowledge(corrected));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Add 203 students" })).toBeEnabled());
-    await user.click(screen.getByRole("button", { name: "Add 203 students" }));
-    expect(screen.getByRole("dialog", { name: "Add 203 students to KukGrade?" })).toBeInTheDocument();
+    expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 6, { first_name: "Elle" });
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    await act(async () => acknowledge(attention));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Next" })).toBeEnabled());
   });
 
-  it("keeps roster confirmation closed after a failed row correction until retry succeeds", async () => {
+  it("leaves a row out from its page, and says when none is left to fix", async () => {
     const user = userEvent.setup();
-    const seventh = row({
-      row_number: 7,
-      values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", current_rank: "Yellow" },
-    });
-    api.getDataImportBatch.mockResolvedValue(sorted);
-    api.getDataImportRows.mockResolvedValue(page([seventh]));
-    api.correctDataImportRow.mockRejectedValueOnce(new Error("Save failed")).mockResolvedValue(seventh);
+    api.getDataImportBatch.mockResolvedValue(needing);
+    rowsNeedingAFix(attention);
+    api.setDataImportRowExcluded.mockResolvedValue({ ...attention, excluded: true, outcome: "EXCLUDED" });
 
-    renderAt("/imports/7?step=review");
-    await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
-    const input = screen.getByLabelText("First name, row 7");
-    await user.clear(input);
-    await user.type(input, "Mia");
-    await user.tab();
-    expect(await screen.findByRole("alert")).toHaveTextContent("That fix could not be saved.");
-    expect(screen.getByRole("button", { name: "Add 203 students" })).toBeDisabled();
+    renderAt("/imports/7?step=row&row=6");
+    await user.click(await screen.findByRole("button", { name: "Leave this row out, row 6" }));
+    await waitFor(() => expect(api.setDataImportRowExcluded).toHaveBeenCalledWith(7, 6, true));
+    expect(screen.getByRole("button", { name: "Back to things to check" })).toBeInTheDocument();
 
-    await user.click(input);
-    await user.tab();
-    await waitFor(() => expect(api.correctDataImportRow).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Add 203 students" })).toBeEnabled());
+    rowsNeedingAFix();
+    renderAt("/imports/7?step=row");
+    expect(await screen.findByText("Nothing left to fix.")).toBeInTheDocument();
   });
 
-  it("offers the same correction editor on a later review page", async () => {
+  it("finds every row by what it will be, each opening its page and back with the filters kept", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(sorted);
-    api.getDataImportRows.mockImplementation((_id: number, params: { page: number }) =>
-      Promise.resolve(
-        params.page === 1
-          ? { ...page([row({ row_number: 2 })], 21), next: "?page=2" }
-          : page([row({ row_number: 27 })], 21),
-      ),
-    );
+    const ready = row({ row_number: 4, values: { ...attention.values, first_name: "Priya", last_name: "Shah" } });
+    api.getDataImportRows.mockResolvedValue(page([ready]));
+    api.getDataImportRow.mockResolvedValue(ready);
 
-    renderAt("/imports/7?step=review");
-    await user.click(await screen.findByRole("button", { name: "Next page" }));
-    await user.click(await screen.findByRole("button", { name: "Edit row 27" }));
-    expect(screen.getByLabelText("First name, row 27")).toBeInTheDocument();
-  });
-
-  it("returns to the first page when an import filter is revisited", async () => {
-    const user = userEvent.setup();
-    api.getDataImportBatch.mockResolvedValue(sorted);
-    api.getDataImportRows.mockImplementation((_id: number, params: { outcome: string; page: number }) =>
-      Promise.resolve(params.outcome === "READY" ? page([row({ row_number: params.page })], 60) : page([])),
-    );
-
-    renderAt("/imports/7?step=review");
-    await screen.findByRole("button", { name: "Next page" });
-    await user.click(screen.getByRole("button", { name: "Next page" }));
-    await user.click(screen.getByRole("button", { name: "Next page" }));
-    await waitFor(() =>
-      expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 3 })),
-    );
-
-    await user.click(screen.getByRole("button", { name: /Already in KukGrade/ }));
+    renderAt("/imports/7?step=rows");
+    await user.click(await screen.findByRole("button", { name: /Already in KukGrade/ }));
     await waitFor(() =>
       expect(api.getDataImportRows).toHaveBeenLastCalledWith(
         7,
         expect.objectContaining({ outcome: "SKIP_EXISTING", page: 1 }),
       ),
     );
-    await user.click(screen.getByRole("button", { name: /Ready to add/ }));
-    await waitFor(() =>
-      expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 1 })),
+    await user.click(await screen.findByRole("link", { name: /Row 4 · Priya Shah/ }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/imports/7?step=row&show=SKIP_EXISTING&row=4&from=rows");
+    expect(await screen.findByLabelText("First name, row 4")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Every row/ })).toHaveAttribute(
+      "href",
+      "/imports/7?step=rows&show=SKIP_EXISTING",
     );
   });
 
-  it("confirms the import on the same page once every row is sorted", async () => {
+  it("holds the save until every row is fixed or left out", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(needing);
+    api.leaveOutDataImportRowsNeedingAttention.mockResolvedValue(sorted);
+
+    renderAt("/imports/7?step=save");
+
+    expect(await screen.findByText("2 rows still need a fix")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add 198 students" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Leave out the 2 left" }));
+    await waitFor(() => expect(api.leaveOutDataImportRowsNeedingAttention).toHaveBeenCalledWith(7));
+    await user.click(screen.getByRole("button", { name: "Fix them" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/imports/7?step=row");
+  });
+
+  it("adds the students in one go and shows what the import did", async () => {
     const user = userEvent.setup();
     const committed: DataImportBatch = {
       ...sorted,
@@ -629,37 +425,31 @@ describe("Reviewing and confirming a roster", () => {
     api.getDataImportRows.mockResolvedValue(page([]));
     api.commitDataImport.mockResolvedValue(committed);
 
-    renderAt("/imports/7?step=review");
+    renderAt("/imports/7?step=save");
 
-    expect(
-      await screen.findByRole("heading", { name: "Everything is sorted · ready to add 203 students" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/5 already in KukGrade are skipped, 4 you left out, “Parent phone” kept as extra information/),
-    ).toBeInTheDocument();
-    expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Confirm");
+    expect(await screen.findByRole("heading", { name: "Add 203 students" })).toBeInTheDocument();
+    expect(screen.getByText("5 rows already in KukGrade are skipped")).toBeInTheDocument();
+    expect(screen.getByText("4 rows you left out")).toBeInTheDocument();
+    expect(screen.getByText("“Parent phone” kept as extra information")).toBeInTheDocument();
+    expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Save");
     await user.click(screen.getByRole("button", { name: "Add 203 students" }));
-    const dialog = screen.getByRole("dialog", { name: "Add 203 students to KukGrade?" });
-    expect(api.commitDataImport).not.toHaveBeenCalled();
-    await user.click(within(dialog).getByRole("button", { name: "Add 203 students" }));
 
     await waitFor(() => expect(api.commitDataImport).toHaveBeenCalledWith(7));
     expect(await screen.findByText("203 students added")).toBeInTheDocument();
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/imports\/7$/);
   });
 
   it("says nothing was saved when the import is refused", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(sorted);
-    api.getDataImportRows.mockResolvedValue(page([]));
     api.commitDataImport.mockRejectedValue(
       new ApiError("Invalid", 400, "validation_error", {
         non_field_errors: ["Row 5: the WKSA ID 104-2-205 was taken since the check."],
       }),
     );
 
-    renderAt("/imports/7?step=review");
+    renderAt("/imports/7?step=save");
     await user.click(await screen.findByRole("button", { name: "Add 203 students" }));
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Add 203 students" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Nothing was saved. Row 5: the WKSA ID 104-2-205 was taken since the check.",

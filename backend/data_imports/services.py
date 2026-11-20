@@ -140,9 +140,9 @@ REVIEW_STEPS: tuple[str, ...] = (ImportStep.REVIEW, ImportStep.CONFIRM)
 IMPORT_STEP_NAMES: dict[str, dict[str, str]] = {
     ImportBatch.Kind.STUDENT_ROSTER: {
         ImportStep.CHOOSE_FILE: "Choose file",
-        ImportStep.MATCH: "Match columns",
-        ImportStep.REVIEW: "Review rows",
-        ImportStep.CONFIRM: "Confirm",
+        ImportStep.MATCH: "Your file",
+        ImportStep.REVIEW: "Things to check",
+        ImportStep.CONFIRM: "Save",
         ImportStep.RESULTS: "Results",
     },
     ImportBatch.Kind.LEGACY_GRADINGS: {

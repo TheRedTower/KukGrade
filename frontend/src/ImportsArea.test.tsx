@@ -91,7 +91,7 @@ describe("Imports hub", () => {
     renderAt("/imports");
 
     expect(await screen.findByRole("heading", { name: "Pick up where you left off" })).toBeInTheDocument();
-    expect(screen.getByText("Step 3 of 5 · Review rows")).toBeInTheDocument();
+    expect(screen.getByText("Step 3 of 5 · Things to check")).toBeInTheDocument();
     expect(screen.getByText("198 ready · 9 need attention · 5 already in KukGrade")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Resume spring-roster.xlsx" })).toHaveAttribute("href", "/imports/7");
     expect(await screen.findByText("No imports have finished yet.")).toBeInTheDocument();
@@ -195,7 +195,7 @@ describe("Choosing the file", () => {
     return file;
   }
 
-  it("shows the guide until a file is chosen, then what KukGrade found", async () => {
+  it("shows the guide until a file is chosen, then opens what KukGrade found", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue(created);
     api.getDataImportBatch.mockResolvedValue(batch({ next_step: "MATCH", sheet_names: ["Members", "Leavers"] }));
@@ -203,21 +203,18 @@ describe("Choosing the file", () => {
     renderAt("/imports/new?kind=STUDENT_ROSTER");
 
     expect(screen.getByRole("heading", { name: "What KukGrade looks for" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue to match columns" })).toBeDisabled();
     expect(await screen.findByRole("listitem", { current: "step" })).toHaveTextContent("Choose file");
 
     await user.upload(screen.getByLabelText("Choose a file"), xlsx());
 
     expect(await screen.findByText("212 rows of students")).toBeInTheDocument();
     expect(api.createDataImportBatch).toHaveBeenCalledWith(expect.any(File), "STUDENT_ROSTER");
+    expect(screen.getByTestId("where")).toHaveTextContent("/imports/7");
     expect(screen.getByText("7 columns")).toBeInTheDocument();
     expect(screen.getByText("This exact file has been imported before")).toBeInTheDocument();
-    // The guide folds away once the file is read.
-    expect(screen.getByText("What KukGrade looks for", { selector: "summary" }).closest("details")).not.toHaveAttribute(
-      "open",
-    );
-    await user.click(screen.getByRole("button", { name: "Continue to match columns" }));
-    expect(screen.getByTestId("where")).toHaveTextContent("/imports/7");
+    expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Your file");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/imports/7?step=checks");
   });
 
   it("refuses a file of the wrong type or size before sending it", async () => {
@@ -243,7 +240,7 @@ describe("Choosing the file", () => {
     await user.upload(screen.getByLabelText("Choose a file"), xlsx("roster.xlsx", 6 * 1024 * 1024));
 
     expect(api.createDataImportBatch).toHaveBeenCalledWith(expect.any(File), "STUDENT_ROSTER");
-    expect(await screen.findByText("Your file")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/imports/7"));
   });
 
   it("refuses files above a smaller server limit", async () => {
@@ -273,14 +270,16 @@ describe("Choosing the file", () => {
   it("reads another sheet of a workbook when one is chosen", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue({ ...created, already_imported_warning: false });
-    api.getDataImportBatch.mockResolvedValue(batch({ sheet_names: ["Members", "Leavers"] }));
-    api.chooseDataImportSheet.mockResolvedValue(
-      batch({
-        sheet: "Leavers",
-        sheet_names: ["Members", "Leavers"],
-        row_counts: { total: 2, ready: 2, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
-      }),
-    );
+    const leavers = batch({
+      next_step: "MATCH",
+      sheet: "Leavers",
+      sheet_names: ["Members", "Leavers"],
+      row_counts: { total: 2, ready: 2, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
+    });
+    api.getDataImportBatch
+      .mockResolvedValueOnce(batch({ next_step: "MATCH", sheet_names: ["Members", "Leavers"] }))
+      .mockResolvedValue(leavers);
+    api.chooseDataImportSheet.mockResolvedValue(leavers);
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
     await user.upload(screen.getByLabelText("Choose a file"), xlsx());
@@ -293,8 +292,10 @@ describe("Choosing the file", () => {
   it("keeps a blank opening sheet recoverable and blocks continuation until another is read", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue({ ...created, already_imported_warning: false });
-    api.getDataImportBatch.mockResolvedValue(
+    const members = batch({ next_step: "MATCH", sheet: "Members", sheet_names: ["Cover", "Members"] });
+    api.getDataImportBatch.mockResolvedValueOnce(
       batch({
+        next_step: "MATCH",
         sheet: "Cover",
         sheet_names: ["Cover", "Members"],
         detected_headers: [],
@@ -302,28 +303,30 @@ describe("Choosing the file", () => {
         row_counts: { total: 0, ready: 0, review_required: 0, skip_existing: 0, excluded: 0, sheet_left_out: 0 },
       }),
     );
-    api.chooseDataImportSheet.mockResolvedValue(batch({ sheet: "Members", sheet_names: ["Cover", "Members"] }));
+    api.getDataImportBatch.mockResolvedValue(members);
+    api.chooseDataImportSheet.mockResolvedValue(members);
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
     await user.upload(screen.getByLabelText("Choose a file"), xlsx());
     expect(await screen.findByRole("alert")).toHaveTextContent("The file has no header row.");
-    expect(screen.getByRole("button", { name: "Continue to match columns" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
     await user.selectOptions(screen.getByLabelText(/Sheet to read/), "Members");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Continue to match columns" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled());
   });
 
-  it("removes the upload when a different file is chosen", async () => {
+  it("cancels the upload from what KukGrade found", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue(created);
-    api.getDataImportBatch.mockResolvedValue(batch());
+    api.getDataImportBatch.mockResolvedValue(batch({ next_step: "MATCH" }));
+    api.getDataImportBatches.mockResolvedValue(page([]));
     api.cancelDataImportBatch.mockResolvedValue(undefined);
 
     renderAt("/imports/new?kind=STUDENT_ROSTER");
     await user.upload(screen.getByLabelText("Choose a file"), xlsx());
-    await user.click(await screen.findByRole("button", { name: "Choose a different file" }));
+    await user.click(await screen.findByRole("button", { name: "Cancel import" }));
 
     expect(api.cancelDataImportBatch).toHaveBeenCalledWith(7);
-    expect(await screen.findByRole("heading", { name: "Choose your file" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/imports$/));
   });
 
   it("names the grading sheets a historical workbook has", async () => {

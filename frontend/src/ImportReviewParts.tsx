@@ -5,64 +5,9 @@ import { Pagination } from "./Pagination";
 import { usePagedRows } from "./useImportRows";
 import { importKinds } from "./importKinds";
 import { Button } from "./Button";
-import { Exclusion, Tile } from "./importReviewRows";
+import type { Exclusion } from "./importReviewRows";
 import { cx } from "./cx";
 import { LoadingState } from "./LoadingState";
-
-/** Counts that double as filters. */
-export function CountTiles<View extends string>({
-  tiles,
-  view,
-  onView,
-}: {
-  tiles: Tile<View>[];
-  view: View;
-  onView: (view: View) => void;
-}) {
-  return (
-    <div aria-label="Show" className="ix-tiles tiles tiles--narrowest" role="group">
-      {tiles.map((tile) => (
-        <button
-          aria-pressed={view === tile.key}
-          className="ix-tile"
-          key={tile.key}
-          type="button"
-          onClick={() => onView(tile.key)}
-        >
-          <span className={cx("ix-tile-count", tile.tone)}>
-            <span aria-hidden="true">{tile.mark}</span>
-            <span className="stat__value">{tile.count}</span>
-          </span>
-          <span className="stat__label">{tile.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** The way to a last look at everything that will be saved. */
-export function LastLook({
-  pressed,
-  lead,
-  label,
-  onShow,
-}: {
-  pressed: boolean;
-  lead: string;
-  label: string;
-  onShow: () => void;
-}) {
-  return (
-    <div className={cx("ix-banner card card--flush", pressed && "ix-picked")}>
-      <p>
-        <strong>Last look before you confirm.</strong> {lead}
-      </p>
-      <Button aria-pressed={pressed} variant="secondary" onClick={onShow}>
-        {label}
-      </Button>
-    </div>
-  );
-}
 
 export function ExclusionButton({
   row,
@@ -149,38 +94,5 @@ export function RowLines({
         </div>
       ))}
     </>
-  );
-}
-
-/** A list's heading, its lead, and search where there is one. */
-export function ListHead({
-  title,
-  lead,
-  search,
-}: {
-  title: string;
-  lead: string;
-  search?: { value: string; hint: string; onChange: (value: string) => void };
-}) {
-  return (
-    <div className="ix-row ix-align-end">
-      <div className="ix-row-main">
-        <h2 className="section-title" id="ix-review-list">
-          {title}
-        </h2>
-        <p className="subtext">{lead}</p>
-      </div>
-      {search ? (
-        <label className="field">
-          <span>Search</span>
-          <input
-            placeholder={search.hint}
-            type="search"
-            value={search.value}
-            onChange={(event) => search.onChange(event.target.value)}
-          />
-        </label>
-      ) : null}
-    </div>
   );
 }

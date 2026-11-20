@@ -72,6 +72,7 @@ export const keys = {
     rows: (batchId: Id) => ["imports", "rows", batchId] as const,
     rowsPage: (batchId: Id, ...filters: unknown[]) => ["imports", "rows", batchId, ...filters] as const,
     rowsPreview: (batchId: Id) => ["imports", "rows", batchId, "preview"] as const,
+    row: (batchId: Id, rowNumber: number) => ["imports", "rows", batchId, "row", rowNumber] as const,
     secondLook: (batchId: Id) => ["imports", "rows", batchId, "secondLook"] as const,
   },
   legacyRecords: {

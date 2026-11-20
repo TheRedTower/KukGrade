@@ -135,9 +135,9 @@ export const SITE: SiteSettings = {
         ],
         steps: [
           { value: "CHOOSE_FILE", label: "Choose file" },
-          { value: "MATCH", label: "Match columns" },
-          { value: "REVIEW", label: "Review rows" },
-          { value: "CONFIRM", label: "Confirm" },
+          { value: "MATCH", label: "Your file" },
+          { value: "REVIEW", label: "Things to check" },
+          { value: "CONFIRM", label: "Save" },
           { value: "RESULTS", label: "Results" },
         ],
       },

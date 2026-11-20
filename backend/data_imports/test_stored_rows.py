@@ -428,6 +428,24 @@ def test_the_rows_come_a_page_at_a_time_filtered_and_searched() -> None:
     assert client.get(url, {"kind": "STUDENT_ROSTER"}).status_code == 400
 
 
+def test_one_row_is_read_by_its_number_whatever_its_outcome() -> None:
+    admin = admin_user()
+    batch = mapped(CLEAN_ROW, BAD_DATE, admin=admin)
+    other = mapped(CLEAN_ROW, admin=admin)
+    client = client_for(admin)
+    url = f"{BASE}{batch.pk}/rows/"
+
+    row = client.get(f"{url}3/")
+    assert row.status_code == 200
+    assert row.json()["row_number"] == 3
+    assert row.json()["outcome"] == "REVIEW_REQUIRED"
+    correct_import_row(batch, row_number=3, changes={"date_of_birth": "2014-01-01"})
+    assert client.get(f"{url}3/").json()["outcome"] == "READY"
+    assert client.get(f"{url}9/").status_code == 404
+    # Only that import's rows: another's row 3 is not there.
+    assert client.get(f"{BASE}{other.pk}/rows/3/").status_code == 404
+
+
 def test_the_api_matches_columns_fixes_a_row_and_leaves_one_out() -> None:
     admin = admin_user()
     batch = roster(CLEAN_ROW, BAD_DATE, admin=admin)
@@ -489,6 +507,7 @@ def test_an_empty_fix_is_refused() -> None:
         ("get", "", None),
         ("get", "{id}/", None),
         ("get", "{id}/rows/", None),
+        ("get", "{id}/rows/2/", None),
         ("post", "{id}/mapping/", {"column_mapping": STANDARD_MAPPING}),
         ("patch", "{id}/rows/2/", {"first_name": "Al"}),
         ("post", "{id}/rows/2/exclusion/", {"excluded": True}),

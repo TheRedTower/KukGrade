@@ -665,6 +665,13 @@ export function getDataImportRows(batch_pk: number, query?: ListQuery<"data_impo
   return answer(api.GET("/api/data-imports/batches/{batch_pk}/rows/", { params: { path: { batch_pk }, query } }));
 }
 
+/** One row of an import, by its number in the file. */
+export function getDataImportRow(batch_pk: number, row_number: number) {
+  return answer(
+    api.GET("/api/data-imports/batches/{batch_pk}/rows/{row_number}/", { params: { path: { batch_pk, row_number } } }),
+  );
+}
+
 /** Read a roster from another sheet of its workbook. */
 export function chooseDataImportSheet(id: number, sheet: string) {
   return answer(api.POST("/api/data-imports/batches/{id}/sheet/", { params: { path: { id } }, body: { sheet } }));

@@ -61,11 +61,6 @@
   margin: 0;
 }
 
-.ix-head-text {
-  flex: 1 1 26rem;
-  min-width: 0;
-}
-
 .ix-card-pad {
   padding: var(--space-5);
 }
@@ -160,30 +155,8 @@
   max-width: 22rem;
 }
 
-.ix-field-wide {
-  flex: 1 1 16rem;
-  color: var(--color-text);
-}
-
 .ix-chips-inset {
   padding: 0 var(--space-5) var(--space-4);
-}
-
-.ix-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.ix-table th {
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface-sunken);
-  text-align: left;
-}
-
-.ix-table td {
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-border);
-  vertical-align: top;
 }
 
 .ix-danger-text {
@@ -213,10 +186,6 @@
 
 .ix-banner > p {
   flex: 1 1 18rem;
-}
-
-.ix-picked {
-  border: 2px solid var(--color-gold);
 }
 
 .ix-banner-success {
@@ -367,29 +336,6 @@
   margin: 0;
 }
 
-.ix-file {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-4) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-}
-
-.ix-file p {
-  margin: 0;
-}
-
-.ix-file .ix-row-main {
-  flex-basis: 14rem;
-}
-
-.ix-fold {
-  padding-top: var(--space-1);
-  border-top: 1px solid var(--color-border);
-}
-
 .ix-two-col {
   display: flex;
   flex-wrap: wrap;
@@ -405,15 +351,6 @@
 .ix-two-col > :last-child {
   flex: 1 1 16rem;
   min-width: 0;
-}
-
-/* The focus first in reading order, its queue shown to its left. */
-.ix-two-col-queue > :first-child {
-  order: 2;
-}
-
-.ix-two-col-queue > :last-child {
-  order: 1;
 }
 
 .ix-also {
@@ -460,30 +397,30 @@
   color: var(--color-info);
 }
 
-.ix-table-cells td {
-  padding: var(--space-2) var(--space-2);
+/* One column of a student list's file: its name and first values, then
+   what it holds, side by side where there is room (ImportMatchColumns). */
+.ix-column {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
 }
 
-.ix-table-cells th {
-  padding: var(--space-2) var(--space-2);
-  vertical-align: bottom;
+.ix-column__text {
+  display: grid;
+  flex: 1 1 12rem;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
-.ix-col-name {
-  display: block;
-  color: var(--color-text);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.ix-cell-text {
-  display: block;
-  padding: var(--space-2) 0.1rem;
-}
-
-.ix-cell-reading .subtext {
-  display: block;
-  margin-top: var(--space-1);
+.ix-column .ix-col-select {
+  flex: 1 1 14rem;
+  width: auto;
+  margin-top: 0;
 }
 
 .ix-col-select {
@@ -506,11 +443,6 @@
 
 .ix-col-select-suggested {
   border-color: var(--color-info);
-}
-
-.ix-struck {
-  color: var(--color-text-muted);
-  text-decoration: line-through;
 }
 
 /* A line of its own under the row's name, so the fields share its width. The width
@@ -542,134 +474,7 @@
   color: var(--color-danger);
 }
 
-.ix-queue-head {
-  padding: var(--space-4);
-  gap: var(--space-2);
-}
-
-.ix-queue > li > button,
-.ix-queue > li > a {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: 52px;
-  padding: var(--space-2) var(--space-4) var(--space-2) calc(0.9rem - 3px);
-  border: none;
-  border-top: 1px solid var(--color-border);
-  border-left: 3px solid transparent;
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.ix-queue > li > a {
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 0.1rem;
-}
-
-@media (hover: hover) {
-  .ix-queue > li > button:hover,
-  .ix-queue > li > a:hover {
-    background: var(--color-surface-sunken);
-  }
-}
-
-.ix-queue > li:first-child > button,
-.ix-queue > li:first-child > a {
-  border-top: none;
-}
-
-.ix-queue > li > button[aria-current="true"],
-.ix-queue > li > button[aria-pressed="true"] {
-  border-left-color: var(--color-gold);
-  background: var(--color-surface-sunken);
-}
-
-.ix-queue-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 /* The box is small to look at; the label round it is the finger-sized target. */
-
-/* The linking page: every name as written, one row each. */
-
-.ix-student-search {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.ix-student-option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.15rem;
-  min-height: 56px;
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.ix-student-option[aria-pressed="true"] {
-  border: 2px solid var(--color-gold);
-  padding: calc(0.6rem - 1px) calc(0.9rem - 1px);
-  background: var(--color-surface-sunken);
-}
-
-.ix-rank-fix {
-  margin-top: var(--space-1);
-}
-
-/* The counts on the review page, each a filter. */
-.ix-tiles {
-  gap: var(--space-4);
-}
-
-.ix-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
-  min-height: 5.5rem;
-  padding: var(--space-4) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.ix-tile[aria-pressed="true"] {
-  border: 2px solid var(--color-gold);
-}
-
-/* The count with its icon beside it, centred on the figures. */
-.ix-tile-count {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  line-height: var(--line-height-tight);
-}
-
-/* The seal on the review page. */
-.ix-seal-text {
-  flex: 1 1 22rem;
-  min-width: 0;
-}
 
 /* Last, so it wins over a component's own margin. */
 .ix-flush {

@@ -33,8 +33,9 @@ from accounts.permissions import AUTHORITY_PERMISSIONS
 from accounts.services import set_user_authority
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
+from data_imports.mappings import suggest_column_mapping
 from data_imports.models import ImportBatch
-from data_imports.services import create_import_batch
+from data_imports.services import create_import_batch, save_import_mapping
 from demo.personas import DEMO_PASSWORD, PERSONA_EMAILS, PERSONAS
 from gradings.assessment_services import (
     add_item_comment,
@@ -799,6 +800,34 @@ def open_legacy_import(club: Club) -> None:
     )
 
 
+# A student list still being imported, so its steps can be tried: two rows
+# ready, one already in KukGrade, and two to fix. Made-up people.
+OPEN_ROSTER: list[list[str]] = [
+    ["WKSA ID", "First name", "Last name", "Date of birth", "Rank", "Parent phone"],
+    ["123-4-901", "Rosa", "Quill", "14/03/2015", "White", "07700 900101"],
+    ["123-4-902", "Theo", "Marsh", "02/09/2012", "Yellow", ""],
+    ["123-4-001", "Already", "Here", "01/01/2014", "White", ""],
+    ["123-4-903", "Nell", "Brook", "31/02/2013", "Blue", ""],
+    ["", "Finn", "Ashby", "20/07/2016", "Purple", ""],
+]
+
+
+def open_roster_import(club: Club) -> None:
+    """A student list uploaded and not yet saved (OPEN_ROSTER), its columns
+    matched as KukGrade suggests."""
+    content = "\n".join(",".join(row) for row in OPEN_ROSTER).encode()
+    batch = create_import_batch(
+        kind=ImportBatch.Kind.STUDENT_ROSTER,
+        upload=SimpleUploadedFile("New starters.csv", content),
+        uploaded_by=club.administrator,
+    ).batch
+    save_import_mapping(
+        batch,
+        column_mapping=suggest_column_mapping(OPEN_ROSTER[0]),
+        extra_columns=["Parent phone"],
+    )
+
+
 @transaction.atomic
 def build(*, today: date | None = None) -> None:
     """Build the whole demo club in an empty database."""
@@ -828,3 +857,4 @@ def build(*, today: date | None = None) -> None:
     upcoming(club)
     legacy_records(club)
     open_legacy_import(club)
+    open_roster_import(club)

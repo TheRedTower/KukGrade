@@ -155,6 +155,9 @@ SBN and PKJN (Dahn Bo Nim to Pyung Kwahn Jung Nim). Every screen draws ranks as 
 Administrators can bring in an existing student list and, if the school has one,
 a spreadsheet of past gradings, with a guided review before anything is saved.
 Past gradings are linked to students, so they can be imported once the students are in.
+A student list runs through the same screens: what KukGrade found in the file, the things to
+check (its columns to match, then each row to fix or leave out on a page of its own), every
+row, and one save that adds the students once no row needs a fix.
 An upload that is abandoned is cleared once it is 24 hours old: each new upload clears
 the stale ones, and so does every start of the container. Past gradings come in sheet by sheet:
 uploading the whole workbook again brings in only its new sheets, a changed sheet only if chosen,

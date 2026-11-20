@@ -542,6 +542,35 @@ paths:
                 $ref: '#/components/schemas/PaginatedImportRowList'
           description: ''
   /api/data-imports/batches/{batch_pk}/rows/{row_number}/:
+    get:
+      operationId: data_imports_batches_rows_retrieve
+      description: |-
+        One row by its number in the file: a row being fixed keeps its own
+        page however its outcome changes.
+      parameters:
+      - in: path
+        name: batch_pk
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: integer
+        description: The row's number in the file.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
+          description: ''
     patch:
       operationId: data_imports_batches_rows_partial_update
       description: Fix a roster row's values; every row is checked again.

@@ -188,7 +188,7 @@ def test_the_student_list_finds_a_student_by_the_rank_or_status_it_shows(
 
 def test_the_user_list_finds_a_name_an_email_or_a_role() -> None:
     admin = user("search-admin@example.com", role=User.Role.ADMINISTRATOR)
-    User.objects.filter(pk=admin.pk).update(first_name="Renée", last_name="Okafor")
+    User.objects.filter(pk=admin.pk).update(first_name="Renée", last_name="Ndlovu")
     client = auth_client("search-user-list@example.com")
     admin_client = APIClient()
     admin_client.force_authenticate(user=admin)
@@ -198,7 +198,7 @@ def test_the_user_list_finds_a_name_an_email_or_a_role() -> None:
         return [row["email"] for row in rows]
 
     assert "search-admin@example.com" in found("renee")
-    assert "search-admin@example.com" in found("okafor renee")
+    assert "search-admin@example.com" in found("ndlovu renee")
     assert "search-admin@example.com" in found("search-admin")
     assert "search-admin@example.com" in found("administrator")
     assert "search-admin@example.com" not in found("instructor")

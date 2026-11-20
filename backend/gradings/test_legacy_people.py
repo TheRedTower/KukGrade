@@ -94,10 +94,10 @@ def client_for(user: User | None) -> APIClient:
 @pytest.mark.parametrize(
     ("written", "tokens"),
     [
-        ("Zac W", ["zac", "w"]),
-        ("JKN Alex", ["alex"]),
-        ("  Alex   P. ", ["alex", "p"]),
-        ("Hollie Tierny", ["hollie", "tierny"]),
+        ("Tom W", ["tom", "w"]),
+        ("JKN Kai", ["kai"]),
+        ("  Kai   P. ", ["kai", "p"]),
+        ("Nell Garrety", ["nell", "garrety"]),
         ("Kit (White Belt)", ["kit"]),
         ("Kit (White", ["kit"]),
         ("Ivo Lund-Hart", ["ivo", "lund-hart"]),
@@ -137,7 +137,7 @@ def test_names_that_could_be_one_person_are_compatible(one: str, other: str) -> 
     [
         ("Cara P", "Cara K"),
         ("Omar Haddad", "Omar Smith"),
-        ("Zac", "Max"),
+        ("Tom", "Max"),
         ("Mo", "Mi"),
         ("Ruby Moss", "Ruby Mossington"),
         ("", "Cara"),
@@ -159,16 +159,16 @@ def test_names_that_cannot_be_one_person_are_not(one: str, other: str) -> None:
 @pytest.mark.parametrize(
     ("written", "first", "last", "reasons"),
     [
-        ("Zac", "Zac", "Wood", ["Same first name"]),
-        ("Zac W", "Zac", "Wood", ["Same first name", "Surname initial matches"]),
-        ("Zac Wood", "Zac", "Wood", ["Same first name", "Same surname"]),
-        ("Sabastian", "Sebastian", "Bell", ["First name close to Sebastian"]),
-        ("Wood Zac", "Zac", "Wood", ["Same name, written surname first"]),
+        ("Tom", "Tom", "Wood", ["Same first name"]),
+        ("Tom W", "Tom", "Wood", ["Same first name", "Surname initial matches"]),
+        ("Tom Wood", "Tom", "Wood", ["Same first name", "Same surname"]),
+        ("Jonathon", "Jonathan", "Bell", ["First name close to Jonathan"]),
+        ("Wood Tom", "Tom", "Wood", ["Same name, written surname first"]),
         (
-            "Hollie Tierny",
-            "Hollie",
-            "Tierney",
-            ["Same first name", "Surname close to Tierney"],
+            "Nell Garrety",
+            "Nell",
+            "Garrity",
+            ["Same first name", "Surname close to Garrity"],
         ),
     ],
 )
@@ -187,9 +187,9 @@ def test_how_a_written_name_fits_a_student(
 @pytest.mark.parametrize(
     ("written", "first", "last"),
     [
-        ("Zac B", "Zac", "Wood"),
-        ("Zac Brown", "Zac", "Wood"),
-        ("Max", "Zac", "Wood"),
+        ("Tom B", "Tom", "Wood"),
+        ("Tom Brown", "Tom", "Wood"),
+        ("Max", "Tom", "Wood"),
     ],
 )
 def test_a_contradicting_name_rules_a_student_out(
@@ -207,34 +207,34 @@ def _person_groups() -> list[PersonGroup]:
 
 
 def test_a_rank_that_fits_counts_for_a_student_and_a_lower_one_against() -> None:
-    blue_now = student("Zac", "Wood", "BLUE")
-    white_now = student("Zac", "Ward", "WHITE")
+    blue_now = student("Tom", "Wood", "BLUE")
+    white_now = student("Tom", "Ward", "WHITE")
 
-    fits = score_student(name_tokens("Zac"), blue_now, rank("YELLOW"))
+    fits = score_student(name_tokens("Tom"), blue_now, rank("YELLOW"))
     # Nobody goes down a grade: on a first name alone, a student at a lower
     # rank now than the record gave is not suggested at all...
-    assert score_student(name_tokens("Zac"), white_now, rank("YELLOW")) is None
+    assert score_student(name_tokens("Tom"), white_now, rank("YELLOW")) is None
     # ...and with a surname that fits too, they are, with the reason said.
-    lower = score_student(name_tokens("Zac Ward"), white_now, rank("YELLOW"))
+    lower = score_student(name_tokens("Tom Ward"), white_now, rank("YELLOW"))
 
     assert fits is not None and lower is not None
     assert fits.reasons[-1] == "Rank fits: Blue now, Yellow then"
     assert lower.reasons[-1] == "Lower rank now (White) than then (Yellow)"
-    assert lower.score < score_student(name_tokens("Zac Ward"), white_now, None).score  # type: ignore[union-attr]
+    assert lower.score < score_student(name_tokens("Tom Ward"), white_now, None).score  # type: ignore[union-attr]
 
 
 def test_records_are_grouped_by_the_name_as_written_with_suggestions() -> None:
-    zac = student("Zac", "Wood", "RED")
+    tom = student("Tom", "Wood", "RED")
     batch = legacy_batch()
     first = legacy_record(
         source_batch=batch,
-        source_name="Zac W",
+        source_name="Tom W",
         source_testing_for_rank_text="Yellow Belt",
         outcome="PASS",
     )
-    second = legacy_record(source_batch=batch, source_name="zac w.")
+    second = legacy_record(source_batch=batch, source_name="tom w.")
     legacy_record(source_batch=batch, source_name="Sheet note")
-    voided = legacy_record(source_batch=batch, source_name="Zac W")
+    voided = legacy_record(source_batch=batch, source_name="Tom W")
     void_legacy_record(voided, reason="Entered twice", actor=admin())
 
     [group] = _person_groups()
@@ -242,7 +242,7 @@ def test_records_are_grouped_by_the_name_as_written_with_suggestions() -> None:
     assert sorted(record.pk for record in group.records) == sorted(
         [first.pk, second.pk]
     )
-    assert [candidate.student for candidate in group.candidates] == [zac]
+    assert [candidate.student for candidate in group.candidates] == [tom]
     assert group.candidates[0].reasons == (
         "Same first name",
         "Surname initial matches",
@@ -281,30 +281,30 @@ def test_two_students_who_fit_equally_well_are_both_shown_and_flagged() -> None:
 
 
 def test_people_lists_groups_and_suggestions_for_the_screen() -> None:
-    zac = student("Zac", "Wood", "RED")
+    tom = student("Tom", "Wood", "RED")
     batch = legacy_batch()
-    record = legacy_record(source_batch=batch, source_name="Zac W", cycle_year=2024)
-    legacy_record(source_batch=batch, source_name="Zac W", cycle_year=2025)
+    record = legacy_record(source_batch=batch, source_name="Tom W", cycle_year=2024)
+    legacy_record(source_batch=batch, source_name="Tom W", cycle_year=2025)
     other = legacy_batch()
     legacy_record(source_batch=other, source_name="Someone Else")
     client = client_for(admin())
 
     [person] = results(client.get(PEOPLE, {"batch": batch.pk}))
 
-    assert person["source_name"] == "Zac W"
+    assert person["source_name"] == "Tom W"
     assert person["records"] == 2
     assert record.pk in person["record_ids"]
     assert (person["first_period"], person["last_period"]) == ("2024-06", "2025-06")
     assert person["linked_student"] is None
-    assert person["candidates"][0]["student"] == zac.pk
-    assert person["candidates"][0]["full_name"] == "Zac Wood"
+    assert person["candidates"][0]["student"] == tom.pk
+    assert person["candidates"][0]["full_name"] == "Tom Wood"
     assert person["candidates"][0]["current_rank_name"] == "Red"
     assert person["shared"] is False
 
 
 def test_people_filters_by_linked_and_refuses_anything_else() -> None:
-    zac = student("Zac", "Wood")
-    legacy_record(source_name="Zac W", student=zac)
+    tom = student("Tom", "Wood")
+    legacy_record(source_name="Tom W", student=tom)
     legacy_record(source_name="Max")
     client = client_for(admin())
 
@@ -314,20 +314,20 @@ def test_people_filters_by_linked_and_refuses_anything_else() -> None:
         "Max",
     ]
     linked = results(client.get(PEOPLE, {"linked": "true"}))
-    assert [p["linked_student"] for p in linked] == [zac.pk]
+    assert [p["linked_student"] for p in linked] == [tom.pk]
     assert client.get(PEOPLE, {"colour": "red"}).status_code == 400
 
 
 def test_unlinked_people_include_only_records_still_waiting() -> None:
-    first, second = student("Zac", "Wood"), student("Zac", "Ward")
-    legacy_record(source_name="Zac W", student=first)
-    legacy_record(source_name="zac w.", student=second)
-    waiting = legacy_record(source_name="JKN Zac W")
+    first, second = student("Tom", "Wood"), student("Tom", "Ward")
+    legacy_record(source_name="Tom W", student=first)
+    legacy_record(source_name="tom w.", student=second)
+    waiting = legacy_record(source_name="JKN Tom W")
     client = client_for(admin())
 
     [person] = results(client.get(PEOPLE, {"linked": "false"}))
     assert person["record_ids"] == [waiting.pk]
-    assert person["group_key"] == "zac w"
+    assert person["group_key"] == "tom w"
 
     link_legacy_record_to_student(waiting, first, actor=admin())
     assert results(client.get(PEOPLE, {"linked": "false"})) == []
@@ -338,9 +338,9 @@ def test_unlinked_people_include_only_records_still_waiting() -> None:
 
 def test_group_key_lists_all_name_variants_in_one_batch() -> None:
     first_batch, other_batch = legacy_batch(), legacy_batch()
-    first = legacy_record(source_batch=first_batch, source_name="Zac W")
-    second = legacy_record(source_batch=first_batch, source_name="JKN zac w.")
-    legacy_record(source_batch=other_batch, source_name="zac w")
+    first = legacy_record(source_batch=first_batch, source_name="Tom W")
+    second = legacy_record(source_batch=first_batch, source_name="JKN tom w.")
+    legacy_record(source_batch=other_batch, source_name="tom w")
     client = client_for(admin())
 
     [person] = results(
@@ -366,7 +366,7 @@ def test_group_key_lists_all_name_variants_in_one_batch() -> None:
 
 
 def test_group_records_remain_paginated_when_more_than_one_page() -> None:
-    records = [legacy_record(source_name="Zac W") for _ in range(101)]
+    records = [legacy_record(source_name="Tom W") for _ in range(101)]
     client = client_for(admin())
     [person] = results(client.get(PEOPLE, {"linked": "false"}))
 
@@ -409,11 +409,11 @@ def test_people_scores_only_groups_on_the_requested_page() -> None:
 
 
 def seeded_names() -> None:
-    """One name each: clearly Zac Wood, between two Theos, and nobody."""
-    student("Zac", "Wood")
+    """One name each: clearly Tom Wood, between two Theos, and nobody."""
+    student("Tom", "Wood")
     student("Theo", "Barker")
     student("Theo", "Lane")
-    legacy_record(source_name="Zac W")
+    legacy_record(source_name="Tom W")
     legacy_record(source_name="Theo")
     legacy_record(source_name="Nobody Known")
 
@@ -426,7 +426,7 @@ def test_people_each_say_how_clear_their_suggestion_is() -> None:
         for person in results(client_for(admin()).get(PEOPLE))
     }
 
-    assert names["Zac W"]["suggestion"] == "clear"
+    assert names["Tom W"]["suggestion"] == "clear"
     assert names["Theo"]["suggestion"] == "choose"
     assert names["Nobody Known"]["suggestion"] == "none"
 
@@ -436,7 +436,7 @@ def test_people_filter_by_suggestion_and_count_what_matches() -> None:
     client = client_for(admin())
 
     for kind, expected in (
-        ("clear", "Zac W"),
+        ("clear", "Tom W"),
         ("choose", "Theo"),
         ("none", "Nobody Known"),
     ):
@@ -449,45 +449,45 @@ def test_people_filter_by_suggestion_and_count_what_matches() -> None:
 
 def test_people_search_by_part_of_the_name_as_written() -> None:
     seeded_names()
-    legacy_record(source_name="JKN Zac Wood")
+    legacy_record(source_name="JKN Tom Wood")
     client = client_for(admin())
 
-    found = results(client.get(PEOPLE, {"search": "  ZAC "}))
+    found = results(client.get(PEOPLE, {"search": "  TOM "}))
     surname = results(client.get(PEOPLE, {"search": "wood"}))
 
     assert sorted(person["source_name"] for person in found) == [
-        "JKN Zac Wood",
-        "Zac W",
+        "JKN Tom Wood",
+        "Tom W",
     ]
-    assert [person["source_name"] for person in surname] == ["JKN Zac Wood"]
+    assert [person["source_name"] for person in surname] == ["JKN Tom Wood"]
     assert results(client.get(PEOPLE, {"search": "nobody"}))[0]["records"] == 1
     assert results(client.get(PEOPLE, {"search": "zzz"})) == []
 
 
 def test_people_and_records_search_match_every_word_in_any_order() -> None:
-    legacy_record(source_name="JKN Zac Wood")
-    legacy_record(source_name="Zac Hale")
+    legacy_record(source_name="JKN Tom Wood")
+    legacy_record(source_name="Tom Hale")
     client = client_for(admin())
 
-    people = results(client.get(PEOPLE, {"search": "wood zac"}))
+    people = results(client.get(PEOPLE, {"search": "wood tom"}))
     records = results(
-        client.get("/api/gradings/legacy-records/", {"search": "wood  zac"})
+        client.get("/api/gradings/legacy-records/", {"search": "wood  tom"})
     )
 
-    assert [person["source_name"] for person in people] == ["JKN Zac Wood"]
-    assert [record["source_name"] for record in records] == ["JKN Zac Wood"]
+    assert [person["source_name"] for person in people] == ["JKN Tom Wood"]
+    assert [record["source_name"] for record in records] == ["JKN Tom Wood"]
 
 
 def test_people_can_leave_out_or_show_only_the_names_put_aside() -> None:
     seeded_names()
     client = client_for(admin())
-    client.post(SET_ASIDE, {"group_keys": ["theo", "zac w"]}, format="json")
+    client.post(SET_ASIDE, {"group_keys": ["theo", "tom w"]}, format="json")
 
     kept = results(client.get(PEOPLE, {"set_aside": "exclude"}))
     only = results(client.get(PEOPLE, {"set_aside": "only"}))
 
     assert [person["source_name"] for person in kept] == ["Nobody Known"]
-    assert sorted(person["source_name"] for person in only) == ["Theo", "Zac W"]
+    assert sorted(person["source_name"] for person in only) == ["Theo", "Tom W"]
     assert results(client.get(PEOPLE, {"set_aside": "maybe"})) == []
 
 
@@ -497,19 +497,19 @@ def test_names_put_aside_are_each_persons_own_and_can_be_put_back() -> None:
     second = client_for(admin("aside-second@example.com"))
 
     added = first.post(
-        SET_ASIDE, {"group_keys": ["theo", "theo", "zac w"]}, format="json"
+        SET_ASIDE, {"group_keys": ["theo", "theo", "tom w"]}, format="json"
     )
     again = first.post(SET_ASIDE, {"group_keys": ["theo"]}, format="json")
     put_back = first.delete(f"{SET_ASIDE}?group_key=theo")
     missing_key = first.delete(SET_ASIDE)
 
-    assert added.json() == {"group_keys": ["theo", "zac w"]}
-    assert again.json() == {"group_keys": ["theo", "zac w"]}
+    assert added.json() == {"group_keys": ["theo", "tom w"]}
+    assert again.json() == {"group_keys": ["theo", "tom w"]}
     assert put_back.status_code == 204
     assert missing_key.status_code == 400
     assert [
         p["source_name"] for p in results(first.get(PEOPLE, {"set_aside": "only"}))
-    ] == ["Zac W"]
+    ] == ["Tom W"]
     assert results(second.get(PEOPLE, {"set_aside": "only"})) == []
     assert len(results(second.get(PEOPLE, {"set_aside": "exclude"}))) == 3
     too_many = [f"name {n}" for n in range(101)]
@@ -533,19 +533,19 @@ def test_only_people_who_link_history_may_put_names_aside(who: str) -> None:
 
 
 def test_a_linked_person_names_the_student_they_are_linked_to() -> None:
-    zac = student("Zac", "Wood")
-    legacy_record(source_name="Zac W", student=zac)
+    tom = student("Tom", "Wood")
+    legacy_record(source_name="Tom W", student=tom)
 
     [person] = results(client_for(admin()).get(PEOPLE, {"linked": "true"}))
 
-    assert person["linked_student_name"] == "Zac Wood"
+    assert person["linked_student_name"] == "Tom Wood"
     assert person["suggestion"] in {"clear", "choose", "none"}
 
 
 def test_a_person_lists_the_ranks_written_and_whether_one_is_unmatched() -> None:
-    student("Zac", "Wood")
+    student("Tom", "Wood")
     legacy_record(
-        source_name="Zac W",
+        source_name="Tom W",
         cycle_year=2025,
         cycle_month=9,
         source_current_rank_text="Blue stripe",
@@ -554,7 +554,7 @@ def test_a_person_lists_the_ranks_written_and_whether_one_is_unmatched() -> None
         testing_for_rank=rank("BLUE"),
     )
     legacy_record(
-        source_name="Zac W",
+        source_name="Tom W",
         cycle_year=2025,
         cycle_month=3,
         source_current_rank_text="Yellow",
@@ -563,7 +563,7 @@ def test_a_person_lists_the_ranks_written_and_whether_one_is_unmatched() -> None
         testing_for_rank=None,
     )
     legacy_record(
-        source_name="Zac W",
+        source_name="Tom W",
         cycle_year=2025,
         cycle_month=12,
         source_current_rank_text="",
@@ -583,7 +583,7 @@ def test_a_person_lists_the_ranks_written_and_whether_one_is_unmatched() -> None
 
 
 def test_a_person_with_every_rank_matched_needs_none() -> None:
-    legacy_record(source_name="Zac W")
+    legacy_record(source_name="Tom W")
 
     [person] = results(client_for(admin()).get(PEOPLE))
 
@@ -592,10 +592,10 @@ def test_a_person_with_every_rank_matched_needs_none() -> None:
 
 def test_the_summary_counts_names_still_to_link_by_suggestion() -> None:
     seeded_names()
-    zac = Student.objects.get(first_name="Zac")
-    legacy_record(source_name="Done Already", student=zac)
+    tom = Student.objects.get(first_name="Tom")
+    legacy_record(source_name="Done Already", student=tom)
     # Partly linked: still to link, and not counted as linked.
-    legacy_record(source_name="Zac W", student=zac)
+    legacy_record(source_name="Tom W", student=tom)
     client = client_for(admin())
 
     summary = client.get(SUMMARY).json()
@@ -622,13 +622,13 @@ def test_the_summary_counts_names_still_to_link_by_suggestion() -> None:
         "none": 1,
     }
     assert client.get(SUMMARY, {"linked": "true"}).status_code == 400
-    assert client.get(SUMMARY, {"search": "zac"}).status_code == 400
+    assert client.get(SUMMARY, {"search": "tom"}).status_code == 400
 
 
 def test_the_summary_follows_the_chosen_import() -> None:
-    student("Zac", "Wood")
+    student("Tom", "Wood")
     first, other = legacy_batch(), legacy_batch()
-    legacy_record(source_batch=first, source_name="Zac W")
+    legacy_record(source_batch=first, source_name="Tom W")
     legacy_record(source_batch=other, source_name="Nobody Known")
 
     summary = client_for(admin()).get(SUMMARY, {"batch": first.pk}).json()
@@ -661,33 +661,33 @@ def test_instructors_cannot_see_suggestions_or_link_in_bulk() -> None:
 
 
 def test_a_persons_whole_history_is_linked_at_once_each_audited() -> None:
-    zac = student("Zac", "Wood")
-    records = [legacy_record(source_name="Zac W") for _ in range(3)]
+    tom = student("Tom", "Wood")
+    records = [legacy_record(source_name="Tom W") for _ in range(3)]
 
     response = client_for(admin()).post(
         BULK,
-        {"links": [{"record": record.pk, "student": zac.pk} for record in records]},
+        {"links": [{"record": record.pk, "student": tom.pk} for record in records]},
         format="json",
     )
 
     assert response.status_code == 200, response.json()
-    assert {row["student"] for row in response.json()} == {zac.pk}
+    assert {row["student"] for row in response.json()} == {tom.pk}
     assert set(
         LegacyGradingRecord.objects.values_list("student_id", flat=True),
-    ) == {zac.pk}
+    ) == {tom.pk}
     assert (
         AuditEvent.objects.filter(action=AuditAction.LEGACY_GRADING_LINKED).count() == 3
     )
 
 
 def test_one_refusal_links_none_of_them_and_names_the_record() -> None:
-    zac = student("Zac", "Wood")
-    good = legacy_record(source_name="Zac W")
-    voided = legacy_record(source_name="Zac W")
+    tom = student("Tom", "Wood")
+    good = legacy_record(source_name="Tom W")
+    voided = legacy_record(source_name="Tom W")
     void_legacy_record(voided, reason="Entered twice", actor=admin())
 
     with pytest.raises(ValidationError) as refused:
-        bulk_link_legacy_records([(good, zac), (voided, zac)], actor=admin())
+        bulk_link_legacy_records([(good, tom), (voided, tom)], actor=admin())
 
     assert list(refused.value.message_dict) == [str(voided.pk)]
     assert "voided" in refused.value.message_dict[str(voided.pk)][0]
@@ -696,18 +696,18 @@ def test_one_refusal_links_none_of_them_and_names_the_record() -> None:
 
 
 def test_a_record_given_two_students_is_refused() -> None:
-    record = legacy_record(source_name="Zac W")
+    record = legacy_record(source_name="Tom W")
 
     with pytest.raises(ValidationError, match="two different students"):
         bulk_link_legacy_records(
-            [(record, student("Zac", "Wood")), (record, student("Zac", "Ward"))],
+            [(record, student("Tom", "Wood")), (record, student("Tom", "Ward"))],
             actor=admin(),
         )
 
 
 def test_moving_records_linked_elsewhere_needs_replace() -> None:
-    first, second = student("Zac", "Wood"), student("Zac", "Ward")
-    record = legacy_record(source_name="Zac W", student=first)
+    first, second = student("Tom", "Wood"), student("Tom", "Ward")
+    record = legacy_record(source_name="Tom W", student=first)
     client = client_for(admin())
     body: dict[str, Any] = {"links": [{"record": record.pk, "student": second.pk}]}
 
@@ -722,12 +722,12 @@ def test_moving_records_linked_elsewhere_needs_replace() -> None:
 
 
 def test_too_many_at_once_is_refused() -> None:
-    zac = student("Zac", "Wood")
-    record = legacy_record(source_name="Zac W")
+    tom = student("Tom", "Wood")
+    record = legacy_record(source_name="Tom W")
 
     response = client_for(admin()).post(
         BULK,
-        {"links": [{"record": record.pk, "student": zac.pk}] * 501},
+        {"links": [{"record": record.pk, "student": tom.pk}] * 501},
         format="json",
     )
 
@@ -739,8 +739,8 @@ def test_too_many_at_once_is_refused() -> None:
 
 
 def test_undo_unlinks_a_persons_whole_history_at_once_each_audited() -> None:
-    zac = student("Zac", "Wood")
-    records = [legacy_record(source_name="Zac W", student=zac) for _ in range(3)]
+    tom = student("Tom", "Wood")
+    records = [legacy_record(source_name="Tom W", student=tom) for _ in range(3)]
 
     response = client_for(admin()).post(
         BULK_UNLINK,
@@ -755,14 +755,14 @@ def test_undo_unlinks_a_persons_whole_history_at_once_each_audited() -> None:
     ) == {None}
     unlinked = AuditEvent.objects.filter(action=AuditAction.LEGACY_GRADING_UNLINKED)
     assert unlinked.count() == 3
-    assert {event.metadata["student_id"] for event in unlinked} == {zac.pk}
+    assert {event.metadata["student_id"] for event in unlinked} == {tom.pk}
 
 
 def test_one_refusal_unlinks_none_of_them_and_names_each_record() -> None:
-    zac = student("Zac", "Wood")
-    linked = legacy_record(source_name="Zac W", student=zac)
-    never_linked = legacy_record(source_name="Zac W")
-    voided = legacy_record(source_name="Zac W", student=zac)
+    tom = student("Tom", "Wood")
+    linked = legacy_record(source_name="Tom W", student=tom)
+    never_linked = legacy_record(source_name="Tom W")
+    voided = legacy_record(source_name="Tom W", student=tom)
     void_legacy_record(voided, reason="Entered twice", actor=admin())
 
     response = client_for(admin()).post(
@@ -778,7 +778,7 @@ def test_one_refusal_unlinks_none_of_them_and_names_each_record() -> None:
     assert "voided" in errors[str(voided.pk)][0]
     assert "no longer exists" in errors["999999"][0]
     linked.refresh_from_db()
-    assert linked.student_id == zac.pk
+    assert linked.student_id == tom.pk
     assert not AuditEvent.objects.filter(
         action=AuditAction.LEGACY_GRADING_UNLINKED,
     ).exists()
@@ -799,8 +799,8 @@ def test_undo_is_refused_when_empty_or_too_many_at_once() -> None:
 
 
 def test_a_voided_record_cannot_be_linked_unlinked_or_given_a_rank() -> None:
-    zac = student("Zac", "Wood")
-    record = legacy_record(source_name="Zac W", student=zac)
+    tom = student("Tom", "Wood")
+    record = legacy_record(source_name="Tom W", student=tom)
     void_legacy_record(record, reason="Entered twice", actor=admin())
 
     changes: tuple[Callable[[], object], ...] = (
@@ -816,15 +816,15 @@ def test_a_voided_record_cannot_be_linked_unlinked_or_given_a_rank() -> None:
 
 
 def test_a_student_with_a_voided_record_can_still_be_deleted() -> None:
-    zac = student("Zac", "Wood")
-    record = legacy_record(source_name="Zac W", student=zac)
+    tom = student("Tom", "Wood")
+    record = legacy_record(source_name="Tom W", student=tom)
     void_legacy_record(record, reason="Entered twice", actor=admin())
 
-    # The record is history, so Zac's record is kept with it.
-    assert delete_student(zac, admin()) is False
+    # The record is history, so Tom's record is kept with it.
+    assert delete_student(tom, admin()) is False
 
     record.refresh_from_db()
-    assert record.student_id == zac.pk
+    assert record.student_id == tom.pk
 
 
 # --- the record list -------------------------------------------------------------
@@ -834,7 +834,7 @@ def test_the_record_list_filters_by_import_name_and_unmatched_rank() -> None:
     batch = legacy_batch()
     needs = legacy_record(
         source_batch=batch,
-        source_name="Zac W",
+        source_name="Tom W",
         source_current_rank_text="Yellow Belt",
     )
     matched = legacy_record(
@@ -843,7 +843,7 @@ def test_the_record_list_filters_by_import_name_and_unmatched_rank() -> None:
         source_current_rank_text="White",
         current_rank=rank("WHITE"),
     )
-    legacy_record(source_name="Zac W")
+    legacy_record(source_name="Tom W")
     client = client_for(admin())
     url = "/api/gradings/legacy-records/"
 
@@ -853,7 +853,7 @@ def test_the_record_list_filters_by_import_name_and_unmatched_rank() -> None:
     assert ids(batch=batch.pk) == {needs.pk, matched.pk}
     assert ids(batch=batch.pk, needs_rank="true") == {needs.pk}
     assert ids(batch=batch.pk, needs_rank="false") == {matched.pk}
-    assert len(ids(source_name="zac w")) == 2
+    assert len(ids(source_name="tom w")) == 2
     assert ids(search="ma") == {matched.pk}
     row = next(
         r
@@ -866,7 +866,7 @@ def test_the_record_list_filters_by_import_name_and_unmatched_rank() -> None:
 
 def test_the_record_list_counts_the_records_awaiting_a_student() -> None:
     batch = legacy_batch()
-    waiting = legacy_record(source_batch=batch, source_name="Zac W")
+    waiting = legacy_record(source_batch=batch, source_name="Tom W")
     legacy_record(source_batch=batch, source_name="Max", student=student("Max", "Lee"))
     legacy_record(source_batch=batch, source_name="Sheet note")
     voided = legacy_record(source_batch=batch, source_name="Ann B")
@@ -885,7 +885,7 @@ def test_the_record_list_counts_the_records_awaiting_a_student() -> None:
 
 def test_the_counts_say_how_many_records_await_a_student_for_either_role() -> None:
     batch, other = legacy_batch(), legacy_batch()
-    legacy_record(source_batch=batch, source_name="Zac W")
+    legacy_record(source_batch=batch, source_name="Tom W")
     legacy_record(source_batch=batch, source_name="Max", student=student("Max", "Lee"))
     legacy_record(source_batch=batch, source_name="Sheet note")
     voided = legacy_record(source_batch=batch, source_name="Ann B")
@@ -913,15 +913,15 @@ def test_the_counts_say_how_many_records_await_a_student_for_either_role() -> No
 def test_a_link_made_while_the_student_is_deleted_waits_then_is_refused() -> None:
     """Linking locks the student before the record, as deleting does, so the
     two cannot each wait on the other; the link sees the student gone."""
-    zac = student("Zac", "Wood")
-    record = legacy_record(source_name="Zac W")
+    tom = student("Tom", "Wood")
+    record = legacy_record(source_name="Tom W")
     actor = admin()
 
     deleted, linked = interleave(
-        lambda: delete_student(Student.objects.get(pk=zac.pk), actor),
+        lambda: delete_student(Student.objects.get(pk=tom.pk), actor),
         lambda: link_legacy_record_to_student(
             LegacyGradingRecord.objects.get(pk=record.pk),
-            zac,
+            tom,
             actor=actor,
         ),
         pause_first_at="students.services.record",

@@ -90,7 +90,7 @@ def test_the_records_download_as_one_pdf_in_the_gradings_order() -> None:
         held="YELLOW_STRIPE",
         testing_for="YELLOW",
     )
-    junior = sealed(session, first_name="Sam", last_name="Okafor")
+    junior = sealed(session, first_name="Sam", last_name="Ndlovu")
 
     response = download(session, [senior.pk, junior.pk])
 
@@ -99,12 +99,12 @@ def test_the_records_download_as_one_pdf_in_the_gradings_order() -> None:
     assert "Records%20%282%29.pdf" in response["Content-Disposition"]
     assert response["Cache-Control"] == "no-store"
     texts = pdf_pages(response.content)
-    junior_at = next(n for n, t in enumerate(texts) if "Sam Okafor ·" in t)
+    junior_at = next(n for n, t in enumerate(texts) if "Sam Ndlovu ·" in t)
     senior_at = next(n for n, t in enumerate(texts) if "Ana Adams ·" in t)
     # The white belt first, whichever was ticked first.
     assert junior_at < senior_at
     first = texts[junior_at]
-    assert f"Sam Okafor · {junior.student.wksa_id}" in first
+    assert f"Sam Ndlovu · {junior.student.wksa_id}" in first
     assert "White → Yellow Stripe · October grading – Juniors" in first
     assert "PROVISIONAL" in first
     assert "Junior ages 9-12" in first
@@ -452,7 +452,7 @@ def test_without_sight_of_promotions_the_record_leaves_them_out() -> None:
 def test_one_event_names_everyone_in_the_file_by_wksa_id_only() -> None:
     session = grading_session(status=GradingSession.Status.OPEN, title="October")
     first = sealed(session, first_name="Priya", last_name="Nair")
-    second = sealed(session, first_name="Sam", last_name="Okafor")
+    second = sealed(session, first_name="Sam", last_name="Ndlovu")
 
     download(session, [first.pk, second.pk], staff("auditor@x.org"))
 
@@ -469,7 +469,7 @@ def test_one_event_names_everyone_in_the_file_by_wksa_id_only() -> None:
         "student_ids": [first.student_id, second.student_id],
     }
     written = f"{event.summary} {event.metadata}"
-    for name in ("Priya", "Nair", "Sam", "Okafor"):
+    for name in ("Priya", "Nair", "Sam", "Ndlovu"):
         assert name not in written
 
 
@@ -491,7 +491,7 @@ def test_the_download_is_in_the_students_the_candidates_and_the_sessions_history
 ):
     session = grading_session(status=GradingSession.Status.OPEN)
     first = sealed(session)
-    second = sealed(session, first_name="Sam", last_name="Okafor")
+    second = sealed(session, first_name="Sam", last_name="Ndlovu")
     download(session, [first.pk, second.pk])
     reader = client_for(staff("history-reader@x.org", role=User.Role.ADMINISTRATOR))
 

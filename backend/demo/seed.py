@@ -83,7 +83,7 @@ REAL_USERS_MESSAGE = (
 ROSTER: tuple[tuple[str, str, int, str], ...] = (
     # 8 and under
     ("Leo", "Hartley", 6, "WHITE"),
-    ("Maya", "Okafor", 7, "WHITE"),
+    ("Maya", "Ndlovu", 7, "WHITE"),
     ("Noah", "Lindqvist", 6, "WHITE"),
     ("Isla", "Brennan", 8, "YELLOW_STRIPE"),
     ("Theo", "Marchetti", 7, "YELLOW_STRIPE"),

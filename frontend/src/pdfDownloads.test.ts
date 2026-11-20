@@ -24,7 +24,7 @@ describe("the name a PDF is saved under", () => {
 });
 
 describe("why nothing was downloaded", () => {
-  const names: Record<number, string> = { 31: "Mia Okafor" };
+  const names: Record<number, string> = { 31: "Mia Ndlovu" };
   const nameOf = (id: number) => names[id];
 
   it("names each candidate the server refused, with its reason", () => {
@@ -36,7 +36,7 @@ describe("why nothing was downloaded", () => {
     expect(refusalOf(error, nameOf)).toEqual({
       reason: "Some of the candidates chosen cannot be included:",
       candidates: [
-        { name: "Mia Okafor", why: "Their assessment is not sealed yet." },
+        { name: "Mia Ndlovu", why: "Their assessment is not sealed yet." },
         { name: "A candidate no longer on this list", why: "Not registered in this grading." },
       ],
       help: "Take them out of the selection, or try again once they are ready.",

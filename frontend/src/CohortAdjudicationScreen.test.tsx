@@ -199,7 +199,7 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
 // Mia is proposed Pass, Alex is proposed Conditional with a shortfall, Tom is
 // already finalised, and Sam withdrew.
 const cohort = [
-  candidate(1, "Mia Okafor"),
+  candidate(1, "Mia Ndlovu"),
   candidate(2, "Alex Carter"),
   candidate(3, "Tom Ashby"),
   candidate(4, "Sam Withdrawn", { status: "WITHDRAWN" }),

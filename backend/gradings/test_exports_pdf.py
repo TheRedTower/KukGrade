@@ -79,15 +79,15 @@ def test_a_word_too_long_for_a_line_is_broken_inside_the_page() -> None:
 
 def test_each_part_counts_its_own_pages_under_its_own_heading() -> None:
     long_part = part("Priya Nair · 123-4-171", 90)
-    short_part = part("Sam Okafor · 123-4-088", 3, state="Provisional")
+    short_part = part("Sam Ndlovu · 123-4-088", 3, state="Provisional")
 
     texts = pages(pdf.build(document(long_part, short_part), made_at=MADE))
 
     assert len(texts) == 3
     assert "Page 1 of 2" in texts[0] and "Priya Nair · 123-4-171" in texts[0]
     assert "Page 2 of 2" in texts[1] and "Priya Nair · 123-4-171" in texts[1]
-    assert "Page 1 of 1" in texts[2] and "Sam Okafor · 123-4-088" in texts[2]
-    assert "Sam Okafor · 123-4-088 line 0" in texts[2]
+    assert "Page 1 of 1" in texts[2] and "Sam Ndlovu · 123-4-088" in texts[2]
+    assert "Sam Ndlovu · 123-4-088 line 0" in texts[2]
     assert "· Provisional" in texts[2] and "· Final record" in texts[0]
 
 

@@ -20,7 +20,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { DetailPage } from "./DetailPage";
 import { ErrorText } from "./ErrorText";
 import { recordMonth } from "./linkRecords";
-import { usePeopleContext, whoTheyMayBe } from "./peopleLists";
+import { PEOPLE_PAGE_SIZE, usePeopleContext, whoTheyMayBe } from "./peopleLists";
 import { counted } from "./plural";
 import { Progress } from "./Progress";
 import { keys } from "./queryKeys";
@@ -78,10 +78,26 @@ export function PersonScreen() {
   const person = usePerson(id);
   const summary = usePeopleSummary(context.batch);
   const list = context.list;
-  const neighbours = useQuery({
-    queryKey: keys.legacyPeople.list(list?.value, context.batch, "", 1),
-    queryFn: () => getHistoricalPeople({ ...list!.query, batch: context.batch, page: 1, page_size: 50 }),
-    enabled: list !== null,
+  const { batch, search, page } = context;
+  // The list as it was opened (its page and search), the same query the
+  // list itself reads, then the page after it when this person ends it.
+  const pageOf = (at: number) => ({
+    queryKey: keys.legacyPeople.list(list?.value, batch, search, at),
+    queryFn: () =>
+      getHistoricalPeople({
+        ...list!.query,
+        batch,
+        search: search || undefined,
+        page: at,
+        page_size: PEOPLE_PAGE_SIZE,
+      }),
+  });
+  const neighbours = useQuery({ ...pageOf(page), enabled: list !== null });
+  const ids = (neighbours.data?.results ?? []).map((other) => other.id);
+  const at = ids.indexOf(id ?? 0);
+  const following = useQuery({
+    ...pageOf(page + 1),
+    enabled: list !== null && Boolean(neighbours.data?.next) && (at === -1 ? ids.length === 0 : at === ids.length - 1),
   });
   const [asking, setAsking] = useState(false);
   const decide = useDecision<unknown>();
@@ -106,9 +122,17 @@ export function PersonScreen() {
   const open = new Set(shown.decisions);
   const [best] = shown.candidates;
   const clear = shown.suggestion === "clear" && best !== undefined;
-  const ids = (neighbours.data?.results ?? []).map((other) => other.id);
-  const at = ids.indexOf(shown.id);
-  const next = (at >= 0 ? ids[at + 1] : ids.find((other) => other !== shown.id)) ?? null;
+  // Next: the one after this person on the page; past the page's end, the
+  // first of the page after; once this person has left the list (decided),
+  // whoever now stands first.
+  const onPage = at >= 0 ? ids[at + 1] : ids.find((other) => other !== shown.id);
+  const fromNext = following.data?.results[0]?.id;
+  const next: { person: number; page: number } | null =
+    onPage !== undefined
+      ? { person: onPage, page }
+      : fromNext !== undefined
+        ? { person: fromNext, page: page + 1 }
+        : null;
   const version = shown.version;
   const counts = summary.data;
 
@@ -147,10 +171,7 @@ export function PersonScreen() {
       actions={
         <>
           {next !== null ? (
-            <Button
-              variant={primary ? "secondary" : "primary"}
-              onClick={() => navigate(context.path({ person: next }))}
-            >
+            <Button variant={primary ? "secondary" : "primary"} onClick={() => navigate(context.path(next))}>
               Next
             </Button>
           ) : (

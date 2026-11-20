@@ -72,12 +72,27 @@ export function listMeaning(value: string | null): ListMeaning | null {
   return ALL.find((list) => list.value === value) ?? null;
 }
 
+/** How many people a list shows to a page; a person's Next follows the same pages. */
+export const PEOPLE_PAGE_SIZE = 50;
+
+interface PeoplePlace {
+  person?: number;
+  to?: "split" | "student";
+  list?: string | null;
+  batch?: number;
+  /** The list's page and search, so Back and Next keep to the list as it was. */
+  page?: number;
+  search?: string;
+}
+
 /** The address of the people screens, keeping the list and the import a person was opened from. */
-export function peoplePath(where: { person?: number; to?: "split" | "student"; list?: string | null; batch?: number }) {
+export function peoplePath(where: PeoplePlace) {
   const path = ["/imports/people", where.person, where.to].filter((part) => part !== undefined).join("/");
   const search = new URLSearchParams();
   if (where.list) search.set("list", where.list);
   if (where.batch) search.set("batch", String(where.batch));
+  if (where.search) search.set("search", where.search);
+  if (where.page && where.page > 1) search.set("page", String(where.page));
   const query = search.toString();
   return query ? `${path}?${query}` : path;
 }
@@ -92,14 +107,18 @@ export function whoTheyMayBe(person: HistoricalPerson): string {
   return person.suggestion === "clear" ? `Suggested: ${best.full_name}` : `Could be ${best.full_name} or another`;
 }
 
-/** Where the person's page was opened from: a list, and an import. */
+/** Where the person's page was opened from: a list (its page and search), and an import. */
 export function usePeopleContext() {
   const filters = useUrlFilters();
   const list = listMeaning(filters.value("list") || null);
   const batch = Number(filters.value("batch")) || undefined;
+  const search = filters.value("search").trim();
+  const page = filters.page;
   return {
     list,
     batch,
-    path: (where: Parameters<typeof peoplePath>[0]) => peoplePath({ list: list?.value, batch, ...where }),
+    search,
+    page,
+    path: (where: PeoplePlace) => peoplePath({ list: list?.value, batch, search, page, ...where }),
   };
 }

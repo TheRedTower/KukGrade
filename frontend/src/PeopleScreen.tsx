@@ -15,7 +15,7 @@ import { periodRange } from "./linkRecords";
 import { LoadingState } from "./LoadingState";
 import { PageHeader } from "./PageHeader";
 import { Pagination } from "./Pagination";
-import { DECIDED, listMeaning, peoplePath, QUEUES, whoTheyMayBe } from "./peopleLists";
+import { DECIDED, listMeaning, PEOPLE_PAGE_SIZE, peoplePath, QUEUES, whoTheyMayBe } from "./peopleLists";
 import { counted } from "./plural";
 import { Progress } from "./Progress";
 import { useSiteSettingsQuery } from "./queries";
@@ -26,8 +26,6 @@ import { useLegacyRefresh } from "./useLegacyRefresh";
 import { usePeopleSummary } from "./usePerson";
 import { usePagedQuery } from "./usePagedQuery";
 import { useUrlFilters } from "./useUrlFilters";
-
-const PAGE_SIZE = 50;
 
 /**
  * The people the imported history is about, to be sorted: how many are, and
@@ -114,9 +112,10 @@ function PeopleList({
   const paged = usePagedQuery({
     queryKey: keys.legacyPeople.list(list, batch, search, page),
     page,
-    pageSize: PAGE_SIZE,
+    pageSize: PEOPLE_PAGE_SIZE,
     onPage: filters.setPage,
-    queryFn: () => getHistoricalPeople({ ...query, batch, search: search || undefined, page, page_size: PAGE_SIZE }),
+    queryFn: () =>
+      getHistoricalPeople({ ...query, batch, search: search || undefined, page, page_size: PEOPLE_PAGE_SIZE }),
   });
   const people = paged.results;
 
@@ -138,7 +137,7 @@ function PeopleList({
           <QueueList
             label="People"
             queues={people.map((person: HistoricalPerson) => ({
-              to: peoplePath({ person: person.id, list, batch }),
+              to: peoplePath({ person: person.id, list, batch, search, page }),
               label: person.name,
               hint: `${counted(person.record_count, "record", "records")} · ${periodRange(person)} · ${whoTheyMayBe(person)}`,
             }))}

@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -14,6 +13,7 @@ import { DetailPage } from "./DetailPage";
 import { ErrorText } from "./ErrorText";
 import { periodRange, recordMonth } from "./linkRecords";
 import { LoadingState } from "./LoadingState";
+import { Pagination } from "./Pagination";
 import { usePeopleContext } from "./peopleLists";
 import { counted } from "./plural";
 import { keys } from "./queryKeys";
@@ -22,6 +22,9 @@ import { recordStatus, useIdParam } from "./recordStatus";
 import { SearchField } from "./SearchField";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { useDecision, usePerson } from "./usePerson";
+import { usePagedQuery } from "./usePagedQuery";
+
+const MERGE_PAGE_SIZE = 10;
 
 /**
  * When a person's records are not all one person, tick the ones that are
@@ -118,12 +121,19 @@ export function PersonSplitScreen() {
 /** Another person who is this one, found by a name as written, merged in. */
 function MergeWith({ person, onMerged }: { person: HistoricalPersonDetail; onMerged: () => void }) {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const searched = useDebouncedValue(search.trim());
-  const found = useQuery({
-    queryKey: keys.legacyPeople.list("merge", searched),
-    queryFn: () => getHistoricalPeople({ search: searched, page_size: 10 }),
+  // Every match can be reached, a page at a time: people written alike are
+  // told apart by their records, not by a longer search.
+  const paged = usePagedQuery({
+    queryKey: keys.legacyPeople.list("merge", searched, page),
+    page,
+    pageSize: MERGE_PAGE_SIZE,
+    onPage: setPage,
+    queryFn: () => getHistoricalPeople({ search: searched, page, page_size: MERGE_PAGE_SIZE }),
     enabled: searched.length >= 2,
   });
+  const found = paged.query;
   const merge = useDecision<unknown>(onMerged);
   const others = (found.data?.results ?? []).filter((other) => other.id !== person.id);
 
@@ -132,7 +142,14 @@ function MergeWith({ person, onMerged }: { person: HistoricalPersonDetail; onMer
       <h2 className="section-title" id="pp-merge">
         The same person as someone else
       </h2>
-      <SearchField label="Find them by a name as written" value={search} onChange={setSearch} />
+      <SearchField
+        label="Find them by a name as written"
+        value={search}
+        onChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+      />
       {found.isFetching && !found.data ? <LoadingState compact>Looking…</LoadingState> : null}
       {found.isError ? <ErrorText>{errorMessage(found.error, "Nobody could be looked for.")}</ErrorText> : null}
       {searched.length >= 2 && found.isSuccess && others.length === 0 ? (
@@ -166,6 +183,9 @@ function MergeWith({ person, onMerged }: { person: HistoricalPersonDetail; onMer
           </li>
         ))}
       </ul>
+      {searched.length >= 2 ? (
+        <Pagination flush label="Pages of people found" noun={["person", "people"]} {...paged.pager} />
+      ) : null}
       {merge.isError ? <ErrorText>{errorMessage(merge.error, "They could not be merged.")}</ErrorText> : null}
     </section>
   );

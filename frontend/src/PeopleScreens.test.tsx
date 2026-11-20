@@ -191,6 +191,30 @@ describe("One person", () => {
     expect(where()).toBe("/imports/people/202?list=READY&batch=7");
   });
 
+  it("keeps to the list's search, and goes on past the end of its page", async () => {
+    const user = userEvent.setup();
+    const last = person({ id: 250 });
+    const first = person({ id: 251, name: "Mia Rowe" });
+    api.getHistoricalPerson.mockResolvedValue(last);
+    // page() gives no next link: say there is a page after this one.
+    api.getHistoricalPeople.mockImplementation(async ({ page: at }: { page: number }) =>
+      at === 2 ? { ...page([last], 52), next: "?page=3" } : page([first], 52),
+    );
+
+    renderAt("/imports/people/250?list=READY&search=mia&page=2");
+
+    await user.click(await screen.findByRole("button", { name: "Next" }));
+    expect(api.getHistoricalPeople).toHaveBeenCalledWith(
+      expect.objectContaining({ queue: "READY", search: "mia", page: 2, page_size: 50 }),
+    );
+    expect(api.getHistoricalPeople).toHaveBeenCalledWith(expect.objectContaining({ search: "mia", page: 3 }));
+    expect(where()).toBe("/imports/people/251?list=READY&search=mia&page=3");
+    expect(screen.getByRole("link", { name: "Ready to confirm" })).toHaveAttribute(
+      "href",
+      "/imports/people?list=READY&search=mia&page=3",
+    );
+  });
+
   it("asks which student where several fit, or offers to find one", async () => {
     const user = userEvent.setup();
     api.linkHistoricalPerson.mockResolvedValue(theo);
@@ -319,10 +343,38 @@ describe("Splitting and merging", () => {
     await user.type(await screen.findByLabelText("Find them by a name as written"), "theo");
     await user.click(await screen.findByRole("button", { name: "Merge Theo Lane into Mia Reyes" }));
 
-    expect(api.getHistoricalPeople).toHaveBeenCalledWith({ search: "theo", page_size: 10 });
+    expect(api.getHistoricalPeople).toHaveBeenCalledWith({ search: "theo", page: 1, page_size: 10 });
     expect(screen.queryByRole("button", { name: "Merge Mia Reyes into Mia Reyes" })).toBeNull();
     expect(api.mergeHistoricalPeople).toHaveBeenCalledWith(201, { other: 202, version: 4, other_version: 4 });
     await waitFor(() => expect(where()).toBe("/imports/people/201"));
+  });
+});
+
+describe("Merging, past the first page of people found", () => {
+  it("reaches every person written alike, a page at a time", async () => {
+    const user = userEvent.setup();
+    const alike = (index: number) => person({ id: 400 + index, name: "Theo Lane", spellings: ["Theo L"] });
+    api.getHistoricalPeople.mockImplementation(async ({ page: at }: { page: number }) =>
+      at === 1
+        ? page(
+            Array.from({ length: 10 }, (_, index) => alike(index)),
+            12,
+          )
+        : page([alike(10), alike(11)], 12),
+    );
+    api.mergeHistoricalPeople.mockResolvedValue(mia);
+    renderAt("/imports/people/201/split");
+
+    await user.type(await screen.findByLabelText("Find them by a name as written"), "theo");
+    expect(await screen.findAllByRole("button", { name: "Merge Theo Lane into Mia Reyes" })).toHaveLength(10);
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "Merge Theo Lane into Mia Reyes" })).toHaveLength(2),
+    );
+    expect(api.getHistoricalPeople).toHaveBeenLastCalledWith({ search: "theo", page: 2, page_size: 10 });
+    await user.click(screen.getAllByRole("button", { name: "Merge Theo Lane into Mia Reyes" })[1]);
+    expect(api.mergeHistoricalPeople).toHaveBeenCalledWith(201, { other: 411, version: 4, other_version: 4 });
   });
 });
 

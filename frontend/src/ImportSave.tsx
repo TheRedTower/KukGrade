@@ -5,6 +5,8 @@ import { ActionBar } from "./ActionBar";
 import { Alert } from "./Alert";
 import { type DataImportBatch, commitDataImport, errorMessage, getLegacyChecksSummary, getLegacySheets } from "./api";
 import { Button } from "./Button";
+import { useAuth } from "./auth";
+import { peoplePath } from "./peopleLists";
 import { useImportRefresh } from "./useImportRefresh";
 import { agreeing, counted } from "./plural";
 import { keys } from "./queryKeys";
@@ -18,6 +20,7 @@ export function ImportSave({ batch, onBack }: { batch: DataImportBatch; onBack: 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const refresh = useImportRefresh(batch.id);
+  const canSort = Boolean(useAuth().user?.can_reconcile_imported_history);
   const sheets = useQuery({ queryKey: keys.imports.sheets(batch.id), queryFn: () => getLegacySheets(batch.id) });
   const summary = useQuery({
     queryKey: keys.imports.checksSummary(batch.id),
@@ -31,8 +34,9 @@ export function ImportSave({ batch, onBack }: { batch: DataImportBatch; onBack: 
           queryClient.invalidateQueries({ queryKey }),
         ),
       );
-      // The import is saved: its address shows what it saved.
-      navigate({ search: "" }, { replace: true });
+      // Saved: straight on to the people the records are about, for whoever
+      // sorts them; anyone else sees what the import saved.
+      navigate(canSort ? peoplePath({ batch: batch.id }) : { search: "" }, { replace: true });
     },
     onError: refresh,
   });

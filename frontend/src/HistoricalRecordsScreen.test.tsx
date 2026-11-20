@@ -38,7 +38,7 @@ function renderAt(path: string) {
         <Routes>
           <Route element={<HistoricalRecordsScreen />} path="/imports/history/:id?" />
           <Route element={<h1>Imports</h1>} path="/imports" />
-          <Route element={<h1>Linking</h1>} path="/imports/records" />
+          <Route element={<h1>People</h1>} path="/imports/people" />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,

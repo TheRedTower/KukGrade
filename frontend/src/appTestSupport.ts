@@ -55,6 +55,12 @@ export const CHOICES: Choices = {
     { value: "ABSENT", label: "Did not attend", note_required: false },
     { value: "OTHER", label: "Other", note_required: true },
   ],
+  not_a_student_reasons: [
+    { value: "INSTRUCTOR", label: "An instructor", note_required: false },
+    { value: "LEFT", label: "Left before KukGrade", note_required: false },
+    { value: "NOT_REAL", label: "Not a real entry", note_required: false },
+    { value: "OTHER", label: "Other", note_required: true },
+  ],
   outcomes: [
     { value: "PASS", label: "Pass" },
     { value: "CONDITIONAL", label: "Conditional" },

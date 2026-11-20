@@ -63,11 +63,9 @@ KukGrade:
   that text can never be edited.
 - They never create a promotion, an outcome or a rank change. Native rank history
   stays native.
-- They are not linked to a student automatically. KukGrade suggests matches, with
-  the reason, and an administrator confirms each link (or a person's whole history
-  at once). A wrong link can be moved; a wrong record can be **voided**, never deleted.
-  A name can be **left for now** to come back to; that list is each administrator's own
-  and is kept on the server, not in the browser.
+- They are not linked to a student automatically. KukGrade suggests a student for each
+  person, with the reasons, and an administrator decides. A wrong link can be moved; a
+  wrong record can be **voided**, never deleted.
 - When records are saved, KukGrade groups them into **people**: the records whose names
   could be one person ("Theo R", "Theo Rowan", "Teo Rowan"; "Ben Marsh", "Benjamin Marsh";
   "Ivo Hart", "Ivo Lund-Hart"; anything in brackets after a name is not part of it) and
@@ -96,6 +94,15 @@ KukGrade:
   record and says where it was written; a note merged down several rows is kept on each
   person beside it. A note beside no one (a title above the table, say) is kept as a
   note on the sheet.
+- Saving goes straight on to **sorting the people**, one screen at a time: how many are
+  sorted, then three queues - **ready to confirm** (one student fits and the ranks agree;
+  these can be confirmed together, after a look at the list), **needs a look** (several
+  fit, something disagrees, or records joined a person already decided) and **no student
+  found** - with the people left for later and those decided below. Each person has a page
+  of their own: how they are written, their gradings in date order, the suggested
+  students with the reasons, and only the decisions open to them. Next goes on through the
+  list. Split and merge have a page of their own, and so does finding a student by name
+  or WKSA ID.
 - KukGrade reads what it can and lists only **what to check**, each one decision:
   - a rank it cannot read ("Bown Stripe") or that the workbook marks with "?": choose
     the rank, or keep it as written (unmatched);

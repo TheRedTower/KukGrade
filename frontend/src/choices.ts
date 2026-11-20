@@ -8,6 +8,7 @@ const NONE_YET: Choices = {
   assessment_statuses: [],
   item_results: [],
   withdrawal_reasons: [],
+  not_a_student_reasons: [],
   outcomes: [],
   import_kinds: [],
   finished_import_statuses: [],

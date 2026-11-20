@@ -151,8 +151,8 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
                 {agreeing(awaitingLink, "is", "are")} not linked to a student yet.
               </p>
               {canLink ? (
-                <Link className={buttonClass({ variant: "link" })} to="/imports/records">
-                  Link records
+                <Link className={buttonClass({ variant: "link" })} to="/imports/people">
+                  Sort the people
                 </Link>
               ) : null}
             </div>

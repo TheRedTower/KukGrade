@@ -94,7 +94,10 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
                   body={`${counted(unresolvedRanks, "rank is", "ranks are")} still as written in the workbook.`}
                   title="Match the last ranks"
                 >
-                  <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to="/imports/records">
+                  <Link
+                    className={buttonClass({ variant: "secondary" }, "ix-start")}
+                    to={`/imports/history?batch=${batch.id}`}
+                  >
                     Match ranks
                   </Link>
                 </AlsoItem>

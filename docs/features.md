@@ -164,7 +164,7 @@ rank it cannot read or the workbook doubts, an outcome it cannot read, a name wr
 sheet, someone both missing and graded there, and a missing outcome or rank. Each step is a
 screen of its own: the sheets, the things to check (each one on its own page, with its answers as
 large buttons), every record, and the save, which never waits for anything left open. Saved records are grouped into the people they are about, by their names and rank
-history, each with how sure that is and the students they may be. Each person is linked to a
+history, each with how sure that is and the students they may be. Saving goes straight on to sorting them, a queue at a time and a page for each person. Each person is linked to a
 student, marked not a current student, or left for later; a person can be split or merged, and
 every decision can be undone and is audited. See
 [importing-data.md](importing-data.md).

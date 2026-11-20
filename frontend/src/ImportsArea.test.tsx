@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type AuthUser, type CreateDataImportBatchResponse } from "./api";
 import { ADMINISTRATOR_CAPABILITIES, authUser, CHOICES, page, SITE } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
-import { batch, person, row } from "./importTestFixtures";
+import { batch, row } from "./importTestFixtures";
 import { ImportStartScreen } from "./ImportStartScreen";
 import { ImportsHubScreen } from "./ImportsHubScreen";
 
@@ -22,11 +22,9 @@ const api = vi.hoisted(() => ({
   getLegacyGradingRecords: vi.fn(),
   getLegacyRecordCounts: vi.fn(),
   getDataImportSecondLook: vi.fn(),
-  getLegacyPeople: vi.fn(),
+  getHistoricalPeopleSummary: vi.fn(),
   getSiteSettings: vi.fn(),
   getChoices: vi.fn(),
-  bulkLinkLegacyRecords: vi.fn(),
-  bulkUnlinkLegacyRecords: vi.fn(),
 }));
 
 vi.mock("./api", async () => {
@@ -58,7 +56,6 @@ function renderAt(path: string) {
           <Route element={<ImportScreen />} path="/imports/:id" />
           <Route element={<h1>Students reached</h1>} path="/students" />
           <Route element={<h1>Student page</h1>} path="/students/:id" />
-          <Route element={<h1>Linking page</h1>} path="/imports/records" />
         </Routes>
         <Where />
       </MemoryRouter>
@@ -158,7 +155,7 @@ describe("Imports hub", () => {
     renderAt("/imports");
 
     expect(await screen.findByText("48 imported records")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Link records" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sort the people" })).toHaveAttribute("href", "/imports/people");
   });
 });
 
@@ -394,6 +391,17 @@ describe("An import's results", () => {
   });
 
   describe("of past gradings", () => {
+    const PEOPLE_COUNTS = {
+      people: 0,
+      sorted: 0,
+      proposed: 0,
+      linked: 0,
+      not_a_student: 0,
+      later: 0,
+      ready: 0,
+      needs_a_look: 0,
+      no_student: 0,
+    };
     const gradings = batch({
       kind: "LEGACY_GRADINGS",
       kind_display: "Past gradings",
@@ -411,80 +419,23 @@ describe("An import's results", () => {
       api.getDataImportBatch.mockResolvedValue(gradings);
       api.getDataImportRows.mockResolvedValue(page([]));
       api.getLegacyRecordCounts.mockResolvedValue({ awaiting_link: 196 });
+      api.getHistoricalPeopleSummary.mockResolvedValue(PEOPLE_COUNTS);
     });
 
-    it("links a name's records to the suggested student, and can undo it", async () => {
-      const user = userEvent.setup();
-      api.getLegacyPeople.mockResolvedValue(page([person()], 61));
-      api.bulkLinkLegacyRecords.mockResolvedValue([]);
-      api.bulkUnlinkLegacyRecords.mockResolvedValue([]);
+    it("says how many of its people are sorted and opens them", async () => {
+      api.getHistoricalPeopleSummary.mockResolvedValue({ ...PEOPLE_COUNTS, people: 40, sorted: 12 });
 
       renderAt("/imports/7");
 
-      expect(await screen.findByText("229 historical records imported")).toBeInTheDocument();
-      expect(await screen.findByText("“Mia R” · 3 records")).toBeInTheDocument();
-      expect(screen.getByText("Mia Reynolds · Yellow")).toBeInTheDocument();
-      expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: 7, linked: false, page_size: 4 });
-      await user.click(screen.getByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" }));
-
-      await waitFor(() =>
-        expect(api.bulkLinkLegacyRecords).toHaveBeenCalledWith([
-          { record: 101, student: 31 },
-          { record: 102, student: 31 },
-          { record: 103, student: 31 },
-        ]),
-      );
-      expect(await screen.findByText("Linked to Mia Reynolds")).toBeInTheDocument();
-      await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
-      await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledWith([101, 102, 103]));
-      expect(await screen.findByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" })).toBeVisible();
-    });
-
-    it("keeps the link and its Undo when the undo is refused, unlinking none", async () => {
-      const user = userEvent.setup();
-      api.getLegacyPeople.mockResolvedValue(page([person()], 61));
-      api.bulkLinkLegacyRecords.mockResolvedValue([]);
-      api.bulkUnlinkLegacyRecords.mockRejectedValueOnce(new Error("temporary failure")).mockResolvedValue([]);
-
-      renderAt("/imports/7");
-      await user.click(await screen.findByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" }));
-      await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("Those records could not be unlinked.");
-      expect(screen.getByText("Linked to Mia Reynolds")).toBeInTheDocument();
-
-      await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
-      await waitFor(() => expect(api.bulkUnlinkLegacyRecords).toHaveBeenCalledTimes(2));
-      expect(api.bulkUnlinkLegacyRecords.mock.calls.map(([ids]) => ids)).toEqual([
-        [101, 102, 103],
-        [101, 102, 103],
-      ]);
-    });
-
-    it("asks a person to choose where students share a name", async () => {
-      const user = userEvent.setup();
-      const theo = person({
-        source_name: "Theo",
-        record_ids: [201],
-        records: 1,
-        shared: true,
-        suggestion: "choose",
-        candidates: [
-          { ...person().candidates[0], student: 40, full_name: "Theo Barker", current_rank_name: "Blue stripe" },
-          { ...person().candidates[0], student: 41, full_name: "Theo Lane", current_rank_name: "White" },
-        ],
-      });
-      api.getLegacyPeople.mockResolvedValue(page([theo]));
-      api.bulkLinkLegacyRecords.mockResolvedValue([]);
-
-      renderAt("/imports/7");
-      await user.click(await screen.findByRole("button", { name: "Theo Lane · White" }));
-
-      await waitFor(() => expect(api.bulkLinkLegacyRecords).toHaveBeenCalledWith([{ record: 201, student: 41 }]));
+      expect(await screen.findByText("12 of 40 people sorted")).toBeInTheDocument();
+      expect(screen.getByText("28 people")).toBeInTheDocument();
+      expect(api.getHistoricalPeopleSummary).toHaveBeenCalledWith({ batch: 7 });
+      expect(screen.getByRole("link", { name: "Sort the people" })).toHaveAttribute("href", "/imports/people?batch=7");
+      expect(screen.getByRole("link", { name: "Match ranks" })).toHaveAttribute("href", "/imports/history?batch=7");
     });
 
     it("voids a wrong workbook only with a reason", async () => {
       const user = userEvent.setup();
-      api.getLegacyPeople.mockResolvedValue(page([]));
       api.voidDataImportRecords.mockResolvedValue({ voided: 229 });
 
       renderAt("/imports/7");
@@ -504,8 +455,8 @@ describe("An import's results", () => {
 
       renderAt("/imports/7");
 
-      expect(await screen.findByText("An administrator links these records to students.")).toBeInTheDocument();
-      expect(api.getLegacyPeople).not.toHaveBeenCalled();
+      expect(await screen.findByText("An administrator sorts the people.")).toBeInTheDocument();
+      expect(api.getHistoricalPeopleSummary).not.toHaveBeenCalled();
       expect(screen.queryByRole("button", { name: "Void this import" })).not.toBeInTheDocument();
     });
   });

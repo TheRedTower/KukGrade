@@ -33,7 +33,10 @@ import { SettingsScreen } from "./SettingsScreen";
 import { ImportsHubScreen } from "./ImportsHubScreen";
 import { ImportStartScreen } from "./ImportStartScreen";
 import { ImportScreen } from "./ImportScreen";
-import { LinkRecordsScreen } from "./LinkRecordsScreen";
+import { PeopleScreen } from "./PeopleScreen";
+import { PersonScreen } from "./PersonScreen";
+import { PersonSplitScreen } from "./PersonSplitScreen";
+import { PersonStudentScreen } from "./PersonStudentScreen";
 import { HistoricalRecordsScreen } from "./HistoricalRecordsScreen";
 import { LoadingPage, LoginRoute, RequireAccess, RequireAuth, SetupGate } from "./AuthGates";
 import { PageTrailProvider } from "./PageTrailProvider";
@@ -174,10 +177,34 @@ function App() {
                     <Route
                       element={
                         <RequireAccess flag="can_reconcile_imported_history">
-                          <LinkRecordsScreen />
+                          <PeopleScreen />
                         </RequireAccess>
                       }
-                      path="imports/records"
+                      path="imports/people"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_reconcile_imported_history">
+                          <PersonScreen />
+                        </RequireAccess>
+                      }
+                      path="imports/people/:id"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_reconcile_imported_history">
+                          <PersonSplitScreen />
+                        </RequireAccess>
+                      }
+                      path="imports/people/:id/split"
+                    />
+                    <Route
+                      element={
+                        <RequireAccess flag="can_reconcile_imported_history">
+                          <PersonStudentScreen />
+                        </RequireAccess>
+                      }
+                      path="imports/people/:id/student"
                     />
                     <Route
                       element={

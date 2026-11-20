@@ -29,6 +29,8 @@ interface Ids {
   batch: string;
   /** The demo's past-gradings import still open, before it is saved. */
   openImport: string;
+  /** A person from the imported history who needs a look, with a student suggested. */
+  person: string;
   student: string;
   user: string;
   sessions: Record<string, string>;
@@ -183,7 +185,11 @@ const SCREENS: Screen[] = [
   { name: "imports-save", role: "administrator", path: (ids) => `/imports/${ids.openImport}?step=save` },
   { name: "imports-missing", role: "administrator", path: () => "/imports/999999" },
   { name: "imports-history", role: "administrator", path: () => "/imports/history" },
-  { name: "imports-records", role: "administrator", path: () => "/imports/records" },
+  { name: "imports-people", role: "administrator", path: () => "/imports/people" },
+  { name: "imports-people-ready", role: "administrator", path: () => "/imports/people?list=READY" },
+  { name: "imports-person", role: "administrator", path: (ids) => `/imports/people/${ids.person}?list=NEEDS_A_LOOK` },
+  { name: "imports-person-split", role: "administrator", path: (ids) => `/imports/people/${ids.person}/split` },
+  { name: "imports-person-student", role: "administrator", path: (ids) => `/imports/people/${ids.person}/student` },
   { name: "settings-account", role: "master", path: () => "/settings/account" },
   { name: "settings-appearance", role: "master", path: () => "/settings/appearance" },
   { name: "settings-about", role: "master", path: () => "/settings/about" },
@@ -305,6 +311,12 @@ test.beforeAll(async ({ browser }) => {
   expect(withdrawn, "the demo has a withdrawn candidate in its open session").toBeTruthy();
   ids = {
     batch: String((await list(admin, "/api/data-imports/batches/?status=COMMITTED"))[0].id),
+    person: String(
+      (
+        await list<{ id: number; candidates: unknown[] }>(admin, "/api/gradings/legacy-people/?queue=NEEDS_A_LOOK")
+      ).find(({ candidates }) => candidates.length > 0)?.id ??
+        (await list(admin, "/api/gradings/legacy-people/"))[0].id,
+    ),
     openImport: String((await list(admin, "/api/data-imports/batches/?kind=LEGACY_GRADINGS&finished=false"))[0].id),
     completedCandidate: String(completed[0].id),
     student: String((await list(admin, "/api/students/"))[0].id),

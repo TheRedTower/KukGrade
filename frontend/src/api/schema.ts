@@ -1193,43 +1193,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/legacy-records/bulk-link/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * @description Link many records at once, all or nothing - one person's history to
-         *     the student confirmed for it, say.
-         */
-        post: operations["gradings_legacy_records_bulk_link_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/legacy-records/bulk-unlink/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Unlink many records at once, all or nothing - Undo after a bulk link. */
-        post: operations["gradings_legacy_records_bulk_unlink_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/gradings/legacy-records/counts/": {
         parameters: {
             query?: never;
@@ -1242,69 +1205,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/legacy-records/people/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description Records grouped by the name as written, with suggested students.
-         *
-         *     Suggestions only: nothing is linked until a person confirms it.
-         *     Voided records and sheet notes are left out.
-         *     Only the names on the page are scored for suggested students, unless
-         *     the list is filtered by how clear those are, which needs them all.
-         */
-        get: operations["gradings_legacy_records_people_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/legacy-records/people-summary/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description How many names still wait, by how clear their suggestions are; how
-         *     many have every record linked, or any; and how many the viewer has put
-         *     aside.
-         */
-        get: operations["gradings_legacy_records_people_summary_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/legacy-records/people/set-aside/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Add to the viewer's own names put aside for now, or put one back. */
-        post: operations["gradings_legacy_records_people_set_aside_create"];
-        /** @description Add to the viewer's own names put aside for now, or put one back. */
-        delete: operations["gradings_legacy_records_people_set_aside_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2187,15 +2087,6 @@ export interface components {
             };
             updated: components["schemas"]["GradingCandidate"][];
         };
-        /** @description POST legacy-records/bulk-link/: many records, each to its student. */
-        BulkLinkLegacyRecordsRequest: {
-            links: components["schemas"]["LegacyRecordLinkRequest"][];
-            /**
-             * @description Move records already linked to another student.
-             * @default false
-             */
-            replace?: boolean;
-        };
         BulkPromotionRequest: {
             outcomes: number[];
         };
@@ -2205,11 +2096,6 @@ export interface components {
                 [key: string]: string[];
             };
             promoted: components["schemas"]["Promotion"][];
-        };
-        /** @description POST legacy-records/bulk-unlink/: let go of many records at once. */
-        BulkUnlinkLegacyRecordsRequest: {
-            /** @description The records to unlink from their students, all or nothing - the undo of a bulk link. Errors are keyed by record id. */
-            records: number[];
         };
         CandidateAssessment: {
             readonly id: number;
@@ -2402,6 +2288,8 @@ export interface components {
             item_results: components["schemas"]["ItemResultChoice"][];
             /** @description Why a candidate may be withdrawn, in the order the controls offer. */
             withdrawal_reasons: components["schemas"]["WithdrawalReasonChoice"][];
+            /** @description Why someone in the imported history is not a current student, in the order the controls offer. */
+            not_a_student_reasons: components["schemas"]["NotAStudentReasonChoice"][];
             /** @description The grading outcomes, in the order the outcome controls offer them. */
             outcomes: components["schemas"]["OutcomeChoice"][];
             import_kinds: components["schemas"]["ImportKindChoice"][];
@@ -2460,6 +2348,15 @@ export interface components {
          * @enum {string}
          */
         DatePrecisionEnum: "MONTH" | "DAY";
+        /**
+         * @description * `LINK` - Link to a student
+         *     * `NOT_A_STUDENT` - Not a current student
+         *     * `LATER` - Leave for later
+         *     * `CONFIRM_JOINED` - Confirm the records that joined
+         *     * `REOPEN` - Undo the decision
+         * @enum {string}
+         */
+        DecisionsEnum: "LINK" | "NOT_A_STUDENT" | "LATER" | "CONFIRM_JOINED" | "REOPEN";
         Demo: {
             accounts: components["schemas"]["DemoAccount"][];
             /** @description The password every demo account shares. Published on purpose. */
@@ -2771,6 +2668,8 @@ export interface components {
             readonly last_period: string;
             /** @description Records that joined after the person was decided. */
             awaiting_confirmation: number;
+            /** @description What can be decided about the person now. Confirming the records that joined repeats the decision made: link again to the same student, not a student again for the same reason, or later again. */
+            decisions: components["schemas"]["DecisionsEnum"][];
             /** @description The student a linked person is. */
             student: number | null;
             student_name?: string | null;
@@ -2836,6 +2735,8 @@ export interface components {
             readonly last_period: string;
             /** @description Records that joined after the person was decided. */
             awaiting_confirmation: number;
+            /** @description What can be decided about the person now. Confirming the records that joined repeats the decision made: link again to the same student, not a student again for the same reason, or later again. */
+            decisions: components["schemas"]["DecisionsEnum"][];
             /** @description The student a linked person is. */
             student: number | null;
             student_name?: string | null;
@@ -3306,55 +3207,6 @@ export interface components {
          */
         LegacyNotAStudentReasonEnum: "INSTRUCTOR" | "LEFT" | "NOT_REAL" | "OTHER";
         /**
-         * @description Names still to link, by how clear their suggested students are, and the
-         *     other counts the linking screens show.
-         */
-        LegacyPeopleSummary: {
-            /** @description Names with a record still to link. */
-            names: number;
-            /** @description Names with every record linked; set_aside does not apply. */
-            linked: number;
-            /** @description Names with any record linked; set_aside does not apply. */
-            with_a_link: number;
-            /** @description Names still to link that the viewer has put aside for now. */
-            set_aside: number;
-            /** @description One student fits clearly. */
-            clear: number;
-            /** @description A person has to choose: several students fit equally well, or the one that fits ranks lower now than the records gave then. */
-            choose: number;
-            /** @description No student fits. */
-            none: number;
-        };
-        /** @description The records that name one person the same way, and who they may be. */
-        LegacyPerson: {
-            source_name: string;
-            group_key: string;
-            readonly record_ids: number[];
-            /** @description How many records. */
-            readonly records: number;
-            first_period: string;
-            last_period: string;
-            /** @description The student every record here is linked to, if one is. */
-            readonly linked_student: number | null;
-            /** @description Several students fit equally well. */
-            shared: boolean;
-            /** @description That student's name, when every record here is linked to one. */
-            readonly linked_student_name: string | null;
-            /** @description The ranks the records give, as written, in date order. */
-            ranks: string[];
-            /** @description Whether a rank is written on a record but not matched to one yet. */
-            needs_rank: boolean;
-            /**
-             * @description How clear the suggested students are, from the candidates.
-             *
-             *     * `clear` - One student fits clearly
-             *     * `choose` - A person has to choose
-             *     * `none` - No student fits
-             */
-            suggestion: components["schemas"]["SuggestionEnum"];
-            candidates: components["schemas"]["SuggestedStudent"][];
-        };
-        /**
          * @description * `PROPOSED` - Not decided yet
          *     * `LINKED` - Linked to a student
          *     * `NOT_A_STUDENT` - Not a current student
@@ -3371,10 +3223,6 @@ export interface components {
         LegacyRecordCounts: {
             /** @description Someone's records not yet linked to a student: not voided, not a sheet note. */
             awaiting_link: number;
-        };
-        LegacyRecordLinkRequest: {
-            record: number;
-            student: number;
         };
         /** @description A historical import's grading sheet, against what KukGrade holds. */
         LegacySheet: {
@@ -3481,6 +3329,16 @@ export interface components {
          * @enum {string}
          */
         NextActionEnum: "PREPARE_ASSESSMENT" | "START_ASSESSMENT" | "CONTINUE_ASSESSMENT" | "VIEW_ASSESSMENT" | "PROPOSE_OUTCOME" | "REVIEW_PROPOSAL" | "REVIEW_DECISION" | "VIEW_DECISION" | "PROMOTION_LEDGER" | "NONE";
+        /**
+         * @description One of a set of choices, as every list of them is served: the value
+         *     sent back, and its name.
+         */
+        NotAStudentReasonChoice: {
+            value: components["schemas"]["LegacyNotAStudentReasonEnum"];
+            label: string;
+            /** @description Whether marking someone not a student for this reason must say why. */
+            note_required: boolean;
+        };
         /** @description POST legacy-people/{id}/not-a-student/: why, and a note if wanted. */
         NotAStudentRequest: {
             /** @description The person's version as read; refused once it has changed. */
@@ -3681,21 +3539,6 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["LegacyGradingRecord"][];
-        };
-        PaginatedLegacyPersonList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["LegacyPerson"][];
         };
         PaginatedRankList: {
             /** @example 123 */
@@ -3984,14 +3827,6 @@ export interface components {
         SessionStatusChoice: {
             value: components["schemas"]["GradingSessionStatusEnum"];
             label: string;
-        };
-        /** @description Names put aside on the linking page, as group keys. */
-        SetAsideNames: {
-            group_keys: string[];
-        };
-        /** @description Names put aside on the linking page, as group keys. */
-        SetAsideNamesRequest: {
-            group_keys: string[];
         };
         /**
          * @description POST /api/setup/: the first administrator, and the code proving it is
@@ -5887,8 +5722,6 @@ export interface operations {
                 awaiting_link?: boolean;
                 /** @description Records from this import. */
                 batch?: number;
-                /** @description The stable name-group key served by the people list. */
-                group_key?: string;
                 linked?: boolean;
                 /** @description Records with a rank written but not yet matched to one of KukGrade's. */
                 needs_rank?: boolean;
@@ -6046,56 +5879,6 @@ export interface operations {
             };
         };
     };
-    gradings_legacy_records_bulk_link_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkLinkLegacyRecordsRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["BulkLinkLegacyRecordsRequest"];
-                "multipart/form-data": components["schemas"]["BulkLinkLegacyRecordsRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyGradingRecord"][];
-                };
-            };
-        };
-    };
-    gradings_legacy_records_bulk_unlink_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
-                "multipart/form-data": components["schemas"]["BulkUnlinkLegacyRecordsRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyGradingRecord"][];
-                };
-            };
-        };
-    };
     gradings_legacy_records_counts_retrieve: {
         parameters: {
             query?: {
@@ -6115,110 +5898,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LegacyRecordCounts"];
                 };
-            };
-        };
-    };
-    gradings_legacy_records_people_list: {
-        parameters: {
-            query?: {
-                /** @description Only records from this import. */
-                batch?: number;
-                /** @description Only people whose records are (or are not) linked. */
-                linked?: boolean;
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-                /** @description Part of the name as written. */
-                search?: string;
-                /** @description Only, or all but, the names the viewer has put aside for now. */
-                set_aside?: "exclude" | "only";
-                /** @description Only people whose suggested students are this clear. */
-                suggestion?: "choose" | "clear" | "none";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedLegacyPersonList"];
-                };
-            };
-        };
-    };
-    gradings_legacy_records_people_summary_retrieve: {
-        parameters: {
-            query?: {
-                /** @description Only records from this import. */
-                batch?: number;
-                /** @description Only, or all but, the names the viewer has put aside for now. */
-                set_aside?: "exclude" | "only";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyPeopleSummary"];
-                };
-            };
-        };
-    };
-    gradings_legacy_records_people_set_aside_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetAsideNamesRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["SetAsideNamesRequest"];
-                "multipart/form-data": components["schemas"]["SetAsideNamesRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SetAsideNames"];
-                };
-            };
-        };
-    };
-    gradings_legacy_records_people_set_aside_destroy: {
-        parameters: {
-            query: {
-                /** @description The name to put back. */
-                group_key: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

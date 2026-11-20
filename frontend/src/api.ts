@@ -780,48 +780,65 @@ export function linkLegacyGradingRecord(id: number, student: number, replace = f
   );
 }
 
-/** Every page of one historical name group, before choosing records to link. */
-export function getAllLegacyGradingRecords(
-  query: Omit<ListQuery<"gradings_legacy_records_list">, "page" | "page_size">,
-) {
-  return collectAllPages((page) => getLegacyGradingRecords({ ...query, page, page_size: largestPage }));
-}
-
-export type LegacyPerson = Schemas["LegacyPerson"];
-
-/** Historical records grouped by the name as written, with suggested students. */
-export function getLegacyPeople(query?: ListQuery<"gradings_legacy_records_people_list">) {
-  return answer(api.GET("/api/gradings/legacy-records/people/", { params: { query } }));
-}
-
 /** How many imported records still wait for a student, counted on the server. */
 export function getLegacyRecordCounts(query?: ListQuery<"gradings_legacy_records_counts_retrieve">) {
   return answer(api.GET("/api/gradings/legacy-records/counts/", { params: { query } }));
 }
 
-/** How many names still wait to be linked, by how clear their suggested students are. */
-export function getLegacyPeopleSummary(query?: ListQuery<"gradings_legacy_records_people_summary_retrieve">) {
-  return answer(api.GET("/api/gradings/legacy-records/people-summary/", { params: { query } }));
+export type HistoricalPerson = Schemas["HistoricalPerson"];
+export type HistoricalPersonDetail = Schemas["HistoricalPersonDetail"];
+
+/** The people the imported history is about, a page at a time. */
+export function getHistoricalPeople(query?: ListQuery<"gradings_legacy_people_list">) {
+  return answer(api.GET("/api/gradings/legacy-people/", { params: { query } }));
 }
 
-/** Put names aside for now on the linking page; the viewer's own list, on the server. */
-export async function setAsideNames(group_keys: string[]): Promise<string[]> {
-  const kept = await answer(api.POST("/api/gradings/legacy-records/people/set-aside/", { body: { group_keys } }));
-  return kept.group_keys;
+/** Every person in a list, every page of it: to confirm a whole queue. */
+export function getAllHistoricalPeople(query: Omit<ListQuery<"gradings_legacy_people_list">, "page" | "page_size">) {
+  return collectAllPages((page) => getHistoricalPeople({ ...query, page, page_size: largestPage }));
 }
 
-export function putBackSetAsideName(group_key: string) {
-  return done(api.DELETE("/api/gradings/legacy-records/people/set-aside/", { params: { query: { group_key } } }));
+/** How many people there are, in each state and queue, and how many are sorted. */
+export function getHistoricalPeopleSummary(query?: ListQuery<"gradings_legacy_people_summary_retrieve">) {
+  return answer(api.GET("/api/gradings/legacy-people/summary/", { params: { query } }));
 }
 
-/** Link many records at once, all or nothing. */
-export function bulkLinkLegacyRecords(links: Schemas["LegacyRecordLinkRequest"][]) {
-  return answer(api.POST("/api/gradings/legacy-records/bulk-link/", { body: { links } }));
+/** One person with every record of theirs, oldest first, and who they may be. */
+export function getHistoricalPerson(id: number) {
+  return answer(api.GET("/api/gradings/legacy-people/{id}/", { params: { path: { id } } }));
 }
 
-/** Unlink many records at once, all or nothing: Undo after a bulk link. */
-export function bulkUnlinkLegacyRecords(records: Schemas["BulkUnlinkLegacyRecordsRequest"]["records"]) {
-  return answer(api.POST("/api/gradings/legacy-records/bulk-unlink/", { body: { records } }));
+/** Link the person to a student; again to the same one, confirm records that joined since. */
+export function linkHistoricalPerson(id: number, body: Schemas["LinkPersonRequest"]) {
+  return answer(api.POST("/api/gradings/legacy-people/{id}/link/", { params: { path: { id } }, body }));
+}
+
+export function markNotAStudent(id: number, body: Schemas["NotAStudentRequest"]) {
+  return answer(api.POST("/api/gradings/legacy-people/{id}/not-a-student/", { params: { path: { id } }, body }));
+}
+
+export function leavePersonForLater(id: number, version: number) {
+  return answer(api.POST("/api/gradings/legacy-people/{id}/later/", { params: { path: { id } }, body: { version } }));
+}
+
+/** Undo the decision about a person. */
+export function reopenHistoricalPerson(id: number, version: number) {
+  return answer(api.POST("/api/gradings/legacy-people/{id}/reopen/", { params: { path: { id } }, body: { version } }));
+}
+
+/** Move the chosen records to a new person; answers with the new person. */
+export function splitHistoricalPerson(id: number, body: Schemas["SplitPersonRequest"]) {
+  return answer(api.POST("/api/gradings/legacy-people/{id}/split/", { params: { path: { id } }, body }));
+}
+
+/** Join another person to this one. */
+export function mergeHistoricalPeople(id: number, body: Schemas["MergePeopleRequest"]) {
+  return answer(api.POST("/api/gradings/legacy-people/{id}/merge/", { params: { path: { id } }, body }));
+}
+
+/** Confirm many people ready to confirm, each to their suggested student, all or nothing. */
+export function confirmHistoricalPeople(confirmations: Schemas["PersonConfirmationRequest"][]) {
+  return answer(api.POST("/api/gradings/legacy-people/confirm/", { body: { confirmations } }));
 }
 
 export function unlinkLegacyGradingRecord(id: number) {

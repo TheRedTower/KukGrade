@@ -79,6 +79,15 @@ def test_the_withdrawal_reasons_say_which_needs_a_note() -> None:
     ]
 
 
+def test_the_not_a_student_reasons_say_which_needs_a_note() -> None:
+    assert _served()["not_a_student_reasons"] == [
+        {"value": "INSTRUCTOR", "label": "An instructor", "note_required": False},
+        {"value": "LEFT", "label": "Left before KukGrade", "note_required": False},
+        {"value": "NOT_REAL", "label": "Not a real entry", "note_required": False},
+        {"value": "OTHER", "label": "Other", "note_required": True},
+    ]
+
+
 def test_every_authority_is_named_and_described_once() -> None:
     authorities = _served()["authorities"]
 

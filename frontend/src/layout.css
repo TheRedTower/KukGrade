@@ -1573,6 +1573,10 @@ select:not([multiple]):not([size]) {
 
 .queue-list__item {
   display: flex;
+  width: 100%;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);

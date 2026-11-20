@@ -78,15 +78,15 @@ export const keys = {
     all: () => ["legacyRecords"] as const,
     browse: (...filters: unknown[]) => ["legacyRecords", "browse", ...filters] as const,
     detail: (id: Id) => ["legacyRecords", "detail", id] as const,
-    group: (groupKey: string, batch: Id) => ["legacyRecords", "group", groupKey, batch] as const,
     /** How many still await a student: every import, or one. */
     awaitingLinkCount: (...batch: number[]) => ["legacyRecords", "awaitingLinkCount", ...batch] as const,
   },
   legacyPeople: {
     all: () => ["legacyPeople"] as const,
-    summary: (batchId: Id) => ["legacyPeople", "summary", batchId] as const,
+    /** The counts: every import's people, or one import's. */
+    summary: (...batch: number[]) => ["legacyPeople", "summary", ...batch] as const,
     list: (...filters: unknown[]) => ["legacyPeople", "list", ...filters] as const,
-    unlinked: (batchId: Id) => ["legacyPeople", batchId, "unlinked"] as const,
+    detail: (id: Id) => ["legacyPeople", "detail", id] as const,
   },
   managedUsers: {
     all: () => ["managedUsers"] as const,

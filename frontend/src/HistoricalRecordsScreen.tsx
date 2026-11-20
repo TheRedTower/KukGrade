@@ -21,7 +21,7 @@ import { useUrlFilters } from "./useUrlFilters";
 import { useIdParam } from "./recordStatus";
 import { type Chosen } from "./linkRecords";
 import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
-import { useLegacyLinking } from "./useLegacyLinking";
+import { useLegacyRefresh } from "./useLegacyRefresh";
 import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
@@ -53,7 +53,7 @@ export function HistoricalRecordsScreen() {
   const searched = search.trim();
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [confirm, setConfirm] = useState<"replace" | "unlink" | "void" | null>(null);
-  const { refresh } = useLegacyLinking();
+  const refresh = useLegacyRefresh();
 
   const imports = useQuery({
     queryKey: keys.imports.historical(),
@@ -105,8 +105,8 @@ export function HistoricalRecordsScreen() {
         titleId="ix-history-title"
         subtitle="Find an imported record again to correct its link or mapped ranks. The workbook text stays as written."
         actions={
-          <Link className={buttonClass({ variant: "secondary" })} to="/imports/records">
-            Link unassigned records
+          <Link className={buttonClass({ variant: "secondary" })} to="/imports/people">
+            Sort the people
           </Link>
         }
       />

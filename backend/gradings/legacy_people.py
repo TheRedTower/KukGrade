@@ -576,6 +576,16 @@ class PersonQueue(models.TextChoices):
     NO_STUDENT = "NO_STUDENT", "No student found"
 
 
+class PersonDecision(models.TextChoices):
+    """What can be decided about a person now (gradings.legacy_person_services)."""
+
+    LINK = "LINK", "Link to a student"
+    NOT_A_STUDENT = "NOT_A_STUDENT", "Not a current student"
+    LATER = "LATER", "Leave for later"
+    CONFIRM_JOINED = "CONFIRM_JOINED", "Confirm the records that joined"
+    REOPEN = "REOPEN", "Undo the decision"
+
+
 @dataclass
 class PersonView:
     """A person with their live records, oldest first, and - once
@@ -642,6 +652,29 @@ class PersonView:
         ):
             return PersonQueue.READY
         return PersonQueue.NEEDS_A_LOOK
+
+    @property
+    def decisions(self) -> list[PersonDecision]:
+        """What can be decided about the person now, as the decisions allow
+        (legacy_person_services): link to any student or mark not a student
+        while undecided or left for later; leave for later only while
+        undecided; confirm the records that joined since a decision, with
+        that same decision; undo any decision. Split and merge are always
+        open."""
+        state = self.person.state
+        if state == LegacyPersonState.PROPOSED:
+            return [
+                PersonDecision.LINK,
+                PersonDecision.NOT_A_STUDENT,
+                PersonDecision.LATER,
+            ]
+        decisions: list[PersonDecision] = []
+        if state == LegacyPersonState.LATER:
+            decisions += [PersonDecision.LINK, PersonDecision.NOT_A_STUDENT]
+        if self.awaiting_confirmation:
+            decisions.append(PersonDecision.CONFIRM_JOINED)
+        decisions.append(PersonDecision.REOPEN)
+        return decisions
 
     @property
     def sorted(self) -> bool:

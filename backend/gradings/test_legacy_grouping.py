@@ -496,6 +496,29 @@ def test_a_suggestion_that_contradicts_itself_is_never_clear_by_spelling_either(
     assert suggestion_for([candidate]) == Suggestion.CHOOSE
 
 
+def test_a_suggested_student_says_why_in_plain_words() -> None:
+    student(first_name="Tom", last_name="Wood", current_rank=rank("RED"))
+
+    tom = one_record("Tom W", "White", "Yellow")
+
+    [only] = tom.candidates
+    assert only.reasons == (
+        "Same first name",
+        "Surname initial matches",
+        "Rank fits: Red now, Yellow then",
+    )
+
+
+def test_a_rank_tested_for_and_not_passed_is_not_a_rank_reached() -> None:
+    student(first_name="Ada", last_name="Park", current_rank=rank("WHITE"))
+    commit(grading_workbook({"062025": [["Ada Park", "White", "Yellow", "Fail", ""]]}))
+
+    ada = person_named("Ada Park")
+
+    assert ada.candidates[0].rank_fits is True
+    assert ada.queue == PersonQueue.READY
+
+
 def test_people_with_several_fits_or_none_wait_where_they_should() -> None:
     student(first_name="Ada", last_name="Park", current_rank=rank("YELLOW"))
     student(first_name="Ada", last_name="Pike", current_rank=rank("YELLOW"))

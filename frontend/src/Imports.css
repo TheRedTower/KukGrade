@@ -26,10 +26,6 @@
   min-width: 0;
 }
 
-.ix-full {
-  flex-basis: 100%;
-}
-
 /* Keeps a button its own width in a stack. */
 .ix-start {
   align-self: flex-start;
@@ -106,25 +102,6 @@
 
 .ix-row-out {
   background: var(--color-surface-sunken);
-}
-
-.ix-row-done {
-  background: var(--color-success-surface);
-}
-
-.ix-row-name {
-  flex-basis: 14rem;
-}
-
-.ix-row-choice {
-  flex: 2 1 20rem;
-}
-
-.ix-suggested {
-  display: flex;
-  flex: 1 1 12rem;
-  flex-direction: column;
-  min-width: 0;
 }
 
 /* A roster row needing attention: its problem above its fields. */
@@ -224,10 +201,6 @@
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--color-border);
   vertical-align: top;
-}
-
-.ix-caption {
-  margin: 0;
 }
 
 .ix-danger-text {
@@ -460,11 +433,6 @@
   order: 1;
 }
 
-.ix-focus-body {
-  gap: var(--space-4);
-  padding: var(--space-4);
-}
-
 .ix-also {
   gap: var(--space-2);
   padding-top: var(--space-3);
@@ -645,82 +613,10 @@
   min-width: 0;
 }
 
-.ix-queue-name {
-  display: block;
-}
-
-.ix-tick {
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  accent-color: var(--color-gold);
-}
-
 /* The box is small to look at; the label round it is the finger-sized target. */
-.ix-tick-hit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  min-width: var(--target-min);
-  min-height: var(--target-min);
-}
 
 /* The linking page: every name as written, one row each. */
-.ix-link-progress {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  max-width: 20rem;
-  margin-top: var(--space-3);
-}
 
-.ix-link-progress progress {
-  width: 100%;
-  height: 8px;
-  accent-color: var(--color-success);
-}
-
-.ix-bulk {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-5);
-  padding: var(--space-4) var(--space-4);
-}
-
-.ix-name-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
-
-.ix-name-records,
-.ix-name-students {
-  flex: 1 1 22rem;
-  min-width: 0;
-}
-
-.ix-detail-list {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-}
-
-.ix-detail-item {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--color-border);
-}
-
-.ix-detail-item:first-child {
-  border-top: none;
-}
-
-.ix-student-list,
 .ix-student-search {
   display: flex;
   flex-direction: column;

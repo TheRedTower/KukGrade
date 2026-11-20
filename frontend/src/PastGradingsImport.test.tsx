@@ -379,6 +379,18 @@ describe("Saving", () => {
 
     await user.click(screen.getByRole("button", { name: "Save records" }));
     expect(api.commitDataImport).toHaveBeenCalledWith(7);
+    // Saved: straight on to the people the records are about.
+    await waitFor(() => expect(where()).toBe("/imports/people?batch=7"));
+  });
+
+  it("shows what was saved to someone who does not sort the people", async () => {
+    const user = userEvent.setup();
+    auth.user = { ...authUser, ...ADMINISTRATOR_CAPABILITIES, can_reconcile_imported_history: false };
+    api.commitDataImport.mockResolvedValue({ ...workbook, status: "COMMITTED" });
+
+    renderAt("/imports/7?step=save");
+    await user.click(await screen.findByRole("button", { name: "Save records" }));
+
     await waitFor(() => expect(where()).toBe("/imports/7"));
   });
 

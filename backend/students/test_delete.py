@@ -14,9 +14,8 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from data_imports.testing import legacy_record
-from gradings.legacy_matching import PersonGroup, suggest_for_groups
+from gradings.legacy_matching import student_pool
 from gradings.legacy_services import (
-    bulk_link_legacy_records,
     link_legacy_record_to_student,
 )
 from gradings.models import (
@@ -236,12 +235,7 @@ def test_a_deleted_student_is_not_suggested_or_linked_to_new_records() -> None:
 
     with pytest.raises(ValidationError, match="has been deleted"):
         link_legacy_record_to_student(loose, deleted, actor=admin)
-    with pytest.raises(ValidationError, match="has been deleted"):
-        bulk_link_legacy_records([(loose, deleted)], actor=admin)
-
-    group = PersonGroup(key="x", source_name=deleted.full_name, records=[loose])
-    suggest_for_groups([group])
-    assert deleted.pk not in {c.student.pk for c in group.candidates}
+    assert deleted.pk not in {student.pk for student in student_pool()}
     kept.refresh_from_db()
     assert kept.student_id == deleted.pk
 

@@ -32,9 +32,9 @@ Want something here, or something that is missing? Open an
       decided through the API. The shared parts the phone screens are built from are in place
       (`ActionBar`, `DetailPage`, `QueueList`, `Progress`), and the import itself is phone-first
       from the upload to the save (sheets, things to check one at a time, every record, save).
-      Still to come: phone-first screens for sorting the people, then the hub, the finished
-      import and the student import on the same screens. The per-name linking screen and its
-      private "Leave for now" list go when the people screens arrive.
+      Sorting the people is phone-first too (the queues, a page for each person, split or
+      merge, choosing a student). Still to come: the hub, the finished import and the
+      historical records on the same screens, and the student import moved onto them.
 - [ ] **Measure the audit log's record history** on a real session: the history behind a
       grading or a student filters events by `session_id` and `student_id` in their details,
       which no index serves yet. Add one if it is slow once real data exists.

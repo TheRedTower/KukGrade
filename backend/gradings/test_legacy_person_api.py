@@ -155,3 +155,21 @@ def test_people_cannot_be_changed_through_the_list() -> None:
     assert client.post(PEOPLE, {}, format="json").status_code == 405
     assert client.patch(f"{PEOPLE}{person.pk}/", {}, format="json").status_code == 405
     assert client.delete(f"{PEOPLE}{person.pk}/").status_code == 405
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/gradings/legacy-records/people/",
+        "/api/gradings/legacy-records/people-summary/",
+        "/api/gradings/legacy-records/people/set-aside/",
+        "/api/gradings/legacy-records/bulk-link/",
+        "/api/gradings/legacy-records/bulk-unlink/",
+    ],
+)
+def test_the_per_name_linking_is_gone(path: str) -> None:
+    """People are sorted as people now: linking a name as written, and a list
+    of names each administrator put aside, are no longer offered."""
+    client = client_for(admin())
+    assert client.get(path).status_code in {404, 405}
+    assert client.post(path, {}, format="json").status_code in {404, 405}

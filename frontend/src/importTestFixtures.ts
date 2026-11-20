@@ -1,4 +1,4 @@
-import type { DataImportBatch, DataImportRow, LegacyGradingRecord, LegacyPerson, Rank } from "./api";
+import type { DataImportBatch, DataImportRow, HistoricalPersonDetail, LegacyGradingRecord, Rank } from "./api";
 
 // Invented data for the import screens' tests.
 
@@ -62,30 +62,46 @@ export function row(overrides: Partial<DataImportRow> = {}): DataImportRow {
   };
 }
 
-export function person(overrides: Partial<LegacyPerson> = {}): LegacyPerson {
+export function person(overrides: Partial<HistoricalPersonDetail> = {}): HistoricalPersonDetail {
   return {
-    source_name: "Mia R",
-    group_key: "mia r",
-    record_ids: [101, 102, 103],
-    records: 3,
+    id: 201,
+    name: "Mia Reyes",
+    spellings: ["Mia R", "Mia Reyes"],
+    state: "PROPOSED",
+    state_display: "Proposed",
+    queue: "READY",
+    queue_display: "Ready to confirm",
+    confidence: "HIGH",
+    confidence_display: "Sure these are one person",
+    reasons: ["Passed to Blue stripe, then held it on the next sheet"],
+    record_count: 2,
     first_period: "2025-03",
     last_period: "2025-09",
-    linked_student: null,
-    linked_student_name: null,
-    ranks: ["Yellow → Blue stripe"],
-    needs_rank: false,
-    shared: false,
+    awaiting_confirmation: 0,
+    decisions: ["LINK", "NOT_A_STUDENT", "LATER"],
+    student: null,
+    student_name: null,
     suggestion: "clear",
     candidates: [
       {
         student: 31,
-        full_name: "Mia Reynolds",
+        full_name: "Mia Reyes",
         wksa_id: "104-2-311",
-        current_rank_name: "Yellow",
+        current_rank_name: "Blue stripe",
         status_display: "Active",
         score: 10,
-        reasons: ["Same first name and initial"],
+        reasons: ["Same first name", "Rank fits: Blue stripe now, Blue stripe then"],
       },
+    ],
+    version: 4,
+    not_a_student_reason: "",
+    not_a_student_reason_display: "",
+    note: "",
+    decided_by_name: "",
+    decided_at: null,
+    records: [
+      legacyRecord({ id: 101, source_name: "Mia R", cycle_month: 3, source_testing_for_rank_text: "Blue stripe" }),
+      legacyRecord({ id: 102, source_name: "Mia Reyes", cycle_month: 9, source_current_rank_text: "Blue stripe" }),
     ],
     ...overrides,
   };

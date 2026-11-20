@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "./Badge";
@@ -7,7 +8,9 @@ export interface Queue {
   to: string;
   label: string;
   /** How many wait in it. */
-  count: number;
+  count?: number;
+  /** Shown in place of the count, for a list of things rather than of queues. */
+  badge?: ReactNode;
   /** One line on what it holds. */
   hint?: string;
 }
@@ -27,7 +30,10 @@ export function QueueList({ queues, label }: { queues: Queue[]; label: string })
               <span className="item-title">{queue.label}</span>
               {queue.hint ? <span className="subtext">{queue.hint}</span> : null}
             </span>
-            <Badge tone={queue.count > 0 ? "info" : "neutral"}>{queue.count}</Badge>
+            {queue.badge ??
+              (queue.count !== undefined ? (
+                <Badge tone={queue.count > 0 ? "info" : "neutral"}>{queue.count}</Badge>
+              ) : null)}
           </Link>
         </li>
       ))}

@@ -21,7 +21,7 @@ from gradings.exports.records import record_can_be_downloaded
 from gradings.exports.sheets import sheet_can_be_printed, sheets_can_be_printed
 from gradings.exports.summary import summary_can_be_downloaded
 from gradings.legacy_matching import Suggestion
-from gradings.legacy_people import PersonQueue, PersonView
+from gradings.legacy_people import PersonDecision, PersonQueue, PersonView
 from gradings.models import (
     AssessmentItemComment,
     AssessmentItemResultChange,
@@ -1230,38 +1230,6 @@ class LegacyRecordLinkSerializer(serializers.Serializer):
 BULK_LINK_LIMIT = 500
 
 
-class BulkLinkLegacyRecordsSerializer(serializers.Serializer):
-    """POST legacy-records/bulk-link/: many records, each to its student."""
-
-    links = LegacyRecordLinkSerializer(many=True, allow_empty=False)
-    replace = serializers.BooleanField(
-        required=False,
-        default=False,
-        help_text="Move records already linked to another student.",
-    )
-
-    def validate_links(self, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        if len(value) > BULK_LINK_LIMIT:
-            raise serializers.ValidationError(
-                f"Link at most {BULK_LINK_LIMIT} records at a time.",
-            )
-        return value
-
-
-class BulkUnlinkLegacyRecordsSerializer(serializers.Serializer):
-    """POST legacy-records/bulk-unlink/: let go of many records at once."""
-
-    records = serializers.ListField(
-        child=serializers.IntegerField(min_value=1),
-        allow_empty=False,
-        max_length=BULK_LINK_LIMIT,
-        help_text=(
-            "The records to unlink from their students, all or nothing - "
-            "the undo of a bulk link. Errors are keyed by record id."
-        ),
-    )
-
-
 class SuggestedStudentSerializer(serializers.Serializer):
     student = serializers.IntegerField(source="student.pk")
     full_name = serializers.CharField(source="student.full_name")
@@ -1275,65 +1243,6 @@ class SuggestedStudentSerializer(serializers.Serializer):
     )
 
 
-class LegacyPersonSerializer(serializers.Serializer):
-    """The records that name one person the same way, and who they may be."""
-
-    source_name = serializers.CharField()
-    group_key = serializers.CharField(source="key")
-    record_ids = serializers.SerializerMethodField()
-    records = serializers.SerializerMethodField(help_text="How many records.")
-    first_period = serializers.CharField()
-    last_period = serializers.CharField()
-    linked_student = serializers.SerializerMethodField(
-        help_text="The student every record here is linked to, if one is.",
-    )
-    shared = serializers.BooleanField(
-        help_text="Several students fit equally well.",
-    )
-    linked_student_name = serializers.SerializerMethodField(
-        help_text="That student's name, when every record here is linked to one.",
-    )
-    ranks = serializers.ListField(
-        child=serializers.CharField(),
-        source="ranks_written",
-        help_text="The ranks the records give, as written, in date order.",
-    )
-    needs_rank = serializers.BooleanField(
-        help_text="Whether a rank is written on a record but not matched to one yet.",
-    )
-    suggestion = serializers.ChoiceField(
-        choices=Suggestion.choices,
-        help_text="How clear the suggested students are, from the candidates.",
-    )
-    candidates = SuggestedStudentSerializer(many=True)
-
-    def get_record_ids(self, group: Any) -> list[int]:
-        return [record.pk for record in group.records]
-
-    def get_records(self, group: Any) -> int:
-        return len(group.records)
-
-    @extend_schema_field(serializers.IntegerField(allow_null=True))
-    def get_linked_student(self, group: Any) -> int | None:
-        student = group.linked_student
-        return student.pk if student else None
-
-    @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_linked_student_name(self, group: Any) -> str | None:
-        student = group.linked_student
-        return student.full_name if student else None
-
-
-class SetAsideNamesSerializer(serializers.Serializer):
-    """Names put aside on the linking page, as group keys."""
-
-    group_keys = serializers.ListField(
-        child=serializers.CharField(max_length=255),
-        min_length=1,
-        max_length=100,
-    )
-
-
 class LegacyRecordCountsSerializer(serializers.Serializer):
     awaiting_link = serializers.IntegerField(
         help_text=(
@@ -1341,31 +1250,6 @@ class LegacyRecordCountsSerializer(serializers.Serializer):
             "sheet note."
         ),
     )
-
-
-class LegacyPeopleSummarySerializer(serializers.Serializer):
-    """Names still to link, by how clear their suggested students are, and the
-    other counts the linking screens show."""
-
-    names = serializers.IntegerField(help_text="Names with a record still to link.")
-    linked = serializers.IntegerField(
-        help_text="Names with every record linked; set_aside does not apply.",
-    )
-    with_a_link = serializers.IntegerField(
-        help_text="Names with any record linked; set_aside does not apply.",
-    )
-    set_aside = serializers.IntegerField(
-        help_text="Names still to link that the viewer has put aside for now.",
-    )
-
-    clear = serializers.IntegerField(help_text="One student fits clearly.")
-    choose = serializers.IntegerField(
-        help_text=(
-            "A person has to choose: several students fit equally well, or the "
-            "one that fits ranks lower now than the records gave then."
-        ),
-    )
-    none = serializers.IntegerField(help_text="No student fits.")
 
 
 class HistoricalPersonSerializer(serializers.Serializer):
@@ -1407,6 +1291,14 @@ class HistoricalPersonSerializer(serializers.Serializer):
     last_period = serializers.SerializerMethodField()
     awaiting_confirmation = serializers.IntegerField(
         help_text="Records that joined after the person was decided.",
+    )
+    decisions = serializers.ListField(
+        child=serializers.ChoiceField(choices=PersonDecision.choices),
+        help_text=(
+            "What can be decided about the person now. Confirming the records "
+            "that joined repeats the decision made: link again to the same "
+            "student, not a student again for the same reason, or later again."
+        ),
     )
     student = serializers.IntegerField(
         source="person.student_id",

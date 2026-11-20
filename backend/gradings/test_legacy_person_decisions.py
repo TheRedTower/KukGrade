@@ -804,3 +804,42 @@ def test_a_person_whose_every_record_is_voided_is_not_reopened() -> None:
 
     assert response.status_code == 400
     assert fresh(person).state == LegacyPersonState.LATER
+
+
+def served_decisions(person: LegacyPerson) -> list[str]:
+    response = APIClient()
+    response.force_authenticate(user=admin())
+    body = response.get(f"{PEOPLE}{person.pk}/").json()
+    decisions: list[str] = body["decisions"]
+    return decisions
+
+
+def test_each_person_says_what_can_be_decided_about_them_now() -> None:
+    ada_student = student(first_name="Ada", last_name="Park", current_rank=rank("BLUE"))
+    commit(ADA, only=["062025"])
+    ada = person_of("Ada Park")
+
+    assert served_decisions(ada) == ["LINK", "NOT_A_STUDENT", "LATER"]
+    later = leave_for_later(ada.pk, version=fresh(ada).version, actor=admin())
+    assert served_decisions(ada) == ["LINK", "NOT_A_STUDENT", "REOPEN"]
+    link_person(ada.pk, ada_student, version=later.version, actor=admin())
+    assert served_decisions(ada) == ["REOPEN"]
+    # A decision not offered is refused, as the list says.
+    with pytest.raises(ValidationError, match=REOPEN_FIRST_MESSAGE):
+        leave_for_later(ada.pk, version=fresh(ada).version, actor=admin())
+    with pytest.raises(ValidationError, match=REOPEN_FIRST_MESSAGE):
+        mark_not_a_student(
+            ada.pk, reason="LEFT", version=fresh(ada).version, actor=admin()
+        )
+
+    # A record that joins since waits for the same decision to be confirmed.
+    commit(ADA, only=["122025"])
+    assert served_decisions(ada) == ["CONFIRM_JOINED", "REOPEN"]
+    link_person(ada.pk, ada_student, version=fresh(ada).version, actor=admin())
+    assert served_decisions(ada) == ["REOPEN"]
+
+    reopen_person(ada.pk, version=fresh(ada).version, actor=admin())
+    mark_not_a_student(ada.pk, reason="LEFT", version=fresh(ada).version, actor=admin())
+    assert served_decisions(ada) == ["REOPEN"]
+    with pytest.raises(ValidationError, match=REOPEN_FIRST_MESSAGE):
+        link_person(ada.pk, ada_student, version=fresh(ada).version, actor=admin())

@@ -25,13 +25,12 @@ from accounts.people import title_of
 from audit.models import AuditAction
 from audit.recording import record, student_label
 from gradings.legacy_people import assign_people, refresh_people
-from gradings.locking import lock_student, lock_students
+from gradings.locking import lock_student
 from gradings.models import (
     LegacyGradingRecord,
     LegacyPerson,
     LegacyPersonState,
     LegacyRankField,
-    SetAsideName,
 )
 from students.models import STUDENT_DELETED_MESSAGE
 
@@ -217,61 +216,6 @@ def link_legacy_record_to_student(
 
 
 @transaction.atomic
-def bulk_link_legacy_records(
-    links: list[tuple[LegacyGradingRecord, Student]],
-    *,
-    actor: User,
-    replace: bool = False,
-) -> list[LegacyGradingRecord]:
-    """Link many records at once, all or nothing - each as
-    link_legacy_record_to_student would, with its own audit event.
-
-    Every student is locked first, then every record, each in ascending
-    order, so two bulk links cannot each wait on the other. A refusal names
-    the record (its id as the error key) and nothing is linked.
-    """
-    students = lock_students({student.pk for _, student in links})
-    person_of = _lock_people_of(record_.pk for record_, _ in links)
-    records: dict[int, LegacyGradingRecord] = {}
-    errors: dict[str, list[str]] = {}
-    for pk in sorted({record_.pk for record_, _ in links}):
-        try:
-            records[pk] = _locked(pk, person_of=person_of)
-        except LegacyGradingRecord.DoesNotExist:
-            errors[str(pk)] = ["This record no longer exists."]
-        except ValidationError as refused:
-            errors[str(pk)] = refused.messages
-    seen: dict[int, int] = {}
-    for record_, student in links:
-        if seen.setdefault(record_.pk, student.pk) != student.pk:
-            errors.setdefault(str(record_.pk), []).append(
-                "This record is given two different students.",
-            )
-        if student.pk not in students:
-            errors.setdefault(str(record_.pk), []).append(
-                "This student no longer exists.",
-            )
-    if errors:
-        raise ValidationError(errors)
-    linked: list[LegacyGradingRecord] = []
-    for record_, student in links:
-        try:
-            linked.append(
-                _link(
-                    records[record_.pk],
-                    students[student.pk],
-                    actor=actor,
-                    replace=replace,
-                ),
-            )
-        except ValidationError as refused:
-            errors.setdefault(str(record_.pk), []).extend(refused.messages)
-    if errors:
-        raise ValidationError(errors)
-    return linked
-
-
-@transaction.atomic
 def unlink_legacy_record_from_student(
     record_: LegacyGradingRecord,
     *,
@@ -303,43 +247,6 @@ def _unlink(locked: LegacyGradingRecord, *, actor: User) -> LegacyGradingRecord:
         },
     )
     return locked
-
-
-@transaction.atomic
-def bulk_unlink_legacy_records(
-    record_ids: list[int],
-    *,
-    actor: User,
-) -> list[LegacyGradingRecord]:
-    """Unlink many records at once, all or nothing - the undo of a bulk link,
-    each record with its own audit event as unlink_legacy_record_from_student
-    would write.
-
-    The records are locked in ascending order, as a bulk link locks them. A
-    refusal names the record (its id as the error key) and nothing is unlinked.
-    """
-    person_of = _lock_people_of(record_ids)
-    records: dict[int, LegacyGradingRecord] = {}
-    errors: dict[str, list[str]] = {}
-    for pk in sorted(set(record_ids)):
-        try:
-            records[pk] = _locked(pk, person_of=person_of)
-        except LegacyGradingRecord.DoesNotExist:
-            errors[str(pk)] = ["This record no longer exists."]
-            continue
-        except ValidationError as refused:
-            errors[str(pk)] = refused.messages
-            continue
-        if records[pk].student_id is None:
-            errors[str(pk)] = [NOT_LINKED_MESSAGE]
-            continue
-        try:
-            _refuse_if_decided(records[pk])
-        except ValidationError as refused:
-            errors[str(pk)] = refused.messages
-    if errors:
-        raise ValidationError(errors)
-    return [_unlink(records[pk], actor=actor) for pk in sorted(records)]
 
 
 @transaction.atomic
@@ -474,24 +381,3 @@ def void_legacy_records_from(
         )
     refresh_people(record_.person_id for record_ in records)
     return len(records)
-
-
-def set_aside_keys(user: User) -> list[str]:
-    """The names this person has put aside on the linking page."""
-    return list(
-        SetAsideName.objects.filter(user=user).values_list("group_key", flat=True),
-    )
-
-
-def set_aside_names(user: User, keys: Sequence[str]) -> list[str]:
-    """Put names aside for now. A name already aside stays as it was."""
-    SetAsideName.objects.bulk_create(
-        [SetAsideName(user=user, group_key=key) for key in dict.fromkeys(keys)],
-        ignore_conflicts=True,
-    )
-    return set_aside_keys(user)
-
-
-def put_back_name(user: User, key: str) -> None:
-    """Return a name put aside to the list still to link."""
-    SetAsideName.objects.filter(user=user, group_key=key).delete()

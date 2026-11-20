@@ -17,15 +17,14 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Protocol
 
 from django.db import models
 
-from gradings.models import SHEET_NOTE_NAME, LegacyGradingRecord, LegacyOutcome
-from kukgrade.search import apply_search
-from ranks.matching import RANK_TITLES, active_rank_lookup, rank_for_text
+from gradings.models import LegacyOutcome
+from ranks.matching import RANK_TITLES
 from ranks.models import Rank
 from students.models import Student
 
@@ -43,10 +42,6 @@ def name_tokens(name: str) -> list[str]:
     while words and words[0] in RANK_TITLES:
         words.pop(0)
     return words
-
-
-def group_key(name: str) -> str:
-    return " ".join(name_tokens(name))
 
 
 def _close(a: str, b: str) -> bool:
@@ -157,70 +152,6 @@ class Candidate:
     rank_fits: bool | None = None
 
 
-@dataclass
-class PersonGroup:
-    """The records that name one person the same way."""
-
-    key: str
-    source_name: str
-    records: list[LegacyGradingRecord] = field(default_factory=list)
-    candidates: list[Candidate] = field(default_factory=list)
-
-    @property
-    def shared(self) -> bool:
-        """Several students fit equally well: a person has to choose."""
-        if len(self.candidates) < 2:
-            return False
-        return self.candidates[0].score == self.candidates[1].score
-
-    @property
-    def suggestion(self) -> Suggestion:
-        """How clear the suggestion is: one student, a choice, or none."""
-        return suggestion_for(self.candidates)
-
-    @property
-    def needs_rank(self) -> bool:
-        """Whether a rank is written on a record but not matched to one yet."""
-        return any(record.needs_rank for record in self.records)
-
-    @property
-    def first_period(self) -> str:
-        """The earliest record's year and month, as "2025-03"."""
-        return self._periods()[0]
-
-    @property
-    def last_period(self) -> str:
-        return self._periods()[-1]
-
-    def _periods(self) -> list[str]:
-        return sorted(
-            f"{record.cycle_year}-{record.cycle_month:02d}" for record in self.records
-        )
-
-    @property
-    def ranks_written(self) -> list[str]:
-        """Each distinct "held → testing for" the records write, oldest first."""
-        written: list[str] = []
-        for record in sorted(
-            self.records,
-            key=lambda r: (r.cycle_year, r.cycle_month, r.pk),
-        ):
-            held = record.source_current_rank_text
-            testing = record.source_testing_for_rank_text
-            text = f"{held or '(blank)'} → {testing}" if testing else held
-            if text and text not in written:
-                written.append(text)
-        return written
-
-    @property
-    def linked_student(self) -> Student | None:
-        """The one student every record here is linked to, if there is one."""
-        students = {record.student_id for record in self.records}
-        if len(students) == 1 and None not in students:
-            return self.records[0].student
-        return None
-
-
 class RankLike(Protocol):
     """A rank as the matching needs it: a Rank, or one in a migration."""
 
@@ -241,26 +172,6 @@ def leaves_at[R: RankLike](
     if outcome == LegacyOutcome.PASS and testing is not None:
         return testing
     return held
-
-
-def _rank_then(
-    group: PersonGroup,
-    ranks: dict[str, Rank],
-) -> Rank | None:
-    """The highest rank the records show this person reached, resolved or as
-    written."""
-    found: list[Rank] = []
-    for record in group.records:
-        reached = leaves_at(
-            record.outcome,
-            record.current_rank
-            or rank_for_text(record.source_current_rank_text, ranks),
-            record.testing_for_rank
-            or rank_for_text(record.source_testing_for_rank_text, ranks),
-        )
-        if reached is not None:
-            found.append(reached)
-    return max(found, key=lambda rank: rank.order, default=None)
 
 
 def score_student(
@@ -323,39 +234,6 @@ def score_student(
     )
 
 
-def group_records(records: Iterable[LegacyGradingRecord]) -> list[PersonGroup]:
-    """Group in stable name order, without doing suggestion work."""
-    groups: dict[str, PersonGroup] = {}
-    for record in records:
-        if record.is_void or record.source_name == SHEET_NOTE_NAME:
-            continue
-        key = group_key(record.source_name)
-        if not key:
-            continue
-        group = groups.setdefault(
-            key, PersonGroup(key=key, source_name=record.source_name)
-        )
-        group.records.append(record)
-
-    return sorted(groups.values(), key=lambda group: group.key)
-
-
-def suggest_for_groups(
-    groups: Iterable[PersonGroup],
-    students: Iterable[Student] | None = None,
-) -> None:
-    """Score only the groups the caller will actually show."""
-
-    pool = StudentPool(students if students is not None else student_pool())
-    ranks = active_rank_lookup()
-    for group in groups:
-        group.candidates = best_candidates(
-            name_tokens(group.source_name),
-            _rank_then(group, ranks),
-            pool,
-        )
-
-
 def student_pool() -> list[Student]:
     """Every student a record could be about, read once for many names."""
     return list(
@@ -406,46 +284,3 @@ def best_candidates(
     ]
     scored.sort(key=lambda candidate: (-candidate.score, candidate.student.pk))
     return scored[:_SHOWN]
-
-
-# How the people list narrows to the names a viewer has put aside for now.
-SET_ASIDE_CHOICES = ("exclude", "only")
-
-
-def people_groups(
-    records: models.QuerySet[LegacyGradingRecord],
-    *,
-    search_term: str = "",
-    suggestion: str = "",
-    set_aside: str = "",
-    aside: Iterable[str] = (),
-) -> list[PersonGroup]:
-    """The people a set of records is about: grouped by the name as written,
-    then narrowed - to the names put aside for now (`aside`) or all but them,
-    to the names a search finds, and to how clear their suggested students
-    are. A person is kept whole: one record a search finds keeps the group.
-
-    A value no group can match (an unknown suggestion, say) matches none, as
-    on every list. Suggestions are scored only when they narrow the list; the
-    people list scores the page it shows.
-    """
-    if set_aside and set_aside not in SET_ASIDE_CHOICES:
-        return []
-    if suggestion and suggestion not in Suggestion.values:
-        return []
-    groups = group_records(records.order_by("pk"))
-    if set_aside:
-        kept = set(aside)
-        groups = [g for g in groups if (g.key in kept) == (set_aside == "only")]
-    if search_term.strip():
-        found = set(
-            apply_search(records, search_term, ("source_name",)).values_list(
-                "pk",
-                flat=True,
-            ),
-        )
-        groups = [g for g in groups if any(r.pk in found for r in g.records)]
-    if suggestion:
-        suggest_for_groups(groups)
-        groups = [group for group in groups if group.suggestion == suggestion]
-    return groups

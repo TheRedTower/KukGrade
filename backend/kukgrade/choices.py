@@ -29,6 +29,7 @@ from gradings.models import (
     GradingOutcome,
     GradingSessionStatus,
     ItemResult,
+    LegacyNotAStudentReason,
     WithdrawalReason,
 )
 from kukgrade.serializers import ChoiceSerializer
@@ -55,6 +56,13 @@ class AuthorityChoiceSerializer(ChoiceSerializer):
     description = serializers.CharField()
 
 
+class NotAStudentReasonChoiceSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=LegacyNotAStudentReason.choices)
+    note_required = serializers.BooleanField(
+        help_text="Whether marking someone not a student for this reason must say why.",
+    )
+
+
 class WithdrawalReasonChoiceSerializer(ChoiceSerializer):
     value = serializers.ChoiceField(choices=WithdrawalReason.choices)
     note_required = serializers.BooleanField(
@@ -79,6 +87,13 @@ class ChoicesSerializer(serializers.Serializer):
     withdrawal_reasons = WithdrawalReasonChoiceSerializer(
         many=True,
         help_text="Why a candidate may be withdrawn, in the order the controls offer.",
+    )
+    not_a_student_reasons = NotAStudentReasonChoiceSerializer(
+        many=True,
+        help_text=(
+            "Why someone in the imported history is not a current student, in "
+            "the order the controls offer."
+        ),
     )
     outcomes = _of("Outcome", GradingOutcome)(
         many=True,
@@ -132,6 +147,14 @@ def choices(_request: Request) -> Response:
                         "note_required": choice["value"] == WithdrawalReason.OTHER,
                     }
                     for choice in _listed(WithdrawalReason)
+                ],
+                "not_a_student_reasons": [
+                    {
+                        **choice,
+                        "note_required": choice["value"]
+                        == LegacyNotAStudentReason.OTHER,
+                    }
+                    for choice in _listed(LegacyNotAStudentReason)
                 ],
                 "outcomes": _listed(GradingOutcome),
                 "import_kinds": _listed(ImportBatch.Kind),

@@ -392,6 +392,58 @@ def test_a_name_written_twice_can_be_kept_and_both_rows_come_in() -> None:
     assert LegacyGradingRecord.objects.filter(source_name="Ed Hart").count() == 2
 
 
+def test_keeping_as_written_brings_back_the_row_the_check_left_out() -> None:
+    batch = uploaded()
+    twice = check(batch, CheckKind.WRITTEN_TWICE).key
+    no_outcome = check(batch, CheckKind.NO_OUTCOME).key
+    resolve_legacy_check(
+        batch, key=twice, decision=CheckDecision.LEAVE_OUT, row_number=6
+    )
+    resolve_legacy_check(
+        batch, key=no_outcome, decision=CheckDecision.LEAVE_OUT, row_number=7
+    )
+
+    kept = resolve_legacy_check(batch, key=twice, decision=CheckDecision.KEEP)
+    resolve_legacy_check(batch, key=no_outcome, decision=CheckDecision.KEEP)
+
+    assert (kept.decision, kept.rows_to_leave_out) == (CheckDecision.KEEP, [5, 6])
+    assert check(batch, CheckKind.NO_OUTCOME).decision == CheckDecision.KEEP
+    assert not ImportRow.objects.filter(batch=batch, excluded=True).exists()
+    commit_legacy_grading_import(batch, actor=admin())
+    assert LegacyGradingRecord.objects.filter(source_name="Ed Hart").count() == 2
+    assert LegacyGradingRecord.objects.filter(source_name="Fay Dunn").exists()
+
+
+def test_leaving_out_the_other_row_instead_brings_the_first_back() -> None:
+    batch = uploaded()
+    key = check(batch, CheckKind.WRITTEN_TWICE).key
+    resolve_legacy_check(batch, key=key, decision=CheckDecision.LEAVE_OUT, row_number=6)
+
+    after = resolve_legacy_check(
+        batch, key=key, decision=CheckDecision.LEAVE_OUT, row_number=5
+    )
+
+    assert (after.decision, after.rows_to_leave_out) == (CheckDecision.LEAVE_OUT, [6])
+    assert list(
+        ImportRow.objects.filter(batch=batch, excluded=True).values_list(
+            "row_number", flat=True
+        ),
+    ) == [5]
+
+
+def test_a_row_left_out_from_the_rows_list_stays_out_when_its_check_is_kept() -> None:
+    batch = uploaded()
+    set_import_row_excluded(batch, row_number=6, excluded=True)
+
+    resolve_legacy_check(
+        batch,
+        key=check(batch, CheckKind.WRITTEN_TWICE).key,
+        decision=CheckDecision.KEEP,
+    )
+
+    assert ImportRow.objects.get(batch=batch, row_number=6).excluded
+
+
 def test_names_alike_that_chain_are_one_check_and_stay_open_while_two_remain() -> None:
     batch = uploaded(
         [
@@ -411,6 +463,20 @@ def test_names_alike_that_chain_are_one_check_and_stay_open_while_two_remain() -
     )
 
     assert (after.is_open, after.rows_to_leave_out) == (True, [1, 3])
+    # While still open, leaving out another adds to the first.
+    sorted_ = resolve_legacy_check(
+        batch,
+        key=found.key,
+        decision=CheckDecision.LEAVE_OUT,
+        row_number=3,
+    )
+    assert (sorted_.decision, sorted_.rows_to_leave_out) == (
+        CheckDecision.LEAVE_OUT,
+        [1],
+    )
+    # Keeping as written brings both back.
+    resolve_legacy_check(batch, key=found.key, decision=CheckDecision.KEEP)
+    assert not ImportRow.objects.filter(batch=batch, excluded=True).exists()
 
 
 def test_a_result_and_a_missing_entry_alike_are_a_check_of_their_own_kind() -> None:

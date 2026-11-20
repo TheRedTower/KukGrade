@@ -2129,15 +2129,39 @@ def resolve_legacy_check(
         if outcome not in LegacyOutcome.values:
             raise DjangoValidationError({"outcome": [CHOOSE_AN_OUTCOME]})
         readings[check.key.removeprefix(f"{CheckKind.OUTCOME}:")] = str(outcome)
-    elif decision == CheckDecision.LEAVE_OUT:
-        if row_number not in check.rows_to_leave_out:
-            raise DjangoValidationError({"row_number": [CHOOSE_A_ROW]})
+    # The rows this check left out. Keeping as written brings them back, and
+    # so does leaving out another once the check is sorted (one decision
+    # replacing another); while it is still open, leaving out adds to them.
+    # A row left out some other way (the rows list) stays out.
+    left_out = dict(configuration.checks_left_out)
+    by_check = left_out.pop(key, [])
+    replaced = decision == CheckDecision.KEEP or (
+        decision == CheckDecision.LEAVE_OUT
+        and check.decision == CheckDecision.LEAVE_OUT
+    )
+    restored = by_check if replaced else []
+    still_out = [] if replaced else by_check
+    if decision == CheckDecision.LEAVE_OUT and not (
+        row_number in check.rows_to_leave_out or row_number in restored
+    ):
+        raise DjangoValidationError({"row_number": [CHOOSE_A_ROW]})
+    if restored:
+        locked.rows.filter(row_number__in=restored, excluded=True).update(
+            excluded=False,
+            outcome=ImportRow.Outcome.READY,
+        )
+    if decision == CheckDecision.LEAVE_OUT:
+        assert row_number is not None
         locked.rows.filter(row_number=row_number).update(
             excluded=True,
             outcome=ImportRow.Outcome.EXCLUDED,
         )
-    else:
+        still_out.append(row_number)
+    elif decision == CheckDecision.KEEP:
         kept.append(key)
+    if still_out:
+        left_out[key] = still_out
+    configuration.checks_left_out = left_out
     configuration.checks_kept = kept
     configuration.rank_mappings = rank_mappings
     configuration.outcome_readings = readings

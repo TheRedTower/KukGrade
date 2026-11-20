@@ -91,6 +91,9 @@ class ImportConfiguration:
     rank_mappings = _Setting[dict[str, str]](dict)
     outcome_readings = _Setting[dict[str, str]](dict)
     checks_kept = _Setting[list[str]](list)
+    # The rows each check's decision left out, by key, so a later decision
+    # replacing it can bring them back.
+    checks_left_out = _Setting[dict[str, list[int]]](dict)
 
     def __init__(self, stored: dict[str, Any]) -> None:
         self.stored = stored

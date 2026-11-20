@@ -101,7 +101,7 @@ KukGrade:
 
   One decision covers every row that writes a spelling the same way. A rank or
   outcome KukGrade reads is taken as read, with nothing to confirm; a later decision
-  replaces an earlier one. The workbook's text is always kept as written: a chosen rank
+  replaces an earlier one, so keeping as written brings back a row the check left out. The workbook's text is always kept as written: a chosen rank
   or a reading is applied when the records are saved. Nothing is guessed, and nothing
   to check stops the import.
 - A month stays a month: an exact day is never invented.

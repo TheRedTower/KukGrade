@@ -6,6 +6,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.people import named
+from data_imports.legacy_checks import CheckDecision, CheckKind, LegacyCheck
 from data_imports.mappings import (
     STUDENT_FIELD_LABELS,
     STUDENT_OPTIONAL_FIELDS,
@@ -28,6 +29,7 @@ from data_imports.services import (
     roster_file_values,
     uncovered_fields,
 )
+from gradings.models import LegacyOutcome
 from kukgrade.serializers import ModelSerializer
 
 NOTHING_TO_CHANGE_MESSAGE = "Give at least one field to change."
@@ -450,6 +452,106 @@ class LegacySheetChoiceSerializer(serializers.Serializer):
         allow_empty=True,
         help_text="Every sheet to bring in, by name; the others are left out.",
     )
+
+
+# The rows a check lists; row_count says how many it is about.
+CHECK_ROWS_SHOWN = 50
+
+
+class LegacyCheckSerializer(serializers.Serializer):
+    """One thing to check in a historical import, and where it stands."""
+
+    key = serializers.CharField(
+        help_text="Names the check for a decision (checks/resolve/).",
+    )
+    kind = serializers.ChoiceField(choices=CheckKind.choices)
+    kind_display = serializers.SerializerMethodField()
+    message = serializers.CharField(help_text="What to check, in plain words.")
+    text = serializers.CharField(
+        allow_blank=True,
+        help_text="The rank or outcome as the workbook writes it; blank otherwise.",
+    )
+    suggested_rank_code = serializers.CharField(
+        allow_null=True,
+        help_text="A rank marked “?”: the rank it reads as, to offer first.",
+    )
+    is_open = serializers.BooleanField(help_text="Nothing is decided yet.")
+    decision = serializers.ChoiceField(
+        choices=CheckDecision.choices,
+        allow_null=True,
+    )
+    decision_display = serializers.SerializerMethodField()
+    rank_code = serializers.CharField(
+        allow_null=True,
+        help_text="The rank chosen for the spelling.",
+    )
+    outcome = serializers.ChoiceField(
+        choices=LegacyOutcome.choices,
+        allow_null=True,
+        help_text="What the outcome was read as.",
+    )
+    row_count = serializers.SerializerMethodField(
+        help_text="The rows it is about.",
+    )
+    rows = serializers.SerializerMethodField(
+        help_text=(
+            f"The rows it is about, in file order (the first {CHECK_ROWS_SHOWN})."
+        ),
+    )
+    rows_to_leave_out = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="The rows, by number, that leaving one out may choose from.",
+    )
+
+    def get_kind_display(self, check: LegacyCheck) -> str:
+        return CheckKind(check.kind).label
+
+    def get_decision_display(self, check: LegacyCheck) -> str | None:
+        return CheckDecision(check.decision).label if check.decision else None
+
+    def get_row_count(self, check: LegacyCheck) -> int:
+        return len(check.rows)
+
+    @extend_schema_field(ImportRowSerializer(many=True))
+    def get_rows(self, check: LegacyCheck) -> list[dict[str, Any]]:
+        rows = ImportRowSerializer(
+            check.rows[:CHECK_ROWS_SHOWN],
+            many=True,
+            context={"kind": ImportBatch.Kind.LEGACY_GRADINGS},
+        )
+        return list(rows.data)
+
+
+class LegacyCheckKindCountSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=CheckKind.choices)
+    kind_display = serializers.CharField()
+    checks = serializers.IntegerField()
+    open = serializers.IntegerField(help_text="Of them, those not decided yet.")
+
+
+class LegacyChecksSummarySerializer(serializers.Serializer):
+    """How many things there are to check, and how many are still open,
+    in all and of each kind (every kind, in the order the list shows)."""
+
+    checks = serializers.IntegerField()
+    open = serializers.IntegerField()
+    kinds = LegacyCheckKindCountSerializer(many=True)
+
+
+class LegacyCheckDecisionSerializer(serializers.Serializer):
+    """POST /{id}/checks/resolve/: one decision about one check. RANK needs
+    rank_code, OUTCOME needs outcome, LEAVE_OUT needs row_number (one of the
+    check's rows_to_leave_out); KEEP needs nothing."""
+
+    key = serializers.CharField(max_length=2000)
+    decision = serializers.ChoiceField(choices=CheckDecision.choices)
+    rank_code = serializers.CharField(required=False, allow_null=True)
+    outcome = serializers.ChoiceField(
+        choices=LegacyOutcome.choices,
+        required=False,
+        allow_null=True,
+    )
+    row_number = serializers.IntegerField(required=False, allow_null=True)
 
 
 class ImportRecordsVoidSerializer(serializers.Serializer):

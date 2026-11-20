@@ -1668,9 +1668,10 @@ class LegacyGradingRecord(KeptModel):
     )
 
     source_outcome_text = models.CharField(max_length=200, blank=True)
-    # Deterministic Pass/Fail/Conditional mappings only -
-    # never set from free-form/uncertain source text, so unlike
-    # current_rank/testing_for_rank this has no separate admin-resolution
+    # Pass/Fail/Conditional: the word the workbook writes, or for words
+    # KukGrade does not know, what the importer read them as before saving
+    # (data_imports.legacy_checks) - never guessed. Set once at import, so
+    # unlike current_rank/testing_for_rank this has no admin-resolution
     # service and is immutable alongside the other source-derived fields.
     outcome = models.CharField(  # noqa: DJ001
         max_length=16,

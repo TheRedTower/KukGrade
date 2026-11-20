@@ -121,7 +121,8 @@ def test_each_spelling_says_the_rank_chosen_for_it_however_it_was_written() -> N
     ("text", "code", "doubtful"),
     [
         # How the club's workbook writes them (2026-10-20): fixed spellings,
-        # suggested only - nothing is applied until the importer chooses.
+        # read as written - except one the workbook marks with "?", which
+        # waits for the importer (data_imports.legacy_checks).
         ("Yellow Belt", "YELLOW", False),
         ("red belt", "RED", False),
         ("DBN", "DAHN_BO", False),
@@ -143,8 +144,8 @@ def test_the_workbooks_own_spellings_are_suggested(
     [suggestion] = preview.rank_suggestions
     assert (suggestion.suggested_rank_code, suggestion.doubtful) == (code, doubtful)
     assert suggestion.rows == 1
-    # Suggested, not applied: the row's rank stays unresolved until chosen.
-    assert preview.unresolved_current_rank == 1
+    # Read as suggested, unless the workbook doubts it: then it waits.
+    assert preview.unresolved_current_rank == (1 if doubtful else 0)
 
 
 def test_preview_leaves_an_unmatched_rank_text_unsuggested() -> None:
@@ -160,17 +161,18 @@ def test_preview_leaves_an_unmatched_rank_text_unsuggested() -> None:
 
 def test_preview_counts_unresolved_ranks_until_a_mapping_is_supplied() -> None:
     content = standard_workbook(
-        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
+        [["A. Example", "Yelow Belt", "Blue Stripe", "Pass", ""]],
     )
     batch = legacy_batch(content)
 
+    # A spelling KukGrade cannot read waits for a choice.
     unmapped = preview_legacy_grading_import(batch)
     assert unmapped.unresolved_current_rank == 1
 
     yellow = rank("YELLOW")
     mapped = preview_legacy_grading_import(
         batch,
-        rank_mappings={"Yellow Belt": yellow.code},
+        rank_mappings={"Yelow Belt": yellow.code},
     )
     assert mapped.unresolved_current_rank == 0
 
@@ -239,7 +241,8 @@ def test_commit_creates_one_legacy_record_per_row() -> None:
     assert record.source_name == "A. Example"
     assert record.outcome == LegacyOutcome.PASS
     assert record.comments == "Nice form"
-    assert record.current_rank is None  # no mapping supplied
+    # No choice made: read as KukGrade reads the spelling.
+    assert record.current_rank == rank("YELLOW")
     import_event = AuditEvent.objects.get(
         action=AuditAction.IMPORT_BATCH_COMMITTED,
         entity_type="ImportBatch",
@@ -256,16 +259,17 @@ def test_commit_applies_the_saved_rank_choices() -> None:
         [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
     )
     batch = legacy_batch(content, uploaded_by=admin)
-    yellow = rank("YELLOW")
+    # A choice wins over how KukGrade reads the spelling.
+    stripe = rank("YELLOW_STRIPE")
 
-    preview_legacy_grading_import(batch, rank_mappings={"Yellow Belt": yellow.code})
+    preview_legacy_grading_import(batch, rank_mappings={"Yellow Belt": stripe.code})
     commit_legacy_grading_import(batch, actor=admin)
 
     record = LegacyGradingRecord.objects.get(source_batch=batch)
-    assert record.current_rank_id == yellow.pk
+    assert record.current_rank_id == stripe.pk
     assert record.source_current_rank_text == "Yellow Belt"
-    # Left unresolved since no mapping was supplied for it.
-    assert record.testing_for_rank is None
+    # No choice for it: read as written.
+    assert record.testing_for_rank == rank("BLUE_STRIPE")
     assert record.source_testing_for_rank_text == "Blue Stripe"
 
 

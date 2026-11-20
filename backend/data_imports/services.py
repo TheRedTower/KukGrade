@@ -41,6 +41,16 @@ from data_imports.ksw_adapter import (
     parse_ksw_workbook,
     workbook_checks,
 )
+from data_imports.legacy_checks import (
+    DECISIONS,
+    CheckDecision,
+    CheckKind,
+    LegacyCheck,
+    legacy_checks,
+    outcome_reader,
+    outcome_unread,
+    rank_reader,
+)
 from data_imports.mappings import (
     EXTRA_LABEL_MAX_LENGTH,
     STUDENT_FIELD_LABELS,
@@ -72,6 +82,7 @@ from gradings.legacy_services import (
 )
 from gradings.models import (
     LegacyGradingRecord,
+    LegacyOutcome,
     LegacyRecordKind,
     legacy_content_key,
 )
@@ -1329,6 +1340,13 @@ def set_import_row_excluded(
     row.save(update_fields=["excluded", "outcome"])
     # Every row again: a row left out, or back, can end or make a repeat.
     if locked.kind == ImportBatch.Kind.LEGACY_GRADINGS:
+        # Left out or brought back here, the row is no check's to undo.
+        configuration = locked.configuration
+        configuration.checks_left_out = _disowned(
+            configuration.checks_left_out,
+            [row_number],
+        )
+        locked.save(update_fields=["configuration_json", "updated_at"])
         _classify_legacy(locked)
     elif locked.configuration.column_mapping:
         _classify_roster(locked)
@@ -1681,23 +1699,15 @@ def _rank_unresolved(text: str, resolve: Callable[[str], Rank | None]) -> bool:
     return bool(text.strip()) and resolve(text) is None
 
 
-def _outcome_unresolved(row: CanonicalLegacyRow) -> bool:
-    """A grading result whose written outcome KukGrade does not know."""
-    return (
-        row.record_kind == LegacyRecordKind.GRADING_RESULT
-        and bool(row.source_outcome_text.strip())
-        and row.outcome is None
-    )
-
-
 def _legacy_issue_finder(
-    normalised_mappings: dict[str, str],
+    configuration: ImportConfiguration,
     checks: dict[str, list[str]],
 ) -> Callable[[CanonicalLegacyRow], list[str]]:
     """Why a historical record is worth a look before importing. None of it
     stops the import: every record is kept exactly as the workbook has it.
     `checks` is what the workbook itself shows (workbook_checks), by locator."""
-    resolve = _rank_resolver(normalised_mappings)
+    resolve = rank_reader(configuration)
+    read_outcome = outcome_reader(configuration)
     ranks = active_rank_lookup()
 
     def issues(row: CanonicalLegacyRow) -> list[str]:
@@ -1708,7 +1718,7 @@ def _legacy_issue_finder(
                 found.append(f"The workbook marks rank {text!r} as uncertain.")
             if _rank_unresolved(text, resolve):
                 found.append(f"Rank {text!r} is not matched to a KukGrade rank yet.")
-        if _outcome_unresolved(row):
+        if outcome_unread(row) and read_outcome(row) is None:
             outcome_text = row.source_outcome_text.strip()
             found.append(f"Outcome {outcome_text!r} is not one KukGrade knows.")
         found.extend(checks.get(row.source_locator, []))
@@ -1758,7 +1768,7 @@ def _classify_legacy(locked: ImportBatch) -> None:
         else:
             outcomes.append(ImportRow.Outcome.READY)
     issues = _legacy_issue_finder(
-        locked.configuration.rank_mappings,
+        locked.configuration,
         workbook_checks(
             row
             for row, outcome in zip(canonical, outcomes, strict=True)
@@ -1852,27 +1862,6 @@ def _normalise_rank_mappings(
     }
 
 
-def _rank_resolver(
-    normalised_mappings: dict[str, str],
-) -> Callable[[str], Rank | None]:
-    """Source rank text -> the administrator's chosen active Rank, if any."""
-    ranks_by_code = {
-        rank.code: rank
-        for rank in Rank.objects.filter(
-            code__in=set(normalised_mappings.values()),
-            active=True,
-        )
-    }
-
-    def resolve(text: str) -> Rank | None:
-        cleaned = text.strip()
-        if not cleaned:
-            return None
-        return ranks_by_code.get(normalised_mappings.get(cleaned.lower(), ""))
-
-    return resolve
-
-
 def _sheets_left_out(locked: ImportBatch) -> list[str]:
     """A line for each grading sheet not chosen, saying why it may not be."""
     lines: list[str] = []
@@ -1951,7 +1940,7 @@ def preview_legacy_grading_import(
     # Every preview, since what earlier imports hold can change between two.
     _classify_legacy(locked)
     rows = [row for _, row in _stored_legacy_rows(locked)]
-    resolve = _rank_resolver(locked.configuration.rank_mappings)
+    resolve = rank_reader(locked.configuration)
 
     suggestions = []
     ranks = active_rank_lookup()
@@ -2036,7 +2025,8 @@ def commit_legacy_grading_import(
     _require_legacy(locked)
     _lock_historical_commits()
     _classify_legacy(locked)
-    resolve = _rank_resolver(locked.configuration.rank_mappings)
+    resolve = rank_reader(locked.configuration)
+    read_outcome = outcome_reader(locked.configuration)
     stored_rows = _stored_legacy_rows(locked)
     if not stored_rows:
         raise DjangoValidationError({"batch": [NOTHING_TO_IMPORT]})
@@ -2053,10 +2043,14 @@ def commit_legacy_grading_import(
         current_rank = resolve(row.source_current_rank_text)
         testing_for_rank = resolve(row.source_testing_for_rank_text)
         # A row's fields are the record's, as the workbook has them, with the
-        # ranks chosen for its spellings.
+        # ranks its spellings are read as and its outcome as read.
         fields.append(
             asdict(row)
-            | {"current_rank": current_rank, "testing_for_rank": testing_for_rank},
+            | {
+                "current_rank": current_rank,
+                "testing_for_rank": testing_for_rank,
+                "outcome": read_outcome(row),
+            },
         )
         counts[row.record_kind] = counts.get(row.record_kind, 0) + 1
         if _rank_unresolved(row.source_current_rank_text, resolve):
@@ -2092,3 +2086,112 @@ def commit_legacy_grading_import(
         record_count=len(stored_rows),
         what="historical record(s)",
     )
+
+
+CHECK_GONE = (
+    "This is no longer something to check in the import. Look at the list again."
+)
+CHECK_DECISION_REFUSED = "This can't be sorted that way."
+CHOOSE_A_RANK = "Choose one of KukGrade's ranks."
+CHOOSE_AN_OUTCOME = "Choose Pass, Fail or Conditional."
+CHOOSE_A_ROW = "Choose one of this check's rows still in the import."
+
+
+@transaction.atomic
+def resolve_legacy_check(
+    batch: ImportBatch,
+    *,
+    key: str,
+    decision: str,
+    rank_code: str | None = None,
+    outcome: str | None = None,
+    row_number: int | None = None,
+) -> LegacyCheck | None:
+    """Decide one check of a historical import (data_imports.legacy_checks):
+    choose a rank for a spelling, read an outcome, leave a row out, or keep
+    what is written. A later decision replaces an earlier one. The check is
+    found again against the rows as they are now, so a stale screen's check
+    is refused, and the check is served as it stands after: None when
+    deciding it ends it (a row brought back that KukGrade already holds)."""
+    locked = _lock_uncommitted(batch, "changed")
+    _require_legacy(locked)
+    _classify_legacy(locked)
+    check = next((found for found in legacy_checks(locked) if found.key == key), None)
+    if check is None:
+        raise DjangoValidationError({"key": [CHECK_GONE]})
+    if decision not in DECISIONS[check.kind]:
+        raise DjangoValidationError({"decision": [CHECK_DECISION_REFUSED]})
+    configuration = locked.configuration
+    kept = [other for other in configuration.checks_kept if other != key]
+    rank_mappings = dict(configuration.rank_mappings)
+    readings = dict(configuration.outcome_readings)
+    if check.kind == CheckKind.RANK:
+        rank_mappings.pop(check.text.lower(), None)
+    if check.kind == CheckKind.OUTCOME:
+        readings.pop(check.key.removeprefix(f"{CheckKind.OUTCOME}:"), None)
+    if decision == CheckDecision.RANK:
+        if not Rank.objects.filter(code=rank_code or "", active=True).exists():
+            raise DjangoValidationError({"rank_code": [CHOOSE_A_RANK]})
+        rank_mappings[check.text.lower()] = str(rank_code)
+    elif decision == CheckDecision.OUTCOME:
+        if outcome not in LegacyOutcome.values:
+            raise DjangoValidationError({"outcome": [CHOOSE_AN_OUTCOME]})
+        readings[check.key.removeprefix(f"{CheckKind.OUTCOME}:")] = str(outcome)
+    # The rows this check left out. Keeping as written brings them back, and
+    # so does leaving out another once the check is sorted (one decision
+    # replacing another); while it is still open, leaving out adds to them.
+    # A row left out some other way (the rows list) stays out. A row is the
+    # last decision's to undo: leaving it out takes it from any other check.
+    left_out = dict(configuration.checks_left_out)
+    by_check = left_out.pop(key, [])
+    replaced = decision == CheckDecision.KEEP or (
+        decision == CheckDecision.LEAVE_OUT
+        and check.decision == CheckDecision.LEAVE_OUT
+    )
+    restored = by_check if replaced else []
+    still_out = [] if replaced else by_check
+    if decision == CheckDecision.LEAVE_OUT and not (
+        row_number in check.rows_to_leave_out or row_number in restored
+    ):
+        raise DjangoValidationError({"row_number": [CHOOSE_A_ROW]})
+    if restored:
+        locked.rows.filter(row_number__in=restored, excluded=True).update(
+            excluded=False,
+            outcome=ImportRow.Outcome.READY,
+        )
+    if decision == CheckDecision.LEAVE_OUT:
+        assert row_number is not None
+        locked.rows.filter(row_number=row_number).update(
+            excluded=True,
+            outcome=ImportRow.Outcome.EXCLUDED,
+        )
+        left_out = _disowned(left_out, [row_number])
+        still_out.append(row_number)
+    elif decision == CheckDecision.KEEP:
+        kept.append(key)
+    if still_out:
+        left_out[key] = still_out
+    configuration.checks_left_out = left_out
+    configuration.checks_kept = kept
+    configuration.rank_mappings = rank_mappings
+    configuration.outcome_readings = readings
+    locked.save(update_fields=["configuration_json", "updated_at"])
+    # Every row again: a rank read, an outcome read or a row left out can
+    # end a reason to look, or a repeat.
+    _classify_legacy(locked)
+    # None when the check is gone: a row brought back is already held, say.
+    return next((found for found in legacy_checks(locked) if found.key == key), None)
+
+
+def _disowned(
+    left_out: dict[str, list[int]],
+    row_numbers: Iterable[int],
+) -> dict[str, list[int]]:
+    """`left_out` (ImportConfiguration.checks_left_out) with these rows no
+    check's to bring back: they were left out, or brought back, since."""
+    rows = set(row_numbers)
+    return {
+        key: kept_out
+        for key, by_check in left_out.items()
+        if (kept_out := [number for number in by_check if number not in rows])
+    }

@@ -698,6 +698,124 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/data-imports/batches/{id}/checks/:
+    get:
+      operationId: data_imports_batches_checks_list
+      description: |-
+        A historical import's things to check before it is saved - the
+        exceptions only, in the order of their kinds - a page at a time.
+        A kind or an open value no check can have matches none.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - name: kind
+        required: false
+        in: query
+        description: Only checks of this kind.
+        schema:
+          type: string
+          enum:
+          - RANK
+          - OUTCOME
+          - WRITTEN_TWICE
+          - MISSING_AND_GRADED
+          - NO_OUTCOME
+          - NO_RANK
+      - name: open
+        required: false
+        in: query
+        description: Only checks not decided yet (true), or only those decided (false).
+        schema:
+          type: boolean
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLegacyCheckList'
+          description: ''
+  /api/data-imports/batches/{id}/checks/resolve/:
+    post:
+      operationId: data_imports_batches_checks_resolve_create
+      description: |-
+        Decide one check: a rank chosen, an outcome read, a row left out,
+        or what is written kept. A later decision replaces an earlier one.
+        Served back as it stands, or 204 when deciding it ended it (a row
+        brought back that KukGrade already holds).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LegacyCheckDecisionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LegacyCheckDecisionRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyCheckDecisionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyCheck'
+          description: ''
+        '204':
+          description: No response body
+  /api/data-imports/batches/{id}/checks/summary/:
+    get:
+      operationId: data_imports_batches_checks_summary_retrieve
+      description: How many things there are to check, and how many are still open.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyChecksSummary'
+          description: ''
   /api/data-imports/batches/{id}/commit/:
     post:
       operationId: data_imports_batches_commit_create
@@ -6684,6 +6802,176 @@ components:
       description: |-
         * `STUDENT_ROSTER` - Students
         * `LEGACY_GRADINGS` - Past gradings
+    LegacyCheck:
+      type: object
+      description: One thing to check in a historical import, and where it stands.
+      properties:
+        key:
+          type: string
+          description: Names the check for a decision (checks/resolve/).
+        kind:
+          $ref: '#/components/schemas/LegacyCheckKindEnum'
+        kind_display:
+          type: string
+          readOnly: true
+        message:
+          type: string
+          description: What to check, in plain words.
+        text:
+          type: string
+          description: The rank or outcome as the workbook writes it; blank otherwise.
+        suggested_rank_code:
+          type: string
+          nullable: true
+          description: 'A rank marked “?”: the rank it reads as, to offer first.'
+        is_open:
+          type: boolean
+          description: Nothing is decided yet.
+        decision:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/LegacyCheckDecisionEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        decision_display:
+          type: string
+          nullable: true
+          readOnly: true
+        rank_code:
+          type: string
+          nullable: true
+          description: The rank chosen for the spelling.
+        outcome:
+          nullable: true
+          description: |-
+            What the outcome was read as.
+
+            * `PASS` - Pass
+            * `FAIL` - Fail
+            * `CONDITIONAL` - Conditional
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        row_count:
+          type: integer
+          readOnly: true
+          description: The rows it is about.
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRow'
+          readOnly: true
+          description: The rows it is about, in file order (the first 50).
+        rows_to_leave_out:
+          type: array
+          items:
+            type: integer
+          description: The rows, by number, that leaving one out may choose from.
+      required:
+      - decision
+      - decision_display
+      - is_open
+      - key
+      - kind
+      - kind_display
+      - message
+      - outcome
+      - rank_code
+      - row_count
+      - rows
+      - rows_to_leave_out
+      - suggested_rank_code
+      - text
+    LegacyCheckDecisionEnum:
+      enum:
+      - RANK
+      - OUTCOME
+      - LEAVE_OUT
+      - KEEP
+      type: string
+      description: |-
+        * `RANK` - Rank chosen
+        * `OUTCOME` - Outcome read
+        * `LEAVE_OUT` - Row left out
+        * `KEEP` - Kept as written
+    LegacyCheckDecisionRequest:
+      type: object
+      description: |-
+        POST /{id}/checks/resolve/: one decision about one check. RANK needs
+        rank_code, OUTCOME needs outcome, LEAVE_OUT needs row_number (one of the
+        check's rows_to_leave_out); KEEP needs nothing.
+      properties:
+        key:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        decision:
+          $ref: '#/components/schemas/LegacyCheckDecisionEnum'
+        rank_code:
+          type: string
+          nullable: true
+          minLength: 1
+        outcome:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        row_number:
+          type: integer
+          nullable: true
+      required:
+      - decision
+      - key
+    LegacyCheckKindCount:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/LegacyCheckKindEnum'
+        kind_display:
+          type: string
+        checks:
+          type: integer
+        open:
+          type: integer
+          description: Of them, those not decided yet.
+      required:
+      - checks
+      - kind
+      - kind_display
+      - open
+    LegacyCheckKindEnum:
+      enum:
+      - RANK
+      - OUTCOME
+      - WRITTEN_TWICE
+      - MISSING_AND_GRADED
+      - NO_OUTCOME
+      - NO_RANK
+      type: string
+      description: |-
+        * `RANK` - Rank to read
+        * `OUTCOME` - Outcome to read
+        * `WRITTEN_TWICE` - On one sheet twice
+        * `MISSING_AND_GRADED` - Missing and graded
+        * `NO_OUTCOME` - No outcome
+        * `NO_RANK` - No rank
+    LegacyChecksSummary:
+      type: object
+      description: |-
+        How many things there are to check, and how many are still open,
+        in all and of each kind (every kind, in the order the list shows).
+      properties:
+        checks:
+          type: integer
+        open:
+          type: integer
+        kinds:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyCheckKindCount'
+      required:
+      - checks
+      - kinds
+      - open
     LegacyGradingRecord:
       type: object
       description: |-
@@ -7484,6 +7772,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ImportRow'
+    PaginatedLegacyCheckList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyCheck'
     PaginatedLegacyGradingRecordList:
       type: object
       required:

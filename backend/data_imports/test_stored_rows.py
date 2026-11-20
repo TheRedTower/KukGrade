@@ -855,10 +855,11 @@ def test_historical_records_worth_a_look_say_why_and_follow_the_rank_choices() -
         uploaded_by=admin,
     )
     client = client_for(admin)
-    # Before any rank is chosen, every rank written is still to match.
-    assert batch.rows.get(row_number=1).issues == [
-        "Rank 'White Belt' is not matched to a KukGrade rank yet.",
-        "Rank 'Yellow Stripe' is not matched to a KukGrade rank yet.",
+    # Before any rank is chosen, a rank KukGrade reads is taken as read; one
+    # it cannot read, or that the workbook doubts, waits.
+    assert batch.rows.get(row_number=1).issues == []
+    assert batch.rows.get(row_number=2).issues == [
+        "Rank 'Brn stripe' is not matched to a KukGrade rank yet.",
     ]
 
     preview = client.post(

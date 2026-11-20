@@ -157,9 +157,10 @@ a spreadsheet of past gradings, with a guided review before anything is saved.
 An upload that is abandoned is cleared once it is 24 hours old: each new upload clears
 the stale ones, and so does every start of the container. Past gradings come in sheet by sheet:
 uploading the whole workbook again brings in only its new sheets, a changed sheet only if chosen,
-and no record is ever added twice. The review also marks what the workbook leaves in doubt: a
-missing outcome or rank, a name written twice on one sheet, and someone both missing and graded
-there. Saved records are grouped into the people they are about, by their names and rank
+and no record is ever added twice. Ranks and outcomes KukGrade can read are taken as read, and
+only what is left is listed to check, each one decision with "keep as written" always allowed: a
+rank it cannot read or the workbook doubts, an outcome it cannot read, a name written twice on one
+sheet, someone both missing and graded there, and a missing outcome or rank. Saved records are grouped into the people they are about, by their names and rank
 history, each with how sure that is and the students they may be. Each person is linked to a
 student, marked not a current student, or left for later; a person can be split or merged, and
 every decision can be undone and is audited. See

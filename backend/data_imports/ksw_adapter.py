@@ -162,13 +162,20 @@ class WorkbookParseResult:
     sheets: list[ParsedSheet] = field(default_factory=list)
 
 
+def outcome_words(source_outcome_text: str) -> str:
+    """An outcome as written, read for its words: case, spacing and closing
+    punctuation do not count. The key an importer's reading of an outcome
+    is kept under (data_imports.legacy_checks)."""
+    return normalised_text(source_outcome_text).rstrip(".!")
+
+
 def _classify_outcome(source_outcome_text: str) -> tuple[str, str | None, str]:
     """Returns (record_kind, outcome, attendance_status).
 
     A full stop or other closing punctuation ("Pass.", as the workbook has
     it) does not hide the word; the source text itself is kept as written.
     """
-    normalised = normalised_text(source_outcome_text).rstrip(".!")
+    normalised = outcome_words(source_outcome_text)
     if not normalised:
         return LegacyRecordKind.GRADING_RESULT, None, LegacyAttendance.UNKNOWN
     if normalised in _DNA_VALUES:
@@ -800,9 +807,9 @@ def _listed(entries: list[_NamedEntry]) -> str:
     return ", ".join(shown) + (f" and {rest} more" if rest > 0 else "")
 
 
-def _name_checks(entries: list[_NamedEntry]) -> Iterator[tuple[str, str]]:
-    """One sheet's names written twice, or both graded and missing: each as
-    (locator, message), naming the other entries to look at."""
+def _alike(entries: list[_NamedEntry]) -> dict[int, list[_NamedEntry]]:
+    """Each entry's others on its sheet whose names may be the same person,
+    by id(entry), each list in sheet order."""
     by_initial: dict[str, list[_NamedEntry]] = {}
     for entry in entries:
         by_initial.setdefault(entry.tokens[0][0], []).append(entry)
@@ -813,6 +820,20 @@ def _name_checks(entries: list[_NamedEntry]) -> Iterator[tuple[str, str]]:
                 if names_compatible(entry.tokens, other.tokens):
                     alike.setdefault(id(entry), []).append(other)
                     alike.setdefault(id(other), []).append(entry)
+    return alike
+
+
+def _in_conflict(entry: _NamedEntry, others: list[_NamedEntry]) -> bool:
+    """A result alike another result, or a result and a missing entry alike:
+    what _name_checks says and a name group is about. Two missing entries
+    alike are not."""
+    return any(entry.graded or other.graded for other in others)
+
+
+def _name_checks(entries: list[_NamedEntry]) -> Iterator[tuple[str, str]]:
+    """One sheet's names written twice, or both graded and missing: each as
+    (locator, message), naming the other entries to look at."""
+    alike = _alike(entries)
     for entry in entries:
         # In sheet order: each initial's entries are, and are paired in turn.
         others = alike.get(id(entry), [])
@@ -838,6 +859,76 @@ def _name_checks(entries: list[_NamedEntry]) -> Iterator[tuple[str, str]]:
             )
 
 
+def missing_written(row: CanonicalLegacyRow) -> list[str]:
+    """What a record does not say that a result should: an outcome, and the
+    main table's ranks (a side table or sheet note has no rank columns)."""
+    graded = row.record_kind == LegacyRecordKind.GRADING_RESULT
+    missing: list[str] = []
+    if graded and not row.source_outcome_text:
+        missing.append(NO_OUTCOME)
+    if row.source_section == "":
+        if not row.source_current_rank_text:
+            missing.append(NO_CURRENT_RANK)
+        if graded and not row.source_testing_for_rank_text:
+            missing.append(NO_TESTING_FOR_RANK)
+    return missing
+
+
+@dataclass(frozen=True)
+class NameGroup:
+    """Records on one sheet whose names may all be one person, and at least
+    two of them a result, or a result and a missing entry: in sheet order,
+    the results and the entries for people missing or not attending."""
+
+    sheet: str
+    graded: list[CanonicalLegacyRow]
+    absent: list[CanonicalLegacyRow]
+
+
+def name_groups(rows: Iterable[CanonicalLegacyRow]) -> list[NameGroup]:
+    """The groups of names alike on each sheet of `rows` that workbook_checks
+    would point out, joined when alike names chain (Al, Al B, Alan B). A sheet
+    naming more than MAX_CHECKED_NAMES people is not checked."""
+    groups: list[NameGroup] = []
+    for sheet, entries in _entries_by_sheet(rows).items():
+        if len(entries) > MAX_CHECKED_NAMES:
+            continue
+        alike = _alike(entries)
+        seen: set[int] = set()
+        for entry in entries:
+            if id(entry) in seen or not _in_conflict(entry, alike.get(id(entry), [])):
+                continue
+            members: list[_NamedEntry] = []
+            waiting = [entry]
+            seen.add(id(entry))
+            while waiting:
+                member = waiting.pop()
+                members.append(member)
+                for other in alike.get(id(member), []):
+                    if id(other) not in seen:
+                        seen.add(id(other))
+                        waiting.append(other)
+            order = {id(member): index for index, member in enumerate(entries)}
+            members.sort(key=lambda member: order[id(member)])
+            groups.append(
+                NameGroup(
+                    sheet=sheet,
+                    graded=[member.row for member in members if member.graded],
+                    absent=[member.row for member in members if not member.graded],
+                ),
+            )
+    return groups
+
+
+def names_in_conflict(rows: Iterable[CanonicalLegacyRow]) -> bool:
+    """Whether any two of `rows` are a result alike another result, or a
+    result alike a missing entry: whether what is left of a name group
+    still needs a look."""
+    entries = _named_entries(rows)
+    alike = _alike(entries)
+    return any(_in_conflict(entry, alike.get(id(entry), [])) for entry in entries)
+
+
 def workbook_checks(rows: Iterable[CanonicalLegacyRow]) -> dict[str, list[str]]:
     """What the workbook itself shows is worth a look, by record locator: a
     result with no outcome, a main-table row missing a rank, and a name
@@ -852,16 +943,7 @@ def workbook_checks(rows: Iterable[CanonicalLegacyRow]) -> dict[str, list[str]]:
     rows = list(rows)
     found: dict[str, list[str]] = {}
     for row in rows:
-        messages = found.setdefault(row.source_locator, [])
-        graded = row.record_kind == LegacyRecordKind.GRADING_RESULT
-        if graded and not row.source_outcome_text:
-            messages.append(NO_OUTCOME)
-        # Only the main table has rank columns (a sheet note has a section).
-        if row.source_section == "":
-            if not row.source_current_rank_text:
-                messages.append(NO_CURRENT_RANK)
-            if graded and not row.source_testing_for_rank_text:
-                messages.append(NO_TESTING_FOR_RANK)
+        found.setdefault(row.source_locator, []).extend(missing_written(row))
     for entries in _entries_by_sheet(rows).values():
         if len(entries) > MAX_CHECKED_NAMES:
             continue

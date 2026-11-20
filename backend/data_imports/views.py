@@ -15,6 +15,7 @@ from rest_framework.response import Response
 
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
+from data_imports.legacy_checks import CheckKind, check_counts, legacy_checks
 from data_imports.mappings import STUDENT_WHOLE_FILE_FIELDS
 from data_imports.models import FINISHED_IMPORT_STATUSES, ImportBatch, ImportRow
 from data_imports.serializers import (
@@ -29,6 +30,9 @@ from data_imports.serializers import (
     ImportRowSerializer,
     ImportSecondLookSerializer,
     ImportSheetSerializer,
+    LegacyCheckDecisionSerializer,
+    LegacyCheckSerializer,
+    LegacyChecksSummarySerializer,
     LegacyImportPreviewSerializer,
     LegacyImportSerializer,
     LegacySheetChoiceSerializer,
@@ -45,6 +49,7 @@ from data_imports.services import (
     leave_out_rows_needing_attention,
     legacy_sheets,
     preview_legacy_grading_import,
+    resolve_legacy_check,
     rows_given_a_value,
     save_import_mapping,
     second_look_counts,
@@ -71,6 +76,20 @@ def _rows_with_rank_text(rows: QuerySet[ImportRow], value: str) -> QuerySet[Impo
     return rows.filter(
         Q(values__current_rank__iexact=text) | Q(values__testing_for_rank__iexact=text),
     )
+
+
+_CHECK_FILTERS = (
+    read_by_view(
+        "kind",
+        {"type": "string", "enum": list(CheckKind.values)},
+        "Only checks of this kind.",
+    ),
+    read_by_view(
+        "open",
+        {"type": "boolean"},
+        "Only checks not decided yet (true), or only those decided (false).",
+    ),
+)
 
 
 def _served_batch(request: Request, batch: ImportBatch) -> Response:
@@ -115,6 +134,9 @@ class ImportBatchViewSet(
         "choose_sheets": ("data_imports.change_importbatch",),
         "void_records": ("gradings.can_reconcile_imported_history",),
         "second_look": ("data_imports.view_importbatch",),
+        "checks": ("data_imports.view_importbatch",),
+        "checks_summary": ("data_imports.view_importbatch",),
+        "resolve_check": ("data_imports.change_importbatch",),
     }
     query_filters = (
         choices_in("status", "status", ImportBatch.Status.values),
@@ -177,6 +199,92 @@ class ImportBatchViewSet(
             included=payload.validated_data["included"],
         )
         return Response(LegacySheetSerializer(sheets, many=True).data)
+
+    @extend_schema(responses=LegacyCheckSerializer(many=True))
+    @action(detail=True, methods=["get"], query_filters=_CHECK_FILTERS)
+    def checks(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """A historical import's things to check before it is saved - the
+        exceptions only, in the order of their kinds - a page at a time.
+        A kind or an open value no check can have matches none."""
+        batch = self.get_object()
+        found = legacy_checks(batch)
+        kind = request.query_params.get("kind", "")
+        if kind:
+            found = [check for check in found if check.kind == kind]
+        is_open = request.query_params.get("open", "")
+        if is_open:
+            found = [
+                check
+                for check in found
+                if is_open in ("true", "false") and check.is_open == (is_open == "true")
+            ]
+        page: list[Any] | None = self.paginate_queryset(found)  # type: ignore[arg-type]
+        assert page is not None
+        return self.get_paginated_response(
+            LegacyCheckSerializer(page, many=True).data,
+        )
+
+    @extend_schema(responses=LegacyChecksSummarySerializer)
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="checks/summary",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def checks_summary(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """How many things there are to check, and how many are still open."""
+        counts = check_counts(legacy_checks(self.get_object()))
+        return Response(
+            LegacyChecksSummarySerializer(
+                {
+                    "checks": sum(total for total, _ in counts.values()),
+                    "open": sum(still_open for _, still_open in counts.values()),
+                    "kinds": [
+                        {
+                            "kind": kind,
+                            "kind_display": CheckKind(kind).label,
+                            "checks": total,
+                            "open": still_open,
+                        }
+                        for kind, (total, still_open) in counts.items()
+                    ],
+                },
+            ).data,
+        )
+
+    @extend_schema(
+        request=LegacyCheckDecisionSerializer,
+        responses={200: LegacyCheckSerializer, 204: None},
+    )
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="checks/resolve",
+        filter_backends=[],
+    )
+    def resolve_check(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Decide one check: a rank chosen, an outcome read, a row left out,
+        or what is written kept. A later decision replaces an earlier one.
+        Served back as it stands, or 204 when deciding it ended it (a row
+        brought back that KukGrade already holds)."""
+        batch = self.get_object()
+        payload = LegacyCheckDecisionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        check = resolve_legacy_check(batch, **payload.validated_data)
+        if check is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(LegacyCheckSerializer(check).data)
 
     @extend_schema(
         request=ImportRecordsVoidSerializer,

@@ -218,6 +218,12 @@ def test_an_import_finished_after_another_was_uploaded_is_caught_at_commit() -> 
     assert states(second) == {"062025": (SheetState.IMPORTED, True)}
     with pytest.raises(ValidationError, match="Nothing to import"):
         commit_legacy_grading_import(second, actor=admin())
+    # The refusal keeps what it found, so the import's counts say nothing is
+    # left to save and the save is not offered again.
+    assert outcomes(second) == {
+        "062025!R2": ImportRow.Outcome.SKIP_EXISTING,
+        "062025!R3": ImportRow.Outcome.SKIP_EXISTING,
+    }
     # Any later change checks every row again against what KukGrade holds.
     choose_legacy_sheets(second, included=["062025"])
     assert outcomes(second) == {

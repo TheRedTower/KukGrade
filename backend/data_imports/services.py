@@ -1871,8 +1871,34 @@ def choose_legacy_sheets(
     return legacy_sheets(locked)
 
 
-@transaction.atomic
 def commit_legacy_grading_import(
+    batch: ImportBatch,
+    *,
+    actor: User,
+) -> ImportBatch:
+    """Save a historical import (_commit_legacy_grading_import).
+
+    Refused because nothing is left to import (another import saved the same
+    records since, say), the rows are classified again and that is kept, so
+    the import's counts say so and the save is not offered again.
+    """
+    try:
+        return _commit_legacy_grading_import(batch, actor=actor)
+    except DjangoValidationError as refusal:
+        if NOTHING_TO_IMPORT in getattr(refusal, "message_dict", {}).get("batch", []):
+            _reclassify_legacy(batch)
+        raise
+
+
+@transaction.atomic
+def _reclassify_legacy(batch: ImportBatch) -> None:
+    locked = _lock_uncommitted(batch, "imported again")
+    _lock_historical_commits()
+    _classify_legacy(locked)
+
+
+@transaction.atomic
+def _commit_legacy_grading_import(
     batch: ImportBatch,
     *,
     actor: User,

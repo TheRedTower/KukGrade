@@ -409,6 +409,8 @@ export interface paths {
         /**
          * @description Decide one check: a rank chosen, an outcome read, a row left out,
          *     or what is written kept. A later decision replaces an earlier one.
+         *     Served back as it stands, or 204 when deciding it ended it (a row
+         *     brought back that KukGrade already holds).
          */
         post: operations["data_imports_batches_checks_resolve_create"];
         delete?: never;
@@ -4943,6 +4945,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LegacyCheck"];
                 };
+            };
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -760,6 +760,8 @@ paths:
       description: |-
         Decide one check: a rank chosen, an outcome read, a row left out,
         or what is written kept. A later decision replaces an earlier one.
+        Served back as it stands, or 204 when deciding it ended it (a row
+        brought back that KukGrade already holds).
       parameters:
       - in: path
         name: id
@@ -790,6 +792,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/LegacyCheck'
           description: ''
+        '204':
+          description: No response body
   /api/data-imports/batches/{id}/checks/summary/:
     get:
       operationId: data_imports_batches_checks_summary_retrieve

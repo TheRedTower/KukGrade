@@ -87,6 +87,13 @@ def record(name: str, number: int = 0) -> LegacyGradingRecord:
     )[number]
 
 
+def resolve(batch: ImportBatch, **decision: Any) -> LegacyCheck:
+    """resolve_legacy_check, for a check still there after."""
+    found = resolve_legacy_check(batch, **decision)
+    assert found is not None
+    return found
+
+
 def client_for(user: User) -> APIClient:
     client = APIClient()
     client.force_authenticate(user)
@@ -174,7 +181,7 @@ def test_a_sheet_not_chosen_has_nothing_to_check() -> None:
 def test_a_rank_chosen_for_a_spelling_is_saved_on_its_records() -> None:
     batch = uploaded()
 
-    decided = resolve_legacy_check(
+    decided = resolve(
         batch,
         key="RANK:bown stripe",
         decision=CheckDecision.RANK,
@@ -209,7 +216,7 @@ def test_a_rank_kept_as_written_stays_unmatched_even_if_kukgrade_could_read_it()
 ):
     batch = uploaded()
 
-    resolve_legacy_check(batch, key="RANK:red stripe?", decision=CheckDecision.KEEP)
+    resolve(batch, key="RANK:red stripe?", decision=CheckDecision.KEEP)
 
     assert check(batch, CheckKind.RANK, 1).decision == CheckDecision.KEEP
     commit_legacy_grading_import(batch, actor=admin())
@@ -220,15 +227,15 @@ def test_a_later_decision_replaces_an_earlier_one() -> None:
     batch = uploaded()
     key = "RANK:red stripe?"
 
-    resolve_legacy_check(batch, key=key, decision=CheckDecision.KEEP)
-    resolve_legacy_check(
+    resolve(batch, key=key, decision=CheckDecision.KEEP)
+    resolve(
         batch,
         key=key,
         decision=CheckDecision.RANK,
         rank_code="RED_STRIPE",
     )
     assert ImportBatch.objects.get(pk=batch.pk).configuration.checks_kept == []
-    kept_again = resolve_legacy_check(batch, key=key, decision=CheckDecision.KEEP)
+    kept_again = resolve(batch, key=key, decision=CheckDecision.KEEP)
 
     assert (kept_again.decision, kept_again.rank_code) == (CheckDecision.KEEP, None)
     assert "red stripe?" not in (
@@ -241,7 +248,7 @@ def test_a_rank_must_be_one_of_kukgrades(code: str | None) -> None:
     batch = uploaded()
 
     with pytest.raises(ValidationError) as error:
-        resolve_legacy_check(
+        resolve(
             batch,
             key="RANK:bown stripe",
             decision=CheckDecision.RANK,
@@ -255,7 +262,7 @@ def test_a_rank_must_be_one_of_kukgrades(code: str | None) -> None:
 def test_a_rank_switched_off_cannot_be_chosen_and_one_chosen_reopens() -> None:
     batch = uploaded()
     brown_stripe = rank("BROWN_STRIPE")
-    resolve_legacy_check(
+    resolve(
         batch,
         key="RANK:bown stripe",
         decision=CheckDecision.RANK,
@@ -266,7 +273,7 @@ def test_a_rank_switched_off_cannot_be_chosen_and_one_chosen_reopens() -> None:
 
     assert check(batch, CheckKind.RANK).is_open
     with pytest.raises(ValidationError) as error:
-        resolve_legacy_check(
+        resolve(
             batch,
             key="RANK:bown stripe",
             decision=CheckDecision.RANK,
@@ -281,7 +288,7 @@ def test_a_rank_switched_off_cannot_be_chosen_and_one_chosen_reopens() -> None:
 def test_an_outcome_read_is_saved_on_its_records_and_the_text_kept() -> None:
     batch = uploaded()
 
-    decided = resolve_legacy_check(
+    decided = resolve(
         batch,
         key="OUTCOME:testing? no",
         decision=CheckDecision.OUTCOME,
@@ -311,7 +318,7 @@ def test_an_outcome_reading_covers_the_same_words_however_written() -> None:
 
     [found] = checks_of(batch)
     assert rows_of(found) == [1, 2]
-    resolve_legacy_check(
+    resolve(
         batch,
         key=found.key,
         decision=CheckDecision.OUTCOME,
@@ -327,7 +334,7 @@ def test_an_outcome_reading_covers_the_same_words_however_written() -> None:
 def test_an_outcome_kept_as_written_is_saved_with_none() -> None:
     batch = uploaded()
 
-    resolve_legacy_check(batch, key="OUTCOME:testing? no", decision=CheckDecision.KEEP)
+    resolve(batch, key="OUTCOME:testing? no", decision=CheckDecision.KEEP)
     commit_legacy_grading_import(batch, actor=admin())
 
     assert record("Di Vale").outcome is None
@@ -338,7 +345,7 @@ def test_an_outcome_must_be_pass_fail_or_conditional(outcome: str | None) -> Non
     batch = uploaded()
 
     with pytest.raises(ValidationError) as error:
-        resolve_legacy_check(
+        resolve(
             batch,
             key="OUTCOME:testing? no",
             decision=CheckDecision.OUTCOME,
@@ -358,7 +365,7 @@ def test_leaving_one_out_sorts_a_name_written_twice_and_bringing_it_back_reopens
     before = check(batch, CheckKind.WRITTEN_TWICE)
     assert before.rows_to_leave_out == [5, 6]
 
-    decided = resolve_legacy_check(
+    decided = resolve(
         batch,
         key=before.key,
         decision=CheckDecision.LEAVE_OUT,
@@ -385,7 +392,7 @@ def test_a_name_written_twice_can_be_kept_and_both_rows_come_in() -> None:
     batch = uploaded()
     key = check(batch, CheckKind.WRITTEN_TWICE).key
 
-    resolve_legacy_check(batch, key=key, decision=CheckDecision.KEEP)
+    resolve(batch, key=key, decision=CheckDecision.KEEP)
 
     assert check(batch, CheckKind.WRITTEN_TWICE).decision == CheckDecision.KEEP
     commit_legacy_grading_import(batch, actor=admin())
@@ -396,15 +403,11 @@ def test_keeping_as_written_brings_back_the_row_the_check_left_out() -> None:
     batch = uploaded()
     twice = check(batch, CheckKind.WRITTEN_TWICE).key
     no_outcome = check(batch, CheckKind.NO_OUTCOME).key
-    resolve_legacy_check(
-        batch, key=twice, decision=CheckDecision.LEAVE_OUT, row_number=6
-    )
-    resolve_legacy_check(
-        batch, key=no_outcome, decision=CheckDecision.LEAVE_OUT, row_number=7
-    )
+    resolve(batch, key=twice, decision=CheckDecision.LEAVE_OUT, row_number=6)
+    resolve(batch, key=no_outcome, decision=CheckDecision.LEAVE_OUT, row_number=7)
 
-    kept = resolve_legacy_check(batch, key=twice, decision=CheckDecision.KEEP)
-    resolve_legacy_check(batch, key=no_outcome, decision=CheckDecision.KEEP)
+    kept = resolve(batch, key=twice, decision=CheckDecision.KEEP)
+    resolve(batch, key=no_outcome, decision=CheckDecision.KEEP)
 
     assert (kept.decision, kept.rows_to_leave_out) == (CheckDecision.KEEP, [5, 6])
     assert check(batch, CheckKind.NO_OUTCOME).decision == CheckDecision.KEEP
@@ -417,11 +420,9 @@ def test_keeping_as_written_brings_back_the_row_the_check_left_out() -> None:
 def test_leaving_out_the_other_row_instead_brings_the_first_back() -> None:
     batch = uploaded()
     key = check(batch, CheckKind.WRITTEN_TWICE).key
-    resolve_legacy_check(batch, key=key, decision=CheckDecision.LEAVE_OUT, row_number=6)
+    resolve(batch, key=key, decision=CheckDecision.LEAVE_OUT, row_number=6)
 
-    after = resolve_legacy_check(
-        batch, key=key, decision=CheckDecision.LEAVE_OUT, row_number=5
-    )
+    after = resolve(batch, key=key, decision=CheckDecision.LEAVE_OUT, row_number=5)
 
     assert (after.decision, after.rows_to_leave_out) == (CheckDecision.LEAVE_OUT, [6])
     assert list(
@@ -435,13 +436,50 @@ def test_a_row_left_out_from_the_rows_list_stays_out_when_its_check_is_kept() ->
     batch = uploaded()
     set_import_row_excluded(batch, row_number=6, excluded=True)
 
-    resolve_legacy_check(
+    resolve(
         batch,
         key=check(batch, CheckKind.WRITTEN_TWICE).key,
         decision=CheckDecision.KEEP,
     )
 
     assert ImportRow.objects.get(batch=batch, row_number=6).excluded
+
+
+def test_a_row_is_brought_back_only_by_the_last_decision_that_left_it_out() -> None:
+    batch = uploaded([["Gus Kerr", "", "Yellow", "", ""]])
+    no_outcome = check(batch, CheckKind.NO_OUTCOME).key
+    no_rank = check(batch, CheckKind.NO_RANK).key
+    resolve(batch, key=no_outcome, decision=CheckDecision.LEAVE_OUT, row_number=1)
+    # Brought back from the rows list, then left out for its missing rank.
+    set_import_row_excluded(batch, row_number=1, excluded=False)
+    resolve(batch, key=no_rank, decision=CheckDecision.LEAVE_OUT, row_number=1)
+
+    resolve(batch, key=no_outcome, decision=CheckDecision.KEEP)
+
+    assert ImportRow.objects.get(batch=batch, row_number=1).excluded
+    # The missing rank's decision is the one that undoes it.
+    resolve(batch, key=no_rank, decision=CheckDecision.KEEP)
+    assert not ImportRow.objects.get(batch=batch, row_number=1).excluded
+
+
+def test_keeping_a_row_another_import_has_saved_since_ends_its_check() -> None:
+    rows: list[list[object]] = [["Fay Dunn", "Yellow", "Blue Stripe", "", ""]]
+    batch = uploaded(rows)
+    key = check(batch, CheckKind.NO_OUTCOME).key
+    resolve(batch, key=key, decision=CheckDecision.LEAVE_OUT, row_number=1)
+    commit_legacy_grading_import(uploaded(rows), actor=admin())
+
+    assert resolve_legacy_check(batch, key=key, decision=CheckDecision.KEEP) is None
+
+    row = ImportRow.objects.get(batch=batch, row_number=1)
+    assert (row.excluded, row.outcome) == (False, ImportRow.Outcome.SKIP_EXISTING)
+    answer = client_for(admin()).post(
+        f"{BASE}{batch.pk}/checks/resolve/",
+        {"key": key, "decision": "KEEP"},
+        format="json",
+    )
+    assert answer.status_code == 400
+    assert answer.json()["error"]["fields"] == {"key": [CHECK_GONE]}
 
 
 def test_names_alike_that_chain_are_one_check_and_stay_open_while_two_remain() -> None:
@@ -455,7 +493,7 @@ def test_names_alike_that_chain_are_one_check_and_stay_open_while_two_remain() -
     found = check(batch, CheckKind.WRITTEN_TWICE)
     assert rows_of(found) == [1, 2, 3]
 
-    after = resolve_legacy_check(
+    after = resolve(
         batch,
         key=found.key,
         decision=CheckDecision.LEAVE_OUT,
@@ -464,7 +502,7 @@ def test_names_alike_that_chain_are_one_check_and_stay_open_while_two_remain() -
 
     assert (after.is_open, after.rows_to_leave_out) == (True, [1, 3])
     # While still open, leaving out another adds to the first.
-    sorted_ = resolve_legacy_check(
+    sorted_ = resolve(
         batch,
         key=found.key,
         decision=CheckDecision.LEAVE_OUT,
@@ -475,7 +513,7 @@ def test_names_alike_that_chain_are_one_check_and_stay_open_while_two_remain() -
         [1],
     )
     # Keeping as written brings both back.
-    resolve_legacy_check(batch, key=found.key, decision=CheckDecision.KEEP)
+    resolve(batch, key=found.key, decision=CheckDecision.KEEP)
     assert not ImportRow.objects.filter(batch=batch, excluded=True).exists()
 
 
@@ -486,7 +524,7 @@ def test_a_result_and_a_missing_entry_alike_are_a_check_of_their_own_kind() -> N
 
     assert rows_of(found) == [9, 10]
     assert "missing or not attending" in found.message
-    resolve_legacy_check(
+    resolve(
         batch,
         key=found.key,
         decision=CheckDecision.LEAVE_OUT,
@@ -503,7 +541,7 @@ def test_only_one_of_the_checks_rows_still_in_the_import_can_be_left_out() -> No
 
     for row_number in (1, None):
         with pytest.raises(ValidationError) as error:
-            resolve_legacy_check(
+            resolve(
                 batch,
                 key=key,
                 decision=CheckDecision.LEAVE_OUT,
@@ -521,8 +559,8 @@ def test_a_row_with_nothing_written_can_be_kept_or_left_out() -> None:
     no_outcome = check(batch, CheckKind.NO_OUTCOME)
     no_rank = check(batch, CheckKind.NO_RANK)
 
-    resolve_legacy_check(batch, key=no_outcome.key, decision=CheckDecision.KEEP)
-    resolve_legacy_check(
+    resolve(batch, key=no_outcome.key, decision=CheckDecision.KEEP)
+    resolve(
         batch,
         key=no_rank.key,
         decision=CheckDecision.LEAVE_OUT,
@@ -557,7 +595,7 @@ def test_a_check_that_is_no_longer_there_is_refused() -> None:
     set_import_row_excluded(batch, row_number=2, excluded=True)
 
     with pytest.raises(ValidationError) as error:
-        resolve_legacy_check(batch, key="RANK:bown stripe", decision=CheckDecision.KEEP)
+        resolve(batch, key="RANK:bown stripe", decision=CheckDecision.KEEP)
 
     assert refused(error) == {"key": [CHECK_GONE]}
 
@@ -579,7 +617,7 @@ def test_a_check_is_sorted_only_the_ways_its_kind_allows(
     batch = uploaded()
 
     with pytest.raises(ValidationError) as error:
-        resolve_legacy_check(
+        resolve(
             batch,
             key=check(batch, kind).key,
             decision=decision,
@@ -596,7 +634,7 @@ def test_a_finished_import_cannot_be_changed() -> None:
     commit_legacy_grading_import(batch, actor=admin())
 
     with pytest.raises(ValidationError):
-        resolve_legacy_check(batch, key="RANK:bown stripe", decision=CheckDecision.KEEP)
+        resolve(batch, key="RANK:bown stripe", decision=CheckDecision.KEEP)
 
 
 def test_a_roster_has_no_checks_to_decide() -> None:
@@ -607,7 +645,7 @@ def test_a_roster_has_no_checks_to_decide() -> None:
 
     assert served(client_for(admin()), roster) == []
     with pytest.raises(ValidationError) as error:
-        resolve_legacy_check(roster, key="RANK:x", decision=CheckDecision.KEEP)
+        resolve(roster, key="RANK:x", decision=CheckDecision.KEEP)
 
     assert "batch" in refused(error)
 
@@ -642,7 +680,7 @@ def test_the_checks_are_served_a_page_at_a_time_and_can_be_narrowed() -> None:
         "OUTCOME:testing? no",
     ]
     assert served(client, batch, kind="NOTHING") == []
-    resolve_legacy_check(batch, key="RANK:bown stripe", decision=CheckDecision.KEEP)
+    resolve(batch, key="RANK:bown stripe", decision=CheckDecision.KEEP)
     assert [found["key"] for found in served(client, batch, open="false")] == [
         "RANK:bown stripe",
     ]
@@ -661,7 +699,7 @@ def test_a_check_about_many_rows_lists_the_first_fifty_and_counts_them_all() -> 
 
 def test_the_summary_counts_each_kind_and_what_is_still_open() -> None:
     batch = uploaded()
-    resolve_legacy_check(batch, key="RANK:bown stripe", decision=CheckDecision.KEEP)
+    resolve(batch, key="RANK:bown stripe", decision=CheckDecision.KEEP)
 
     summary = client_for(admin()).get(f"{BASE}{batch.pk}/checks/summary/").json()
 

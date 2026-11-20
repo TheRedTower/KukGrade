@@ -260,7 +260,7 @@ class ImportBatchViewSet(
 
     @extend_schema(
         request=LegacyCheckDecisionSerializer,
-        responses=LegacyCheckSerializer,
+        responses={200: LegacyCheckSerializer, 204: None},
     )
     @action(
         detail=True,
@@ -275,11 +275,15 @@ class ImportBatchViewSet(
         **kwargs: object,
     ) -> Response:
         """Decide one check: a rank chosen, an outcome read, a row left out,
-        or what is written kept. A later decision replaces an earlier one."""
+        or what is written kept. A later decision replaces an earlier one.
+        Served back as it stands, or 204 when deciding it ended it (a row
+        brought back that KukGrade already holds)."""
         batch = self.get_object()
         payload = LegacyCheckDecisionSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
         check = resolve_legacy_check(batch, **payload.validated_data)
+        if check is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(LegacyCheckSerializer(check).data)
 
     @extend_schema(

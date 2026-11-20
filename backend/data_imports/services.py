@@ -1340,6 +1340,13 @@ def set_import_row_excluded(
     row.save(update_fields=["excluded", "outcome"])
     # Every row again: a row left out, or back, can end or make a repeat.
     if locked.kind == ImportBatch.Kind.LEGACY_GRADINGS:
+        # Left out or brought back here, the row is no check's to undo.
+        configuration = locked.configuration
+        configuration.checks_left_out = _disowned(
+            configuration.checks_left_out,
+            [row_number],
+        )
+        locked.save(update_fields=["configuration_json", "updated_at"])
         _classify_legacy(locked)
     elif locked.configuration.column_mapping:
         _classify_roster(locked)
@@ -2099,12 +2106,13 @@ def resolve_legacy_check(
     rank_code: str | None = None,
     outcome: str | None = None,
     row_number: int | None = None,
-) -> LegacyCheck:
+) -> LegacyCheck | None:
     """Decide one check of a historical import (data_imports.legacy_checks):
     choose a rank for a spelling, read an outcome, leave a row out, or keep
     what is written. A later decision replaces an earlier one. The check is
     found again against the rows as they are now, so a stale screen's check
-    is refused, and the check is served as it stands after."""
+    is refused, and the check is served as it stands after: None when
+    deciding it ends it (a row brought back that KukGrade already holds)."""
     locked = _lock_uncommitted(batch, "changed")
     _require_legacy(locked)
     _classify_legacy(locked)
@@ -2132,7 +2140,8 @@ def resolve_legacy_check(
     # The rows this check left out. Keeping as written brings them back, and
     # so does leaving out another once the check is sorted (one decision
     # replacing another); while it is still open, leaving out adds to them.
-    # A row left out some other way (the rows list) stays out.
+    # A row left out some other way (the rows list) stays out. A row is the
+    # last decision's to undo: leaving it out takes it from any other check.
     left_out = dict(configuration.checks_left_out)
     by_check = left_out.pop(key, [])
     replaced = decision == CheckDecision.KEEP or (
@@ -2156,6 +2165,7 @@ def resolve_legacy_check(
             excluded=True,
             outcome=ImportRow.Outcome.EXCLUDED,
         )
+        left_out = _disowned(left_out, [row_number])
         still_out.append(row_number)
     elif decision == CheckDecision.KEEP:
         kept.append(key)
@@ -2169,4 +2179,19 @@ def resolve_legacy_check(
     # Every row again: a rank read, an outcome read or a row left out can
     # end a reason to look, or a repeat.
     _classify_legacy(locked)
-    return next(found for found in legacy_checks(locked) if found.key == key)
+    # None when the check is gone: a row brought back is already held, say.
+    return next((found for found in legacy_checks(locked) if found.key == key), None)
+
+
+def _disowned(
+    left_out: dict[str, list[int]],
+    row_numbers: Iterable[int],
+) -> dict[str, list[int]]:
+    """`left_out` (ImportConfiguration.checks_left_out) with these rows no
+    check's to bring back: they were left out, or brought back, since."""
+    rows = set(row_numbers)
+    return {
+        key: kept_out
+        for key, by_check in left_out.items()
+        if (kept_out := [number for number in by_check if number not in rows])
+    }

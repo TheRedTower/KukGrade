@@ -31,7 +31,7 @@ then loses a request outright, the page's own address included, though the serve
 second, so an address with no answer in 15 seconds is opened once more and the log says
 `no answer in 15 seconds, opened again`. A wait that runs out names the answers the screen is still waiting for.
 
-Besides overflow, `overflow.ts` flags a date input wider than its box and two cards stacked with no gap, and
+Besides overflow, `overflow.ts` flags a date input wider than its box and two rounded boxes touching with no gap (stacked or side by side), and
 the `grading-*-actions` screens open the Session actions menu so a menu running off the screen is caught.
 
 What fits can still look broken, so `findLayoutFaults` in `overflow.ts` also flags, on every screen at every width:

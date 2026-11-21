@@ -183,12 +183,14 @@ serializers and the committed frontend types match the schema.
 - `layoutRules.test.ts` fails if a stylesheet adds `nowrap`, sideways scroll, a fixed
   `min-width`, a width query that is not at a breakpoint, a box that scrolls up and down
   inside the page, a new `auto-fit` grid, a bar at the foot of the window with no layer, a
-  button hover that repaints a toned button, a hover outside `@media (hover: hover)`, or a
-  screen that repeats the root's accent colour.
+  button hover that repaints a toned button, a hover outside `@media (hover: hover)`, a
+  screen that repeats the root's accent colour, or a `<details>` laid out as a stack or row
+  (Safari ignores it, so the parts inside touch: put the layout on its `.disclosure__body`).
 - **The page is the only scroller.** A box scrolling inside it traps a swipe and hides what
   is under it. A side panel stays in view with `.split__aside` and `stickyAside`; a bar at
-  the foot of the window with `position: sticky; bottom: 0; z-index: var(--z-bar)` (and `footBar`
-  when a side panel must stay above it), so nothing on the page is drawn over it; long text reads
+  the foot of the window with `position: sticky; bottom: var(--foot-bar-gap); z-index: var(--z-bar)`,
+  a rounded box floating clear of a phone's home bar (and `footBar` when a side panel must stay
+  above it), so nothing on the page is drawn over it; long text reads
   in the page, folded in a `.disclosure` if need be.
   The sidebar beside the page and a dialog over it are the two exceptions.
 - `.page` stacks its sections itself: header to content is always `--space-6`, section to

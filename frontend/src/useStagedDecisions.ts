@@ -72,6 +72,11 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // far land, so only changes are sent, and which write to each row is the
   // latest, so only its answer counts.
   const sent = useRef<Record<number, string> | null>(null);
+  // What the server has confirmed it holds for each row, and how many saves
+  // to each row are queued or on their way. A page that closes resends every
+  // row not yet confirmed: a save still waiting in the queue dies with it.
+  const confirmed = useRef<Record<number, string> | null>(null);
+  const pending = useRef<Record<number, number>>({});
   const writeSeq = useRef<Record<number, number>>({});
   // The revision of each row's last change, so the next is always later. A
   // decision taken off is read back for this alone: its revision may have come
@@ -126,21 +131,29 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // removes the server's copy itself).
   //
   // `closing` is for a page that is going (a closed tab, a reload): a write
-  // still waiting in the queue would die with it, so each is sent at once, on
-  // its own, and kept alive past the page. Leaving for another screen keeps
-  // the queue, since the page and its queue live on.
+  // still waiting in the queue would die with it, so every row the server has
+  // not confirmed is sent at once, on its own, and kept alive past the page,
+  // with a later revision than anything queued. Leaving for another screen
+  // keeps the queue, since the page and its queue live on.
   function sendChanges(target: Record<number, StagedDecision>, closing: boolean) {
     if (restored === null || isRecording) return;
-    sent.current ??= Object.fromEntries(
-      Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
-    );
+    if (sent.current === null) {
+      const held = Object.fromEntries(
+        Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
+      );
+      sent.current = held;
+      confirmed.current = { ...held };
+    }
     revisions.current ??= Object.fromEntries(restored.map((row) => [row.outcome, row.revision]));
     const lastRevision = revisions.current;
     const onServer = sent.current;
-    new Set([...Object.keys(target), ...Object.keys(onServer)].map(Number)).forEach((outcomeId) => {
+    const held = confirmed.current ?? {};
+    const ids = [...Object.keys(target), ...Object.keys(onServer), ...Object.keys(held)].map(Number);
+    new Set(ids).forEach((outcomeId) => {
       const decision = target[outcomeId];
       const json = decision === undefined ? undefined : JSON.stringify(decision);
-      if (json === onServer[outcomeId]) return;
+      const unconfirmed = (pending.current[outcomeId] ?? 0) > 0;
+      if (closing ? json === held[outcomeId] && !unconfirmed : json === onServer[outcomeId]) return;
       if (json === undefined) delete onServer[outcomeId];
       else onServer[outcomeId] = json;
       const seq = (writeSeq.current[outcomeId] ?? 0) + 1;
@@ -153,11 +166,21 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
         void write(outcomeId, decision ?? null, revision, true).catch(() => {});
         return;
       }
+      pending.current[outcomeId] = (pending.current[outcomeId] ?? 0) + 1;
+      const settle = () => {
+        pending.current[outcomeId] -= 1;
+      };
       keep({ outcomeId, decision: decision ?? null, revision }).then(
         () => {
+          settle();
+          // The queue lands in order, so this is what the server now holds.
+          if (json === undefined) delete held[outcomeId];
+          else held[outcomeId] = json;
           if (isLatest()) setKeepFailures((current) => without(current, outcomeId));
         },
         (err: unknown) => {
+          settle();
+          held[outcomeId] = UNKNOWN;
           // A later change is queued behind this one and is kept instead.
           if (!isLatest()) return;
           // What the server holds is now unknown, so the next change is sent whatever it is.
@@ -259,7 +282,10 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
       return next;
     });
     // Recording removed the server's copies.
-    recorded.forEach((oid) => delete sent.current?.[oid]);
+    recorded.forEach((oid) => {
+      delete sent.current?.[oid];
+      delete confirmed.current?.[oid];
+    });
     setKeepFailures((current) => [...recorded].reduce(without, current));
     setFailures((current) => {
       const next = { ...current };

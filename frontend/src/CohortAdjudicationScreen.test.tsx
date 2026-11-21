@@ -420,6 +420,40 @@ describe("CohortAdjudicationScreen", () => {
     expect(mockStage).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }), true);
   });
 
+  it("resends saves still waiting in the queue when the page is left, so a closed tab loses neither", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    // Never answers: Mia's save stays on its way, and Noah's waits behind it.
+    mockStage.mockImplementation(() => new Promise(() => {}));
+    renderBoard();
+
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
+    await passTypingPause();
+    await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
+    await passTypingPause();
+    // Noah's save is queued behind Mia's, not yet sent.
+    expect(mockStage).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event("pagehide"));
+
+    // Both are sent again, alive past the page, though neither changed since it was queued.
+    expect(mockStage).toHaveBeenCalledWith(11, expect.objectContaining({ final_outcome: "PASS" }), true);
+    expect(mockStage).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }), true);
+  });
+
+  it("sends nothing again when the page is left after every save is confirmed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderBoard();
+
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
+    await passTypingPause();
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    window.dispatchEvent(new Event("pagehide"));
+
+    expect(mockStage).toHaveBeenCalledTimes(1);
+    expect(mockStage).not.toHaveBeenCalledWith(11, expect.anything(), true);
+  });
+
   it("sends a change made while an earlier save is still on its way when the page is left", async () => {
     const user = userEvent.setup();
     mockStage.mockImplementation(() => new Promise(() => {}));

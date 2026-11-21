@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   type CandidateOutcomeOutcome,
@@ -43,6 +43,24 @@ async function write(
     },
     keepalive,
   );
+}
+
+/**
+ * Waits until no write with this key is queued or on its way. A board left
+ * and opened again at once must not read the server before the last visit's
+ * saves have landed, or it would bring back what they changed.
+ */
+function writesLanded(queryClient: QueryClient, mutationKey: readonly unknown[]): Promise<void> {
+  const cache = queryClient.getMutationCache();
+  const busy = () => cache.findAll({ mutationKey, status: "pending" }).length > 0;
+  if (!busy()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const unsubscribe = cache.subscribe(() => {
+      if (busy()) return;
+      unsubscribe();
+      resolve();
+    });
+  });
 }
 
 interface Options {
@@ -91,11 +109,21 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     if (lastResult) resultRef.current?.focus();
   }, [lastResult]);
 
+  // Keeping and recording share one queue, so writes land in the order they
+  // were made: a row's last edit is its last write, and a decision is
+  // recorded only after every save before it has landed.
+  const writeKey = keys.stagedDecisions(sessionId);
+  const scope = { id: JSON.stringify(writeKey) };
+
   // Decisions staged earlier, and kept on the server, come back: a session
-  // that timed out, or a closed tab, loses nothing that was staged.
+  // that timed out, or a closed tab, loses nothing that was staged. The
+  // queue outlives the board, so they are read once it has landed.
   const keptQuery = useQuery({
     queryKey: keys.stagedDecisions(sessionId),
-    queryFn: () => getStagedDecisions(sessionId),
+    queryFn: async () => {
+      await writesLanded(queryClient, writeKey);
+      return getStagedDecisions(sessionId);
+    },
     enabled: enabled && canDecide,
     // Read afresh each time the board opens: never an earlier visit's copy.
     gcTime: 0,
@@ -107,12 +135,9 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   }
   const canStage = restored !== null && !isRecording;
 
-  // Keeping and recording share one queue, so writes land in the order they
-  // were made: a row's last edit is its last write, and a decision is
-  // recorded only after every save before it has landed.
-  const scope = { id: JSON.stringify(keys.stagedDecisions(sessionId)) };
   // Each write goes through the mutation cache, so an expired session signs the viewer out.
   const keepMutation = useMutation({
+    mutationKey: writeKey,
     scope,
     mutationFn: ({
       outcomeId,
@@ -255,6 +280,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
 
   // Each write goes through the mutation cache, so a session that expired mid-way signs the viewer out.
   const finaliseMutation = useMutation({
+    mutationKey: writeKey,
     scope,
     mutationFn: (write: { outcomeId: number; payload: Parameters<typeof finaliseCandidateOutcome>[1] }) =>
       finaliseCandidateOutcome(write.outcomeId, write.payload),

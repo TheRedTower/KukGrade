@@ -110,6 +110,14 @@ def test_production_settings_are_hardened(
     assert not hasattr(settings, "SECURE_PROXY_SSL_HEADER")
     assert settings.SESSION_COOKIE_SECURE is True
     assert settings.CSRF_COOKIE_SECURE is True
+    # Host-only: no subdomain beside it (the public demo) can set them.
+    assert settings.SESSION_COOKIE_NAME == "__Host-sessionid"
+    assert settings.CSRF_COOKIE_NAME == "__Host-csrftoken"
+    # The prefix needs no Domain and a path of /: Django's defaults, kept.
+    for name in ("SESSION_COOKIE_DOMAIN", "CSRF_COOKIE_DOMAIN"):
+        assert getattr(settings, name, None) is None
+    for name in ("SESSION_COOKIE_PATH", "CSRF_COOKIE_PATH"):
+        assert getattr(settings, name, "/") == "/"
     assert settings.STATIC_URL == "/static/"
     assert settings.STORAGES["staticfiles"]["BACKEND"] == (
         "whitenoise.storage.CompressedStaticFilesStorage"
@@ -180,6 +188,9 @@ def test_plain_http_is_an_explicit_choice_for_a_direct_app(
     assert settings.SECURE_HSTS_INCLUDE_SUBDOMAINS is False
     assert settings.SESSION_COOKIE_SECURE is False
     assert settings.CSRF_COOKIE_SECURE is False
+    # A browser refuses a __Host- cookie that is not Secure.
+    assert settings.SESSION_COOKIE_NAME == "sessionid"
+    assert settings.CSRF_COOKIE_NAME == "csrftoken"
 
 
 def test_the_transport_choice_means_nothing_behind_a_proxy(
@@ -196,6 +207,8 @@ def test_the_transport_choice_means_nothing_behind_a_proxy(
     assert settings.SERVES_TLS is False
     assert settings.SECURE_SSL_REDIRECT is True
     assert settings.SESSION_COOKIE_SECURE is True
+    assert settings.SESSION_COOKIE_NAME == "__Host-sessionid"
+    assert settings.CSRF_COOKIE_NAME == "__Host-csrftoken"
     assert settings.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
 
 

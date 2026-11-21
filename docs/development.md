@@ -108,8 +108,11 @@ footer says so once.
 
 Cloudflare hosts it as static files (Workers static assets, `site/wrangler.jsonc`: no
 Worker code, the headers in `public/_headers`, `404.html` for any unknown address). Its
-Git integration builds from `site/` with `npm run build`, runs `npx wrangler deploy` for
-`prod` (the live page changes with a release) and a preview upload for any other branch.
+Git integration builds from `site/` with `npm run build` and runs `npx wrangler deploy` for
+its production branch, and a preview upload for any other branch (each gets a
+`*-kukgrade.<account>.workers.dev` link). The production branch is `dev` until the first
+stable release, because `prod` holds no `site/` before it; at that release it becomes
+`prod`, so the live page changes only with a release (Releasing, below).
 `npx wrangler deploy --dry-run` checks the configuration locally.
 
 **Width check** (the demo image running on port 6943; see `frontend/e2e/README.md`):
@@ -452,6 +455,9 @@ The version is a single number in `backend/kukgrade/version.py`, kept equal to
 The first stable release also needs the first promotion: `prod` starts as the repository's
 first commit, so no `latest` exists until a pull request from `dev` has been merged into it
 and tagged. A candidate publishes only its own tag, so pulling `latest` before then fails.
+Once that merge is on `prod`, change the project page's production branch from `dev` to
+`prod` in Cloudflare (Workers & Pages, kukgrade, Settings, Build, Branch control), so the
+page at kukgrade.co.uk changes only with a release from then on.
 
 The workflow enforces the rules rather than trusting memory: a tag whose number is not
 `VERSION` fails, a `-rc` tag must be on a commit that is on `dev`, and a stable tag must be

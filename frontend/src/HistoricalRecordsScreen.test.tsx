@@ -102,6 +102,10 @@ describe("A historical record", () => {
     expect(screen.getByText(/Good stances\.\s+Keep the guard up\./)).toBeVisible();
     expect(screen.getByRole("link", { name: "Mia Reyes" })).toHaveAttribute("href", "/students/31");
     expect(screen.getByRole("link", { name: "Open their person" })).toHaveAttribute("href", "/imports/people/201");
+    expect(screen.getByRole("link", { name: "Move to another person" })).toHaveAttribute(
+      "href",
+      "/imports/people/201/split?record=101",
+    );
     expect(screen.getByRole("link", { name: /Historical records/ })).toHaveAttribute(
       "href",
       "/imports/history?filter=linked",

@@ -840,6 +840,11 @@ export function mergeHistoricalPeople(id: number, body: Schemas["MergePeopleRequ
   return answer(api.POST("/api/gradings/legacy-people/{id}/merge/", { params: { path: { id } }, body }));
 }
 
+/** Move some of a person's records to another person already there; the answer is that person. */
+export function moveHistoricalRecords(id: number, body: Schemas["MoveRecordsRequest"]) {
+  return answer(api.POST("/api/gradings/legacy-people/{id}/move/", { params: { path: { id } }, body }));
+}
+
 /** Confirm many people ready to confirm, each to their suggested student, all or nothing. */
 export function confirmHistoricalPeople(confirmations: Schemas["PersonConfirmationRequest"][]) {
   return answer(api.POST("/api/gradings/legacy-people/confirm/", { body: { confirmations } }));

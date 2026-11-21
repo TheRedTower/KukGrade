@@ -962,6 +962,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-people/{id}/move/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Move the chosen records to another person already there; the
+         *     response is that person.
+         */
+        post: operations["gradings_legacy_people_move_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/legacy-people/{id}/not-a-student/": {
         parameters: {
             query?: never;
@@ -1846,10 +1866,11 @@ export interface components {
          *     * `LEGACY_PERSON_REOPENED` - Historical person reopened
          *     * `LEGACY_PERSON_SPLIT` - Historical person split
          *     * `LEGACY_PERSON_MERGED` - Historical people merged
+         *     * `LEGACY_RECORDS_MOVED` - Historical records moved to another person
          *     * `AUDIT_REDACTED` - Personal details erased from the audit log
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "SESSION_ARCHIVED" | "SESSION_RESTORED" | "RECORDS_DOWNLOADED" | "SUMMARY_DOWNLOADED" | "GRADING_SHEETS_PRINTED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED" | "LEGACY_PERSON_LINKED" | "LEGACY_PERSON_NOT_A_STUDENT" | "LEGACY_PERSON_LATER" | "LEGACY_PERSON_REOPENED" | "LEGACY_PERSON_SPLIT" | "LEGACY_PERSON_MERGED" | "AUDIT_REDACTED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "SESSION_ARCHIVED" | "SESSION_RESTORED" | "RECORDS_DOWNLOADED" | "SUMMARY_DOWNLOADED" | "GRADING_SHEETS_PRINTED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "ITEM_COMMENT_ADDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED" | "LEGACY_PERSON_LINKED" | "LEGACY_PERSON_NOT_A_STUDENT" | "LEGACY_PERSON_LATER" | "LEGACY_PERSON_REOPENED" | "LEGACY_PERSON_SPLIT" | "LEGACY_PERSON_MERGED" | "LEGACY_RECORDS_MOVED" | "AUDIT_REDACTED";
         /** @description One age band, from its code: label, description and programme. */
         AgeBand: {
             readonly code: components["schemas"]["AgeBandEnum"];
@@ -3319,6 +3340,16 @@ export interface components {
          * @enum {string}
          */
         MissingDetailValueEnum: "name" | "rank";
+        /** @description POST legacy-people/{id}/move/: the records that are another person's. */
+        MoveRecordsRequest: {
+            /** @description The person's version as read; refused once it has changed. */
+            version: number;
+            /** @description Moved to the other person; at least one record stays. */
+            records: number[];
+            /** @description The person already there the records are moved to. */
+            to: number;
+            to_version: number;
+        };
         /**
          * @description * `PREPARE_ASSESSMENT` - Prepare assessment
          *     * `START_ASSESSMENT` - Start assessment
@@ -4289,7 +4320,7 @@ export interface operations {
     audit_events_list: {
         parameters: {
             query?: {
-                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "AUDIT_REDACTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "GRADING_SHEETS_PRINTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "LEGACY_PERSON_LATER" | "LEGACY_PERSON_LINKED" | "LEGACY_PERSON_MERGED" | "LEGACY_PERSON_NOT_A_STUDENT" | "LEGACY_PERSON_REOPENED" | "LEGACY_PERSON_SPLIT" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "RECORDS_DOWNLOADED" | "SESSION_ARCHIVED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_RESTORED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "SUMMARY_DOWNLOADED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
+                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "AUDIT_REDACTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "GRADING_SHEETS_PRINTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_COMMENT_ADDED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "LEGACY_PERSON_LATER" | "LEGACY_PERSON_LINKED" | "LEGACY_PERSON_MERGED" | "LEGACY_PERSON_NOT_A_STUDENT" | "LEGACY_PERSON_REOPENED" | "LEGACY_PERSON_SPLIT" | "LEGACY_RECORDS_MOVED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "RECORDS_DOWNLOADED" | "SESSION_ARCHIVED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_RESTORED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "SUMMARY_DOWNLOADED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
                 entity_id?: string;
                 entity_type?: "AuditLog" | "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "LegacyPerson" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
@@ -5599,6 +5630,34 @@ export interface operations {
                 "application/json": components["schemas"]["MergePeopleRequest"];
                 "application/x-www-form-urlencoded": components["schemas"]["MergePeopleRequest"];
                 "multipart/form-data": components["schemas"]["MergePeopleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_move_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveRecordsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MoveRecordsRequest"];
+                "multipart/form-data": components["schemas"]["MoveRecordsRequest"];
             };
         };
         responses: {

@@ -97,6 +97,7 @@ HIDDEN: frozenset[str] = frozenset(
         "person_id",
         "new_person_id",
         "merged_person_id",
+        "to_person_id",
         "record_ids",
         "confirmed_record_ids",
         "previous_student_id",

@@ -26,6 +26,7 @@ from gradings.legacy_person_services import (
     link_person,
     mark_not_a_student,
     merge_people,
+    move_records,
     reopen_person,
     split_person,
 )
@@ -518,6 +519,162 @@ def test_a_merge_is_refused_for_two_results_on_one_sheet_or_two_decisions() -> N
         )
 
 
+def two_people() -> tuple[LegacyPerson, LegacyPerson]:
+    """Ada, with two records, and Ben, with one: two people, not alike."""
+    commit(
+        {
+            **ADA,
+            "032026": [["Ben Cho", "White", "Yellow", "Pass", ""]],
+        },
+    )
+    return person_of("Ada Park"), person_of("Ben Cho")
+
+
+def test_moving_records_to_another_person_takes_them_out_of_a_decision() -> None:
+    ada_person, ben = two_people()
+    ada_park = student(first_name="Ada", last_name="Park", current_rank=rank("BLUE"))
+    link_person(ada_person.pk, ada_park, version=1, actor=admin())
+    first, second = live(ada_person)
+
+    to = move_records(
+        ada_person.pk,
+        [second.pk],
+        ben.pk,
+        version=2,
+        to_version=ben.version,
+        actor=admin(),
+    )
+
+    assert to.pk == ben.pk
+    assert [r.pk for r in live(ada_person)] == [first.pk]
+    assert second.pk in [r.pk for r in live(ben)]
+    second.refresh_from_db()
+    # Out of Ada's history, and waiting for Ben's decision.
+    assert (second.student_id, second.person_confirmed) == (None, False)
+    first.refresh_from_db()
+    assert first.student_id == ada_park.pk
+    # Both changed: a decision made on what either was is refused.
+    assert fresh(ada_person).version > 2
+    assert fresh(ben).version > 1
+    [event] = events(AuditAction.LEGACY_RECORDS_MOVED)
+    assert event.entity_id == str(ben.pk)
+    assert event.summary == (
+        f"Historical person {ada_person.pk}: 1 of their records moved to person "
+        f"{ben.pk}."
+    )
+    assert event.metadata == {
+        "person_id": ada_person.pk,
+        "to_person_id": ben.pk,
+        "records_moved": 1,
+        "record_ids": [second.pk],
+        "student_id": ada_park.pk,
+    }
+    assert_no_names(event)
+    assert_records_agree()
+
+
+def test_records_moved_between_two_people_decided_alike_stay_decided() -> None:
+    ada_person, ben = two_people()
+    ada_park = student(first_name="Ada", last_name="Park", current_rank=rank("BLUE"))
+    link_person(ada_person.pk, ada_park, version=1, actor=admin())
+    link_person(ben.pk, ada_park, version=1, actor=admin())
+    _, second = live(ada_person)
+
+    move_records(
+        ada_person.pk,
+        [second.pk],
+        ben.pk,
+        version=2,
+        to_version=2,
+        actor=admin(),
+    )
+
+    second.refresh_from_db()
+    assert (second.person_id, second.student_id, second.person_confirmed) == (
+        ben.pk,
+        ada_park.pk,
+        True,
+    )
+    [event] = events(AuditAction.LEGACY_RECORDS_MOVED)
+    assert "student_id" not in event.metadata
+    assert_records_agree()
+
+
+def test_moving_records_is_refused_when_it_should_be() -> None:
+    ada_person, ben = two_people()
+    first, second = live(ada_person)
+    [bens] = live(ben)
+
+    def refused(
+        records: list[int],
+        to: int,
+        *,
+        version: int = 1,
+        to_version: int = 1,
+    ) -> dict[str, list[str]]:
+        with pytest.raises(ValidationError) as caught:
+            move_records(
+                ada_person.pk,
+                records,
+                to,
+                version=version,
+                to_version=to_version,
+                actor=admin(),
+            )
+        return caught.value.message_dict
+
+    assert refused([first.pk], ada_person.pk) == {
+        "to": ["Choose another person to move them to."],
+    }
+    assert refused([], ben.pk) == {"records": ["Choose the records to move."]}
+    assert refused([bens.pk], ben.pk) == {
+        "records": ["Only this person's records, not voided, can be moved."],
+    }
+    assert refused([first.pk, second.pk], ben.pk) == {
+        "records": [
+            "These are all of this person's records: merge the two people instead.",
+        ],
+    }
+    assert refused([first.pk], ben.pk, version=7) == {"version": [CHANGED_MESSAGE]}
+    assert refused([first.pk], ben.pk, to_version=7) == {"to": [CHANGED_MESSAGE]}
+    assert refused([first.pk], 999_999) == {"to": ["This person no longer exists."]}
+
+    void_legacy_record(bens, reason="A bad entry.", actor=admin())
+    assert refused([first.pk], ben.pk, to_version=fresh(ben).version) == {
+        "to": ["Every record of this person has been voided."],
+    }
+    assert not events(AuditAction.LEGACY_RECORDS_MOVED)
+    assert [r.pk for r in live(ada_person)] == [first.pk, second.pk]
+
+
+def test_two_results_on_one_sheet_are_never_moved_to_one_person() -> None:
+    commit(
+        {
+            "062025": [
+                ["Ada Park", "White", "Yellow", "Pass", ""],
+                ["Ben Cho", "White", "Yellow", "Pass", ""],
+            ],
+            "122025": [["Ben Cho", "Yellow", "Blue", "Pass", ""]],
+        },
+    )
+    ada_person, ben = person_of("Ada Park"), person_of("Ben Cho")
+    june, _ = live(ben)
+    assert len(live(ada_person)) == 1
+
+    with pytest.raises(ValidationError) as refused:
+        move_records(
+            ben.pk,
+            [june.pk],
+            ada_person.pk,
+            version=ben.version,
+            to_version=ada_person.version,
+            actor=admin(),
+        )
+    assert refused.value.message_dict == {
+        "to": ["Two results on one sheet cannot be one person."],
+    }
+
+
 # --- confirm many ------------------------------------------------------------
 
 
@@ -694,11 +851,24 @@ def test_each_decision_is_made_through_the_api() -> None:
         {"version": 6, "other": new_person["id"], "other_version": 1},
     )
     assert [r["id"] for r in merged["records"]] == [first.pk, second.pk]
+    commit({"032026": [["Ben Cho", "White", "Yellow", "Pass", ""]]})
+    ben = person_of("Ben Cho")
+    moved = post(
+        f"{person.pk}/move/",
+        {"version": 7, "records": [second.pk], "to": ben.pk, "to_version": 1},
+    )
+    assert moved["id"] == ben.pk
+    assert second.pk in [r["id"] for r in moved["records"]]
+    back = post(
+        f"{ben.pk}/move/",
+        {"version": 2, "records": [second.pk], "to": person.pk, "to_version": 8},
+    )
+    assert [r["id"] for r in back["records"]] == [first.pk, second.pk]
     confirmed = client.post(
         f"{PEOPLE}confirm/",
         {
             "confirmations": [
-                {"person": person.pk, "student": ada_park.pk, "version": 7},
+                {"person": person.pk, "student": ada_park.pk, "version": 9},
             ],
         },
         format="json",
@@ -733,6 +903,7 @@ def test_confirming_too_many_at_once_is_refused() -> None:
         ("{id}/reopen/", {"version": 1}),
         ("{id}/split/", {"records": [1], "version": 1}),
         ("{id}/merge/", {"other": 1, "version": 1, "other_version": 1}),
+        ("{id}/move/", {"records": [1], "to": 1, "version": 1, "to_version": 1}),
         ("confirm/", {"confirmations": [{"person": 1, "student": 1, "version": 1}]}),
     ],
 )

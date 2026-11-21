@@ -107,7 +107,8 @@ password=Smoke-Test-Password-42
 post() {
     : >"$jar"
     curl -ksS -c "$jar" -b "$jar" -o /dev/null "$base/api/setup/"
-    token="$(awk '$6 == "csrftoken" { print $7 }' "$jar")"
+    # Over HTTPS the cookie is host-only (__Host-csrftoken); over plain HTTP, csrftoken.
+    token="$(awk '$6 == "__Host-csrftoken" { h = $7 } $6 == "csrftoken" { p = $7 } END { print (h != "" ? h : p) }' "$jar")"
     status -c "$jar" -b "$jar" -H "X-CSRFToken: $token" -H "Referer: $base/" \
         -H 'Content-Type: application/json' -d "$2" "$base$1"
 }

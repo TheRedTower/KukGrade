@@ -25,7 +25,8 @@ jar="$(mktemp)"
 trap 'rm -f "$jar"' EXIT
 
 curl -ksS -c "$jar" -o /dev/null "$base/api/setup/" || { echo "Could not reach $base"; exit 2; }
-token="$(awk '$6 == "csrftoken" { print $7 }' "$jar")"
+# Over HTTPS the cookie is host-only (__Host-csrftoken); over plain HTTP, csrftoken.
+token="$(awk '$6 == "__Host-csrftoken" { h = $7 } $6 == "csrftoken" { p = $7 } END { print (h != "" ? h : p) }' "$jar")"
 if [ -z "$token" ]; then
     echo "No CSRF cookie from $base/api/setup/: is the address in DJANGO_ALLOWED_HOSTS?"
     exit 2

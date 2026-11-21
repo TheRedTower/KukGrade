@@ -512,3 +512,26 @@ def test_api_answers_are_compressed_for_a_browser_that_accepts_it() -> None:
     assert compressed.status_code == 200
     assert compressed["Content-Encoding"] == "gzip"
     assert not plain.has_header("Content-Encoding")
+
+
+def test_the_emergency_admin_keeps_cookies_a_plain_http_browser_accepts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The emergency admin is plain HTTP on the loopback, so on a production
+    install its cookies are not Secure, and a browser refuses a __Host- cookie
+    that is not: it must use the plain names or no one could sign in."""
+    production = load_settings(monkeypatch, **PRODUCTION_ENV)
+    assert production.CSRF_COOKIE_NAME == "__Host-csrftoken"
+    monkeypatch.setitem(sys.modules, "kukgrade.settings", production)
+    spec = importlib.util.spec_from_file_location(
+        "_isolated_settings_admin",
+        SETTINGS_PATH.with_name("settings_admin.py"),
+    )
+    assert spec is not None and spec.loader is not None
+    admin = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(admin)
+
+    assert admin.SESSION_COOKIE_SECURE is False
+    assert admin.CSRF_COOKIE_SECURE is False
+    assert admin.SESSION_COOKIE_NAME == "sessionid"
+    assert admin.CSRF_COOKIE_NAME == "csrftoken"

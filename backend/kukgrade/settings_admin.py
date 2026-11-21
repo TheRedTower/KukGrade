@@ -20,3 +20,7 @@ SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = 0
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+# A browser refuses a __Host- cookie that is not Secure, and this site is plain
+# HTTP on the loopback: the plain names, or sign-in could never keep a cookie.
+SESSION_COOKIE_NAME = "sessionid"
+CSRF_COOKIE_NAME = "csrftoken"

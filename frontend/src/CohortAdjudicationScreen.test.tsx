@@ -9,9 +9,11 @@ import type {
   CandidateAssessmentItem,
   CandidateAssessmentSummary,
   CandidateOutcome,
+  CandidateOutcomeOutcome,
   GradingCandidate,
   GradingCandidateRoster,
   GradingSession,
+  KeptStagedDecision,
 } from "./api";
 import { ApiError } from "./api";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
@@ -505,6 +507,62 @@ describe("CohortAdjudicationScreen", () => {
     // Alex's decision comes back on the next visit.
     await waitFor(() =>
       expect(mockStage).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }), false),
+    );
+  });
+
+  it("reads back what is staged only once the last visit's saves have landed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    // The server holds what each save sends, once that save is answered.
+    let held: KeptStagedDecision[] = [];
+    let answer = () => {};
+    mockGetStaged.mockImplementation(async () => held);
+    mockStage.mockImplementation(
+      (outcomeId: number, payload: { final_outcome: CandidateOutcomeOutcome; revision: number }) =>
+        new Promise((resolve) => {
+          answer = () => {
+            held = [
+              {
+                outcome: outcomeId,
+                final_outcome: payload.final_outcome,
+                decision_notes: "",
+                conditional_requirements: "",
+                revision: payload.revision,
+                discarded: false,
+              },
+            ];
+            resolve({ outcome: outcomeId });
+          };
+        }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const board = renderBoard(undefined, queryClient);
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
+    await passTypingPause();
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    answer();
+    // Changed to Fail and left at once: the save of Fail is still on its way.
+    await user.click(within(mia).getByRole("button", { name: "Fail" }));
+    board.unmount();
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(2));
+
+    renderBoard(undefined, queryClient);
+    await screen.findByTestId("cab-row-1");
+    // Not read while the save is on its way, so Pass cannot come back.
+    expect(mockGetStaged).toHaveBeenCalledTimes(1);
+    answer();
+
+    await waitFor(() =>
+      expect(within(screen.getByTestId("cab-row-1")).getByRole("button", { name: "Fail" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      ),
+    );
+    expect(within(screen.getByTestId("cab-row-1")).getByRole("button", { name: "Pass" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
     );
   });
 

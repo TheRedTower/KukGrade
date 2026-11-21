@@ -25,7 +25,14 @@ services the application uses, so the audit log and the promotion ledger are gen
   not started, and one candidate withdrawn;
 - a **planned** grading with a few candidates registered, and many students not yet in any
   grading so the cohort builder can be tried (including a Jo Kyo Nim candidate);
-- some imported historical records, some linked to students and some waiting to be.
+- some imported historical records, grouped into people: some linked to students and some
+  waiting to be sorted, with the workbook's own key to what its outcomes mean;
+- a past-gradings workbook uploaded and not yet saved, with one of each thing to check;
+- a student list uploaded and not yet saved, with rows ready, one already in KukGrade and
+  rows to fix.
+
+Uploading a file is closed (see below), so the two open imports are there to work through
+instead.
 
 ## What is closed
 
@@ -59,7 +66,7 @@ its own; it expects the one you already run.
 1. Start it, naming the image tag to run (there is no `latest` until the first stable release,
    so use the newest release candidate under
    [Releases](https://github.com/TheRedTower/KukGrade/releases)):
-   `KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.14 docker compose -f deploy/compose.demo.yml up -d`
+   `KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.16 docker compose -f deploy/compose.demo.yml up -d`
 2. Connect your tunnel to the demo's network, once. If it is a plain container:
    `docker network connect kukgrade-demo <your-cloudflared-container>`. If it is in a Compose
    file, add the network to it instead:
@@ -92,8 +99,8 @@ A new release reaches it with two commands, run from the repository folder on th
 machine, with `KUKGRADE_VERSION` set to the new tag:
 
 ```sh
-KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.14 docker compose -f deploy/compose.demo.yml pull
-KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.14 docker compose -f deploy/compose.demo.yml up -d
+KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.16 docker compose -f deploy/compose.demo.yml pull
+KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.16 docker compose -f deploy/compose.demo.yml up -d
 ```
 
 The data is rebuilt on every start, so there is nothing to migrate or back up. Every release's

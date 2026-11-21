@@ -229,7 +229,6 @@ second screen will want it, add it to `layout.css` or `theme.css` once, not to t
 | A list with no bullets | `.list-plain` |
 | Words a phone's row has no room to show (still read out) | `.visually-hidden--phone` |
 | A row of choices too long for the screen | `ScrollRail`: a plain native scroller (swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch). The one place a screen may scroll a row sideways |
-| A grid that is wide by nature, such as a preview of the user's own spreadsheet | `.scroll-region`, the only other sideways scroller |
 
 **Tables, lists and filters**
 

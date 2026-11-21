@@ -127,19 +127,23 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   const keep = keepMutation.mutateAsync;
 
   // Sends what differs between `target` and what the server will hold. Not
-  // before the server's copy is read, and not while recording (recording
-  // removes the server's copy itself).
+  // before the server's copy is read.
+  //
+  // `settled` is the save once typing settles, which waits while recording
+  // (recording removes the server's copy itself). Leaving the board sends
+  // even while recording: rows that recording has not reached, or was not
+  // asked to record, would otherwise be lost. The server refuses to keep a
+  // decision already recorded, and removes the kept copy of one it records
+  // later, so a recorded decision never comes back staged.
   //
   // `closing` is for a page that is going (a closed tab, a reload): a write
   // still waiting in the queue would die with it, so every row the server has
   // not confirmed is sent at once, on its own, and kept alive past the page,
   // with a later revision than anything queued. Leaving for another screen
-  // keeps the queue, since the page and its queue live on. A page closed while
-  // recording sends them too: the rows recording has not reached yet would
-  // otherwise be lost, and the server refuses to keep a decision already
-  // recorded, and removes the kept copy of one it records later.
-  function sendChanges(target: Record<number, StagedDecision>, closing: boolean) {
-    if (restored === null || (isRecording && !closing)) return;
+  // keeps the queue, since the page and its queue live on.
+  function sendChanges(target: Record<number, StagedDecision>, how: "settled" | "leaving" | "closing") {
+    if (restored === null || (isRecording && how === "settled")) return;
+    const closing = how === "closing";
     if (sent.current === null) {
       const held = Object.fromEntries(
         Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
@@ -206,7 +210,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // what is staged sends anything: a failed save showing its message must not
   // send it again.
   const settled = useDebouncedValue(staged, KEEP_DELAY_MS);
-  const keepSettled = useEffectEvent(() => sendChanges(settled, false));
+  const keepSettled = useEffectEvent(() => sendChanges(settled, "settled"));
   useEffect(() => {
     if (settled === staged) keepSettled();
   }, [settled, staged, restored, isRecording]);
@@ -214,7 +218,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // Leaving the board (another screen, a closed tab, a reload) keeps at once
   // what is staged now, so a change made just before is not lost: a decision
   // taken off the board must not come back on the next visit.
-  const leave = useEffectEvent((closing: boolean) => sendChanges(staged, closing));
+  const leave = useEffectEvent((closing: boolean) => sendChanges(staged, closing ? "closing" : "leaving"));
   useEffect(() => {
     const onPageHide = () => leave(true);
     window.addEventListener("pagehide", onPageHide);

@@ -480,6 +480,34 @@ describe("CohortAdjudicationScreen", () => {
     expect(mockStage).toHaveBeenCalledWith(11, expect.objectContaining({ final_outcome: "PASS" }), true);
   });
 
+  it("keeps the other staged decisions when the board is left while one is recording", async () => {
+    const user = userEvent.setup();
+    // Mia's decision stays on its way until the board is left.
+    let answer = () => {};
+    mockFinalise.mockImplementation(
+      (outcomeId: number) =>
+        new Promise((resolve) => {
+          answer = () => resolve({ ...outcomes.find((o) => o.id === outcomeId)!, status: "FINALISED" });
+        }),
+    );
+    const board = renderBoard();
+
+    await user.click(await within(await screen.findByTestId("cab-row-2")).findByRole("button", { name: "Fail" }));
+    await user.click(within(screen.getByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    // Only Mia, in focus, is recorded, before the pause after typing kept anything.
+    await user.click(screen.getByRole("button", { name: "Record decision for Mia" }));
+    await waitFor(() => expect(mockFinalise).toHaveBeenCalledTimes(1));
+    expect(mockStage).not.toHaveBeenCalled();
+    board.unmount();
+    // Leaving queues the save behind the decision being recorded, which then lands.
+    answer();
+
+    // Alex's decision comes back on the next visit.
+    await waitFor(() =>
+      expect(mockStage).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }), false),
+    );
+  });
+
   it("sends nothing again when the page is left after every save is confirmed", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

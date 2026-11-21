@@ -18,6 +18,7 @@ import type {
 import { ApiError } from "./api";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
 import { CHOICES, sessionServed } from "./appTestSupport";
+import { SIGNING_OUT_EVENT } from "./pendingWrites";
 
 const masterUser: AuthUser = {
   id: "uuid-master",
@@ -564,6 +565,23 @@ describe("CohortAdjudicationScreen", () => {
       "aria-pressed",
       "false",
     );
+  });
+
+  it("keeps a change made just before signing out, while the session still lives", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderBoard();
+
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
+    // Before the pause after typing has kept it.
+    expect(mockStage).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event(SIGNING_OUT_EVENT));
+    // Sent at once, well inside the pause after typing.
+    await act(() => vi.advanceTimersByTimeAsync(50));
+
+    expect(mockStage).toHaveBeenCalledWith(11, expect.objectContaining({ final_outcome: "PASS" }), false);
+    await passTypingPause();
+    expect(mockStage).toHaveBeenCalledTimes(1);
   });
 
   it("sends nothing again when the page is left after every save is confirmed", async () => {

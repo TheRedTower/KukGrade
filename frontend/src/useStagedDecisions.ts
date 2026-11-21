@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   type CandidateOutcomeOutcome,
@@ -14,6 +14,7 @@ import {
 import { type BoardRow, type StagedDecision, fromServer, missingRequirements, without } from "./adjudicationBoard";
 import { keys, refresh } from "./queryKeys";
 import { agreeing, counted } from "./plural";
+import { LANDS_BEFORE_SIGN_OUT, SIGNING_OUT_EVENT, writesLanded } from "./pendingWrites";
 import { useDebouncedValue } from "./useDebouncedValue";
 
 // How long typing settles before a staged decision is kept on the server.
@@ -43,24 +44,6 @@ async function write(
     },
     keepalive,
   );
-}
-
-/**
- * Waits until no write with this key is queued or on its way. A board left
- * and opened again at once must not read the server before the last visit's
- * saves have landed, or it would bring back what they changed.
- */
-function writesLanded(queryClient: QueryClient, mutationKey: readonly unknown[]): Promise<void> {
-  const cache = queryClient.getMutationCache();
-  const busy = () => cache.findAll({ mutationKey, status: "pending" }).length > 0;
-  if (!busy()) return Promise.resolve();
-  return new Promise((resolve) => {
-    const unsubscribe = cache.subscribe(() => {
-      if (busy()) return;
-      unsubscribe();
-      resolve();
-    });
-  });
 }
 
 interface Options {
@@ -121,7 +104,10 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   const keptQuery = useQuery({
     queryKey: keys.stagedDecisions(sessionId),
     queryFn: async () => {
-      await writesLanded(queryClient, writeKey);
+      // A board left and opened again at once must not read the server
+      // before the last visit's saves have landed, or it would bring back
+      // what they changed.
+      await writesLanded(queryClient, { mutationKey: writeKey });
       return getStagedDecisions(sessionId);
     },
     enabled: enabled && canDecide,
@@ -139,6 +125,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   const keepMutation = useMutation({
     mutationKey: writeKey,
     scope,
+    meta: LANDS_BEFORE_SIGN_OUT,
     mutationFn: ({
       outcomeId,
       decision,
@@ -240,15 +227,19 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     if (settled === staged) keepSettled();
   }, [settled, staged, restored, isRecording]);
 
-  // Leaving the board (another screen, a closed tab, a reload) keeps at once
-  // what is staged now, so a change made just before is not lost: a decision
-  // taken off the board must not come back on the next visit.
+  // Leaving the board (another screen, a closed tab, a reload, signing out)
+  // keeps at once what is staged now, so a change made just before is not
+  // lost: a decision taken off the board must not come back on the next
+  // visit. Signing out sends it while the session still lives, and waits.
   const leave = useEffectEvent((closing: boolean) => sendChanges(staged, closing ? "closing" : "leaving"));
   useEffect(() => {
     const onPageHide = () => leave(true);
+    const onSigningOut = () => leave(false);
     window.addEventListener("pagehide", onPageHide);
+    window.addEventListener(SIGNING_OUT_EVENT, onSigningOut);
     return () => {
       window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener(SIGNING_OUT_EVENT, onSigningOut);
       leave(false);
     };
   }, []);
@@ -282,6 +273,7 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   const finaliseMutation = useMutation({
     mutationKey: writeKey,
     scope,
+    meta: LANDS_BEFORE_SIGN_OUT,
     mutationFn: (write: { outcomeId: number; payload: Parameters<typeof finaliseCandidateOutcome>[1] }) =>
       finaliseCandidateOutcome(write.outcomeId, write.payload),
   });

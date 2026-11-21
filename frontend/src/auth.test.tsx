@@ -6,6 +6,7 @@ import { getStudents } from "./api";
 import { AuthProvider, useAuth } from "./auth";
 import type { AuthUser } from "./api";
 import { jsonResponse, stubFetch } from "./appTestSupport";
+import { LANDS_BEFORE_SIGN_OUT, SIGNING_OUT_EVENT } from "./pendingWrites";
 
 const authUser = {
   id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
@@ -74,6 +75,61 @@ describe("ending a session", () => {
 
     await waitFor(() => expect(screen.getByText("anonymous")).toBeVisible());
     expect(queryClient.getQueryData(["students", "all"])).toBeUndefined();
+  });
+
+  it("asks screens to save, and waits for saves on their way, before the session ends", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (url: string) =>
+        url.includes("/api/auth/logout/") ? jsonResponse(204, undefined) : jsonResponse(200, authUser),
+      );
+    stubFetch(fetchMock);
+    const queryClient = await renderSignedIn(<SignOutButton />);
+    const asked = vi.fn();
+    window.addEventListener(SIGNING_OUT_EVENT, asked);
+    // A save still on its way when the viewer signs out.
+    let land = () => {};
+    void queryClient
+      .getMutationCache()
+      .build(queryClient, {
+        mutationFn: () => new Promise<void>((resolve) => (land = resolve)),
+        meta: LANDS_BEFORE_SIGN_OUT,
+      })
+      .execute(undefined);
+    const signedOut = () => fetchMock.mock.calls.some(([url]) => String(url).includes("/api/auth/logout/"));
+
+    await act(async () => screen.getByRole("button", { name: "Sign out" }).click());
+
+    expect(asked).toHaveBeenCalledTimes(1);
+    expect(signedOut()).toBe(false);
+    await act(async () => land());
+    await waitFor(() => expect(screen.getByText("anonymous")).toBeVisible());
+    expect(signedOut()).toBe(true);
+    window.removeEventListener(SIGNING_OUT_EVENT, asked);
+  });
+
+  it("signs out after a few seconds though a save never lands", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFetch(
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/auth/logout/") ? jsonResponse(204, undefined) : jsonResponse(200, authUser),
+        ),
+    );
+    const queryClient = await renderSignedIn(<SignOutButton />);
+    // No network for it: it never answers.
+    void queryClient
+      .getMutationCache()
+      .build(queryClient, { mutationFn: () => new Promise<void>(() => {}), meta: LANDS_BEFORE_SIGN_OUT })
+      .execute(undefined);
+
+    await act(async () => screen.getByRole("button", { name: "Sign out" }).click());
+    expect(screen.getByText(authUser.email)).toBeVisible();
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+
+    await waitFor(() => expect(screen.getByText("anonymous")).toBeVisible());
+    vi.useRealTimers();
   });
 
   it("drops it too when the server says the session has expired", async () => {

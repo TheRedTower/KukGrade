@@ -461,6 +461,25 @@ describe("CohortAdjudicationScreen", () => {
     expect(mockDiscard).toHaveBeenCalledWith(11, expect.any(Number), true);
   });
 
+  it("keeps the decisions not yet recorded when the page is left while recording", async () => {
+    const user = userEvent.setup();
+    // Never answers: recording stays on Mia, and Alex is not reached.
+    mockFinalise.mockImplementation(() => new Promise(() => {}));
+    renderBoard();
+
+    await user.click(await within(await screen.findByTestId("cab-row-1")).findByRole("button", { name: "Pass" }));
+    await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
+    // Recorded before the pause after typing, so nothing was kept yet.
+    await user.click(screen.getByTestId("cab-record-staged"));
+    await waitFor(() => expect(mockFinalise).toHaveBeenCalledTimes(1));
+    expect(mockStage).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event("pagehide"));
+
+    // Alex's decision comes back on the next visit; the server turns Mia's away once it is recorded.
+    expect(mockStage).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }), true);
+    expect(mockStage).toHaveBeenCalledWith(11, expect.objectContaining({ final_outcome: "PASS" }), true);
+  });
+
   it("sends nothing again when the page is left after every save is confirmed", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

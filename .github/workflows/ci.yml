@@ -12,8 +12,11 @@ on:
   workflow_dispatch:
 
 # A superseded run on the same branch is cancelled rather than left to finish.
+# Runs are grouped by how they started as well as by branch, so a full check
+# started by hand (Run workflow) never cancels the run a merge started on the
+# same commit: that cancelled run showed as a red cross beside a green one.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:

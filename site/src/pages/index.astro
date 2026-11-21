@@ -1,0 +1,196 @@
+---
+import logo from "../assets/logo.svg?raw";
+import Shot from "../components/Shot.astro";
+import Base from "../layouts/Base.astro";
+import { site } from "../site";
+
+import overviewLight from "../assets/shots/overview-light.png";
+import overviewDark from "../assets/shots/overview-dark.png";
+import assessmentLight from "../assets/shots/assessment-light.png";
+import assessmentDark from "../assets/shots/assessment-dark.png";
+import sessionLight from "../assets/shots/session-light.png";
+import sessionDark from "../assets/shots/session-dark.png";
+import decisionsLight from "../assets/shots/decisions-light.png";
+import decisionsDark from "../assets/shots/decisions-dark.png";
+
+const title = `KukGrade · Grading management for ${site.school}`;
+const description =
+  "Plan a grading, assess every candidate against the syllabus, record the Master's decision and promote students, with a permanent record behind every step.";
+
+const features = [
+  {
+    icon: "mat",
+    title: "Built for the grading day",
+    text: "Instructors mark every requirement met or not met from a tablet or phone at the mat, with a live count of what is left.",
+  },
+  {
+    icon: "book",
+    title: "The right syllabus, every time",
+    text: "Each candidate is assessed against everything examinable for their rank and age band. A later syllabus change never alters a past grading.",
+  },
+  {
+    icon: "seal",
+    title: "The Master decides",
+    text: "Instructors recommend; only the Master makes a result final. Promotion is a separate, deliberate step, recorded in each student's rank history.",
+  },
+  {
+    icon: "log",
+    title: "Nothing is lost or quietly changed",
+    text: "Final results are sealed, every change to a mark after the first carries a written reason, and an audit log records who did what, and when.",
+  },
+];
+
+const steps = [
+  ["Plan", "Set the date and register the candidates, a whole mixed-belt group at once."],
+  ["Assess", "Mark each requirement on the mat, with comments for the record."],
+  ["Decide", "Instructors recommend Pass, Fail or Conditional; the Master decides."],
+  ["Promote", "Passed students move up, and their rank history keeps it."],
+  ["Remember", "Every grading stays exactly as it was recorded, for good."],
+];
+
+// Simple line icons, drawn here so the page loads nothing else.
+const icons: Record<string, string> = {
+  mat: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 12l3 3 5-6"/>',
+  book: '<path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5M9 8h6M9 12h6"/>',
+  seal: '<circle cx="12" cy="10" r="6"/><path d="M9 15l-2 6 5-3 5 3-2-6"/>',
+  log: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+};
+---
+
+<Base title={title} description={description}>
+  <header class="top wrap">
+    <a class="brand" href="/" aria-label="KukGrade, home"><span class="logo" set:html={logo} /></a>
+    <nav aria-label="Project">
+      <a href={site.demo}>Demo</a>
+      <a href={site.repo}>GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero__text">
+        <p class="eyebrow">Open-source grading software</p>
+        <h1 id="hero-title">Grading management for {site.school}</h1>
+        <p class="lede">{description}</p>
+        <div class="actions">
+          <a class="btn btn--primary" href={site.demo}>Try the demo</a>
+          <a class="btn" href={site.repo}>See how it is built</a>
+        </div>
+        <p class="note">The demo is open to anyone, holds made-up students only, and resets every few hours.</p>
+      </div>
+      <div class="hero__art">
+        <Shot
+          class="frame frame--laptop"
+          light={overviewLight}
+          dark={overviewDark}
+          alt="The overview: the grading in progress, what needs attention, and what is coming up."
+          widths={[720, 1080, 1440, 2160]}
+          sizes="(min-width: 64rem) 46rem, 92vw"
+          eager
+        />
+        <Shot
+          class="frame frame--phone"
+          light={assessmentLight}
+          dark={assessmentDark}
+          alt="Assessing a candidate on a phone, requirement by requirement, with a running count."
+          widths={[240, 360, 540]}
+          sizes="(min-width: 64rem) 12rem, 30vw"
+          eager
+        />
+      </div>
+    </section>
+
+    <section class="wrap band" aria-labelledby="features-title">
+      <h2 id="features-title" class="section-title">What it does for the school</h2>
+      <ul class="features">
+        {
+          features.map((feature) => (
+            <li class="card">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" set:html={icons[feature.icon]} />
+              <h3>{feature.title}</h3>
+              <p>{feature.text}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="wrap band" aria-labelledby="steps-title">
+      <h2 id="steps-title" class="section-title">From the mat to the record</h2>
+      <ol class="steps">
+        {
+          steps.map(([name, text]) => (
+            <li>
+              <h3>{name}</h3>
+              <p>{text}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="wrap band showcase" aria-labelledby="shots-title">
+      <h2 id="shots-title" class="visually-hidden">The app</h2>
+      <figure class="show">
+        <Shot
+          class="frame"
+          light={sessionLight}
+          dark={sessionDark}
+          alt="A grading session: where it is in its stages, and each candidate's assessment."
+          widths={[720, 1080, 1440, 2160]}
+          sizes="(min-width: 64rem) 40rem, 92vw"
+        />
+        <figcaption>
+          <h3>Run the grading</h3>
+          <p>Every candidate, their rank and where their assessment stands, on one screen. Grading sheets and records print as A4.</p>
+        </figcaption>
+      </figure>
+      <figure class="show show--flip">
+        <Shot
+          class="frame"
+          light={decisionsLight}
+          dark={decisionsDark}
+          alt="The Master's final decisions: the evidence and the recommendation beside each candidate."
+          widths={[720, 1080, 1440, 2160]}
+          sizes="(min-width: 64rem) 40rem, 92vw"
+        />
+        <figcaption>
+          <h3>Decide with the evidence</h3>
+          <p>The sealed assessment and the instructor's recommendation sit beside each candidate as the Master decides.</p>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="wrap band" aria-labelledby="trust-title">
+      <div class="trust card">
+        <h2 id="trust-title" class="section-title">The school's records stay with the school</h2>
+        <ul class="ticks">
+          <li><strong>One private installation,</strong> for this school only; not a shared service.</li>
+          <li><strong>Staff only.</strong> Instructors, administrators and the Master sign in; students never do.</li>
+          <li><strong>Children's details are treated as personal data:</strong> the least access each role needs, and a record of every sensitive change.</li>
+          <li><strong>Open source</strong> under the AGPL, so how it handles that data can be read by anyone.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot wrap">
+    <div class="foot__row">
+      <span class="logo logo--small" set:html={logo} />
+      <nav aria-label="More">
+        <a href={site.demo}>Demo</a>
+        <a href={site.repo}>GitHub</a>
+        <a href={site.docs}>Documentation</a>
+        <a href={site.security}>Security</a>
+        <a href={site.licence}>Licence (AGPL-3.0)</a>
+      </nav>
+    </div>
+    <p class="fine">
+      KukGrade {site.version}. Report a security problem to <a href={`mailto:${site.securityEmail}`}>{site.securityEmail}</a>.
+    </p>
+    <p class="fine">
+      {site.school} is affiliated with the World Kuk Sool Association and follows its rules. KukGrade, the software, is an
+      independent project and is not affiliated with or endorsed by the World Kuk Sool Association.
+    </p>
+  </footer>
+</Base>

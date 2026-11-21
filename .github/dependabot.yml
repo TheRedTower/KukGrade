@@ -75,6 +75,20 @@ updates:
         update-types: [minor, patch]
       frontend-minor-and-patch:
         update-types: [minor, patch]
+  # The project page (site/). Astro, its image tool and the typeface.
+  - package-ecosystem: npm
+    directory: /site
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      site-minor-and-patch:
+        update-types: [minor, patch]
 
   - package-ecosystem: docker
     directory: /

@@ -23,6 +23,7 @@ node_modules/
 dist/
 build/
 .vite/
+site/.astro/
 
 # Tests and coverage
 frontend/test-results/

@@ -24,6 +24,10 @@ Want something here, or something that is missing? Open an
       before it into a new install of 17 with the commands in [Backups](installation.md#backups)
       (the same counts as the updated install, the missing migrations run on restart). Still
       to do: the same on a real deployment, behind a proxy with its request-size cap.
+- [ ] **Project page live**: the page is in `site/` and checked by CI. Still to do: publish it
+      on Cloudflare Pages from `prod` with each release, point kukgrade.co.uk at it (in place
+      of the redirect to GitHub), retake its screenshots on release, and add link,
+      accessibility and HTML checks.
 - [ ] **Release assurance**: a repeatable pre-release checklist covering the install paths.
 - [ ] **Have the demo site follow `latest`**: [the demo](https://demo.kukgrade.co.uk/) is online
       (see [demo.md](demo.md)) and runs a release candidate. Until `latest` exists (the newest

@@ -1,0 +1,23 @@
+{
+  "name": "kukgrade-site",
+  "private": true,
+  "description": "The project page at kukgrade.co.uk: static, no client JavaScript.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "shots": "node scripts/shots.mjs"
+  },
+  "dependencies": {
+    "astro": "7.4.11",
+    "pretendard": "1.3.9",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  }
+}

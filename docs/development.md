@@ -90,6 +90,22 @@ docker build --target production -t kukgrade:ci .
 .github/scripts/image-smoke.sh kukgrade:ci   # starts it as deployed, signs in, stops it cleanly (--keep-demo leaves the demo on 6943)
 ```
 
+**Project page** (`site/`, the one page at kukgrade.co.uk; static Astro, no JavaScript):
+
+```sh
+cd site
+npm ci
+npm run build       # dist/; CI also fails on any <script>, <style> or style="" (the page's CSP forbids them)
+npm audit --audit-level=high
+npm run preview     # http://localhost:4321
+```
+
+Its screenshots come from the demo image on port 6943, light and dark:
+`npm run shots -- https://localhost:6943` (made-up data only; never a real school's install).
+The page says what KukGrade does for Kuk Sool Won of Colchester and nothing else. The
+school is affiliated with the World Kuk Sool Association; the software is not, and the
+footer says so once.
+
 **Width check** (the demo image running on port 6943; see `frontend/e2e/README.md`):
 
 ```sh

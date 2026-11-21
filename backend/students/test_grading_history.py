@@ -164,8 +164,9 @@ def test_a_legacy_item_carries_no_native_record_fields() -> None:
 @pytest.mark.parametrize(
     ("overrides", "named"),
     [
-        ({"outcome": "PASS", "attendance_status": "ATTENDED"}, "Pass"),
-        ({"outcome": "FAIL", "attendance_status": "ATTENDED"}, "Fail"),
+        # A workbook's outcome is a recommendation, never a final decision.
+        ({"outcome": "PASS", "attendance_status": "ATTENDED"}, "Recommended: Pass"),
+        ({"outcome": "FAIL", "attendance_status": "ATTENDED"}, "Recommended: Fail"),
         ({"attendance_status": "DID_NOT_ATTEND"}, "Did not attend"),
         (
             {"source_outcome_text": "Testing? No", "attendance_status": "ATTENDED"},

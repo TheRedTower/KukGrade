@@ -2162,7 +2162,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LegacyGradingRecord'
+                $ref: '#/components/schemas/LegacyGradingRecordDetail'
           description: ''
   /api/gradings/legacy-records/{id}/link-student/:
     post:
@@ -6964,8 +6964,10 @@ components:
           nullable: true
         outcome_display:
           type: string
-          readOnly: true
           nullable: true
+          readOnly: true
+          description: 'The outcome as a recommendation ("Recommended: Pass"); null
+            with none.'
         attendance_status_display:
           type: string
           readOnly: true
@@ -7013,6 +7015,135 @@ components:
       - testing_for_rank_name
       - void_reason
       - voided_by_name
+    LegacyGradingRecordDetail:
+      type: object
+      description: |-
+        One record on its own page: with the key of the workbook it came
+        from, so its outcome reads as the school meant it.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        person:
+          type: integer
+          readOnly: true
+          nullable: true
+        student:
+          type: integer
+          readOnly: true
+          nullable: true
+        student_display_name:
+          type: string
+          readOnly: true
+          nullable: true
+        record_kind:
+          allOf:
+          - $ref: '#/components/schemas/RecordKindEnum'
+          readOnly: true
+        record_kind_display:
+          type: string
+          readOnly: true
+        cycle_year:
+          type: integer
+          readOnly: true
+        cycle_month:
+          type: integer
+          readOnly: true
+        source_section:
+          type: string
+          readOnly: true
+        source_name:
+          type: string
+          readOnly: true
+        source_current_rank_text:
+          type: string
+          readOnly: true
+        current_rank:
+          type: integer
+          readOnly: true
+          nullable: true
+        current_rank_code:
+          type: string
+          readOnly: true
+          nullable: true
+        current_rank_name:
+          type: string
+          readOnly: true
+          nullable: true
+        source_testing_for_rank_text:
+          type: string
+          readOnly: true
+        testing_for_rank:
+          type: integer
+          readOnly: true
+          nullable: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+          nullable: true
+        outcome_display:
+          type: string
+          nullable: true
+          readOnly: true
+          description: 'The outcome as a recommendation ("Recommended: Pass"); null
+            with none.'
+        attendance_status_display:
+          type: string
+          readOnly: true
+        report:
+          type: string
+          readOnly: true
+          description: 'The grading report: the record''s comments, as written.'
+        note:
+          type: string
+          readOnly: true
+          description: Anything else the sheet said beside the record, as written.
+        is_void:
+          type: boolean
+          readOnly: true
+        void_reason:
+          type: string
+          readOnly: true
+        voided_by_name:
+          type: string
+          readOnly: true
+          description: 'Who voided by is, as the record names them: their rank then
+            and their name.'
+        workbook_key:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+          readOnly: true
+          description: The workbook's Information sheet as written, a line per row
+            with its cells; empty when it had none.
+      required:
+      - attendance_status_display
+      - current_rank
+      - current_rank_code
+      - current_rank_name
+      - cycle_month
+      - cycle_year
+      - id
+      - is_void
+      - note
+      - outcome_display
+      - person
+      - record_kind
+      - record_kind_display
+      - report
+      - source_current_rank_text
+      - source_name
+      - source_section
+      - source_testing_for_rank_text
+      - student
+      - student_display_name
+      - testing_for_rank
+      - testing_for_rank_name
+      - void_reason
+      - voided_by_name
+      - workbook_key
     LegacyNotAStudentReasonEnum:
       enum:
       - INSTRUCTOR

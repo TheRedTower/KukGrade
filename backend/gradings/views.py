@@ -117,6 +117,7 @@ from gradings.serializers import (
     HistoricalPersonDetailSerializer,
     HistoricalPersonSerializer,
     KeptStagedDecisionSerializer,
+    LegacyGradingRecordDetailSerializer,
     LegacyGradingRecordSerializer,
     LegacyRecordCountsSerializer,
     LinkLegacyRecordSerializer,
@@ -1095,11 +1096,24 @@ class LegacyGradingRecordViewSet(
     )
 
     def get_queryset(self) -> QuerySet[LegacyGradingRecord]:
-        return LegacyGradingRecord.objects.select_related(
+        records = LegacyGradingRecord.objects.select_related(
             "student",
             "current_rank",
             "testing_for_rank",
-        ).order_by("-cycle_year", "-cycle_month", "source_sheet", "source_locator")
+        )
+        if self.action == "retrieve":
+            records = records.select_related("source_batch")
+        return records.order_by(
+            "-cycle_year",
+            "-cycle_month",
+            "source_sheet",
+            "source_locator",
+        )
+
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        if self.action == "retrieve":
+            return LegacyGradingRecordDetailSerializer
+        return LegacyGradingRecordSerializer
 
     @extend_schema(
         request=LinkLegacyRecordSerializer,

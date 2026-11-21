@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -10,6 +10,7 @@ from gradings.models import (
     LegacyAttendance,
     LegacyDatePrecision,
     Promotion,
+    recommended_outcome,
 )
 from gradings.read_models import (
     GradingHistoryItem,
@@ -107,6 +108,8 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
     def get_result_display(self, item: GradingHistoryItem) -> str:
         if item["attendance_status"] == LegacyAttendance.DID_NOT_ATTEND:
             return LegacyAttendance.DID_NOT_ATTEND.label
+        if item["outcome"] and item["source"] == GradingHistorySource.LEGACY:
+            return cast(str, recommended_outcome(item["outcome"]))
         if item["outcome"]:
             return CandidateOutcome.Outcome(item["outcome"]).label
         return UNRESOLVED_RESULT

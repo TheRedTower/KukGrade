@@ -687,6 +687,16 @@ def upcoming(club: Club) -> GradingSession:
     return session
 
 
+# The demo workbook's cover sheet, as an import keeps it: its own key to what
+# its outcomes mean (ksw_adapter._information). Made up.
+DEMO_WORKBOOK_KEY = [
+    ["Key"],
+    ["Pass", "Ready for the next belt."],
+    ["Conditional", "The school owner decides."],
+    ["Fail", "Grade again next time."],
+]
+
+
 def legacy_records(club: Club) -> None:
     """A little imported history, saved as an import saves it - each record
     given its person - some linked to students and some not."""
@@ -711,6 +721,7 @@ def legacy_records(club: Club) -> None:
         committed_by=club.administrator,
         committed_by_title=title_of(club.administrator),
         committed_at=timezone.now(),
+        configuration_json={"information": DEMO_WORKBOOK_KEY},
         # What a finished import counts (data_imports.services).
         summary_json={
             "total": len(rows),

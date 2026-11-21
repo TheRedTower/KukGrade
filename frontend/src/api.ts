@@ -780,6 +780,7 @@ export function resolveLegacyCheck(id: number, body: Schemas["LegacyCheckDecisio
 }
 
 export type LegacyGradingRecord = Schemas["LegacyGradingRecord"];
+export type LegacyGradingRecordDetail = Schemas["LegacyGradingRecordDetail"];
 
 export function getLegacyGradingRecords(query?: ListQuery<"gradings_legacy_records_list">) {
   return answer(api.GET("/api/gradings/legacy-records/", { params: { query } }));

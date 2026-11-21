@@ -123,7 +123,8 @@ marked as made-up data. A file that has left the app is the school's to keep saf
 - A student's page shows their rank history and a single timeline of every grading,
   native and imported. A grading run in KukGrade shows the rank the student held,
   their age band and, for a Conditional result, what is still required, and links
-  to its assessment.
+  to its assessment. An imported grading's outcome reads as the recommendation it was
+  ("Recommended: Pass").
 - Correcting a date of birth moves the student's open registrations to the right age band, unless an assessment form is already prepared in a different band: then it is refused until the form is removed.
 - A student's rank cannot be edited while they are registered for a grading that has not reached its result: withdraw them first.
 - Search by name, ID (current or previous, with or without its hyphens), rank or status; filter by rank and status. See [Search](#search).
@@ -172,7 +173,9 @@ student (a student found by name whose rank now is below the records' is flagged
 current student, or left for later; a person can be split or merged, some
 of their records can be moved to another person, and every decision can be undone and is audited. A finished import says how many of its people are
 sorted and goes on to the rest. Every saved record can be found again under Historical records, by
-the name as written, and opens a page of its own: the workbook's text in full, the ranks KukGrade
+the name as written, and opens a page of its own: the workbook's text in full (its outcome read
+as a recommendation, "Recommended: Pass", beside the workbook's own key from its Information
+sheet), the ranks KukGrade
 read (either can be corrected from the belts, or cleared), the student it is linked to and its
 person, whom it can be moved away from. A record can be voided with a written reason; it is kept, marked void. See
 [importing-data.md](importing-data.md).

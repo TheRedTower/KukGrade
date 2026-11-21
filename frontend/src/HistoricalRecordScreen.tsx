@@ -215,6 +215,21 @@ export function HistoricalRecordScreen() {
           ) : null}
         </dl>
       </section>
+      {record.workbook_key.length ? (
+        <section aria-labelledby="ix-record-key" className="card stack stack--3">
+          <h2 className="section-title" id="ix-record-key">
+            The workbook’s key
+          </h2>
+          <p className="subtext">Its outcomes are recommendations. This is what the workbook says they mean.</p>
+          <ul className="list-plain stack stack--1">
+            {record.workbook_key.map((line, index) => (
+              <li className="facts-list__text" key={index}>
+                {line.join(" · ")}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section aria-labelledby="ix-record-kukgrade" className="card stack stack--3">
         <h2 className="section-title" id="ix-record-kukgrade">
           In KukGrade

@@ -14,7 +14,11 @@ import {
   type SetupDetails,
   updateCurrentUser,
 } from "./api";
+import { SIGNING_OUT_EVENT, landingBeforeSignOut, writesLanded } from "./pendingWrites";
 import { keys } from "./queryKeys";
+
+// The longest a sign-out waits for saves still on their way.
+const SIGN_OUT_WAIT_MS = 5000;
 
 /** A sign-out that did not reach the server: the session may still be live. */
 export const SIGN_OUT_ERROR = `You are still signed in: ${NETWORK_ERROR}`;
@@ -107,8 +111,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // The cache is only cleared once the server has actually ended the
   // session (onSuccess) - clearing it after a failed request would show a
   // signed-out UI while the session cookie was still valid.
+  //
+  // Work not yet saved is saved first, while the session still lives:
+  // screens holding some start their save on SIGNING_OUT_EVENT, and the
+  // sign-out waits for those saves to land, for a few seconds at most.
   const logoutMutation = useMutation({
-    mutationFn: logoutUser,
+    mutationFn: async () => {
+      window.dispatchEvent(new Event(SIGNING_OUT_EVENT));
+      await writesLanded(queryClient, landingBeforeSignOut, SIGN_OUT_WAIT_MS);
+      return logoutUser();
+    },
     onSuccess: forgetSession,
   });
 

@@ -12,8 +12,10 @@ This page covers the conventions the schema does not.
 ## Authentication
 
 Sessions and CSRF, as in any Django site. Sign in with `POST /api/auth/login/`
-(email and password); the response sets the `sessionid` and `csrftoken` cookies. Send
-the `X-CSRFToken` header on every `POST`, `PUT`, `PATCH` and `DELETE`. There are no API keys
+(email and password); the response sets the session and CSRF cookies: over HTTPS
+`__Host-sessionid` and `__Host-csrftoken` (host-only, so no other subdomain can set them),
+over plain HTTP `sessionid` and `csrftoken`. Send the CSRF cookie's value in the
+`X-CSRFToken` header on every `POST`, `PUT`, `PATCH` and `DELETE`. There are no API keys
 or tokens, and students have no accounts.
 
 Sign-in and password change are rate-limited. A request from an account that must change

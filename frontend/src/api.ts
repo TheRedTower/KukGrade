@@ -114,12 +114,14 @@ export function errorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * The form token Django sets. Over HTTPS it is `__Host-csrftoken` (host-only,
+ * so no other subdomain can plant one); over plain HTTP, `csrftoken`.
+ */
 function csrfToken(): string | undefined {
-  return document.cookie
-    .split(";")
-    .map((cookie) => cookie.trim())
-    .find((cookie) => cookie.startsWith("csrftoken="))
-    ?.split("=")[1];
+  const cookies = document.cookie.split(";").map((cookie) => cookie.trim());
+  const named = (name: string) => cookies.find((cookie) => cookie.startsWith(`${name}=`))?.split("=")[1];
+  return named("__Host-csrftoken") ?? named("csrftoken");
 }
 
 /** A query string with every present parameter; empty values are left out. */

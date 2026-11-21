@@ -457,6 +457,14 @@ CSRF_TRUSTED_ORIGINS = env_list(
 CSRF_FAILURE_VIEW = "kukgrade.exceptions.csrf_failure"
 SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", _SECURE_TRANSPORT)
 CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", _SECURE_TRANSPORT)
+# A secure cookie is named with the __Host- prefix: the browser then takes it
+# only from this exact host, over HTTPS, for the whole site, and refuses one
+# set by any other subdomain. A neighbour on the same domain (the public demo
+# beside a school's KukGrade) cannot plant a session or form token here. The
+# prefix needs Secure, a path of / and no Domain, so plain HTTP keeps the
+# plain names; the frontend reads either (api.ts).
+SESSION_COOKIE_NAME = "__Host-sessionid" if SESSION_COOKIE_SECURE else "sessionid"
+CSRF_COOKIE_NAME = "__Host-csrftoken" if CSRF_COOKIE_SECURE else "csrftoken"
 SESSION_COOKIE_HTTPONLY = True
 # Signed out after two hours with no request. Saving on every request slides
 # the expiry forward, so the two hours count from the last activity, not

@@ -111,7 +111,9 @@ header (as in the app) overrides it, screenshots included. The switch is radio b
 by CSS, so the page still runs no JavaScript; the choice lasts while the page is open.
 
 Cloudflare hosts it as static files (Workers static assets, `site/wrangler.jsonc`: no
-Worker code, the headers in `public/_headers`, `404.html` for any unknown address). Its
+Worker code, the headers in `public/_headers`, `404.html` for any unknown address). Every
+response is marked `no-transform`, so Cloudflare leaves the page as built: its bot check
+(JavaScript detections) would otherwise add a script that the page's policy blocks. Its
 Git integration builds from `site/` with `npm run build` and runs `npx wrangler deploy` for
 its production branch, and a preview upload for any other branch (each gets a
 `*-kukgrade.<account>.workers.dev` link). The production branch is `dev` until the first

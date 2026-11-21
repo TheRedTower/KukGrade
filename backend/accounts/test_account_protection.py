@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 
 from accounts.admin import UserAdmin
 from accounts.models import User
-from accounts.services import set_admin_site_access
+from accounts.services import delete_platform_user, set_admin_site_access
 
 pytestmark = pytest.mark.django_db
 
@@ -77,6 +77,23 @@ def test_only_a_superuser_changes_an_account_with_admin_site_access(
     superuser = User.objects.create_superuser(email="guard-root@example.com")
     allowed = getattr(as_user(superuser), method)(url, body, format="json")
     assert allowed.status_code in {200, 204}, allowed.content
+
+
+@pytest.mark.parametrize("access", ["is_superuser", "is_staff"])
+def test_admin_site_access_granted_after_loading_still_protects_from_deletion(
+    access: str,
+) -> None:
+    """The account is read before the lock, and the access is granted in
+    between: the deletion is checked on the locked row (Codex, #267)."""
+    actor = administrator()
+    loaded = User.objects.create_user(email="loaded-early@example.com")
+    User.objects.filter(pk=loaded.pk).update(**{access: True})
+
+    with pytest.raises(ValidationError) as refusal:
+        delete_platform_user(loaded, actor)
+
+    assert refusal.value.message_dict == {"user": [SUPERUSER_ONLY]}
+    assert User.objects.get(pk=loaded.pk).deleted_at is None
 
 
 @pytest.mark.parametrize("role", [User.Role.INSTRUCTOR, User.Role.ADMINISTRATOR])

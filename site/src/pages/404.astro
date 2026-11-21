@@ -1,11 +1,13 @@
 ---
 import logo from "../assets/logo.svg?raw";
+import ThemeToggle from "../components/ThemeToggle.astro";
 import Base from "../layouts/Base.astro";
 ---
 
 <Base title="Page not found · KukGrade" description="This page does not exist.">
   <header class="top wrap">
     <a class="brand" href="/" aria-label="KukGrade, home"><span class="logo" set:html={logo} /></a>
+    <ThemeToggle />
   </header>
   <main id="main" class="wrap band lost">
     <h1>Page not found</h1>

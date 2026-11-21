@@ -106,6 +106,10 @@ The page says what KukGrade does for Kuk Sool Won of Colchester and nothing else
 school is affiliated with the World Kuk Sool Association; the software is not, and the
 footer says so once.
 
+It follows the visitor's light or dark setting, and a Light / System / Dark switch in the
+header (as in the app) overrides it, screenshots included. The switch is radio buttons read
+by CSS, so the page still runs no JavaScript; the choice lasts while the page is open.
+
 Cloudflare hosts it as static files (Workers static assets, `site/wrangler.jsonc`: no
 Worker code, the headers in `public/_headers`, `404.html` for any unknown address). Its
 Git integration builds from `site/` with `npm run build`, runs `npx wrangler deploy` for

@@ -15,6 +15,7 @@
   --accent-text: #8f5f07;
   --on-gold: #17140f;
   --glow: rgb(242 167 27 / 18%);
+  --bezel: #1c1914;
   --shadow: 0 1.5rem 3.5rem rgb(21 19 15 / 14%), 0 0.25rem 0.75rem rgb(21 19 15 / 6%);
   --radius: 1rem;
   --radius-sm: 0.625rem;
@@ -23,8 +24,15 @@
   --font: "Pretendard Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* ── Theme ──────────────────────────────────────────────────────────────
+   The system setting decides, unless the switch in the header (ThemeToggle)
+   says Light or Dark. Each palette is written twice: once for the system
+   setting (which works even in a browser without :has()), once for the
+   switch. Keep the two copies of each the same. */
+
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --bg: #16130f;
     --surface: #221e18;
     --sunken: #1c1914;
@@ -34,7 +42,137 @@
     --gold-strong: #ffbb3d;
     --accent-text: #ffbb3d;
     --glow: rgb(242 167 27 / 12%);
+    --bezel: #4a4337;
     --shadow: 0 1.5rem 3.5rem rgb(0 0 0 / 45%), 0 0.25rem 0.75rem rgb(0 0 0 / 30%);
+  }
+
+  :root:has(#theme-light:checked) {
+    color-scheme: light;
+    --bg: #f5f1e8;
+    --surface: #ffffff;
+    --sunken: #efe9dc;
+    --border: #e1dbcb;
+    --text: #17140f;
+    --muted: #6e6759;
+    --gold-strong: #d6900e;
+    --accent-text: #8f5f07;
+    --glow: rgb(242 167 27 / 18%);
+    --bezel: #1c1914;
+    --shadow: 0 1.5rem 3.5rem rgb(21 19 15 / 14%), 0 0.25rem 0.75rem rgb(21 19 15 / 6%);
+  }
+}
+
+:root:has(#theme-light:checked) {
+  color-scheme: light;
+}
+
+:root:has(#theme-dark:checked) {
+  color-scheme: dark;
+  --bg: #16130f;
+  --surface: #221e18;
+  --sunken: #1c1914;
+  --border: #332d24;
+  --text: #f3efe6;
+  --muted: #a39c8c;
+  --gold-strong: #ffbb3d;
+  --accent-text: #ffbb3d;
+  --glow: rgb(242 167 27 / 12%);
+  --bezel: #4a4337;
+  --shadow: 0 1.5rem 3.5rem rgb(0 0 0 / 45%), 0 0.25rem 0.75rem rgb(0 0 0 / 30%);
+}
+
+/* The screenshots follow the same choice. */
+.shot--dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .shot--light {
+    display: none;
+  }
+
+  .shot--dark {
+    display: block;
+  }
+}
+
+:root:has(#theme-light:checked) .shot--light,
+:root:has(#theme-dark:checked) .shot--dark {
+  display: block;
+}
+
+:root:has(#theme-light:checked) .shot--dark,
+:root:has(#theme-dark:checked) .shot--light {
+  display: none;
+}
+
+/* The switch: three icons in a pill, the chosen one on a raised thumb. */
+.theme {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 2.25rem);
+  margin: 0;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--sunken);
+}
+
+.theme__thumb {
+  position: absolute;
+  inset: 0.2rem auto 0.2rem 0.2rem;
+  width: 2.25rem;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+  transform: translateX(100%);
+  transition: transform 160ms ease;
+}
+
+.theme:has(#theme-light:checked) .theme__thumb {
+  transform: translateX(0);
+}
+
+.theme:has(#theme-dark:checked) .theme__thumb {
+  transform: translateX(200%);
+}
+
+.theme__option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 2.25rem;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.theme__option svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.theme__option:has(input:checked) {
+  color: var(--accent-text);
+}
+
+.theme__option:has(input:focus-visible) {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .theme__option:hover {
+    color: var(--text);
+  }
+
+  .theme__option:has(input:checked):hover {
+    color: var(--accent-text);
   }
 }
 
@@ -151,6 +289,20 @@ p {
 
 .logo--small {
   width: 7.5rem;
+}
+
+.top__end {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* On a phone the header keeps the logo and the theme switch; Demo and GitHub
+   are the hero's two buttons just below, and in the footer. */
+@media (max-width: 30rem) {
+  .top .top__end nav {
+    display: none;
+  }
 }
 
 .top nav,
@@ -275,10 +427,15 @@ h1 {
   max-width: 13rem;
 }
 
+/* The phone's bezel, then a ring in the page's own colour and a hairline,
+   so it stands clear of the laptop screen behind it in either theme. */
 .frame--phone img {
-  border-width: 6px;
-  border-color: #1c1914;
+  border: 6px solid var(--bezel);
   border-radius: 1.75rem;
+  box-shadow:
+    0 0 0 4px var(--bg),
+    0 0 0 5px var(--border),
+    var(--shadow);
 }
 
 /* ── Sections ───────────────────────────────────────────────────────── */
@@ -489,7 +646,8 @@ h1 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  .theme__thumb {
     transition: none !important;
   }
 }

@@ -65,6 +65,11 @@ KukGrade:
   that text can never be edited.
 - They never create a promotion, an outcome or a rank change. Native rank history
   stays native.
+- Their outcomes are the instructors' recommendations, not a final decision made in
+  KukGrade, so they read that way everywhere ("Recommended: Pass"), on a student's
+  history too. The workbook's Information sheet is kept as its key, as written, and shown
+  on each record's page; a sheet longer than a cover sheet is not kept, and the upload
+  says so.
 - They are not linked to a student automatically. KukGrade suggests a student for each
   person, with the reasons, and an administrator decides. A wrong link can be moved; a
   wrong record can be **voided**, never deleted.

@@ -37,6 +37,7 @@ from gradings.models import (
     LegacyRankField,
     Promotion,
     StagedDecision,
+    recommended_outcome,
 )
 from gradings.outcome_services import (
     outcome_can_be_finalised,
@@ -1131,10 +1132,10 @@ class LegacyGradingRecordSerializer(ModelSerializer):
     update/delete exists (LegacyGradingRecord is kukgrade.kept), only
     the reconciliation actions on LegacyGradingRecordViewSet."""
 
-    outcome_display = serializers.CharField(
-        source="get_outcome_display",
-        read_only=True,
-        allow_null=True,
+    outcome_display = serializers.SerializerMethodField(
+        help_text=(
+            'The outcome as a recommendation ("Recommended: Pass"); null with none.'
+        ),
     )
     attendance_status_display = serializers.CharField(
         source="get_attendance_status_display",
@@ -1181,7 +1182,7 @@ class LegacyGradingRecordSerializer(ModelSerializer):
 
     class Meta:
         model = LegacyGradingRecord
-        fields = (
+        fields: tuple[str, ...] = (
             "id",
             "person",
             "student",
@@ -1208,6 +1209,31 @@ class LegacyGradingRecordSerializer(ModelSerializer):
             "voided_by_name",
         )
         read_only_fields = fields
+
+    def get_outcome_display(self, obj: LegacyGradingRecord) -> str | None:
+        return recommended_outcome(obj.outcome)
+
+
+class LegacyGradingRecordDetailSerializer(LegacyGradingRecordSerializer):
+    """One record on its own page: with the key of the workbook it came
+    from, so its outcome reads as the school meant it."""
+
+    workbook_key = serializers.SerializerMethodField(
+        help_text=(
+            "The workbook's Information sheet as written, a line per row with "
+            "its cells; empty when it had none."
+        ),
+    )
+
+    class Meta(LegacyGradingRecordSerializer.Meta):
+        fields = (
+            *LegacyGradingRecordSerializer.Meta.fields,
+            "workbook_key",
+        )
+        read_only_fields = fields
+
+    def get_workbook_key(self, obj: LegacyGradingRecord) -> list[list[str]]:
+        return obj.source_batch.configuration.information
 
 
 class LinkLegacyRecordSerializer(serializers.Serializer):

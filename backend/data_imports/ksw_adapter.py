@@ -75,7 +75,13 @@ MAX_WORKBOOK_ROWS = 50_000
 # "062025"). This accepts that concatenated form, plus "-", "." and "/"
 # themselves in case some other export path preserves a separator.
 _CYCLE_SHEET_PATTERN = re.compile(r"^(0[1-9]|1[0-2])[-./]?(\d{4})$")
-_IGNORED_SHEET_NAMES = {"information"}
+# The cover sheet: no records, but its text - what the outcomes mean, as the
+# school wrote it - is kept as the workbook's key (_information).
+_INFORMATION_SHEET = "information"
+# More than a cover sheet holds; past these the key is not kept at all
+# rather than kept in part.
+MAX_INFORMATION_LINES = 50
+MAX_INFORMATION_TEXT = 2_000
 
 # Main-table header cells (order-independent; the header row is found by
 # content, not by a hard-coded row number).
@@ -163,6 +169,8 @@ class WorkbookParseResult:
     warnings: list[str] = field(default_factory=list)
     # The grading sheets read, in workbook order.
     sheets: list[ParsedSheet] = field(default_factory=list)
+    # The cover sheet's text, a line per row with its cells as written.
+    information: list[list[str]] = field(default_factory=list)
 
 
 def outcome_words(source_outcome_text: str) -> str:
@@ -699,6 +707,29 @@ class _RowBudget:
             yield row
 
 
+def _information(
+    rows: Iterable[tuple[Any, ...]],
+    warnings: list[str],
+) -> list[list[str]]:
+    """The cover sheet's text as the workbook's key: each row with text, its
+    cells with text, as written. One longer than a cover sheet is not kept,
+    and a warning says so."""
+    lines = [
+        [cell_text(cell) for cell in row if cell_text(cell)]
+        for row in rows
+        if not is_blank(row)
+    ]
+    if len(lines) > MAX_INFORMATION_LINES or any(
+        len(cell) > MAX_INFORMATION_TEXT for line in lines for cell in line
+    ):
+        warnings.append(
+            "The Information sheet is longer than a cover sheet, so it is not "
+            "kept as the workbook's key.",
+        )
+        return []
+    return lines
+
+
 def parse_ksw_workbook(content: bytes) -> WorkbookParseResult:
     try:
         with open_workbook(content) as workbook:
@@ -716,10 +747,12 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
     all_rows: list[CanonicalLegacyRow] = []
     warnings: list[str] = []
     sheets: list[ParsedSheet] = []
+    information: list[list[str]] = []
 
     for sheet_name in workbook.sheetnames:
         cleaned_name = sheet_name.strip()
-        if cleaned_name.lower() in _IGNORED_SHEET_NAMES:
+        if cleaned_name.lower() == _INFORMATION_SHEET:
+            information = _information(budget.rows(workbook[sheet_name]), warnings)
             continue
 
         match = _CYCLE_SHEET_PATTERN.match(cleaned_name)
@@ -753,7 +786,12 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
         sheets.append(ParsedSheet(cleaned_name, cycle_year, cycle_month))
 
     _check_locators_unique(all_rows)
-    return WorkbookParseResult(rows=all_rows, warnings=warnings, sheets=sheets)
+    return WorkbookParseResult(
+        rows=all_rows,
+        warnings=warnings,
+        sheets=sheets,
+        information=information,
+    )
 
 
 def _check_locators_unique(rows: list[CanonicalLegacyRow]) -> None:

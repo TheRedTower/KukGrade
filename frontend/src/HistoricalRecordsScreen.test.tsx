@@ -8,7 +8,7 @@ import { ApiError } from "./api";
 import { page } from "./appTestSupport";
 import { HistoricalRecordScreen } from "./HistoricalRecordScreen";
 import { HistoricalRecordsScreen } from "./HistoricalRecordsScreen";
-import { legacyRecord, RANKS } from "./importTestFixtures";
+import { legacyRecord, legacyRecordPage, RANKS } from "./importTestFixtures";
 
 // Made-up names throughout.
 
@@ -67,7 +67,7 @@ beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   api.getAllDataImportBatches.mockResolvedValue(page([]));
   api.getLegacyGradingRecords.mockResolvedValue(page([linked]));
-  api.getLegacyGradingRecord.mockResolvedValue(linked);
+  api.getLegacyGradingRecord.mockResolvedValue({ ...linked, workbook_key: [] });
   api.getRanks.mockResolvedValue(page(RANKS));
 });
 
@@ -112,6 +112,26 @@ describe("A historical record", () => {
     );
   });
 
+  it("reads its outcome as a recommendation, with the workbook's own key", async () => {
+    api.getLegacyGradingRecord.mockResolvedValue(
+      legacyRecordPage({
+        workbook_key: [["Key"], ["Conditional", "The school owner decides."]],
+      }),
+    );
+    renderAt("/imports/history/101");
+
+    expect(await screen.findByText("Recommended: Pass")).toBeVisible();
+    const key = screen.getByRole("region", { name: "The workbook’s key" });
+    expect(within(key).getByText("Conditional · The school owner decides.")).toBeVisible();
+  });
+
+  it("shows no key when the workbook had none", async () => {
+    renderAt("/imports/history/101");
+
+    expect(await screen.findByText("Recommended: Pass")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "The workbook’s key" })).toBeNull();
+  });
+
   it("corrects a rank from the belts, or clears it", async () => {
     const user = userEvent.setup();
     api.resolveLegacyRank.mockResolvedValue(linked);
@@ -129,7 +149,7 @@ describe("A historical record", () => {
   it("names each rank picker on screen, and offers testing-for even when the workbook left it blank", async () => {
     const user = userEvent.setup();
     api.getLegacyGradingRecord.mockResolvedValue(
-      legacyRecord({ source_testing_for_rank_text: "", testing_for_rank: null, testing_for_rank_name: null }),
+      legacyRecordPage({ source_testing_for_rank_text: "", testing_for_rank: null, testing_for_rank_name: null }),
     );
     api.resolveLegacyRank.mockResolvedValue(linked);
     renderAt("/imports/history/101");
@@ -159,7 +179,7 @@ describe("A historical record", () => {
 
   it("shows a voided record and why, with nothing left to correct", async () => {
     api.getLegacyGradingRecord.mockResolvedValue(
-      legacyRecord({ is_void: true, void_reason: "Entered twice", voided_by_name: "Sam Taylor" }),
+      legacyRecordPage({ is_void: true, void_reason: "Entered twice", voided_by_name: "Sam Taylor" }),
     );
     renderAt("/imports/history/101");
 

@@ -91,6 +91,9 @@ class ImportConfiguration:
     rank_mappings = _Setting[dict[str, str]](dict)
     outcome_readings = _Setting[dict[str, str]](dict)
     checks_kept = _Setting[list[str]](list)
+    # The cover sheet's text, as written: the workbook's own key to what its
+    # outcomes mean (ksw_adapter._information).
+    information = _Setting[list[list[str]]](list)
     # The rows each check's decision left out, by key, so a later decision
     # replacing it can bring them back.
     checks_left_out = _Setting[dict[str, list[int]]](dict)

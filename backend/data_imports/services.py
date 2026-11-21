@@ -396,6 +396,7 @@ def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
     for row in parsed.rows:
         keys.setdefault(row.source_sheet, []).append(legacy_content_key(row))
     batch.configuration.warnings = list(parsed.warnings)
+    batch.configuration.information = parsed.information
     batch.configuration.sheets = [
         {
             "name": sheet.name,

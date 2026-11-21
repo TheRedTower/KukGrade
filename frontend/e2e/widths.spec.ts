@@ -38,6 +38,8 @@ interface Ids {
   /** A search that finds students for that person: the suggested student's surname. */
   personSearch: string;
   student: string;
+  /** A student with imported history linked to them: its outcomes read "Recommended: …". */
+  studentWithHistory: string;
   user: string;
   sessions: Record<string, string>;
   /** A candidate being marked: marks open, and some already made. */
@@ -62,6 +64,11 @@ const SCREENS: Screen[] = [
   // A record that is not there: the shared not-found page (RecordPage).
   { name: "student-missing", role: "administrator", path: () => "/students/999999" },
   { name: "student-detail", role: "administrator", path: (ids) => `/students/${ids.student}` },
+  {
+    name: "student-detail-imported",
+    role: "administrator",
+    path: (ids) => `/students/${ids.studentWithHistory}`,
+  },
   {
     name: "student-edit-dialog",
     role: "administrator",
@@ -350,6 +357,9 @@ test.beforeAll(async ({ browser }) => {
     openRoster: String((await list(admin, "/api/data-imports/batches/?kind=STUDENT_ROSTER&finished=false"))[0].id),
     completedCandidate: String(completed[0].id),
     student: String((await list(admin, "/api/students/"))[0].id),
+    studentWithHistory: String(
+      (await list<{ student: number }>(admin, "/api/gradings/legacy-records/?linked=true"))[0].student,
+    ),
     // Not the signed-in administrator: their own page has no password reset.
     user: String((await list(admin, "/api/users/")).find((user) => user.id !== me.id)!.id),
     sessions,

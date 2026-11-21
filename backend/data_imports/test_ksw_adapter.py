@@ -12,6 +12,7 @@ import pytest
 from openpyxl.workbook import Workbook
 
 from data_imports.ksw_adapter import (
+    MAX_INFORMATION_LINES,
     MAX_NOTE_ROWS,
     NO_CURRENT_RANK,
     NO_OUTCOME,
@@ -26,12 +27,47 @@ from data_imports.testing import MAIN_TABLE_HEADER, standard_workbook, workbook_
 from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 
 
-def test_information_sheet_is_ignored() -> None:
+def test_the_information_sheet_holds_no_records_and_is_kept_as_the_key() -> None:
     content = standard_workbook([["A. Example", "White", "Yellow Stripe", "Pass", ""]])
     result = parse_ksw_workbook(content)
 
     assert all(row.source_sheet != "Information" for row in result.rows)
     assert not any("Information" in warning for warning in result.warnings)
+    assert result.information == [
+        ["This workbook contains historical grading records."],
+    ]
+
+
+def test_the_key_keeps_each_line_with_text_and_its_cells_as_written() -> None:
+    def build(workbook: Workbook) -> None:
+        info = workbook.create_sheet(" Information ")
+        info.append(["Key"])
+        info.append([])
+        info.append(["Conditional", None, "  The school owner decides. "])
+        workbook.create_sheet("062025").append(MAIN_TABLE_HEADER)
+
+    result = parse_ksw_workbook(workbook_bytes(build))
+
+    assert result.information == [
+        ["Key"],
+        ["Conditional", "The school owner decides."],
+    ]
+
+
+def test_a_cover_sheet_too_long_to_be_a_key_is_not_kept() -> None:
+    def build(workbook: Workbook) -> None:
+        info = workbook.create_sheet("Information")
+        for line in range(MAX_INFORMATION_LINES + 1):
+            info.append([f"Line {line}"])
+        workbook.create_sheet("062025").append(MAIN_TABLE_HEADER)
+
+    result = parse_ksw_workbook(workbook_bytes(build))
+
+    assert result.information == []
+    assert result.warnings == [
+        "The Information sheet is longer than a cover sheet, so it is not kept "
+        "as the workbook's key.",
+    ]
 
 
 def test_valid_cycle_sheet_derives_year_and_month() -> None:

@@ -1340,6 +1340,16 @@ class LegacyOutcome(models.TextChoices):
     CONDITIONAL = "CONDITIONAL", "Conditional"
 
 
+def recommended_outcome(outcome: str | None) -> str | None:
+    """An imported outcome as it reads everywhere: "Recommended: Pass". A
+    workbook's outcomes are the instructors' recommendations (its own key
+    says the school owner decides a Conditional), never a final decision
+    made in KukGrade."""
+    if not outcome:
+        return None
+    return f"Recommended: {LegacyOutcome(outcome).label}"
+
+
 class LegacyAttendance(models.TextChoices):
     ATTENDED = "ATTENDED", "Attended"
     DID_NOT_ATTEND = "DID_NOT_ATTEND", "Did not attend"

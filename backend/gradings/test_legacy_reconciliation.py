@@ -7,7 +7,8 @@ import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from data_imports.testing import legacy_batch, legacy_record
+from data_imports.services import commit_legacy_grading_import
+from data_imports.testing import history_workbook, legacy_batch, legacy_record
 from gradings.legacy_services import link_legacy_record_to_student
 from gradings.models import LegacyGradingRecord
 from gradings.testing import rank, student, user
@@ -252,3 +253,28 @@ def test_needs_rank_is_one_rule_in_the_filter_and_on_a_loaded_record() -> None:
     }
     assert len(loaded) == 2
     assert filtered == loaded
+
+
+def test_a_record_reads_its_outcome_as_recommended_with_its_workbooks_key() -> None:
+    importer = admin()
+    batch = legacy_batch(history_workbook(), uploaded_by=importer)
+    commit_legacy_grading_import(batch, actor=importer)
+    passed = LegacyGradingRecord.objects.filter(outcome="PASS").first()
+    assert passed is not None
+    client = APIClient()
+    client.force_authenticate(user=instructor())
+
+    detail = client.get(f"/api/gradings/legacy-records/{passed.pk}/").json()
+    listed = client.get("/api/gradings/legacy-records/", {"page_size": 100}).json()
+
+    assert detail["outcome_display"] == "Recommended: Pass"
+    assert detail["workbook_key"] == [
+        ["Key"],
+        ["Conditional", "The school owner decides."],
+    ]
+    [row] = [r for r in listed["results"] if r["id"] == passed.pk]
+    assert row["outcome_display"] == "Recommended: Pass"
+    # The key is the record's own page's, not repeated down a list.
+    assert "workbook_key" not in row
+    blank = next(r for r in listed["results"] if r["record_kind"] != "GRADING_RESULT")
+    assert blank["outcome_display"] is None

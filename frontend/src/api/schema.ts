@@ -3233,6 +3233,7 @@ export interface components {
             readonly source_testing_for_rank_text: string;
             readonly testing_for_rank: number | null;
             readonly testing_for_rank_name: string | null;
+            /** @description The outcome as a recommendation ("Recommended: Pass"); null with none. */
             readonly outcome_display: string | null;
             readonly attendance_status_display: string;
             /** @description The grading report: the record's comments, as written. */
@@ -3243,6 +3244,42 @@ export interface components {
             readonly void_reason: string;
             /** @description Who voided by is, as the record names them: their rank then and their name. */
             readonly voided_by_name: string;
+        };
+        /**
+         * @description One record on its own page: with the key of the workbook it came
+         *     from, so its outcome reads as the school meant it.
+         */
+        LegacyGradingRecordDetail: {
+            readonly id: number;
+            readonly person: number | null;
+            readonly student: number | null;
+            readonly student_display_name: string | null;
+            readonly record_kind: components["schemas"]["RecordKindEnum"];
+            readonly record_kind_display: string;
+            readonly cycle_year: number;
+            readonly cycle_month: number;
+            readonly source_section: string;
+            readonly source_name: string;
+            readonly source_current_rank_text: string;
+            readonly current_rank: number | null;
+            readonly current_rank_code: string | null;
+            readonly current_rank_name: string | null;
+            readonly source_testing_for_rank_text: string;
+            readonly testing_for_rank: number | null;
+            readonly testing_for_rank_name: string | null;
+            /** @description The outcome as a recommendation ("Recommended: Pass"); null with none. */
+            readonly outcome_display: string | null;
+            readonly attendance_status_display: string;
+            /** @description The grading report: the record's comments, as written. */
+            readonly report: string;
+            /** @description Anything else the sheet said beside the record, as written. */
+            readonly note: string;
+            readonly is_void: boolean;
+            readonly void_reason: string;
+            /** @description Who voided by is, as the record names them: their rank then and their name. */
+            readonly voided_by_name: string;
+            /** @description The workbook's Information sheet as written, a line per row with its cells; empty when it had none. */
+            readonly workbook_key: string[][];
         };
         /**
          * @description * `INSTRUCTOR` - An instructor
@@ -5936,7 +5973,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyGradingRecord"];
+                    "application/json": components["schemas"]["LegacyGradingRecordDetail"];
                 };
             };
         };

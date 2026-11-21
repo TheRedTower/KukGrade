@@ -175,6 +175,9 @@ def test_the_planned_grading_includes_a_black_belt_candidate() -> None:
 def test_some_imported_history_is_linked_and_some_waits_to_be() -> None:
     assert LegacyGradingRecord.objects.count() == 8
     assert LegacyGradingRecord.objects.filter(student__isnull=False).count() == 5
+    # Its workbook's key, so a record's page shows what its outcome means.
+    [batch] = {record.source_batch for record in LegacyGradingRecord.objects.all()}
+    assert batch.configuration.information[1] == ["Pass", "Ready for the next belt."]
 
 
 @pytest.mark.django_db

@@ -1,4 +1,11 @@
-import type { DataImportBatch, DataImportRow, HistoricalPersonDetail, LegacyGradingRecord, Rank } from "./api";
+import type {
+  DataImportBatch,
+  DataImportRow,
+  HistoricalPersonDetail,
+  LegacyGradingRecord,
+  LegacyGradingRecordDetail,
+  Rank,
+} from "./api";
 
 // Invented data for the import screens' tests.
 
@@ -126,7 +133,7 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
     source_testing_for_rank_text: "Yellow stripe",
     testing_for_rank: 2,
     testing_for_rank_name: "Yellow stripe",
-    outcome_display: "Pass",
+    outcome_display: "Recommended: Pass",
     attendance_status_display: "Attended",
     report: "Ki Cho Hyung 1 clean.",
     note: "",
@@ -135,6 +142,11 @@ export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): Lega
     voided_by_name: "",
     ...overrides,
   };
+}
+
+/** A record as its own page reads it: with its workbook's key. */
+export function legacyRecordPage(overrides: Partial<LegacyGradingRecordDetail> = {}): LegacyGradingRecordDetail {
+  return { ...legacyRecord(overrides), workbook_key: [], ...overrides };
 }
 
 export const RANKS: Rank[] = [

@@ -1320,6 +1320,87 @@ def test_a_registration_overtaken_by_a_promotion_can_be_withdrawn_after_lock() -
     assert stale.status == GradingCandidate.Status.WITHDRAWN
 
 
+def test_a_student_who_left_cannot_be_reinstated_until_they_return() -> None:
+    """Withdrawn, then marked as left: put back neither singly nor in bulk,
+    as registering them would be refused (Codex, #267)."""
+    from gradings.services import bulk_update_candidate_status
+    from students.services import update_student
+
+    built = candidate(
+        session=grading_session(status=GradingSession.Status.OPEN),
+        status=GradingCandidate.Status.WITHDRAWN,
+    )
+    actor = user("reinstate-left@example.com")
+    update_student(built.student, status=Student.Status.LEFT, actor=actor)
+    built.refresh_from_db()
+
+    with pytest.raises(ValidationError, match="has left"):
+        apply_candidate_update(
+            built, status=GradingCandidate.Status.REGISTERED, actor=actor
+        )
+    updated, errors = bulk_update_candidate_status(
+        candidates=[built],
+        new_status=GradingCandidate.Status.REGISTERED,
+        actor=actor,
+    )
+    assert updated == []
+    assert "has left" in errors[str(built.pk)][0]
+
+    update_student(built.student, status=Student.Status.INACTIVE, actor=actor)
+    built.refresh_from_db()
+    reinstated = apply_candidate_update(
+        built, status=GradingCandidate.Status.REGISTERED, actor=actor
+    )
+    assert reinstated.status == GradingCandidate.Status.REGISTERED
+
+
+def test_reinstating_takes_the_age_band_from_the_corrected_date_of_birth() -> None:
+    """A date of birth corrected while withdrawn moves only open
+    registrations, so reinstating takes the band afresh (Codex, #267)."""
+    from students.services import update_student
+
+    built = candidate(
+        session=grading_session(status=GradingSession.Status.OPEN),
+        status=GradingCandidate.Status.WITHDRAWN,
+    )
+    assert built.age_band == AgeBand.AGE_9_TO_12
+    actor = user("reinstate-reband@example.com")
+    update_student(built.student, date_of_birth=date(2019, 3, 21), actor=actor)
+    built.refresh_from_db()
+    assert built.age_band == AgeBand.AGE_9_TO_12
+
+    reinstated = apply_candidate_update(
+        built, status=GradingCandidate.Status.REGISTERED, actor=actor
+    )
+
+    reinstated.refresh_from_db()
+    assert reinstated.age_band == AgeBand.AGE_8_AND_UNDER
+
+
+def test_reinstating_into_a_new_band_is_refused_while_its_form_is_prepared() -> None:
+    from students.services import update_student
+
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    assessment(candidate=built)
+    actor = user("reinstate-reband-form@example.com")
+    apply_candidate_update(
+        built,
+        status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.ABSENT,
+        actor=actor,
+    )
+    update_student(built.student, date_of_birth=date(2019, 3, 21), actor=actor)
+    built.refresh_from_db()
+
+    with pytest.raises(ValidationError, match="Remove the assessment form first"):
+        apply_candidate_update(
+            built, status=GradingCandidate.Status.REGISTERED, actor=actor
+        )
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.WITHDRAWN
+    assert built.age_band == AgeBand.AGE_9_TO_12
+
+
 def test_moving_or_reinstating_a_registration_rechecks_its_testing_rank() -> None:
     stale, _pupil = _registered_twice_then_promoted_in_first()
     elsewhere = grading_session(

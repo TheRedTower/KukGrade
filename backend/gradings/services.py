@@ -973,6 +973,9 @@ def update_candidate(
         # student's kept registration never becomes active again.
         validate_student_not_deleted(candidate.student)
     if reinstating:
+        # As registering checks: a student who has left is not put back on a
+        # grading until their status is active or inactive again.
+        validate_student_can_be_graded(candidate.student)
         validate_no_unsettled_registration(candidate)
     # The rank is checked when it is chosen, so a registration whose student
     # was promoted elsewhere can still be withdrawn.
@@ -982,6 +985,27 @@ def update_candidate(
             new_testing_for_rank,
             new_session.grading_date,
         )
+    # The band is taken afresh on a move, and on reinstating, since a date of
+    # birth corrected while the registration was withdrawn left it as it was.
+    # A form already prepared was chosen from the old band, so a different one
+    # is refused until the form is removed, as correcting the date of birth is.
+    age_band = candidate.age_band
+    if session_changed or reinstating:
+        age_band = resolve_age_band(
+            candidate.student.date_of_birth,
+            new_session.grading_date,
+        )
+        if age_band != candidate.age_band and hasattr(candidate, "assessment"):
+            raise ValidationError(
+                {
+                    "candidate": [
+                        "This student's date of birth now puts them in a "
+                        "different age band for this grading, where their "
+                        "assessment form is already prepared. Remove the "
+                        "assessment form first.",
+                    ],
+                },
+            )
     if withdrawing:
         if withdrawal_reason not in GradingCandidate.WithdrawalReason.values:
             raise ValidationError(
@@ -1007,11 +1031,7 @@ def update_candidate(
         candidate.status = status
     if notes is not None:
         candidate.notes = notes
-    if session_changed:
-        candidate.age_band = resolve_age_band(
-            candidate.student.date_of_birth,
-            new_session.grading_date,
-        )
+    candidate.age_band = age_band
     return candidate
 
 

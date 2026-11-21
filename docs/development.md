@@ -106,6 +106,12 @@ The page says what KukGrade does for Kuk Sool Won of Colchester and nothing else
 school is affiliated with the World Kuk Sool Association; the software is not, and the
 footer says so once.
 
+Cloudflare hosts it as static files (Workers static assets, `site/wrangler.jsonc`: no
+Worker code, the headers in `public/_headers`, `404.html` for any unknown address). Its
+Git integration builds from `site/` with `npm run build`, runs `npx wrangler deploy` for
+`prod` (the live page changes with a release) and a preview upload for any other branch.
+`npx wrangler deploy --dry-run` checks the configuration locally.
+
 **Width check** (the demo image running on port 6943; see `frontend/e2e/README.md`):
 
 ```sh

@@ -493,3 +493,13 @@ h1 {
     transition: none !important;
   }
 }
+
+/* ── Not found ──────────────────────────────────────────────────────── */
+
+.lost {
+  display: grid;
+  gap: 1.25rem;
+  justify-items: start;
+  min-height: 60vh;
+  align-content: center;
+}

@@ -24,6 +24,7 @@ dist/
 build/
 .vite/
 site/.astro/
+site/.wrangler/
 
 # Tests and coverage
 frontend/test-results/

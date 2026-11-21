@@ -15,11 +15,10 @@ cd KukGrade/deploy
 cp .env.example .env
 ```
 
-> **Until the first stable release there is no `latest` image**, so the compose file's
-> `image:` line cannot be pulled yet. Change it to the newest release candidate listed under
-> [Releases](https://github.com/TheRedTower/KukGrade/releases), for example
-> `ghcr.io/theredtower/kukgrade:0.2.0-rc.16`. (A release candidate is a build to try; see the
-> [roadmap](roadmap.md) for what a first stable release needs.)
+> The compose file's `image:` line is `latest`, the newest stable release. To stay on one
+> release until you choose to update, name its tag instead, for example
+> `ghcr.io/theredtower/kukgrade:0.2.0` ([Releases](https://github.com/TheRedTower/KukGrade/releases)
+> lists them). A release candidate (`0.2.0-rc.N`) is a build to try, never `latest`.
 
 Then start it:
 
@@ -184,7 +183,7 @@ docker compose up -d
 
 (add `-f compose.caddy.yml` or your own file to both). Database migrations run
 automatically when the container starts. `latest` follows the newest stable release (never a
-release candidate, and there is none yet); to stay on one version, or to go back to an earlier one, name its tag instead of
+release candidate); to stay on one version, or to go back to an earlier one, name its tag instead of
 `latest` in the compose file (`ghcr.io/theredtower/kukgrade:0.2.0`). If that
 version's schema is incompatible with migrations already applied, restore the backup
 you took first. Releases are listed under

@@ -71,11 +71,9 @@ cd KukGrade/deploy
 cp .env.example .env
 ```
 
-There is no `latest` image until the first stable release, so set the `image:` line in
-`deploy/compose.yml` to the newest release candidate under
-[Releases](https://github.com/TheRedTower/KukGrade/releases) (for example
-`ghcr.io/theredtower/kukgrade:0.2.0-rc.16`). Then start it; the first run pulls the image,
-which takes a minute or two:
+The compose file runs `latest`, the newest stable release (to stay on one release, name its
+tag instead, for example `ghcr.io/theredtower/kukgrade:0.2.0`). Then start it; the first run
+pulls the image, which takes a minute or two:
 
 ```sh
 docker compose up -d

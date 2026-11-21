@@ -63,10 +63,10 @@ Use a machine of its own, with no route to anything you care about (for example 
 whose firewall refuses traffic to your other networks). The demo brings no tunnel or proxy of
 its own; it expects the one you already run.
 
-1. Start it, naming the image tag to run (there is no `latest` until the first stable release,
-   so use the newest release candidate under
-   [Releases](https://github.com/TheRedTower/KukGrade/releases)):
-   `KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.16 docker compose -f deploy/compose.demo.yml up -d`
+1. Start it. It runs `latest`, the newest stable release; add `KUKGRADE_VERSION=<tag>` to run
+   another release or a release candidate from
+   [Releases](https://github.com/TheRedTower/KukGrade/releases):
+   `KUKGRADE_HOST=demo.example.org docker compose -f deploy/compose.demo.yml up -d`
 2. Connect your tunnel to the demo's network, once. If it is a plain container:
    `docker network connect kukgrade-demo <your-cloudflared-container>`. If it is in a Compose
    file, add the network to it instead:
@@ -96,11 +96,11 @@ Then run `deploy/check-proxy-count.sh` against it once, to confirm the proxy cou
 or choose their own address. Consider a Cloudflare rate-limiting rule as well.
 
 A new release reaches it with two commands, run from the repository folder on the demo's
-machine, with `KUKGRADE_VERSION` set to the new tag:
+machine (with `KUKGRADE_VERSION` set if it runs a fixed tag rather than `latest`):
 
 ```sh
-KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.16 docker compose -f deploy/compose.demo.yml pull
-KUKGRADE_HOST=demo.example.org KUKGRADE_VERSION=0.2.0-rc.16 docker compose -f deploy/compose.demo.yml up -d
+KUKGRADE_HOST=demo.example.org docker compose -f deploy/compose.demo.yml pull
+KUKGRADE_HOST=demo.example.org docker compose -f deploy/compose.demo.yml up -d
 ```
 
 The data is rebuilt on every start, so there is nothing to migrate or back up. Every release's

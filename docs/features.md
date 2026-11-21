@@ -153,32 +153,33 @@ SBN and PKJN (Dahn Bo Nim to Pyung Kwahn Jung Nim). Every screen draws ranks as 
 
 ## Importing existing records
 
-Administrators can bring in an existing student list and, if the school has one,
-a spreadsheet of past gradings, with a guided review before anything is saved.
-Past gradings are linked to students, so they can be imported once the students are in.
-A student list runs through the same screens: what KukGrade found in the file, the things to
-check (its columns to match, then each row to fix or leave out on a page of its own), every
-row, and one save that adds the students once no row needs a fix.
-An upload that is abandoned is cleared once it is 24 hours old: each new upload clears
-the stale ones, and so does every start of the container. Past gradings come in sheet by sheet:
-uploading the whole workbook again brings in only its new sheets, a changed sheet only if chosen,
-and no record is ever added twice. Ranks and outcomes KukGrade can read are taken as read, and
-only what is left is listed to check, each one decision with "keep as written" always allowed: a
-rank it cannot read or the workbook doubts, an outcome it cannot read, a name written twice on one
-sheet, someone both missing and graded there, and a missing outcome or rank. Each step is a
-screen of its own: the sheets, the things to check (each one on its own page, with its answers as
-large buttons), every record, and the save, which never waits for anything left open. Saved records are grouped into the people they are about, by their names and rank
-history, each with how sure that is and the students they may be. Saving goes straight on to sorting them, a queue at a time and a page for each person (on a laptop, beside the list). Each person is linked to a
-student (a student found by name whose rank now is below the records' is flagged), marked not a
-current student, or left for later; a person can be split or merged, some
-of their records can be moved to another person, and every decision can be undone and is audited. A finished import says how many of its people are
-sorted and goes on to the rest. Every saved record can be found again under Historical records, by
-the name as written, and opens a page of its own: the workbook's text in full (its outcome read
-as a recommendation, "Recommended: Pass", beside the workbook's own key from its Information
-sheet), the ranks KukGrade
-read (either can be corrected from the belts, or cleared), the student it is linked to and its
-person, whom it can be moved away from. A record can be voided with a written reason; it is kept, marked void. See
-[importing-data.md](importing-data.md).
+Administrators can bring in an existing student list and, if the school has one, a spreadsheet
+of past gradings, with a guided review before anything is saved. Past gradings are linked to
+students, so they can be imported once the students are in. A student list runs through the same
+screens: what KukGrade found in the file, the things to check (its columns to match, then each
+row to fix or leave out on a page of its own), every row, and one save that adds the students
+once no row needs a fix. An upload that is abandoned is cleared once it is 24 hours old: each
+new upload clears the stale ones, and so does every start of the container. Past gradings come
+in sheet by sheet: uploading the whole workbook again brings in only its new sheets, a changed
+sheet only if chosen, and no record is ever added twice. Ranks and outcomes KukGrade can read
+are taken as read, and only what is left is listed to check, each one decision with "keep as
+written" always allowed: a rank it cannot read or the workbook doubts, an outcome it cannot
+read, a name written twice on one sheet, someone both missing and graded there, and a missing
+outcome or rank. Each step is a screen of its own: the sheets, the things to check (each one on
+its own page, with its answers as large buttons), every record, and the save, which never waits
+for anything left open. Saved records are grouped into the people they are about, by their names
+and rank history, each with how sure that is and the students they may be. Saving goes straight
+on to sorting them, a queue at a time and a page for each person (on a laptop, beside the list).
+Each person is linked to a student (a student found by name whose rank now is below the records'
+is flagged), marked not a current student, or left for later; a person can be split or merged,
+some of their records can be moved to another person, and every decision can be undone and is
+audited. A finished import says how many of its people are sorted and goes on to the rest. Every
+saved record can be found again under Historical records, by the name as written, and opens a
+page of its own: the workbook's text in full (its outcome read as a recommendation,
+"Recommended: Pass", beside the workbook's own key from its Information sheet), the ranks
+KukGrade read (either can be corrected from the belts, or cleared), the student it is linked to
+and its person, whom it can be moved away from. A record can be voided with a written reason; it
+is kept, marked void. See [importing-data.md](importing-data.md).
 
 ## Search
 

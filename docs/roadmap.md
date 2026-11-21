@@ -32,12 +32,14 @@ Want something here, or something that is missing? Open an
       decided through the API. The shared parts the phone screens are built from are in place
       (`ActionBar`, `DetailPage`, `QueueList`, `Progress`), and the import itself is phone-first
       from the upload to the save (sheets, things to check one at a time, every record, save).
-      Sorting the people is phone-first too (the queues, a page for each person, split or
-      merge, choosing a student), and so are the Imports page, the finished import and the
-      historical records (each record on a page of its own, its ranks corrected from the
-      belts). The student import is on the same screens (its file, its columns and each row to
-      fix as things to check, every row, save). Done when the owner has checked it on a real
-      phone and tablet, with the item above.
+      Sorting the people is phone-first too (the queues, a page for each person, split,
+      merge or move records, choosing a student with a rank that does not fit flagged; on a
+      laptop the list stands beside the person), and so are the Imports page, the finished
+      import and the historical records (each record on a page of its own, its ranks
+      corrected from the belts, its outcome read as a recommendation beside the workbook's
+      key). The student import is on the same screens (its file, its columns and each row to
+      fix as things to check, every row, save). All of it is in release candidate 16. Done
+      when the owner has checked it on a real phone and tablet, with the item above.
 - [ ] **Measure the audit log's record history** on a real session: the history behind a
       grading or a student filters events by `session_id` and `student_id` in their details,
       which no index serves yet. Add one if it is slow once real data exists.

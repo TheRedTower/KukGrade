@@ -99,26 +99,26 @@ KukGrade:
   can be undone: reopen a decision, merge back a split, split back a merge, move records
   back. Records moved between two people decided alike (linked to the same student) stay
   decided; otherwise they leave their person's decision and wait for the other's to be
-  confirmed, as records joining by a merge do. Moving every record of a person is a merge. People ready to confirm can be
-  confirmed together, all or nothing. Each decision is in the audit log, naming the student
-  by WKSA ID and nobody by a name as written. A decision made on what someone saw is refused
-  once the person has changed since (another administrator, an import, a correction), so two
-  administrators never undo each other unseen. While a person is linked or not a student,
-  their records are changed only through that person.
+  confirmed, as records joining by a merge do. Moving every record of a person is a merge.
+  People ready to confirm can be confirmed together, all or nothing. Each decision is in the
+  audit log, naming the student by WKSA ID and nobody by a name as written. A decision made
+  on what someone saw is refused once the person has changed since (another administrator,
+  an import, a correction), so two administrators never undo each other unseen. While a
+  person is linked or not a student, their records are changed only through that person.
 - A note written beside a person's row, outside any table, is kept on that person's
   record and says where it was written; a note merged down several rows is kept on each
   person beside it. A note beside no one (a title above the table, say) is kept as a
   note on the sheet.
 - Saving goes straight on to **sorting the people**, one screen at a time: how many are
   sorted, then three queues - **ready to confirm** (one student fits and the ranks agree;
-  these can be confirmed together, after a look at the list), **needs a look** (several
-  fit, something disagrees, or records joined a person already decided) and **no student
-  found** - with the people left for later and those decided below. Each person has a page
-  of their own: how they are written, their gradings in date order, the suggested
-  students with the reasons, and only the decisions open to them. Next goes on through the
-  list. Where there is room (a laptop), the list the person was opened from stands beside
-  their page, with them marked. Split, merge and moving records have a page of their own, and so does finding a
-  student by name or WKSA ID, where each student found shows their rank now and age band
+  these can be confirmed together, after a look at the list), **needs a look** (several fit,
+  something disagrees, or records joined a person already decided) and **no student found**
+  - with the people left for later and those decided below. Each person has a page of their
+  own: how they are written, their gradings in date order, the suggested students with the
+  reasons, and only the decisions open to them. Next goes on through the list. Where there
+  is room (a laptop), the list the person was opened from stands beside their page, with
+  them marked. Split, merge and moving records have a page of their own, and so does finding
+  a student by name or WKSA ID, where each student found shows their rank now and age band
   and is flagged when that rank is below the rank the person's records gave then. A
   historical record's page opens split and merge with that record ticked, to move it to
   another person.
@@ -132,11 +132,11 @@ KukGrade:
     row out, or keep both;
   - a result with no outcome, or a row with a rank missing: leave it out, or keep it.
 
-  One decision covers every row that writes a spelling the same way. A rank or
-  outcome KukGrade reads is taken as read, with nothing to confirm; a later decision
-  replaces an earlier one, so keeping as written brings back a row the check left out. The workbook's text is always kept as written: a chosen rank
-  or a reading is applied when the records are saved. Nothing is guessed, and nothing
-  to check stops the import.
+  One decision covers every row that writes a spelling the same way. A rank or outcome
+  KukGrade reads is taken as read, with nothing to confirm; a later decision replaces an
+  earlier one, so keeping as written brings back a row the check left out. The workbook's
+  text is always kept as written: a chosen rank or a reading is applied when the records
+  are saved. Nothing is guessed, and nothing to check stops the import.
 
 - A month stays a month: an exact day is never invented.
 - "Did not attend" counts as attendance, not as a fail.

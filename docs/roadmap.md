@@ -19,11 +19,12 @@ Want something here, or something that is missing? Open an
       17 on the same data folder, as [Updating](installation.md#updating) says (seven
       migrations, every record kept and grouped into people), and restoring the backup taken
       before it into a new install of 17 with the commands in [Backups](installation.md#backups)
-      (the same counts as the updated install, the missing migrations run on restart). Still
+      (the same counts as the updated install, the missing migrations run on restart), then
+      on through each candidate to 22 with every count the same. Still
       to do: the same on a real deployment, behind a proxy with its request-size cap.
-- [ ] **Project page live**: the page is in `site/` and checked by CI. Still to do: publish it
-      on Cloudflare from `prod` with each release (`site/wrangler.jsonc`), point
-      kukgrade.co.uk at it (in place of the redirect to GitHub), retake its screenshots on
+- [ ] **Project page live**: the page is in `site/`, checked by CI, and live at kukgrade.co.uk
+      on Cloudflare (`site/wrangler.jsonc`), built from `dev` until the first release reaches
+      `prod`. Still to do: build it from `prod` with each release, retake its screenshots on
       release, and add link, accessibility and HTML checks.
 - [ ] **Release assurance**: a repeatable pre-release checklist covering the install paths.
 - [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check

@@ -127,7 +127,10 @@ Two behaviours worth knowing:
   403 with `authentication_required`). A dropped
   connection or a 5xx is `error`, with a retry, so a backend hiccup never signs
   someone out mid-grading. Signing out clears local state only after the server
-  confirms.
+  confirms. Before it ends the session, it asks screens with unsaved work to save
+  (`SIGNING_OUT_EVENT`) and waits, a few seconds at most, for writes marked
+  `LANDS_BEFORE_SIGN_OUT` (`frontend/src/pendingWrites.ts`); the final decisions
+  board's saves are the ones marked today.
 - **API errors** arrive in one envelope and are surfaced as an `ApiError` carrying
   `status`, `code` and per-field `fields`, so domain-rule failures can be shown as a
   message without inspecting individual fields.

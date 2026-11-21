@@ -1,0 +1,18 @@
+// The project page on Cloudflare (Workers static assets, no Worker code): the
+// built page in dist/ is served as it is, with the headers in public/_headers.
+// Cloudflare's Git integration builds it (root directory site/, build command
+// npm run build) and runs `wrangler deploy` for the production branch (prod)
+// and a preview upload for any other. docs/development.md, "Project page".
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kukgrade-site",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  "send_metrics": false
+}

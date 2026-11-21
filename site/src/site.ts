@@ -1,14 +1,9 @@
 // The facts the page states, each read from its one source in the repository.
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-// Built from site/ (npm run build), so the repository root is one folder up.
-const versionFile = resolve(process.cwd(), "../backend/kukgrade/version.py");
-const version = /VERSION = "([^"]+)"/.exec(readFileSync(versionFile, "utf8"))?.[1];
-if (!version) throw new Error("No VERSION in backend/kukgrade/version.py");
+// The version comes from backend/kukgrade/version.py, read by astro.config.mjs.
+declare const __KUKGRADE_VERSION__: string;
 
 export const site = {
-  version,
+  version: __KUKGRADE_VERSION__,
   school: "Kuk Sool Won of Colchester",
   repo: "https://github.com/TheRedTower/KukGrade",
   docs: "https://github.com/TheRedTower/KukGrade/tree/dev/docs#readme",

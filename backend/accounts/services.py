@@ -319,10 +319,12 @@ def delete_platform_user(target: User, actor: User) -> bool:
     """
     if target.pk == actor.pk:
         raise ValidationError({"user": ["You cannot delete your own account."]})
-    _validate_can_manage(target, actor)
-    locked = User.objects.select_for_update().get(pk=target.pk)
+    locked = _lock_user(target.pk)
     if locked.deleted_at is not None:
         raise ValidationError({"user": ["This account is already deleted."]})
+    # On the locked row, as every other change checks it: admin site access
+    # granted after the caller loaded the account must still protect it.
+    _validate_can_manage(locked, actor)
 
     keep = has_recorded_work(locked)
     record(

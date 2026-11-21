@@ -91,6 +91,10 @@ class AuditAction(models.TextChoices):
     LEGACY_PERSON_REOPENED = "LEGACY_PERSON_REOPENED", "Historical person reopened"
     LEGACY_PERSON_SPLIT = "LEGACY_PERSON_SPLIT", "Historical person split"
     LEGACY_PERSON_MERGED = "LEGACY_PERSON_MERGED", "Historical people merged"
+    LEGACY_RECORDS_MOVED = (
+        "LEGACY_RECORDS_MOVED",
+        "Historical records moved to another person",
+    )
 
     AUDIT_REDACTED = "AUDIT_REDACTED", "Personal details erased from the audit log"
 

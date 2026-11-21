@@ -46,6 +46,7 @@ from gradings.legacy_person_services import (
     link_person,
     mark_not_a_student,
     merge_people,
+    move_records,
     reopen_person,
     split_person,
 )
@@ -120,6 +121,7 @@ from gradings.serializers import (
     LinkPersonSerializer,
     LockedCandidateWithdrawalSerializer,
     MergePeopleSerializer,
+    MoveRecordsSerializer,
     NotAStudentSerializer,
     PersonVersionSerializer,
     PromotionEligibilitySerializer,
@@ -1258,6 +1260,7 @@ class HistoricalPersonViewSet(
         "reopen": ("gradings.can_reconcile_imported_history",),
         "split": ("gradings.can_reconcile_imported_history",),
         "merge": ("gradings.can_reconcile_imported_history",),
+        "move": ("gradings.can_reconcile_imported_history",),
         "confirm": ("gradings.can_reconcile_imported_history",),
     }
     query_filters = _HISTORICAL_PEOPLE_FILTERS
@@ -1441,6 +1444,26 @@ class HistoricalPersonViewSet(
             actor=self.actor,
         )
         return self._decided(person.pk)
+
+    @extend_schema(
+        request=MoveRecordsSerializer,
+        responses=HistoricalPersonDetailSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def move(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Move the chosen records to another person already there; the
+        response is that person."""
+        person = self.get_object()
+        data = self._payload(MoveRecordsSerializer).validated_data
+        to = move_records(
+            person.pk,
+            data["records"],
+            data["to"],
+            version=data["version"],
+            to_version=data["to_version"],
+            actor=self.actor,
+        )
+        return self._decided(to.pk)
 
     @extend_schema(
         request=ConfirmPeopleSerializer,

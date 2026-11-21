@@ -439,6 +439,95 @@ def split_person(
     return new_person
 
 
+@transaction.atomic
+def move_records(
+    person_id: int,
+    record_ids: Sequence[int],
+    to_id: int,
+    *,
+    version: int,
+    to_version: int,
+    actor: User,
+) -> LegacyPerson:
+    """Move the chosen records to another person already there: "these are
+    that person's". At least one record stays; moving them all is a merge.
+    Between two people decided alike (the same student, say) the records stay
+    covered by the decision. Otherwise they leave this person's decision
+    (and a linked person's student) and wait for the other's to be confirmed,
+    as records joining by a merge do. Returns the person they went to."""
+    if person_id == to_id:
+        raise ValidationError({"to": ["Choose another person to move them to."]})
+    people = _lock_people([person_id, to_id])
+    person = _checked(people, person_id, version)
+    try:
+        to = _checked(people, to_id, to_version)
+    except ValidationError as refused:
+        raise ValidationError({"to": refused.messages}) from refused
+    records = _live_records(person)
+    wanted = set(record_ids)
+    theirs = {r.pk for r in records}
+    if not wanted:
+        raise ValidationError({"records": ["Choose the records to move."]})
+    if wanted - theirs:
+        raise ValidationError(
+            {"records": ["Only this person's records, not voided, can be moved."]},
+        )
+    if wanted == theirs:
+        raise ValidationError(
+            {
+                "records": [
+                    "These are all of this person's records: merge the two "
+                    "people instead.",
+                ],
+            },
+        )
+    destination = _live_records(to)
+    if not destination:
+        raise ValidationError({"to": [NO_RECORDS_MESSAGE]})
+    moving = [r for r in records if r.pk in wanted]
+    sheets = Counter(
+        (r.cycle_year, r.cycle_month)
+        for r in (*destination, *moving)
+        if r.record_kind == LegacyRecordKind.GRADING_RESULT
+    )
+    if any(count > 1 for count in sheets.values()):
+        raise ValidationError(
+            {"to": ["Two results on one sheet cannot be one person."]},
+        )
+
+    decided = _STRENGTH[LegacyPersonState(person.state)] == 2
+    alike = decided and _decision(person) == _decision(to)
+    left = (
+        person.student_id
+        if person.state == LegacyPersonState.LINKED and not alike
+        else None
+    )
+    if alike:
+        _set_records(moving, person=to)
+    elif left is not None:
+        _set_records(moving, person=to, person_confirmed=False, student=None)
+    else:
+        _set_records(moving, person=to, person_confirmed=False)
+    # Both rated again from the records now theirs, and their versions raised.
+    refresh_people([person.pk, to.pk])
+    to.refresh_from_db()
+    record(
+        AuditAction.LEGACY_RECORDS_MOVED,
+        to,
+        f"Historical person {person.pk}: {len(moving)} of their records moved "
+        f"to person {to.pk}.",
+        actor=actor,
+        metadata={
+            "person_id": person.pk,
+            "to_person_id": to.pk,
+            "records_moved": len(moving),
+            "record_ids": sorted(wanted),
+            **({"student_id": left} if left is not None else {}),
+        },
+    )
+    return to
+
+
 # Which decision a merged person keeps: a linked person, or one who is not a
 # student, over one left for later, over one not decided yet.
 _STRENGTH = {

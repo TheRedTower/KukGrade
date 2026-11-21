@@ -25,6 +25,7 @@ const api = vi.hoisted(() => ({
   reopenHistoricalPerson: vi.fn(),
   splitHistoricalPerson: vi.fn(),
   mergeHistoricalPeople: vi.fn(),
+  moveHistoricalRecords: vi.fn(),
   confirmHistoricalPeople: vi.fn(),
   getStudents: vi.fn(),
   getChoices: vi.fn(),
@@ -347,6 +348,60 @@ describe("Splitting and merging", () => {
     expect(screen.queryByRole("button", { name: "Merge Mia Reyes into Mia Reyes" })).toBeNull();
     expect(api.mergeHistoricalPeople).toHaveBeenCalledWith(201, { other: 202, version: 4, other_version: 4 });
     await waitFor(() => expect(where()).toBe("/imports/people/201"));
+  });
+});
+
+describe("Moving records to someone already here", () => {
+  it("moves the records ticked to the person found, and stays with this one", async () => {
+    const user = userEvent.setup();
+    api.moveHistoricalRecords.mockResolvedValue(theo);
+    renderAt("/imports/people/201/split?list=READY");
+
+    expect(await screen.findByRole("heading", { name: "The same person as someone else" })).toBeVisible();
+    await user.click(screen.getByRole("checkbox", { name: /Mia R”/ }));
+    expect(screen.getByRole("heading", { name: "Or move them to someone already here" })).toBeVisible();
+    await user.type(screen.getByLabelText("Find them by a name as written"), "theo");
+    await user.click(await screen.findByRole("button", { name: "Move 1 record to Theo Lane" }));
+
+    expect(api.moveHistoricalRecords).toHaveBeenCalledWith(201, {
+      records: [101],
+      to: 202,
+      version: 4,
+      to_version: 4,
+    });
+    expect(api.mergeHistoricalPeople).not.toHaveBeenCalled();
+    await waitFor(() => expect(where()).toBe("/imports/people/201?list=READY"));
+  });
+
+  it("merges the two people when every record is ticked", async () => {
+    const user = userEvent.setup();
+    renderAt("/imports/people/201/split");
+
+    for (const box of await screen.findAllByRole("checkbox")) await user.click(box);
+    await user.type(screen.getByLabelText("Find them by a name as written"), "theo");
+
+    expect(await screen.findByRole("button", { name: "Merge Theo Lane into Mia Reyes" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^Move \d+ records? to Theo Lane$/ })).toBeNull();
+  });
+
+  it("opened from a record, has it ticked and goes back to it", async () => {
+    const user = userEvent.setup();
+    api.moveHistoricalRecords.mockResolvedValue(theo);
+    renderAt("/imports/people/201/split?record=101");
+
+    expect(await screen.findByRole("checkbox", { name: /Mia R”/ })).toBeChecked();
+    expect(screen.getByRole("link", { name: "Historical record" })).toHaveAttribute("href", "/imports/history/101");
+    await user.type(screen.getByLabelText("Find them by a name as written"), "theo");
+    await user.click(await screen.findByRole("button", { name: "Move 1 record to Theo Lane" }));
+
+    await waitFor(() => expect(where()).toBe("/imports/history/101"));
+  });
+
+  it("ticks nothing for a record no longer this person's", async () => {
+    renderAt("/imports/people/201/split?record=999");
+
+    expect(await screen.findByRole("button", { name: "Move to a new person" })).toBeDisabled();
+    expect(screen.getByRole("heading", { name: "The same person as someone else" })).toBeVisible();
   });
 });
 

@@ -1432,6 +1432,22 @@ class MergePeopleSerializer(PersonVersionSerializer):
     other_version = serializers.IntegerField(min_value=1)
 
 
+class MoveRecordsSerializer(PersonVersionSerializer):
+    """POST legacy-people/{id}/move/: the records that are another person's."""
+
+    records = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        max_length=BULK_LINK_LIMIT,
+        help_text="Moved to the other person; at least one record stays.",
+    )
+    to = serializers.IntegerField(
+        min_value=1,
+        help_text="The person already there the records are moved to.",
+    )
+    to_version = serializers.IntegerField(min_value=1)
+
+
 class PersonConfirmationSerializer(serializers.Serializer):
     person = serializers.IntegerField(min_value=1)
     student = serializers.IntegerField(

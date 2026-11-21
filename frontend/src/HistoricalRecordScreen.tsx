@@ -117,8 +117,8 @@ function VoidRecord({ record, onClose }: { record: LegacyGradingRecord; onClose:
 /**
  * One imported record on a page of its own: the workbook's text in full,
  * comments included, the ranks KukGrade reads from it, and who it is about.
- * Its ranks can be corrected from the belts, and it can be voided; who it is
- * is decided on its person's page.
+ * Its ranks can be corrected from the belts, it can be moved to another
+ * person, and it can be voided; who it is is decided on its person's page.
  */
 export function HistoricalRecordScreen() {
   const id = useIdParam();
@@ -152,9 +152,17 @@ export function HistoricalRecordScreen() {
     <DetailPage
       actions={
         record.person !== null && !record.is_void ? (
-          <Link className={buttonClass({ variant: "primary" })} to={`/imports/people/${record.person}`}>
-            Open their person
-          </Link>
+          <>
+            <Link
+              className={buttonClass({ variant: "secondary" })}
+              to={`/imports/people/${record.person}/split?record=${record.id}`}
+            >
+              Move to another person
+            </Link>
+            <Link className={buttonClass({ variant: "primary" })} to={`/imports/people/${record.person}`}>
+              Open their person
+            </Link>
+          </>
         ) : null
       }
       back={back}

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   type HistoricalPersonDetail,
   errorMessage,
   getHistoricalPeople,
   mergeHistoricalPeople,
+  moveHistoricalRecords,
   splitHistoricalPerson,
 } from "./api";
 import { Button } from "./Button";
@@ -28,16 +29,23 @@ const MERGE_PAGE_SIZE = 10;
 
 /**
  * When a person's records are not all one person, tick the ones that are
- * someone else and move them to a new person; when two people are one, find
- * the other and merge them. Either can be undone the other way round.
+ * someone else and move them to a new person, or to someone already here;
+ * when two people are one, find the other and merge them. Each can be undone
+ * the other way round. Opened from a record (`?record=`), that record comes
+ * ticked and the page goes back to it.
  */
 export function PersonSplitScreen() {
   const id = useIdParam();
   const navigate = useNavigate();
   const context = usePeopleContext();
   const person = usePerson(id);
-  const [ticked, setTicked] = useState<number[]>([]);
-  const split = useDecision<HistoricalPersonDetail>((moved) => navigate(context.path({ person: moved.id })));
+  const [params] = useSearchParams();
+  const fromRecord = Number(params.get("record")) || null;
+  const [ticked, setTicked] = useState<number[]>(fromRecord ? [fromRecord] : []);
+  const backToRecord = fromRecord ? `/imports/history/${fromRecord}` : null;
+  const split = useDecision<HistoricalPersonDetail>((moved) =>
+    navigate(backToRecord ?? context.path({ person: moved.id })),
+  );
 
   const status = recordStatus(id, person);
   if (status || !person.data) {
@@ -54,24 +62,31 @@ export function PersonSplitScreen() {
     );
   }
   const shown = person.data;
-  const all = ticked.length === shown.records.length;
+  // Only this person's records count: one ticked from a record page may have
+  // moved on since.
+  const chosen = ticked.filter((record) => shown.records.some((own) => own.id === record));
+  const all = chosen.length === shown.records.length;
 
   return (
     <DetailPage
       actions={
         <Button
           variant="primary"
-          disabled={split.isPending || ticked.length === 0 || all}
+          disabled={split.isPending || chosen.length === 0 || all}
           onClick={() =>
-            split.mutate(() => splitHistoricalPerson(shown.id, { records: ticked, version: shown.version }))
+            split.mutate(() => splitHistoricalPerson(shown.id, { records: chosen, version: shown.version }))
           }
         >
-          {ticked.length
-            ? `Move ${counted(ticked.length, "record", "records")} to a new person`
+          {chosen.length
+            ? `Move ${counted(chosen.length, "record", "records")} to a new person`
             : "Move to a new person"}
         </Button>
       }
-      back={{ to: context.path({ person: shown.id }), label: shown.name }}
+      back={
+        backToRecord
+          ? { to: backToRecord, label: "Historical record" }
+          : { to: context.path({ person: shown.id }), label: shown.name }
+      }
       eyebrow="Past gradings · Sort the people"
       status={
         <p className="subtext">
@@ -113,13 +128,29 @@ export function PersonSplitScreen() {
         </ul>
         {split.isError ? <ErrorText>{errorMessage(split.error, "Those records could not be moved.")}</ErrorText> : null}
       </section>
-      <MergeWith person={shown} onMerged={() => navigate(context.path({ person: shown.id }))} />
+      <MergeWith
+        moving={all ? [] : chosen}
+        person={shown}
+        onMerged={() => navigate(backToRecord ?? context.path({ person: shown.id }))}
+      />
     </DetailPage>
   );
 }
 
-/** Another person who is this one, found by a name as written, merged in. */
-function MergeWith({ person, onMerged }: { person: HistoricalPersonDetail; onMerged: () => void }) {
+/**
+ * Another person who is this one, found by a name as written, merged in; or,
+ * with some of this person's records ticked (`moving`), the person those are,
+ * and they move there.
+ */
+function MergeWith({
+  moving,
+  person,
+  onMerged,
+}: {
+  moving: number[];
+  person: HistoricalPersonDetail;
+  onMerged: () => void;
+}) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const searched = useDebouncedValue(search.trim());
@@ -140,7 +171,7 @@ function MergeWith({ person, onMerged }: { person: HistoricalPersonDetail; onMer
   return (
     <section aria-labelledby="pp-merge" className="card stack stack--3">
       <h2 className="section-title" id="pp-merge">
-        The same person as someone else
+        {moving.length ? "Or move them to someone already here" : "The same person as someone else"}
       </h2>
       <SearchField
         label="Find them by a name as written"
@@ -164,29 +195,53 @@ function MergeWith({ person, onMerged }: { person: HistoricalPersonDetail; onMer
                 {counted(other.record_count, "record", "records")} · {periodRange(other)} · {other.state_display}
               </span>
             </span>
-            <Button
-              aria-label={`Merge ${other.name} into ${person.name}`}
-              variant="secondary"
-              disabled={merge.isPending}
-              onClick={() =>
-                merge.mutate(() =>
-                  mergeHistoricalPeople(person.id, {
-                    other: other.id,
-                    version: person.version,
-                    other_version: other.version,
-                  }),
-                )
-              }
-            >
-              Merge
-            </Button>
+            {moving.length ? (
+              <Button
+                aria-label={`Move ${counted(moving.length, "record", "records")} to ${other.name}`}
+                variant="secondary"
+                disabled={merge.isPending}
+                onClick={() =>
+                  merge.mutate(() =>
+                    moveHistoricalRecords(person.id, {
+                      records: moving,
+                      to: other.id,
+                      version: person.version,
+                      to_version: other.version,
+                    }),
+                  )
+                }
+              >
+                Move here
+              </Button>
+            ) : (
+              <Button
+                aria-label={`Merge ${other.name} into ${person.name}`}
+                variant="secondary"
+                disabled={merge.isPending}
+                onClick={() =>
+                  merge.mutate(() =>
+                    mergeHistoricalPeople(person.id, {
+                      other: other.id,
+                      version: person.version,
+                      other_version: other.version,
+                    }),
+                  )
+                }
+              >
+                Merge
+              </Button>
+            )}
           </li>
         ))}
       </ul>
       {searched.length >= 2 ? (
         <Pagination flush label="Pages of people found" noun={["person", "people"]} {...paged.pager} />
       ) : null}
-      {merge.isError ? <ErrorText>{errorMessage(merge.error, "They could not be merged.")}</ErrorText> : null}
+      {merge.isError ? (
+        <ErrorText>
+          {errorMessage(merge.error, moving.length ? "Those records could not be moved." : "They could not be merged.")}
+        </ErrorText>
+      ) : null}
     </section>
   );
 }

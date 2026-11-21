@@ -89,8 +89,12 @@ KukGrade:
   history), **not a current student** (an instructor, someone who left before KukGrade, an
   entry that is not a real person, or another reason that needs a note; their records stay
   unlinked), or **later** (shared by every administrator). A person can be **split** ("these
-  aren't all the same person") or **merged** with another, and every decision can be undone:
-  reopen a decision, merge back a split, split back a merge. People ready to confirm can be
+  aren't all the same person"), **merged** with another, or have some of their records
+  **moved** to another person already there ("these are that person's"), and every decision
+  can be undone: reopen a decision, merge back a split, split back a merge, move records
+  back. Records moved between two people decided alike (linked to the same student) stay
+  decided; otherwise they leave their person's decision and wait for the other's to be
+  confirmed, as records joining by a merge do. Moving every record of a person is a merge. People ready to confirm can be
   confirmed together, all or nothing. Each decision is in the audit log, naming the student
   by WKSA ID and nobody by a name as written. A decision made on what someone saw is refused
   once the person has changed since (another administrator, an import, a correction), so two
@@ -107,8 +111,9 @@ KukGrade:
   found** - with the people left for later and those decided below. Each person has a page
   of their own: how they are written, their gradings in date order, the suggested
   students with the reasons, and only the decisions open to them. Next goes on through the
-  list. Split and merge have a page of their own, and so does finding a student by name
-  or WKSA ID.
+  list. Split, merge and moving records have a page of their own, and so does finding a
+  student by name or WKSA ID. A historical record's page opens it with that record ticked,
+  to move it to another person.
 - KukGrade reads what it can and lists only **what to check**, each one decision:
   - a rank it cannot read ("Bown Stripe") or that the workbook marks with "?": choose
     the rank, or keep it as written (unmatched);

@@ -129,6 +129,7 @@ paths:
           - LEGACY_PERSON_NOT_A_STUDENT
           - LEGACY_PERSON_REOPENED
           - LEGACY_PERSON_SPLIT
+          - LEGACY_RECORDS_MOVED
           - OUTCOME_CREATED
           - OUTCOME_FINALISED
           - OUTCOME_PROPOSED
@@ -1809,6 +1810,42 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/MergePeopleRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalPersonDetail'
+          description: ''
+  /api/gradings/legacy-people/{id}/move/:
+    post:
+      operationId: gradings_legacy_people_move_create
+      description: |-
+        Move the chosen records to another person already there; the
+        response is that person.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveRecordsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MoveRecordsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MoveRecordsRequest'
         required: true
       security:
       - cookieAuth: []
@@ -3554,6 +3591,7 @@ components:
       - LEGACY_PERSON_REOPENED
       - LEGACY_PERSON_SPLIT
       - LEGACY_PERSON_MERGED
+      - LEGACY_RECORDS_MOVED
       - AUDIT_REDACTED
       type: string
       description: |-
@@ -3602,6 +3640,7 @@ components:
         * `LEGACY_PERSON_REOPENED` - Historical person reopened
         * `LEGACY_PERSON_SPLIT` - Historical person split
         * `LEGACY_PERSON_MERGED` - Historical people merged
+        * `LEGACY_RECORDS_MOVED` - Historical records moved to another person
         * `AUDIT_REDACTED` - Personal details erased from the audit log
     AgeBand:
       type: object
@@ -7152,6 +7191,33 @@ components:
       description: |-
         * `name` - Needs a name
         * `rank` - Needs a rank
+    MoveRecordsRequest:
+      type: object
+      description: 'POST legacy-people/{id}/move/: the records that are another person''s.'
+      properties:
+        version:
+          type: integer
+          minimum: 1
+          description: The person's version as read; refused once it has changed.
+        records:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: Moved to the other person; at least one record stays.
+          maxItems: 500
+        to:
+          type: integer
+          minimum: 1
+          description: The person already there the records are moved to.
+        to_version:
+          type: integer
+          minimum: 1
+      required:
+      - records
+      - to
+      - to_version
+      - version
     NextActionEnum:
       enum:
       - PREPARE_ASSESSMENT

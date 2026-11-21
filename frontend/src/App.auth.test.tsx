@@ -268,8 +268,9 @@ describe("App authentication", () => {
 
     render(<App />);
 
-    await screen.findByRole("link", { name: /^Casey Instructor, / });
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    // Waited for itself: under load the account link can be on screen a
+    // moment before the button beside it (a CI run failed on getByRole).
+    await user.click(await screen.findByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Welcome back" })).toBeVisible();

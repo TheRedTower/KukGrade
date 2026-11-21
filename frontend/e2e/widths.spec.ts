@@ -185,6 +185,15 @@ const SCREENS: Screen[] = [
     path: (ids) => `/gradings/${ids.sessions.COMPLETED}/assessments/${ids.completedCandidate}/review`,
   },
   { name: "imports", role: "administrator", path: () => "/imports" },
+  {
+    name: "imports-past",
+    role: "administrator",
+    path: () => "/imports",
+    after: async (page) => {
+      await page.getByText(/^Past imports/).click();
+      await page.getByRole("search", { name: "Import filters" }).waitFor();
+    },
+  },
   { name: "imports-new", role: "administrator", path: () => "/imports/new?kind=STUDENT_ROSTER" },
   { name: "imports-batch", role: "administrator", path: (ids) => `/imports/${ids.batch}` },
   { name: "imports-sheets", role: "administrator", path: (ids) => `/imports/${ids.openImport}` },

@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { findBrowserDrawnControls, findChoicesLostOnHover, findCoveredBars, findLayoutFaults } from "./overflow";
+import {
+  findBrowserDrawnControls,
+  findChoicesLostOnHover,
+  findCoveredBars,
+  findLayoutFaults,
+  findOverflow,
+} from "./overflow";
 
 // The checks in findLayoutFaults pass on every screen, so this proves they
 // still find something: one of each fault, on a page made to have them.
@@ -120,4 +126,20 @@ test("findBrowserDrawnControls reports a radio in the browser's colour and a box
     body(":root { accent-color: rgb(200, 150, 0); } input, textarea { outline: 2px solid rgb(200, 150, 0); }"),
   );
   expect(await findBrowserDrawnControls(page)).toEqual([]);
+});
+
+test("findOverflow reports rounded boxes that touch, stacked or side by side, and passes boxes with room between", async ({
+  page,
+}) => {
+  const box = "border: 1px solid rgb(0, 0, 0); border-radius: 8px; height: 40px";
+  await page.setContent(`<!doctype html><body style="margin: 0; width: 300px">
+    <div><div class="upper" style="${box}"></div><div style="${box}"></div></div>
+    <div style="display: flex"><div class="left" style="${box}; flex: 1"></div><div style="${box}; flex: 1"></div></div>
+    <div style="display: grid; gap: 8px"><div class="apart" style="${box}"></div><div style="${box}"></div></div>
+    <div><div class="square" style="border: 1px solid rgb(0, 0, 0); height: 40px"></div><div style="${box}"></div></div>
+  </body>`);
+  const faults = (await findOverflow(page, 300)).filter((f) => f.startsWith("boxes touch"));
+  expect(faults, faults.join("\n")).toHaveLength(2);
+  expect(faults[0]).toContain("div.upper");
+  expect(faults[1]).toContain("div.left");
 });

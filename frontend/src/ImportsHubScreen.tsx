@@ -191,98 +191,100 @@ function PastImports() {
   const batches = paged.results;
 
   return (
-    <details className="disclosure stack stack--3" open={Boolean(kind || state || page > 1) || undefined}>
+    <details className="disclosure" open={Boolean(kind || state || page > 1) || undefined}>
       <summary>
         <ChevronRightIcon />
         <h2 className="section-title" id="ix-past">
           Past imports{past.data ? ` (${past.data.count})` : ""}
         </h2>
       </summary>
-      <div className="filter-bar" role="search" aria-label="Import filters">
-        <Field label="What" look="label">
-          {(control) => (
-            <Select
-              {...control}
-              all="Everything"
-              options={choices.import_kinds}
-              value={kind}
-              onChange={(value) => filters.set({ kind: value })}
-            />
+      <div className="stack stack--3 disclosure__body">
+        <div className="filter-bar" role="search" aria-label="Import filters">
+          <Field label="What" look="label">
+            {(control) => (
+              <Select
+                {...control}
+                all="Everything"
+                options={choices.import_kinds}
+                value={kind}
+                onChange={(value) => filters.set({ kind: value })}
+              />
+            )}
+          </Field>
+          <Field label="State" look="label">
+            {(control) => (
+              <Select
+                {...control}
+                all="Any"
+                options={choices.finished_import_statuses}
+                value={state}
+                onChange={(value) => filters.set({ state: value })}
+              />
+            )}
+          </Field>
+        </div>
+        <div className="card card--flush">
+          {past.isPending ? (
+            <LoadingState>Loading past imports…</LoadingState>
+          ) : past.isError ? (
+            <ErrorText className="ix-card-pad">
+              {errorMessage(past.error, "Past imports could not be loaded. Try again in a moment.")}
+            </ErrorText>
+          ) : batches.length === 0 ? (
+            <p className="subtext ix-card-pad">
+              {kind || state ? "No imports match these filters." : "No imports have finished yet."}
+            </p>
+          ) : (
+            <>
+              <ResponsiveTable
+                label="Past imports"
+                flush
+                rows={batches}
+                rowKey={(batch) => batch.id}
+                columns={[
+                  {
+                    key: "file",
+                    header: "File",
+                    primary: true,
+                    render: (batch) => <strong>{batch.original_filename}</strong>,
+                  },
+                  { key: "what", header: "What", render: (batch) => batch.kind_display },
+                  {
+                    key: "state",
+                    header: "State",
+                    render: (batch) => <ImportStatusBadge status={batch.status} label={batch.status_display} />,
+                  },
+                  { key: "result", header: "Result", render: (batch) => finishedResult(batch) },
+                  {
+                    key: "when",
+                    header: "When",
+                    render: (batch) => (
+                      <span className="subtext">
+                        {formatShortDateTime(batch.committed_at ?? batch.cancelled_at ?? batch.uploaded_at)} ·{" "}
+                        {batch.committed_by_name || batch.uploaded_by_name}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "open",
+                    header: "Open",
+                    actions: "inline",
+                    render: (batch) => (
+                      <Link
+                        aria-label={`View ${batch.original_filename}`}
+                        className={buttonClass({ variant: "ghost", small: true })}
+                        to={`/imports/${batch.id}`}
+                      >
+                        {batch.status === "COMMITTED" ? "View results" : "View"}
+                      </Link>
+                    ),
+                  },
+                ]}
+              />
+              <Pagination flush label="Pages of past imports" noun={["import", "imports"]} {...paged.pager} />
+            </>
           )}
-        </Field>
-        <Field label="State" look="label">
-          {(control) => (
-            <Select
-              {...control}
-              all="Any"
-              options={choices.finished_import_statuses}
-              value={state}
-              onChange={(value) => filters.set({ state: value })}
-            />
-          )}
-        </Field>
-      </div>
-      <div className="card card--flush">
-        {past.isPending ? (
-          <LoadingState>Loading past imports…</LoadingState>
-        ) : past.isError ? (
-          <ErrorText className="ix-card-pad">
-            {errorMessage(past.error, "Past imports could not be loaded. Try again in a moment.")}
-          </ErrorText>
-        ) : batches.length === 0 ? (
-          <p className="subtext ix-card-pad">
-            {kind || state ? "No imports match these filters." : "No imports have finished yet."}
-          </p>
-        ) : (
-          <>
-            <ResponsiveTable
-              label="Past imports"
-              flush
-              rows={batches}
-              rowKey={(batch) => batch.id}
-              columns={[
-                {
-                  key: "file",
-                  header: "File",
-                  primary: true,
-                  render: (batch) => <strong>{batch.original_filename}</strong>,
-                },
-                { key: "what", header: "What", render: (batch) => batch.kind_display },
-                {
-                  key: "state",
-                  header: "State",
-                  render: (batch) => <ImportStatusBadge status={batch.status} label={batch.status_display} />,
-                },
-                { key: "result", header: "Result", render: (batch) => finishedResult(batch) },
-                {
-                  key: "when",
-                  header: "When",
-                  render: (batch) => (
-                    <span className="subtext">
-                      {formatShortDateTime(batch.committed_at ?? batch.cancelled_at ?? batch.uploaded_at)} ·{" "}
-                      {batch.committed_by_name || batch.uploaded_by_name}
-                    </span>
-                  ),
-                },
-                {
-                  key: "open",
-                  header: "Open",
-                  actions: "inline",
-                  render: (batch) => (
-                    <Link
-                      aria-label={`View ${batch.original_filename}`}
-                      className={buttonClass({ variant: "ghost", small: true })}
-                      to={`/imports/${batch.id}`}
-                    >
-                      {batch.status === "COMMITTED" ? "View results" : "View"}
-                    </Link>
-                  ),
-                },
-              ]}
-            />
-            <Pagination flush label="Pages of past imports" noun={["import", "imports"]} {...paged.pager} />
-          </>
-        )}
+        </div>
       </div>
     </details>
   );

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -152,7 +152,7 @@ describe("no row ends in a gap", () => {
  */
 function footBarsOffLayer(file: string, css: string): string[] {
   return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-    .filter(([, , body]) => /position:\s*sticky/.test(body) && /(?:^|[;\s])bottom:\s*0\s*(?:;|$)/.test(body))
+    .filter(([, , body]) => /position:\s*sticky/.test(body) && /(?:^|[;\s])bottom:/.test(body))
     .filter(([, , body]) => !/z-index:\s*var\(--z-bar\)/.test(body))
     .map(([, selector]) => `${file}: ${selector.trim()}`);
 }
@@ -172,7 +172,7 @@ describe("a bar at the foot of the window", () => {
   it("is the shared action bar, never a screen's own", () => {
     const bars = allCssFiles().flatMap((file) =>
       [...readCss(file).matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-        .filter(([, , body]) => /position:\s*sticky/.test(body) && /(?:^|[;\s])bottom:\s*0\s*(?:;|$)/.test(body))
+        .filter(([, , body]) => /position:\s*sticky/.test(body) && /(?:^|[;\s])bottom:/.test(body))
         .map(([, selector]) => `${file}: ${selector.trim().split("\n").at(-1)}`),
     );
     expect(bars).toEqual(["layout.css: .action-bar"]);
@@ -289,5 +289,21 @@ describe("a hover style is only for a pointer that can hover", () => {
 
   it("no stylesheet has a hover for any pointer", () => {
     expect(allCssFiles().flatMap((file) => hoversForAnyPointer(file, readCss(file)))).toEqual([]);
+  });
+});
+
+/**
+ * Safari does not lay out a `<details>` as a grid or a row, so the space a
+ * stack's gap puts between its parts is lost and boxes inside it touch. What
+ * opens is wrapped in a `.disclosure__body` that carries the layout instead.
+ */
+describe("a part that opens on demand", () => {
+  it("is never itself a stack or a row", () => {
+    const laidOut = readdirSync(SRC)
+      .filter((file) => file.endsWith(".tsx") && !file.includes(".test."))
+      .filter((file) =>
+        /<details\b[^>]*className="[^"]*\b(?:stack|row|tiles|split)\b/.test(readFileSync(join(SRC, file), "utf8")),
+      );
+    expect(laidOut).toEqual([]);
   });
 });

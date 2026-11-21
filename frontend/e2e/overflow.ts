@@ -8,7 +8,8 @@ import type { Page } from "@playwright/test";
  *    a sideways scroller);
  *  - something sits outside the screen;
  *  - a date input is wider than the box it sits in (iOS sizes them itself);
- *  - two `.card` boxes stacked with no gap between them (only that class).
+ *  - two boxes with a rounded border all round, one after the other (stacked
+ *    or side by side), with no gap between them.
  * A deliberate sideways scroller carries data-scroll-ok (it and everything in
  * it is left alone); text meant to be shortened with an ellipsis, or the box a
  * popup menu opens from (the menu is a child, still checked against the screen),
@@ -75,14 +76,31 @@ export async function findOverflow(page: Page, width: number): Promise<string[]>
         culpritsExtra.push(`a date input is wider than its box: ${label(input)}`);
       }
     }
-    for (const card of document.body.querySelectorAll(".card")) {
-      const next = card.nextElementSibling;
-      if (!next?.classList.contains("card") || skipped(card) || skipped(next)) continue;
-      const rect = card.getBoundingClientRect();
+    // A box drawn with a rounded border all round: a card, a filter bar. Two
+    // of them, one after the other, need room between. A bar kept in view
+    // (sticky or fixed) is left out: the page scrolls under it on purpose.
+    const boxed = (el: Element): boolean => {
+      const style = getComputedStyle(el);
+      if (style.position === "sticky" || style.position === "fixed") return false;
+      const sides = ["Top", "Right", "Bottom", "Left"] as const;
+      return (
+        sides.every(
+          (side) =>
+            parseFloat(style.getPropertyValue(`border-${side.toLowerCase()}-width`)) > 0 &&
+            style.getPropertyValue(`border-${side.toLowerCase()}-style`) !== "none",
+        ) && parseFloat(style.borderTopLeftRadius) > 0
+      );
+    };
+    for (const box of document.body.querySelectorAll("*")) {
+      const next = box.nextElementSibling;
+      if (!next || skipped(box) || skipped(next) || !boxed(box) || !boxed(next)) continue;
+      const rect = box.getBoundingClientRect();
       const nextRect = next.getBoundingClientRect();
-      // Only cards that really stack (not side by side, not hidden).
-      if (nextRect.height === 0 || nextRect.top < rect.top + rect.height / 2) continue;
-      if (nextRect.top - rect.bottom < 1) culpritsExtra.push(`cards touch with no gap: ${label(card)}`);
+      if (rect.height === 0 || nextRect.height === 0) continue;
+      const stacked = nextRect.top >= rect.top + rect.height / 2;
+      const beside = !stacked && nextRect.left >= rect.left + rect.width / 2;
+      const gap = stacked ? nextRect.top - rect.bottom : beside ? nextRect.left - rect.right : Infinity;
+      if (gap < 1) culpritsExtra.push(`boxes touch with no gap: ${label(box)} / ${label(next)}`);
     }
     // Report the outermost culprit only; its children are the same fault.
     const culprits = found

@@ -125,7 +125,8 @@ marked as made-up data. A file that has left the app is the school's to keep saf
   their age band and, for a Conditional result, what is still required, and links
   to its assessment. An imported grading's outcome reads as the recommendation it was
   ("Recommended: Pass").
-- Correcting a date of birth moves the student's open registrations to the right age band, unless an assessment form is already prepared in a different band: then it is refused until the form is removed.
+- Correcting a date of birth moves the student's open registrations to the right age band, unless an assessment form is already prepared in a different band: then it is refused until the form is removed. A withdrawn registration takes its band afresh when it is reinstated, under the same rule.
+- A withdrawn candidate whose student has since left cannot be reinstated until the student is set back to active or inactive, as a new registration would be refused.
 - A student's rank cannot be edited while they are registered for a grading that has not reached its result: withdraw them first.
 - Search by name, ID (current or previous, with or without its hyphens), rank or status; filter by rank and status. See [Search](#search).
 

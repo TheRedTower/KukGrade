@@ -18,6 +18,12 @@ Want something here, or something that is missing? Open an
       use Docker.
 - [ ] **Go live and prove it**: run a real deployment end to end, including a tested backup and
       restore and a request-size cap at the proxy, before calling a release production-ready.
+      Proven on a test install (2026-11-21): updating in place from release candidate 14 to
+      17 on the same data folder, as [Updating](installation.md#updating) says (seven
+      migrations, every record kept and grouped into people), and restoring the backup taken
+      before it into a new install of 17 with the commands in [Backups](installation.md#backups)
+      (the same counts as the updated install, the missing migrations run on restart). Still
+      to do: the same on a real deployment, behind a proxy with its request-size cap.
 - [ ] **Release assurance**: a repeatable pre-release checklist covering the install paths.
 - [ ] **Have the demo site follow `latest`**: [the demo](https://demo.kukgrade.co.uk/) is online
       (see [demo.md](demo.md)) and runs a release candidate. Until `latest` exists (the newest

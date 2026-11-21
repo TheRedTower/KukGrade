@@ -1,6 +1,7 @@
 ---
 import logo from "../assets/logo.svg?raw";
 import Shot from "../components/Shot.astro";
+import ThemeToggle from "../components/ThemeToggle.astro";
 import Base from "../layouts/Base.astro";
 import { site } from "../site";
 
@@ -60,10 +61,13 @@ const icons: Record<string, string> = {
 <Base title={title} description={description}>
   <header class="top wrap">
     <a class="brand" href="/" aria-label="KukGrade, home"><span class="logo" set:html={logo} /></a>
-    <nav aria-label="Project">
-      <a href={site.demo}>Demo</a>
-      <a href={site.repo}>GitHub</a>
-    </nav>
+    <div class="top__end">
+      <nav aria-label="Project">
+        <a href={site.demo}>Demo</a>
+        <a href={site.repo}>GitHub</a>
+      </nav>
+      <ThemeToggle />
+    </div>
   </header>
 
   <main id="main">

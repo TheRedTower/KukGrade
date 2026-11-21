@@ -184,6 +184,25 @@ describe("One person", () => {
     expect(api.linkHistoricalPerson).toHaveBeenCalledWith(201, { student: 31, version: 4 });
   });
 
+  it("has the list it was opened from beside it, this person marked", async () => {
+    renderAt("/imports/people/202?list=NEEDS_A_LOOK");
+
+    const beside = await screen.findByRole("list", { name: "Needs a look: this page" });
+    expect(within(beside).getByRole("link", { name: /Theo Lane/ })).toHaveAttribute("aria-current", "page");
+    expect(within(beside).getByRole("link", { name: /Mia Reyes/ })).toHaveAttribute(
+      "href",
+      "/imports/people/201?list=NEEDS_A_LOOK",
+    );
+    expect(within(beside).getByRole("link", { name: /Mia Reyes/ })).not.toHaveAttribute("aria-current");
+  });
+
+  it("stands alone when opened from no list", async () => {
+    renderAt("/imports/people/202");
+
+    expect(await screen.findByRole("heading", { name: "Theo Lane", level: 1 })).toBeVisible();
+    expect(screen.queryByRole("list", { name: /this page/ })).toBeNull();
+  });
+
   it("goes on to the next person in the list it was opened from", async () => {
     const user = userEvent.setup();
     renderAt("/imports/people/201?list=READY&batch=7");

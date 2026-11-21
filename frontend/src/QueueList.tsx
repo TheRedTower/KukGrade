@@ -13,6 +13,8 @@ export interface Queue {
   badge?: ReactNode;
   /** One line on what it holds. */
   hint?: string;
+  /** The one open beside the list (SplitView). */
+  current?: boolean;
 }
 
 /**
@@ -25,7 +27,7 @@ export function QueueList({ queues, label }: { queues: Queue[]; label: string })
     <ul aria-label={label} className="queue-list">
       {queues.map((queue) => (
         <li key={queue.to}>
-          <Link className="queue-list__item" to={queue.to}>
+          <Link aria-current={queue.current ? "page" : undefined} className="queue-list__item" to={queue.to}>
             <span className="queue-list__text">
               <span className="item-title">{queue.label}</span>
               {queue.hint ? <span className="subtext">{queue.hint}</span> : null}

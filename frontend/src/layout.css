@@ -1595,7 +1595,7 @@ select:not([multiple]):not([size]) {
 }
 
 @media (hover: hover) {
-  .queue-list__item:hover {
+  .queue-list__item:not([aria-current="page"]):hover {
     background: var(--color-surface-sunken);
   }
 }
@@ -1609,6 +1609,52 @@ select:not([multiple]):not([size]) {
   display: grid;
   gap: var(--space-1);
   min-width: 0;
+}
+
+/* The queue a page was opened from is in view beside it (QueueList current). */
+.queue-list__item[aria-current="page"] {
+  border-color: var(--color-accent-strong);
+  border-inline-start-width: var(--space-1);
+}
+
+/* ── A page beside its list ────────────────────────────────────────────── */
+
+/* The list a page was opened from, beside it where there is room
+   (SplitView.tsx); narrower, the list is hidden and is its own page. */
+.split-view {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+  max-width: var(--page-max);
+  margin-inline: auto;
+}
+
+.split-view__panes {
+  display: grid;
+  gap: var(--section-gap);
+}
+
+.split-view__list {
+  display: none;
+}
+
+.split-view__page {
+  min-width: 0;
+}
+
+@container (min-width: 56rem) {
+  .split-view__panes {
+    grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .split-view__list {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+    min-width: 0;
+    padding-block-start: var(--space-4);
+  }
 }
 
 /* ── Pagination ────────────────────────────────────────────────────────── */

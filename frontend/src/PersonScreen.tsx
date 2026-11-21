@@ -23,9 +23,11 @@ import { recordMonth } from "./linkRecords";
 import { PEOPLE_PAGE_SIZE, usePeopleContext, whoTheyMayBe } from "./peopleLists";
 import { counted } from "./plural";
 import { Progress } from "./Progress";
+import { QueueList } from "./QueueList";
 import { keys } from "./queryKeys";
 import { RecordPage } from "./RecordPage";
 import { recordStatus, useIdParam } from "./recordStatus";
+import { SplitView } from "./SplitView";
 import { useDecision, usePeopleSummary, usePerson } from "./usePerson";
 
 type Person = HistoricalPersonDetail;
@@ -166,104 +168,129 @@ export function PersonScreen() {
     </Link>
   ) : null;
 
+  // Where there is room, the list this person was opened from stands beside
+  // them: the same page of it the list shows.
+  const beside =
+    list && neighbours.data?.results.length ? (
+      <>
+        <h2 className="section-title">{list.label}</h2>
+        <QueueList
+          label={`${list.label}: this page`}
+          queues={neighbours.data.results.map((other) => ({
+            to: context.path({ person: other.id }),
+            label: other.name,
+            hint: whoTheyMayBe(other),
+            current: other.id === shown.id,
+          }))}
+        />
+        <Link className={buttonClass({ variant: "ghost" })} to={context.path({})}>
+          The whole list
+        </Link>
+      </>
+    ) : null;
+
   return (
-    <DetailPage
-      actions={
-        <>
-          {next !== null ? (
-            <Button variant={primary ? "secondary" : "primary"} onClick={() => navigate(context.path(next))}>
-              Next
-            </Button>
-          ) : (
-            <Link className={buttonClass({ variant: primary ? "secondary" : "primary" })} to={context.path({})}>
-              Back to the list
+    <SplitView list={beside}>
+      <DetailPage
+        actions={
+          <>
+            {next !== null ? (
+              <Button variant={primary ? "secondary" : "primary"} onClick={() => navigate(context.path(next))}>
+                Next
+              </Button>
+            ) : (
+              <Link className={buttonClass({ variant: primary ? "secondary" : "primary" })} to={context.path({})}>
+                Back to the list
+              </Link>
+            )}
+            {primary}
+          </>
+        }
+        back={{ to: context.path({}), label: list?.label ?? "People" }}
+        eyebrow="Past gradings · Sort the people"
+        progress={counts ? <Progress done={counts.sorted} total={counts.people} what="people sorted" /> : null}
+        status={<p className="subtext">{whoTheyMayBe(shown)}</p>}
+        testId="pp-person"
+        title={shown.name}
+      >
+        {decide.isError ? (
+          <ErrorText>{errorMessage(decide.error, "That could not be saved. Try again in a moment.")}</ErrorText>
+        ) : null}
+        <WhoTheyMayBe
+          busy={decide.isPending}
+          context={context}
+          person={shown}
+          onLink={(student) => decide.mutate(() => linkHistoricalPerson(shown.id, { student, version }))}
+        />
+        <section aria-labelledby="pp-other" className="card stack stack--3">
+          <h2 className="section-title" id="pp-other">
+            Something else
+          </h2>
+          <div className="row row--wrap">
+            {open.has("NOT_A_STUDENT") ? (
+              <Button variant="secondary" disabled={decide.isPending} onClick={() => setAsking(true)}>
+                Not a current student
+              </Button>
+            ) : null}
+            {open.has("LATER") ? (
+              <Button
+                variant="secondary"
+                disabled={decide.isPending}
+                onClick={() => decide.mutate(() => leavePersonForLater(shown.id, version))}
+              >
+                Leave for later
+              </Button>
+            ) : null}
+            {open.has("REOPEN") ? (
+              <Button
+                variant="secondary"
+                disabled={decide.isPending}
+                onClick={() => decide.mutate(() => reopenHistoricalPerson(shown.id, version))}
+              >
+                Undo the decision
+              </Button>
+            ) : null}
+            <Link className={buttonClass({ variant: "ghost" })} to={context.path({ person: shown.id, to: "split" })}>
+              Split or merge
             </Link>
-          )}
-          {primary}
-        </>
-      }
-      back={{ to: context.path({}), label: list?.label ?? "People" }}
-      eyebrow="Past gradings · Sort the people"
-      progress={counts ? <Progress done={counts.sorted} total={counts.people} what="people sorted" /> : null}
-      status={<p className="subtext">{whoTheyMayBe(shown)}</p>}
-      testId="pp-person"
-      title={shown.name}
-    >
-      {decide.isError ? (
-        <ErrorText>{errorMessage(decide.error, "That could not be saved. Try again in a moment.")}</ErrorText>
-      ) : null}
-      <WhoTheyMayBe
-        busy={decide.isPending}
-        context={context}
-        person={shown}
-        onLink={(student) => decide.mutate(() => linkHistoricalPerson(shown.id, { student, version }))}
-      />
-      <section aria-labelledby="pp-other" className="card stack stack--3">
-        <h2 className="section-title" id="pp-other">
-          Something else
-        </h2>
-        <div className="row row--wrap">
-          {open.has("NOT_A_STUDENT") ? (
-            <Button variant="secondary" disabled={decide.isPending} onClick={() => setAsking(true)}>
-              Not a current student
-            </Button>
-          ) : null}
-          {open.has("LATER") ? (
-            <Button
-              variant="secondary"
-              disabled={decide.isPending}
-              onClick={() => decide.mutate(() => leavePersonForLater(shown.id, version))}
-            >
-              Leave for later
-            </Button>
-          ) : null}
-          {open.has("REOPEN") ? (
-            <Button
-              variant="secondary"
-              disabled={decide.isPending}
-              onClick={() => decide.mutate(() => reopenHistoricalPerson(shown.id, version))}
-            >
-              Undo the decision
-            </Button>
-          ) : null}
-          <Link className={buttonClass({ variant: "ghost" })} to={context.path({ person: shown.id, to: "split" })}>
-            Split or merge
-          </Link>
-        </div>
-      </section>
-      <section aria-labelledby="pp-written" className="card stack stack--3">
-        <h2 className="section-title" id="pp-written">
-          Written as
-        </h2>
-        <ul aria-label="Spellings" className="list-plain row row--wrap">
-          {shown.spellings.map((spelling) => (
-            <li key={spelling}>
-              <Badge tone="neutral">{spelling}</Badge>
-            </li>
-          ))}
-        </ul>
-        <p className="item-title">{shown.confidence_display}</p>
-        {shown.reasons.length ? (
-          <ul className="list-plain stack stack--1">
-            {shown.reasons.map((reason) => (
-              <li className="subtext" key={reason}>
-                {reason}
+          </div>
+        </section>
+        <section aria-labelledby="pp-written" className="card stack stack--3">
+          <h2 className="section-title" id="pp-written">
+            Written as
+          </h2>
+          <ul aria-label="Spellings" className="list-plain row row--wrap">
+            {shown.spellings.map((spelling) => (
+              <li key={spelling}>
+                <Badge tone="neutral">{spelling}</Badge>
               </li>
             ))}
           </ul>
+          <p className="item-title">{shown.confidence_display}</p>
+          {shown.reasons.length ? (
+            <ul className="list-plain stack stack--1">
+              {shown.reasons.map((reason) => (
+                <li className="subtext" key={reason}>
+                  {reason}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+        <PersonRecords person={shown} />
+        {asking ? (
+          <NotAStudentDialog
+            person={shown}
+            onClose={() => setAsking(false)}
+            onMark={(reason, note) =>
+              decide
+                .mutateAsync(() => markNotAStudent(shown.id, { reason, note, version }))
+                .then(() => setAsking(false))
+            }
+          />
         ) : null}
-      </section>
-      <PersonRecords person={shown} />
-      {asking ? (
-        <NotAStudentDialog
-          person={shown}
-          onClose={() => setAsking(false)}
-          onMark={(reason, note) =>
-            decide.mutateAsync(() => markNotAStudent(shown.id, { reason, note, version })).then(() => setAsking(false))
-          }
-        />
-      ) : null}
-    </DetailPage>
+      </DetailPage>
+    </SplitView>
   );
 }
 

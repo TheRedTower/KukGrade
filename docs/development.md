@@ -222,7 +222,8 @@ second screen will want it, add it to `layout.css` or `theme.css` once, not to t
 | A screen's one primary action, kept at the foot of the window where a thumb reaches it | `ActionBar` (`status` for what it says beside the buttons; on a phone the buttons take the bar's width, the primary lowest). The only bar a screen pins to the foot of the window (`layoutRules.test.ts`) |
 | One thing in full on a page of its own, so Back works, never a panel inside a list | `DetailPage` (`eyebrow` for where it sits in the work, `progress`, and `actions` for its `ActionBar`) |
 | How far through the work, in words and as a bar | `Progress` ("52 of 80 people sorted") |
-| Queues of work, each opening its own list, with how many wait in it | `QueueList` (an empty queue still shows) |
+| Queues of work, each opening its own list, with how many wait in it | `QueueList` (an empty queue still shows; `current` marks the one open beside it) |
+| A page beside the list it was opened from, where there is room (a laptop); only the page when narrower | `SplitView` (`.split-view`) |
 | Key figures | `.stats` (side by side, wrapping only when a label's longest word no longer fits) |
 | A section that folds open | `.disclosure` on a `<details>` |
 | A list with no bullets | `.list-plain` |

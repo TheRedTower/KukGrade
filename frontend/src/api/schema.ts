@@ -1039,6 +1039,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-people/{id}/students/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Students found for the person by the students' own search, each
+         *     saying whether their rank now fits the rank the person's records gave
+         *     then.
+         */
+        get: operations["gradings_legacy_people_students_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/legacy-people/confirm/": {
         parameters: {
             query?: never;
@@ -3575,6 +3596,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["LegacyGradingRecord"][];
         };
+        PaginatedPersonStudentList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["PersonStudent"][];
+        };
         PaginatedRankList: {
             /** @example 123 */
             count: number;
@@ -3740,6 +3776,22 @@ export interface components {
             /** @description The student suggested for the person. */
             student: number;
             version: number;
+        };
+        /**
+         * @description A student found for a person from the imported history, and whether
+         *     their rank now fits the rank the person's records gave then.
+         */
+        PersonStudent: {
+            id: number;
+            full_name: string;
+            wksa_id: string;
+            current_rank_name: string;
+            readonly age_band_display: string;
+            status_display: string;
+            /** @description Whether their rank now is at least the rank the records gave then; null when the records give no rank. */
+            readonly rank_fits: boolean | null;
+            /** @description Why the rank fits or not, in plain words; blank with no rank. */
+            readonly rank_reason: string;
         };
         /**
          * @description POST legacy-people/{id}/later/, /reopen/: the decision, made on the
@@ -5751,6 +5803,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoricalPersonDetail"];
+                };
+            };
+        };
+    };
+    gradings_legacy_people_students_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A student's name, ID (current or previous, with or without hyphens), rank or status. */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy person. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedPersonStudentList"];
                 };
             };
         };

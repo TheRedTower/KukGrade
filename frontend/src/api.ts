@@ -840,6 +840,11 @@ export function mergeHistoricalPeople(id: number, body: Schemas["MergePeopleRequ
   return answer(api.POST("/api/gradings/legacy-people/{id}/merge/", { params: { path: { id } }, body }));
 }
 
+/** Students found for a person by the students' own search, each saying whether their rank now fits. */
+export function getPersonStudents(id: number, query: ListQuery<"gradings_legacy_people_students_list">) {
+  return answer(api.GET("/api/gradings/legacy-people/{id}/students/", { params: { path: { id }, query } }));
+}
+
 /** Move some of a person's records to another person already there; the answer is that person. */
 export function moveHistoricalRecords(id: number, body: Schemas["MoveRecordsRequest"]) {
   return answer(api.POST("/api/gradings/legacy-people/{id}/move/", { params: { path: { id } }, body }));

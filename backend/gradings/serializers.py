@@ -20,7 +20,7 @@ from gradings.assessment_services import (
 from gradings.exports.records import record_can_be_downloaded
 from gradings.exports.sheets import sheet_can_be_printed, sheets_can_be_printed
 from gradings.exports.summary import summary_can_be_downloaded
-from gradings.legacy_matching import Suggestion
+from gradings.legacy_matching import Suggestion, rank_fit
 from gradings.legacy_people import PersonDecision, PersonQueue, PersonView
 from gradings.models import (
     AssessmentItemComment,
@@ -66,7 +66,7 @@ from gradings.services import (
 from kukgrade.serializers import ModelSerializer
 from ranks.models import Rank
 from students.models import Student
-from syllabus.models import CORE_CATEGORIES, SyllabusItem
+from syllabus.models import CORE_CATEGORIES, AgeBand, SyllabusItem
 
 
 class GradingYearsSerializer(serializers.Serializer[dict[str, list[int]]]):
@@ -1241,6 +1241,36 @@ class SuggestedStudentSerializer(serializers.Serializer):
         child=serializers.CharField(),
         help_text="Why the student is suggested, in plain words.",
     )
+
+
+class PersonStudentSerializer(serializers.Serializer):
+    """A student found for a person from the imported history, and whether
+    their rank now fits the rank the person's records gave then."""
+
+    id = serializers.IntegerField()
+    full_name = serializers.CharField()
+    wksa_id = serializers.CharField()
+    current_rank_name = serializers.CharField(source="current_rank.name")
+    age_band_display = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source="get_status_display")
+    rank_fits = serializers.SerializerMethodField(
+        help_text=(
+            "Whether their rank now is at least the rank the records gave "
+            "then; null when the records give no rank."
+        ),
+    )
+    rank_reason = serializers.SerializerMethodField(
+        help_text="Why the rank fits or not, in plain words; blank with no rank.",
+    )
+
+    def get_age_band_display(self, obj: Student) -> str:
+        return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]
+
+    def get_rank_fits(self, obj: Student) -> bool | None:
+        return rank_fit(obj, self.context["rank_then"])[0]
+
+    def get_rank_reason(self, obj: Student) -> str:
+        return rank_fit(obj, self.context["rank_then"])[1]
 
 
 class LegacyRecordCountsSerializer(serializers.Serializer):

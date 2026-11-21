@@ -35,6 +35,8 @@ interface Ids {
   record: string;
   /** A person from the imported history who needs a look, with a student suggested. */
   person: string;
+  /** A search that finds students for that person: the suggested student's surname. */
+  personSearch: string;
   student: string;
   user: string;
   sessions: Record<string, string>;
@@ -50,7 +52,7 @@ interface Screen {
   role: Role;
   path: (ids: Ids) => string;
   /** What to do on the screen before it is checked, such as opening a dialog. */
-  after?: (page: Page) => Promise<void>;
+  after?: (page: Page, ids: Ids) => Promise<void>;
 }
 
 const SCREENS: Screen[] = [
@@ -201,6 +203,16 @@ const SCREENS: Screen[] = [
   { name: "imports-person", role: "administrator", path: (ids) => `/imports/people/${ids.person}?list=NEEDS_A_LOOK` },
   { name: "imports-person-split", role: "administrator", path: (ids) => `/imports/people/${ids.person}/split` },
   { name: "imports-person-student", role: "administrator", path: (ids) => `/imports/people/${ids.person}/student` },
+  // Students found, one perhaps flagged for a rank below the records'.
+  {
+    name: "imports-person-student-found",
+    role: "administrator",
+    path: (ids) => `/imports/people/${ids.person}/student`,
+    after: async (page, ids) => {
+      await page.getByLabel("A name or WKSA ID").fill(ids.personSearch);
+      await page.getByRole("list", { name: "Students found" }).getByRole("button").first().waitFor();
+    },
+  },
   { name: "settings-account", role: "master", path: () => "/settings/account" },
   { name: "settings-appearance", role: "master", path: () => "/settings/appearance" },
   { name: "settings-about", role: "master", path: () => "/settings/about" },
@@ -320,18 +332,20 @@ test.beforeAll(async ({ browser }) => {
   const withdrawn = candidates.find((candidate) => candidate.status === "WITHDRAWN");
   expect(marking, "the demo has a candidate being marked, with a Met and a Not met").toBeTruthy();
   expect(withdrawn, "the demo has a withdrawn candidate in its open session").toBeTruthy();
+  const looked = (
+    await list<{ id: number; candidates: { full_name: string }[] }>(
+      admin,
+      "/api/gradings/legacy-people/?queue=NEEDS_A_LOOK",
+    )
+  ).find(({ candidates }) => candidates.length > 0);
   ids = {
     batch: String((await list(admin, "/api/data-imports/batches/?status=COMMITTED"))[0].id),
     record: String(
       (await list<{ id: number; report: string }>(admin, "/api/gradings/legacy-records/")).find(({ report }) => report)
         ?.id ?? (await list(admin, "/api/gradings/legacy-records/"))[0].id,
     ),
-    person: String(
-      (
-        await list<{ id: number; candidates: unknown[] }>(admin, "/api/gradings/legacy-people/?queue=NEEDS_A_LOOK")
-      ).find(({ candidates }) => candidates.length > 0)?.id ??
-        (await list(admin, "/api/gradings/legacy-people/"))[0].id,
-    ),
+    person: String(looked?.id ?? (await list(admin, "/api/gradings/legacy-people/"))[0].id),
+    personSearch: looked?.candidates[0].full_name.split(" ").at(-1) ?? "an",
     openImport: String((await list(admin, "/api/data-imports/batches/?kind=LEGACY_GRADINGS&finished=false"))[0].id),
     openRoster: String((await list(admin, "/api/data-imports/batches/?kind=STUDENT_ROSTER&finished=false"))[0].id),
     completedCandidate: String(completed[0].id),
@@ -564,7 +578,7 @@ for (const screen of SCREENS) {
       // A redirect or a not-found page would fit and prove nothing.
       expect(new URL(page.url()).pathname, "the screen was not shown").toBe(path.split("?")[0]);
       await settled(page);
-      await screen.after?.(page);
+      await screen.after?.(page, ids);
       for (const issue of await findOverflow(page, width)) problems.push(`${width}px  ${issue}`);
       for (const issue of await findLayoutFaults(page)) problems.push(`${width}px  ${issue}`);
       for (const issue of await findCoveredBars(page)) problems.push(`${width}px  ${issue}`);

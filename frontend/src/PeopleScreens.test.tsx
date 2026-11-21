@@ -27,7 +27,7 @@ const api = vi.hoisted(() => ({
   mergeHistoricalPeople: vi.fn(),
   moveHistoricalRecords: vi.fn(),
   confirmHistoricalPeople: vi.fn(),
-  getStudents: vi.fn(),
+  getPersonStudents: vi.fn(),
   getChoices: vi.fn(),
   getSiteSettings: vi.fn(),
 }));
@@ -436,16 +436,17 @@ describe("Merging, past the first page of people found", () => {
 describe("Choosing the student", () => {
   it("finds a student by name and links the person to them", async () => {
     const user = userEvent.setup();
-    api.getStudents.mockResolvedValue(
+    api.getPersonStudents.mockResolvedValue(
       page([
         {
           id: 41,
-          first_name: "Theo",
-          last_name: "Lane",
+          full_name: "Theo Lane",
           current_rank_name: "White",
           age_band_display: "9-12",
           status_display: "Active",
           wksa_id: "104-2-417",
+          rank_fits: true,
+          rank_reason: "Rank fits: White now, White then",
         },
       ]),
     );
@@ -455,10 +456,41 @@ describe("Choosing the student", () => {
     await user.type(await screen.findByLabelText("A name or WKSA ID"), "lane");
     const found = await screen.findByRole("button", { name: /Theo Lane/ });
     expect(found).toHaveTextContent("White now · 9-12 · Active · 104-2-417");
+    expect(api.getPersonStudents).toHaveBeenCalledWith(202, { search: "lane", page_size: 10 });
+    expect(screen.queryByText(/Lower rank now/)).toBeNull();
     await user.click(found);
 
     expect(api.linkHistoricalPerson).toHaveBeenCalledWith(202, { student: 41, version: 4 });
     await waitFor(() => expect(where()).toBe("/imports/people/202?list=NEEDS_A_LOOK"));
+  });
+});
+
+describe("A student whose rank does not fit", () => {
+  it("is flagged with why, and can still be chosen", async () => {
+    const user = userEvent.setup();
+    api.getPersonStudents.mockResolvedValue(
+      page([
+        {
+          id: 42,
+          full_name: "Theo Barker",
+          current_rank_name: "Yellow",
+          age_band_display: "18+",
+          status_display: "Active",
+          wksa_id: "104-2-418",
+          rank_fits: false,
+          rank_reason: "Lower rank now (Yellow) than then (Blue)",
+        },
+      ]),
+    );
+    api.linkHistoricalPerson.mockResolvedValue(theo);
+    renderAt("/imports/people/202/student");
+
+    await user.type(await screen.findByLabelText("A name or WKSA ID"), "barker");
+    const found = await screen.findByRole("button", { name: /Theo Barker/ });
+    expect(within(found).getByText("Lower rank now (Yellow) than then (Blue)")).toBeVisible();
+    await user.click(found);
+
+    expect(api.linkHistoricalPerson).toHaveBeenCalledWith(202, { student: 42, version: 4 });
   });
 });
 

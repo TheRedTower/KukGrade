@@ -46,7 +46,6 @@ export const keys = {
     rankHistory: (id: Id) => ["students", "rankHistory", id] as const,
     gradingHistory: (id: Id) => ["students", "gradingHistory", id] as const,
     eligible: (...filters: unknown[]) => ["students", "eligible", ...filters] as const,
-    linkSearch: (search: string) => ["students", "linkSearch", search] as const,
   },
   auditEvents: {
     all: () => ["auditEvents"] as const,
@@ -87,6 +86,8 @@ export const keys = {
     summary: (...batch: number[]) => ["legacyPeople", "summary", ...batch] as const,
     list: (...filters: unknown[]) => ["legacyPeople", "list", ...filters] as const,
     detail: (id: Id) => ["legacyPeople", "detail", id] as const,
+    /** Students found for a person, with whether their rank fits. */
+    students: (id: Id, search: string) => ["legacyPeople", "students", id, search] as const,
   },
   managedUsers: {
     all: () => ["managedUsers"] as const,

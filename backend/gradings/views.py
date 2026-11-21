@@ -5,6 +5,8 @@ from typing import Any, cast
 
 from django.db.models import Prefetch, Q, QuerySet, prefetch_related_objects
 from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import mixins, status
@@ -123,6 +125,7 @@ from gradings.serializers import (
     MergePeopleSerializer,
     MoveRecordsSerializer,
     NotAStudentSerializer,
+    PersonStudentSerializer,
     PersonVersionSerializer,
     PromotionEligibilitySerializer,
     PromotionSerializer,
@@ -172,6 +175,10 @@ from kukgrade.search import (
     squashed,
 )
 from kukgrade.viewsets import KukGradeViewSet, ServiceDestroyMixin, run_bulk
+from ranks.matching import active_rank_lookup
+from students.models import Student
+from students.views import STUDENT_SEARCH
+from syllabus.age import with_age_band_on
 
 
 def _apply_archived(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
@@ -1261,6 +1268,10 @@ class HistoricalPersonViewSet(
         "split": ("gradings.can_reconcile_imported_history",),
         "merge": ("gradings.can_reconcile_imported_history",),
         "move": ("gradings.can_reconcile_imported_history",),
+        "students": (
+            "gradings.can_reconcile_imported_history",
+            "students.view_student",
+        ),
         "confirm": ("gradings.can_reconcile_imported_history",),
     }
     query_filters = _HISTORICAL_PEOPLE_FILTERS
@@ -1321,6 +1332,38 @@ class HistoricalPersonViewSet(
                     "needs_a_look": queues[PersonQueue.NEEDS_A_LOOK],
                     "no_student": queues[PersonQueue.NO_STUDENT],
                 },
+            ).data,
+        )
+
+    @extend_schema(responses=PersonStudentSerializer(many=True))
+    @action(detail=True, methods=["get"], query_filters=(STUDENT_SEARCH,))
+    def students(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Students found for the person by the students' own search, each
+        saying whether their rank now fits the rank the person's records gave
+        then."""
+        # Not get_object: this view's filters search the students, not people.
+        person = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        views = person_views(LegacyPerson.objects.filter(pk=person.pk))
+        if not views:
+            raise Http404
+        rank_then = views[0].rank_then(active_rank_lookup())
+        # The view's filters are the students' search: the queryset is of
+        # students, not of the people this view lists.
+        found = self.filter_queryset(
+            with_age_band_on(  # type: ignore[arg-type]
+                Student.objects.filter(deleted_at__isnull=True)
+                .select_related("current_rank")
+                .order_by("last_name", "first_name", "wksa_id"),
+                timezone.localdate(),
+            ),
+        )
+        page: list[Any] | None = self.paginate_queryset(found)
+        assert page is not None
+        return self.get_paginated_response(
+            PersonStudentSerializer(
+                page,
+                many=True,
+                context={"rank_then": rank_then},
             ).data,
         )
 

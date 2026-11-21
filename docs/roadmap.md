@@ -2,17 +2,14 @@
 
 This is the single list of what is still to come and what is deliberately not built.
 If it is not here, it is either already in [features.md](features.md) or not planned.
-KukGrade has not had a 1.0 release yet; items are listed in rough order, without dates.
+The first stable release is 0.2.0; 1.0 follows once the items below are done. Items are
+listed in rough order, without dates.
 
 Want something here, or something that is missing? Open an
 [issue](https://github.com/TheRedTower/KukGrade/issues/new/choose) first.
 
 ## Next: getting to 1.0
 
-- [ ] **First stable image**: the release workflow is in place and release candidates are
-      published (the repository and the package are public), but `latest` appears only when
-      the first stable tag is cut on `prod`, after the first `dev` to `prod` merge. Until then
-      the install guide tells people to use a release candidate tag.
 - [ ] **Bare-metal Linux release**: a tarball with its own Python, the built frontend and a
       systemd unit (amd64 and arm64), plus documented build-from-source, for people who do not
       use Docker.
@@ -29,10 +26,6 @@ Want something here, or something that is missing? Open an
       kukgrade.co.uk at it (in place of the redirect to GitHub), retake its screenshots on
       release, and add link, accessibility and HTML checks.
 - [ ] **Release assurance**: a repeatable pre-release checklist covering the install paths.
-- [ ] **Have the demo site follow `latest`**: [the demo](https://demo.kukgrade.co.uk/) is online
-      (see [demo.md](demo.md)) and runs a release candidate. Until `latest` exists (the newest
-      stable release, cut from `prod`), `deploy/compose.demo.yml` asks for `KUKGRADE_VERSION`;
-      give it the default `latest` again with the first stable release.
 - [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check
       (`frontend/src/layout.css`, Playwright width check).
       Done when the owner has checked the demo site on a real phone and tablet.
@@ -48,7 +41,7 @@ Want something here, or something that is missing? Open an
       import and the historical records (each record on a page of its own, its ranks
       corrected from the belts, its outcome read as a recommendation beside the workbook's
       key). The student import is on the same screens (its file, its columns and each row to
-      fix as things to check, every row, save). All of it is in release candidate 16. Done
+      fix as things to check, every row, save). All of it is in 0.2.0. Done
       when the owner has checked it on a real phone and tablet, with the item above.
 - [ ] **Measure the audit log's record history** on a real session: the history behind a
       grading or a student filters events by `session_id` and `student_id` in their details,

@@ -168,7 +168,8 @@ sheet, someone both missing and graded there, and a missing outcome or rank. Eac
 screen of its own: the sheets, the things to check (each one on its own page, with its answers as
 large buttons), every record, and the save, which never waits for anything left open. Saved records are grouped into the people they are about, by their names and rank
 history, each with how sure that is and the students they may be. Saving goes straight on to sorting them, a queue at a time and a page for each person. Each person is linked to a
-student, marked not a current student, or left for later; a person can be split or merged, some
+student (a student found by name whose rank now is below the records' is flagged), marked not a
+current student, or left for later; a person can be split or merged, some
 of their records can be moved to another person, and every decision can be undone and is audited. A finished import says how many of its people are
 sorted and goes on to the rest. Every saved record can be found again under Historical records, by
 the name as written, and opens a page of its own: the workbook's text in full, the ranks KukGrade

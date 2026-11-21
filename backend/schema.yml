@@ -1962,6 +1962,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/HistoricalPersonDetail'
           description: ''
+  /api/gradings/legacy-people/{id}/students/:
+    get:
+      operationId: gradings_legacy_people_students_list
+      description: |-
+        Students found for the person by the students' own search, each
+        saying whether their rank now fits the rank the person's records gave
+        then.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy person.
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A student's name, ID (current or previous, with or without hyphens),
+          rank or status.
+        schema:
+          type: string
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPersonStudentList'
+          description: ''
   /api/gradings/legacy-people/confirm/:
     post:
       operationId: gradings_legacy_people_confirm_create
@@ -7570,6 +7614,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LegacyGradingRecord'
+    PaginatedPersonStudentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonStudent'
     PaginatedRankList:
       type: object
       required:
@@ -7865,6 +7932,44 @@ components:
       - person
       - student
       - version
+    PersonStudent:
+      type: object
+      description: |-
+        A student found for a person from the imported history, and whether
+        their rank now fits the rank the person's records gave then.
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        wksa_id:
+          type: string
+        current_rank_name:
+          type: string
+        age_band_display:
+          type: string
+          readOnly: true
+        status_display:
+          type: string
+        rank_fits:
+          type: boolean
+          nullable: true
+          readOnly: true
+          description: Whether their rank now is at least the rank the records gave
+            then; null when the records give no rank.
+        rank_reason:
+          type: string
+          readOnly: true
+          description: Why the rank fits or not, in plain words; blank with no rank.
+      required:
+      - age_band_display
+      - current_rank_name
+      - full_name
+      - id
+      - rank_fits
+      - rank_reason
+      - status_display
+      - wksa_id
     PersonVersionRequest:
       type: object
       description: |-

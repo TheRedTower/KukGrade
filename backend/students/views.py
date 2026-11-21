@@ -105,6 +105,28 @@ def _previous_ids() -> Subquery:
     )
 
 
+# A student found by what their screen shows: the one search of the student
+# list, also used to find a student for a person from the imported history
+# (gradings.views.HistoricalPersonViewSet.students).
+STUDENT_SEARCH = search(
+    "search",
+    (
+        "first_name",
+        "last_name",
+        full_name_of(),
+        "wksa_id",
+        # The ID without its hyphens, and any ID the student held before.
+        squashed("wksa_id"),
+        _previous_ids(),
+        squashed(_previous_ids()),
+        ExactOnly("current_rank__name"),
+        ExactOnly(label_of("status", Student.Status.choices)),
+    ),
+    "A student's name, ID (current or previous, with or without hyphens), "
+    "rank or status.",
+)
+
+
 class StudentViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -167,23 +189,7 @@ class StudentViewSet(
             "source_import",
             "Only the students one import added.",
         ),
-        search(
-            "search",
-            (
-                "first_name",
-                "last_name",
-                full_name_of(),
-                "wksa_id",
-                # The ID without its hyphens, and any ID the student held before.
-                squashed("wksa_id"),
-                _previous_ids(),
-                squashed(_previous_ids()),
-                ExactOnly("current_rank__name"),
-                ExactOnly(label_of("status", Student.Status.choices)),
-            ),
-            "A student's name, ID (current or previous, with or without hyphens), "
-            "rank or status.",
-        ),
+        STUDENT_SEARCH,
     )
 
     _READABLE_ONCE_DELETED = frozenset({"retrieve", "rank_history", "grading_history"})

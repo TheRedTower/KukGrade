@@ -112,8 +112,10 @@ KukGrade:
   of their own: how they are written, their gradings in date order, the suggested
   students with the reasons, and only the decisions open to them. Next goes on through the
   list. Split, merge and moving records have a page of their own, and so does finding a
-  student by name or WKSA ID. A historical record's page opens it with that record ticked,
-  to move it to another person.
+  student by name or WKSA ID, where each student found shows their rank now and age band
+  and is flagged when that rank is below the rank the person's records gave then. A
+  historical record's page opens split and merge with that record ticked, to move it to
+  another person.
 - KukGrade reads what it can and lists only **what to check**, each one decision:
   - a rank it cannot read ("Bown Stripe") or that the workbook marks with "?": choose
     the rank, or keep it as written (unmatched);

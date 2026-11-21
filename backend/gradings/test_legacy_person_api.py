@@ -173,3 +173,67 @@ def test_the_per_name_linking_is_gone(path: str) -> None:
     client = client_for(admin())
     assert client.get(path).status_code in {404, 405}
     assert client.post(path, {}, format="json").status_code in {404, 405}
+
+
+# --- finding a student for a person ------------------------------------------
+
+
+def students_for(person: LegacyPerson, **params: str) -> list[dict[str, object]]:
+    response = client_for(admin()).get(f"{PEOPLE}{person.pk}/students/", params)
+    assert response.status_code == 200, response.json()
+    results = response.json()["results"]
+    assert isinstance(results, list)
+    return results
+
+
+def test_students_found_for_a_person_say_whether_their_rank_fits() -> None:
+    commit(
+        grading_workbook(
+            {
+                "062025": [["Ada Park", "White", "Yellow", "Pass", ""]],
+                "122025": [["Ada Park", "Yellow", "Blue", "Pass", ""]],
+            },
+        ),
+    )
+    person = LegacyPerson.objects.get()
+    student(first_name="Ada", last_name="Park", current_rank=rank("BLUE"))
+    student(first_name="Ada", last_name="Lee", current_rank=rank("YELLOW"))
+    ben_cho = student(first_name="Ben", last_name="Cho", current_rank=rank("RED"))
+
+    found = students_for(person, search="ada")
+
+    assert [(s["full_name"], s["rank_fits"], s["rank_reason"]) for s in found] == [
+        ("Ada Lee", False, "Lower rank now (Yellow) than then (Blue)"),
+        ("Ada Park", True, "Rank fits: Blue now, Blue then"),
+    ]
+    assert found[0]["current_rank_name"] == "Yellow"
+    assert found[0]["age_band_display"]
+    assert found[0]["status_display"] == "Active"
+    # The students' own search: by WKSA ID too.
+    [ben] = students_for(person, search=ben_cho.wksa_id)
+    assert ben["full_name"] == "Ben Cho"
+    assert ben["rank_fits"] is True
+
+
+def test_a_person_whose_records_give_no_rank_fits_no_rank() -> None:
+    commit(grading_workbook({"062025": [["Ada Park", "", "", "Pass", ""]]}))
+    person = LegacyPerson.objects.get()
+    student(first_name="Ada", last_name="Park")
+
+    [found] = students_for(person, search="ada")
+
+    assert (found["rank_fits"], found["rank_reason"]) == (None, "")
+
+
+def test_finding_students_for_a_person_refuses_what_it_should() -> None:
+    commit(grading_workbook({"062025": [["Ada Park", "White", "Yellow", "Pass", ""]]}))
+    person = LegacyPerson.objects.get()
+    url = f"{PEOPLE}{person.pk}/students/"
+
+    assert client_for(admin()).get(url, {"serach": "ada"}).status_code == 400
+    assert client_for(instructor_user()).get(url).status_code == 403
+    assert client_for(None).get(url).status_code in {401, 403}
+
+    [record_] = LegacyGradingRecord.objects.filter(person=person)
+    void_legacy_record(record_, reason="A bad entry.", actor=admin())
+    assert client_for(admin()).get(url).status_code == 404

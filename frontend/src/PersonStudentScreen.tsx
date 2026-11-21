@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { errorMessage, getStudents, linkHistoricalPerson } from "./api";
+import { errorMessage, getPersonStudents, linkHistoricalPerson } from "./api";
 import { DetailPage } from "./DetailPage";
 import { ErrorText } from "./ErrorText";
 import { LoadingState } from "./LoadingState";
@@ -13,11 +13,13 @@ import { recordStatus, useIdParam } from "./recordStatus";
 import { SearchField } from "./SearchField";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { useDecision, usePerson } from "./usePerson";
+import "./Imports.css";
 
 /**
  * Any student, found by name or WKSA ID, for a person no suggestion fits:
- * each with their rank now and age band. Choosing one links the person and
- * goes back to their page.
+ * each with their rank now and age band, and flagged when that rank is below
+ * the rank the person's records gave then (the server says which). Choosing
+ * one links the person and goes back to their page.
  */
 export function PersonStudentScreen() {
   const id = useIdParam();
@@ -27,9 +29,9 @@ export function PersonStudentScreen() {
   const [search, setSearch] = useState("");
   const searched = useDebouncedValue(search.trim());
   const found = useQuery({
-    queryKey: keys.students.linkSearch(searched),
-    queryFn: () => getStudents({ search: searched, page_size: 10 }),
-    enabled: searched.length >= 2,
+    queryKey: keys.legacyPeople.students(id ?? 0, searched),
+    queryFn: () => getPersonStudents(id!, { search: searched, page_size: 10 }),
+    enabled: id !== null && searched.length >= 2,
   });
   const link = useDecision<unknown>(() => navigate(context.path({ person: id ?? undefined })));
 
@@ -69,7 +71,6 @@ export function PersonStudentScreen() {
         ) : null}
         <ul aria-label="Students found" className="list-plain stack stack--2">
           {students.map((student) => {
-            const name = `${student.first_name} ${student.last_name}`;
             return (
               <li key={student.id}>
                 <button
@@ -81,7 +82,7 @@ export function PersonStudentScreen() {
                   }
                 >
                   <span className="queue-list__text">
-                    <span className="item-title">{name}</span>
+                    <span className="item-title">{student.full_name}</span>
                     <span className="subtext">
                       {[
                         `${student.current_rank_name} now`,
@@ -92,6 +93,9 @@ export function PersonStudentScreen() {
                         .filter(Boolean)
                         .join(" · ")}
                     </span>
+                    {student.rank_fits === false ? (
+                      <span className="subtext ix-warning-text">{student.rank_reason}</span>
+                    ) : null}
                   </span>
                 </button>
               </li>

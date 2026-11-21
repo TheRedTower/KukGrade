@@ -174,6 +174,18 @@ def leaves_at[R: RankLike](
     return held
 
 
+def rank_fit(student: Student, rank_then: Rank | None) -> tuple[bool | None, str]:
+    """Whether a student's rank now fits the rank the records gave then, and
+    why in plain words: nobody goes down a grade. (None, "") when the records
+    give no rank."""
+    if rank_then is None:
+        return None, ""
+    now = student.current_rank
+    if now.order >= rank_then.order:
+        return True, f"Rank fits: {now.name} now, {rank_then.name} then"
+    return False, f"Lower rank now ({now.name}) than then ({rank_then.name})"
+
+
 def score_student(
     tokens: list[str],
     student: Student,
@@ -213,16 +225,10 @@ def score_student(
         else:
             return None
 
-    rank_fits: bool | None = None
-    if rank_then is not None:
-        now = student.current_rank
-        rank_fits = now.order >= rank_then.order
-        if rank_fits:
-            score += 10
-            reasons.append(f"Rank fits: {now.name} now, {rank_then.name} then")
-        else:
-            score -= 25
-            reasons.append(f"Lower rank now ({now.name}) than then ({rank_then.name})")
+    rank_fits, rank_reason = rank_fit(student, rank_then)
+    if rank_fits is not None:
+        score += 10 if rank_fits else -25
+        reasons.append(rank_reason)
 
     if score < _MINIMUM_SCORE:
         return None

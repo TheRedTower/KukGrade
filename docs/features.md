@@ -63,9 +63,12 @@ flowchart LR
    (the Master) can finalise an outcome. A finalised outcome can never be edited.
    Decisions the Master has chosen but not yet recorded ("staged") are saved on the
    server for that Master alone, so a session that times out or a closed tab loses
-   nothing, and a change made just before leaving the board (taking a decision off
-   included) is saved as the board is left; recording a decision, or the session
-   leaving the locked state, removes them. Staging is not audited, because it decides nothing; recording is.
+   nothing. A change made just before leaving the board (taking a decision off
+   included) is saved as the board is left, whether by another screen, a closed tab or
+   signing out, and while decisions are being recorded too; signing out waits a few
+   seconds at most for those saves. Opening the board again shows the latest of them,
+   never an earlier one still on its way. Recording a decision, or the session leaving
+   the locked state, removes them. Staging is not audited, because it decides nothing; recording is.
 7. **Promote.** A Pass is promoted in a separate, deliberate step, which updates the
    student's rank and writes a permanent rank-history record. A whole cohort can be
    promoted at once. Promoting is possible while the session is locked and after it is

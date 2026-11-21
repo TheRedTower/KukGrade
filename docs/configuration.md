@@ -1,0 +1,126 @@
+# Configuration
+
+KukGrade is configured entirely through environment variables. For a Docker
+install, put them in `deploy/.env` (copy it from `deploy/.env.example`). Names
+are case-sensitive; a value left out uses the default shown.
+
+## Your school
+
+<!-- prettier-ignore -->
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `KUKGRADE_CLUB_NAME` | `Kuk Sool Won` | The school's name, shown in the sidebar. |
+| `KUKGRADE_SCHOOL_PREFIX` | `123-4` | Your school's prefix in student IDs (`123-4-150`): three digits, a dash, one digit. Set it to yours; it is used for the example shown when adding a student. |
+| `TZ` | `Europe/London` | The school's time zone (an [IANA name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)). It decides what "today" is, how old a student is on a given day, and the times the screens show. |
+
+## Reaching the app
+
+<!-- prettier-ignore -->
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated host names people use, without scheme or port. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | none | Comma-separated origins as the browser shows them, with scheme and port (`https://grading.example.org`). Needed whenever you use HTTPS or a non-default port. |
+| `DJANGO_NUM_PROXIES` | `0` | How many reverse proxies or tunnels sit in front of the app. See [installation](installation.md#telling-kukgrade-how-many-proxies-are-in-front). |
+| `KUKGRADE_TRANSPORT` | `https` | Only when `DJANGO_NUM_PROXIES=0`: `https` serves TLS itself; `http` serves plain HTTP (turns off the HTTPS redirect, secure cookies and HSTS). |
+| `KUKGRADE_TLS_CERT`, `KUKGRADE_TLS_KEY` | none | Paths to your own certificate and key (both or neither). Without them the app makes a self-signed pair. |
+| `KUKGRADE_TLS_DIR` | `/var/lib/kukgrade/tls` | Where the self-signed pair is kept. |
+
+The app listens on port **6942**. To expose it on another host port, change the
+`ports:` mapping in Compose (`"7443:6942"`).
+
+## Secrets and accounts
+
+<!-- prettier-ignore -->
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `DJANGO_SECRET_KEY` | made on first start | A long random value that signs sessions. Leave it out and the image makes one and keeps it in `data/secret_key`. To choose your own: `python3 -c "import secrets; print(secrets.token_urlsafe(64))"`. |
+| `KUKGRADE_TEMPORARY_PASSWORD_HOURS` | `24` | How long a temporary password issued by an administrator keeps working (at least 1). |
+
+## Database
+
+By default the image runs its own PostgreSQL and none of these are needed. To use
+a PostgreSQL you already run, set `POSTGRES_HOST`; the container then starts no
+database of its own.
+
+<!-- prettier-ignore -->
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `POSTGRES_HOST` | unset (use the built-in database) | Host of your own PostgreSQL. |
+| `POSTGRES_PORT` | `5432` | Its port. |
+| `POSTGRES_DB` | `kukgrade` | Database name. The role must own it, so migrations can run. |
+| `POSTGRES_USER` | `kukgrade` | Role name. |
+| `POSTGRES_PASSWORD` | development value | Role password. Always set your own when using an external database. |
+
+## Imports
+
+<!-- prettier-ignore -->
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `KUKGRADE_UPLOAD_MAX_BYTES` | `5242880` (5 MiB) | Largest spreadsheet an import will accept. Also cap request size at your proxy, a little above this. |
+
+## Transport security (rarely changed)
+
+When `DJANGO_DEBUG` is off, each of these defaults to its secure value. They only
+need setting to opt out.
+
+<!-- prettier-ignore -->
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `DJANGO_SECURE_SSL_REDIRECT` | on | Redirect HTTP to HTTPS. |
+| `DJANGO_SECURE_HSTS_SECONDS` | `31536000` | HSTS lifetime. |
+| `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS` | on | Apply HSTS to subdomains. |
+| `DJANGO_SECURE_HSTS_PRELOAD` | off | Opt in to HSTS preload only if you understand it is hard to undo. |
+| `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE` | on | Send the cookies over HTTPS only. A secure cookie is named with the `__Host-` prefix (`__Host-sessionid`, `__Host-csrftoken`), so no other subdomain of the same domain can set it. |
+| `DJANGO_SESSION_COOKIE_SAMESITE`, `DJANGO_CSRF_COOKIE_SAMESITE` | `Lax` | SameSite policy. |
+| `KUKGRADE_CSP` | `enforce` | The Content-Security-Policy header on the app's pages: the browser runs only the app's own scripts and styles and talks only to the app. `report-only` has the browser report what it would block in its console and block nothing; `off` leaves the header out. Use them only if a proxy or a browser extension injects something into the page. |
+
+## Set by the image
+
+The image sets these itself. Leave them alone unless you are running the app another way.
+
+<!-- prettier-ignore -->
+| Variable | Set to | Meaning |
+| --- | --- | --- |
+| `KUKGRADE_IMPORT_UPLOAD_ROOT` | `/var/lib/kukgrade/import_uploads` | Where uploaded spreadsheets wait for review. Part of the folder you back up. |
+| `KUKGRADE_EMBEDDED_SOCKET` | `/tmp/kukgrade-pg` | The socket of the image's own PostgreSQL. |
+| `KUKGRADE_DOCUMENTS_DIR` | `/app/documents` | Where the About screens read the licence and policy files. |
+
+## Build information
+
+Set these in the shell **before building** and the About page shows which build
+is running (only to signed-in users):
+
+```sh
+export KUKGRADE_BUILD_COMMIT="$(git rev-parse --short HEAD)"
+export KUKGRADE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export KUKGRADE_BUILD_PRE_RELEASE="rc.1"    # only for a release candidate
+```
+
+`KUKGRADE_BUILD_PRE_RELEASE` makes the About page and the sidebar name a candidate
+`0.2.0-rc.1` rather than `0.2.0`. The release workflow sets it from the tag.
+
+Credits and licence documents are not set here (`KUKGRADE_CREDITS_DIR` can point at the credits folder, which defaults to the one beside the app). The image copies `LICENSE`,
+`CODE_OF_CONDUCT.md` and `SECURITY.md` from the repository, and writes the Credits screen's
+data and the full third-party licence notices from the packages it really contains
+(`manage.py write_credits`), so the About section cannot drift from what is running.
+A copy run straight from a checkout reads the documents from the repository and has no credits
+list.
+
+## The public demo
+
+Only for [the demo site](demo.md). Leave these unset on a real install.
+
+<!-- prettier-ignore -->
+| Variable | Meaning |
+| --- | --- |
+| `KUKGRADE_DEMO_MODE` | `1` runs the image as the demo: builds a made-up club, publishes three shared accounts on the sign-in page, closes password changes, account changes and uploads, and wipes the club on a timer. It refuses to run on a database that holds any other account. Default off. |
+| `KUKGRADE_DEMO_RESET_HOURS` | How often the demo is wiped and rebuilt, at whole multiples from midnight club time. Must divide 24 (1, 2, 3, 4, 6, 8, 12 or 24). Default 6. |
+
+## Development only
+
+<!-- prettier-ignore -->
+| Variable | Meaning |
+| --- | --- |
+| `DJANGO_DEBUG` | `true` for local development. Defaults to `false`; with it off, a missing secret key stops the app from starting rather than falling back to a known one. |
+
+See [development.md](development.md).

@@ -1,0 +1,323 @@
+name: CI
+
+on:
+  # A feature branch is checked through its pull request, before it lands;
+  # running on its pushes as well checked every commit twice. dev and prod
+  # are checked once more after a merge, and a release tag gets the full
+  # width check (below). "Run workflow" runs that full check on demand.
+  push:
+    branches: [dev, prod]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+# A superseded run on the same branch is cancelled rather than left to finish.
+# Runs are grouped by how they started as well as by branch, so a full check
+# started by hand (Run workflow) never cancels the run a merge started on the
+# same commit: that cancelled run showed as a red cross beside a green one.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: kukgrade
+          POSTGRES_USER: kukgrade
+          POSTGRES_PASSWORD: kukgrade_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kukgrade -d kukgrade"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # The settings module now fails closed: management commands refuse to
+      # start without a secret key unless DJANGO_DEBUG is true. Tests supply
+      # their own via kukgrade.settings_test.
+      DJANGO_SECRET_KEY: ci-only-secret-key-000000000000000000000000000000000000
+      POSTGRES_DB: kukgrade
+      POSTGRES_USER: kukgrade
+      POSTGRES_PASSWORD: kukgrade_ci_password
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # Every locked package, with its hashes, against the public advisory
+      # database, as the frontend's `npm audit` does. A tool run, not a project
+      # dependency, pinned so a new release cannot change what passes. It needs
+      # the advisory service: if that is down, run the job again.
+      - name: Audit Python dependencies
+        run: |
+          uv export --frozen --no-emit-project -o "$RUNNER_TEMP/requirements.txt" > /dev/null
+          uvx pip-audit@2.10.1 -r "$RUNNER_TEMP/requirements.txt" --disable-pip --progress-spinner off
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy .
+
+      - name: Django system checks
+        run: uv run python manage.py check
+
+      - name: Migrations match models
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      # The frontend's types are generated from the committed schema, so it
+      # must match the serializers exactly - regenerated and diffed here.
+      - name: OpenAPI schema is current
+        run: |
+          uv run python manage.py spectacular --file schema.yml --validate --fail-on-warn
+          git diff --exit-code -- schema.yml
+        env:
+          DJANGO_SETTINGS_MODULE: kukgrade.settings_test
+
+      # Blocking at WARNING since KG-NEXT-004: the deployment check is clean,
+      # so any new security warning fails the build rather than scrolling past.
+      - name: Deployment checks
+        run: uv run python manage.py check --deploy --fail-level WARNING
+        env:
+          DJANGO_DEBUG: "false"
+          DJANGO_ALLOWED_HOSTS: kukgrade.example.com
+
+      - name: Tests
+        run: uv run pytest -q -n auto
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to an LTS line that Vite 8 and jsdom 31 support (Node 22.22.2 or
+      # newer; "22" takes the latest 22.x). Local development is
+      # currently on a newer Node; add an .nvmrc if that drift ever bites.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Regenerated from backend/schema.yml (both checked out from the same
+      # commit) rather than hand-maintained. A serializer change that nobody mirrors here fails the build
+      # instead of silently drifting from the API.
+      - name: Generate API types from schema
+        run: npm run generate:types
+
+      - name: Generated types are current
+        run: git diff --exit-code -- src/api/schema.ts
+
+      - name: Lint (ESLint, then Stylelint for the CSS)
+        run: npm run lint
+
+      # Prettier formats the frontend as Ruff format does the backend; the
+      # version is pinned exactly so a release cannot reformat files unasked.
+      - name: Format (Prettier)
+        run: npm run format:check
+
+      # knip fails on a file, export or dependency nothing uses (knip.json).
+      - name: Unused code (knip)
+        run: npm run knip
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      # The dev/build-tooling advisories are cleared, so the gate is held at
+      # high.
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+  # The project page (site/, kukgrade.co.uk): a static page with no JavaScript,
+  # and a CSP that allows no inline styles, so the build is checked for both.
+  site:
+    name: Project page
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: No scripts and no inline styles
+        run: |
+          if grep -rlE '<script|<style| style="' dist --include='*.html'; then
+            echo "The page must not carry scripts or inline styles (its CSP forbids them)."
+            exit 1
+          fi
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+  # The runner is UTC, and a date-only value parsed as a timestamp is only
+  # wrong away from UTC - so the UTC run in the Frontend job cannot see that
+  # class of bug at all. A second run west of UTC is what actually guards it;
+  # without this, tests asserting `grading_date`, `effective_date` or
+  # `date_of_birth` pass just as happily on broken parsing. It is its own job
+  # so it runs alongside the first rather than after it.
+  frontend-timezone:
+    name: Frontend tests (non-UTC timezone)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tests
+        run: npm run test
+        env:
+          TZ: America/Los_Angeles
+
+  container:
+    name: Production image
+    # Not gated on the test jobs: it builds and starts the image on its own, so
+    # it runs alongside them.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The deploy/ files with a .env naming every variable one of them needs.
+      - name: Validate the deploy/ Compose files
+        working-directory: deploy
+        run: |
+          cp .env.example .env
+          printf '%s\n' KUKGRADE_DOMAIN=ci.example TRAEFIK_NETWORK=ci KUKGRADE_HOST=ci.example \
+            TUNNEL_TOKEN=ci PANGOLIN_ENDPOINT=https://ci.example NEWT_ID=ci NEWT_SECRET=ci POSTGRES_NETWORK=ci \
+            KUKGRADE_VERSION=ci >> .env
+          for file in compose*.yml; do docker compose -f "$file" config --quiet; done
+          docker compose -f compose.yml -f compose.build.yml config --quiet
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Layers that did not change come from the GitHub Actions cache rather
+      # than being rebuilt (dependencies, mostly).
+      - name: Build production image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: production
+          load: true
+          tags: kukgrade:ci
+          # A real commit, as a release has, so the width check sees the About
+          # page's full-length commit and not an empty row.
+          build-args: |
+            KUKGRADE_BUILD_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=ci
+          cache-to: type=gha,scope=ci,mode=max
+
+      - name: Check production settings in image
+        run: >-
+          docker run --rm
+          --entrypoint python
+          -e DJANGO_SECRET_KEY=ci-only-secret-key-000000000000000000000000000000000000
+          -e DJANGO_ALLOWED_HOSTS=ci.example
+          kukgrade:ci
+          manage.py check --deploy --fail-level WARNING
+
+      # Starts the image with its own database, as deploy/compose.external-db.yml
+      # runs it (read-only, UID 10001, an external database) and as the demo,
+      # signs in, and checks the admin is closed and the database stops cleanly.
+      # The demo is left running for the width check below.
+      - name: Start the image and sign in
+        run: .github/scripts/image-smoke.sh kukgrade:ci --keep-demo
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The browsers are a large download and only change with Playwright's version.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      # Every screen, rendered in a real browser from phone to desktop widths on
+      # the demo's made-up club, must fit (frontend/e2e/README.md). Pull requests
+      # and pushes to dev and prod check four widths; a release tag and "Run
+      # workflow" check all nine. WebKit (an iPhone and an iPad profile) always
+      # checks its own few widths. It runs against the demo the smoke test left
+      # running (kg-demo, https://localhost:6943).
+      - name: Check every screen fits at every width
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium webkit
+          npm run test:widths
+        env:
+          # `cond && '' || '1'` would always give '1' ('' is falsy), so the
+          # quick case is the one tested.
+          KUKGRADE_E2E_QUICK: ${{ (github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/')) && '1' || '' }}
+
+      # What the server saw, with each request's time in microseconds, so a
+      # page that never loaded can be matched to the request that stalled.
+      - name: Show the demo's log when the width check fails
+        if: failure()
+        run: docker logs kg-demo 2>&1 | tail -n 400

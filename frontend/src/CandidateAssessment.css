@@ -1,0 +1,788 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Candidate assessment: shared chrome for mat-side scoring and completion review
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.caw-candidate-name {
+  margin: 0;
+  color: var(--color-text);
+}
+
+/* ── Not Started Prompt Banner ───────────────────────────────────────────── */
+
+.caw-run > .alert {
+  margin-top: var(--section-gap);
+}
+
+.caw-not-started-banner {
+  margin-top: var(--section-gap);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.caw-not-started-content {
+  flex: 1 1 16rem;
+}
+
+.caw-not-started-content h2 {
+  margin: 0 0 var(--space-1) 0;
+  color: var(--color-text);
+}
+
+.caw-not-started-content p {
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mat-side scoring — Single Column Run
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+  The run flows with the page, which is its only scroller: a box that scrolls
+  inside a scrolling page traps a swipe and hides what is under it. Each
+  category's header stays at the top while its rows pass under it, and the mat
+  bar stays at the foot of the window from the first row to the last.
+*/
+.caw-run {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* The mat bar is the last thing on the page, so it keeps no room beneath. */
+  padding-block-end: 0;
+}
+
+.caw-run > .back-link {
+  padding: var(--space-1) var(--space-5) 0;
+}
+
+/* ── One-line identity header ────────────────────────────────────────────── */
+
+/* A rounded box like every other, with room before the first category. */
+.caw-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-block-end: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.caw-candidate-wksa {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.caw-identity-divider {
+  width: 1px;
+  height: 1.35rem;
+  background: var(--color-border);
+}
+
+.caw-identity-spacer {
+  flex-grow: 1;
+}
+
+.caw-band-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  /* One line, the same shape for every category: a long name wraps inside its
+     own space and never pushes the count under it. */
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  background: var(--color-surface-sunken);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.caw-band-title {
+  min-width: 0;
+  margin: 0;
+}
+
+.caw-band-rule {
+  flex-grow: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* Never squeezed, so the count stays on its line. */
+.caw-band-progress {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.caw-band-meter {
+  width: 5.25rem;
+}
+
+/* ── Requirement rows: divider-led, not cards ──────────────────── */
+
+.caw-row {
+  /* A row reached by Tab stops clear of its category's header and the mat bar. */
+  scroll-margin-block: 3rem 7rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/*
+  Result is carried by the button's pressed state and its label; the tint is a
+  secondary cue only, never the sole carrier of meaning.
+*/
+.caw-row-met {
+  background: color-mix(in srgb, var(--color-success) 5%, transparent);
+}
+
+.caw-row-not-met {
+  background: color-mix(in srgb, var(--color-danger) 5%, transparent);
+}
+
+.caw-row-detail {
+  /* Takes all the room beside the verdicts; when there is not enough for
+     both, the verdicts wrap underneath and take the full width. */
+  flex: 999 1 20rem;
+  min-width: 0;
+}
+
+.caw-row-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.caw-row-seq {
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 1.5rem;
+}
+
+.caw-row-range {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: 0.05rem var(--space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.caw-row-desc {
+  margin: var(--space-1) 0 0;
+  line-height: var(--line-height-body);
+}
+
+/* Who marked the item, then its remarks (ItemRemarks), one under the other. */
+.caw-row-meta {
+  margin-top: var(--space-2);
+}
+
+/* ── Two verdict targets, and the row tools ──────────────────────────────── */
+
+.caw-row-actions {
+  flex: 1 1 16.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.caw-verdicts {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.caw-verdict {
+  flex: 1 1 6rem;
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  transition:
+    background var(--duration) ease,
+    border-color var(--duration) ease,
+    color var(--duration) ease;
+}
+
+/* Only a verdict not chosen: the chosen one keeps its colour under the pointer. */
+@media (hover: hover) {
+  .caw-verdict:hover:not(:disabled, [data-tone]) {
+    border-color: var(--color-text-muted);
+    color: var(--color-text);
+  }
+}
+
+.caw-verdict:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.caw-verdict-met.caw-verdict-active {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-on-success);
+}
+
+.caw-verdict-not-met.caw-verdict-active {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-on-danger);
+}
+
+.caw-row-tools {
+  justify-content: flex-end;
+}
+
+.caw-row-tool {
+  min-height: var(--target-min);
+  background: none;
+  border: none;
+  padding: 0 var(--space-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .caw-row-tool:hover {
+    color: var(--color-text);
+  }
+}
+
+.caw-row-note-edit {
+  width: 100%;
+}
+
+.caw-row-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.caw-row-note-input {
+  width: 100%;
+  border: 1px solid var(--color-gold-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  resize: vertical;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* ── Inline reason prompt for changing or clearing a mark ──────── */
+
+.caw-change-prompt {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.caw-change-prompt p {
+  margin: 0 0 var(--space-2);
+  line-height: var(--line-height-snug);
+  color: var(--color-text);
+}
+
+.caw-run-end {
+  margin: 0;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+  text-align: center;
+}
+
+/* ── Persistent mat bar ──────────────────────────────────────────────────── */
+
+/* The bar itself is the shared .action-bar (ActionBar.tsx); these lay out the
+   count it says. */
+
+/* The count, meter and tallies share a row and take the room the button
+   leaves. */
+.caw-mat-summary {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.caw-mat-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.caw-mat-summary > [class*="caw-mat-tally"] {
+  flex: none;
+}
+
+.caw-mat-figure {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.caw-mat-meter {
+  flex-grow: 1;
+  max-width: 19rem;
+}
+
+.caw-mat-tally-met {
+  color: var(--color-success);
+}
+
+.caw-mat-tally-not-met {
+  color: var(--color-danger);
+}
+
+.caw-mat-tally-remaining {
+  color: var(--color-text-muted);
+}
+
+/* ── Tablet and phone ────────────────────────────────────────────────────── */
+
+@media (max-width: 56rem) {
+  .caw-run > .back-link,
+  .caw-identity,
+  .caw-band-header,
+  .caw-row,
+  .caw-run-end {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .caw-mat-meter {
+    display: none;
+  }
+}
+
+/* A phone has no room for a category's bar beside a longer name; the count
+   beside it says the same. The mat bar is pinned to the window, so it is two
+   rows there, the count and its tallies closer together and then the button
+   across the bar (.action-bar), and it drops the count its first figure and button give. */
+@media (max-width: 40rem) {
+  .caw-band-meter,
+  .caw-mat-tally-remaining {
+    display: none;
+  }
+
+  .caw-mat-summary {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  /* Measured at its narrowest, so the count's words wrap before a tally
+     leaves the row; a tally wraps only on the narrowest phone. */
+  .caw-mat-count {
+    flex: 1 1 min-content;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caw-verdict {
+    transition: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Completion review — Certificate Proof
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.acp-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* A rounded box like every other; the layout below brings the room after it. */
+.acp-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.acp-topbar-divider {
+  width: 1px;
+  height: 1.1rem;
+  background: var(--color-border);
+}
+
+.acp-layout {
+  flex-grow: 1;
+  display: flex;
+  gap: var(--space-5);
+  /* No side inset: the record and the side cards share the bar's edges. */
+  padding: var(--space-5) 0;
+  align-items: flex-start;
+}
+
+/* ── The sheet: the record as the document it becomes ────────────────────── */
+
+.acp-sheet {
+  flex-grow: 1;
+  max-width: 45rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6) var(--space-6) var(--space-6);
+}
+
+.acp-sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  /* The heavy rule is what makes this read as a document rather than a card. */
+  border-bottom: 2px solid var(--color-text);
+}
+
+.acp-sheet-title {
+  margin: var(--space-2) 0 0;
+}
+
+.acp-sheet-head > * {
+  min-width: 0;
+}
+
+.acp-stamp {
+  flex-shrink: 0;
+  letter-spacing: var(--tracking-display);
+  color: var(--color-gold-strong);
+  border: 1.5px solid var(--color-gold-strong);
+  border-radius: var(--radius-xs);
+  padding: var(--space-1) var(--space-3);
+}
+
+.acp-stamp-sealed {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.acp-identity {
+  display: flex;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.acp-identity-left {
+  flex: 1 1 12rem;
+}
+
+.acp-identity-right {
+  text-align: right;
+}
+
+.acp-candidate-name {
+  margin-top: var(--space-1);
+}
+
+.acp-candidate-sub {
+  margin-top: var(--space-1);
+}
+
+.acp-rank-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.acp-section {
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+.acp-section label {
+  cursor: pointer;
+}
+
+.acp-section-note {
+  margin: 0 0 var(--space-2);
+  line-height: var(--line-height-body);
+}
+
+/* ── Core grading areas strip ────────────────────────────────────────────── */
+
+/* Wide enough for the longest area name beside its mark in any font, so a
+   phone shows one area per row rather than two cramped ones. */
+/* Cells joined by hairlines, in a box with rounded corners. */
+.acp-core-grid {
+  gap: 1px;
+  overflow: hidden;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.acp-core-cell {
+  min-width: 0;
+  background: var(--color-surface);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.acp-core-text {
+  min-width: 0;
+}
+
+.acp-core-name {
+  display: block;
+}
+
+.acp-core-detail {
+  display: block;
+  margin-top: 1px;
+}
+
+/* ── Requirement ledgers ─────────────────────────────────────────────────── */
+
+.acp-ledger {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.acp-ledger th {
+  text-align: left;
+  padding: 0 0 var(--space-1);
+  border-bottom: 1px solid var(--color-text-muted);
+}
+
+.acp-ledger-range-col {
+  width: 6rem;
+}
+
+.acp-ledger-result-col {
+  width: 8rem;
+}
+
+.acp-ledger td {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.acp-ledger-korean {
+  color: var(--color-text-muted);
+}
+
+.acp-ledger-range {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A result (.row of icon and words): text plus icon, never colour alone. */
+.acp-result-met {
+  color: var(--color-success);
+}
+
+.acp-result-not-met {
+  color: var(--color-danger);
+}
+
+.acp-result-none {
+  color: var(--color-text-muted);
+}
+
+/* ── Recorded notes ──────────────────────────────────────────────────────── */
+
+.acp-note {
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  border-left: 2px solid var(--color-border);
+  margin-bottom: var(--space-2);
+}
+
+.acp-note-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.acp-note-input {
+  width: 100%;
+  border: 1px solid var(--color-gold-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  line-height: var(--line-height-body);
+  resize: vertical;
+  background: var(--color-surface-sunken);
+}
+
+.acp-sealed-note {
+  margin: 0;
+  line-height: var(--line-height-body);
+}
+
+/* ── Seal line ───────────────────────────────────────────────────────────── */
+
+.acp-seal-line {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 2px solid var(--color-text);
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.acp-seal-line > div {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.acp-seal-value {
+  margin-top: var(--space-1);
+}
+
+.acp-seal-applied {
+  color: var(--color-success);
+}
+
+.acp-seal-detail {
+  margin-top: 0.15rem;
+}
+
+/* The blank line is the point of the document: it stays empty until sealed. */
+.acp-seal-blank {
+  height: 1.4rem;
+  border-bottom: 1px dashed var(--color-border);
+  margin-top: var(--space-1);
+}
+
+/* ── Side column ─────────────────────────────────────────────────────────── */
+
+.acp-aside {
+  width: 19rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  position: sticky;
+  /* As a .split__aside: in view while the page scrolls, never a scroller. */
+  top: min(var(--space-4), calc(100dvh - var(--aside-height) - var(--space-4)));
+}
+
+.acp-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-4) var(--space-4);
+}
+
+.acp-card-title {
+  margin: 0 0 var(--space-2);
+}
+
+.acp-count-figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.acp-count-figure strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.acp-count-tallies {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.acp-count-optional {
+  margin: var(--space-2) 0 0;
+  line-height: var(--line-height-body);
+}
+
+.acp-card-notice {
+  border-color: var(--color-gold-strong);
+  background: var(--color-warning-surface);
+}
+
+.acp-card-sealed {
+  border-color: var(--color-success);
+  background: var(--color-success-surface);
+}
+
+.acp-notice-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.acp-notice-row svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.acp-notice-row p {
+  margin: 0;
+  line-height: var(--line-height-body);
+}
+
+.acp-proofread {
+  margin-top: var(--space-3);
+}
+
+/* ── Tablet and phone ────────────────────────────────────────────────────── */
+
+/* Measured on the page: the record and the 19rem side column need about
+   56rem between them, which a laptop beside the sidebar may not have. */
+@container (max-width: 56rem) {
+  .acp-topbar {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  /* The sheet stops being a sheet and the controls move under the record. */
+  .acp-layout {
+    flex-direction: column;
+  }
+
+  .acp-sheet {
+    max-width: none;
+    width: 100%;
+    padding: var(--space-4) var(--space-4);
+  }
+
+  .acp-aside {
+    width: 100%;
+    position: static;
+  }
+
+  .acp-identity-right {
+    text-align: left;
+  }
+
+  .acp-rank-line {
+    justify-content: flex-start;
+  }
+}
+
+.acp-correct {
+  margin-top: var(--space-3);
+}
+
+.acp-ledger td .badge {
+  margin-left: var(--space-2);
+}

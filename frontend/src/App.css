@@ -1,0 +1,519 @@
+:root {
+  color: var(--color-text);
+  background: var(--color-page-bg);
+  font-family: var(--font-sans);
+  /* A radio, a tick or a progress bar the browser draws takes the theme's
+     gold, never its own blue; a screen may set another tone on its own. */
+  accent-color: var(--color-accent);
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+/* ── Custom Scrollbars (WCAG Accessible & Distinct in Dark Mode) ────────── */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-scrollbar-track);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border: 2px solid var(--color-scrollbar-track);
+  border-radius: var(--radius-pill);
+  min-height: 48px;
+}
+
+@media (hover: hover) {
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-scrollbar-thumb-hover);
+  }
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+body {
+  margin: 0;
+  /* One rule for every box, inherited: text wraps between words, and a word is
+     broken only when it cannot fit on a line of its own (an address, a long
+     file name). `anywhere` is not used: it lets a table squeeze a column to
+     one letter wide, which splits ordinary words like "Active". */
+  overflow-wrap: break-word;
+}
+
+/* Korean breaks between any two syllables by default; a technique's name is
+   one word, so it wraps whole. Every Korean name carries lang="ko". */
+:lang(ko) {
+  word-break: keep-all;
+}
+
+/* Every link in running text, in one place. A link with a class is a component
+   (a button, a badge, a navigation item) and styles itself; a plain link takes
+   this, so none is left with the browser's own colours. Underlined, so it is
+   not told apart by colour alone; visited links look the same. */
+a:not([class]) {
+  color: var(--color-accent-text);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) {
+  a:not([class]):hover {
+    text-decoration-thickness: 2px;
+  }
+}
+
+a:not([class]):focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* A text box takes the theme - its fill, text and a thin border instead of the
+   browser's white inset one - so none glares in dark mode. :where() gives it no
+   weight, so any screen's own rule for its inputs still wins. */
+:where(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="file"]), select, textarea) {
+  background-color: var(--color-field);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Every control is at least a 44px target, everywhere. Specific
+   enough (one class, through :not) to outrank a component's own smaller
+   size, so no screen restates it. Checkboxes and radios take their label as
+   the target; the theme toggle stays a compact pill (it is above WCAG's
+   24px minimum, by the owner's choice of 2026-10-20). */
+button:not(.theme-toggle-option, .visually-hidden),
+select:not(.visually-hidden),
+input:not([type="checkbox"], [type="radio"], [type="hidden"], .visually-hidden),
+textarea:not(.visually-hidden) {
+  min-height: var(--target-min);
+}
+
+button:not(.theme-toggle-option, .visually-hidden) {
+  min-width: var(--target-min);
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+}
+
+.login-panel {
+  width: min(100%, 24rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-md);
+}
+
+/* A permanent ink brand panel beside the sign-in form, rather than the single
+   centred card the other auth states (connection failure, loading) still use. */
+
+.login-page {
+  display: grid;
+  /* The brand panel is as wide as the sidebar it becomes once signed in. */
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-7);
+  border-right: 1px solid var(--color-rail-border);
+  background: var(--color-rail);
+  color: var(--color-text-on-ink);
+  padding: var(--space-6) var(--space-5);
+}
+
+/* The logo's black strokes are drawn in currentColor (KukGradeLogo), so on
+   the ink panels they take the on-ink text colour. */
+.kukgrade-logo {
+  display: block;
+  line-height: 0;
+}
+
+.kukgrade-logo svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.auth-logo {
+  width: 12rem;
+  max-width: 100%;
+  margin: 0 0 var(--space-4);
+}
+
+.auth-brand-tagline {
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-on-ink-muted);
+  letter-spacing: var(--tracking-display);
+}
+
+.auth-brand-values {
+  margin: 0;
+  border-top: 2px solid var(--color-gold);
+  padding-top: var(--space-4);
+  color: var(--color-text-on-ink);
+  letter-spacing: var(--tracking-display);
+}
+
+.auth-brand-footer {
+  border-top: 1px solid var(--color-text-on-ink-muted);
+  padding-top: var(--space-5);
+  color: var(--color-text-on-ink-muted);
+}
+
+.auth-brand-footer p {
+  margin: 0;
+}
+
+.login-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.theme-toggle-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-5) clamp(1.5rem, 4vw, 3rem) 0;
+}
+
+.theme-toggle-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1.75rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  padding: 0.2rem;
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  inset: 0.2rem auto 0.2rem 0.2rem;
+  width: 1.75rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  transform: translateX(calc(var(--theme-toggle-active-index) * 1.75rem));
+  transition: transform var(--duration) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle-thumb {
+    transition: none;
+  }
+}
+
+.theme-toggle-option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 1.75rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-text-muted);
+  padding: 0;
+}
+
+.theme-toggle-option[aria-pressed="true"] {
+  color: var(--color-accent-text);
+}
+
+@media (hover: hover) {
+  .theme-toggle-option:hover {
+    color: var(--color-text);
+  }
+
+  .theme-toggle-option[aria-pressed="true"]:hover {
+    color: var(--color-accent-text);
+  }
+}
+
+.login-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  width: min(100%, 26rem);
+  margin: 0 auto;
+  padding: clamp(2rem, 10vh, 4rem) var(--space-5) var(--space-5);
+}
+
+.login-subtitle {
+  margin-bottom: var(--space-5);
+  color: var(--color-text-muted);
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 3.75rem;
+}
+
+/* A small link button (btn btn--link btn--sm) set inside the box's end. */
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  color: var(--color-text-muted);
+  padding: var(--space-1) var(--space-2);
+  transform: translateY(-50%);
+}
+
+.password-requirements {
+  margin-top: -0.4rem;
+}
+
+.password-requirements ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.password-requirements li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.password-requirements li.is-met {
+  color: var(--color-success);
+}
+
+.password-requirement-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.password-requirements-on-save {
+  margin: var(--space-2) 0 0;
+}
+
+@media (hover: hover) {
+  .password-toggle:hover {
+    color: var(--color-text);
+  }
+}
+
+.login-help {
+  margin-top: var(--space-4);
+}
+
+.login-help strong {
+  color: var(--color-text);
+}
+
+.login-security-note {
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+/* The first-time setup page (SetupPage.tsx), on the sign-in layout. */
+.setup-theme {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  padding: var(--space-4) var(--space-4);
+}
+
+.setup-theme-help {
+  margin: 0;
+}
+
+.setup-name-row {
+  gap: var(--space-4);
+}
+
+@media (max-width: 56rem) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand {
+    display: none;
+  }
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+  background: var(--color-page-bg);
+}
+
+.workspace {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-6) var(--page-gutter);
+}
+
+.workspace-alert {
+  padding: var(--space-4) var(--page-gutter) 0;
+}
+
+/* -------------------------------------------------------------------------- */
+
+/* Mandatory Password Change View                                             */
+
+/* -------------------------------------------------------------------------- */
+
+.must-change-password-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+  background: var(--color-surface-sunken);
+}
+
+.must-change-password-header {
+  max-width: 32rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+}
+
+.must-change-password-logo {
+  width: 9rem;
+  color: var(--color-text);
+}
+
+.must-change-password-card {
+  max-width: 32rem;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--card-pad);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.security-icon-badge {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: var(--color-warning-surface);
+  color: var(--color-accent);
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-border);
+}
+
+.must-change-password-card h1 {
+  color: var(--color-text);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.must-change-password-subtitle {
+  line-height: var(--line-height-body);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.account-pill-role {
+  color: var(--color-accent);
+}
+
+.must-change-password-form {
+  width: 100%;
+  text-align: left;
+}
+
+.must-change-password-actions {
+  margin-top: var(--space-2);
+}
+
+.chevron-icon {
+  transition: transform var(--duration) ease;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* A scrolling table wrapper a keyboard can reach (tabIndex 0): show it has
+   focus like any other control. */
+[role="region"][tabindex="0"]:focus-visible,
+section[tabindex="0"]:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}

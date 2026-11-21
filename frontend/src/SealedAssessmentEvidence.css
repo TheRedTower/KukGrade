@@ -1,0 +1,28 @@
+.evd h3 {
+  margin: 0;
+}
+
+.evd-counts {
+  margin: 0;
+}
+
+.evd-muted,
+.evd-note-by {
+  margin: 0;
+}
+
+.evd-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-border);
+}
+
+.evd-note-shortfall {
+  border-left-color: var(--color-danger);
+}
+
+.evd-note-shortfall .evd-note-title {
+  color: var(--color-danger);
+}

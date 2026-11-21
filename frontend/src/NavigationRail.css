@@ -1,0 +1,349 @@
+/* The sidebar: open at 18rem, wide enough for the account card's first
+   name and the longest role ("Administrator") beside its two buttons; a
+   4.5rem strip of icons; or on a phone a Menu button over a stacked panel. Tokens only, from theme.css. */
+
+.nav-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 18rem;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-right: 1px solid var(--color-rail-border);
+  background: var(--color-rail);
+  color: var(--color-text-on-ink);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+}
+
+.nav-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.nav-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  color: var(--color-text-on-ink);
+}
+
+@media (hover: hover) {
+  .nav-brand:hover {
+    background: var(--color-rail-wash);
+  }
+}
+
+.nav-brand:focus-visible,
+.nav-link:focus-visible,
+.nav-tool:focus-visible,
+.nav-person-link:focus-visible,
+.nav-collapse:focus-visible,
+.nav-about-line a:focus-visible,
+.nav-menu:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.nav-logo {
+  width: 9.5rem;
+  max-width: 100%;
+}
+
+/* A .mark--large, square-cornered, in gold. */
+.nav-mark {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-control);
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+}
+
+/* A ghost button (Button), in the rail's colours; on a phone only. */
+.nav-menu {
+  display: none;
+  border-color: var(--color-rail-border);
+  background: var(--color-rail-wash);
+  color: var(--color-text-on-ink);
+}
+
+@media (hover: hover) {
+  .nav-menu:hover:not(:disabled) {
+    border-color: var(--color-rail-border);
+    background: var(--color-rail-wash-strong);
+  }
+}
+
+.nav-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+/* A .mark--small, in gold, holding initials. */
+.avatar-circle {
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+  letter-spacing: var(--tracking-label);
+}
+
+.nav-eyebrow {
+  color: var(--color-text-on-ink-muted);
+  letter-spacing: var(--tracking-display);
+}
+
+/* Everything in the sidebar starts on one inner edge: a link's icon, the
+   club's name, the avatar and the version line all sit var(--space-3) inside
+   their box (less a bordered box's 1px border). */
+.nav-club-card {
+  padding: var(--space-3) calc(var(--space-3) - 1px);
+  border: 1px solid var(--color-rail-border);
+  border-radius: var(--radius-control);
+  background: var(--color-rail-wash-faint);
+}
+
+.nav-club-card p {
+  margin: 0;
+}
+
+.nav-club-name {
+  margin-top: 0.15rem;
+  color: inherit;
+}
+
+/* A .menu-link, in the rail's colours. */
+.nav-link {
+  min-height: 2.9rem;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-on-ink-muted);
+  transition:
+    color var(--duration) ease,
+    background-color var(--duration) ease;
+}
+
+@media (hover: hover) {
+  .nav-link:hover {
+    color: var(--color-text-on-ink);
+    background: var(--color-rail-wash);
+  }
+}
+
+.nav-link.active {
+  color: var(--color-text-on-ink);
+  background: var(--color-rail-current);
+  border-left: 3px solid var(--color-gold);
+  padding-left: calc(0.85rem - 3px);
+}
+
+.nav-icon {
+  flex-shrink: 0;
+}
+
+.nav-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+/* The name keeps its words whole: when the longest one does not fit beside the
+   buttons, the buttons move to a line of their own, at the end. */
+.nav-person {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.15rem;
+  padding: var(--space-2) calc(var(--space-3) - 1px);
+  border: 1px solid var(--color-rail-border);
+  border-radius: var(--radius-control);
+  background: var(--color-rail-wash-faint);
+}
+
+/* Measured from nothing, so the buttons stay beside the name and a long name
+   wraps between its words; they move under it only when the name's longest
+   word no longer fits beside them. */
+.nav-person-link {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: min-content;
+  min-height: var(--target-min);
+  border-radius: var(--radius-control);
+  color: var(--color-text-on-ink);
+  text-decoration: none;
+}
+
+.nav-person-actions {
+  display: flex;
+  gap: 0.15rem;
+}
+
+/* A .subtext: the name an .item-title, the role a .meta, in the rail's colours. */
+.nav-person-text {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  line-height: var(--line-height-tight);
+}
+
+.nav-person-name {
+  color: inherit;
+}
+
+.nav-person-role {
+  color: var(--color-text-on-ink-muted);
+}
+
+/* A ghost icon button (btn--icon), in the rail's colours. */
+.nav-tool {
+  flex: 0 0 auto;
+  border: 0;
+  color: var(--color-text-on-ink-muted);
+}
+
+@media (hover: hover) {
+  .nav-tool:hover:not(:disabled) {
+    background: var(--color-rail-wash-strong);
+    color: var(--color-text-on-ink);
+  }
+}
+
+/* The page you are on stays gold under the pointer. */
+.nav-tool.active,
+.nav-tool.active:hover {
+  color: var(--color-gold);
+}
+
+.nav-about-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-1);
+  margin: 0;
+  padding: 0 var(--space-3);
+  color: var(--color-text-on-ink-muted);
+}
+
+.nav-about-line a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--color-text-on-ink-muted);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .nav-about-line a:hover {
+    color: var(--color-text-on-ink);
+    text-decoration: underline;
+  }
+}
+
+/* A small ghost button (Button), across the rail's foot, in its colours. */
+.nav-collapse {
+  justify-content: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--color-rail-border);
+  border-radius: 0 0 var(--radius-control) var(--radius-control);
+  color: var(--color-text-on-ink-muted);
+  padding: 0 var(--space-3);
+}
+
+@media (hover: hover) {
+  .nav-collapse:hover:not(:disabled) {
+    color: var(--color-text-on-ink);
+    background: var(--color-rail-wash);
+  }
+}
+
+/* The strip of icons (desktop only: a phone always gets the full menu). */
+.nav-rail.strip {
+  width: 4.5rem;
+  padding-inline: var(--space-2);
+}
+
+.nav-rail.strip .nav-top {
+  justify-content: center;
+}
+
+.nav-rail.strip .nav-link {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.nav-rail.strip .nav-link.active {
+  padding-left: 0;
+  border-left: 0;
+  box-shadow: var(--edge-accent);
+}
+
+.nav-rail.strip .nav-strip-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.nav-rail.strip .nav-collapse {
+  justify-content: center;
+  padding: 0;
+}
+
+.nav-rail.strip .avatar-circle {
+  width: 2rem;
+  height: 2rem;
+}
+
+@media (max-width: 56rem) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* The logo lines up with the page's left edge, as the title below it does. */
+  .nav-brand {
+    padding-inline: 0;
+  }
+
+  .nav-rail {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: var(--space-2) var(--page-gutter);
+    /* Here the page scrolls, not the rail: let a gesture over it reach the page. */
+    overscroll-behavior: auto;
+  }
+
+  .nav-menu {
+    display: inline-flex;
+  }
+
+  .nav-panel {
+    display: none;
+    padding-bottom: var(--space-2);
+  }
+
+  .nav-rail.menu-open .nav-panel {
+    display: flex;
+    animation: reveal var(--duration) ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link {
+    transition: none;
+  }
+}

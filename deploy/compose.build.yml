@@ -1,0 +1,12 @@
+# Builds the image from this checkout instead of pulling it. Add it to whichever
+# file you run, for example:
+#   docker compose -f compose.yml -f compose.build.yml up -d --build
+services:
+  kukgrade:
+    build:
+      context: ..
+      target: production
+      # Shown on the About page; empty when the shell does not set them.
+      args:
+        KUKGRADE_BUILD_COMMIT: ${KUKGRADE_BUILD_COMMIT:-}
+        KUKGRADE_BUILD_TIME: ${KUKGRADE_BUILD_TIME:-}

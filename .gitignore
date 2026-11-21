@@ -1,0 +1,62 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.local/
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+backend/frontend_dist/
+backend/var/
+backend/credits/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+site/.astro/
+site/.wrangler/
+
+# Tests and coverage
+frontend/test-results/
+frontend/playwright-report/
+.coverage
+coverage/
+htmlcov/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.tsbuildinfo
+
+# Editor and OS files
+.idea/
+.vscode/
+
+# Local test runs and scrape artifacts
+.playwright-cli/
+output/
+tmp/
+
+# Local agent workspace
+.claude/
+
+# Local audit notes at the repo root, never committed (not backend/audit/)
+/audit/
+
+# What the deploy/ Compose files keep on the host.
+deploy/data/
+deploy/certs/
+
+# Editor and merge leftovers never belong in the repository.
+*.bak
+*.orig
+*~

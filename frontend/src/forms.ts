@@ -1,0 +1,90 @@
+import { useCallback, useState } from "react";
+
+import { ApiError, errorMessage } from "./api";
+
+interface ServerErrors {
+  /** Messages for the fields the form shows, keyed by field name. */
+  fields: Record<string, string[]>;
+  /** What belongs above the form: whatever the server said that no shown field can carry. */
+  banner: string | null;
+}
+
+/**
+ * Splits a failed request into what to show beside each field and what to show
+ * above the form. Anything the form has no place for (a problem with the request
+ * as a whole, or with a field it does not show) goes in the banner, so a server
+ * error is never left unsaid.
+ */
+/** The fields of a staff account a form shows its errors beside. */
+export const ACCOUNT_FIELDS = ["first_name", "last_name", "email", "rank"] as const;
+
+/** The labels of a student's own details, for their form and its "is required" messages. */
+export const STUDENT_LABELS = {
+  wksa_id: "WKSA ID",
+  first_name: "First name",
+  last_name: "Last name",
+  date_of_birth: "Date of birth",
+} as const;
+
+export function splitServerErrors(err: unknown, shown: readonly string[], fallback: string): ServerErrors {
+  if (!(err instanceof ApiError)) return { fields: {}, banner: errorMessage(err, fallback) };
+
+  const fields: Record<string, string[]> = {};
+  const rest: string[] = [];
+  for (const [name, value] of Object.entries(err.fields ?? {})) {
+    const messages = Array.isArray(value)
+      ? value.filter((message): message is string => typeof message === "string")
+      : [];
+    if (messages.length === 0) continue;
+    if (shown.includes(name)) fields[name] = messages;
+    else rest.push(...messages);
+  }
+  if (rest.length > 0) return { fields, banner: rest.join(" ") };
+  if (Object.keys(fields).length > 0) return { fields, banner: null };
+  return { fields, banner: errorMessage(err, fallback) };
+}
+
+/**
+ * The browser's own check that every needed field is filled in: "<label> is
+ * required." for each one left empty, keyed by field, as a form shows them.
+ */
+export function requiredErrors(needed: Record<string, [value: unknown, label: string]>): Record<string, string[]> {
+  const errors: Record<string, string[]> = {};
+  for (const [name, [value, label]] of Object.entries(needed)) {
+    const empty = typeof value === "string" ? !value.trim() : value === null || value === undefined;
+    if (empty) errors[name] = [`${label} is required.`];
+  }
+  return errors;
+}
+
+/** The field errors and banner of one form, filled from the browser's own checks or from the server. */
+export function useServerForm(shown: readonly string[]) {
+  const [fields, setFields] = useState<Record<string, string[]>>({});
+  const [banner, setBanner] = useState<string | null>(null);
+
+  const reset = useCallback(() => {
+    setFields({});
+    setBanner(null);
+  }, []);
+
+  /** Checks the browser made: field messages only. */
+  const setClientErrors = useCallback((errors: Record<string, string[]>) => {
+    setFields(errors);
+    setBanner(null);
+  }, []);
+
+  /** A failed request: pass this as a mutation's onError. */
+  const key = shown.join("|");
+  const handle = useCallback(
+    (err: unknown, fallback: string) => {
+      const split = splitServerErrors(err, key.split("|"), fallback);
+      setFields(split.fields);
+      setBanner(split.banner);
+    },
+    [key],
+  );
+
+  const errorFor = useCallback((field: string): string | null => fields[field]?.join(" ") || null, [fields]);
+
+  return { fields, banner, errorFor, reset, setClientErrors, handle };
+}

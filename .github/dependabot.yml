@@ -1,0 +1,139 @@
+# Dependency updates arrive as pull requests, so nothing is edited by hand:
+# Dependabot updates the manifest and its lockfile together (pyproject.toml and
+# uv.lock; package.json and package-lock.json), the base-image digests in the
+# Dockerfile, and the GitHub Actions the CI uses. CI runs on every pull request;
+# merge one only once its checks are green (nothing enforces that on this plan).
+# Minor and patch updates are grouped into one pull request per kind of
+# dependency; a major version gets a pull request of its own to be read.
+# Tools whose output is committed (the API schema, the generated types, code
+# formatting) are grouped apart so one that needs a follow-up commit does not
+# hold the rest back. docs/development.md.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # Django 5.2 is a long-term-support release (security fixes to 2028) and the
+      # next major needs porting work (the admin's response_action signature,
+      # django-stubs 6 typing). Left until it is wanted or a CVE needs it.
+      - dependency-name: django
+        update-types: ["version-update:semver-major"]
+      - dependency-name: django-stubs
+        update-types: ["version-update:semver-major"]
+      # djangorestframework-stubs 3.17 and later need django-stubs 6, held back
+      # with Django above, so the lockfile cannot be resolved and the whole
+      # weekly run is marked as failed. Lift together with django-stubs.
+      - dependency-name: djangorestframework-stubs
+        versions: [">=3.17"]
+      # pytest-xdist 3.8.0 (the newest) cannot group tests under pytest 9.2, so
+      # demo/test_club.py would build its club on every worker. Lift together
+      # with the pin in pyproject.toml once a newer pytest-xdist is out.
+      - dependency-name: pytest
+        versions: [">=9.2"]
+    groups:
+      # Groups are matched in this order: the first one a package fits.
+      backend-schema:
+        patterns: ["drf-spectacular", "djangorestframework-stubs", "django-stubs"]
+        update-types: [minor, patch]
+      backend-lint-and-types:
+        patterns: ["ruff", "mypy"]
+        update-types: [minor, patch]
+      backend-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # openapi-typescript (the API type generator) does not support TypeScript 7
+      # yet: npm refuses to install it. Left until it does.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # @types/node describes one Node line, and the build and CI run Node 22
+      # (Dockerfile, ci.yml). A new major of the types is taken together with a
+      # new Node line, which is a decision, not a refresh.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    groups:
+      frontend-api-types:
+        patterns: ["openapi-typescript"]
+        update-types: [minor, patch]
+      frontend-minor-and-patch:
+        update-types: [minor, patch]
+  # The project page (site/). Astro, its image tool and the typeface.
+  - package-ecosystem: npm
+    directory: /site
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      site-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Python and Node image refreshes (their security fixes) travel together;
+      # the uv image is not grouped, so a uv release that breaks the build
+      # cannot hold them back. No update-types here: a refresh of an unchanged
+      # tag (python:3.14-slim, node:22-alpine) raises no version component, so
+      # a minor/patch filter would split each into its own pull request. A new
+      # Python or Node line is already ignored below.
+      base-images:
+        patterns: ["*"]
+        exclude-patterns: ["astral-sh/uv"]
+    ignore:
+      # The tags python:3.14-slim and node:22-alpine are followed by digest
+      # only. A new Python or Node line is a decision, not a refresh: it also
+      # means changing requires-python, backend/.python-version and the CI.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: node
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  # The tunnel and proxy images in the Compose recipes are pinned to a version
+  # so a recipe does not change under a self-hoster; this keeps them current.
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: [minor, patch]

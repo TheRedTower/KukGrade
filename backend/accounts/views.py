@@ -1,0 +1,285 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Any, cast
+
+from django.contrib.auth import login, logout, update_session_auth_hash
+from django.db.models import Q, QuerySet
+from django.utils.cache import add_never_cache_headers
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from drf_spectacular.utils import extend_schema
+from rest_framework import mixins, status
+from rest_framework.authentication import BaseAuthentication
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
+from rest_framework.views import APIView
+
+from accounts.models import User
+from accounts.permissions import (
+    AUTHORITY_PERMISSIONS,
+    USER_ADMINISTRATION_PERMISSION,
+    HasRequiredPermissions,
+)
+from accounts.serializers import (
+    ChangePasswordSerializer,
+    IssuedTemporaryPasswordSerializer,
+    LoginSerializer,
+    SelfProfileSerializer,
+    SetupSerializer,
+    SetupStatusSerializer,
+    UserAuthoritySerializer,
+    UserManagementSerializer,
+    UserSerializer,
+)
+from accounts.services import (
+    TemporaryPassword,
+    change_own_password,
+    create_platform_user,
+    delete_platform_user,
+    reset_password,
+    set_user_authority,
+    update_platform_user,
+)
+from accounts.setup import complete_setup, setup_needed
+from kukgrade.filtering import boolean, choice
+from kukgrade.search import ExactOnly, full_name_of, label_of, search
+from kukgrade.viewsets import KukGradeViewSet, ServiceDestroyMixin
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class LoginView(APIView):
+    authentication_classes: Sequence[type[BaseAuthentication]] = ()
+    permission_classes = [AllowAny]
+    # Login opts into its own throttle scope so repeated password attempts
+    # are limited independently of setup and password changes.
+    throttle_scope = "login"
+
+    @extend_schema(request=LoginSerializer, responses=UserSerializer)
+    def post(self, request: Request) -> Response:
+        serializer = LoginSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        login(request, serializer.validated_data["user"])
+        return Response(UserSerializer(request.user).data)
+
+
+@method_decorator(csrf_protect, name="dispatch")
+@method_decorator(ensure_csrf_cookie, name="get")
+class SetupView(APIView):
+    """Setting up a new deployment's first administrator (accounts/setup.py).
+
+    Public, as the sign-in is: nobody can sign in before it is done. Taking a
+    code is rate-limited like a password guess; asking whether setup is
+    needed is not, and also hands the setup page its CSRF cookie.
+    """
+
+    authentication_classes: Sequence[type[BaseAuthentication]] = ()
+    permission_classes = [AllowAny]
+    throttle_scope = "setup"
+
+    def get_throttles(self) -> list[Any]:
+        return super().get_throttles() if self.request.method == "POST" else []
+
+    @extend_schema(responses=SetupStatusSerializer)
+    def get(self, request: Request) -> Response:
+        return Response({"setup_needed": setup_needed()})
+
+    @extend_schema(request=SetupSerializer, responses={201: UserSerializer})
+    def post(self, request: Request) -> Response:
+        serializer = SetupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = complete_setup(**serializer.validated_data)
+        # Straight in: they just proved who they are, twice over.
+        login(request, user, backend="accounts.backends.AccountBackend")
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(request=None, responses={204: None})
+    def post(self, request: Request) -> Response:
+        logout(request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=UserSerializer)
+    def get(self, request: Request) -> Response:
+        return Response(UserSerializer(request.user).data)
+
+    @extend_schema(request=SelfProfileSerializer, responses=UserSerializer)
+    def patch(self, request: Request) -> Response:
+        serializer = SelfProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = update_platform_user(
+            cast(User, request.user),
+            actor=cast(User, request.user),
+            **serializer.validated_data,
+        )
+        return Response(UserSerializer(updated).data)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+    # Repeated wrong-current-password guesses should be rate-limited the
+    # same as login attempts.
+    throttle_scope = "password_change"
+
+    @extend_schema(request=ChangePasswordSerializer, responses={204: None})
+    def post(self, request: Request) -> Response:
+        serializer = ChangePasswordSerializer(
+            request.user,
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = change_own_password(
+            cast(User, request.user),
+            password=serializer.validated_data["new_password"],
+        )
+        # Changing a password rotates the session auth hash, which would sign
+        # the caller straight back out. That is the wrong end of the forced
+        # change on a new account: pick a password, get ejected to the sign-in
+        # screen. Every other session for this user is still invalidated.
+        update_session_auth_hash(request, updated)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    ServiceDestroyMixin,
+    KukGradeViewSet[User],
+):
+    """The administrator-facing users API.
+
+    Deactivate via is_active for routine offboarding - that is reversible.
+    destroy(), gated to accounts.delete_user (Administrator group only),
+    removes an account that recorded nothing and closes one that did, so
+    their name stays on their records (accounts.services.delete_platform_user).
+    """
+
+    delete_service = staticmethod(delete_platform_user)
+    permission_classes = [HasRequiredPermissions]
+    serializer_class = UserManagementSerializer
+    permission_map = {
+        "list": (USER_ADMINISTRATION_PERMISSION,),
+        "retrieve": (USER_ADMINISTRATION_PERMISSION,),
+        "create": ("accounts.add_user",),
+        "partial_update": ("accounts.change_user",),
+        "destroy": ("accounts.delete_user",),
+        "authority": ("accounts.change_user",),
+        "set_password": ("accounts.change_user",),
+    }
+
+    @extend_schema(responses={201: IssuedTemporaryPasswordSerializer})
+    def create(self, request: Request, *args: object, **kwargs: object) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        issued = create_platform_user(
+            actor=cast(User, request.user),
+            **serializer.validated_data,
+        )
+        return self._issued(request, issued, status.HTTP_201_CREATED)
+
+    def _issued(
+        self,
+        request: Request,
+        issued: TemporaryPassword,
+        status_code: int,
+    ) -> Response:
+        """The account and its new temporary password - shown once, so never
+        stored by a browser or proxy cache."""
+        response = Response(
+            IssuedTemporaryPasswordSerializer(
+                issued.user,
+                context={"request": request, "temporary_password": issued.password},
+            ).data,
+            status=status_code,
+        )
+        add_never_cache_headers(response)
+        return response
+
+    query_filters = (
+        choice("role", "role", User.Role.values),
+        boolean("is_active", Q(is_active=True)),
+        search(
+            "search",
+            (
+                "email",
+                "first_name",
+                "last_name",
+                full_name_of(),
+                ExactOnly(label_of("role", User.Role.choices)),
+            ),
+            "A user's name, email address or role.",
+        ),
+    )
+
+    def perform_update(self, serializer: BaseSerializer[User]) -> None:
+        serializer.instance = update_platform_user(
+            cast(User, serializer.instance),
+            actor=self.actor,
+            **serializer.validated_data,
+        )
+
+    def get_queryset(self) -> QuerySet[User]:
+        # A deleted account kept for its records (deleted_at) is gone.
+        return User.objects.filter(deleted_at__isnull=True).order_by("email")
+
+    @extend_schema(
+        request=UserAuthoritySerializer,
+        responses=UserManagementSerializer,
+    )
+    @action(detail=True, methods=["patch"])
+    def authority(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        target = self.get_object()
+        serializer = UserAuthoritySerializer(
+            target,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = set_user_authority(
+            target,
+            actor=self.actor,
+            **{
+                name: serializer.validated_data.get(name)
+                for name in AUTHORITY_PERMISSIONS
+            },
+        )
+        return Response(
+            UserManagementSerializer(updated, context={"request": request}).data,
+        )
+
+    @extend_schema(request=None, responses=IssuedTemporaryPasswordSerializer)
+    @action(detail=True, methods=["post"], url_path="set-password")
+    def set_password(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """A new temporary password for someone else, replacing theirs."""
+        issued = reset_password(self.get_object(), actor=cast(User, request.user))
+        return self._issued(request, issued, status.HTTP_200_OK)

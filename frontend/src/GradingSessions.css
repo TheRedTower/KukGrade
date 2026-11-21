@@ -1,0 +1,282 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Grading Sessions List Screen (/gradings)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Current Session Spotlight ───────────────────────────────────────────── */
+
+.gs-current-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.gs-current-tag {
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+  padding: var(--space-1) var(--space-4);
+}
+
+.gs-current-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4) var(--space-5);
+  padding: var(--card-pad);
+  flex-wrap: wrap;
+}
+
+.gs-current-info {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.gs-current-body > .stats {
+  flex: 2 1 18rem;
+}
+
+.gs-current-title {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text);
+}
+
+.gs-current-date {
+  margin: 0 0 var(--space-1);
+}
+
+.gs-current-location {
+  margin: 0 0 var(--space-2);
+}
+
+.gs-current-status-row {
+  margin-top: var(--space-2);
+}
+
+.gs-current-action {
+  display: flex;
+  align-items: center;
+}
+
+/* ── Table Section ───────────────────────────────────────────────────────── */
+
+.gs-table-heading {
+  margin: 0;
+}
+
+/* ==========================================================================
+   Create Grading Session Screen (/gradings/new)
+   ========================================================================== */
+
+/* Date 3-select row */
+
+.cgs-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr) minmax(0, 6.5rem);
+  gap: var(--space-2);
+}
+
+.cgs-char-counter {
+  text-align: right;
+  margin-top: 0.15rem;
+}
+
+.cgs-char-near-limit {
+  color: var(--color-warning);
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+
+.cgs-form-actions {
+  margin-top: var(--space-3);
+}
+
+/* ── Preview Column ──────────────────────────────────────────────────────── */
+
+.cgs-preview-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-5) var(--space-6);
+}
+
+.cgs-preview-title {
+  margin: 0 0 var(--space-1) 0;
+}
+
+.cgs-preview-subtitle {
+  margin: 0 0 var(--space-5) 0;
+  line-height: var(--line-height-snug);
+}
+
+.cgs-preview-placeholder {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ==========================================================================
+   Grading Session Detail / Roster Screen (.gsd-*)
+   ========================================================================== */
+
+.gsd-dropdown-wrap {
+  position: relative;
+}
+
+.gsd-chevron-down {
+  color: var(--color-text-muted);
+}
+
+.gsd-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-1) 0;
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+}
+
+.gsd-dropdown-menu[data-align="start"] {
+  right: auto;
+  left: 0;
+}
+
+.gsd-dropdown-item {
+  width: 100%;
+  text-align: start;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background var(--duration) ease;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+}
+
+@media (hover: hover) {
+  .gsd-dropdown-item:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.gsd-dropdown-item.gsd-danger-text {
+  color: var(--color-danger);
+}
+
+@media (hover: hover) {
+  .gsd-dropdown-item.gsd-danger-text:hover {
+    background: var(--color-danger-surface);
+  }
+}
+
+/* ── Lifecycle Progression Track ─────────────────────────────────────────── */
+
+/* As many steps in a row as fit, each at least 9rem. */
+.gsd-lifecycle-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-4);
+}
+
+.gsd-step-circle {
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--color-text-muted);
+  color: transparent;
+  transition:
+    border-color var(--duration) ease,
+    background var(--duration) ease,
+    color var(--duration) ease;
+}
+
+.gsd-step-completed .gsd-step-circle {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-on-success);
+}
+
+.gsd-step-current .gsd-step-circle {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-on-success);
+  box-shadow: var(--ring-success);
+}
+
+.gsd-step-upcoming .gsd-step-circle {
+  background: transparent;
+  border-color: var(--color-text-muted);
+}
+
+.gsd-step-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Candidates Roster Section ───────────────────────────────────────────── */
+
+.gsd-candidates-section {
+  min-width: 0;
+}
+
+/* ── Candidate Table ─────────────────────────────────────────────────────── */
+
+.gsd-candidate-name {
+  display: block;
+}
+
+.gsd-candidate-wksa {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin-top: 0.15rem;
+}
+
+/* ── Session Notes Section ───────────────────────────────────────────────── */
+
+.gsd-notes-header {
+  align-items: flex-start;
+}
+
+.gsd-notes-title {
+  margin: 0;
+}
+
+.gsd-notes-sub {
+  margin: var(--space-1) 0 0;
+}
+
+.gsd-notes-text {
+  line-height: var(--line-height-body);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.gsd-notes-empty {
+  font-style: italic;
+  margin: 0;
+}
+
+.gsd-notes-textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.gsd-notes-textarea:focus {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-color: var(--btn-primary-bg);
+}
+
+.gsd-notes-actions {
+  justify-content: flex-start;
+}

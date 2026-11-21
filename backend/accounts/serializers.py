@@ -1,0 +1,385 @@
+from __future__ import annotations
+
+import logging
+from typing import Any, ClassVar
+
+from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
+from accounts.models import User
+from accounts.people import MissingDetail, missing_details, name_of
+from accounts.permissions import (
+    FINAL_GRADING_DECISION_PERMISSION,
+    GRADING_AUDIT_LOG_PERMISSION,
+    OVERRIDE_LOCKED_SESSION_PERMISSION,
+    PROMOTE_STUDENT_PERMISSION,
+    USER_ADMINISTRATION_PERMISSION,
+    can_view_audit_log,
+    prime_permission_cache,
+)
+from accounts.services import (
+    DELETED_ACCOUNT_EMAIL_MESSAGE,
+    can_manage,
+    email_holder,
+)
+from kukgrade.serializers import ChoiceSerializer, ModelSerializer
+from ranks.models import Rank
+
+security_logger = logging.getLogger("kukgrade.security")
+
+EMAIL_TAKEN_MESSAGE = "An account with this email already exists."
+WRONG_CURRENT_PASSWORD_MESSAGE = "Current password is incorrect."
+
+
+def _validated_password(value: str, user: User | None) -> str:
+    """Run Django's configured validators, reported as a DRF field error."""
+    try:
+        validate_password(value, user=user)
+    except DjangoValidationError as exc:
+        raise serializers.ValidationError(list(exc.messages)) from exc
+    return value
+
+
+class HasPermission(serializers.BooleanField):
+    """Read-only: whether the serialized user holds `permission`.
+
+    Computed from the permission that actually gates the action, so the UI
+    cannot disagree with what the server will allow.
+    """
+
+    def __init__(self, permission: str) -> None:
+        self.permission = permission
+        super().__init__(source="*", read_only=True)
+
+    def to_representation(self, value: Any) -> bool:
+        return bool(value.has_perm(self.permission))
+
+
+# The four per-user authority flags, spelled as AUTHORITY_PERMISSIONS. A
+# comment rather than a docstring: drf-spectacular would otherwise inherit it
+# as the OpenAPI description of every serializer that mixes this in.
+class AuthorityFields(serializers.Serializer):
+    can_make_final_grading_decision = HasPermission(FINAL_GRADING_DECISION_PERMISSION)
+    can_promote_student = HasPermission(PROMOTE_STUDENT_PERMISSION)
+    can_override_locked_session = HasPermission(OVERRIDE_LOCKED_SESSION_PERMISSION)
+    can_view_grading_audit_log = HasPermission(GRADING_AUDIT_LOG_PERMISSION)
+
+
+class UserSerializer(AuthorityFields, ModelSerializer):
+    full_name = serializers.SerializerMethodField(
+        help_text="Their name; never their email address.",
+    )
+    role_display = serializers.CharField(source="get_role_display", read_only=True)
+    # What the signed-in user may do beyond ordinary grading, from the exact
+    # permission each action checks - so the UI offers a control only when
+    # the server will accept it, and never decides that from role.
+    can_manage_users = HasPermission(USER_ADMINISTRATION_PERMISSION)
+    can_import_data = HasPermission("data_imports.add_importbatch")
+    can_reconcile_imported_history = HasPermission(
+        "gradings.can_reconcile_imported_history",
+    )
+    can_delete_students = HasPermission("students.delete_student")
+    # Not a single permission: the audit-log rule, computed by the same
+    # function the API and admin enforce it with.
+    can_read_audit_log = serializers.SerializerMethodField()
+
+    def get_full_name(self, user: User) -> str:
+        return name_of(user)
+
+    def get_can_read_audit_log(self, user: User) -> bool:
+        return can_view_audit_log(user)
+
+    class Meta:
+        model = User
+        fields: tuple[str, ...] = (
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "full_name",
+            "role_display",
+            "can_make_final_grading_decision",
+            "can_promote_student",
+            "can_override_locked_session",
+            "can_view_grading_audit_log",
+            "can_manage_users",
+            "can_import_data",
+            "can_reconcile_imported_history",
+            "can_delete_students",
+            "can_read_audit_log",
+            "must_change_password",
+        )
+        read_only_fields: tuple[str, ...] = fields
+
+
+class SelfProfileSerializer(UserSerializer):
+    """PATCH /api/auth/me/.
+
+    Everything UserSerializer exposes, but first_name and last_name become
+    writable - the only things a user may change about themselves. Email,
+    role and authority stay administrator-only, on UserManagementSerializer;
+    a separate serializer keeps "what a user can do to themselves" from ever
+    silently growing alongside admin capabilities.
+    """
+
+    class Meta(UserSerializer.Meta):
+        read_only_fields: tuple[str, ...] = tuple(
+            field
+            for field in UserSerializer.Meta.fields
+            if field not in {"first_name", "last_name"}
+        )
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(write_only=True)
+    password = serializers.CharField(
+        style={"input_type": "password"},
+        trim_whitespace=False,
+        write_only=True,
+    )
+
+    default_error_messages = {
+        "invalid_credentials": "Unable to log in with the provided credentials.",
+    }
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        request = self.context.get("request")
+        email = User.objects.normalize_email(str(attrs["email"]))
+        password = str(attrs["password"])
+        user = authenticate(request=request, email=email, password=password)
+
+        if user is None:
+            # The email identifies which account was targeted, which is
+            # exactly what makes this useful for spotting a brute-force
+            # attempt; the password itself is never in this call or any
+            # other log line in this codebase.
+            security_logger.warning("Failed login attempt for %s", email)
+            self.fail("invalid_credentials")
+
+        attrs["user"] = user
+        return attrs
+
+
+class PermissionPrimedListSerializer(serializers.ListSerializer[User]):
+    def to_representation(self, data: Any) -> list[Any]:
+        users = list(data)
+        prime_permission_cache(users)
+        return super().to_representation(users)
+
+
+class MissingDetailSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=MissingDetail.choices)
+
+
+class UserManagementSerializer(AuthorityFields, ModelSerializer):
+    """List, retrieve, create and update for the administrator-facing API.
+
+    Deliberately separate from UserSerializer, which is a fixed read-only
+    self-view for /api/auth/me/: that one has no reason to expose is_active
+    or date_joined about the caller to themselves, and has no reason to be
+    writable at all. Sharing one class between the two would couple changes
+    meant for one endpoint to the other.
+    """
+
+    full_name = serializers.SerializerMethodField(
+        help_text="Their name; never their email address.",
+    )
+    role_display = serializers.CharField(source="get_role_display", read_only=True)
+    rank = serializers.PrimaryKeyRelatedField(
+        queryset=Rank.objects.staff(),
+        required=False,
+        # Null for an account with no rank; sending null changes nothing.
+        allow_null=True,
+        help_text=(
+            "An instructor's rank, one of the instructor ranks (`/api/choices/`); "
+            "required when an instructor account is made. An administrator "
+            "account has none."
+        ),
+    )
+    missing_details = serializers.SerializerMethodField(
+        help_text=(
+            "What an account made before a rule still lacks: a name, or an "
+            "instructor's rank. Empty when it is complete."
+        ),
+    )
+    rank_name = serializers.CharField(
+        source="rank.name",
+        read_only=True,
+        default="",
+        help_text="The rank's name; blank for an account with no rank.",
+    )
+    # From the rule the services enforce (accounts.services.can_manage), so
+    # the screen offers no change the server would refuse.
+    manageable = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the signed-in user may change this account; only a "
+            "superuser changes one that can use the Django admin site."
+        ),
+    )
+
+    # No password field: the server generates every password an administrator
+    # issues (UserViewSet.create and set-password), so none is ever typed here.
+    class Meta:
+        model = User
+        list_serializer_class = PermissionPrimedListSerializer
+        fields: tuple[str, ...] = (
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "full_name",
+            "role",
+            "role_display",
+            "rank",
+            "rank_name",
+            "missing_details",
+            "is_active",
+            "can_make_final_grading_decision",
+            "can_promote_student",
+            "can_override_locked_session",
+            "can_view_grading_audit_log",
+            "must_change_password",
+            "temporary_password_expires_at",
+            "date_joined",
+            "last_login",
+            "manageable",
+        )
+        # is_staff and is_superuser are not in this API at all: Django admin
+        # access is not something it should be able to hand out. Role and
+        # is_active are writable; role decides group membership via the
+        # post_save signal in accounts/apps.py.
+        # validate_email checks uniqueness itself.
+        extra_kwargs: ClassVar[dict[str, dict[str, Any]]] = {
+            "email": {"validators": []}
+        }
+        read_only_fields = (
+            "id",
+            "full_name",
+            "role_display",
+            "rank_name",
+            "can_make_final_grading_decision",
+            "can_promote_student",
+            "can_override_locked_session",
+            "can_view_grading_audit_log",
+            "must_change_password",
+            "temporary_password_expires_at",
+            "date_joined",
+            "last_login",
+        )
+
+    def get_full_name(self, user: User) -> str:
+        return name_of(user)
+
+    @extend_schema_field(MissingDetailSerializer(many=True))
+    def get_missing_details(self, user: User) -> list[dict[str, str]]:
+        return [
+            {"value": value, "label": str(MissingDetail(value).label)}
+            for value in missing_details(user)
+        ]
+
+    def get_manageable(self, user: User) -> bool:
+        return can_manage(user, self.context["request"].user)
+
+    def validate_email(self, value: str) -> str:
+        # Uniqueness checked here, not by the field's own validator, so an
+        # email a deleted account keeps can say why it is taken.
+        holder = email_holder(value, exclude=self.instance)
+        if holder is None:
+            return User.objects.normalize_email(value)
+        if holder.deleted_at is not None:
+            raise serializers.ValidationError(DELETED_ACCOUNT_EMAIL_MESSAGE)
+        raise serializers.ValidationError(EMAIL_TAKEN_MESSAGE)
+
+
+class UserAuthoritySerializer(serializers.Serializer):
+    """PATCH /api/users/{id}/authority/.
+
+    Same keys /api/auth/me/ returns, so the concept is spelled one way
+    throughout rather than the read shape and the write shape drifting.
+    """
+
+    can_make_final_grading_decision = serializers.BooleanField(required=False)
+    can_promote_student = serializers.BooleanField(required=False)
+    can_override_locked_session = serializers.BooleanField(required=False)
+    can_view_grading_audit_log = serializers.BooleanField(required=False)
+
+
+class IssuedTemporaryPasswordSerializer(UserManagementSerializer):
+    """The account, with the temporary password just issued for it.
+
+    The only response that ever carries a password, and only this once: the
+    server keeps nothing but its hash, so it cannot be shown again. Sent by
+    creating a user and by set-password, with caching disabled.
+    """
+
+    temporary_password = serializers.SerializerMethodField()
+
+    class Meta(UserManagementSerializer.Meta):
+        fields = (*UserManagementSerializer.Meta.fields, "temporary_password")
+
+    def get_temporary_password(self, _user: User) -> str:
+        return str(self.context["temporary_password"])
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """POST /api/auth/change-password/.
+
+    Self-service, unlike set-password: an administrator resetting someone
+    else's password already proved their own authority to manage that
+    account, so no current-password check applies there. Here the
+    caller is proving they still control the account, not managing someone
+    else's - current_password is required precisely because a hijacked
+    session should not be enough to lock the real owner out.
+    """
+
+    # Untrimmed, as sign-in reads it: a space counts as a special character,
+    # and one trimmed off here would leave a password nobody can type.
+    current_password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )
+
+    def validate_current_password(self, value: str) -> str:
+        request = self.context["request"]
+        if not request.user.check_password(value):
+            raise serializers.ValidationError(WRONG_CURRENT_PASSWORD_MESSAGE)
+        return value
+
+    def validate_new_password(self, value: str) -> str:
+        return _validated_password(value, self.instance)
+
+
+class SetupStatusSerializer(serializers.Serializer):
+    """GET /api/setup/."""
+
+    setup_needed = serializers.BooleanField(
+        help_text="True until the deployment's first administrator exists.",
+    )
+
+
+class SetupSerializer(serializers.Serializer):
+    """POST /api/setup/: the first administrator, and the code proving it is
+    the deployment's owner (accounts/setup.py)."""
+
+    code = serializers.CharField(
+        write_only=True,
+        help_text="The one-time setup code from the server's log.",
+    )
+    email = serializers.EmailField(write_only=True)
+    first_name = serializers.CharField(write_only=True, max_length=150)
+    last_name = serializers.CharField(write_only=True, max_length=150)
+    # Untrimmed, as sign-in reads it.
+    password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )

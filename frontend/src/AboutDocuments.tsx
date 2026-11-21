@@ -1,0 +1,262 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
+import { Alert } from "./Alert";
+import { errorMessage } from "./api";
+import { useAboutDocumentQuery, useAboutQuery, usePledgeQuery } from "./queries";
+import { buttonClass } from "./buttonClass";
+import { mediaMatches } from "./useMediaQuery";
+import { ExternalLink } from "./ExternalLink";
+import { ChevronRightIcon, ExternalLinkIcon } from "./Icons";
+import { LoadingState } from "./LoadingState";
+import { slug } from "./aboutSlug";
+
+// The Markdown reader is the largest part of Settings and only these documents
+// use it, so it is loaded on its own, alongside the first document's text.
+// Not through Suspense: once a fallback shows, React holds the text back
+// a further 300 ms, longer than the reader takes to arrive.
+type Reader = typeof import("./MarkdownText").renderMarkdown;
+let reader: Reader | null = null;
+
+/** The Markdown reader once loaded; `failed` when it could not be. */
+function useMarkdownReader(): { render: Reader | null; failed: boolean } {
+  const [loaded, setLoaded] = useState(() => reader);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (loaded) return;
+    let current = true;
+    import("./MarkdownText").then(
+      (module) => {
+        reader = module.renderMarkdown;
+        if (current) setLoaded(() => module.renderMarkdown);
+      },
+      () => {
+        if (current) setFailed(true);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [loaded]);
+  return { render: loaded, failed };
+}
+
+/** The section headings of a Markdown document, for its contents list. */
+function sections(content: string): { id: string; text: string }[] {
+  return [...content.matchAll(/^##\s+(.+?)\s*#*\s*$/gm)].map((match) => ({
+    id: slug(match[1]),
+    text: match[1],
+  }));
+}
+
+function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitle?: string; sourceUrl?: string }) {
+  return (
+    <header className="action-row">
+      <div>
+        <h2 className="section-title">{title}</h2>
+        {subtitle ? <p className="st-row-description subtext">{subtitle}</p> : null}
+      </div>
+      {sourceUrl ? (
+        <ExternalLink className={buttonClass({ variant: "secondary" })} href={sourceUrl}>
+          View on GitHub <ExternalLinkIcon />
+        </ExternalLink>
+      ) : null}
+    </header>
+  );
+}
+
+function Problem({ error }: { error: unknown }) {
+  return <Alert>{errorMessage(error, "This page could not be loaded.")}</Alert>;
+}
+
+function ReadableDocument({ slugName, label }: { slugName: string; label: string }) {
+  const query = useAboutDocumentQuery(slugName);
+  const markdown = useMarkdownReader();
+  const repositoryUrl = useAboutQuery().data?.repository_url ?? "";
+  const doc = query.data;
+  const contents = doc ? sections(doc.content) : [];
+
+  function jump(id: string) {
+    const heading = document.getElementById(id);
+    if (!heading) return;
+    const calm = mediaMatches("(prefers-reduced-motion: reduce)");
+    heading.scrollIntoView({ behavior: calm ? "auto" : "smooth" });
+    // So the next Tab carries on from the section that was jumped to.
+    heading.focus({ preventScroll: true });
+  }
+
+  return (
+    <>
+      {query.isError ? <Problem error={query.error} /> : null}
+      {doc ? (
+        <div className="ab-doc-columns">
+          {contents.length > 0 ? (
+            <nav aria-label={`${label}, on this page`} className="card card--flush ab-contents">
+              <p className="eyebrow--muted">On this page</p>
+              {contents.map((entry) => (
+                <button className="menu-link" key={entry.id} onClick={() => jump(entry.id)} type="button">
+                  {entry.text}
+                </button>
+              ))}
+            </nav>
+          ) : null}
+          <article aria-label={`${label} text`} className="card card--flush ab-prose">
+            {markdown.render ? (
+              markdown.render(doc.content, repositoryUrl)
+            ) : markdown.failed ? (
+              <Alert>The text could not be loaded. Reload the page to try again.</Alert>
+            ) : (
+              <LoadingState compact>Loading the text…</LoadingState>
+            )}
+          </article>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** How to report a weakness, and how the app protects student data. */
+export function AboutSecurity() {
+  const doc = useAboutDocumentQuery("security").data;
+  return (
+    <>
+      <DocumentHeader
+        sourceUrl={doc?.source_url}
+        subtitle="How to report a weakness privately, and how KukGrade protects student data."
+        title="Security"
+      />
+      <ReadableDocument label="Security" slugName="security" />
+    </>
+  );
+}
+
+/** The Kuk Sool Won pledge, then the project's own code of conduct. */
+export function AboutConduct() {
+  const pledge = usePledgeQuery();
+  const doc = useAboutDocumentQuery("code-of-conduct").data;
+
+  return (
+    <>
+      <DocumentHeader
+        sourceUrl={doc?.source_url}
+        subtitle="How members of this school and project treat each other."
+        title="Code of conduct"
+      />
+
+      {pledge.isError ? <Problem error={pledge.error} /> : null}
+      {pledge.data ? (
+        <section aria-labelledby="ab-pledge" className="card">
+          <p className="st-eyebrow eyebrow--muted">Kuk Sool Won</p>
+          <h2 id="ab-pledge">{pledge.data.title}</h2>
+          <ol className="list-plain ab-pledge">
+            {pledge.data.points.map((point, index) => (
+              <li key={point.english}>
+                <span aria-hidden="true" className="mark mark--small ab-number">
+                  {index + 1}
+                </span>
+                <div className="ab-pledge-text tiles">
+                  <p>{point.english}</p>
+                  <p className="ab-pledge-korean" lang="ko">
+                    {point.korean}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
+
+      <ReadableDocument label="Code of conduct" slugName="code-of-conduct" />
+    </>
+  );
+}
+
+/** The licence: a short plain-words guide, then the full text. */
+export function AboutLicence() {
+  const query = useAboutDocumentQuery("licence");
+  const about = useAboutQuery().data;
+  const doc = query.data;
+  // The licence's own first lines name it, so the page never repeats them.
+  const name = doc?.content
+    .split("\n")
+    .slice(0, 2)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    <>
+      <DocumentHeader sourceUrl={doc?.source_url} subtitle={name} title="Licence" />
+      {query.isError ? <Problem error={query.error} /> : null}
+
+      <section aria-labelledby="ab-plain" className="card stack">
+        <div>
+          <h2 id="ab-plain">In plain words</h2>
+          <p className="st-row-description subtext">
+            KukGrade is free software. This is a short guide, not legal advice: the full licence below is the only text
+            that counts.
+          </p>
+        </div>
+        <div className="even-set">
+          <div className="ab-three tiles even-set__items">
+            <div>
+              <h3>You may</h3>
+              <ul>
+                <li>Use KukGrade for your school, at no cost.</li>
+                <li>Read how it works, and change it.</li>
+                <li>Share it with other schools.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>You must</h3>
+              <ul>
+                <li>Keep the licence and copyright notices.</li>
+                <li>Share the source of a changed version under this same licence.</li>
+                <li>Offer that source to people who use your changed version over a network.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>There is no</h3>
+              <ul>
+                <li>Warranty. It is provided as it is.</li>
+                <li>Liability for problems it causes.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div className="action-row">
+          {about ? (
+            <ExternalLink className={buttonClass({ variant: "primary" })} href={about.repository_url}>
+              Get the source code <ExternalLinkIcon />
+            </ExternalLink>
+          ) : null}
+        </div>
+        {about ? <p className="st-row-description subtext">{about.copyright}</p> : null}
+      </section>
+
+      {doc ? (
+        <section aria-labelledby="ab-full" className="card stack">
+          <div>
+            <h2 id="ab-full">Full licence</h2>
+            <p className="st-row-description subtext">The licence file that ships with this version.</p>
+          </div>
+          {/* Folded, then read in full in the page's own scroll: never a box that scrolls inside it. */}
+          <details className="disclosure">
+            <summary>
+              <ChevronRightIcon />
+              <span>Show the full licence</span>
+            </summary>
+            <div className="disclosure__body">
+              <pre className="code-block">{doc.content}</pre>
+            </div>
+          </details>
+        </section>
+      ) : null}
+
+      <Alert tone="info" role="note">
+        Not sure what the licence means for your school? Ask on the <Link to="/settings/about/support">Support</Link>{" "}
+        page. The project cannot give legal advice.
+      </Alert>
+    </>
+  );
+}

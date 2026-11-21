@@ -1,0 +1,41 @@
+---
+import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+import "../styles/site.css";
+
+interface Props {
+  title: string;
+  description: string;
+  /** Kept out of search results (the "Page not found" page). */
+  noindex?: boolean;
+}
+
+const { title, description, noindex = false } = Astro.props;
+// Pages are built as files (index.html), but served without the ".html":
+// the canonical address is the one a visitor sees, "/" for the home page.
+const path = Astro.url.pathname.replace(/(^|\/)index\.html$/, "$1").replace(/\.html$/, "");
+const canonical = new URL(path, Astro.site);
+---
+
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,343 @@
+# Features
+
+KukGrade takes a school from "who is grading?" to "who passed, and what rank are
+they now?", and keeps an honest record of every step. It is used by staff
+(instructors, administrators and the authorised Master); students never sign in.
+
+## The grading workflow
+
+```mermaid
+flowchart LR
+    A[Create a<br/>grading session] --> B[Register<br/>candidates]
+    B --> C[Open the session]
+    C --> D[Assess each<br/>candidate]
+    D --> E[Lock the<br/>session]
+    E --> F[Propose an<br/>outcome]
+    F --> G[Master makes the<br/>final decision]
+    G --> H[Promote<br/>passed students]
+    H --> I[Complete the<br/>session]
+```
+
+1. **Create a session** with a title, date, location and notes. A session moves through **Draft → Open → Locked → Completed**, or is
+   **Cancelled**.
+2. **Register candidates.** The cohort builder lists the students who are
+   eligible; a student can be in only one unfinished grading at a time, and a
+   student who has left cannot be registered. Each candidate tests for their own
+   next rank, so a mixed-belt group registers in one step. Candidates can be
+   moved or removed while the session is a draft or open. Every list of a
+   grading's candidates (the roster, the decision board, the promotion ledger)
+   puts them as they line up on the mat: the lowest rank held first, then by
+   surname and first name.
+3. **Assess.** Each candidate's assessment is generated (singly or for a whole
+   cohort) as a copy of the **cumulative syllabus** for their age band, from White
+   up to the rank they are testing for, and started deliberately. A form is
+   prepared only while the session is draft or open, and started only once it is
+   open; neither for a withdrawn candidate. When a candidate's form cannot be
+   prepared or started, their page says why, in the same words as the refusal,
+   and offers no button. Assessors mark
+   each item **Met** or **Not met**. Anyone marking or reviewing can add comments
+   to an item, including one that is already marked and from several people (each
+   adds their own observations); they keep their author and time and are never
+   edited or removed, and adding one never changes the mark;
+   category results are worked out from the items. Attendance is confirmed in bulk: tick the no-shows
+   and confirm.
+4. **Lock.** A session can only be locked when every assessment is complete.
+   Locking ends the grading and opens the decisions.
+   - _Until the lock_, a mark can be changed, including on a completed assessment, but
+     every change after the first mark needs a written reason (even changing your own, even
+     clearing it). The change, who made it, when and why are kept and shown on the item, and
+     a completed assessment keeps every required item marked. The log starts with the release
+     that added it (0.2.0-rc.8): an item marked before then begins with its mark at that time,
+     credited to its assessor, and changes made before it, including a mark cleared then, are
+     not known.
+   - _After the lock_, only the authorised Master can correct a mark or add a comment,
+     always with a written reason, until that candidate's final decision is recorded. Each
+     such change is flagged "after the lock" and shown with the decision (on the final
+     decisions screen and the assessment record). Once the decision is recorded, the
+     candidate's record is fixed.
+   - _Withdrawing:_ after the lock, a candidate can be withdrawn with a recorded reason by
+     someone with the authority.
+5. **Propose an outcome.** In the locked session, instructors propose **Pass**, **Fail** or
+   **Conditional**. A conditional result must say what the candidate still has to do.
+6. **Final decision.** Only a person with _final grading decision_ authority
+   (the Master) can finalise an outcome. A finalised outcome can never be edited.
+   Decisions the Master has chosen but not yet recorded ("staged") are saved on the
+   server for that Master alone, so a session that times out or a closed tab loses
+   nothing. A change made just before leaving the board (taking a decision off
+   included) is saved as the board is left, whether by another screen, a closed tab or
+   signing out, and while decisions are being recorded too; signing out waits a few
+   seconds at most for those saves. Opening the board again shows the latest of them,
+   never an earlier one still on its way. Recording a decision, or the session leaving
+   the locked state, removes them. Staging is not audited, because it decides nothing; recording is.
+7. **Promote.** A Pass is promoted in a separate, deliberate step, which updates the
+   student's rank and writes a permanent rank-history record. A whole cohort can be
+   promoted at once. Promoting is possible while the session is locked and after it is
+   completed.
+8. **Complete.** A session can be completed when every candidate who was not withdrawn
+   has a final decision.
+   - _Cancelling and deleting:_ a session that has recorded a final decision can no longer be
+     cancelled or deleted.
+   - _Archiving:_ a completed or cancelled session can be archived by an administrator. It is
+     hidden from the list of gradings (shown under "Archived gradings"), nothing is erased,
+     and it can be restored.
+
+Every step is recorded in the [audit log](#audit-log).
+
+## Downloads and printing (PDF)
+
+Three documents can be made from a grading, as A4 PDFs in greyscale, cheap to print. Anyone who
+can read the grading's assessments can make them; no further permission is needed. The server
+builds each file, and the app saves it under a name that sorts by date
+(`2027-03-20 October grading – Juniors – Summary.pdf`; a single record adds the candidate's name).
+
+- **Candidate records**, once a candidate's assessment is sealed. Tick the candidates on the
+  session page (with Select all, up to 60 at a time) and choose **Download records (PDF)**, or
+  use **Download PDF** on a sealed record. Each record starts on a new page and holds what the
+  record screen shows: who they are (never a date of birth), the outcome and proposal, the
+  promotion or withdrawal, the core areas and every requirement with its mark, comments and
+  mark changes, the overall note, the changes after the lock, and a signature line for the
+  Master. Each is stamped **Provisional** until the final decision, **Final** after, or
+  **Withdrawn**.
+- **The session summary**, from the session's actions once it is locked or completed: each
+  candidate's rank held and tested for, the decision and the promotion, those not graded and
+  why, and a count of passes by rank achieved (every rank on its own, stripes included; only
+  final passes count, the rest are counted apart). It ends with a signature line for the Master.
+- **Grading sheets**, while the session is a draft or open: the school's paper grading form, one
+  page per registered candidate, with their name, WKSA ID, current rank and the testing date
+  filled in and the six core areas taken from the syllabus. Marks written on paper are never
+  typed back into the app.
+
+Every document lists candidates in the grading's own order. It is all or nothing: if any
+candidate chosen cannot be included (a record not yet sealed, a withdrawn candidate for a
+sheet), nothing is made and the app names each one and why. Each file made is one
+[audit](#audit-log) event about the grading, naming everyone in it by WKSA ID, so it shows in
+the grading's history and in each student's. In the [demo mode](#the-demo-mode) every page is
+marked as made-up data. A file that has left the app is the school's to keep safe
+([Privacy](privacy.md#printed-and-downloaded-files)).
+
+## Students
+
+- Records with name, date of birth, current rank and grade, status and ID.
+- Status is **Active**, **Inactive** (a temporary break; blocks nothing) or
+  **Left** (blocks registering for a grading). Both are reversible and history is
+  always kept. Missing a grading never marks a student as having left.
+- IDs follow the school's pattern (such as `123-4-150`, set with `KUKGRADE_SCHOOL_PREFIX`)
+  or the national black belt ID format (`A-12345`). Old IDs are remembered and never reused.
+- A student's page shows their rank history and a single timeline of every grading,
+  native and imported. A grading run in KukGrade shows the rank the student held,
+  their age band and, for a Conditional result, what is still required, and links
+  to its assessment. An imported grading's outcome reads as the recommendation it was
+  ("Recommended: Pass").
+- Correcting a date of birth moves the student's open registrations to the right age band, unless an assessment form is already prepared in a different band: then it is refused until the form is removed. A withdrawn registration takes its band afresh when it is reinstated, under the same rule.
+- A withdrawn candidate whose student has since left cannot be reinstated until the student is set back to active or inactive, as a new registration would be refused.
+- A student's rank cannot be edited while they are registered for a grading that has not reached its result: withdraw them first.
+- Search by name, ID (current or previous, with or without its hyphens), rank or status; filter by rank and status. See [Search](#search).
+
+## The syllabus
+
+The syllabus is read-only reference data in the database (the World Kuk Sool
+Association 2014 charts), never
+hard-coded in the interface. The screen lists only the ranks that have a syllabus recorded: Yellow
+Stripe to Jo Kyo Nim today. White has none of its own, and the ranks above Jo Kyo Nim are
+not recorded yet; those ranks stay in the data but are out of the syllabus screen and the
+grading flow (nobody can be registered to be graded for them) until their charts are added. The
+same holds per age band: a student whose band has no chart for the rank they would test for
+cannot be registered, and is not offered, until that band's chart is added. Which requirements
+apply depends on **rank** and **age band** (8 and under, 9–12, 13–17, 18+). Each
+grading covers the _cumulative_ syllabus: everything examinable up to the rank
+being tested, not only that rank's new material.
+
+When an assessment is created, the full text of every requirement is copied into
+the candidate's own record. A later change to the syllabus therefore **cannot alter
+a past grading**; historical results always read exactly as they were assessed.
+
+Ranks run White, Yellow Stripe, Yellow, Blue Stripe, Blue, Red Stripe, Red, Brown
+Stripe, Brown, Black Stripe, then the dahn and master titles DBN, JKN, KSN, PSBN,
+SBN and PKJN (Dahn Bo Nim to Pyung Kwahn Jung Nim). Every screen draws ranks as the actual belt.
+
+## Importing existing records
+
+Administrators can bring in an existing student list and, if the school has one, a spreadsheet
+of past gradings, with a guided review before anything is saved. Past gradings are linked to
+students, so they can be imported once the students are in. A student list runs through the same
+screens: what KukGrade found in the file, the things to check (its columns to match, then each
+row to fix or leave out on a page of its own), every row, and one save that adds the students
+once no row needs a fix. An upload that is abandoned is cleared once it is 24 hours old: each
+new upload clears the stale ones, and so does every start of the container. Past gradings come
+in sheet by sheet: uploading the whole workbook again brings in only its new sheets, a changed
+sheet only if chosen, and no record is ever added twice. Ranks and outcomes KukGrade can read
+are taken as read, and only what is left is listed to check, each one decision with "keep as
+written" always allowed: a rank it cannot read or the workbook doubts, an outcome it cannot
+read, a name written twice on one sheet, someone both missing and graded there, and a missing
+outcome or rank. Each step is a screen of its own: the sheets, the things to check (each one on
+its own page, with its answers as large buttons), every record, and the save, which never waits
+for anything left open. Saved records are grouped into the people they are about, by their names
+and rank history, each with how sure that is and the students they may be. Saving goes straight
+on to sorting them, a queue at a time and a page for each person (on a laptop, beside the list).
+Each person is linked to a student (a student found by name whose rank now is below the records'
+is flagged), marked not a current student, or left for later; a person can be split or merged,
+some of their records can be moved to another person, and every decision can be undone and is
+audited. A finished import says how many of its people are sorted and goes on to the rest. Every
+saved record can be found again under Historical records, by the name as written, and opens a
+page of its own: the workbook's text in full (its outcome read as a recommendation,
+"Recommended: Pass", beside the workbook's own key from its Information sheet), the ranks
+KukGrade read (either can be corrected from the belts, or cleared), the student it is linked to
+and its person, whom it can be moved away from. A record can be voided with a written reason; it
+is kept, marked void. See [importing-data.md](importing-data.md).
+
+## Search
+
+Every search box (gradings, students, users, a grading's candidates, the audit log, imports and
+historical records) uses the same search, done by the database:
+
+- **Every word must be found**, in any order ("kim alex" finds Alex Kim).
+- **Accents and capitals do not matter** ("jose" finds José).
+- **Part of a word counts**, as you type ("spr" finds Spring).
+- **A slip of the keyboard is forgiven** for words made of letters ("sprng", "hartly"). A word with a
+  digit in it, such as an ID or a year, is matched exactly: 123-4-150 is never "like" 123-4-151.
+- **What the screen shows can be typed**: a grading is found by its date or status ("october",
+  "2026", "25/10/2026", "locked"), a student by rank or status, a candidate by their ranks.
+- **The best match comes first**, unless you have chosen an order.
+
+## Audit log
+
+An append-only record of who did what and when: sessions, assessments, final
+decisions, promotions, student and rank changes, user and permission changes,
+deletions and imports. Each event is written in the same database transaction as
+the change, so there is never an event for something that did not happen, nor a
+change without an event. Events cannot be edited or deleted through the app, the API or
+the admin. It stays attributed to a person even if their account is
+later deleted. New events never hold a student's name or date of birth: they
+name the student by WKSA ID and say which fields changed, and the screens add
+the student's current name while they exist. Older events can be cleaned on
+request ([Privacy](privacy.md)). An event's summary and details are written in the
+words the screens use ("moved from Draft to Open", "Mark: Not assessed to Met"),
+never as stored codes or ids.
+
+**A record's history.** A grading, a student, a registration's assessment record and a user account
+each have a **History** link (for those who may read the audit log) that opens the log narrowed to
+that record and everything that belongs to it, named at the top with a link back: a grading's
+history includes its registrations, assessments, marks, decisions and promotions; a student's is
+their own record and every grading event about them; an assessment record's is that one
+registration; a user's is what was done to the account and what they did. Marks and comments say
+whose they are (by WKSA ID), so a grading's history reads as a story. Events written before this
+carry fewer ids, so a record is followed through what still exists (a deleted candidate's older
+events may not be gathered into its grading's history).
+
+## Users and settings
+
+- Administrators create staff accounts, set roles and status, grant authority, and
+  reset passwords.
+- Nobody types a password for someone else. A new account or a reset produces a
+  **temporary password**, shown once, valid for 24 hours, that must be changed at
+  first sign-in.
+- Passwords are 16–64 characters with upper case, lower case, a number and a special
+  character, and are checked against common-password lists.
+- Every page carries a Content-Security-Policy: the browser runs only the app's own scripts
+  and styles, loads nothing from elsewhere and will not let the app be framed, so a script
+  injected into a page could neither run nor send anything out. `KUKGRADE_CSP` can turn it
+  down to report-only, or off, if a proxy or extension interferes
+  ([configuration](configuration.md)).
+- Light, dark or system theme, keyboard-accessible dialogs, and layouts that adapt to phone and tablet widths (awaiting a check on real devices: `docs/roadmap.md`).
+- One way back on every page, at the top: to the page it was opened from, by name (a record opened
+  from the decision board goes back to the board), or to the page above when it was opened directly.
+  The page itself is the only thing that scrolls; side panels and the bar at the foot stay in view.
+  Rows of cards never end in a gap. Changing the sidebar, the theme or a settings or About section
+  eases into the new look, and a panel that opens fades in; with reduced motion asked for, each is
+  at once.
+- **About** (Settings): the version, build and what to quote when asking for help; the licence
+  (AGPL-3.0-only, with a short plain-words guide and the full text, folded until opened); the Kuk Sool Won pledge and
+  the code of conduct; the security policy; support contacts; and credits for the open source
+  projects KukGrade is built on. Everything comes from the server: the documents are the
+  repository's own files, the contact addresses and licence are written once in
+  `backend/about/project.py`, and the credits are written when each image is built. An
+  administrator also sees the school's settings, read-only.
+
+## Roles and permissions
+
+There are two roles, **Instructor** and **Administrator**. "Authorised Master" is
+not a role: it is three separate permissions that can be given to one trusted
+person, and a fourth that lets someone read the audit log. The server checks every
+permission on every request; hiding a button in the interface is never the only
+protection.
+
+**Rank and name.** An instructor's account holds their rank, chosen by the administrator
+when the account is made from the black belt ranks (JKN, KSN, PSBN, SBN, PKJN); an
+administrator account has none. Everyone a record names - who marked an item, wrote a
+comment, changed a mark, prepared the form, proposed or decided an outcome, voided a
+record, ran an import or acted in the audit log - is shown by rank and name ("KSN Jane
+Smith"), or as "Jane Smith (administrator)", never by email address. The rank is the one
+they held when they acted: a later change to their rank changes no record.
+
+Every account has a first and a last name: adding a user, editing one, your own name in
+Settings and the first administrator at setup all refuse a blank one. An account made
+before names and ranks were required is flagged on the Users screen ("Needs a name",
+"Needs a rank") and its page asks the administrator to fill in what it lacks; nothing is
+guessed for it. Until then its records name it "Unnamed account". Records made before
+ranks were kept show the name alone, and no audit event is rewritten. An account's own events
+(created, changed, authority, password, deleted) name it the same way and keep its email
+address in their details.
+
+<!-- prettier-ignore -->
+| Capability                                                                     |            Instructor             | Administrator | Master permissions |
+| ------------------------------------------------------------------------------ | :-------------------------------: | :-----------: | :----------------: |
+| View ranks, syllabus, students, history                                        |                 ✓                 |       ✓       |                    |
+| Add and edit students; manage sessions, candidates and assessments             |                 ✓                 |       ✓       |                    |
+| Propose or revise an outcome                                                   |                 ✓                 |       ✓       |                    |
+| **Make the final grading decision** (`can_make_final_grading_decision`)        |                                   |               |         ✓          |
+| **Promote a student** (`can_promote_student`)                                  |                                   |               |         ✓          |
+| **Withdraw a candidate from a locked session** (`can_override_locked_session`) |                                   |               |         ✓          |
+| Read the audit log                                                             | with `can_view_grading_audit_log` |       ✓       |         ✓          |
+| Manage users, roles and authority                                              |                                   |       ✓       |                    |
+| Import student rosters and past gradings; reconcile imported history           |                                   |       ✓       |                    |
+| Delete a user or student, or an assessment or session without final decisions  |                                   |       ✓       |                    |
+| Archive or restore a completed or cancelled session                            |                                   |       ✓       |                    |
+
+Notes:
+
+- An administrator cannot also hold final-decision authority: the person who
+  manages accounts is not the person who decides gradings.
+- Nobody can change their own role, status or authority.
+- Only a superuser (the first administrator) can change an account that can use the
+  Django admin site.
+- The Django admin site (a shell-only emergency tool, not served by the app) shows
+  grading, student, rank and syllabus data but cannot add, change or delete it, so
+  every such change is checked and recorded by KukGrade. It still recovers accounts,
+  but deletes none: an account is deleted in KukGrade.
+- User-management events in the audit log are visible to administrators only.
+- Deleting never erases a recorded decision, and is itself audited.
+  - _A student_ is never deleted before their final decision: while any grading they are
+    in has not reached it (a Pass waits for its promotion), the student page names that
+    grading and offers no delete, and a delete asked for anyway is refused. Once it has, or once they are taken out, they can be
+    deleted: they leave the student list and searches, cannot be registered, and their
+    record is closed to changes, but it is kept, so every past grading, mark, decision and
+    promotion still shows who it was. Only a record with no grading history at all (added
+    by mistake, twice, or for testing) is erased, and its WKSA IDs are never given out again.
+  - _A staff account_ that recorded anything is closed rather than erased: it can no longer
+    sign in, leaves the staff list, and its email cannot be reused, while every comment,
+    mark, proposal and decision keeps its name. One that recorded nothing is erased.
+  - _A session or an assessment_ holding a final decision cannot be deleted.
+
+## The demo mode
+
+Started with `KUKGRADE_DEMO_MODE=1`, the same image runs as a public demo with made-up data,
+for people to try the whole workflow without consequences. It is for a demo site only, never
+a real club. See [demo.md](demo.md) for how to run it.
+
+- **Shared sign-ins.** The sign-in page offers three accounts (Instructor, Master,
+  Administrator) with one click each. None is a superuser, so the permission boundaries are
+  the real ones, and any number of people can use the same account at once.
+- **A made-up club**, with a grading in every state: completed (with promotions and a Master
+  override of a recommendation), locked and waiting for the final decision, open with
+  assessments part way, and planned with students not yet registered.
+- **It resets itself** every few hours (`KUKGRADE_DEMO_RESET_HOURS`, default 6), so whatever
+  visitors type does not last. The accounts stay, so nobody is signed out. A banner shows when.
+- **What is closed:** changing a password, changing accounts, and uploading files. First-time
+  setup is never offered.
+- **It never touches real data.** It refuses to build or reset a database that holds any
+  account other than its own three.
+
+## What KukGrade does not do (yet)
+
+Certificates, notifications and offline use, and it has no syllabus
+for the ranks above Jo Kyo Nim. See the [roadmap](roadmap.md).

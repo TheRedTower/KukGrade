@@ -1,0 +1,68 @@
+"""Reading a rank from how a source wrote it.
+
+Shared by the imports and historical-record matching. What a match is used
+for differs:
+
+- a historical record's rank text is only ever a suggestion - nothing is set
+  from it until a person chooses;
+- a roster's rank is the rank a student is created at, so an exact name or
+  code, or one of the club's fixed spellings below, is taken as that rank,
+  and anything doubtful or misspelt is left for the importer
+  (data_imports.services, 2026-10-20);
+- record matching reads a record's rank to judge whether a student fits.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+
+from ranks.models import Rank
+
+
+def active_rank_lookup(ranks: Iterable[Rank] | None = None) -> dict[str, Rank]:
+    """Every active rank by upper-cased code and name, read once.
+
+    The one rank-text matcher: a rank whose code or name matches, ignoring
+    case, the first by catalogue order when several do. One read serves a
+    roster of thousands of rows, or every distinct text in a workbook.
+    `ranks` are the active ranks already read (a migration's own).
+    """
+    lookup: dict[str, Rank] = {}
+    for rank in ranks if ranks is not None else Rank.objects.filter(active=True):
+        lookup.setdefault(rank.code.upper(), rank)
+        lookup.setdefault(rank.name.upper(), rank)
+    return lookup
+
+
+# How the club's workbook writes ranks that KukGrade names otherwise
+# (2026-10-20, from the real workbook). Fixed spellings, never a near miss:
+# "DNB", a slip for DBN, is still left for the importer. Keys are
+# upper-cased, with any trailing "BELT" taken off.
+_RANK_TEXT_ALIASES = {
+    "DAHN BO": "DAHN_BO",
+    "DAHN BO NIM": "DAHN_BO",
+}
+
+# The black belt titles the workbook writes before a name ("JKN Kai"),
+# lower-cased. Fixed, not read from the catalogue, so how a name is read
+# does not move when a rank does.
+RANK_TITLES = frozenset({"jkn", "ksn", "dbn", "psbn", "sbn", "pkjn", "dahn"})
+
+
+def suggest_rank(text: str, ranks: dict[str, Rank]) -> tuple[Rank | None, bool]:
+    """The active rank a source text most likely means, and whether the source
+    itself doubted it. "White Belt" suggests White; "Dahn Bo Nim" suggests DBN."""
+    cleaned = " ".join(text.split())
+    doubtful = cleaned.endswith("?")
+    key = cleaned.rstrip("?").strip().upper()
+    if key.endswith(" BELT"):
+        key = key.removesuffix(" BELT").strip()
+    rank = ranks.get(key)
+    if rank is None and key in _RANK_TEXT_ALIASES:
+        # The lookup is keyed by upper-cased code too.
+        rank = ranks.get(_RANK_TEXT_ALIASES[key])
+    return rank, doubtful
+
+
+def rank_for_text(text: str, ranks: dict[str, Rank]) -> Rank | None:
+    return suggest_rank(text, ranks)[0] if text.strip() else None

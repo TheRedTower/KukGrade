@@ -1,0 +1,333 @@
+from __future__ import annotations
+
+from typing import Any, cast
+
+from django import forms
+from django.contrib import admin
+from django.contrib.admin.utils import unquote
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.contrib.auth.forms import ReadOnlyPasswordHashField
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.forms import ModelForm
+from django.http import Http404, HttpRequest, HttpResponse
+from django.template.response import TemplateResponse
+from django.utils.cache import add_never_cache_headers
+from django.utils.translation import gettext_lazy as _
+
+from accounts.admin_site import admin_notice
+from accounts.models import User
+from accounts.services import (
+    INSTRUCTOR_RANK_MESSAGE,
+    TemporaryPassword,
+    can_manage,
+    create_platform_user,
+    reset_password,
+    set_admin_site_access,
+    update_platform_user,
+    validate_can_reset_password,
+)
+from ranks.models import Rank
+
+# Where save_model leaves the password it just issued for response_add to
+# show: the request, never the ModelAdmin, which every request shares.
+ISSUED_PASSWORD_ATTR = "_kukgrade_issued_password"
+
+
+class UserCreationForm(forms.ModelForm):
+    """Django admin's add-user form. No password: as in the app, one is
+    generated when the account is saved and shown once (UserAdmin.response_add).
+    """
+
+    class Meta:
+        model = User
+        fields = ("email", "first_name", "last_name", "role", "rank")
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Every staff account has a name (accounts.people.require_names).
+        self.fields["first_name"].required = True
+        self.fields["last_name"].required = True
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        # As create_platform_user requires, asked here so the form says so
+        # beside the field rather than failing on save.
+        if cleaned.get("role") == User.Role.INSTRUCTOR and not cleaned.get("rank"):
+            self.add_error("rank", INSTRUCTOR_RANK_MESSAGE)
+        return cleaned
+
+
+class UserChangeForm(forms.ModelForm):
+    password = ReadOnlyPasswordHashField()
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["first_name"].required = True
+        self.fields["last_name"].required = True
+
+    class Meta:
+        model = User
+        fields = (
+            "email",
+            "password",
+            "first_name",
+            "last_name",
+            "role",
+            "rank",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "groups",
+            "user_permissions",
+            "last_login",
+            "date_joined",
+        )
+
+
+@admin.register(User)
+class UserAdmin(DjangoUserAdmin):
+    form = UserChangeForm
+    add_form = UserCreationForm
+    # Django's own add-user template asks for a password, which this form has
+    # none of.
+    add_form_template = "admin/change_form.html"
+    model = User
+    list_display = (
+        "email",
+        "first_name",
+        "last_name",
+        "role",
+        "is_staff",
+        "is_active",
+    )
+    list_filter = (
+        "role",
+        "is_staff",
+        "is_superuser",
+        "is_active",
+        "groups",
+    )
+    search_fields = ("email", "first_name", "last_name")
+    ordering = ("email",)
+    # Groups follow the role, and per-user permissions are Master authority,
+    # granted in the app through set_user_authority() and its rules - never
+    # edited here, where they would skip both the rules and the audit.
+    # The two dates are Django's bookkeeping, and the password
+    # state follows whoever last set the password.
+    readonly_fields = (
+        "groups",
+        "user_permissions",
+        "must_change_password",
+        "temporary_password_expires_at",
+        "last_login",
+        "date_joined",
+    )
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "email",
+                    "password",
+                    "must_change_password",
+                    "temporary_password_expires_at",
+                ),
+            },
+        ),
+        (_("Personal info"), {"fields": ("first_name", "last_name")}),
+        (
+            _("KukGrade access"),
+            {"fields": ("role", "rank")},
+        ),
+        (
+            _("Django permissions"),
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                ),
+            },
+        ),
+        (_("Important dates"), {"fields": ("last_login", "date_joined")}),
+    )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "first_name",
+                    "last_name",
+                    "role",
+                    "rank",
+                    "is_staff",
+                    "is_superuser",
+                    "is_active",
+                ),
+            },
+        ),
+    )
+
+    def formfield_for_foreignkey(
+        self,
+        db_field: Any,
+        request: HttpRequest,
+        **kwargs: Any,
+    ) -> Any:
+        if db_field.name == "rank":
+            # Only the ranks an instructor's account may hold.
+            kwargs["queryset"] = Rank.objects.staff()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(
+        self,
+        request: HttpRequest,
+        obj: User,
+        form: ModelForm,
+        change: bool,
+    ) -> None:
+        # Routed through the same services the API uses, so an admin-created
+        # or admin-edited user is audited too, attributed to whoever is
+        # signed into admin. is_staff/is_superuser stay a direct
+        # admin capability - create_platform_user() deliberately refuses
+        # them, the same way the API does, so they are applied as an
+        # explicit second step on create rather than routed through it.
+        if not change:
+            issued = create_platform_user(
+                email=obj.email,
+                first_name=obj.first_name,
+                last_name=obj.last_name,
+                role=obj.role,
+                rank=obj.rank,
+                is_active=obj.is_active,
+                actor=cast(User, request.user),
+            )
+            setattr(request, ISSUED_PASSWORD_ATTR, issued)
+            created = issued.user
+            set_admin_site_access(
+                created,
+                actor=cast(User, request.user),
+                is_staff=obj.is_staff,
+                is_superuser=obj.is_superuser,
+            )
+            obj.pk = created.pk
+            obj.refresh_from_db()
+            return
+
+        changed_data = set(form.changed_data)
+        update_platform_user(
+            obj,
+            email=obj.email if "email" in changed_data else None,
+            first_name=obj.first_name if "first_name" in changed_data else None,
+            last_name=obj.last_name if "last_name" in changed_data else None,
+            role=obj.role if "role" in changed_data else None,
+            rank=obj.rank if "rank" in changed_data else None,
+            is_active=obj.is_active if "is_active" in changed_data else None,
+            actor=cast(User, request.user),
+        )
+        # Admin site access is Django admin's own, so it has its own audited
+        # service; each is sent only when the form changed it, never by
+        # saving this form's copy whole over what the service just wrote.
+        set_admin_site_access(
+            obj,
+            actor=cast(User, request.user),
+            is_staff=obj.is_staff if "is_staff" in changed_data else None,
+            is_superuser=obj.is_superuser if "is_superuser" in changed_data else None,
+        )
+        obj.refresh_from_db()
+
+    def response_add(
+        self,
+        request: HttpRequest,
+        obj: User,
+        post_url_continue: str | None = None,
+    ) -> HttpResponse:
+        issued: TemporaryPassword = getattr(request, ISSUED_PASSWORD_ATTR)
+        return self._temporary_password_page(request, issued.user, issued)
+
+    def user_change_password(
+        self,
+        request: HttpRequest,
+        id: str,
+        form_url: str = "",
+    ) -> HttpResponse:
+        """A reset, as in the app: confirm, then a generated temporary
+        password shown once. Nobody types another person's password here, and
+        your own is changed in KukGrade's Settings instead. The same
+        rules as the API's reset, checked before the confirmation too."""
+        target = self.get_object(request, unquote(id))
+        if not self.has_change_permission(request, target):
+            raise PermissionDenied
+        if target is None:
+            raise Http404
+        actor = cast(User, request.user)
+        try:
+            validate_can_reset_password(target, actor)
+            if request.method != "POST":
+                return self._temporary_password_page(request, target, None)
+            issued = reset_password(target, actor=actor)
+        except ValidationError as refused:
+            return admin_notice(
+                request,
+                title="Reset password",
+                message=" ".join(refused.messages),
+            )
+        return self._temporary_password_page(request, issued.user, issued)
+
+    def _temporary_password_page(
+        self,
+        request: HttpRequest,
+        user: User,
+        issued: TemporaryPassword | None,
+    ) -> HttpResponse:
+        """Confirming a reset, or - with `issued` - the password just issued,
+        shown this once and never cached."""
+        response = TemplateResponse(
+            request,
+            "admin/accounts/user/temporary_password.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": "Temporary password" if issued else "Reset password",
+                "opts": self.opts,
+                "original": user,
+                "issued": issued,
+            },
+        )
+        add_never_cache_headers(response)
+        return response
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: User | None = None,
+    ) -> bool:
+        # View-only where the services would refuse every change.
+        if obj is not None and not can_manage(obj, cast(User, request.user)):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: User | None = None,
+    ) -> bool:
+        # Accounts are recovered here, never deleted: deleting one is done in
+        # KukGrade, which closes an account that holds history.
+        return False
+
+    def get_readonly_fields(
+        self,
+        request: HttpRequest,
+        obj: User | None = None,
+    ) -> tuple[str, ...]:
+        # Admin site access is granted by a superuser only
+        # (set_admin_site_access): anyone else could make themselves one.
+        fields = tuple(super().get_readonly_fields(request, obj))
+        if not request.user.is_superuser:
+            fields += ("is_staff", "is_superuser")
+        return fields

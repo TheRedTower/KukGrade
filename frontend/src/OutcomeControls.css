@@ -1,0 +1,49 @@
+/* Shared by the Master's Cohort Adjudication Board and the instructor's
+   proposal drawer: the candidate heading, the Pass / Conditional /
+   Fail choice and its note fields. A segment is either a toggle button
+   (aria-pressed) or a label wrapping a radio input. */
+
+.outcome-eyebrow {
+  margin: 0;
+}
+
+.outcome-rank-line {
+  margin: 0;
+}
+
+.outcome-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.outcome-segment {
+  position: relative;
+  flex: 1 1 auto;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+/* Unchosen; a chosen one takes its outcome's tone (data-tone). */
+.outcome-segment:not([data-tone]) {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.outcome-segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.outcome-segment:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.outcome-segment:focus-visible,
+.outcome-segment:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}

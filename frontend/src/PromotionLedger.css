@@ -1,0 +1,116 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Promotion ledger
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Banners */
+
+.pl-alert {
+  margin-bottom: var(--space-4);
+}
+
+/* Top Cohort Promotion Summary Card */
+
+.pl-summary-card {
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-warning-surface);
+  border: 1.5px solid var(--color-warning);
+  border-radius: var(--radius);
+}
+
+.pl-summary-count {
+  color: var(--color-warning);
+}
+
+/* Candidate Identity Cell */
+
+.pl-candidate-avatar {
+  width: 36px;
+  height: 36px;
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.pl-candidate-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Belt Chip */
+
+.pl-belt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+/* Eligibility & Actions */
+
+.pl-eligibility-promoted {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.pl-action-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-success);
+}
+
+.pl-action-disabled {
+  color: var(--color-text-muted);
+}
+
+/* ── Promotion dialogs (the shared Dialog supplies the card) ─────────────── */
+
+.pl-batch-count {
+  margin: 0;
+}
+
+.pl-batch-chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+}
+
+.pl-chip-num {
+  color: var(--color-text-muted);
+}
+
+.pl-chip-name {
+  color: var(--color-text);
+}
+
+.pl-modal-candidate-info {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.pl-modal-name {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.pl-modal-ranks {
+  margin: 0 0 var(--space-2);
+}
+
+.pl-modal-date-notice {
+  margin: 0;
+}

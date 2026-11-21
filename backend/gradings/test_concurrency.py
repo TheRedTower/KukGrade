@@ -1,0 +1,1065 @@
+"""Concurrency tests for the workflows that must not double-write.
+
+Real threads, real Postgres connections, a `threading.Barrier` to force
+genuine overlap - the point is that these guarantees hold under an actual
+race, not merely by reading the locking code. `django_db(transaction=True)`
+is required: the default `django_db` fixture wraps a test in one savepoint on
+a single connection, which would make every thread see the same uncommitted
+row rather than really contending for its lock.
+
+Marked `concurrency` so the suite can deselect it (`-m "not concurrency"`) if
+it ever proves flaky in a particular CI environment without losing the rest
+of the tests. Nothing here is skipped by default.
+
+Helpers are imported from `gradings.testing` rather than re-built here - a
+grading session, a completed assessment and a finalised outcome are exactly
+the same fixtures the rest of the suite already builds correctly.
+
+Two different guarantees are under test here, and it matters which:
+
+- Finalisation and session transitions have no unique-constraint backstop -
+  a race can only be caught by the row lock. Verified by temporarily
+  removing the `select_for_update` in each and watching both of these two
+  tests fail (both threads finalise; both transitions apply).
+- Assessment generation, outcome creation and promotion also sit behind a
+  real database uniqueness constraint (a `OneToOneField`), so the loser gets
+  an `IntegrityError` translated to a `ValidationError` even with the lock
+  removed - confirmed the same way. Their `select_for_update` calls exist to
+  avoid the wasted work of losing that race, not to prevent a duplicate row;
+  the tests below hold either way, which is the point of layering both.
+
+The second half tests the lock protocol in `gradings/locking.py` across
+*different* operations. A barrier cannot force those
+schedules - which thread wins is left to the scheduler - so `interleave()`
+holds the first operation just before it commits and runs the second against
+it. Each asserts the result matches the one serial order the protocol allows.
+Student and user edits are here too: they take the same locks and need the
+same harness.
+"""
+
+from __future__ import annotations
+
+import threading
+from collections.abc import Callable
+from datetime import date
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import pytest
+from django.core.exceptions import ValidationError
+from django.db import connection
+
+from accounts.models import User
+from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
+from accounts.serializers import ChangePasswordSerializer
+from accounts.services import (
+    change_own_password,
+    set_user_authority,
+    update_platform_user,
+)
+from audit.models import AuditAction, AuditEvent
+from gradings.assessment_services import (
+    delete_candidate_assessment,
+    generate_candidate_assessment,
+    update_candidate_assessment,
+    update_candidate_assessment_item,
+)
+from gradings.models import (
+    CandidateAssessment,
+    CandidateAssessmentItem,
+    CandidateOutcome,
+    GradingCandidate,
+    GradingSession,
+    Promotion,
+)
+from gradings.outcome_services import (
+    finalise_candidate_outcome,
+    promote_candidate,
+    propose_for_candidate,
+)
+from gradings.services import (
+    apply_candidate_update,
+    register_candidate,
+    transition_grading_session,
+    update_grading_session,
+    withdraw_locked_candidate,
+)
+from gradings.testing import (
+    assessment,
+    candidate,
+    complete_assessment,
+    finalised_outcome,
+    grading_session,
+    locked_completed_candidate,
+    master,
+    override_master,
+    promoter,
+    rank,
+    start_assessment,
+    student,
+    user,
+)
+from kukgrade.testing import interleave
+from students.models import Student
+from students.services import delete_student, update_student
+
+pytestmark = [
+    # serialized_rollback: a transactional test flushes the database
+    # afterwards, which would otherwise wipe the rank catalogue seeded by a
+    # migration and never bring it back for the next test in this file.
+    pytest.mark.django_db(transaction=True, serialized_rollback=True),
+    pytest.mark.concurrency,
+]
+
+
+def run_concurrently(
+    *targets: Callable[[], object],
+) -> list[object | BaseException]:
+    """Run every target on its own thread, released at the same instant.
+
+    Each thread gets Django's normal thread-local connection, so this is a
+    genuine multi-connection race rather than one connection pretending to
+    be several. The connection is closed when the thread ends - Django does
+    not do this automatically for a bare `threading.Thread`.
+    """
+    barrier = threading.Barrier(len(targets), timeout=10)
+    results: list[object | BaseException] = [None] * len(targets)
+
+    def runner(index: int, target: Callable[[], object]) -> None:
+        try:
+            barrier.wait()
+            results[index] = target()
+        except BaseException as exc:
+            results[index] = exc
+        finally:
+            connection.close()
+
+    threads = [
+        threading.Thread(target=runner, args=(index, target))
+        for index, target in enumerate(targets)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=15)
+    return results
+
+
+def outcomes(results: list[object | BaseException]) -> tuple[int, int]:
+    """Return (successes, failures) for a validation-style race."""
+    successes = sum(1 for result in results if not isinstance(result, BaseException))
+    failures = sum(1 for result in results if isinstance(result, ValidationError))
+    assert successes + failures == len(results), results
+    return successes, failures
+
+
+def test_concurrent_assessment_generation_produces_exactly_one_snapshot() -> None:
+    built = candidate()
+    actor_one = user("concurrent-generate-one@example.com")
+    actor_two = user("concurrent-generate-two@example.com")
+
+    results = run_concurrently(
+        lambda: generate_candidate_assessment(
+            GradingCandidate.objects.get(pk=built.pk),
+            actor_one,
+        ),
+        lambda: generate_candidate_assessment(
+            GradingCandidate.objects.get(pk=built.pk),
+            actor_two,
+        ),
+    )
+
+    successes, failures = outcomes(results)
+    assert successes == 1
+    assert failures == 1
+    assert CandidateAssessment.objects.filter(candidate=built).count() == 1
+    generated = CandidateAssessment.objects.get(candidate=built)
+    assert (
+        CandidateAssessmentItem.objects.filter(assessment=generated).count()
+        == generated.items.count()
+    )
+
+
+def test_two_first_proposals_at_once_open_one_record_and_the_second_revises_it() -> (
+    None
+):
+    built, _generated = locked_completed_candidate()
+    actor_one = user("concurrent-outcome-one@example.com")
+    actor_two = user("concurrent-outcome-two@example.com")
+
+    results = run_concurrently(
+        lambda: propose_for_candidate(
+            GradingCandidate.objects.get(pk=built.pk),
+            CandidateOutcome.Outcome.PASS,
+            "One.",
+            actor_one,
+        ),
+        lambda: propose_for_candidate(
+            GradingCandidate.objects.get(pk=built.pk),
+            CandidateOutcome.Outcome.FAIL,
+            "Two.",
+            actor_two,
+        ),
+    )
+
+    successes, failures = outcomes(results)
+    assert successes == 2
+    assert failures == 0
+    [record] = CandidateOutcome.objects.filter(candidate=built)
+    assert record.status == CandidateOutcome.Status.PROPOSED
+
+
+def test_concurrent_finalisation_one_wins_and_one_is_refused() -> None:
+    built, _generated = locked_completed_candidate()
+    proposed = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready for a final decision.",
+        user("concurrent-finalise-proposer@example.com"),
+    )
+    master_one = master("concurrent-finalise-master-one@example.com")
+    master_two = master("concurrent-finalise-master-two@example.com")
+
+    def finalise(actor: User) -> CandidateOutcome:
+        return finalise_candidate_outcome(
+            CandidateOutcome.objects.get(pk=proposed.pk),
+            CandidateOutcome.Outcome.PASS,
+            "Confirmed under race.",
+            "",
+            actor,
+        )
+
+    results = run_concurrently(
+        lambda: finalise(master_one),
+        lambda: finalise(master_two),
+    )
+
+    successes, failures = outcomes(results)
+    assert successes == 1
+    assert failures == 1
+    proposed.refresh_from_db()
+    assert proposed.status == CandidateOutcome.Status.FINALISED
+    assert proposed.decided_by_id in {master_one.id, master_two.id}
+
+
+def test_concurrent_promotion_produces_exactly_one_promotion_and_rank_change() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    promoter_one = promoter("concurrent-promote-one@example.com")
+    promoter_two = promoter("concurrent-promote-two@example.com")
+
+    results = run_concurrently(
+        lambda: promote_candidate(
+            CandidateOutcome.objects.get(pk=outcome.pk),
+            promoter_one,
+        ),
+        lambda: promote_candidate(
+            CandidateOutcome.objects.get(pk=outcome.pk),
+            promoter_two,
+        ),
+    )
+
+    successes, failures = outcomes(results)
+    assert successes == 1
+    assert failures == 1
+    assert Promotion.objects.filter(outcome=outcome).count() == 1
+    built.student.refresh_from_db()
+    winning_promotion = Promotion.objects.get(outcome=outcome)
+    assert built.student.current_rank_id == winning_promotion.to_rank_id
+
+
+def test_concurrent_session_transitions_end_in_one_consistent_status() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built)
+    session_id = built.session_id
+    # Both actors are independently authorised for their own transition, so
+    # the only thing that can make one of them fail is the race itself, not
+    # a missing permission - completing needs no special authority, but
+    # abandoning a locked session does.
+    completing_actor = user("concurrent-transition-complete@example.com")
+    cancelling_actor = override_master("concurrent-transition-cancel@example.com")
+
+    results = run_concurrently(
+        lambda: transition_grading_session(
+            GradingSession.objects.get(pk=session_id),
+            GradingSession.Status.COMPLETED,
+            actor=completing_actor,
+        ),
+        lambda: transition_grading_session(
+            GradingSession.objects.get(pk=session_id),
+            GradingSession.Status.CANCELLED,
+            actor=cancelling_actor,
+            reason="Abandoned under race.",
+        ),
+    )
+
+    successes, failures = outcomes(results)
+    assert successes == 1
+    assert failures == 1
+    session = GradingSession.objects.get(pk=session_id)
+    assert session.status in {
+        GradingSession.Status.COMPLETED,
+        GradingSession.Status.CANCELLED,
+    }
+    winning_result = next(
+        result for result in results if not isinstance(result, BaseException)
+    )
+    assert isinstance(winning_result, GradingSession)
+    assert session.status == winning_result.status
+
+
+# ---------------------------------------------------------------------------
+# Cross-operation races: the lock protocol (gradings/locking.py)
+# ---------------------------------------------------------------------------
+
+
+def completed_candidate(
+    session: GradingSession,
+    graded: Student,
+    testing_for: str = "YELLOW_STRIPE",
+) -> GradingCandidate:
+    built = candidate(
+        session=session, student=graded, testing_for_rank=rank(testing_for)
+    )
+    complete_assessment(assessment(candidate=built))
+    built.refresh_from_db()
+    return built
+
+
+def promoted_then_passed_again(
+    *graded: Student,
+) -> tuple[GradingSession, list[CandidateOutcome]]:
+    """Students promoted at one grading, then passed at a later one.
+
+    Returns the earlier session - whose cleanup would roll those promotions
+    back - and the later grading's finalised PASS outcomes, ready to promote
+    them again.
+    """
+    earlier = grading_session(
+        status=GradingSession.Status.OPEN,
+        title="Earlier grading",
+        grading_date=date(2027, 3, 20),
+    )
+    earlier_candidates = [completed_candidate(earlier, one) for one in graded]
+    transition_grading_session(earlier, GradingSession.Status.LOCKED)
+    for built in earlier_candidates:
+        promote_candidate(finalised_outcome(built), promoter(f"first-{built.pk}@e.com"))
+
+    later = grading_session(
+        status=GradingSession.Status.OPEN,
+        title="Later grading",
+        grading_date=date(2027, 6, 20),
+    )
+    for one in graded:
+        one.refresh_from_db()
+    later_candidates = [completed_candidate(later, one, "YELLOW") for one in graded]
+    transition_grading_session(later, GradingSession.Status.LOCKED)
+    return earlier, [finalised_outcome(built) for built in later_candidates]
+
+
+def refused(result: object, reason: str) -> None:
+    """Assert `result` is a refusal, and for the reason given.
+
+    The reason matters: a refusal for some other cause - "no longer exists",
+    say - would otherwise pass for the serial outcome being tested.
+    """
+    assert isinstance(result, ValidationError), result
+    assert any(reason in message for message in result.messages), result.messages
+
+
+def events(action: str, entity: object) -> int:
+    return AuditEvent.objects.filter(
+        action=action,
+        entity_id=str(getattr(entity, "pk", entity)),
+    ).count()
+
+
+def test_item_edit_and_completion_cannot_interleave() -> None:
+    """Completion must see an item being cleared.
+
+    Without a shared lock, completion read the item as still assessed while
+    the edit clearing it was uncommitted, and committed a completed
+    assessment holding an unassessed required item.
+    """
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    start_assessment(generated)
+    assessor = user("race-item-assessor@example.com")
+    completer = user("race-item-completer@example.com")
+    required = list(generated.items.filter(required=True))
+    for item in required:
+        update_candidate_assessment_item(
+            item,
+            result=CandidateAssessmentItem.Result.MET,
+            assessor=assessor,
+        )
+    stale_item = CandidateAssessmentItem.objects.get(pk=required[0].pk)
+    stale_assessment = CandidateAssessment.objects.get(pk=generated.pk)
+
+    clearing, completing = interleave(
+        lambda: update_candidate_assessment_item(
+            stale_item,
+            result=CandidateAssessmentItem.Result.NOT_ASSESSED,
+            reason="Marked the wrong candidate.",
+            assessor=assessor,
+        ),
+        lambda: update_candidate_assessment(
+            stale_assessment,
+            status=CandidateAssessment.Status.COMPLETED,
+            actor=completer,
+        ),
+        pause_first_at="gradings.assessment_services.record",
+    )
+
+    assert isinstance(clearing, CandidateAssessmentItem)
+    refused(completing, "Every required assessment item must be assessed")
+    generated.refresh_from_db()
+    assert generated.status == CandidateAssessment.Status.IN_PROGRESS
+    assert CandidateAssessmentItem.objects.get(pk=required[0].pk).result == (
+        CandidateAssessmentItem.Result.NOT_ASSESSED
+    )
+    assert events(AuditAction.ASSESSMENT_COMPLETED, generated) == 0
+
+
+def test_a_mark_change_and_a_session_lock_follow_arrival_order() -> None:
+    """A mark change must not slip in beside the session locking.
+
+    Both hold the session, so the change either lands before the lock or is
+    refused after it; a corrected mark is never half-recorded in a locked
+    session.
+    """
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    complete_assessment(generated)
+    item = generated.items.filter(required=True).first()
+    assert item is not None
+    changer = user("race-mark-change@example.com")
+    locker = user("race-mark-locker@example.com")
+    stale_item = CandidateAssessmentItem.objects.get(pk=item.pk)
+    stale_session = GradingSession.objects.get(pk=session.pk)
+
+    changing, locking = interleave(
+        lambda: update_candidate_assessment_item(
+            stale_item,
+            result=CandidateAssessmentItem.Result.NOT_MET,
+            reason="Second look at the video.",
+            assessor=changer,
+        ),
+        lambda: transition_grading_session(
+            stale_session,
+            GradingSession.Status.LOCKED,
+            actor=locker,
+        ),
+        pause_first_at="gradings.assessment_services.record",
+    )
+
+    # The change arrived first and is recorded; the lock followed it.
+    assert isinstance(changing, CandidateAssessmentItem)
+    assert isinstance(locking, GradingSession)
+    item.refresh_from_db()
+    assert item.result == CandidateAssessmentItem.Result.NOT_MET
+    [change] = item.changes.all()
+    assert (change.from_result, change.to_result, change.reason) == (
+        CandidateAssessmentItem.Result.MET,
+        CandidateAssessmentItem.Result.NOT_MET,
+        "Second look at the video.",
+    )
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+
+
+def test_a_mark_change_after_the_session_locks_is_refused() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    complete_assessment(generated)
+    item = generated.items.filter(required=True).first()
+    assert item is not None
+    stale_item = CandidateAssessmentItem.objects.get(pk=item.pk)
+    stale_session = GradingSession.objects.get(pk=session.pk)
+
+    locking, changing = interleave(
+        lambda: transition_grading_session(
+            stale_session,
+            GradingSession.Status.LOCKED,
+            actor=user("race-lock-first@example.com"),
+        ),
+        lambda: update_candidate_assessment_item(
+            stale_item,
+            result=CandidateAssessmentItem.Result.NOT_MET,
+            reason="Too late.",
+            assessor=user("race-change-second@example.com"),
+        ),
+        pause_first_at="gradings.services.record",
+    )
+
+    assert isinstance(locking, GradingSession)
+    refused(changing, "only the authorised Master")
+    item.refresh_from_db()
+    assert item.result == CandidateAssessmentItem.Result.MET
+
+
+def test_registration_and_session_lock_cannot_interleave() -> None:
+    """Registration must see the session it registers into lock.
+
+    Without a shared lock, registration checked the session was open, then
+    inserted once the lock committed, leaving a locked session holding a
+    candidate with no assessment.
+    """
+    session = grading_session(status=GradingSession.Status.OPEN)
+    completed_candidate(session, student())
+    newcomer = student()
+    locker = user("race-register-locker@example.com")
+    registrar = user("race-register@example.com")
+    locking_copy = GradingSession.objects.get(pk=session.pk)
+    registering_copy = GradingSession.objects.get(pk=session.pk)
+
+    locking, registering = interleave(
+        lambda: transition_grading_session(
+            locking_copy,
+            GradingSession.Status.LOCKED,
+            actor=locker,
+        ),
+        lambda: register_candidate(
+            session=registering_copy,
+            student=newcomer,
+            testing_for_rank=rank("YELLOW_STRIPE"),
+            actor=registrar,
+        ),
+        pause_first_at="gradings.services.record",
+    )
+
+    assert isinstance(locking, GradingSession)
+    refused(registering, "Candidates can only be added to draft or open sessions")
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+    assert not GradingCandidate.objects.filter(
+        session=session, student=newcomer
+    ).exists()
+
+
+def test_reinstating_and_registering_elsewhere_cannot_both_hold_the_student() -> None:
+    """One grading at a time (2026-10-18) must hold across two sessions.
+
+    Each operation locks its own session, which does not stop the other. The
+    student is the row they share, so both lock it: the one that waits sees
+    the other's registration and is refused.
+    """
+    first = grading_session(status=GradingSession.Status.OPEN, title="First")
+    later = grading_session(status=GradingSession.Status.OPEN, title="Later")
+    withdrawn = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
+    reinstater = user("race-reinstate@example.com")
+    registrar = user("race-register-elsewhere@example.com")
+
+    reinstating, registering = interleave(
+        lambda: apply_candidate_update(
+            GradingCandidate.objects.get(pk=withdrawn.pk),
+            status=GradingCandidate.Status.REGISTERED,
+            actor=reinstater,
+        ),
+        lambda: register_candidate(
+            session=GradingSession.objects.get(pk=later.pk),
+            student=Student.objects.get(pk=withdrawn.student_id),
+            testing_for_rank=rank("YELLOW_STRIPE"),
+            actor=registrar,
+        ),
+        pause_first_at="gradings.services.record",
+    )
+
+    assert isinstance(reinstating, GradingCandidate)
+    refused(registering, "has not reached its result yet")
+    assert (
+        GradingCandidate.objects.filter(student_id=withdrawn.student_id)
+        .exclude(status=GradingCandidate.Status.WITHDRAWN)
+        .count()
+        == 1
+    )
+
+
+def test_registering_waits_for_an_edit_to_the_students_rank() -> None:
+    """Registering checks the testing rank against the student, so it locks them.
+
+    The student was read before any student lock; checked against that copy,
+    a registration went through on a rank an administrator had just corrected.
+    A registered student's rank can no longer be edited, so the
+    race is an edit of an unregistered student against their registration.
+    """
+    session = grading_session(status=GradingSession.Status.OPEN)
+    person = student()
+    editor = user("race-rank-editor@example.com")
+    registrar = user("race-rank-registrar@example.com")
+    stale_student = Student.objects.get(pk=person.pk)
+    stale_session = GradingSession.objects.get(pk=session.pk)
+
+    edited, registered = interleave(
+        lambda: update_student(
+            stale_student,
+            current_rank=rank("YELLOW_STRIPE"),
+            actor=editor,
+        ),
+        lambda: register_candidate(
+            session=stale_session,
+            student=stale_student,
+            testing_for_rank=rank("YELLOW_STRIPE"),
+            actor=registrar,
+        ),
+        pause_first_at="students.services.record",
+    )
+
+    assert isinstance(edited, Student)
+    # Now Yellow stripe, the student tests for Yellow, not Yellow stripe.
+    refused(registered, "next active rank")
+    assert not GradingCandidate.objects.filter(session=session, student=person).exists()
+
+
+def test_candidate_move_and_session_lock_cannot_interleave() -> None:
+    """Moving a candidate into a session must see that session lock."""
+    source = grading_session(status=GradingSession.Status.OPEN, title="Source")
+    target = grading_session(status=GradingSession.Status.OPEN, title="Target")
+    completed_candidate(target, student())
+    moving = candidate(session=source)
+    locker = user("race-move-locker@example.com")
+    mover = user("race-move@example.com")
+    locking_copy = GradingSession.objects.get(pk=target.pk)
+    stale_target = GradingSession.objects.get(pk=target.pk)
+    stale_moving = GradingCandidate.objects.get(pk=moving.pk)
+
+    locking, moved = interleave(
+        lambda: transition_grading_session(
+            locking_copy,
+            GradingSession.Status.LOCKED,
+            actor=locker,
+        ),
+        lambda: apply_candidate_update(stale_moving, session=stale_target, actor=mover),
+        pause_first_at="gradings.services.record",
+    )
+
+    assert isinstance(locking, GradingSession)
+    refused(moved, "Candidates can only be added to draft or open sessions")
+    moving.refresh_from_db()
+    assert moving.session_id == source.pk
+
+
+def test_withdrawal_and_finalisation_cannot_interleave() -> None:
+    """A withdrawal must not discard a decision finalised meanwhile.
+
+    Without a shared lock, the withdrawal read the outcome as still proposed,
+    waited on the finalisation's row lock, then deleted the outcome the
+    moment it became a finalised decision.
+    """
+    built, _generated = locked_completed_candidate()
+    proposed = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("race-withdraw-proposer@example.com"),
+    )
+    decider = master("race-withdraw-master@example.com")
+    withdrawer = override_master("race-withdraw-override@example.com")
+    stale_outcome = CandidateOutcome.objects.get(pk=proposed.pk)
+    stale_candidate = GradingCandidate.objects.get(pk=built.pk)
+
+    finalising, withdrawing = interleave(
+        lambda: finalise_candidate_outcome(
+            stale_outcome,
+            CandidateOutcome.Outcome.PASS,
+            "Confirmed.",
+            "",
+            decider,
+        ),
+        lambda: withdraw_locked_candidate(
+            stale_candidate,
+            GradingCandidate.WithdrawalReason.INJURY,
+            "",
+            withdrawer,
+        ),
+        pause_first_at="gradings.outcome_services.record",
+    )
+
+    assert isinstance(finalising, CandidateOutcome)
+    refused(withdrawing, "A candidate with a finalised outcome cannot be withdrawn")
+    decided = CandidateOutcome.objects.get(pk=proposed.pk)
+    assert decided.status == CandidateOutcome.Status.FINALISED
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.COMPLETED
+    assert events(AuditAction.CANDIDATE_WITHDRAWN, built) == 0
+
+
+def test_a_final_decision_and_a_cancellation_follow_arrival_order() -> None:
+    """A cancellation must not slip in beside a decision being recorded.
+
+    The decision holds the session, so the cancellation reads the outcome as
+    finalised once it gets the lock, and is refused: a session that has
+    decided anyone is never cancelled.
+    """
+    built, _generated = locked_completed_candidate()
+    proposed = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("race-cancel-proposer@example.com"),
+    )
+    decider = master("race-cancel-master@example.com")
+    canceller = override_master("race-cancel-override@example.com")
+    stale_session = GradingSession.objects.get(pk=built.session_id)
+    stale_outcome = CandidateOutcome.objects.get(pk=proposed.pk)
+
+    finalising, cancelling = interleave(
+        lambda: finalise_candidate_outcome(
+            stale_outcome,
+            CandidateOutcome.Outcome.PASS,
+            "Confirmed.",
+            "",
+            decider,
+        ),
+        lambda: transition_grading_session(
+            stale_session,
+            GradingSession.Status.CANCELLED,
+            actor=canceller,
+            reason="Abandoned.",
+        ),
+        pause_first_at="gradings.outcome_services.record",
+    )
+
+    assert isinstance(finalising, CandidateOutcome)
+    refused(cancelling, "A session with a final decision cannot be cancelled")
+    stale_session.refresh_from_db()
+    assert stale_session.status == GradingSession.Status.LOCKED
+
+
+def test_session_details_edit_keeps_a_concurrent_cancellation() -> None:
+    """A details edit must not write back a stale status.
+
+    The edit used to save the session as the request had loaded it - status
+    and cancellation reason included - so a cancellation committed while it
+    waited on the row lock was silently undone.
+    """
+    session = grading_session(status=GradingSession.Status.LOCKED)
+    canceller = override_master("race-details-override@example.com")
+    editor = user("race-details-editor@example.com")
+    cancelling_copy = GradingSession.objects.get(pk=session.pk)
+    editing_copy = GradingSession.objects.get(pk=session.pk)
+
+    def rename() -> object:
+        # What the session edit does (GradingSessionViewSet.perform_update).
+        return update_grading_session(
+            editing_copy,
+            changes={"title": "Renamed grading"},
+            target_status=None,
+            reason="",
+            actor=editor,
+        )
+
+    cancelling, renaming = interleave(
+        lambda: transition_grading_session(
+            cancelling_copy,
+            GradingSession.Status.CANCELLED,
+            actor=canceller,
+            reason="Abandoned.",
+        ),
+        rename,
+        pause_first_at="gradings.services.record",
+    )
+
+    assert isinstance(cancelling, GradingSession)
+    assert isinstance(renaming, GradingSession)
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.CANCELLED
+    assert session.cancellation_reason == "Abandoned."
+    assert session.title == "Renamed grading"
+
+
+def test_assessment_cleanup_refuses_a_decision_recorded_meanwhile() -> None:
+    """A final decision recorded while the cleanup waits is never erased.
+
+    The cleanup reads the outcome only once it holds the session, so a
+    decision committed first is seen as final and the cleanup is refused.
+    """
+    built, generated = locked_completed_candidate()
+    proposed = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("race-cleanup-proposer@example.com"),
+    )
+    decider = master("race-cleanup-master@example.com")
+    cleaner = user("race-cleanup-admin@example.com", role=User.Role.ADMINISTRATOR)
+    stale_outcome = CandidateOutcome.objects.get(pk=proposed.pk)
+    stale_assessment = CandidateAssessment.objects.get(pk=generated.pk)
+
+    finalising, cleaning = interleave(
+        lambda: finalise_candidate_outcome(
+            stale_outcome,
+            CandidateOutcome.Outcome.PASS,
+            "Confirmed.",
+            "",
+            decider,
+        ),
+        lambda: delete_candidate_assessment(stale_assessment, cleaner),
+        pause_first_at="gradings.outcome_services.record",
+    )
+
+    assert isinstance(finalising, CandidateOutcome)
+    refused(cleaning, "never erased")
+    assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
+    assert events(AuditAction.ASSESSMENT_DELETED, generated) == 0
+
+
+def test_student_deletion_waits_for_a_promotion_in_flight() -> None:
+    """A deletion that meets a promotion being recorded waits for it, then
+    keeps the student's record with that promotion, instead of refusing on
+    a stale read or erasing what was just recorded."""
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    remover = user(
+        "race-delete-student-admin@example.com", role=User.Role.ADMINISTRATOR
+    )
+    promoting_actor = promoter("race-delete-student-promoter@example.com")
+    stale_student = Student.objects.get(pk=built.student_id)
+    stale_outcome = CandidateOutcome.objects.get(pk=outcome.pk)
+
+    promoting, deleting = interleave(
+        lambda: promote_candidate(stale_outcome, promoting_actor),
+        lambda: delete_student(stale_student, remover),
+        pause_first_at="gradings.outcome_services.record",
+    )
+
+    assert isinstance(promoting, Promotion), promoting
+    assert deleting is False
+    kept = Student.objects.get(pk=built.student_id)
+    assert kept.deleted_at is not None
+    assert Promotion.objects.filter(student_id=built.student_id).exists()
+
+
+def test_a_student_is_not_deleted_while_their_decision_is_being_recorded() -> None:
+    """The deletion waits for the decision, then refuses: a Pass still
+    waits for its promotion."""
+    built, _generated = locked_completed_candidate()
+    proposal = propose_for_candidate(
+        built,
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("race-delete-proposer@example.com"),
+    )
+    remover = user("race-delete-undecided@example.com", role=User.Role.ADMINISTRATOR)
+    stale_student = Student.objects.get(pk=built.student_id)
+
+    deciding, deleting = interleave(
+        lambda: finalise_candidate_outcome(
+            proposal,
+            CandidateOutcome.Outcome.PASS,
+            "Final decision recorded.",
+            "",
+            master("race-delete-master@example.com"),
+        ),
+        lambda: delete_student(stale_student, remover),
+        pause_first_at="gradings.outcome_services.record",
+    )
+
+    assert isinstance(deciding, CandidateOutcome), deciding
+    refused(deleting, "promotion has not been recorded")
+    assert Student.objects.get(pk=built.student_id).deleted_at is None
+
+
+def test_an_edit_racing_a_deletion_does_not_change_the_closed_record() -> None:
+    """The edit loaded the student before the deletion committed; it waits
+    on the student lock, then sees the record closed (Codex, #192)."""
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
+    )
+    remover = user("race-delete-edit-admin@example.com", role=User.Role.ADMINISTRATOR)
+    editor = user("race-delete-editor@example.com")
+    stale_for_delete = Student.objects.get(pk=built.student_id)
+    stale_for_edit = Student.objects.get(pk=built.student_id)
+    name_before = stale_for_edit.first_name
+
+    deleting, editing = interleave(
+        lambda: delete_student(stale_for_delete, remover),
+        lambda: update_student(stale_for_edit, first_name="Changed", actor=editor),
+        pause_first_at="students.services.record",
+    )
+
+    assert deleting is False
+    refused(editing, "has been deleted")
+    kept = Student.objects.get(pk=built.student_id)
+    assert kept.deleted_at is not None
+    assert kept.first_name == name_before
+
+
+def test_concurrent_student_edits_both_survive() -> None:
+    """Two edits to different fields of one student both land."""
+    subject = student(first_name="Before")
+    first_copy = Student.objects.get(pk=subject.pk)
+    second_copy = Student.objects.get(pk=subject.pk)
+    renamer = user("race-student-renamer@example.com")
+    leaver = user("race-student-leaver@example.com")
+
+    renaming, leaving = interleave(
+        lambda: update_student(first_copy, first_name="After", actor=renamer),
+        lambda: update_student(second_copy, status=Student.Status.LEFT, actor=leaver),
+        pause_first_at="students.services.record",
+    )
+
+    assert isinstance(renaming, Student)
+    assert isinstance(leaving, Student)
+    subject.refresh_from_db()
+    assert subject.first_name == "After"
+    assert subject.status == Student.Status.LEFT
+    status_event = AuditEvent.objects.get(
+        action=AuditAction.STUDENT_STATUS_CHANGED,
+        entity_id=str(subject.pk),
+    )
+    # The second edit's "before" is the first edit's result, as it must be
+    # if the two ran one after the other.
+    # Had the second edit written back a stale name, the name would show as
+    # changed here too.
+    assert status_event.metadata["changed_fields"] == ["status"]
+
+
+def test_admin_edit_does_not_revert_a_password_change() -> None:
+    """An account edit must not write back a stale password hash."""
+    account = User.objects.create_user(
+        email="race-password@example.com",
+        password="kg-Temporary-Pass-123!",
+        must_change_password=True,
+    )
+    stale_account = User.objects.get(pk=account.pk)
+    administrator = user(
+        "race-password-admin@example.com", role=User.Role.ADMINISTRATOR
+    )
+
+    def choose_own_password() -> object:
+        # What the change-password endpoint does (ChangePasswordView).
+        owner = User.objects.get(pk=account.pk)
+        serializer = ChangePasswordSerializer(
+            owner,
+            data={
+                "current_password": "kg-Temporary-Pass-123!",
+                "new_password": "kg-Chosen-By-The-Owner-456!",
+            },
+            context={"request": SimpleNamespace(user=owner)},
+        )
+        serializer.is_valid(raise_exception=True)
+        return change_own_password(
+            owner,
+            password=serializer.validated_data["new_password"],
+        )
+
+    changing, editing = interleave(
+        choose_own_password,
+        lambda: update_platform_user(
+            stale_account, first_name="Renamed", actor=administrator
+        ),
+        pause_first_at="accounts.services.record",
+    )
+
+    assert isinstance(changing, User)
+    assert isinstance(editing, User)
+    account.refresh_from_db()
+    assert account.check_password("kg-Chosen-By-The-Owner-456!")
+    assert account.must_change_password is False
+    assert account.first_name == "Renamed"
+
+
+def test_role_change_and_master_grant_cannot_both_succeed() -> None:
+    """An administrator is never a Master, even under a race.
+
+    Each check read the other's field without a lock: the grant saw an
+    instructor, the role change saw no Master authority, and both committed.
+    """
+    target = user("race-authority-target@example.com")
+    granter = user("race-authority-granter@example.com", role=User.Role.ADMINISTRATOR)
+    role_changer = user("race-authority-role@example.com", role=User.Role.ADMINISTRATOR)
+    granting_copy = User.objects.get(pk=target.pk)
+    role_copy = User.objects.get(pk=target.pk)
+
+    granting, changing_role = interleave(
+        lambda: set_user_authority(
+            granting_copy,
+            granter,
+            can_make_final_grading_decision=True,
+        ),
+        lambda: update_platform_user(
+            role_copy,
+            role=User.Role.ADMINISTRATOR,
+            actor=role_changer,
+        ),
+        pause_first_at="accounts.services.record",
+    )
+
+    assert isinstance(granting, User)
+    refused(changing_role, "cannot become an administrator")
+    fresh = User.objects.get(pk=target.pk)
+    assert fresh.role == User.Role.INSTRUCTOR
+    assert fresh.has_perm(FINAL_GRADING_DECISION_PERMISSION)
+
+
+def test_concurrent_candidate_edits_both_survive() -> None:
+    """A note and a withdrawal on one registration both land."""
+    session = grading_session(status=GradingSession.Status.OPEN)
+    registered = candidate(session=session)
+    first_copy = GradingCandidate.objects.get(pk=registered.pk)
+    second_copy = GradingCandidate.objects.get(pk=registered.pk)
+    noter = user("race-candidate-noter@example.com")
+    withdrawer = user("race-candidate-withdrawer@example.com")
+
+    noting, withdrawing = interleave(
+        lambda: apply_candidate_update(first_copy, notes="Arrived late.", actor=noter),
+        lambda: apply_candidate_update(
+            second_copy,
+            status=GradingCandidate.Status.WITHDRAWN,
+            withdrawal_reason=GradingCandidate.WithdrawalReason.ABSENT,
+            actor=withdrawer,
+        ),
+        pause_first_at="gradings.services.record",
+    )
+
+    assert isinstance(noting, GradingCandidate)
+    assert isinstance(withdrawing, GradingCandidate)
+    registered.refresh_from_db()
+    assert registered.notes == "Arrived late."
+    assert registered.status == GradingCandidate.Status.WITHDRAWN
+
+
+def test_promotions_of_one_student_from_two_gradings_serialise() -> None:
+    """A promotion waiting on a student another promotion is moving.
+
+    The student lock used to join the student's rank. A FOR UPDATE that
+    waits re-checks its join against the row as the other transaction left
+    it, and with the rank just moved PostgreSQL dropped the student from the
+    result - a DoesNotExist, so a 500, instead of the refusal below.
+    """
+    graded = student()
+    gradings = [
+        grading_session(status=GradingSession.Status.OPEN, title=title)
+        for title in ("First grading", "Second grading")
+    ]
+    # Two unsettled registrations of one student: refused since the
+    # 2026-10-18 one-grading-at-a-time rule, but earlier data may hold them.
+    with patch("gradings.services.validate_no_unsettled_registration"):
+        both = [completed_candidate(session, graded) for session in gradings]
+    for session in gradings:
+        transition_grading_session(session, GradingSession.Status.LOCKED)
+    first_outcome, second_outcome = (finalised_outcome(built) for built in both)
+    first_promoter = promoter("race-double-promoter-one@example.com")
+    second_promoter = promoter("race-double-promoter-two@example.com")
+
+    promoting, promoting_again = interleave(
+        lambda: promote_candidate(
+            CandidateOutcome.objects.get(pk=first_outcome.pk),
+            first_promoter,
+        ),
+        lambda: promote_candidate(
+            CandidateOutcome.objects.get(pk=second_outcome.pk),
+            second_promoter,
+        ),
+        pause_first_at="gradings.outcome_services.record",
+    )
+
+    assert isinstance(promoting, Promotion)
+    refused(promoting_again, "Promotion target rank must differ from source rank")
+    graded.refresh_from_db()
+    assert graded.current_rank == rank("YELLOW_STRIPE")
+    assert Promotion.objects.filter(student=graded).count() == 1

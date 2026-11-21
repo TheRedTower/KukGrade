@@ -1,0 +1,358 @@
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import {
+  type CandidateOutcomeOutcome,
+  type KeptStagedDecision,
+  discardStagedDecision,
+  errorMessage,
+  finaliseCandidateOutcome,
+  getStagedDecisions,
+  isAnonymousResponse,
+  stageDecision,
+} from "./api";
+import { type BoardRow, type StagedDecision, fromServer, missingRequirements, without } from "./adjudicationBoard";
+import { keys, refresh } from "./queryKeys";
+import { agreeing, counted } from "./plural";
+import { LANDS_BEFORE_SIGN_OUT, SIGNING_OUT_EVENT, writesLanded } from "./pendingWrites";
+import { useDebouncedValue } from "./useDebouncedValue";
+
+// How long typing settles before a staged decision is kept on the server.
+const KEEP_DELAY_MS = 600;
+// Stands for a row whose last save failed: no staged decision matches it.
+const UNKNOWN = "";
+
+/**
+ * Keeps one row's staged decision on the server, or takes it off (`null`).
+ * `revision` says which change it is; the server refuses one older than what
+ * it holds, so a save that arrives late cannot undo a later change.
+ */
+async function write(
+  outcomeId: number,
+  decision: StagedDecision | null,
+  revision: number,
+  keepalive: boolean,
+): Promise<void> {
+  if (!decision) return discardStagedDecision(outcomeId, revision, keepalive);
+  await stageDecision(
+    outcomeId,
+    {
+      final_outcome: decision.outcome,
+      decision_notes: decision.notes,
+      conditional_requirements: decision.conditionalRequirements,
+      revision,
+    },
+    keepalive,
+  );
+}
+
+interface Options {
+  sessionId: number;
+  /** The session id is usable. */
+  enabled: boolean;
+  /** The viewer may decide, and the session is locked. */
+  canDecide: boolean;
+  /** A row was staged: put it in focus. */
+  onFocus: (candidateId: number) => void;
+}
+
+/**
+ * The Master's staged decisions: staged on the board, kept on the server once typing
+ * settles (so a timed-out session or a closed tab loses nothing), and recorded one
+ * candidate at a time, each standing or failing on its own.
+ */
+export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: Options) {
+  const queryClient = useQueryClient();
+
+  const [staged, setStaged] = useState<Record<number, StagedDecision>>({});
+  const [isRecording, setIsRecording] = useState(false);
+  const [failures, setFailures] = useState<Record<number, string>>({});
+  const [lastResult, setLastResult] = useState<string | null>(null);
+  const resultRef = useRef<HTMLParagraphElement>(null);
+  // What the server will hold for each staged row once the writes sent so
+  // far land, so only changes are sent, and which write to each row is the
+  // latest, so only its answer counts.
+  const sent = useRef<Record<number, string> | null>(null);
+  // What the server has confirmed it holds for each row, and how many saves
+  // to each row are queued or on their way. A page that closes resends every
+  // row not yet confirmed: a save still waiting in the queue dies with it.
+  const confirmed = useRef<Record<number, string> | null>(null);
+  const pending = useRef<Record<number, number>>({});
+  const writeSeq = useRef<Record<number, number>>({});
+  // The revision of each row's last change, so the next is always later. A
+  // decision taken off is read back for this alone: its revision may have come
+  // from another device whose clock is ahead.
+  const revisions = useRef<Record<number, number> | null>(null);
+  const [restored, setRestored] = useState<KeptStagedDecision[] | null>(null);
+  const [keepFailures, setKeepFailures] = useState<Record<number, string>>({});
+
+  // Recording unmounts or disables the control that started it, so focus
+  // moves to the outcome message rather than dropping to the page.
+  useEffect(() => {
+    if (lastResult) resultRef.current?.focus();
+  }, [lastResult]);
+
+  // Keeping and recording share one queue, so writes land in the order they
+  // were made: a row's last edit is its last write, and a decision is
+  // recorded only after every save before it has landed.
+  const writeKey = keys.stagedDecisions(sessionId);
+  const scope = { id: JSON.stringify(writeKey) };
+
+  // Decisions staged earlier, and kept on the server, come back: a session
+  // that timed out, or a closed tab, loses nothing that was staged. The
+  // queue outlives the board, so they are read once it has landed.
+  const keptQuery = useQuery({
+    queryKey: keys.stagedDecisions(sessionId),
+    queryFn: async () => {
+      // A board left and opened again at once must not read the server
+      // before the last visit's saves have landed, or it would bring back
+      // what they changed.
+      await writesLanded(queryClient, { mutationKey: writeKey });
+      return getStagedDecisions(sessionId);
+    },
+    enabled: enabled && canDecide,
+    // Read afresh each time the board opens: never an earlier visit's copy.
+    gcTime: 0,
+  });
+  // Until they are read, nothing can be staged, so none is overwritten.
+  if (restored === null && keptQuery.isSuccess && keptQuery.isFetchedAfterMount) {
+    setRestored(keptQuery.data);
+    setStaged((current) => ({ ...fromServer(keptQuery.data), ...current }));
+  }
+  const canStage = restored !== null && !isRecording;
+
+  // Each write goes through the mutation cache, so an expired session signs the viewer out.
+  const keepMutation = useMutation({
+    mutationKey: writeKey,
+    scope,
+    meta: LANDS_BEFORE_SIGN_OUT,
+    mutationFn: ({
+      outcomeId,
+      decision,
+      revision,
+    }: {
+      outcomeId: number;
+      decision: StagedDecision | null;
+      revision: number;
+    }) => write(outcomeId, decision, revision, false),
+  });
+  const keep = keepMutation.mutateAsync;
+
+  // Sends what differs between `target` and what the server will hold. Not
+  // before the server's copy is read.
+  //
+  // `settled` is the save once typing settles, which waits while recording
+  // (recording removes the server's copy itself). Leaving the board sends
+  // even while recording: rows that recording has not reached, or was not
+  // asked to record, would otherwise be lost. The server refuses to keep a
+  // decision already recorded, and removes the kept copy of one it records
+  // later, so a recorded decision never comes back staged.
+  //
+  // `closing` is for a page that is going (a closed tab, a reload): a write
+  // still waiting in the queue would die with it, so every row the server has
+  // not confirmed is sent at once, on its own, and kept alive past the page,
+  // with a later revision than anything queued. Leaving for another screen
+  // keeps the queue, since the page and its queue live on.
+  function sendChanges(target: Record<number, StagedDecision>, how: "settled" | "leaving" | "closing") {
+    if (restored === null || (isRecording && how === "settled")) return;
+    const closing = how === "closing";
+    if (sent.current === null) {
+      const held = Object.fromEntries(
+        Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
+      );
+      sent.current = held;
+      confirmed.current = { ...held };
+    }
+    revisions.current ??= Object.fromEntries(restored.map((row) => [row.outcome, row.revision]));
+    const lastRevision = revisions.current;
+    const onServer = sent.current;
+    const held = confirmed.current ?? {};
+    // Every row with something to say: staged now, expected on the server,
+    // confirmed there, or with a save still on its way (a decision taken off
+    // before its first save was answered is in none of the others).
+    const inFlight = Object.keys(pending.current).filter((outcomeId) => pending.current[Number(outcomeId)] > 0);
+    const ids = [...Object.keys(target), ...Object.keys(onServer), ...Object.keys(held), ...inFlight].map(Number);
+    new Set(ids).forEach((outcomeId) => {
+      const decision = target[outcomeId];
+      const json = decision === undefined ? undefined : JSON.stringify(decision);
+      const unconfirmed = (pending.current[outcomeId] ?? 0) > 0;
+      if (closing ? json === held[outcomeId] && !unconfirmed : json === onServer[outcomeId]) return;
+      if (json === undefined) delete onServer[outcomeId];
+      else onServer[outcomeId] = json;
+      const seq = (writeSeq.current[outcomeId] ?? 0) + 1;
+      writeSeq.current[outcomeId] = seq;
+      const isLatest = () => writeSeq.current[outcomeId] === seq;
+      // Later than any change this row has had, here or as the server holds it.
+      const revision = Math.max(Date.now(), (lastRevision[outcomeId] ?? 0) + 1);
+      lastRevision[outcomeId] = revision;
+      if (closing) {
+        void write(outcomeId, decision ?? null, revision, true).catch(() => {});
+        return;
+      }
+      pending.current[outcomeId] = (pending.current[outcomeId] ?? 0) + 1;
+      const settle = () => {
+        pending.current[outcomeId] -= 1;
+      };
+      keep({ outcomeId, decision: decision ?? null, revision }).then(
+        () => {
+          settle();
+          // The queue lands in order, so this is what the server now holds.
+          if (json === undefined) delete held[outcomeId];
+          else held[outcomeId] = json;
+          if (isLatest()) setKeepFailures((current) => without(current, outcomeId));
+        },
+        (err: unknown) => {
+          settle();
+          held[outcomeId] = UNKNOWN;
+          // A later change is queued behind this one and is kept instead.
+          if (!isLatest()) return;
+          // What the server holds is now unknown, so the next change is sent whatever it is.
+          onServer[outcomeId] = UNKNOWN;
+          setKeepFailures((current) => ({
+            ...current,
+            [outcomeId]: errorMessage(err, "Your staged decisions could not be kept."),
+          }));
+        },
+      );
+    });
+  }
+
+  // Every change to what is staged is kept once typing settles, and not until
+  // the settled value has caught up with what is staged now. Only a change to
+  // what is staged sends anything: a failed save showing its message must not
+  // send it again.
+  const settled = useDebouncedValue(staged, KEEP_DELAY_MS);
+  const keepSettled = useEffectEvent(() => sendChanges(settled, "settled"));
+  useEffect(() => {
+    if (settled === staged) keepSettled();
+  }, [settled, staged, restored, isRecording]);
+
+  // Leaving the board (another screen, a closed tab, a reload, signing out)
+  // keeps at once what is staged now, so a change made just before is not
+  // lost: a decision taken off the board must not come back on the next
+  // visit. Signing out sends it while the session still lives, and waits.
+  const leave = useEffectEvent((closing: boolean) => sendChanges(staged, closing ? "closing" : "leaving"));
+  useEffect(() => {
+    const onPageHide = () => leave(true);
+    const onSigningOut = () => leave(false);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener(SIGNING_OUT_EVENT, onSigningOut);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener(SIGNING_OUT_EVENT, onSigningOut);
+      leave(false);
+    };
+  }, []);
+
+  function stage(row: BoardRow, outcome: CandidateOutcomeOutcome) {
+    const outcomeId = row.outcome?.id;
+    if (outcomeId === undefined) return;
+    onFocus(row.candidate.id);
+    setStaged((current) => {
+      const next = { ...current };
+      if (next[outcomeId]?.outcome === outcome) {
+        delete next[outcomeId];
+      } else {
+        next[outcomeId] = {
+          outcome,
+          notes: next[outcomeId]?.notes ?? "",
+          conditionalRequirements: next[outcomeId]?.conditionalRequirements ?? "",
+        };
+      }
+      return next;
+    });
+  }
+
+  function updateStaged(outcomeId: number, patch: Partial<StagedDecision>) {
+    setStaged((current) =>
+      current[outcomeId] ? { ...current, [outcomeId]: { ...current[outcomeId], ...patch } } : current,
+    );
+  }
+
+  // Each write goes through the mutation cache, so a session that expired mid-way signs the viewer out.
+  const finaliseMutation = useMutation({
+    mutationKey: writeKey,
+    scope,
+    meta: LANDS_BEFORE_SIGN_OUT,
+    mutationFn: (write: { outcomeId: number; payload: Parameters<typeof finaliseCandidateOutcome>[1] }) =>
+      finaliseCandidateOutcome(write.outcomeId, write.payload),
+  });
+
+  async function record(outcomeIds: number[]) {
+    if (outcomeIds.length === 0 || outcomeIds.some((oid) => missingRequirements(staged[oid]))) {
+      return;
+    }
+    setIsRecording(true);
+    setLastResult(null);
+    const failed: Record<number, string> = {};
+    const recorded = new Set<number>();
+    // One candidate at a time: each row stands or falls on its own.
+    for (const outcomeId of outcomeIds) {
+      const decision = staged[outcomeId];
+      try {
+        await finaliseMutation.mutateAsync({
+          outcomeId,
+          payload: {
+            final_outcome: decision.outcome,
+            decision_notes: decision.notes.trim(),
+            conditional_requirements: decision.outcome === "CONDITIONAL" ? decision.conditionalRequirements.trim() : "",
+          },
+        });
+        recorded.add(outcomeId);
+      } catch (err) {
+        failed[outcomeId] = errorMessage(err, "The decision could not be recorded.");
+        // The session has ended: the viewer is signed out, so the rest would only meet the same answer.
+        if (isAnonymousResponse(err)) break;
+      }
+    }
+    setStaged((current) => {
+      const next = { ...current };
+      recorded.forEach((oid) => delete next[oid]);
+      return next;
+    });
+    // Recording removed the server's copies.
+    recorded.forEach((oid) => {
+      delete sent.current?.[oid];
+      delete confirmed.current?.[oid];
+    });
+    setKeepFailures((current) => [...recorded].reduce(without, current));
+    setFailures((current) => {
+      const next = { ...current };
+      outcomeIds.forEach((oid) => delete next[oid]);
+      return { ...next, ...failed };
+    });
+    // Rows the session's end stopped short of are still staged, like the failed ones.
+    const kept = outcomeIds.length - recorded.size;
+    setLastResult(
+      kept === 0
+        ? `${counted(recorded.size, "decision", "decisions")} recorded.`
+        : `${recorded.size} recorded, ${kept} could not be recorded and ${agreeing(kept, "remains", "remain")} staged.`,
+    );
+    setIsRecording(false);
+    // The roster carries each outcome, so recording reads it (and the lists that still hold outcomes) again.
+    refresh.sessionWork(queryClient, sessionId);
+  }
+
+  const stagedIds = Object.keys(staged).map(Number);
+  const incomplete = stagedIds.filter((outcomeId) => missingRequirements(staged[outcomeId]));
+  const failedIds = Object.keys(failures)
+    .map(Number)
+    .filter((oid) => oid in staged);
+
+  return {
+    staged,
+    stagedIds,
+    incomplete,
+    failures,
+    failedIds,
+    keepFailures,
+    keptQuery,
+    lastResult,
+    resultRef,
+    isRecording,
+    canStage,
+    stage,
+    updateStaged,
+    record,
+  };
+}

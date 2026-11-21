@@ -1,0 +1,165 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   BUILD GRADING COHORT
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.bgc-left-column {
+  min-width: 0;
+}
+
+.bgc-section-subtext {
+  margin: 0;
+}
+
+/* ── Section 1 Toolbar & Summary ────────────────────────────────────────── */
+
+.bgc-filter-summary-card {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--btn-primary-bg);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Section 2 Tables & Rank Visuals ─────────────────────────────────────── */
+
+.bgc-eligible-count-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.bgc-inactive-alert {
+  color: var(--color-warning);
+}
+
+/* ── RIGHT COLUMN: Cohort Ledger Tray ───────────────────────────────────── */
+
+.bgc-cohort-count {
+  color: var(--color-accent-text);
+}
+
+.bgc-exceptions-callout {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bgc-exceptions-help {
+  line-height: var(--line-height-snug);
+  margin: 0;
+}
+
+/* ── Toggle Switch ──────────────────────────────────────────────────────── */
+
+.bgc-assessment-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.bgc-tray-primary {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+/* ── Review Exceptions Modal ────────────────────────────────────────────── */
+
+.bgc-modal-list {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.bgc-modal-list-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-4);
+}
+
+.bgc-modal-list-item:last-child {
+  border-bottom: none;
+}
+
+/* ── EXCEPTION RESOLVER ───────────────────────────────────────── */
+
+.bgc-resolver-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-5);
+}
+
+.bgc-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+/* ── Collapsible Successful Registrations ───────────────────────────────── */
+
+.bgc-successful-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.bgc-successful-section > summary {
+  padding: var(--space-3) var(--space-4);
+}
+
+@media (hover: hover) {
+  .bgc-successful-section > summary:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.bgc-accordion-count {
+  margin-left: auto;
+}
+
+.bgc-accordion-content {
+  padding: var(--space-4) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+}
+
+/* ── Resolver Footer Actions ────────────────────────────────────────────── */
+
+.bgc-resolver-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  padding-top: var(--space-4);
+}
+
+.bgc-retry-action-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+/* A student's name with their WKSA ID beneath. */
+.bgc-student-id {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--font-mono);
+}
+
+.bgc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.bgc-created-item .badge {
+  margin-left: auto;
+}

@@ -1,0 +1,354 @@
+import { useState } from "react";
+import { PageHeader } from "./PageHeader";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+
+import {
+  type DataImportBatch,
+  type DataImportKind,
+  cancelDataImportBatch,
+  errorMessage,
+  getDataImportBatches,
+  largestPageSize,
+} from "./api";
+import { ErrorText } from "./ErrorText";
+import { useAuth } from "./auth";
+import { formatShortDateTime } from "./dates";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { Pagination } from "./Pagination";
+import { importKinds } from "./importKinds";
+import { useImportSteps } from "./importSteps";
+import { usePagedQuery } from "./usePagedQuery";
+import { useUrlFilters } from "./useUrlFilters";
+import { useTemplateDownload } from "./importTemplate";
+import "./Imports.css";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
+import { ResponsiveTable } from "./ResponsiveTable";
+import { useChoices } from "./choices";
+import { ImportStatusBadge } from "./StatusBadge";
+import { keys } from "./queryKeys";
+import { agreeing, counted } from "./plural";
+import { LoadingState } from "./LoadingState";
+import { ChevronRightIcon } from "./Icons";
+import { Progress } from "./Progress";
+import { usePeopleSummary } from "./usePerson";
+import { Field } from "./Field";
+import { Select } from "./Select";
+
+const PAST_PAGE_SIZE = 10;
+
+/** What a finished import did, in a line. */
+function finishedResult(batch: DataImportBatch): string {
+  return batch.status === "COMMITTED" ? importKinds[batch.kind].finished(batch.summary_json) : "Nothing saved";
+}
+
+function UnfinishedImports({
+  batches,
+  onCancel,
+}: {
+  batches: DataImportBatch[];
+  onCancel: (batch: DataImportBatch) => void;
+}) {
+  const stepsOf = useImportSteps();
+  return (
+    <section aria-labelledby="ix-unfinished" className="stack stack--3">
+      <div className="ix-section-head">
+        <h2 id="ix-unfinished">Pick up where you left off</h2>
+        <span className="subtext">An unfinished import is cleared a day after it was uploaded.</span>
+      </div>
+      <div className="card card--flush">
+        {batches.map((batch) => {
+          const steps = stepsOf(batch.kind);
+          const step = steps.findIndex((served) => served.value === batch.next_step);
+          return (
+            <div className="ix-row" key={batch.id}>
+              <div className="ix-row-main">
+                <p className="ix-kind eyebrow--muted">{batch.kind_display}</p>
+                <p className="item-title">{batch.original_filename}</p>
+                <p className="subtext">
+                  Uploaded {formatShortDateTime(batch.uploaded_at)} by {batch.uploaded_by_name}
+                </p>
+              </div>
+              <div className="ix-row-main">
+                <p className="item-title">
+                  Step {step + 1} of {steps.length} · {steps[step]?.label}
+                </p>
+                <Progress done={step} total={steps.length} what="steps done" />
+                <p className="subtext">{importKinds[batch.kind].unfinished(batch)}</p>
+              </div>
+              <div className="row row--wrap">
+                <Link
+                  aria-label={`Resume ${batch.original_filename}`}
+                  className={buttonClass({ variant: "primary" })}
+                  to={`/imports/${batch.id}`}
+                >
+                  Resume
+                </Link>
+                <Button
+                  aria-label={`Cancel ${batch.original_filename}`}
+                  variant="ghost"
+                  onClick={() => onCancel(batch)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function StartPanels({ canLink }: { canLink: boolean }) {
+  const template = useTemplateDownload();
+  return (
+    <section aria-labelledby="ix-start" className="stack stack--3">
+      <h2 className="section-title" id="ix-start">
+        Start an import
+      </h2>
+      <div className="ix-grid-2 tiles tiles--broadest">
+        <div className="card card--flush ix-panel">
+          <div className="ix-panel-body">
+            <h3>Students</h3>
+            <p className="subtext">A list of students, one per row: name, date of birth, WKSA ID and rank.</p>
+            <div className="row row--wrap ix-push-down">
+              <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=STUDENT_ROSTER">
+                Import students
+              </Link>
+              <Button variant="link" disabled={!template.ready} onClick={template.download}>
+                Download the template
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="card card--flush ix-panel">
+          <div className="ix-panel-body">
+            <h3>Past gradings</h3>
+            <p className="subtext">
+              An old grading record workbook: who tested, for which rank, the outcome and the comments.
+            </p>
+            <div className="row row--wrap ix-push-down">
+              <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=LEGACY_GRADINGS">
+                Import past gradings
+              </Link>
+              {canLink ? (
+                <Link className={buttonClass({ variant: "secondary" })} to="/imports/history">
+                  Browse and correct records
+                </Link>
+              ) : null}
+            </div>
+          </div>
+          {canLink ? <PeopleToSort /> : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** How many people from the past gradings are still to sort, across every import. */
+function PeopleToSort() {
+  const counts = usePeopleSummary(undefined).data;
+  const left = counts ? counts.people - counts.sorted : 0;
+  if (!left) return null;
+  return (
+    <div className="ix-panel-foot">
+      <p>
+        <strong className="ix-warning-text">{counted(left, "person", "people")}</strong> from past gradings{" "}
+        {agreeing(left, "is", "are")} still to sort.
+      </p>
+      <Link className={buttonClass({ variant: "link" })} to="/imports/people">
+        Sort the people
+      </Link>
+    </div>
+  );
+}
+
+function PastImports() {
+  const filters = useUrlFilters();
+  const kind = filters.value("kind") as DataImportKind | "";
+  const state = filters.value("state");
+  const page = filters.page;
+  const choices = useChoices();
+
+  const paged = usePagedQuery({
+    queryKey: keys.imports.past(kind, state, page),
+    placeholderData: keepPreviousData,
+    queryFn: () =>
+      getDataImportBatches({
+        kind: kind || undefined,
+        status: state || undefined,
+        finished: true,
+        page,
+        page_size: PAST_PAGE_SIZE,
+      }),
+    page,
+    pageSize: PAST_PAGE_SIZE,
+    onPage: filters.setPage,
+  });
+  const past = paged.query;
+  const batches = paged.results;
+
+  return (
+    <details className="disclosure" open={Boolean(kind || state || page > 1) || undefined}>
+      <summary>
+        <ChevronRightIcon />
+        <h2 className="section-title" id="ix-past">
+          Past imports{past.data ? ` (${past.data.count})` : ""}
+        </h2>
+      </summary>
+      <div className="stack stack--3 disclosure__body">
+        <div className="filter-bar" role="search" aria-label="Import filters">
+          <Field label="What" look="label">
+            {(control) => (
+              <Select
+                {...control}
+                all="Everything"
+                options={choices.import_kinds}
+                value={kind}
+                onChange={(value) => filters.set({ kind: value })}
+              />
+            )}
+          </Field>
+          <Field label="State" look="label">
+            {(control) => (
+              <Select
+                {...control}
+                all="Any"
+                options={choices.finished_import_statuses}
+                value={state}
+                onChange={(value) => filters.set({ state: value })}
+              />
+            )}
+          </Field>
+        </div>
+        <div className="card card--flush">
+          {past.isPending ? (
+            <LoadingState>Loading past imports…</LoadingState>
+          ) : past.isError ? (
+            <ErrorText className="ix-card-pad">
+              {errorMessage(past.error, "Past imports could not be loaded. Try again in a moment.")}
+            </ErrorText>
+          ) : batches.length === 0 ? (
+            <p className="subtext ix-card-pad">
+              {kind || state ? "No imports match these filters." : "No imports have finished yet."}
+            </p>
+          ) : (
+            <>
+              <ResponsiveTable
+                label="Past imports"
+                flush
+                rows={batches}
+                rowKey={(batch) => batch.id}
+                columns={[
+                  {
+                    key: "file",
+                    header: "File",
+                    primary: true,
+                    render: (batch) => <strong>{batch.original_filename}</strong>,
+                  },
+                  { key: "what", header: "What", render: (batch) => batch.kind_display },
+                  {
+                    key: "state",
+                    header: "State",
+                    render: (batch) => <ImportStatusBadge status={batch.status} label={batch.status_display} />,
+                  },
+                  { key: "result", header: "Result", render: (batch) => finishedResult(batch) },
+                  {
+                    key: "when",
+                    header: "When",
+                    render: (batch) => (
+                      <span className="subtext">
+                        {formatShortDateTime(batch.committed_at ?? batch.cancelled_at ?? batch.uploaded_at)} ·{" "}
+                        {batch.committed_by_name || batch.uploaded_by_name}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "open",
+                    header: "Open",
+                    actions: "inline",
+                    render: (batch) => (
+                      <Link
+                        aria-label={`View ${batch.original_filename}`}
+                        className={buttonClass({ variant: "ghost", small: true })}
+                        to={`/imports/${batch.id}`}
+                      >
+                        {batch.status === "COMMITTED" ? "View results" : "View"}
+                      </Link>
+                    ),
+                  },
+                ]}
+              />
+              <Pagination flush label="Pages of past imports" noun={["import", "imports"]} {...paged.pager} />
+            </>
+          )}
+        </div>
+      </div>
+    </details>
+  );
+}
+
+/** The Imports area's front page. */
+export function ImportsHubScreen() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [cancelling, setCancelling] = useState<DataImportBatch | null>(null);
+
+  const unfinished = useQuery({
+    queryKey: keys.imports.unfinished(),
+    queryFn: () => getDataImportBatches({ status: "UPLOADED", page_size: largestPageSize() }),
+  });
+
+  const cancel = useMutation({
+    mutationFn: (batch: DataImportBatch) => cancelDataImportBatch(batch.id),
+    onSuccess: async () => {
+      setCancelling(null);
+      await queryClient.invalidateQueries({ queryKey: keys.imports.all() });
+    },
+  });
+
+  const open = unfinished.data?.results ?? [];
+
+  return (
+    <section aria-labelledby="ix-title" className="page">
+      <PageHeader
+        title="Imports"
+        titleId="ix-title"
+        subtitle="Bring students and past gradings in from a spreadsheet. Nothing is saved until the last step."
+      />
+
+      {unfinished.isError ? (
+        <ErrorText>{errorMessage(unfinished.error, "Unfinished imports could not be loaded.")}</ErrorText>
+      ) : null}
+      {open.length > 0 ? <UnfinishedImports batches={open} onCancel={(batch) => setCancelling(batch)} /> : null}
+
+      <StartPanels canLink={Boolean(user?.can_reconcile_imported_history)} />
+
+      <PastImports />
+
+      {cancelling ? (
+        <ConfirmDialog
+          cancelLabel="Not yet"
+          confirmLabel="Cancel the import"
+          danger
+          error={cancel.isError ? errorMessage(cancel.error, "The import could not be cancelled.") : null}
+          pending={cancel.isPending}
+          pendingLabel="Cancelling…"
+          title={`Cancel ${cancelling.original_filename}?`}
+          onClose={() => {
+            cancel.reset();
+            setCancelling(null);
+          }}
+          onConfirm={() => cancel.mutate(cancelling)}
+        >
+          <p className="subtext">
+            The file and everything you did with it are removed, and nothing is imported. You can start again with the
+            file at any time.
+          </p>
+        </ConfirmDialog>
+      ) : null}
+    </section>
+  );
+}

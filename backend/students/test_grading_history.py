@@ -1,0 +1,187 @@
+"""Unified grading-history endpoint: native finalised
+outcomes + linked, non-voided legacy records, source-labelled."""
+
+from __future__ import annotations
+
+import pytest
+from rest_framework.test import APIClient
+
+from accounts.models import User
+from data_imports.testing import legacy_record
+from gradings.legacy_services import void_legacy_record
+from gradings.models import CandidateOutcome
+from gradings.testing import finalised_outcome, locked_completed_candidate, user
+from students.serializers import UNRESOLVED_RESULT
+
+pytestmark = pytest.mark.django_db
+
+
+def test_finalised_native_outcome_appears_as_kukgrade_source() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built)
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-1@example.com"))
+    response = client.get(f"/api/students/{built.student.pk}/grading-history/")
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["source"] == "KUKGRADE"
+    assert items[0]["outcome"] == CandidateOutcome.Outcome.PASS
+
+
+def test_linked_non_voided_legacy_record_appears_as_legacy_source() -> None:
+    built, _generated = locked_completed_candidate()
+    legacy_record(student=built.student)
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-2@example.com"))
+    response = client.get(f"/api/students/{built.student.pk}/grading-history/")
+
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["source"] == "LEGACY"
+    assert items[0]["date_precision"] == "MONTH"
+
+
+def test_unlinked_legacy_record_does_not_appear_on_any_student() -> None:
+    built, _generated = locked_completed_candidate()
+    legacy_record()
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-3@example.com"))
+    response = client.get(f"/api/students/{built.student.pk}/grading-history/")
+
+    assert response.json()["items"] == []
+
+
+def test_voided_legacy_record_is_excluded_even_if_linked() -> None:
+    built, _generated = locked_completed_candidate()
+    record = legacy_record(student=built.student)
+    void_legacy_record(
+        record,
+        reason="Duplicate row",
+        actor=user("grading-history-voider@example.com"),
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-4@example.com"))
+    response = client.get(f"/api/students/{built.student.pk}/grading-history/")
+
+    assert response.json()["items"] == []
+
+
+def test_history_is_sorted_newest_first_across_sources() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built)  # dated "today" via the session's grading_date
+    legacy_record(student=built.student, cycle_year=2020, cycle_month=1)
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-5@example.com"))
+    response = client.get(f"/api/students/{built.student.pk}/grading-history/")
+
+    items = response.json()["items"]
+    assert len(items) == 2
+    assert items[0]["source"] == "KUKGRADE"
+    assert items[1]["source"] == "LEGACY"
+
+
+def test_rank_history_endpoint_is_unaffected_stays_promotion_only() -> None:
+    """/rank-history/ must not merge legacy Pass records."""
+    built, _generated = locked_completed_candidate()
+    legacy_record(student=built.student)
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-6@example.com"))
+    response = client.get(f"/api/students/{built.student.pk}/rank-history/")
+
+    assert response.status_code == 200
+    assert response.json()["promotions"] == []
+
+
+def test_instructor_can_view_grading_history_too() -> None:
+    """Historical visibility matches native grading visibility
+    for both roles."""
+    built, _generated = locked_completed_candidate()
+    legacy_record(student=built.student)
+
+    client = APIClient()
+    client.force_authenticate(
+        user=user("grading-history-instructor@example.com", role=User.Role.INSTRUCTOR),
+    )
+    response = client.get(f"/api/students/{built.student.pk}/grading-history/")
+
+    assert response.status_code == 200
+    assert len(response.json()["items"]) == 1
+
+
+def test_a_conditional_native_item_carries_its_conditions_and_where_to_find_it() -> (
+    None
+):
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(
+        built,
+        proposed=CandidateOutcome.Outcome.CONDITIONAL,
+        final=CandidateOutcome.Outcome.CONDITIONAL,
+        conditional_requirements="Repeat the kicking set within three months.",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-5@example.com"))
+    response = client.get(f"/api/students/{built.student.pk}/grading-history/")
+
+    item = response.json()["items"][0]
+    assert item["outcome"] == CandidateOutcome.Outcome.CONDITIONAL
+    assert item["result_display"] == "Conditional"
+    assert (
+        item["conditional_requirements"]
+        == "Repeat the kicking set within three months."
+    )
+    assert item["from_rank_name"] == built.from_rank.name
+    assert item["age_band"] == built.age_band
+    assert item["age_band_display"] == built.get_age_band_display()
+    assert item["session_id"] == built.session_id
+    assert item["candidate_id"] == built.pk
+
+
+def test_a_legacy_item_carries_no_native_record_fields() -> None:
+    built, _generated = locked_completed_candidate()
+    legacy_record(student=built.student)
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-viewer-6@example.com"))
+    item = client.get(f"/api/students/{built.student.pk}/grading-history/").json()[
+        "items"
+    ][0]
+
+    assert item["conditional_requirements"] == ""
+    assert item["from_rank_name"] is None
+    assert item["session_id"] is None
+    assert item["candidate_id"] is None
+
+
+@pytest.mark.parametrize(
+    ("overrides", "named"),
+    [
+        # A workbook's outcome is a recommendation, never a final decision.
+        ({"outcome": "PASS", "attendance_status": "ATTENDED"}, "Recommended: Pass"),
+        ({"outcome": "FAIL", "attendance_status": "ATTENDED"}, "Recommended: Fail"),
+        ({"attendance_status": "DID_NOT_ATTEND"}, "Did not attend"),
+        (
+            {"source_outcome_text": "Testing? No", "attendance_status": "ATTENDED"},
+            UNRESOLVED_RESULT,
+        ),
+    ],
+)
+def test_each_item_names_its_result(overrides: dict[str, str], named: str) -> None:
+    built, _generated = locked_completed_candidate()
+    legacy_record(student=built.student, **overrides)
+
+    client = APIClient()
+    client.force_authenticate(user=user("grading-history-result@example.com"))
+    [item] = client.get(f"/api/students/{built.student.pk}/grading-history/").json()[
+        "items"
+    ]
+
+    assert item["result_display"] == named

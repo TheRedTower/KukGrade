@@ -1,0 +1,323 @@
+import { useEffect, useRef } from "react";
+import { CandidateAssessmentItem, CandidateAssessmentItemResult } from "./api";
+import { CategoryGroup } from "./candidateAssessmentData";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { formatTime } from "./dates";
+import { CheckIcon, CrossIcon, PersonIcon } from "./Icons";
+import { ItemDraftBox } from "./ItemDraftBox";
+import { ItemRemarks } from "./ItemRemarks";
+import { labelOf, useChoices } from "./choices";
+import { hasRemarks } from "./remarks";
+import { Meter } from "./Meter";
+import { RequirementBadge } from "./StatusBadge";
+import { cx } from "./cx";
+import { buttonClass } from "./buttonClass";
+
+/**
+ * Sticky band header. It carries the category's own progress: the instructor
+ * wants to know where they are in the section they are standing in.
+ */
+export function CategoryHeader({ group }: { group: CategoryGroup }) {
+  const filled = group.requiredCount > 0 ? (group.requiredAssessedCount / group.requiredCount) * 100 : 100;
+
+  return (
+    <div className="caw-band-header" data-testid={`caw-cat-header-${group.category}`}>
+      <h2 className="caw-band-title item-title">{group.categoryDisplay}</h2>
+      <span aria-hidden="true" className="caw-band-rule" />
+      <span className="caw-band-progress meta">
+        {group.isDone
+          ? `${group.requiredCount} of ${group.requiredCount} required`
+          : `${group.requiredAssessedCount} of ${group.requiredCount} required`}
+      </span>
+      <Meter className="caw-band-meter" segments={[{ percent: filled, tone: "success" }]} />
+    </div>
+  );
+}
+
+export function DeleteAssessmentDialog({
+  candidateName,
+  isPending,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  candidateName: string;
+  isPending: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      title="Delete assessment"
+      confirmLabel="Delete assessment"
+      pendingLabel="Deleting…"
+      pending={isPending}
+      error={error}
+      danger
+      onClose={onClose}
+      onConfirm={onConfirm}
+    >
+      <p>
+        Permanently delete {candidateName}&apos;s assessment? Any proposed outcome is deleted with it. This cannot be
+        undone.
+      </p>
+    </ConfirmDialog>
+  );
+}
+
+/**
+ * One requirement, as a divider-led row.
+ *
+ * Two verdict targets. The first mark on an item is made at once. Changing a
+ * mark afterwards, or clearing it with `Clear` (which sits with the row tools
+ * rather than in the verdict group), asks for the reason first, and the reason
+ * and the change are kept: every change is on the record, whoever made it. A
+ * clear also erases who assessed the item and when (the
+ * `candidate_item_assessor_matches_result` constraint nulls both when a result
+ * returns to `NOT_ASSESSED`), so the prompt says so.
+ */
+export function AssessmentItemRow({
+  item,
+  canEdit,
+  pendingResult,
+  isCommentOpen,
+  onMark,
+  onAskChange,
+  onCancelChange,
+  onChangeResult,
+  onToggleComment,
+  onCloseComment,
+  onAddComment,
+}: {
+  item: CandidateAssessmentItem;
+  /** Marks and comments may change: the assessment is started, the session is open. */
+  canEdit: boolean;
+  /** The mark this row is asking a reason for, when it is. */
+  pendingResult: CandidateAssessmentItemResult | null;
+  isCommentOpen: boolean;
+  /** The first mark on an unmarked item: no reason needed. */
+  onMark: (result: CandidateAssessmentItemResult) => void;
+  onAskChange: (result: CandidateAssessmentItemResult) => void;
+  onCancelChange: () => void;
+  onChangeResult: (result: CandidateAssessmentItemResult, reason: string) => Promise<unknown>;
+  onToggleComment: () => void;
+  /** Closes this row's comment box only, whatever else has been opened since. */
+  onCloseComment: () => void;
+  onAddComment: (body: string) => Promise<unknown>;
+}) {
+  const clearButtonRef = useRef<HTMLButtonElement>(null);
+  const metButtonRef = useRef<HTMLButtonElement>(null);
+  const wasAskingRef = useRef(false);
+
+  /*
+    Asking for a reason replaces the verdict buttons, which unmounts whatever
+    button was focused; closing it brings them back. Focus is put back on a
+    button that is there so a keyboard user is not dropped onto the document.
+
+    This is deliberately not `useDialogFocus`: that hook is for modals, and it
+    hides body overflow and traps Tab. This prompt is inline in a scrolling
+    list and must not do either.
+  */
+  const results = useChoices().item_results;
+  const isAsking = pendingResult !== null;
+  useEffect(() => {
+    if (isAsking) {
+      wasAskingRef.current = true;
+      return;
+    }
+    if (wasAskingRef.current) {
+      wasAskingRef.current = false;
+      (clearButtonRef.current ?? metButtonRef.current)?.focus();
+    }
+  }, [isAsking]);
+
+  const isScored = item.result === "MET" || item.result === "NOT_MET";
+  const attribution = item.assessor_name
+    ? `${item.assessor_name}${item.assessed_at ? ` · ${formatTime(item.assessed_at)}` : ""}`
+    : "";
+  // Whether the mark can be taken away, and whether changing it must say why,
+  // are served on the item by the rules the write checks (a completed
+  // assessment keeps its required marks; every change after the first, and
+  // every one after the lock, says why).
+  const canClear = canEdit && item.can_clear;
+  const hasHistory = item.changes.length > 0;
+  const choose = (result: CandidateAssessmentItemResult) => {
+    if (result === item.result) return;
+    if (item.reason_required) onAskChange(result);
+    else onMark(result);
+  };
+  const clearing = pendingResult === "NOT_ASSESSED";
+
+  return (
+    <div
+      className={cx("caw-row", `caw-row-${(item.result ?? "NOT_ASSESSED").toLowerCase().replace("_", "-")}`)}
+      data-testid={`caw-item-${item.id}`}
+    >
+      <div className="caw-row-detail">
+        <div className="caw-row-title-line">
+          <span className="caw-row-seq meta">#{item.position}</span>
+          <span className="item-title">{item.item_name}</span>
+          {item.korean_name && (
+            <span className="meta" lang="ko">
+              {item.korean_name}
+            </span>
+          )}
+          <RequirementBadge required={item.required} />
+          {(item.display_range || item.notation) && (
+            <span className="caw-row-range meta">{item.display_range || item.notation}</span>
+          )}
+        </div>
+
+        {/* Chart notation is served as wording and shown as the range above,
+            as the syllabus screen does; only other notes print here. */}
+        {!item.notation && item.requirement_notes && <p className="caw-row-desc meta">{item.requirement_notes}</p>}
+
+        {/*
+          Attribution renders on every scored row. The previous screen showed
+          it only on not-met rows, so "who marked this, and when" was invisible
+          across most of the record.
+        */}
+        {(attribution || hasRemarks(item)) && (
+          <div className="stack stack--1 caw-row-meta">
+            {attribution && (
+              <span className="row row--inline row--1">
+                <PersonIcon size={12} />
+                {attribution}
+              </span>
+            )}
+            <ItemRemarks item={item} />
+          </div>
+        )}
+      </div>
+
+      <div className="caw-row-actions">
+        {isAsking ? (
+          <div
+            role="alertdialog"
+            aria-label={`Reason for changing the result for ${item.item_name}`}
+            className="caw-change-prompt"
+            data-testid={`caw-change-prompt-${item.id}`}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                onCancelChange();
+              }
+            }}
+          >
+            <p>
+              {clearing ? (
+                <>
+                  Clearing removes the record of who assessed it
+                  {attribution ? (
+                    <>
+                      {" "}
+                      (<strong>{attribution}</strong>)
+                    </>
+                  ) : null}
+                  . The change and your reason are kept. Why is the mark being cleared?
+                </>
+              ) : isScored ? (
+                <>
+                  Changing {item.result_display} to {labelOf(results, pendingResult)}. Why is the mark changing? The
+                  change and your reason are kept.
+                </>
+              ) : hasHistory ? (
+                <>
+                  Marking this item {labelOf(results, pendingResult)} again, after it was cleared. Why is the mark
+                  changing? The change and your reason are kept.
+                </>
+              ) : (
+                <>
+                  Marking this item {labelOf(results, pendingResult)}, after the session was locked. Why is the mark
+                  being made? The change and your reason are kept.
+                </>
+              )}
+            </p>
+            <ItemDraftBox
+              ariaLabel={`Why is the mark changing for ${item.item_name}`}
+              placeholder="The reason for the change"
+              saveLabel={clearing ? "Clear result" : "Save change"}
+              inputTestId={`caw-reason-input-${item.id}`}
+              saveTestId={`btn-reason-save-${item.id}`}
+              cancelTestId={`btn-reason-cancel-${item.id}`}
+              onSubmit={(reason) => onChangeResult(pendingResult, reason)}
+              onClose={onCancelChange}
+            />
+          </div>
+        ) : (
+          <div role="group" aria-label={`Result for ${item.item_name}`} className="caw-verdicts">
+            <button
+              type="button"
+              className={buttonClass(
+                {},
+                cx("caw-verdict caw-verdict-met", item.result === "MET" && "caw-verdict-active"),
+              )}
+              disabled={!canEdit}
+              onClick={() => choose("MET")}
+              aria-pressed={item.result === "MET"}
+              data-tone={item.result === "MET" ? "success" : undefined}
+              data-testid={`btn-met-${item.id}`}
+              ref={metButtonRef}
+            >
+              <CheckIcon size={17} />
+              Met
+            </button>
+            <button
+              type="button"
+              className={buttonClass(
+                {},
+                cx("caw-verdict caw-verdict-not-met", item.result === "NOT_MET" && "caw-verdict-active"),
+              )}
+              disabled={!canEdit}
+              onClick={() => choose("NOT_MET")}
+              aria-pressed={item.result === "NOT_MET"}
+              data-tone={item.result === "NOT_MET" ? "danger" : undefined}
+              data-testid={`btn-not-met-${item.id}`}
+            >
+              <CrossIcon size={17} />
+              Not met
+            </button>
+          </div>
+        )}
+
+        {canEdit && !isAsking && (
+          <div className="row row--1 caw-row-tools">
+            <button
+              type="button"
+              className="caw-row-tool meta"
+              onClick={onToggleComment}
+              data-testid={`btn-comment-${item.id}`}
+            >
+              Add comment
+            </button>
+            {/* Clearing is only offered once there is a result to clear. */}
+            {canClear && (
+              <button
+                type="button"
+                className="caw-row-tool meta"
+                onClick={() => onAskChange("NOT_ASSESSED")}
+                data-testid={`btn-clear-${item.id}`}
+                ref={clearButtonRef}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {isCommentOpen && canEdit && !isAsking && (
+          <ItemDraftBox
+            ariaLabel={`Comment on ${item.item_name}`}
+            placeholder="Add a comment — what was observed"
+            saveLabel="Save comment"
+            inputTestId={`caw-comment-input-${item.id}`}
+            saveTestId={`btn-comment-save-${item.id}`}
+            onSubmit={onAddComment}
+            onClose={onCloseComment}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

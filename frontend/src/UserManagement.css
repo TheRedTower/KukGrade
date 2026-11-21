@@ -1,0 +1,154 @@
+.users-form-grid input:focus,
+.users-form-grid select:focus,
+.user-authority-options input:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
+.users-info-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: var(--space-3) var(--space-4);
+}
+
+/* A .mark--small, in the text's colour. */
+.users-info-note > .mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  background: var(--color-text);
+  color: var(--color-surface);
+}
+
+.users-form-grid {
+  gap: var(--space-4);
+}
+
+.users-form-note {
+  margin: 0;
+}
+
+/* A temporary password, shown once (TemporaryPasswordIssued.tsx). */
+
+.users-issued-password p {
+  margin: 0;
+}
+.users-issued-password-value {
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  padding: var(--space-3) var(--space-4);
+}
+/* A .section-title in the inline code's type. */
+.users-issued-password-value code {
+  padding: 0;
+  letter-spacing: var(--tracking-label);
+  user-select: all;
+}
+.users-issued-password-warning {
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-surface);
+  padding: var(--space-2) var(--space-3);
+}
+.users-dialog-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-1);
+  padding-top: var(--space-4);
+}
+
+.user-detail-section,
+.user-detail-aside > section {
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-4) 0 var(--space-5);
+}
+
+.user-detail-section h2,
+.user-detail-aside h2 {
+  margin: 0 0 var(--space-1);
+}
+
+.user-detail-section > p,
+.user-detail-aside p {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.user-authority-options {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.user-authority-options label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3);
+}
+
+.user-authority-options label:last-child {
+  border-bottom: 0;
+}
+.user-authority-options label > span,
+.user-authority-options strong,
+.user-authority-options small {
+  display: block;
+}
+.user-authority-options small {
+  margin-top: 0.2rem;
+  color: var(--color-text-muted);
+}
+
+.user-authority-options input {
+  width: 2.8rem;
+  height: 1.45rem;
+  accent-color: var(--color-success);
+  cursor: pointer;
+}
+
+.user-authority-footer {
+  margin-top: var(--space-3);
+}
+
+.user-authority-footer p {
+  margin: 0;
+}
+
+.user-activity-list {
+  margin: 0 0 var(--space-4);
+}
+
+.user-activity-list li {
+  display: grid;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) 0;
+}
+
+.users-self-password-hint {
+  margin: 0;
+  max-width: 16rem;
+}
+
+/* Holds the user page's forms so a view-only account disables them all. */
+.user-detail-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.users-email,
+.users-authority-summary {
+  display: block;
+  color: var(--color-text-muted);
+}

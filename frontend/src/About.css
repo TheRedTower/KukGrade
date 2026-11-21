@@ -1,0 +1,264 @@
+/* About: the section under Settings. Tokens only, from theme.css. */
+
+.ab-rail {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+}
+
+/* Each a .menu-link. */
+.ab-rail a {
+  padding: 0 var(--space-3);
+  color: var(--color-text);
+}
+
+@media (hover: hover) {
+  .ab-rail a:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.ab-rail a.active {
+  background: var(--color-surface-sunken);
+  box-shadow: var(--edge-accent);
+}
+
+.ab-rail a:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: -2px;
+}
+
+.ab-rail-foot {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.ab-main {
+  line-height: var(--line-height-body);
+}
+
+.ab-main > header h2 {
+  margin: 0;
+}
+
+.ab-main > header p {
+  margin: var(--space-1) 0 0;
+}
+
+/* Overview. */
+.st-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-5);
+  padding: var(--space-5);
+}
+
+/* A .mark--display, on the rail's ink. */
+.st-hero-mark {
+  width: 5.25rem;
+  height: 5.25rem;
+  background: var(--color-rail);
+  color: var(--color-gold);
+}
+
+.st-hero-text {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.st-accent {
+  color: var(--color-accent-text);
+}
+
+.st-eyebrow {
+  margin: 0.1rem 0 var(--space-2);
+}
+
+.st-version-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+}
+
+/* Each a .menu-link, ruled from the one above. */
+.st-links a {
+  min-height: 48px;
+  padding: 0 var(--space-5);
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  color: var(--color-text);
+}
+
+.st-links a:first-child {
+  border-top: 0;
+}
+
+.st-link-arrow {
+  margin-left: auto;
+}
+
+@media (hover: hover) {
+  .st-links a:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.st-links a:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: -2px;
+}
+
+.st-mono {
+  font-family: var(--font-mono);
+}
+
+/* Documents. */
+.ab-three {
+  gap: var(--space-4);
+}
+
+.ab-three h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.ab-three ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.ab-doc-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+/* The sections, as a wrapping row of links above the text. */
+.ab-contents {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+}
+
+.ab-contents p {
+  flex: 0 0 100%;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Each a .menu-link. */
+.ab-contents button {
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+}
+
+@media (hover: hover) {
+  .ab-contents button:hover {
+    background: var(--color-surface-sunken);
+  }
+}
+
+/* Long text runs down the page: the page is the one thing that scrolls up and
+   down, and long words and links wrap rather than push it sideways. */
+.ab-prose {
+  padding: var(--space-5);
+}
+
+.ab-prose h3 {
+  margin: var(--space-5) 0 var(--space-2);
+  scroll-margin-top: 1rem;
+}
+
+.ab-prose h3:first-child {
+  margin-top: 0;
+}
+
+.ab-prose h4 {
+  margin: var(--space-4) 0 var(--space-1);
+  scroll-margin-top: 1rem;
+}
+
+.ab-prose p,
+.ab-prose li {
+  max-width: 68ch;
+}
+
+.ab-prose p {
+  margin: var(--space-2) 0;
+}
+
+.ab-prose ul,
+.ab-prose ol {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-5);
+}
+
+/* The pledge. */
+.ab-pledge {
+  margin: var(--space-4) 0 0;
+}
+
+.ab-pledge li {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.ab-pledge p {
+  margin: 0;
+}
+
+/* The English and the Korean side by side when there is room, stacked when not. */
+.ab-pledge-text {
+  gap: var(--space-2) var(--space-5);
+}
+
+.ab-pledge-korean {
+  color: var(--color-text-muted);
+}
+
+/* A .mark--small, in gold. */
+.ab-number {
+  width: 1.65rem;
+  height: 1.65rem;
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+}
+
+/* Support and credits. */
+.ab-steps {
+  margin: var(--space-3) 0 0;
+}
+
+.ab-steps li {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.ab-steps p {
+  margin: 0;
+}
+
+.ab-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.ab-contact:first-child {
+  border-top: 0;
+}

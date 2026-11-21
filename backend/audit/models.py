@@ -1,0 +1,210 @@
+"""An append-only record of who did what.
+
+Deliberately its own app: the log must not depend on the apps it records, and
+an audit record has to outlive the schema it describes. It reaches the
+students, gradings and imports it records by name (apps.get_model), never by
+import; accounts is the one app it imports, for who acted and who may read.
+
+That is also why `entity_type` is a plain string rather than a ContentType
+foreign key - a ContentType reference breaks exactly when a model is renamed
+or removed, which is when the history matters most.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from django.conf import settings
+from django.db import models
+
+from accounts.permissions import USER_ADMINISTRATION_PERMISSION
+from kukgrade.kept import KeptModel, KeptQuerySet
+from kukgrade.modelchecks import clean_without_database_checks
+
+if TYPE_CHECKING:
+    from accounts.models import User
+
+IMMUTABLE_MESSAGE = "Audit events are permanent: they cannot be changed or deleted."
+
+
+class AuditAction(models.TextChoices):
+    SESSION_CREATED = "SESSION_CREATED", "Grading session created"
+    SESSION_UPDATED = "SESSION_UPDATED", "Grading session updated"
+    SESSION_TRANSITIONED = "SESSION_TRANSITIONED", "Grading session status changed"
+    SESSION_DELETED = "SESSION_DELETED", "Grading session deleted"
+    SESSION_ARCHIVED = "SESSION_ARCHIVED", "Grading session archived"
+    SESSION_RESTORED = "SESSION_RESTORED", "Grading session restored from the archive"
+    # One event per file made, whatever it holds (owner, 2026-11-13).
+    RECORDS_DOWNLOADED = "RECORDS_DOWNLOADED", "Grading records downloaded"
+    SUMMARY_DOWNLOADED = "SUMMARY_DOWNLOADED", "Grading summary downloaded"
+    GRADING_SHEETS_PRINTED = "GRADING_SHEETS_PRINTED", "Grading sheets printed"
+
+    CANDIDATE_REGISTERED = "CANDIDATE_REGISTERED", "Candidate registered"
+    CANDIDATE_UPDATED = "CANDIDATE_UPDATED", "Candidate updated"
+    CANDIDATE_WITHDRAWN = "CANDIDATE_WITHDRAWN", "Candidate withdrawn"
+    CANDIDATE_DELETED = "CANDIDATE_DELETED", "Candidate deleted"
+
+    ASSESSMENT_GENERATED = "ASSESSMENT_GENERATED", "Assessment form prepared"
+    ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
+    ASSESSMENT_UPDATED = "ASSESSMENT_UPDATED", "Assessment notes updated"
+    ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
+    ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
+    ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"
+    ITEM_COMMENT_ADDED = "ITEM_COMMENT_ADDED", "Assessment item comment added"
+
+    OUTCOME_CREATED = "OUTCOME_CREATED", "Outcome record opened"
+    OUTCOME_PROPOSED = "OUTCOME_PROPOSED", "Outcome proposed"
+    OUTCOME_FINALISED = "OUTCOME_FINALISED", "Outcome finalised"
+
+    PROMOTION_RECORDED = "PROMOTION_RECORDED", "Promotion recorded"
+
+    STUDENT_CREATED = "STUDENT_CREATED", "Student created"
+    STUDENT_UPDATED = "STUDENT_UPDATED", "Student updated"
+    STUDENT_STATUS_CHANGED = "STUDENT_STATUS_CHANGED", "Student status changed"
+    STUDENT_DELETED = "STUDENT_DELETED", "Student deleted"
+
+    USER_CREATED = "USER_CREATED", "User created"
+    USER_UPDATED = "USER_UPDATED", "User updated"
+    USER_AUTHORITY_CHANGED = "USER_AUTHORITY_CHANGED", "User authority changed"
+    USER_DELETED = "USER_DELETED", "User deleted"
+
+    IMPORT_BATCH_COMMITTED = "IMPORT_BATCH_COMMITTED", "Import finished"
+    IMPORT_BATCH_CANCELLED = "IMPORT_BATCH_CANCELLED", "Import cancelled"
+    IMPORT_BATCH_EXPIRED = "IMPORT_BATCH_EXPIRED", "Import expired"
+
+    LEGACY_GRADING_LINKED = "LEGACY_GRADING_LINKED", "Historical record linked"
+    LEGACY_GRADING_UNLINKED = (
+        "LEGACY_GRADING_UNLINKED",
+        "Historical record unlinked",
+    )
+    LEGACY_GRADING_RANK_RESOLVED = (
+        "LEGACY_GRADING_RANK_RESOLVED",
+        "Historical record rank resolved",
+    )
+    LEGACY_GRADING_VOIDED = "LEGACY_GRADING_VOIDED", "Historical record voided"
+    LEGACY_PERSON_LINKED = "LEGACY_PERSON_LINKED", "Historical person linked"
+    LEGACY_PERSON_NOT_A_STUDENT = (
+        "LEGACY_PERSON_NOT_A_STUDENT",
+        "Historical person marked not a current student",
+    )
+    LEGACY_PERSON_LATER = "LEGACY_PERSON_LATER", "Historical person left for later"
+    LEGACY_PERSON_REOPENED = "LEGACY_PERSON_REOPENED", "Historical person reopened"
+    LEGACY_PERSON_SPLIT = "LEGACY_PERSON_SPLIT", "Historical person split"
+    LEGACY_PERSON_MERGED = "LEGACY_PERSON_MERGED", "Historical people merged"
+    LEGACY_RECORDS_MOVED = (
+        "LEGACY_RECORDS_MOVED",
+        "Historical records moved to another person",
+    )
+
+    AUDIT_REDACTED = "AUDIT_REDACTED", "Personal details erased from the audit log"
+
+
+class AuditEntity(models.TextChoices):
+    """What an event is about: the model name `record()` stores."""
+
+    GRADING_SESSION = "GradingSession", "Grading session"
+    GRADING_CANDIDATE = "GradingCandidate", "Candidate"
+    CANDIDATE_ASSESSMENT = "CandidateAssessment", "Assessment"
+    CANDIDATE_ASSESSMENT_ITEM = "CandidateAssessmentItem", "Assessment item"
+    CANDIDATE_OUTCOME = "CandidateOutcome", "Outcome"
+    PROMOTION = "Promotion", "Promotion"
+    STUDENT = "Student", "Student"
+    USER = "User", "User"
+    IMPORT_BATCH = "ImportBatch", "Import"
+    LEGACY_GRADING_RECORD = "LegacyGradingRecord", "Historical grading record"
+    LEGACY_PERSON = "LegacyPerson", "Historical person"
+    AUDIT_LOG = "AuditLog", "Audit log"
+
+
+# Logistics - who runs the roster - is an administrator concern, the same
+# boundary the Users API itself draws. A Master or a holder of
+# can_view_grading_audit_log who cannot open /api/users/ must not read who
+# was created, edited, or granted authority through the audit log instead:
+# the same information through a side door. See AuditEventQuerySet.visible_to.
+USER_MANAGEMENT_ACTIONS: tuple[str, ...] = (
+    AuditAction.USER_CREATED,
+    AuditAction.USER_UPDATED,
+    AuditAction.USER_AUTHORITY_CHANGED,
+    AuditAction.USER_DELETED,
+)
+
+
+def hidden_actions(user: User) -> tuple[str, ...]:
+    """The actions `user` may not read: user management, unless they may
+    open the Users API themselves (see USER_MANAGEMENT_ACTIONS)."""
+    if user.has_perm(USER_ADMINISTRATION_PERMISSION):
+        return ()
+    return USER_MANAGEMENT_ACTIONS
+
+
+class AuditEventQuerySet(KeptQuerySet["AuditEvent"]):
+    def visible_to(self, user: User) -> AuditEventQuerySet:
+        """The events `user` may read, once permitted to read the log at all
+        (accounts.permissions.can_view_audit_log). Shared by the API and
+        Django admin so the two cannot disagree."""
+        return self.exclude(action__in=hidden_actions(user))
+
+
+class AuditEvent(KeptModel):
+    # PROTECT so that deleting a user can never erase who did something.
+    # Null only for actions with no human actor.
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="audit_events",
+        null=True,
+        blank=True,
+    )
+    # Who acted, as they were at the time: a later change to the account's
+    # name, email address or rank never rewrites the trail.
+    actor_email = models.EmailField(blank=True)
+    actor_name = models.CharField(max_length=301, blank=True)
+    # Their rank then, or "administrator" (accounts.people).
+    actor_title = models.CharField(max_length=100, blank=True, editable=False)
+    action = models.CharField(max_length=64, choices=AuditAction.choices)
+    entity_type = models.CharField(max_length=64, choices=AuditEntity.choices)
+    entity_id = models.CharField(max_length=64)
+    occurred_at = models.DateTimeField(auto_now_add=True)
+    summary = models.TextField()
+    # {"before": {...}, "after": {...}} for a revision; {} otherwise.
+    metadata = models.JSONField(default=dict, blank=True)
+
+    objects = AuditEventQuerySet.as_manager()
+
+    refusal_field = "audit"
+    change_refused = IMMUTABLE_MESSAGE
+    delete_refused = IMMUTABLE_MESSAGE
+    final_once_saved = True
+
+    class Meta:
+        ordering = ["-occurred_at", "-pk"]
+        indexes = [
+            models.Index(
+                fields=["entity_type", "entity_id", "-occurred_at"],
+                name="audit_entity_idx",
+            ),
+            models.Index(fields=["-occurred_at"], name="audit_occurred_idx"),
+            models.Index(fields=["action", "-occurred_at"], name="audit_action_idx"),
+            models.Index(fields=["actor", "-occurred_at"], name="audit_actor_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(entity_type=""),
+                name="audit_entity_type_not_blank",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(entity_id=""),
+                name="audit_entity_id_not_blank",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(summary=""),
+                name="audit_summary_not_blank",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.action} {self.entity_type}#{self.entity_id}"
+
+    def check_before_save(self) -> None:
+        # record() decides every value; the constraints stay the guard.
+        clean_without_database_checks(self)

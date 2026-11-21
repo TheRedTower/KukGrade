@@ -1,0 +1,565 @@
+/* The one button (Button.tsx): .btn with a variant, .btn--sm where it is smaller and
+   .btn--block where it fills its box.
+   Size, radius, padding, weight, hover and focus are written here and nowhere else (a
+   disabled button is dimmed by the global button:disabled rule in App.css); a screen
+   picks a variant and never styles a button of its own. A link looks like a button the same
+   way (buttonClass). */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* A short label sits in the middle; one that wraps reads from the start, so an
+     arrow stays beside its words. (A badge is a label, and centres: see .badge.) */
+  text-align: start;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background var(--duration) ease,
+    border-color var(--duration) ease,
+    filter var(--duration) ease;
+}
+
+.btn:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.btn--primary {
+  border-color: var(--btn-primary-border);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  box-shadow: var(--btn-primary-shadow);
+}
+
+@media (hover: hover) {
+  .btn--primary:hover:not(:disabled) {
+    filter: brightness(1.07);
+  }
+}
+
+.btn--secondary {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* A button that carries a tone (a chosen mark, a chosen outcome) keeps it under
+   the pointer: no hover below repaints one. The pointer is still on a button
+   that was just pressed, so a hover that won would hide the choice just made
+   until the pointer moved away. */
+@media (hover: hover) {
+  .btn--secondary:hover:not(:disabled, [data-tone]) {
+    background: var(--color-surface-sunken);
+  }
+}
+
+.btn--ghost {
+  border-color: var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+}
+
+@media (hover: hover) {
+  .btn--ghost:hover:not(:disabled, [data-tone]) {
+    border-color: var(--color-text-muted);
+    background: var(--color-surface-sunken);
+  }
+}
+
+/* A button that stays down (aria-pressed): the choice in a row of choices.
+   One that carries a tone (a Pass, a Fail) shows that tone instead. */
+.btn[aria-pressed="true"]:not([data-tone]) {
+  border-color: var(--color-gold-strong);
+  background: var(--color-surface-sunken);
+}
+
+/* A destructive action that is one of many (remove from a list): red text, a ghost's outline. */
+.btn--danger-quiet {
+  border-color: var(--color-border);
+  background: transparent;
+  color: var(--color-danger);
+}
+
+@media (hover: hover) {
+  .btn--danger-quiet:hover:not(:disabled, [data-tone]) {
+    background: var(--color-danger-surface);
+  }
+}
+
+/* Reads as a link, still a 44px target: for an action inside a sentence, a table cell or an
+   error message. */
+.btn--link {
+  padding-inline: var(--space-2);
+  background: transparent;
+  color: var(--color-accent-text);
+}
+
+@media (hover: hover) {
+  .btn--link:hover:not(:disabled) {
+    text-decoration: underline;
+  }
+}
+
+.btn--danger {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-on-danger);
+}
+
+@media (hover: hover) {
+  .btn--danger:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+}
+
+.btn--block {
+  display: flex;
+  width: 100%;
+}
+
+.btn--sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+/* A button that is only an icon (its words are its aria-label): a square target. */
+.btn--icon {
+  width: var(--target-min);
+  padding: 0;
+}
+
+/* The one badge (Badge.tsx): a short label with a tone. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  /* As wide as its label, and never wider than the box it sits in. */
+  width: max-content;
+  max-width: 100%;
+  /* A badge that is also a link styles itself, as a button does. */
+  text-decoration: none;
+}
+
+.badge__dot,
+.badge > svg {
+  flex: 0 0 auto;
+}
+
+.badge__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* The tones, each written once. A tone is a meaning (success, warning, danger,
+   info, neutral) or one of a grading session's statuses, given as `data-tone`
+   (Badge, badgeProps, a .mark, a chosen outcome); its colours come from
+   theme.css, so the same thing looks the same on every screen. */
+[data-tone="success"] {
+  border-color: var(--color-success);
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+[data-tone="warning"] {
+  border-color: var(--color-warning);
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+[data-tone="danger"] {
+  border-color: var(--color-danger);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+[data-tone="info"] {
+  border-color: var(--color-info-border);
+  background: var(--color-info-surface);
+  color: var(--color-info);
+}
+
+[data-tone="neutral"] {
+  border-color: var(--color-border);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+[data-tone="draft"] {
+  border-color: var(--color-status-draft-border);
+  background: var(--color-status-draft-surface);
+  color: var(--color-status-draft);
+}
+
+[data-tone="open"] {
+  border-color: var(--color-status-open-border);
+  background: var(--color-status-open-surface);
+  color: var(--color-status-open);
+}
+
+[data-tone="locked"] {
+  border-color: var(--color-status-locked-border);
+  background: var(--color-status-locked-surface);
+  color: var(--color-status-locked);
+}
+
+[data-tone="completed"] {
+  border-color: var(--color-status-completed-border);
+  background: var(--color-status-completed-surface);
+  color: var(--color-status-completed);
+}
+
+[data-tone="cancelled"] {
+  border-color: var(--color-status-cancelled-border);
+  background: var(--color-status-cancelled-surface);
+  color: var(--color-status-cancelled);
+}
+
+/* The one round mark: a single symbol (✓, ✕, !, –) in a circle, with a tone.
+   It is sized from its text, so it suits the line it sits on; `--small`,
+   `--large` and `--display` set that text, and a screen may set the circle's
+   own size and colours (initials in an avatar, a step's number). Decorative:
+   the words beside it say the same. */
+.mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.75em;
+  height: 1.75em;
+  border-radius: 50%;
+  font-weight: var(--font-weight-title);
+  line-height: 1;
+}
+
+.mark--small {
+  font-size: var(--font-size-xs);
+}
+
+.mark--large {
+  font-size: var(--font-size-xl);
+}
+
+.mark--display {
+  font-size: var(--font-size-3xl);
+}
+
+/* The one alert (Alert.tsx): a boxed message with a tone. Its colours come from theme.css,
+   so an error looks the same on every screen and in both themes. */
+
+.alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-base);
+}
+
+.alert__body {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.alert__body > :first-child {
+  margin-top: 0;
+}
+
+.alert__body > :last-child {
+  margin-bottom: 0;
+}
+
+.alert__title {
+  display: block;
+}
+
+.alert__dismiss {
+  color: inherit;
+}
+
+.alert--error {
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.alert--warning {
+  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.alert--success {
+  border-color: color-mix(in srgb, var(--color-success) 35%, transparent);
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.alert--info {
+  border-color: var(--color-info-border);
+  background: var(--color-info-surface);
+  color: var(--color-info);
+}
+
+/* The one error line (ErrorText.tsx): red text for a short message; "field" is the smaller one
+   under a form control. */
+
+.error-text {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-semibold);
+}
+
+.error-text--field {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+/* The one loading state (LoadingState.tsx) and its spinner. */
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-4);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+}
+
+/* A row or a small panel: the line takes the place a line of text would. */
+.loading-state--compact {
+  justify-content: flex-start;
+  padding: 0;
+  text-align: start;
+}
+
+.spinner {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-gold-strong);
+  border-radius: var(--radius-pill);
+  animation: spinner-turn 0.8s linear infinite;
+}
+
+@keyframes spinner-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* The one empty state (EmptyState.tsx): nothing here, why, and what to do next. */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.empty-state--framed {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-sunken);
+}
+
+.empty-state--fill {
+  flex: 1;
+  justify-content: center;
+}
+
+.empty-state__title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.2em;
+  font-weight: var(--font-weight-semibold);
+}
+
+.empty-state__text {
+  max-width: 28rem;
+}
+
+.empty-state__text > p {
+  margin: 0;
+}
+
+.empty-state > .btn {
+  margin-top: var(--space-2);
+}
+
+/* ── Remarks on a requirement (ItemRemarks.tsx) ───────────────────────── */
+/* A comment on the sunken surface; a change of mark, with its reason, ruled in gold.
+   Text takes the size of where it is shown; who and when are muted. */
+
+.remarks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.remarks__item {
+  padding: 0.2rem var(--space-2);
+  border-left: 2px solid var(--color-border);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+
+.remarks__item--change {
+  border-left-color: var(--color-gold-strong);
+  background: none;
+}
+
+.remarks__by {
+  color: var(--color-text-muted);
+}
+
+/* ── Meter (Meter.tsx) ────────────────────────────────────────────────── */
+
+.meter {
+  display: flex;
+  flex: 0 0 auto;
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--color-border);
+}
+
+.meter__fill {
+  transition: width var(--duration) ease;
+}
+
+.meter__fill--success {
+  background: var(--color-success);
+}
+
+.meter__fill--danger {
+  background: var(--color-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meter__fill {
+    transition: none;
+  }
+}
+
+/* ── Choice groups (ChoiceGroup) ──────────────────────────────────────── */
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.choices button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-base);
+  cursor: pointer;
+}
+
+.choices button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+.choices__count {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+}
+
+/* Filters: the chosen one outlined in gold and set in bold. */
+.choices--chips button[aria-pressed="true"] {
+  border-color: var(--color-gold);
+  background: var(--color-surface-sunken);
+  font-weight: var(--font-weight-strong);
+}
+
+/* A switch: joined in one pill, the chosen one filled. */
+.choices--segments {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+}
+
+.choices--segments button {
+  border: 0;
+  font-weight: var(--font-weight-strong);
+}
+
+.choices--segments button[aria-pressed="true"] {
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+}
+
+/* One decision's answers (a rank, an outcome): large buttons that fill their
+   tile, the chosen one filled in gold. */
+.choices--options button {
+  justify-content: flex-start;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-control);
+  text-align: start;
+}
+
+.choices--options button[aria-pressed="true"] {
+  border-color: var(--color-gold);
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+  font-weight: var(--font-weight-strong);
+}
+
+/* A button in the actions column keeps its label whole: the column grows to fit
+   it, and the label wraps only between words. */
+.rtable [data-actions] .btn {
+  width: max-content;
+  max-width: 100%;
+}

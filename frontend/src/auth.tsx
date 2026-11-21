@@ -1,0 +1,257 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import {
+  ApiError,
+  isAnonymousResponse,
+  type AuthUser,
+  changePassword as changePasswordApi,
+  completeSetup,
+  getCurrentUser,
+  loginUser,
+  logoutUser,
+  NETWORK_ERROR,
+  type SetupDetails,
+  updateCurrentUser,
+} from "./api";
+import { SIGNING_OUT_EVENT, landingBeforeSignOut, writesLanded } from "./pendingWrites";
+import { keys } from "./queryKeys";
+
+// The longest a sign-out waits for saves still on their way.
+const SIGN_OUT_WAIT_MS = 5000;
+
+/** A sign-out that did not reach the server: the session may still be live. */
+export const SIGN_OUT_ERROR = `You are still signed in: ${NETWORK_ERROR}`;
+
+type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
+
+type AuthContextValue = {
+  user: AuthUser | null;
+  status: AuthStatus;
+  /** Set only while status is "error"; safe to show to the viewer. */
+  error: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateName: (firstName: string, lastName: string) => Promise<void>;
+  /** Create the first administrator (the setup page) and sign them in. */
+  setUp: (details: SetupDetails) => Promise<void>;
+  /** Re-run the session check after a transport failure. */
+  retry: () => void;
+};
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+const CURRENT_USER_QUERY_KEY = keys.currentUser();
+
+// Per-device, not per-account: lets the login screen say "Welcome back"
+// instead of "Sign in" once this browser has ever seen a signed-in session,
+// without needing to know who is about to sign in.
+const HAS_SIGNED_IN_STORAGE_KEY = "kukgrade-has-signed-in";
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function hasSignedInBefore(): boolean {
+  try {
+    return window.localStorage.getItem(HAS_SIGNED_IN_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function describeAuthFailure(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status >= 500) {
+      return "KukGrade is not responding. You are still signed in - try again in a moment.";
+    }
+    return error.message;
+  }
+  return NETWORK_ERROR;
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+
+  // Ending a session drops everything fetched under it, so the next person
+  // on this browser never sees the previous person's students or gradings.
+  const forgetSession = useCallback(() => {
+    queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+    queryClient.removeQueries({
+      predicate: (query) => query.queryKey[0] !== CURRENT_USER_QUERY_KEY[0],
+    });
+  }, [queryClient]);
+
+  const currentUserQuery = useQuery({
+    queryKey: CURRENT_USER_QUERY_KEY,
+    queryFn: getCurrentUser,
+  });
+
+  // Like signing in: the server signs the new administrator in, and the
+  // cache starts afresh - which also drops the "setup needed" answer.
+  const setUpMutation = useMutation({
+    mutationFn: completeSetup,
+    onSuccess: (authenticatedUser) => {
+      forgetSession();
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, authenticatedUser);
+    },
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: ({ email, password }: { email: string; password: string }) => loginUser(email, password),
+    onSuccess: (authenticatedUser) => {
+      // Signing out clears the cache, but only if the logout request
+      // succeeded. Closing the tab, losing the network, or an expiry the
+      // client never saw all leave the previous session's data sitting
+      // there, so the start of a session clears it too - whoever just
+      // signed in is the only person this cache may describe.
+      forgetSession();
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, authenticatedUser);
+    },
+  });
+
+  // The cache is only cleared once the server has actually ended the
+  // session (onSuccess) - clearing it after a failed request would show a
+  // signed-out UI while the session cookie was still valid.
+  //
+  // Work not yet saved is saved first, while the session still lives:
+  // screens holding some start their save on SIGNING_OUT_EVENT, and the
+  // sign-out waits for those saves to land, for a few seconds at most.
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      window.dispatchEvent(new Event(SIGNING_OUT_EVENT));
+      await writesLanded(queryClient, landingBeforeSignOut, SIGN_OUT_WAIT_MS);
+      return logoutUser();
+    },
+    onSuccess: forgetSession,
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      changePasswordApi(currentPassword, newPassword),
+    onSuccess: async () => {
+      await currentUserQuery.refetch();
+    },
+  });
+
+  const updateNameMutation = useMutation({
+    mutationFn: ({ firstName, lastName }: { firstName: string; lastName: string }) =>
+      updateCurrentUser({ first_name: firstName, last_name: lastName }),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, updatedUser);
+    },
+  });
+
+  // A session that expired - two hours without a request - answers every
+  // call with "not signed in". Whichever request hears it first signs the
+  // viewer out here, so the next action lands on sign-in rather than an
+  // error on whatever screen was open.
+  useEffect(() => {
+    function signOutIfSessionEnded(error: unknown) {
+      if (isAnonymousResponse(error)) {
+        forgetSession();
+      }
+    }
+    const stopQueries = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type === "updated" && event.action.type === "error") {
+        signOutIfSessionEnded(event.action.error);
+      }
+    });
+    const stopMutations = queryClient.getMutationCache().subscribe((event) => {
+      if (event.type === "updated" && event.action.type === "error") {
+        signOutIfSessionEnded(event.action.error);
+      }
+    });
+    return () => {
+      stopQueries();
+      stopMutations();
+    };
+  }, [queryClient, forgetSession]);
+
+  const user = currentUserQuery.data ?? null;
+
+  useEffect(() => {
+    if (user === null) {
+      return;
+    }
+    try {
+      window.localStorage.setItem(HAS_SIGNED_IN_STORAGE_KEY, "true");
+    } catch {
+      // Private browsing or a blocked store just means the login screen
+      // says "Sign in" every time instead of "Welcome back" - not worth
+      // surfacing to the viewer.
+    }
+  }, [user]);
+
+  // A known user stays signed in through a background re-check (a network
+  // reconnect refetches this query): showing "loading" or "error" then would
+  // unmount the whole app and lose whatever was on screen. Only a genuine
+  // "not signed in" answer ends the session, and that clears the user
+  // through forgetSession. Without a user yet, fetching covers both the
+  // initial load and a retry, so both read as "loading".
+  const neverAnswered = currentUserQuery.data === undefined;
+  let status: AuthStatus;
+  if (user !== null) {
+    status = "authenticated";
+  } else if (neverAnswered && currentUserQuery.isFetching) {
+    status = "loading";
+  } else if (neverAnswered && currentUserQuery.isError) {
+    status = isAnonymousResponse(currentUserQuery.error) ? "anonymous" : "error";
+  } else {
+    // Resolved to no user - true after logout or an expired session.
+    status = "anonymous";
+  }
+
+  const error = status === "error" ? describeAuthFailure(currentUserQuery.error) : null;
+
+  const refetchCurrentUser = currentUserQuery.refetch;
+  const retry = useCallback(() => {
+    void refetchCurrentUser();
+  }, [refetchCurrentUser]);
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      await loginMutation.mutateAsync({ email, password });
+    },
+    [loginMutation],
+  );
+
+  const logout = useCallback(async () => {
+    await logoutMutation.mutateAsync();
+  }, [logoutMutation]);
+
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      await changePasswordMutation.mutateAsync({ currentPassword, newPassword });
+    },
+    [changePasswordMutation],
+  );
+
+  const setUp = useCallback(
+    async (details: SetupDetails) => {
+      await setUpMutation.mutateAsync(details);
+    },
+    [setUpMutation],
+  );
+
+  const updateName = useCallback(
+    async (firstName: string, lastName: string) => {
+      await updateNameMutation.mutateAsync({ firstName, lastName });
+    },
+    [updateNameMutation],
+  );
+
+  const value = useMemo(
+    () => ({ user, status, error, login, logout, changePassword, updateName, setUp, retry }),
+    [changePassword, error, login, logout, retry, setUp, status, updateName, user],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth(): AuthContextValue {
+  const value = useContext(AuthContext);
+  if (value === undefined) {
+    throw new Error("useAuth must be used within AuthProvider.");
+  }
+  return value;
+}

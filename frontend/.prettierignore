@@ -1,0 +1,6 @@
+dist
+test-results
+playwright-report
+package-lock.json
+# Generated from backend/schema.yml; CI diffs it against a fresh generation.
+src/api/schema.ts

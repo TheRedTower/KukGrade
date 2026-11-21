@@ -1,0 +1,80 @@
+/* Cohort Adjudication Board. Theme tokens only. */
+
+.cab-progress {
+  margin: 0;
+}
+
+.cab-progress strong {
+  color: var(--color-text);
+}
+
+.cab-notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+}
+
+.cab-row-name {
+  display: block;
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cab-row-sub {
+  display: block;
+}
+
+.cab-counts {
+  display: block;
+  margin: 0;
+}
+
+.cab-flags {
+  display: block;
+}
+
+.cab-flags-shortfall {
+  color: var(--color-danger);
+}
+
+.cab-row-name:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
+.cab-detail h2 {
+  margin: 0;
+}
+
+.cab-detail-section {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.cab-detail-section h3 {
+  margin: 0;
+}
+
+.cab-detail-section p {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.cab-record-one,
+.cab-record-all {
+  min-height: var(--target-min);
+}
+
+.cab-detail h2:focus-visible,
+.cab-bar-result:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}

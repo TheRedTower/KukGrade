@@ -1,0 +1,954 @@
+import { onlineManager } from "@tanstack/react-query";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import App from "./App";
+import type { AuthUser } from "./api";
+import {
+  authUser,
+  jsonResponse,
+  emptyResponse,
+  authRequiredResponse,
+  signedOutResponse,
+  CHOICES,
+  stubFetch,
+} from "./appTestSupport";
+
+/**
+ * A fetch mock that hands out `responses` in order, except for the site
+ * settings: the sign-in page also asks for those (to offer the demo's
+ * accounts), which these tests do not follow.
+ */
+function inOrderExceptSiteSettings(responses: Response[]) {
+  const queue = [...responses];
+  return vi
+    .fn()
+    .mockImplementation(async (url: string) => (url.includes("/api/site/") ? jsonResponse(200, {}) : queue.shift()));
+}
+
+describe("App authentication", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+    // These tests exercise the ordinary sign-in/out flow, not first-time
+    // copy - see "First-time login copy" below for that.
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("loads the authenticated application shell with the signed-in user", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, authUser));
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Casey")).toBeVisible();
+    });
+
+    expect(screen.getByText("Instructor")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Casey Instructor, Instructor: your account" })).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/me/", expect.objectContaining({ credentials: "include" }));
+  });
+
+  it("returns to sign-in when a screen's request finds the session has ended", async () => {
+    window.history.replaceState({}, "", "/students");
+    // Signed in when the app loads; the session then expires, so the
+    // students request is the first to hear it.
+    stubFetch(
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/auth/me/") ? jsonResponse(200, authUser) : signedOutResponse(url),
+        ),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+  });
+
+  it("goes back, after signing in again, to the page the session ended on", async () => {
+    window.history.replaceState({}, "", "/students?status=ACTIVE");
+    let signedIn = false;
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/login/")) {
+          signedIn = true;
+          return jsonResponse(200, authUser);
+        }
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+        if (url.includes("/api/auth/me/")) return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
+        if (url.includes("/api/site/")) return jsonResponse(200, {});
+        if (url.includes("/api/students/") || url.includes("/api/ranks/")) {
+          return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/students"));
+    expect(window.location.search).toBe("?status=ACTIVE");
+  });
+
+  it("follows only a path inside the app after signing in", async () => {
+    window.history.replaceState({ usr: { from: "//evil.example/steal" }, key: "x", idx: 0 }, "", "/login");
+    let signedIn = false;
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/login/")) {
+          signedIn = true;
+          return jsonResponse(200, authUser);
+        }
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+        if (url.includes("/api/auth/me/")) return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
+        if (url.includes("/api/site/")) return jsonResponse(200, {});
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+  });
+
+  it("protects authenticated routes from anonymous users", async () => {
+    window.history.replaceState({}, "", "/sessions");
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+    });
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/login");
+    });
+  });
+
+  it("logs in with a CSRF-protected session request", async () => {
+    let signedIn = false;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
+      }
+      if (url.includes("/api/auth/login/")) {
+        signedIn = true;
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Casey")).toBeVisible();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/login/",
+      expect.objectContaining({
+        body: JSON.stringify({
+          email: "casey@example.com",
+          password: "StrongPass123!",
+        }),
+        credentials: "include",
+        method: "POST",
+      }),
+    );
+    const loginCall = fetchMock.mock.calls.find(([url]) => url.includes("/api/auth/login/"));
+    expect(loginCall).toBeDefined();
+    const loginHeaders = (loginCall![1] as RequestInit).headers as Headers;
+    expect(loginHeaders.get("X-CSRFToken")).toBe("test-csrf-token");
+    // The signed-in shell is drawn first and the address follows it, a moment later.
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/");
+    });
+  });
+
+  it("uses a generic login error for failed credentials", async () => {
+    const fetchMock = inOrderExceptSiteSettings([
+      authRequiredResponse(),
+      jsonResponse(200, { setup_needed: false }),
+      jsonResponse(400, {
+        error: {
+          code: "validation_error",
+          message: "Unable to log in with the provided credentials.",
+          fields: {
+            non_field_errors: ["Unable to log in with the provided credentials."],
+          },
+        },
+      }),
+    ]);
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "wrong");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("Email or password is incorrect.")).toBeVisible();
+  });
+
+  it("shows the server's own message when login is throttled, not a credential error", async () => {
+    const fetchMock = inOrderExceptSiteSettings([
+      authRequiredResponse(),
+      jsonResponse(200, { setup_needed: false }),
+      jsonResponse(429, {
+        error: {
+          code: "throttled",
+          message: "Request was throttled. Expected available in 42 seconds.",
+        },
+      }),
+    ]);
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "wrong");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("Request was throttled. Expected available in 42 seconds.")).toBeVisible();
+    expect(screen.queryByText("Email or password is incorrect.")).not.toBeInTheDocument();
+  });
+
+  it("logs out and returns to the login route", async () => {
+    let signedIn = true;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
+      }
+      if (url.includes("/api/auth/logout/")) {
+        signedIn = false;
+        return emptyResponse(204);
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    // Waited for itself: under load the account link can be on screen a
+    // moment before the button beside it (a CI run failed on getByRole).
+    await user.click(await screen.findByRole("button", { name: "Sign out" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/logout/",
+      expect.objectContaining({
+        credentials: "include",
+        method: "POST",
+      }),
+    );
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/login");
+    });
+  });
+
+  it("never shows one account's data to the next person on this browser", async () => {
+    window.history.replaceState({}, "", "/students");
+    const dana = {
+      ...authUser,
+      id: "1a0e2f3c-1111-4222-8333-444455556666",
+      email: "dana@example.com",
+      first_name: "Dana",
+      last_name: "Instructor",
+      full_name: "Dana Instructor",
+    } satisfies AuthUser;
+
+    // Casey's roster request is still in flight when Casey signs out. Without
+    // cancellation it resolves into the emptied cache, and Dana is shown
+    // Casey's students on arrival.
+    let releaseCaseyRoster: (response: Response) => void = () => {};
+    const caseyRosterInFlight = new Promise<Response>((resolve) => {
+      releaseCaseyRoster = resolve;
+    });
+    const rosterOf = (name: string) =>
+      jsonResponse(200, {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            id: 1,
+            wksa_id: "UK-1001",
+            first_name: name,
+            last_name: "Student",
+            current_rank: 1,
+            current_rank_code: "W",
+            current_rank_name: "White Belt",
+            status: "ACTIVE",
+            status_display: "Active",
+            can_be_graded: true,
+            next_rank: null,
+            next_rank_name: null,
+            age_band: "AGE_18_AND_OVER",
+            age_band_display: "18+",
+          },
+        ],
+      });
+
+    let signedInAs: AuthUser | null = authUser;
+    let rosterRequests = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return signedInAs ? jsonResponse(200, signedInAs) : signedOutResponse(url);
+      }
+      if (url.includes("/api/auth/logout/")) {
+        signedInAs = null;
+        return emptyResponse(204);
+      }
+      if (url.includes("/api/auth/login/")) {
+        signedInAs = dana;
+        return jsonResponse(200, dana);
+      }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/students/")) {
+        rosterRequests += 1;
+        return rosterRequests === 1 ? caseyRosterInFlight : rosterOf("Dana-Only");
+      }
+      return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Students" });
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await screen.findByRole("heading", { name: "Welcome back" });
+
+    // Casey's roster lands after the cache was cleared.
+    releaseCaseyRoster(rosterOf("Casey-Only"));
+
+    await user.type(screen.getByLabelText("Email address"), "dana@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await screen.findByRole("link", { name: /^Dana Instructor, / });
+    await user.click(screen.getByRole("link", { name: "Students" }));
+    await screen.findByRole("heading", { name: "Students" });
+
+    expect(await screen.findByText(/Dana-Only/)).toBeVisible();
+    expect(screen.queryByText(/Casey-Only/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Connection failures are not sign-outs", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("shows a retryable error for a server fault instead of the login page", async () => {
+    stubFetch(
+      vi.fn().mockResolvedValue(
+        jsonResponse(500, {
+          error: { code: "error", message: "Internal Server Error" },
+        }),
+      ),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Can’t reach KukGrade" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Welcome back" })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("KukGrade is not responding");
+  });
+
+  it("shows a retryable error when the network is unreachable", async () => {
+    stubFetch(vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("KukGrade could not be reached");
+    expect(screen.queryByRole("heading", { name: "Welcome back" })).not.toBeInTheDocument();
+  });
+
+  it("does not redirect to the login route on a connection failure", async () => {
+    window.history.replaceState({}, "", "/sessions");
+    stubFetch(vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    render(<App />);
+
+    await screen.findByRole("alert");
+    expect(window.location.pathname).toBe("/sessions");
+  });
+
+  it("recovers to the application shell when the retry succeeds", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(jsonResponse(200, authUser));
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Casey")).toBeVisible();
+    });
+  });
+
+  it.each([
+    ["succeeds", () => jsonResponse(200, authUser)],
+    ["fails", () => jsonResponse(502, { error: { code: "error", message: "Bad gateway" } })],
+  ])("keeps the signed-in screen mounted when the reconnect re-check %s", async (_outcome, recheckResponse) => {
+    let meCalls = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        meCalls += 1;
+        if (meCalls === 1) return jsonResponse(200, authUser);
+        // A real re-check takes time; the screen must not change meanwhile.
+        await new Promise((settle) => setTimeout(settle, 20));
+        return recheckResponse();
+      }
+      return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+    });
+    stubFetch(fetchMock);
+
+    render(<App />);
+    const heading = await screen.findByRole("heading", { name: "Overview" });
+
+    // Losing and regaining the network makes TanStack Query refetch.
+    act(() => {
+      onlineManager.setOnline(false);
+      onlineManager.setOnline(true);
+    });
+    await waitFor(() => expect(meCalls).toBe(2));
+    await act(async () => {
+      await new Promise((settle) => setTimeout(settle, 50));
+    });
+
+    // The same element, not a remounted copy: on-screen state survived.
+    expect(heading.isConnected).toBe(true);
+    expect(screen.queryByText("Loading KukGrade")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Can’t reach KukGrade" })).not.toBeInTheDocument();
+  });
+
+  it("signs the viewer out when the reconnect re-check says the session has ended", async () => {
+    let meCalls = 0;
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+        if (url.includes("/api/auth/me/")) {
+          meCalls += 1;
+          return meCalls === 1 ? jsonResponse(200, authUser) : signedOutResponse(url);
+        }
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }),
+    );
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Overview" });
+    act(() => {
+      onlineManager.setOnline(false);
+      onlineManager.setOnline(true);
+    });
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+    expect(window.location.pathname).toBe("/login");
+  });
+
+  it("still treats a genuine authentication answer as anonymous", async () => {
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+  });
+
+  it("keeps the viewer signed in when sign-out fails", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/auth/logout/")) {
+        throw new TypeError("Failed to fetch");
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    // The session may still be live, so a signed-out UI would be a lie.
+    expect(await screen.findByRole("alert")).toHaveTextContent("You are still signed in");
+    expect(screen.getByText("Casey")).toBeVisible();
+    expect(window.location.pathname).toBe("/");
+  });
+});
+
+describe("First-time login copy", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("greets a browser that has never signed in with 'Sign in', not 'Welcome back'", async () => {
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeVisible();
+    expect(screen.getByRole("img", { name: "KukGrade" })).toBeInTheDocument();
+  });
+
+  it("says 'Welcome back' once this browser has signed in before", async () => {
+    let signedIn = false;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
+      }
+      if (url.includes("/api/auth/login/")) {
+        signedIn = true;
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/auth/logout/")) {
+        signedIn = false;
+        return emptyResponse(204);
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await screen.findByRole("link", { name: /^Casey Instructor, / });
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+    });
+  });
+});
+
+describe("Login theme toggle", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("defaults to following the system preference with no stored choice", async () => {
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    // The shim's system preference is light; the resolved theme is still
+    // written, so component overrides keyed on data-theme apply. An effect
+    // writes it, which can land after the heading.
+    await waitFor(() => expect(document.documentElement.getAttribute("data-theme")).toBe("light"));
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  // Component overrides are written as [data-theme="dark"] .x; with a dark
+  // OS and no stored choice they used to be skipped, because System left the
+  // attribute unset.
+  it("writes a dark system preference to the page and follows it as it changes", async () => {
+    window.localStorage.removeItem("kukgrade-theme");
+    let listener: ((event: MediaQueryListEvent) => void) | null = null;
+    // As a browser does, the list's own `matches` changes with the system.
+    let systemDark = true;
+    const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          get matches() {
+            return systemDark;
+          },
+          media: query,
+          addEventListener: (_: string, handler: (event: MediaQueryListEvent) => void) => {
+            listener = handler;
+          },
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    );
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    // The theme is written by an effect, which can land after the heading.
+    await waitFor(() => expect(document.documentElement.getAttribute("data-theme")).toBe("dark"));
+
+    act(() => {
+      systemDark = false;
+      listener?.({ matches: false } as MediaQueryListEvent);
+    });
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    matchMedia.mockRestore();
+  });
+
+  it("pins an explicit choice to the page and remembers it for next time", async () => {
+    stubFetch(vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    await user.click(screen.getByRole("button", { name: "Dark" }));
+
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(window.localStorage.getItem("kukgrade-theme")).toBe("dark");
+    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+describe("Mandatory password change", () => {
+  const forcedUser = {
+    ...authUser,
+    must_change_password: true,
+  } satisfies AuthUser;
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("renders mandatory password change view and blocks navigation when must_change_password is true", async () => {
+    stubFetch(vi.fn().mockResolvedValue(jsonResponse(200, forcedUser)));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Choose a new password" })).toBeVisible();
+    expect(screen.getByText(/You signed in with a temporary password/)).toBeVisible();
+    expect(screen.getByRole("img", { name: "KukGrade" })).toBeVisible();
+
+    // Nav rail and main overview should NOT be visible
+    expect(screen.queryByRole("navigation", { name: "Main navigation" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Overview" })).not.toBeInTheDocument();
+  });
+
+  it("shows the server's password rules and checks only the confirmation itself", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/change-password/")) {
+        return jsonResponse(400, {
+          error: {
+            code: "validation_error",
+            message: "Invalid input",
+            fields: {
+              new_password: ["This password is too short. It must contain at least 8 characters."],
+            },
+          },
+        });
+      }
+      return jsonResponse(200, forcedUser);
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+
+    // A short password is the server's to refuse; its message is shown as is.
+    await user.type(screen.getByLabelText("Temporary password"), "temp123!");
+    await user.type(screen.getByLabelText(/^New password/i), "short");
+    await user.type(screen.getByLabelText(/^Confirm new password/i), "short");
+    await user.click(screen.getByRole("button", { name: "Update password and continue" }));
+
+    expect(await screen.findByText("This password is too short. It must contain at least 8 characters.")).toBeVisible();
+    const changeRequests = () =>
+      fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/auth/change-password/"));
+    expect(changeRequests()).toHaveLength(1);
+
+    // Submit with mismatched passwords
+    await user.clear(screen.getByLabelText(/^New password/i));
+    await user.type(screen.getByLabelText(/^New password/i), "ValidPass123!");
+    await user.clear(screen.getByLabelText(/^Confirm new password/i));
+    await user.type(screen.getByLabelText(/^Confirm new password/i), "MismatchPass456!");
+    await user.click(screen.getByRole("button", { name: "Update password and continue" }));
+
+    expect(await screen.findByText("The passwords do not match.")).toBeVisible();
+    expect(changeRequests()).toHaveLength(1);
+  });
+
+  it("submits change password, refetches user, and unlocks navigation on success", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, forcedUser);
+      }
+      if (url.includes("/api/auth/change-password/")) {
+        const body = JSON.parse(init?.body as string);
+        expect(body.current_password).toBe("temp-secret-123");
+        expect(body.new_password).toBe("NewSecretPass123!");
+        // Update mock so next /api/auth/me/ call returns must_change_password: false
+        fetchMock.mockImplementation(async (nextUrl: string) => {
+          if (nextUrl.includes("/api/auth/me/")) {
+            return jsonResponse(200, { ...forcedUser, must_change_password: false });
+          }
+          return jsonResponse(404, {});
+        });
+        return emptyResponse(204);
+      }
+      return jsonResponse(404, {});
+    });
+
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+
+    await user.type(screen.getByLabelText("Temporary password"), "temp-secret-123");
+    await user.type(screen.getByLabelText(/^New password/i), "NewSecretPass123!");
+    await user.type(screen.getByLabelText(/^Confirm new password/i), "NewSecretPass123!");
+    await user.click(screen.getByRole("button", { name: "Update password and continue" }));
+
+    // Unlocks app and renders the main Overview heading
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
+    expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  });
+
+  it("surfaces API field errors when current password is wrong", async () => {
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+        if (url.includes("/api/auth/me/")) {
+          return jsonResponse(200, forcedUser);
+        }
+        if (url.includes("/api/auth/change-password/")) {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_error",
+              message: "Invalid input",
+              fields: {
+                current_password: ["Current password is incorrect."],
+              },
+            },
+          });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+
+    await user.type(screen.getByLabelText("Temporary password"), "wrong-temp-password");
+    await user.type(screen.getByLabelText(/^New password/i), "ValidNewPass123!");
+    await user.type(screen.getByLabelText(/^Confirm new password/i), "ValidNewPass123!");
+    await user.click(screen.getByRole("button", { name: "Update password and continue" }));
+
+    expect(await screen.findByText("Current password is incorrect.")).toBeVisible();
+  });
+
+  it("allows user to sign out from the mandatory password change view", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, forcedUser);
+      }
+      if (url.includes("/api/auth/logout/")) {
+        return emptyResponse(204);
+      }
+      return jsonResponse(404, {});
+    });
+
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+  });
+
+  it("says so when signing out from the mandatory password change view fails", async () => {
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/logout/")) throw new TypeError("Failed to fetch");
+        return jsonResponse(200, forcedUser);
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(
+      await screen.findByText(
+        "You are still signed in: KukGrade could not be reached. Check your connection and try again.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeEnabled();
+  });
+});
+
+describe("App demo", () => {
+  const demoSite = {
+    club_name: "Riverside",
+    time_zone: "Europe/London",
+    demo: {
+      password: "KukGradeDemo2026!",
+      next_reset_at: "2027-03-01T18:00:00Z",
+      accounts: [
+        {
+          key: "instructor",
+          email: "instructor@demo.example.com",
+          label: "Instructor",
+          description: "Assesses candidates and recommends a verdict.",
+        },
+        {
+          key: "master",
+          email: "master@demo.example.com",
+          label: "Master",
+          description: "Makes the final decision.",
+        },
+      ],
+    },
+  };
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("offers the demo accounts on the sign-in page and signs in with one click", async () => {
+    let signedIn = false;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/site/")) return jsonResponse(200, demoSite);
+      if (url.includes("/api/setup/")) return jsonResponse(200, { setup_needed: false });
+      if (url.includes("/api/auth/login/")) {
+        signedIn = true;
+        expect(JSON.parse(String(init?.body))).toEqual({
+          email: "master@demo.example.com",
+          password: "KukGradeDemo2026!",
+        });
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
+      }
+      return jsonResponse(200, { results: [], count: 0 });
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Try the demo" })).toBeVisible();
+    expect(screen.getByText("Makes the final decision.")).toBeVisible();
+    expect(screen.getByText("KukGradeDemo2026!")).toBeVisible();
+    // A reset on another day is named by its date, never a bare clock time.
+    expect(screen.getByText(/is reset at 1 Mar 2027/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Sign in as Master/ }));
+
+    expect(await screen.findByRole("note")).toHaveTextContent("You are using a demo with made-up data.");
+  });
+
+  it("shows no demo card on an ordinary deployment", async () => {
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/site/")) {
+          return jsonResponse(200, { club_name: "Riverside", time_zone: "Europe/London" });
+        }
+        if (url.includes("/api/setup/")) return jsonResponse(200, { setup_needed: false });
+        return authRequiredResponse();
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    expect(screen.queryByRole("heading", { name: "Try the demo" })).not.toBeInTheDocument();
+  });
+});

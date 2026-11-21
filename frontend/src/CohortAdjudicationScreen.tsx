@@ -1,0 +1,217 @@
+/**
+ * Master final decision - Cohort Adjudication Board.
+ *
+ * A locked session's cohort is a
+ * decision queue: each row carries the served evidence counts, the
+ * instructor's proposal and an inline Pass / Conditional / Fail; a detail pane
+ * holds the row in focus. Decisions are staged first, then written one
+ * candidate at a time, and every row succeeds or fails on its own -
+ * nothing here is all-or-nothing, and failures stay staged for a retry.
+ *
+ * One deliberate deviation from the board: the detail pane lists **every**
+ * comment on an item, not only shortfalls (see
+ * `SealedAssessmentEvidence`, which the proposal drawer shares).
+ *
+ * Counts are served (each assessment's `overall`), never
+ * recounted. Whether the viewer may decide comes from `/api/auth/me/`
+ * (`can_make_final_grading_decision`); the server enforces it regardless.
+ */
+import { useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { EmptyState } from "./EmptyState";
+import { keys } from "./queryKeys";
+import { PageHeader } from "./PageHeader";
+import { Alert } from "./Alert";
+import { RecordPage } from "./RecordPage";
+import { recordStatus, useIdParam } from "./recordStatus";
+import { Button } from "./Button";
+import { getAllGradingCandidates, getGradingSession } from "./api";
+import { buildRows } from "./adjudicationBoard";
+import { useAuth } from "./auth";
+import { formatSessionDate } from "./dates";
+import "./CandidateAssessment.css";
+import "./CohortAdjudication.css";
+import { CohortDecisionQueue } from "./CohortDecisionQueue";
+import { CohortFocusPane } from "./CohortFocusPane";
+import { CohortRecordBar } from "./CohortRecordBar";
+import { useSealedEvidenceLoaded } from "./queries";
+import { useStagedDecisions } from "./useStagedDecisions";
+import { agreeing } from "./plural";
+
+export function CohortAdjudicationScreen() {
+  const id = useIdParam();
+  // The queries wait for a real id; 0 is never sent.
+  const sessionId = id ?? 0;
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+
+  const [focusId, setFocusId] = useState<number | null>(() => {
+    const requested = Number(searchParams.get("candidate"));
+    return Number.isNaN(requested) || requested <= 0 ? null : requested;
+  });
+  const detailHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  const enabled = id !== null;
+
+  const sessionQuery = useQuery({
+    queryKey: keys.gradingSessions.detail(sessionId),
+    queryFn: () => getGradingSession(sessionId),
+    enabled,
+  });
+  const candidatesQuery = useQuery({
+    // Withdrawn candidates are not decided: the server leaves them out.
+    queryKey: keys.gradingCandidates.board(sessionId),
+    queryFn: () => getAllGradingCandidates({ session: sessionId, withdrawn: false }),
+    enabled,
+  });
+
+  const session = sessionQuery.data;
+  const rows = buildRows(candidatesQuery.data?.results ?? []);
+  // Each row says whether a decision can be recorded for it now; whether this
+  // viewer may record one is their own authority.
+  const canDecide = Boolean(user?.can_make_final_grading_decision) && rows.some((row) => row.decidable);
+
+  const decisions = useStagedDecisions({ sessionId, enabled, canDecide, onFocus: setFocusId });
+
+  const withdrawnCount = session?.withdrawn_count ?? 0;
+  const finalisedCount = rows.filter((row) => row.outcome?.status === "FINALISED").length;
+
+  const focusRow = rows.find((row) => row.candidate.id === focusId) ?? rows.find((row) => row.decidable) ?? rows[0];
+  // A single decision is recorded beside its evidence, so not before that
+  // evidence has loaded.
+  const focusEvidenceLoaded = useSealedEvidenceLoaded(focusRow?.assessment?.id);
+
+  // Where the detail pane sits under the queue (the layout decides, by the
+  // page's own width), a tap on a name would otherwise change nothing on screen.
+  const focusRowFromQueue = (candidateId: number, button: HTMLElement) => {
+    setFocusId(candidateId);
+    const queue = button.closest(".rtable")?.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      const heading = detailHeadingRef.current;
+      if (!heading || !queue) return;
+      if (heading.getBoundingClientRect().left < queue.right) heading.focus();
+    });
+  };
+
+  // Either request failing would otherwise render as a real, empty cohort (no
+  // rows, or "No assessment" on every row).
+  const failedQueries = [sessionQuery, candidatesQuery].filter((query) => query.isError);
+  const status =
+    recordStatus(id, sessionQuery) ??
+    (candidatesQuery.isError ? "failed" : candidatesQuery.isPending ? "loading" : null);
+  if (status || !session) {
+    return (
+      <RecordPage
+        back={{
+          to: id ? `/gradings/${id}` : "/gradings",
+          label: session?.title ?? (id ? "Grading session" : "Gradings"),
+        }}
+        failed="The final decisions could not be loaded."
+        label="Final decisions"
+        loading="Loading final decisions…"
+        missing="Grading session not found"
+        status={status ?? "loading"}
+        onRetry={() => failedQueries.forEach((query) => void query.refetch())}
+      />
+    );
+  }
+
+  return (
+    <section aria-labelledby="cab-title" className="page">
+      <PageHeader
+        back={{ to: `/gradings/${session.id}`, label: session.title }}
+        title={`Final decisions · ${session.title}`}
+        titleId="cab-title"
+        subtitle={`${session.status_display} · ${formatSessionDate(session.grading_date)}${session.location ? ` · ${session.location}` : ""}`}
+        actions={
+          <p className="cab-progress subtext" role="status">
+            <strong>{finalisedCount}</strong> / {rows.length} finalised
+          </p>
+        }
+      />
+
+      {!session.decisions_open && (
+        <p className="cab-notice" role="status">
+          {session.status === "COMPLETED"
+            ? "This session is completed. Its decisions are the permanent record."
+            : "Final decisions open once the session is locked, after every assessment is completed."}
+        </p>
+      )}
+      {canDecide && decisions.keptQuery.isError && (
+        <Alert
+          action={
+            <Button variant="secondary" onClick={() => void decisions.keptQuery.refetch()}>
+              Try again
+            </Button>
+          }
+        >
+          Your staged decisions could not be loaded. Staging is paused until they are, so none is overwritten.
+        </Alert>
+      )}
+      {session.decisions_open && !user?.can_make_final_grading_decision && (
+        <p className="cab-notice" role="status">
+          Final decisions are made by an authorised Master. You can review the cohort here.
+        </p>
+      )}
+      {withdrawnCount > 0 && (
+        <p className="subtext">
+          {withdrawnCount} withdrawn {agreeing(withdrawnCount, "candidate is", "candidates are")} not shown.
+        </p>
+      )}
+      {/* Said here, not in the bar pinned to the window: there it took a quarter of a phone's screen. */}
+      {canDecide && (
+        <p className="subtext" data-testid="cab-recording-note">
+          Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest
+          are kept. What you stage is saved for you until it is recorded, even if you are signed out.
+        </p>
+      )}
+
+      <div className="split">
+        <div>
+          {rows.length === 0 ? (
+            <EmptyState framed title="No candidates to decide in this session." />
+          ) : (
+            <CohortDecisionQueue
+              rows={rows}
+              focusId={focusRow?.candidate.id}
+              staged={decisions.staged}
+              failures={decisions.failures}
+              canDecide={canDecide}
+              canStage={decisions.canStage}
+              onFocus={focusRowFromQueue}
+              onStage={decisions.stage}
+            />
+          )}
+        </div>
+
+        {focusRow && (
+          <CohortFocusPane
+            row={focusRow}
+            sessionId={session.id}
+            decision={focusRow.outcome ? decisions.staged[focusRow.outcome.id] : undefined}
+            canStage={decisions.canStage}
+            recording={decisions.isRecording}
+            evidenceLoaded={focusEvidenceLoaded}
+            headingRef={detailHeadingRef}
+            onUpdate={decisions.updateStaged}
+            onRecord={decisions.record}
+          />
+        )}
+      </div>
+
+      {canDecide && (
+        <CohortRecordBar
+          stagedIds={decisions.stagedIds}
+          failedIds={decisions.failedIds}
+          incomplete={decisions.incomplete}
+          keepFailures={decisions.keepFailures}
+          lastResult={decisions.lastResult}
+          resultRef={decisions.resultRef}
+          recording={decisions.isRecording}
+          onRecord={decisions.record}
+        />
+      )}
+    </section>
+  );
+}

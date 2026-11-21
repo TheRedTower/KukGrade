@@ -1,0 +1,15 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <p>{{ message }}</p>
+  {% if closed %}
+    <form method="post" action="{% url 'admin:logout' %}">
+      {% csrf_token %}
+      <input type="submit" value="Sign out">
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

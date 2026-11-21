@@ -1,0 +1,523 @@
+import { useRef, useState } from "react";
+import { useChoices } from "./choices";
+import { keys } from "./queryKeys";
+import { ACCOUNT_FIELDS, splitServerErrors } from "./forms";
+import { MissingDetails } from "./MissingDetails";
+import { PageHeader } from "./PageHeader";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
+
+import { Alert } from "./Alert";
+import { Field } from "./Field";
+import { RecordPage } from "./RecordPage";
+import { recordStatus } from "./recordStatus";
+import { useAuth } from "./auth";
+import {
+  deleteManagedUser,
+  getAuditEvents,
+  getManagedUser,
+  resetManagedUserPassword,
+  updateManagedUser,
+  updateManagedUserAuthority,
+  type ManagedUser,
+  type UserAuthorityPayload,
+  type UserRole,
+  errorMessage,
+} from "./api";
+import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { Dialog } from "./Dialog";
+import "./UserManagement.css";
+import { formatDateTime, formatLongDate } from "./dates";
+import { Button } from "./Button";
+import { Badge } from "./Badge";
+import { buttonClass } from "./buttonClass";
+import { EmailAddress } from "./EmailAddress";
+import { ArrowRightIcon } from "./Icons";
+import { LoadingState } from "./LoadingState";
+
+function AccountForm({
+  user,
+  isSelf,
+  onSaved,
+}: {
+  user: ManagedUser;
+  isSelf: boolean;
+  onSaved: (message: string) => void;
+}): React.ReactElement {
+  const [firstName, setFirstName] = useState(user.first_name ?? "");
+  const [lastName, setLastName] = useState(user.last_name ?? "");
+  const [email, setEmail] = useState(user.email);
+  const [role, setRole] = useState<UserRole>(user.role ?? "instructor");
+  // Only an instructor's account holds a rank; an administrator's has none.
+  const [rank, setRank] = useState(user.rank ? String(user.rank) : "");
+  const { roles, staff_ranks: ranks } = useChoices();
+  const [isActive, setIsActive] = useState(user.is_active ?? true);
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () =>
+      updateManagedUser(user.id, {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim(),
+        role,
+        ...(role === "instructor" && rank ? { rank: Number(rank) } : {}),
+        is_active: isActive,
+      }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(keys.managedUser(user.id), updated);
+      void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
+      // The change is audited: the page's own activity list shows it.
+      void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
+      onSaved("Account details saved.");
+    },
+  });
+  // Each field's error has its place beside its box; anything else the server says goes above the buttons.
+  const errors = mutation.error
+    ? splitServerErrors(mutation.error, ACCOUNT_FIELDS, "The account could not be saved.")
+    : null;
+  const emailError = errors?.fields.email?.join(" ");
+  const rankError = errors?.fields.rank?.join(" ");
+
+  return (
+    <form
+      className="stack stack--4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        mutation.mutate();
+      }}
+    >
+      <div className="users-form-grid tiles">
+        <Field error={errors?.fields.first_name?.join(" ")} label="First name" look="label">
+          {(control) => (
+            <input {...control} required value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+          )}
+        </Field>
+        <Field error={errors?.fields.last_name?.join(" ")} label="Last name" look="label">
+          {(control) => (
+            <input {...control} required value={lastName} onChange={(event) => setLastName(event.target.value)} />
+          )}
+        </Field>
+        <Field className="tile-full" error={emailError} label="Email address" look="label">
+          {(control) => (
+            <input
+              {...control}
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          )}
+        </Field>
+        <label className="field">
+          <span>Role</span>
+          <select value={role} disabled={isSelf} onChange={(event) => setRole(event.target.value as UserRole)}>
+            {roles.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {role === "instructor" && (
+          <Field error={rankError} label="Rank" look="label">
+            {(control) => (
+              <select {...control} required value={rank} onChange={(event) => setRank(event.target.value)}>
+                <option value="" disabled>
+                  Choose their rank
+                </option>
+                {ranks.map((choice) => (
+                  <option key={choice.value} value={choice.value}>
+                    {choice.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        )}
+        <label className="field">
+          <span>Account status</span>
+          <select
+            value={isActive ? "active" : "inactive"}
+            disabled={isSelf}
+            onChange={(event) => setIsActive(event.target.value === "active")}
+          >
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+      </div>
+      <p className="users-form-note meta">
+        The role decides what someone can do in KukGrade. Master authority is granted separately. An instructor's rank
+        is shown beside their name on everything they record, as the rank they held then.
+        {isSelf ? " You cannot change your own role or account status here." : ""}
+      </p>
+      {errors?.banner && <Alert>{errors.banner}</Alert>}
+      <Button type="submit" variant="primary" disabled={mutation.isPending}>
+        {mutation.isPending ? "Saving…" : "Save account details"}
+      </Button>
+    </form>
+  );
+}
+
+function AuthorityForm({
+  user,
+  isSelf,
+  onSaved,
+}: {
+  user: ManagedUser;
+  isSelf: boolean;
+  onSaved: (message: string) => void;
+}): React.ReactElement {
+  const [authority, setAuthority] = useState<UserAuthorityPayload>({
+    can_make_final_grading_decision: user.can_make_final_grading_decision,
+    can_promote_student: user.can_promote_student,
+    can_override_locked_session: user.can_override_locked_session,
+    can_view_grading_audit_log: user.can_view_grading_audit_log,
+  });
+  const queryClient = useQueryClient();
+  const targetIsAdministrator = user.role === "administrator";
+  const mutation = useMutation({
+    mutationFn: () => updateManagedUserAuthority(user.id, authority),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(keys.managedUser(user.id), updated);
+      void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
+      void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
+      onSaved("Master authority saved.");
+    },
+  });
+
+  // Administrators cannot hold final-decision authority.
+  const options = useChoices().authorities.map((option) => ({
+    ...option,
+    disabled: option.value === "can_make_final_grading_decision" && targetIsAdministrator,
+  }));
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        mutation.mutate();
+      }}
+    >
+      <div className="user-authority-options">
+        {options.map((option) => (
+          <label key={option.value}>
+            <span>
+              <strong>{option.label}</strong>
+              <small>{option.description}</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={authority[option.value] ?? false}
+              disabled={isSelf || option.disabled}
+              onChange={(event) =>
+                setAuthority((current) => ({
+                  ...current,
+                  [option.value]: event.target.checked,
+                }))
+              }
+            />
+          </label>
+        ))}
+      </div>
+      <div className="action-row user-authority-footer">
+        <p className="meta">
+          {isSelf
+            ? "You cannot change your own authority."
+            : targetIsAdministrator
+              ? "Administrators cannot hold final-decision authority. Other authority changes are audited."
+              : "Authority changes are recorded in the audit log."}
+        </p>
+        <Button type="submit" variant="primary" disabled={isSelf || mutation.isPending}>
+          {mutation.isPending ? "Saving…" : "Save authority"}
+        </Button>
+      </div>
+      {mutation.error && <Alert>{errorMessage(mutation.error, "The authority could not be saved.")}</Alert>}
+    </form>
+  );
+}
+
+function PasswordResetDialog({ user, onClose }: { user: ManagedUser; onClose: () => void }): React.ReactElement {
+  const queryClient = useQueryClient();
+  // gcTime 0: the response carries the temporary password, which should
+  // leave memory with this dialog rather than linger in the mutation cache.
+  const mutation = useMutation({
+    mutationFn: () => resetManagedUserPassword(user.id),
+    gcTime: 0,
+    onSuccess: () => {
+      // Refetched rather than set from the response, which would keep the
+      // password in the query cache: "Next sign-in" and the activity list
+      // show the reset.
+      void queryClient.invalidateQueries({ queryKey: keys.managedUser(user.id) });
+      void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
+      void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
+    },
+  });
+  const issued = mutation.data;
+
+  return (
+    <Dialog
+      title={issued ? "Password reset" : "Reset password"}
+      eyebrow="Security action"
+      onClose={onClose}
+      canClose={!mutation.isPending}
+      closeOnBackdrop={!issued}
+    >
+      {issued ? (
+        <TemporaryPasswordIssued issued={issued} onDone={onClose} />
+      ) : (
+        <form
+          className="stack stack--4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            mutation.mutate();
+          }}
+        >
+          <p>
+            Reset the password for <strong>{user.full_name}</strong>? Their current password stops working straight
+            away, and you'll be given a temporary one to pass on.
+          </p>
+          {mutation.error && <Alert>{errorMessage(mutation.error, "The password could not be reset.")}</Alert>}
+          <div className="action-row users-dialog-actions">
+            <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+              Cancel
+            </Button>
+            <Button data-dialog-autofocus type="submit" variant="primary" disabled={mutation.isPending}>
+              {mutation.isPending ? "Resetting…" : "Reset password"}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Dialog>
+  );
+}
+
+function temporaryPasswordState(expiresAt: string): string {
+  const when = formatDateTime(expiresAt);
+  return new Date(expiresAt) <= new Date()
+    ? `Expired ${when}. Reset the password to give them a new one.`
+    : `Works until ${when}`;
+}
+
+function DeleteUserDialog({ user, onClose }: { user: ManagedUser; onClose: () => void }): React.ReactElement {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => deleteManagedUser(user.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
+      navigate("/users");
+    },
+  });
+  return (
+    <ConfirmDialog
+      title="Delete this account"
+      eyebrow="Irreversible action"
+      confirmLabel="Delete account"
+      pendingLabel="Deleting…"
+      pending={mutation.isPending}
+      error={mutation.error ? errorMessage(mutation.error, "The account could not be deleted.") : null}
+      danger
+      onClose={onClose}
+      onConfirm={() => mutation.mutate()}
+    >
+      <p>
+        Delete <strong>{user.full_name}</strong>&apos;s account? They can no longer sign in and the account leaves the
+        staff list. Everything they recorded keeps their name, so it still shows who did it. This cannot be undone.
+      </p>
+    </ConfirmDialog>
+  );
+}
+
+export function UserDetailScreen(): React.ReactElement {
+  // An account's id is a UUID, not a number.
+  const { id = "" } = useParams();
+  const { user: currentUser } = useAuth();
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [notice, setNotice] = useState("");
+  const passwordButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+
+  const query = useQuery({
+    queryKey: keys.managedUser(id),
+    queryFn: () => getManagedUser(id),
+    enabled: Boolean(id),
+  });
+  const activityQuery = useQuery({
+    queryKey: keys.auditEvents.user(id),
+    queryFn: () => getAuditEvents({ entity_type: "User", entity_id: id, page_size: 4 }),
+    enabled: Boolean(id),
+  });
+
+  const status = recordStatus(id || null, query);
+  if (status || !query.data) {
+    return (
+      <RecordPage
+        back={{ to: "/users", label: "Users" }}
+        error={query.error}
+        failed="This user could not be loaded."
+        label="User"
+        loading="Loading user…"
+        missing="User not found"
+        status={status ?? "loading"}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
+  const managedUser = query.data;
+  const isSelf = managedUser.id === currentUser?.id;
+  // The server's answer: only a superuser changes an account that can use
+  // the Django admin site, so the page offers no change it would refuse.
+  const viewOnly = !managedUser.manageable;
+  const formKey = [
+    managedUser.id,
+    managedUser.email,
+    managedUser.first_name,
+    managedUser.last_name,
+    managedUser.role,
+    managedUser.rank,
+    managedUser.is_active,
+    managedUser.can_make_final_grading_decision,
+    managedUser.can_promote_student,
+    managedUser.can_override_locked_session,
+    managedUser.can_view_grading_audit_log,
+  ].join(":");
+
+  const closePassword = () => {
+    setPasswordOpen(false);
+    passwordButtonRef.current?.focus();
+  };
+
+  const closeDelete = () => {
+    setDeleteOpen(false);
+    deleteButtonRef.current?.focus();
+  };
+
+  return (
+    <section className="page" aria-labelledby="user-detail-heading">
+      <PageHeader
+        back={{ to: "/users", label: "Users" }}
+        title={managedUser.full_name}
+        titleId="user-detail-heading"
+        subtitle={
+          <>
+            <EmailAddress address={managedUser.email} /> <span aria-hidden="true">·</span>{" "}
+            <Badge dot tone={managedUser.is_active ? "success" : "neutral"}>
+              {managedUser.is_active ? "Active" : "Inactive"}
+            </Badge>
+            <MissingDetails user={managedUser} />
+          </>
+        }
+        actions={
+          // A reset sets someone else's password and asks for no current one;
+          // the server refuses it on your own account.
+          isSelf ? (
+            <p className="users-self-password-hint subtext">Change your own password in Settings.</p>
+          ) : viewOnly ? (
+            <p className="users-self-password-hint subtext">Only a superuser can change this account.</p>
+          ) : (
+            <Button ref={passwordButtonRef} variant="secondary" onClick={() => setPasswordOpen(true)}>
+              Reset password
+            </Button>
+          )
+        }
+      />
+
+      {notice && <Alert tone="success">{notice}</Alert>}
+      {managedUser.missing_details.length > 0 && !viewOnly && (
+        <Alert tone="warning">
+          This account is missing details every account now needs. Fill them in under Account details and save.
+        </Alert>
+      )}
+
+      <div className="split">
+        <main>
+          <fieldset className="user-detail-fieldset" disabled={viewOnly}>
+            <section className="user-detail-section">
+              <h2>Account details</h2>
+              <AccountForm key={`account-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
+            </section>
+            <section className="user-detail-section">
+              <h2>Master authority</h2>
+              <p>These permissions are independent of the user's role.</p>
+              <AuthorityForm key={`authority-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
+            </section>
+          </fieldset>
+          {!isSelf && !viewOnly && (
+            <section className="user-detail-section">
+              <h2>Danger zone</h2>
+              <p>
+                Delete this account. They can no longer sign in, and everything they recorded keeps their name so it
+                still shows who did it. For someone who may come back, set the account to Inactive instead.
+              </p>
+              <Button ref={deleteButtonRef} variant="danger" onClick={() => setDeleteOpen(true)}>
+                Delete account
+              </Button>
+            </section>
+          )}
+        </main>
+        <aside className="user-detail-aside">
+          <section>
+            <h2>Account information</h2>
+            <dl className="facts-list facts-list--aligned">
+              <div>
+                <dt>Joined</dt>
+                <dd>{formatLongDate(managedUser.date_joined, "Never")}</dd>
+              </div>
+              <div>
+                <dt>Last signed in</dt>
+                <dd>{formatDateTime(managedUser.last_login, "Never")}</dd>
+              </div>
+              <div>
+                <dt>Role</dt>
+                <dd>{managedUser.role_display}</dd>
+              </div>
+              {managedUser.rank_name && (
+                <div>
+                  <dt>Rank</dt>
+                  <dd>{managedUser.rank_name}</dd>
+                </div>
+              )}
+              <div>
+                <dt>Next sign-in</dt>
+                <dd>{managedUser.must_change_password ? "Password change required" : "Normal access"}</dd>
+              </div>
+              {managedUser.temporary_password_expires_at && (
+                <div>
+                  <dt>Temporary password</dt>
+                  <dd>{temporaryPasswordState(managedUser.temporary_password_expires_at)}</dd>
+                </div>
+              )}
+            </dl>
+          </section>
+          <section>
+            <h2>Recent administrative activity</h2>
+            {activityQuery.isLoading ? (
+              <LoadingState>Loading activity…</LoadingState>
+            ) : activityQuery.data?.results.length ? (
+              <ul className="list-plain user-activity-list">
+                {activityQuery.data.results.map((event) => (
+                  <li key={event.id}>
+                    <strong>{event.summary}</strong>
+                    <span className="meta">{formatDateTime(event.occurred_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No administrative activity recorded.</p>
+            )}
+            <Link className={buttonClass({ variant: "link" })} to={`/audit?subject=user:${encodeURIComponent(id)}`}>
+              View full history <ArrowRightIcon />
+            </Link>
+          </section>
+        </aside>
+      </div>
+
+      {passwordOpen && <PasswordResetDialog user={managedUser} onClose={closePassword} />}
+      {deleteOpen && <DeleteUserDialog user={managedUser} onClose={closeDelete} />}
+    </section>
+  );
+}

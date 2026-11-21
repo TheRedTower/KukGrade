@@ -1,0 +1,35 @@
+.audit-filter-summary {
+  min-height: 1.5rem;
+}
+
+/* A name keeps its words whole: the column grows to fit it, up to a limit, and
+   breaks only between words (an email address, longer, may break anywhere). */
+.audit-actor {
+  display: block;
+  width: max-content;
+  max-width: min(100%, 14rem);
+}
+
+.audit-date,
+.audit-entity-type,
+.audit-entity-id {
+  display: block;
+}
+
+.audit-time,
+.audit-entity-id {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.audit-integrity-note {
+  text-align: right;
+}
+
+.audit-detail-section h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.audit-detail-section p {
+  margin: 0;
+}

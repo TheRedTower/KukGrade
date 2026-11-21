@@ -1,0 +1,1811 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import App from "./App";
+import type {
+  AuthUser,
+  CandidateAssessment,
+  CandidateAssessmentItem,
+  CandidateOutcome,
+  GradingCandidate,
+  GradingCandidateRoster,
+  GradingSession,
+  StudentListItem,
+} from "./api";
+import {
+  authUser,
+  ADMINISTRATOR_CAPABILITIES,
+  jsonResponse,
+  assessmentSummaryFor,
+  sessionServed,
+  CHOICES,
+  stubFetch,
+} from "./appTestSupport";
+
+/** The open confirmation's own button: the last one in the dialog. */
+function confirmButton(): HTMLElement {
+  return within(screen.getByRole("dialog")).getAllByRole("button").at(-1)!;
+}
+
+async function confirmButtonAsync(): Promise<HTMLElement> {
+  return within(await screen.findByRole("dialog"))
+    .getAllByRole("button")
+    .at(-1)!;
+}
+
+describe("Grading Session Workspace Screen (/gradings/:id)", () => {
+  const adminUser = {
+    id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+    email: "admin@example.com",
+    first_name: "Alex",
+    last_name: "Admin",
+    full_name: "Alex Admin",
+    ...ADMINISTRATOR_CAPABILITIES,
+    role_display: "Administrator",
+    // An administrator can never hold final-decision authority (2026-09-16).
+    can_make_final_grading_decision: false,
+    can_read_audit_log: true,
+    can_promote_student: true,
+    can_override_locked_session: true,
+    can_view_grading_audit_log: false,
+    must_change_password: false,
+  } satisfies AuthUser;
+
+  const masterUser = {
+    ...authUser,
+    can_make_final_grading_decision: true,
+    can_read_audit_log: true,
+  } satisfies AuthUser;
+
+  const testSession = {
+    id: 10,
+    title: "Autumn Grading",
+    grading_date: "2026-09-15",
+    status: "OPEN" as const,
+    status_display: "Open",
+    candidate_count: 0,
+    completed_assessment_count: 0,
+    awaiting_decision_count: 0,
+    ...sessionServed("OPEN"),
+    can_be_deleted: false,
+    archived_at: null,
+    can_be_archived: false,
+    can_be_restored: false,
+    can_download_summary: false,
+    can_print_grading_sheets: false,
+    location: "Riverside Dojang",
+    notes: "Please arrive 15 minutes before the start time.",
+  } satisfies GradingSession;
+
+  // Outcomes are created only once a session is locked, so every proposal
+  // test runs against this one.
+  const lockedSession = {
+    ...testSession,
+    status: "LOCKED" as const,
+    status_display: "Locked",
+  } satisfies GradingSession;
+
+  const testCandidates: GradingCandidate[] = [
+    {
+      id: 101,
+      session: 10,
+      student: 1,
+      student_display_name: "Alex Carter",
+      student_first_name: "Alex",
+      student_wksa_id: "UK-1001",
+      from_rank: 2,
+      from_rank_name: "Yellow Stripe",
+      testing_for_rank: 3,
+      testing_for_rank_name: "Yellow",
+      age_band_display: "18+",
+      status: "REGISTERED" as const,
+      withdrawal_reason: "",
+      withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
+      withdrawal_note: "",
+    },
+    {
+      id: 102,
+      session: 10,
+      student: 2,
+      student_display_name: "Brooke Ellis",
+      student_first_name: "Brooke",
+      student_wksa_id: "UK-1002",
+      from_rank: 5,
+      from_rank_name: "Blue",
+      testing_for_rank: 6,
+      testing_for_rank_name: "Red stripe",
+      age_band_display: "18+",
+      status: "REGISTERED" as const,
+      withdrawal_reason: "",
+      withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
+      withdrawal_note: "",
+    },
+    {
+      id: 103,
+      session: 10,
+      student: 3,
+      student_display_name: "Casey Nguyen",
+      student_first_name: "Casey",
+      student_wksa_id: "UK-1003",
+      from_rank: 6,
+      from_rank_name: "Red stripe",
+      testing_for_rank: 7,
+      testing_for_rank_name: "Red",
+      age_band_display: "18+",
+      status: "REGISTERED" as const,
+      withdrawal_reason: "",
+      withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
+      withdrawal_note: "",
+    },
+  ];
+
+  const testAssessments = [
+    {
+      id: 201,
+      candidate: 101,
+      candidate_student_name: "Alex Carter",
+      status: "IN_PROGRESS" as const,
+      status_display: "In progress",
+      generated_by_name: `${adminUser.full_name} (administrator)`,
+      overall: assessmentSummaryFor([]).overall,
+      marks_open: true,
+      can_start: false,
+      start_blocked_by: null,
+      can_delete: false,
+      generated_at: "2026-09-15T09:00:00Z",
+      started_at: "2026-09-15T09:10:00Z",
+      completed_at: null,
+      notes: "",
+    },
+    {
+      id: 202,
+      candidate: 102,
+      candidate_student_name: "Brooke Ellis",
+      status: "COMPLETED" as const,
+      status_display: "Completed",
+      generated_by_name: `${adminUser.full_name} (administrator)`,
+      overall: assessmentSummaryFor([]).overall,
+      marks_open: true,
+      can_start: false,
+      start_blocked_by: null,
+      can_delete: false,
+      generated_at: "2026-09-15T09:00:00Z",
+      started_at: "2026-09-15T09:10:00Z",
+      completed_at: "2026-09-15T10:00:00Z",
+      notes: "",
+    },
+    {
+      id: 203,
+      candidate: 103,
+      candidate_student_name: "Casey Nguyen",
+      status: "NOT_STARTED" as const,
+      status_display: "Not started",
+      generated_by_name: `${adminUser.full_name} (administrator)`,
+      overall: assessmentSummaryFor([]).overall,
+      marks_open: true,
+      can_start: true,
+      start_blocked_by: null,
+      can_delete: false,
+      generated_at: "2026-09-15T09:00:00Z",
+      started_at: null,
+      completed_at: null,
+      notes: "",
+    },
+  ] satisfies CandidateAssessment[];
+
+  const testOutcomes = [
+    {
+      id: 302,
+      candidate: 102,
+      status: "PROPOSED" as const,
+      status_display: "Proposed",
+      proposed_outcome: "PASS" as const,
+      proposed_outcome_display: "Pass",
+      proposed_by_name: "Alex Admin",
+      proposed_at: "2026-09-15T10:05:00Z",
+      proposal_notes: "Strong stances throughout.",
+      final_outcome: null,
+      final_outcome_display: null,
+      decided_by_name: "",
+      decided_at: null,
+      decision_notes: "",
+      conditional_requirements: "",
+    },
+  ] satisfies CandidateOutcome[];
+
+  // A session locks only once every assessment is completed, which also
+  // completes its candidate - the state every LOCKED test starts from.
+  const completedAssessments = testAssessments.map((item) => ({
+    ...item,
+    status: "COMPLETED" as const,
+    status_display: "Completed",
+    started_at: item.started_at ?? "2026-09-15T09:10:00Z",
+    completed_at: item.completed_at ?? "2026-09-15T10:00:00Z",
+  })) satisfies CandidateAssessment[];
+  const lockedCandidates = testCandidates.map((item) => ({
+    ...item,
+    status: "COMPLETED" as const,
+  })) satisfies GradingCandidate[];
+
+  // The roster rows the server serves: each candidate with their assessment,
+  // outcome and next action. The next action is the server's answer (its own
+  // tests cover the rule); this fixture only has to say what that answer is
+  // for the few situations these tests stage.
+  function rosterRows(
+    candidates: GradingCandidate[],
+    assessments: CandidateAssessment[],
+    outcomes: CandidateOutcome[],
+    sessionStatus: GradingSession["status"],
+    canDecide: boolean,
+    canOverride = false,
+  ): GradingCandidateRoster[] {
+    const rosterOpen = sessionStatus === "DRAFT" || sessionStatus === "OPEN";
+    return candidates.map((candidate) => {
+      const assessment = assessments.find((item) => item.candidate === candidate.id) ?? null;
+      const outcome = outcomes.find((item) => item.candidate === candidate.id) ?? null;
+      let nextAction: GradingCandidateRoster["next_action"] = "PREPARE_ASSESSMENT";
+      if (candidate.status === "WITHDRAWN") nextAction = "NONE";
+      else if (assessment?.status === "IN_PROGRESS") nextAction = "CONTINUE_ASSESSMENT";
+      else if (assessment?.status === "NOT_STARTED") nextAction = "START_ASSESSMENT";
+      else if (assessment?.status === "COMPLETED") {
+        if (outcome?.status === "FINALISED")
+          nextAction = outcome.final_outcome === "PASS" ? "PROMOTION_LEDGER" : "VIEW_DECISION";
+        else if (outcome?.status === "PROPOSED") nextAction = canDecide ? "REVIEW_DECISION" : "REVIEW_PROPOSAL";
+        else nextAction = sessionStatus === "LOCKED" ? "PROPOSE_OUTCOME" : "VIEW_ASSESSMENT";
+      }
+      const canBeFinalised = outcome?.status === "PROPOSED" && sessionStatus === "LOCKED";
+      const canWithdraw =
+        sessionStatus === "LOCKED" &&
+        canOverride &&
+        candidate.status !== "WITHDRAWN" &&
+        outcome?.status !== "FINALISED";
+      return {
+        ...candidate,
+        assessment,
+        outcome,
+        promotion: null,
+        next_action: nextAction,
+        can_be_finalised: canBeFinalised,
+        can_be_withdrawn_after_lock: canWithdraw,
+        // As the server rules them (gradings.services
+        // candidate_can_be_marked_absent, assessment_can_be_prepared).
+        can_be_marked_absent:
+          rosterOpen && candidate.status === "REGISTERED" && (!assessment || assessment.status === "NOT_STARTED"),
+        can_prepare_assessment: rosterOpen && candidate.status !== "WITHDRAWN" && !assessment,
+        prepare_assessment_blocked_by: null,
+        // gradings.exports: record_can_be_downloaded, sheet_can_be_printed
+        can_download_record: assessment?.status === "COMPLETED",
+        can_print_grading_sheet: rosterOpen && candidate.status !== "WITHDRAWN",
+      };
+    });
+  }
+
+  const testStudentsList = [
+    {
+      id: 1,
+      wksa_id: "UK-1001",
+      first_name: "Alex",
+      last_name: "Carter",
+      current_rank: 2,
+      current_rank_code: "YS",
+      current_rank_name: "Yellow stripe",
+      status: "ACTIVE" as const,
+      status_display: "Active",
+      can_be_graded: true,
+      next_rank: null,
+      next_rank_name: null,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
+      current_grading: null,
+    },
+    {
+      id: 2,
+      wksa_id: "UK-1002",
+      first_name: "Brooke",
+      last_name: "Ellis",
+      current_rank: 5,
+      current_rank_code: "B",
+      current_rank_name: "Blue",
+      status: "ACTIVE" as const,
+      status_display: "Active",
+      can_be_graded: true,
+      next_rank: null,
+      next_rank_name: null,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
+      current_grading: null,
+    },
+    {
+      id: 3,
+      wksa_id: "UK-1003",
+      first_name: "Casey",
+      last_name: "Nguyen",
+      current_rank: 6,
+      current_rank_code: "RS",
+      current_rank_name: "Red stripe",
+      status: "ACTIVE" as const,
+      status_display: "Active",
+      can_be_graded: true,
+      next_rank: null,
+      next_rank_name: null,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
+      current_grading: null,
+    },
+  ] satisfies StudentListItem[];
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/gradings/10");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  // Defaults follow the session's status: an open session is mid-grading
+  // with no outcomes yet; a locked one has every assessment completed and
+  // the proposals made so far.
+  function setupStandardMock(
+    sessionOverrides: Partial<GradingSession> = {},
+    assessmentRows?: CandidateAssessment[],
+    authenticatedUser: AuthUser = adminUser,
+    candidateRows?: GradingCandidate[],
+  ) {
+    const locked = sessionOverrides.status === "LOCKED";
+    const assessments = assessmentRows ?? (locked ? completedAssessments : testAssessments);
+    const candidates = candidateRows ?? (locked ? lockedCandidates : testCandidates);
+    const outcomes: CandidateOutcome[] = locked ? testOutcomes : [];
+    return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
+      if (url.includes("/api/gradings/candidates/bulk-generate-assessments/") && init?.method === "POST") {
+        return jsonResponse(200, { created: [], errors: {}, already_registered: {} });
+      }
+      if (url.includes("/api/gradings/assessments/bulk-start/") && init?.method === "POST") {
+        return jsonResponse(200, { started: [testAssessments[2]], errors: {} });
+      }
+      if (url.includes("/api/gradings/candidates/bulk-update-status/") && init?.method === "POST") {
+        const body = JSON.parse(init.body as string) as { candidates: number[] };
+        return jsonResponse(200, {
+          updated: candidates
+            .filter((candidate) => body.candidates.includes(candidate.id))
+            .map((candidate) => ({ ...candidate, status: "WITHDRAWN", status_display: "Withdrawn" })),
+          errors: {},
+        });
+      }
+      if (url.match(/\/api\/gradings\/candidates\/\d+\/withdraw\/$/) && init?.method === "POST") {
+        const candidateId = Number(url.match(/candidates\/(\d+)\//)?.[1]);
+        const candidate = candidates.find((item) => item.id === candidateId);
+        return jsonResponse(200, {
+          ...candidate,
+          status: "WITHDRAWN",
+          status_display: "Withdrawn",
+          withdrawal_reason: "INJURY",
+          withdrawal_reason_display: "Injured during grading",
+          can_be_moved: false,
+          can_be_removed: false,
+          withdrawal_note: "Unable to continue safely.",
+          withdrawn_by: authenticatedUser.id,
+          withdrawn_by_email: authenticatedUser.email,
+          withdrawn_by_name: authenticatedUser.full_name,
+          withdrawn_at: "2026-09-20T11:00:00Z",
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        const patchData = JSON.parse(init.body as string);
+        const moved = { ...testSession, ...sessionOverrides, ...patchData };
+        return jsonResponse(200, {
+          ...moved,
+          ...sessionServed(moved.status, { withOverride: authenticatedUser.can_override_locked_session }),
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        const status = sessionOverrides.status ?? testSession.status;
+        const served = sessionServed(status, { withOverride: authenticatedUser.can_override_locked_session });
+        return jsonResponse(200, { ...testSession, ...served, ...sessionOverrides });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        const rows = rosterRows(
+          candidates,
+          assessments,
+          outcomes,
+          sessionOverrides.status ?? testSession.status,
+          authenticatedUser.can_make_final_grading_decision,
+          authenticatedUser.can_override_locked_session,
+        );
+        return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: assessments.length, next: null, previous: null, results: assessments });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      }
+      return jsonResponse(404, {});
+    });
+  }
+
+  it("renders session header, the way back, status pill, and lifecycle stepper track", async () => {
+    const fetchMock = setupStandardMock();
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Autumn Grading" })).toBeVisible();
+    expect(screen.getByText("Riverside Dojang")).toBeVisible();
+    expect(screen.getByText("Open", { selector: '[data-tone="open"]' })).toBeVisible();
+
+    // Stepper track
+    expect(screen.getByText("Draft", { selector: ".item-title" })).toBeVisible();
+    expect(screen.getByText("Locked", { selector: ".item-title" })).toBeVisible();
+    expect(screen.getByText("Completed", { selector: ".item-title" })).toBeVisible();
+
+    // Action buttons in header
+    expect(screen.getByTestId("gsd-actions-btn")).toBeVisible();
+    expect(screen.getByTestId("gsd-add-candidate-btn")).toBeVisible();
+  });
+
+  it("renders candidate roster table with authentic student ranks, assessment and outcome badges", async () => {
+    const fetchMock = setupStandardMock();
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Heading and count chip
+    expect(screen.getByRole("heading", { name: "Candidates" })).toBeVisible();
+    expect(screen.getByText("3 candidates")).toBeVisible();
+
+    // Candidate 1: Alex Carter
+    const row1 = await screen.findByTestId("candidate-row-101");
+    expect(within(row1).getByText("Alex Carter")).toBeVisible();
+    expect(within(row1).getByText("WKSA: UK-1001")).toBeVisible();
+    expect(within(row1).getByText("Yellow Stripe")).toBeVisible();
+    expect(within(row1).getByText("Yellow")).toBeVisible();
+    expect(within(row1).getByText("In progress")).toBeVisible();
+    expect(within(row1).getByText("Continue assessment")).toBeVisible();
+
+    // Candidate 2: Brooke Ellis
+    const row2 = screen.getByTestId("candidate-row-102");
+    expect(within(row2).getByText("Brooke Ellis")).toBeVisible();
+    expect(within(row2).getByText("Blue")).toBeVisible();
+    expect(within(row2).getByText("Red stripe")).toBeVisible();
+    expect(within(row2).getByText("Completed")).toBeVisible();
+    expect(within(row2).getByText("Not proposed")).toBeVisible();
+    expect(within(row2).getByText("View record")).toBeVisible();
+
+    // Candidate 3: Casey Nguyen
+    const row3 = screen.getByTestId("candidate-row-103");
+    expect(within(row3).getByText("Casey Nguyen")).toBeVisible();
+    expect(within(row3).getByText("Red stripe")).toBeVisible();
+    expect(within(row3).getByText("Red")).toBeVisible();
+    expect(within(row3).getByText("Not started")).toBeVisible();
+    expect(within(row3).getByText("Start assessment")).toBeVisible();
+  });
+
+  it("starts all prepared assessments as an explicit bulk action", async () => {
+    const fetchMock = setupStandardMock();
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const startButton = await screen.findByRole("button", {
+      name: "Start all prepared (1)",
+    });
+    await user.click(startButton);
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes("/api/gradings/assessments/bulk-start/") &&
+          (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(request).toBeDefined();
+      expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
+        assessments: [203],
+      });
+    });
+    expect(await screen.findByText("1 assessment started.")).toBeVisible();
+  });
+
+  it("offers bulk preparation when registered candidates have no snapshot", async () => {
+    const fetchMock = setupStandardMock({}, testAssessments.slice(0, 2));
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByText("Not prepared")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Prepare all (1)" }));
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes("/api/gradings/candidates/bulk-generate-assessments/") &&
+          (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(request).toBeDefined();
+      expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
+        candidates: [103],
+      });
+    });
+  });
+
+  it("confirms attendance by marking only selected no-shows", async () => {
+    const fetchMock = setupStandardMock();
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Confirm attendance" }));
+    const dialog = screen.getByRole("dialog", { name: "Confirm attendance" });
+    // Alex has started and Brooke has finished: neither can be a no-show.
+    expect(within(dialog).queryByRole("checkbox", { name: /Alex Carter/ })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("checkbox", { name: /Brooke Ellis/ })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("checkbox", { name: /Casey Nguyen/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Mark selected as no-show" }));
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes("/api/gradings/candidates/bulk-update-status/") &&
+          (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
+        candidates: [103],
+        status: "WITHDRAWN",
+        withdrawal_reason: "ABSENT",
+      });
+    });
+    expect(await screen.findByText("1 candidate marked as no-show.")).toBeVisible();
+  });
+
+  it("requires a note before an Other withdrawal can be recorded", async () => {
+    const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-101");
+    await user.click(within(row).getByRole("button", { name: "Withdraw Alex Carter" }));
+    const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
+    await user.click(await within(dialog).findByRole("radio", { name: "Other" }));
+    const submit = within(dialog).getByRole("button", { name: "Withdraw candidate" });
+
+    expect(submit).toBeDisabled();
+    await user.type(within(dialog).getByLabelText(/What happened/), "Family emergency.");
+    expect(submit).toBeEnabled();
+  });
+
+  it("allows an authorised Master to record a reasoned locked-session withdrawal", async () => {
+    const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-101");
+    await user.click(within(row).getByRole("button", { name: "Withdraw Alex Carter" }));
+    const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
+    await user.click(await within(dialog).findByRole("radio", { name: "Injured during grading" }));
+    await user.type(within(dialog).getByLabelText(/Additional note/), "Unable to continue safely.");
+    await user.click(within(dialog).getByRole("button", { name: "Withdraw candidate" }));
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes("/api/gradings/candidates/101/withdraw/") &&
+          (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
+        withdrawal_reason: "INJURY",
+        withdrawal_note: "Unable to continue safely.",
+      });
+    });
+    expect(await screen.findByText("Alex Carter was withdrawn from the locked session.")).toBeVisible();
+  });
+
+  it("does not expose locked withdrawal without override authority", async () => {
+    const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" }, undefined, {
+      ...adminUser,
+      can_override_locked_session: false,
+    });
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    expect(screen.queryByRole("button", { name: /^Withdraw / })).not.toBeInTheDocument();
+  });
+
+  it("shows the recorded reason for a withdrawn candidate without further actions", async () => {
+    const withdrawnCandidates = [
+      {
+        ...lockedCandidates[0],
+        status: "WITHDRAWN" as const,
+        withdrawal_reason: "INJURY" as const,
+        withdrawal_reason_display: "Injured during grading",
+        can_be_moved: false,
+        can_be_removed: false,
+        withdrawal_note: "Unable to continue safely.",
+      },
+      ...lockedCandidates.slice(1),
+    ] satisfies GradingCandidate[];
+    const fetchMock = setupStandardMock(
+      { status: "LOCKED", status_display: "Locked" },
+      undefined,
+      adminUser,
+      withdrawnCandidates,
+    );
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-101");
+    expect(within(row).getByText("Withdrawn")).toBeVisible();
+    expect(within(row).getByText("Injured during grading")).toBeVisible();
+    expect(within(row).getByText("Unable to continue safely.")).toBeVisible();
+    expect(within(row).getByText("No further action")).toBeVisible();
+    expect(within(row).queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("shows a locked session's proposals and the decision a Master can review", async () => {
+    stubFetch(setupStandardMock({ status: "LOCKED", status_display: "Locked" }, undefined, masterUser));
+
+    render(<App />);
+
+    const proposed = await screen.findByTestId("candidate-row-102");
+    expect(within(proposed).getByText("Proposed: Pass")).toBeVisible();
+    expect(within(proposed).getByRole("link", { name: "Review decision" })).toHaveAttribute(
+      "href",
+      "/gradings/10/decisions?candidate=102",
+    );
+    expect(screen.getByTestId("propose-outcome-btn-101")).toHaveTextContent("Propose outcome");
+  });
+
+  it("points the awaiting-decision banner at the served count and the decisions board", async () => {
+    stubFetch(
+      setupStandardMock({
+        status: "LOCKED",
+        status_display: "Locked",
+        awaiting_decision_count: 3,
+        ...sessionServed("LOCKED"),
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    // The server's number, not a recount of proposals on this screen.
+    expect(screen.getByText("3 candidates awaiting final decision")).toBeVisible();
+    expect(screen.getByTestId("gsd-review-decisions-btn")).toHaveAttribute("href", "/gradings/10/decisions");
+  });
+
+  it("shows no awaiting-decision banner before the session is locked", async () => {
+    stubFetch(setupStandardMock({ awaiting_decision_count: 1 }));
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    expect(screen.queryByText(/awaiting final decision/)).not.toBeInTheDocument();
+  });
+
+  it("finds a candidate by asking the server, which matches the words", async () => {
+    const standard = setupStandardMock();
+    const searches: string[] = [];
+    // The server's part: it is asked for the candidates matching the words.
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const asked = new URL(String(url), "http://localhost").searchParams.get("search");
+      if (String(url).includes("/api/gradings/candidates/") && asked) {
+        searches.push(asked);
+        const roster = (await (await standard(url, init)).json()) as {
+          results: { id: number; student_display_name: string }[];
+        };
+        const matching = roster.results.filter((row) => row.student_display_name.includes("Alex"));
+        return jsonResponse(200, { count: matching.length, next: null, previous: null, results: matching });
+      }
+      return standard(url, init);
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.type(screen.getByTestId("gsd-candidate-search"), "carter alex");
+
+    // The whole phrase goes to the server once the typing pauses, and the table
+    // is read afresh, since it is replaced by a note while the server answers.
+    await waitFor(() => expect(searches.at(-1)).toBe("carter alex"));
+    await waitFor(() => expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument());
+    const table = await screen.findByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Alex Carter")).toBeVisible();
+    expect(within(table).queryByText("Casey Nguyen")).not.toBeInTheDocument();
+    // The whole phrase went to the server, once the typing paused.
+    expect(searches.at(-1)).toBe("carter alex");
+  });
+
+  it("never shows the whole roster as the result of a search that is pending or failed", async () => {
+    const standard = setupStandardMock();
+    let answer: ((response: Response) => void) | undefined;
+    let failing = false;
+    stubFetch(
+      vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        const asked = new URL(String(url), "http://localhost").searchParams.get("search");
+        if (String(url).includes("/api/gradings/candidates/") && asked) {
+          if (failing) return Promise.resolve(jsonResponse(500, { error: { code: "server_error", message: "Down." } }));
+          return new Promise<Response>((resolve) => {
+            answer = resolve;
+          });
+        }
+        return standard(url, init);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    const table = screen.getByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Brooke Ellis")).toBeVisible();
+
+    // While the answer is on its way: a note, and not the roster as though it were the result.
+    await user.type(screen.getByTestId("gsd-candidate-search"), "alex");
+    expect(await screen.findByText("Searching…")).toBeVisible();
+    expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument();
+    expect(answer).toBeDefined();
+
+    // And when it fails: the failure, with a way to try again.
+    failing = true;
+    await user.type(screen.getByTestId("gsd-candidate-search"), "x");
+    expect(await screen.findByTestId("gsd-search-failed")).toBeVisible();
+    expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+  });
+
+  it("does not show one search's answer while the next search is still on its way", async () => {
+    const standard = setupStandardMock();
+    const pending: Record<string, (response: Response) => void> = {};
+    stubFetch(
+      vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        const asked = new URL(String(url), "http://localhost").searchParams.get("search");
+        if (String(url).includes("/api/gradings/candidates/") && asked) {
+          return new Promise<Response>((resolve) => {
+            pending[asked] = resolve;
+          });
+        }
+        return standard(url, init);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.type(screen.getByTestId("gsd-candidate-search"), "alex");
+    await waitFor(() => expect(pending.alex).toBeDefined());
+    const roster = (await (await standard("/api/gradings/candidates/?session=10", undefined)).json()) as {
+      results: { id: number; student_display_name: string }[];
+    };
+    const alex = roster.results.filter((row) => row.student_display_name.includes("Alex"));
+    pending.alex(jsonResponse(200, { count: alex.length, next: null, previous: null, results: alex }));
+    const table = await screen.findByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Alex Carter")).toBeVisible();
+
+    // A new term: Alex's answer must not stand in for Brooke's while it is awaited.
+    await user.clear(screen.getByTestId("gsd-candidate-search"));
+    await user.type(screen.getByTestId("gsd-candidate-search"), "brooke");
+    await waitFor(() => expect(pending.brooke).toBeDefined());
+
+    expect(await screen.findByText("Searching…")).toBeVisible();
+    expect(screen.queryByText("Alex Carter")).not.toBeInTheDocument();
+  });
+
+  it("shows the whole roster again when the search is cleared", async () => {
+    stubFetch(setupStandardMock());
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.type(screen.getByTestId("gsd-candidate-search"), "zzz");
+    await user.clear(screen.getByTestId("gsd-candidate-search"));
+
+    const table = await screen.findByTestId("gsd-candidates-table");
+    await waitFor(() => expect(within(table).getByText("Brooke Ellis")).toBeVisible());
+    expect(within(table).getByText("Alex Carter")).toBeVisible();
+  });
+
+  it("allows instructors to view and edit session notes with authentic PATCH call", async () => {
+    let patchBody: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        patchBody = JSON.parse(init.body as string);
+        return jsonResponse(200, {
+          ...testSession,
+          notes: "Updated session notes with important instructions.",
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Existing notes displayed
+    expect(screen.getByText("Please arrive 15 minutes before the start time.")).toBeVisible();
+
+    // Click Edit notes
+    await user.click(screen.getByTestId("gsd-edit-notes-btn"));
+
+    const textarea = screen.getByTestId("gsd-notes-textarea");
+    await user.clear(textarea);
+    await user.type(textarea, "Updated session notes with important instructions.");
+
+    await user.click(screen.getByTestId("gsd-save-notes-btn"));
+
+    await waitFor(() => {
+      expect(patchBody).toEqual({ notes: "Updated session notes with important instructions." });
+    });
+
+    // Notes updated on screen
+    expect(await screen.findByText("Updated session notes with important instructions.")).toBeVisible();
+  });
+
+  it("handles session transition to LOCKED via Session actions dropdown", async () => {
+    let patchBody: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        patchBody = JSON.parse(init.body as string);
+        return jsonResponse(200, {
+          ...testSession,
+          status: "LOCKED",
+          status_display: "Locked",
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open actions menu
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // Click "Lock session"
+    await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
+
+    // Confirm dialog
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+    await user.click(confirmButton());
+
+    await waitFor(() => {
+      expect(patchBody).toEqual({ status: "LOCKED" });
+    });
+
+    expect(await screen.findByText("Locked", { selector: '[data-tone="locked"]' })).toBeVisible();
+  });
+
+  it("handles session transition to CANCELLED via Session actions dropdown with cancellation reason", async () => {
+    let patchBody: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        patchBody = JSON.parse(init.body as string);
+        return jsonResponse(200, {
+          ...testSession,
+          status: "CANCELLED",
+          status_display: "Cancelled",
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open actions menu
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // Click "Cancel session"
+    await user.click(screen.getByRole("menuitem", { name: "Cancel session" }));
+
+    // Confirm dialog
+    expect(screen.getByText("Cancel Grading Session")).toBeVisible();
+    const reasonInput = screen.getByLabelText("Cancellation reason (optional)");
+    expect(reasonInput).toBeInTheDocument();
+
+    await user.type(reasonInput, "Hall booking unavailable due to maintenance.");
+    await user.click(confirmButton());
+
+    await waitFor(() => {
+      expect(patchBody).toEqual({
+        status: "CANCELLED",
+        cancellation_reason: "Hall booking unavailable due to maintenance.",
+      });
+    });
+
+    expect(await screen.findByText("Cancelled", { selector: '[data-tone="cancelled"]' })).toBeVisible();
+  });
+
+  it("renders clean zero-candidate empty state when session has no registered candidates", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    expect(screen.getByTestId("gsd-empty-roster")).toBeVisible();
+    expect(screen.getByText("No candidates registered in this grading session yet.")).toBeVisible();
+  });
+
+  it("closes the session actions dropdown on outside click and Escape key", async () => {
+    const fetchMock = setupStandardMock();
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open actions menu
+    const actionsBtn = screen.getByTestId("gsd-actions-btn");
+    await user.click(actionsBtn);
+    expect(screen.getByRole("menu")).toBeVisible();
+
+    // Escape closes dropdown
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    // Re-open
+    await user.click(actionsBtn);
+    expect(screen.getByRole("menu")).toBeVisible();
+
+    // Outside click closes dropdown
+    await user.click(screen.getByRole("heading", { name: "Autumn Grading" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("moves focus into the session actions menu, steps through it with the arrow keys and gives focus back on Escape", async () => {
+    stubFetch(setupStandardMock());
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    const actionsBtn = screen.getByTestId("gsd-actions-btn");
+    await user.click(actionsBtn);
+    const items = screen.getAllByRole("menuitem");
+    expect(items[0]).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(items[1]).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(items[items.length - 1]).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(items[0]).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(items[items.length - 1]).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(actionsBtn).toHaveFocus();
+
+    await user.click(actionsBtn);
+    await user.tab();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("offers proposing as soon as locking the session succeeds", async () => {
+    let status: GradingSession["status"] = "OPEN";
+    const candidateRows = () => rosterRows(lockedCandidates, completedAssessments, [], status, false);
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        status = "LOCKED";
+        return jsonResponse(200, { ...testSession, status, status_display: "Locked" });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, { ...testSession, status, status_display: status === "LOCKED" ? "Locked" : "Open" });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        const rows = candidateRows();
+        return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      }
+      return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-102");
+    expect(within(row).getByRole("link", { name: "View record" })).toBeVisible();
+    expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByTestId("propose-outcome-btn-102")).toBeVisible();
+  });
+
+  it("closes confirmation modal on backdrop click and Escape key", async () => {
+    const fetchMock = setupStandardMock();
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open actions menu and click "Lock session"
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
+
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+
+    // Escape closes modal
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
+
+    // Open modal again
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+
+    // Backdrop click closes modal
+    const backdrop = document.querySelector(".dialog-backdrop");
+    expect(backdrop).toBeInTheDocument();
+    await user.click(backdrop!);
+    expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
+  });
+
+  it("traps focus in the lifecycle confirmation modal, defaults to Cancel, and restores focus to the launcher on Escape", async () => {
+    const fetchMock = setupStandardMock();
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    const lockMenuItem = screen.getByRole("menuitem", { name: "Lock session" });
+    await user.click(lockMenuItem);
+
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    const confirmBtn = confirmButton();
+    expect(cancelBtn).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(confirmBtn).toHaveFocus();
+
+    await user.tab();
+    expect(cancelBtn).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
+    expect(screen.getByTestId("gsd-actions-btn")).toHaveFocus();
+  });
+
+  it("keeps the lifecycle confirmation modal open and ignores Escape while the transition is pending", async () => {
+    let resolvePatch: (() => void) | undefined;
+    const patchPending = new Promise<void>((resolve) => {
+      resolvePatch = resolve;
+    });
+
+    const fetchMock = setupStandardMock();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        await patchPending;
+        return jsonResponse(200, {
+          ...testSession,
+          status: "LOCKED",
+          status_display: "Locked",
+          ...sessionServed("LOCKED"),
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+
+    await user.click(confirmButton());
+    expect(await confirmButtonAsync()).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+
+    const backdrop = document.querySelector(".dialog-backdrop");
+    expect(backdrop).toBeInTheDocument();
+    await user.click(backdrop!);
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+
+    resolvePatch?.();
+    await waitFor(() => {
+      expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
+    });
+  });
+
+  it("allows deleting a cancelled session with no starts from the session actions menu", async () => {
+    const fetchMock = setupStandardMock({
+      status: "CANCELLED",
+      status_display: "Cancelled",
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
+      can_download_summary: false,
+      can_print_grading_sheets: false,
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    const notStartedAssessments = testAssessments.map((a) => ({
+      ...a,
+      status: "NOT_STARTED" as const,
+    }));
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, {
+          ...testSession,
+          status: "CANCELLED",
+          status_display: "Cancelled",
+          can_be_deleted: true,
+          archived_at: null,
+          can_be_archived: false,
+          can_be_restored: false,
+          can_download_summary: false,
+          can_print_grading_sheets: false,
+        });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        const rows = rosterRows(testCandidates, notStartedAssessments, [], "CANCELLED", false);
+        return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, {
+          count: notStartedAssessments.length,
+          next: null,
+          previous: null,
+          results: notStartedAssessments,
+        });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      }
+      return jsonResponse(404, {});
+    });
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open actions menu
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // "Delete session" should be visible
+    const deleteMenuItem = screen.getByRole("menuitem", { name: "Delete session" });
+    expect(deleteMenuItem).toBeVisible();
+    await user.click(deleteMenuItem);
+
+    // Modal appears
+    expect(await screen.findByText("Delete Grading Session")).toBeVisible();
+
+    // Confirm delete
+    const modalConfirmBtn = confirmButton();
+    await user.click(modalConfirmBtn);
+
+    // Verify DELETE call was sent
+    const deleteCalls = fetchMock.mock.calls.filter(
+      ([url, init]) => url.includes("/api/gradings/sessions/10/") && init?.method === "DELETE",
+    );
+    expect(deleteCalls.length).toBe(1);
+  });
+
+  it("allows an administrator to delete a cancelled session with recorded assessment work", async () => {
+    const fetchMock = setupStandardMock({
+      status: "CANCELLED",
+      status_display: "Cancelled",
+      can_be_deleted: true,
+      archived_at: null,
+      can_be_archived: false,
+      can_be_restored: false,
+      can_download_summary: false,
+      can_print_grading_sheets: false,
+    });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // testAssessments includes an IN_PROGRESS entry, so this is the guarded
+    // case - only an administrator should see the option.
+    expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
+  });
+
+  it("offers delete and the session's audit events exactly as the server and grants allow", async () => {
+    const fetchMock = setupStandardMock({ can_be_deleted: true });
+    stubFetch(fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // An open session an administrator may delete: offered, whatever the status.
+    expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "View history" })).toHaveAttribute("href", "/audit?subject=session:10");
+  });
+
+  it("hides the audit link from a user who cannot read the audit log", async () => {
+    stubFetch(setupStandardMock({}, testAssessments, { ...adminUser, can_read_audit_log: false }));
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    expect(screen.queryByRole("menuitem", { name: "View history" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
+  });
+
+  it("requires a reason before a locked session can be cancelled", async () => {
+    stubFetch(setupStandardMock({ status: "LOCKED", status_display: "Locked" }));
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Cancel session" }));
+
+    const confirm = confirmButton();
+    expect(screen.getByLabelText("Cancellation reason (required)")).toBeVisible();
+    expect(confirm).toBeDisabled();
+    await user.type(screen.getByLabelText("Cancellation reason (required)"), "Hall flooded.");
+    expect(confirm).toBeEnabled();
+  });
+
+  it("hides delete for an instructor on a cancelled session with recorded assessment work", async () => {
+    const instructorUser: AuthUser = authUser;
+    const fetchMock = setupStandardMock(
+      { status: "CANCELLED", status_display: "Cancelled" },
+      testAssessments,
+      instructorUser,
+    );
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Nothing else is left for them to do here, so there is no menu at all.
+    expect(screen.queryByTestId("gsd-actions-btn")).not.toBeInTheDocument();
+  });
+
+  it("offers no proposal while the session is open, only the completed record", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "OPEN", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+
+    render(<App />);
+    const row = await screen.findByTestId("candidate-row-102");
+
+    expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
+    expect(within(row).getByRole("link", { name: "View record" })).toHaveAttribute(
+      "href",
+      "/gradings/10/assessments/102/review",
+    );
+  });
+
+  it("opens the proposal drawer with the sealed assessment evidence and submits a proposal", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, {
+          ...adminUser,
+          can_make_final_grading_decision: false,
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, lockedSession);
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        const rows = rosterRows(testCandidates, testAssessments, [], "LOCKED", false);
+        return jsonResponse(200, { count: rows.length, next: null, previous: null, results: rows });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(
+          200,
+          assessmentSummaryFor(
+            Array.from({ length: 24 }, (_, i) => ({
+              id: 1000 + i,
+              category: "TECHNIQUE",
+              required: true,
+              result: "MET",
+            })) as unknown as CandidateAssessmentItem[],
+          ),
+        );
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 24,
+          next: null,
+          previous: null,
+          results: Array.from({ length: 24 }, (_, i) => ({
+            id: 1000 + i,
+            item_code: `ITEM-${i}`,
+            item_name: `Item ${i}`,
+            category: "TECHNIQUE",
+            category_display: "Techniques",
+            category_is_core: false,
+            reason_required: true,
+            can_clear: true,
+            required: true,
+            result: "MET",
+            result_display: "Met",
+            position: i,
+            assessor_name: "SBN Coach Park",
+            assessed_at: null,
+            // A positive observation on a met item must reach the proposer too.
+            changes: [],
+            comments:
+              i === 0
+                ? [
+                    {
+                      id: 1,
+                      author_name: "Coach Reed",
+                      body: "Crisp, confident footwork",
+                      created_at: "2026-09-15T10:00:00Z",
+                      after_lock: false,
+                    },
+                  ]
+                : [],
+          })),
+        });
+      }
+      if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
+        const body = JSON.parse(init.body as string);
+        return jsonResponse(200, {
+          ...testOutcomes[0],
+          id: 401,
+          status: "PROPOSED",
+          status_display: "Proposed",
+          proposed_outcome: body.proposed_outcome,
+          proposal_notes: body.proposal_notes || "",
+        });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      }
+      return jsonResponse(404, {});
+    });
+
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Candidate 102 (Brooke Ellis) has COMPLETED assessment but no outcome -> shows "Propose outcome"
+    const proposeBtn = await screen.findByTestId("propose-outcome-btn-102");
+    expect(proposeBtn).toBeVisible();
+    expect(proposeBtn).toHaveTextContent("Propose outcome");
+
+    // Click "Propose outcome" to open drawer
+    await user.click(proposeBtn);
+
+    // Verify drawer is opened
+    const drawer = await screen.findByRole("dialog");
+    expect(drawer).toBeVisible();
+
+    // Candidate and the rank transition, from the candidate's own fields
+    expect(within(drawer).getByRole("heading", { name: "Brooke Ellis" })).toBeVisible();
+    expect(within(drawer).getByText("UK-1002")).toBeVisible();
+    expect(drawer).toHaveTextContent("Blue, grading for: Red stripe");
+
+    // The same served evidence the Master sees on the board - no percentage
+    expect(await within(drawer).findByText("24 / 24 required met · none not met")).toBeVisible();
+    expect(within(drawer).queryByText(/%/)).not.toBeInTheDocument();
+    expect(await within(drawer).findByText("“Crisp, confident footwork”")).toBeVisible();
+    expect(within(drawer).getByRole("link", { name: "Open the full assessment record" })).toHaveAttribute(
+      "href",
+      "/gradings/10/assessments/102/review",
+    );
+
+    // Pass / Conditional / Fail, Pass selected by default
+    expect(within(drawer).getByRole("radio", { name: "Pass" })).toBeChecked();
+    await user.click(within(drawer).getByRole("radio", { name: "Conditional" }));
+    expect(within(drawer).getByRole("radio", { name: "Conditional" })).toBeChecked();
+    expect(within(drawer).getByRole("radio", { name: "Fail" })).not.toBeChecked();
+
+    await user.type(
+      within(drawer).getByLabelText("Notes for the Master"),
+      "Recommend re-testing form 3 within 2 weeks.",
+    );
+    expect(within(drawer).getByText(/A proposal does not finalise the grading or promote the candidate/)).toBeVisible();
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+
+    // One call opens the outcome record and proposes
+    await waitFor(() => {
+      const proposeCall = fetchMock.mock.calls.find(
+        ([url, init]) => url.includes("/propose-outcome/") && init?.method === "POST",
+      );
+      expect(proposeCall).toBeDefined();
+      const body = JSON.parse(proposeCall![1]!.body as string);
+      expect(body.proposed_outcome).toBe("CONDITIONAL");
+      expect(body.proposal_notes).toContain("Recommend re-testing form 3");
+    });
+
+    // Drawer closes on success
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("dismisses the proposal drawer on Cancel and Escape", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
+      if (url.includes("/api/gradings/assessment-items/"))
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      return jsonResponse(404, {});
+    });
+
+    stubFetch(fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open drawer for candidate 102
+    const proposeBtn = await screen.findByTestId("propose-outcome-btn-102");
+    await user.click(proposeBtn);
+
+    const reopenedDrawer = await screen.findByRole("dialog");
+    expect(reopenedDrawer).toBeVisible();
+    expect(reopenedDrawer.querySelector<HTMLInputElement>('input[value="PASS"]')).toHaveFocus();
+
+    // Dismiss via Cancel button
+    await user.click(within(reopenedDrawer).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    // Open drawer again and dismiss via Escape key
+    await user.click(proposeBtn);
+    expect(await screen.findByRole("dialog")).toBeVisible();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(proposeBtn).toHaveFocus();
+  });
+
+  it("keeps the proposal drawer open with the server's reason when a proposal is refused", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
+      if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
+        return jsonResponse(400, {
+          error: { code: "validation_error", message: "The assessment is not completed." },
+        });
+      }
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
+      if (url.includes("/api/gradings/assessment-items/"))
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByRole("dialog");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+
+    expect(await within(drawer).findByRole("alert")).toHaveTextContent("The assessment is not completed.");
+    expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
+  it("retries a refused proposal with the same single call", async () => {
+    const user = userEvent.setup();
+    let proposeAttempts = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
+      if (url.includes("/api/gradings/candidates/102/propose-outcome/") && init?.method === "POST") {
+        proposeAttempts += 1;
+        if (proposeAttempts === 1) {
+          return jsonResponse(400, {
+            error: { code: "validation_error", message: "Try again shortly." },
+          });
+        }
+        return jsonResponse(200, { ...testOutcomes[0], id: 401, proposed_outcome: "PASS" });
+      }
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
+      if (url.includes("/api/gradings/assessment-items/"))
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByRole("dialog");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+    expect(await within(drawer).findByRole("alert")).toHaveTextContent("Try again shortly.");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    expect(proposeAttempts).toBe(2);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/create-outcome/"))).toBe(false);
+  });
+
+  it("will not submit a proposal while its evidence failed to load", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/choices/")) return jsonResponse(200, CHOICES);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
+      if (url.includes("/api/gradings/candidates/"))
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: rosterRows(testCandidates, testAssessments, [], "LOCKED", false),
+        });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/"))
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      if (url.includes("/api/students/"))
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      if (url.includes("/summary/")) return jsonResponse(500, {});
+      if (url.includes("/api/gradings/assessment-items/"))
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      return jsonResponse(404, {});
+    });
+    stubFetch(fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByRole("dialog");
+
+    expect(await within(drawer).findByText(/could not be loaded/)).toBeVisible();
+    expect(within(drawer).getByRole("button", { name: "Submit proposal" })).toBeDisabled();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/propose-outcome/"))).toBe(false);
+  });
+});

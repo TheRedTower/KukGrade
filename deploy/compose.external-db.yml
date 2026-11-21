@@ -1,0 +1,62 @@
+# KukGrade behind a Traefik you already run, using a PostgreSQL you already run,
+# on a read-only root filesystem with every capability dropped. Put these in .env:
+#   TRAEFIK_NETWORK      the network your Traefik watches
+#   KUKGRADE_HOST        the name it answers to
+#   POSTGRES_NETWORK     the network your PostgreSQL is on
+#   POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+# The labels assume an entrypoint named websecure; set TRAEFIK_CERT_RESOLVER to your
+# resolver (default letsencrypt). Add DJANGO_NUM_PROXIES (1, or 2 with Cloudflare in front).
+#   docker compose -f compose.external-db.yml up -d
+name: kukgrade
+
+services:
+  app:
+    image: ghcr.io/theredtower/kukgrade:latest
+    container_name: kukgrade
+    build:
+      context: ..
+      target: production
+      # Shown on the About page; empty when the shell does not set them.
+      args:
+        KUKGRADE_BUILD_COMMIT: ${KUKGRADE_BUILD_COMMIT:-}
+        KUKGRADE_BUILD_TIME: ${KUKGRADE_BUILD_TIME:-}
+    env_file: .env
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - kukgrade_import_uploads:/var/lib/kukgrade/import_uploads
+    networks:
+      - traefik
+      - postgres_net
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:?Set TRAEFIK_NETWORK in .env}"
+      - "traefik.http.routers.kukgrade.rule=Host(`${KUKGRADE_HOST:?Set KUKGRADE_HOST in .env}`)"
+      - "traefik.http.routers.kukgrade.entrypoints=websecure"
+      - "traefik.http.routers.kukgrade.tls=true"
+      - "traefik.http.routers.kukgrade.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.services.kukgrade.loadbalancer.server.port=6942"
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}
+  postgres_net:
+    external: true
+    name: ${POSTGRES_NETWORK:?Set POSTGRES_NETWORK}
+
+volumes:
+  kukgrade_import_uploads:

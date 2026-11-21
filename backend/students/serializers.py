@@ -1,0 +1,351 @@
+from __future__ import annotations
+
+from typing import Any, cast
+
+from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
+from gradings.models import (
+    CandidateOutcome,
+    LegacyAttendance,
+    LegacyDatePrecision,
+    Promotion,
+    recommended_outcome,
+)
+from gradings.read_models import (
+    GradingHistoryItem,
+    GradingHistorySource,
+    GradingStage,
+    StudentGradingHistory,
+    StudentRankTimeline,
+    with_next_rank,
+)
+from kukgrade.serializers import ModelSerializer
+from students import wksa_ids
+from students.models import PreviousWksaId, Student, StudentExtraInfo
+from students.services import student_deletion_blocker
+from syllabus.models import AgeBand
+
+UNRESOLVED_RESULT = "Unresolved"
+
+
+class PromotionRankHistorySerializer(ModelSerializer[Promotion]):
+    from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
+    to_rank_name = serializers.CharField(source="to_rank.name", read_only=True)
+    session_title = serializers.CharField(
+        source="grading_candidate.session.title",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Promotion
+        fields = (
+            "id",
+            "from_rank_name",
+            "to_rank_name",
+            "session_title",
+            "promoted_at",
+            "effective_date",
+        )
+        read_only_fields = fields
+
+
+class StudentRankHistorySerializer(serializers.Serializer[StudentRankTimeline]):
+    promotions = PromotionRankHistorySerializer(many=True, read_only=True)
+
+
+class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
+    # "source" collides with Field.source's own type (Callable | str | None)
+    # - same mypy collision as EffectiveSyllabusRequirementSerializer.required
+    # elsewhere in this codebase, not a real conflict at runtime.
+    source = serializers.ChoiceField(  # type: ignore[assignment]
+        choices=GradingHistorySource.choices,
+    )
+    record_id = serializers.IntegerField()
+    date = serializers.DateField(allow_null=True)
+    cycle_year = serializers.IntegerField(allow_null=True)
+    cycle_month = serializers.IntegerField(allow_null=True)
+    date_precision = serializers.ChoiceField(choices=LegacyDatePrecision.choices)
+    testing_for_rank_name = serializers.CharField(allow_null=True)
+    source_testing_for_rank_text = serializers.CharField()
+    outcome = serializers.ChoiceField(
+        choices=CandidateOutcome.Outcome.choices,
+        allow_null=True,
+    )
+    attendance_status = serializers.ChoiceField(choices=LegacyAttendance.choices)
+    result_display = serializers.SerializerMethodField(
+        help_text=(
+            "The result as the history names it: the outcome, that the student "
+            "did not attend, or that a historical outcome is not one KukGrade knows."
+        ),
+    )
+    comments = serializers.CharField(
+        help_text=(
+            "The grading report: decision notes, or a historical record's comments."
+        ),
+    )
+    note = serializers.CharField(
+        allow_blank=True,
+        help_text="Anything else a historical sheet said beside the record.",
+    )
+    conditional_requirements = serializers.CharField(
+        allow_blank=True,
+        help_text="What a Conditional result still requires; blank otherwise.",
+    )
+    from_rank_name = serializers.CharField(
+        allow_null=True,
+        help_text="The rank held when registered; null for a historical record.",
+    )
+    age_band = serializers.ChoiceField(
+        choices=AgeBand.choices,
+        allow_null=True,
+        help_text="The age band assessed in; null for a historical record.",
+    )
+    age_band_display = serializers.CharField(allow_blank=True)
+    session_id = serializers.IntegerField(allow_null=True)
+    candidate_id = serializers.IntegerField(allow_null=True)
+
+    def get_result_display(self, item: GradingHistoryItem) -> str:
+        if item["attendance_status"] == LegacyAttendance.DID_NOT_ATTEND:
+            return LegacyAttendance.DID_NOT_ATTEND.label
+        if item["outcome"] and item["source"] == GradingHistorySource.LEGACY:
+            return cast(str, recommended_outcome(item["outcome"]))
+        if item["outcome"]:
+            return CandidateOutcome.Outcome(item["outcome"]).label
+        return UNRESOLVED_RESULT
+
+
+class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHistory]):
+    """Combines finalised native outcomes with linked, non-voided legacy
+    records - kept deliberately separate from
+    StudentRankHistorySerializer/`/rank-history/`, which remains
+    Promotion-only."""
+
+    items = GradingHistoryItemSerializer(many=True)
+
+
+class CurrentGradingSerializer(serializers.Serializer):
+    """The grading a student is registered for that has not reached its result."""
+
+    session = serializers.IntegerField()
+    session_title = serializers.CharField()
+    stage = serializers.ChoiceField(choices=GradingStage.choices)
+    stage_display = serializers.CharField()
+
+
+class NextRankFields(serializers.Serializer):
+    """The rank a student would be graded for next, as the server rules it
+    (gradings.read_models.with_next_rank): their next active rank, while its
+    syllabus is recorded. Null when there is none to offer."""
+
+    next_rank = serializers.SerializerMethodField(
+        help_text=(
+            "The rank the student would be graded for next: their next active "
+            "rank, when its syllabus is recorded. Null when there is none."
+        ),
+    )
+    next_rank_name = serializers.SerializerMethodField()
+
+    def _next_rank(self, obj: Student) -> tuple[int, str] | None:
+        if not hasattr(obj, "next_rank_pk"):
+            # Not loaded through the annotated queryset (a record just saved).
+            fresh = with_next_rank(Student.objects.filter(pk=obj.pk)).get()
+            for name in ("next_rank_pk", "next_rank_name", "next_rank_has_syllabus"):
+                setattr(obj, name, getattr(fresh, name))
+        if obj.next_rank_pk is None or not obj.next_rank_has_syllabus:  # type: ignore[attr-defined]
+            return None
+        return obj.next_rank_pk, obj.next_rank_name  # type: ignore[attr-defined]
+
+    def get_next_rank(self, obj: Student) -> int | None:
+        found = self._next_rank(obj)
+        return None if found is None else found[0]
+
+    def get_next_rank_name(self, obj: Student) -> str | None:
+        found = self._next_rank(obj)
+        return None if found is None else found[1]
+
+
+class StudentListSerializer(NextRankFields, ModelSerializer[Student]):
+    """The list representation. Deliberately excludes date of birth.
+
+    Date of birth is the most sensitive field held, on people who may be
+    minors. It appears on a single record an instructor deliberately opened,
+    never in a page of two hundred names.
+    """
+
+    current_rank_code = serializers.CharField(
+        source="current_rank.code", read_only=True
+    )
+    current_rank_name = serializers.CharField(
+        source="current_rank.name", read_only=True
+    )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    can_be_graded = serializers.BooleanField(read_only=True)
+    # Annotated by the list view (syllabus.age.with_age_band_on): on the
+    # grading date when the list is filtered by eligible_for_session,
+    # otherwise today.
+    age_band = serializers.ChoiceField(
+        choices=AgeBand.choices,
+        source="age_band_on_date",
+        read_only=True,
+        help_text=(
+            "On the session's grading date when the list is filtered by "
+            "eligible_for_session, otherwise today."
+        ),
+    )
+    age_band_display = serializers.SerializerMethodField()
+    current_grading = serializers.SerializerMethodField(
+        help_text=(
+            "The grading the student is registered for that has not reached "
+            "its result, and how far it has got; null when there is none."
+        ),
+    )
+
+    class Meta:
+        model = Student
+        fields = (
+            "id",
+            "wksa_id",
+            "first_name",
+            "last_name",
+            "current_rank",
+            "current_rank_code",
+            "current_rank_name",
+            "status",
+            "status_display",
+            "can_be_graded",
+            "next_rank",
+            "next_rank_name",
+            "age_band",
+            "age_band_display",
+            "current_grading",
+        )
+        read_only_fields = fields
+
+    # Annotated by the list view (gradings.read_models.with_current_grading).
+    @extend_schema_field(CurrentGradingSerializer(allow_null=True))
+    def get_current_grading(self, obj: Student) -> dict[str, Any] | None:
+        session = getattr(obj, "current_grading_session", None)
+        if session is None:
+            return None
+        stage = GradingStage(obj.current_grading_stage)  # type: ignore[attr-defined]
+        return {
+            "session": session,
+            "session_title": obj.current_grading_title,  # type: ignore[attr-defined]
+            "stage": stage.value,
+            "stage_display": stage.label,
+        }
+
+    def get_age_band_display(self, obj: Student) -> str:
+        return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]
+
+
+class PreviousWksaIdSerializer(ModelSerializer[PreviousWksaId]):
+    class Meta:
+        model = PreviousWksaId
+        fields = ("wksa_id",)
+        read_only_fields = fields
+
+
+class StudentExtraInfoSerializer(ModelSerializer[StudentExtraInfo]):
+    class Meta:
+        model = StudentExtraInfo
+        fields = ("label", "value")
+        read_only_fields = fields
+
+
+class StudentSerializer(NextRankFields, ModelSerializer[Student]):
+    """Detail, create and update.
+
+    One serializer rather than three: create and update share every field,
+    and splitting them would just copy the same fields into different
+    classes. wksa_id can be corrected if mistyped, and a student ID becomes
+    the black belt ID WKSA hands out; a black belt ID never goes back to a
+    student ID (Student.clean()). wksa_id_can_change says whether the change
+    to a black belt ID is still to come.
+    """
+
+    current_rank_name = serializers.CharField(
+        source="current_rank.name", read_only=True
+    )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    can_be_graded = serializers.BooleanField(read_only=True)
+    age_band_display = serializers.CharField(read_only=True)
+    wksa_id_can_change = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the ID is still a student ID, so the change to a black "
+            "belt ID is still to come. Either form can be corrected."
+        ),
+    )
+    can_be_deleted = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the viewer may delete this student now: they may delete "
+            "students, and no grading the student is in is waiting for its "
+            "final decision."
+        ),
+    )
+    deletion_blocked_by = serializers.SerializerMethodField(
+        help_text=(
+            "Why the student cannot be deleted yet, naming the grading that "
+            "waits for its decision; null when nothing stands in the way."
+        ),
+    )
+    previous_wksa_ids = PreviousWksaIdSerializer(many=True, read_only=True)
+    extra_information = StudentExtraInfoSerializer(
+        many=True,
+        read_only=True,
+        help_text="What an import's file said that KukGrade has no field for.",
+    )
+
+    class Meta:
+        model = Student
+        fields = (
+            "id",
+            "wksa_id",
+            "wksa_id_can_change",
+            "previous_wksa_ids",
+            "extra_information",
+            "first_name",
+            "last_name",
+            "date_of_birth",
+            "current_rank",
+            "current_rank_name",
+            "status",
+            "status_display",
+            "can_be_graded",
+            "next_rank",
+            "next_rank_name",
+            "can_be_deleted",
+            "deletion_blocked_by",
+            "age_band_display",
+            "deleted_at",
+            "created_at",
+        )
+        read_only_fields = (
+            "id",
+            "current_rank_name",
+            "status_display",
+            "can_be_graded",
+            "age_band_display",
+            "deleted_at",
+            "created_at",
+        )
+
+    def get_deletion_blocked_by(self, obj: Student) -> str | None:
+        # Asked by both fields; read once per record.
+        if not hasattr(obj, "_deletion_blocker"):
+            obj._deletion_blocker = (  # type: ignore[attr-defined]
+                None if obj.deleted_at is not None else student_deletion_blocker(obj)
+            )
+        return obj._deletion_blocker  # type: ignore[attr-defined,no-any-return]
+
+    def get_can_be_deleted(self, obj: Student) -> bool:
+        user = self.context["request"].user
+        return (
+            obj.deleted_at is None
+            and user.has_perm("students.delete_student")
+            and self.get_deletion_blocked_by(obj) is None
+        )
+
+    def get_wksa_id_can_change(self, obj: Student) -> bool:
+        return wksa_ids.can_change(obj.wksa_id)

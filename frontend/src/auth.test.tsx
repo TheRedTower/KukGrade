@@ -1,0 +1,187 @@
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { getStudents } from "./api";
+import { AuthProvider, useAuth } from "./auth";
+import type { AuthUser } from "./api";
+import { jsonResponse, stubFetch } from "./appTestSupport";
+import { LANDS_BEFORE_SIGN_OUT, SIGNING_OUT_EVENT } from "./pendingWrites";
+
+const authUser = {
+  id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+  email: "casey@example.com",
+  first_name: "Casey",
+  last_name: "Instructor",
+} satisfies Partial<AuthUser>;
+
+function SignOutButton() {
+  const { user, logout } = useAuth();
+  return (
+    <>
+      <span>{user ? user.email : "anonymous"}</span>
+      <button onClick={() => void logout()}>Sign out</button>
+    </>
+  );
+}
+
+function SignInButton() {
+  const { user, login } = useAuth();
+  return (
+    <>
+      <span>{user ? user.email : "anonymous"}</span>
+      <button onClick={() => void login(authUser.email, "StrongPass123!")}>Sign in</button>
+    </>
+  );
+}
+
+function ExpiringRead() {
+  useQuery({
+    queryKey: ["students", "expiring"],
+    queryFn: () => getStudents(),
+    retry: false,
+  });
+  return null;
+}
+
+async function renderSignedIn(children: React.ReactNode) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>{children}</AuthProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByText(authUser.email);
+  queryClient.setQueryData(["students", "all"], { results: [{ id: 1 }] });
+  return queryClient;
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("ending a session", () => {
+  it("drops everything fetched under it when the viewer signs out", async () => {
+    stubFetch(
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/auth/logout/") ? jsonResponse(204, undefined) : jsonResponse(200, authUser),
+        ),
+    );
+    const queryClient = await renderSignedIn(<SignOutButton />);
+
+    await act(async () => screen.getByRole("button", { name: "Sign out" }).click());
+
+    await waitFor(() => expect(screen.getByText("anonymous")).toBeVisible());
+    expect(queryClient.getQueryData(["students", "all"])).toBeUndefined();
+  });
+
+  it("asks screens to save, and waits for saves on their way, before the session ends", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (url: string) =>
+        url.includes("/api/auth/logout/") ? jsonResponse(204, undefined) : jsonResponse(200, authUser),
+      );
+    stubFetch(fetchMock);
+    const queryClient = await renderSignedIn(<SignOutButton />);
+    const asked = vi.fn();
+    window.addEventListener(SIGNING_OUT_EVENT, asked);
+    // A save still on its way when the viewer signs out.
+    let land = () => {};
+    void queryClient
+      .getMutationCache()
+      .build(queryClient, {
+        mutationFn: () => new Promise<void>((resolve) => (land = resolve)),
+        meta: LANDS_BEFORE_SIGN_OUT,
+      })
+      .execute(undefined);
+    const signedOut = () => fetchMock.mock.calls.some(([url]) => String(url).includes("/api/auth/logout/"));
+
+    await act(async () => screen.getByRole("button", { name: "Sign out" }).click());
+
+    expect(asked).toHaveBeenCalledTimes(1);
+    expect(signedOut()).toBe(false);
+    await act(async () => land());
+    await waitFor(() => expect(screen.getByText("anonymous")).toBeVisible());
+    expect(signedOut()).toBe(true);
+    window.removeEventListener(SIGNING_OUT_EVENT, asked);
+  });
+
+  it("signs out after a few seconds though a save never lands", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFetch(
+      vi
+        .fn()
+        .mockImplementation(async (url: string) =>
+          url.includes("/api/auth/logout/") ? jsonResponse(204, undefined) : jsonResponse(200, authUser),
+        ),
+    );
+    const queryClient = await renderSignedIn(<SignOutButton />);
+    // No network for it: it never answers.
+    void queryClient
+      .getMutationCache()
+      .build(queryClient, { mutationFn: () => new Promise<void>(() => {}), meta: LANDS_BEFORE_SIGN_OUT })
+      .execute(undefined);
+
+    await act(async () => screen.getByRole("button", { name: "Sign out" }).click());
+    expect(screen.getByText(authUser.email)).toBeVisible();
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+
+    await waitFor(() => expect(screen.getByText("anonymous")).toBeVisible());
+    vi.useRealTimers();
+  });
+
+  it("drops it too when the server says the session has expired", async () => {
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        return jsonResponse(401, {});
+      }),
+    );
+    const queryClient = await renderSignedIn(<SignOutButton />);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ExpiringRead />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(queryClient.getQueryData(["students", "all"])).toBeUndefined());
+    expect(queryClient.getQueryData(["currentUser"])).toBeNull();
+  });
+});
+
+describe("starting a session", () => {
+  it("drops anything the cache still held from before the viewer signed in", async () => {
+    let signedIn = false;
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/login/")) {
+          signedIn = true;
+          return jsonResponse(200, authUser);
+        }
+        if (url.includes("/api/auth/me/")) {
+          return signedIn ? jsonResponse(200, authUser) : jsonResponse(401, {});
+        }
+        return jsonResponse(200, {});
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SignInButton />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByText("anonymous");
+    // What a session that ended without a successful sign-out leaves behind.
+    queryClient.setQueryData(["students", "all"], { results: [{ id: 1 }] });
+
+    await act(async () => screen.getByRole("button", { name: "Sign in" }).click());
+
+    await waitFor(() => expect(screen.getByText(authUser.email)).toBeVisible());
+    expect(queryClient.getQueryData(["students", "all"])).toBeUndefined();
+  });
+});

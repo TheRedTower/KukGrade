@@ -1,0 +1,43 @@
+---
+// A screenshot in the page's theme: both versions are in the page and CSS
+// shows the one that matches (site.css, "Theme"), so the theme switch changes
+// the screenshots too. No script.
+import { getImage } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+interface Props {
+  light: ImageMetadata;
+  dark: ImageMetadata;
+  alt: string;
+  widths: number[];
+  sizes: string;
+  eager?: boolean;
+  class?: string;
+}
+
+const { light, dark, alt, widths, sizes, eager = false, class: className } = Astro.props;
+const options = { widths, format: "webp" as const, quality: 82 };
+const versions = await Promise.all([
+  getImage({ src: light, ...options }).then((image) => ({ theme: "light", image })),
+  getImage({ src: dark, ...options }).then((image) => ({ theme: "dark", image })),
+]);
+---
+
+<div class={className}>
+  {
+    versions.map(({ theme, image }) => (
+      <img
+        class={`shot shot--${theme}`}
+        src={image.src}
+        srcset={image.srcSet.attribute}
+        sizes={sizes}
+        alt={alt}
+        width={light.width}
+        height={light.height}
+        loading={eager ? "eager" : "lazy"}
+        fetchpriority={eager ? "high" : "auto"}
+        decoding="async"
+      />
+    ))
+  }
+</div>

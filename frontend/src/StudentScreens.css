@@ -1,0 +1,204 @@
+/* Filter Bar */
+
+.wksa-id-pill {
+  font-family: var(--font-mono);
+}
+
+.current-grading-stage,
+.current-grading-none {
+  display: block;
+  color: var(--color-text-muted);
+}
+
+/* ==========================================================================
+   Add Student Screen
+   ========================================================================== */
+
+/* Form Alert Banner */
+
+.form-alert {
+  margin-bottom: var(--space-5);
+}
+
+/* Grid Layouts */
+
+.form-row-grid-2,
+.form-row-grid-3 {
+  gap: var(--space-5);
+}
+
+/* Form Inputs */
+
+.privacy-badge-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.privacy-icon {
+  flex-shrink: 0;
+  color: var(--color-accent-text);
+}
+
+/* ==========================================================================
+   Student Detail & History Screen
+   ========================================================================== */
+
+/* Two-Column Layout Grid */
+
+.student-detail-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: flex-start;
+}
+
+/* Side by side while both fit, the right one under the left when not. */
+.detail-left-column {
+  flex: 1.65 1 30rem;
+}
+
+.detail-right-column {
+  flex: 1 1 18rem;
+}
+
+.detail-left-column,
+.detail-right-column {
+  min-width: 0;
+}
+
+/* Cards */
+
+.cell-rank-highlight {
+  color: var(--color-accent-text);
+}
+
+.privacy-badge-inline {
+  margin-inline-start: var(--space-2);
+  color: var(--color-accent-text);
+  display: inline-flex;
+  align-items: center;
+}
+
+.grading-history-comments-cell {
+  white-space: pre-wrap;
+}
+
+.grading-history-detail {
+  display: block;
+}
+
+/* Rank Timeline Track */
+
+.rank-timeline-track {
+  position: relative;
+  padding-left: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin-top: var(--space-2);
+}
+
+.rank-timeline-track::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.timeline-node-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.timeline-indicator {
+  position: absolute;
+  left: -2rem;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 3px solid var(--color-text-muted);
+  z-index: 1;
+}
+
+.timeline-indicator.indicator-active {
+  border-color: var(--btn-primary-border);
+  background: var(--btn-primary-bg);
+  box-shadow: var(--ring-focus);
+}
+
+.timeline-indicator.indicator-base {
+  border-color: var(--color-text-muted);
+  background: var(--color-surface-sunken);
+}
+
+/* Grading Readiness Card */
+
+.readiness-value {
+  text-align: right;
+}
+
+.readiness-guidance {
+  line-height: var(--line-height-snug);
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+}
+
+/* Record Status Card */
+
+.record-status-policy-note {
+  line-height: var(--line-height-snug);
+}
+
+.record-status-policy-note p {
+  margin: 0;
+}
+
+/* The change-status dialog */
+
+.status-radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition:
+    border-color var(--duration) ease,
+    background var(--duration) ease,
+    color var(--duration) ease;
+  background: var(--color-surface);
+}
+
+@media (hover: hover) {
+  .status-radio-card:hover {
+    border-color: var(--color-text-muted);
+    background: var(--color-surface-sunken);
+  }
+}
+
+.status-radio-card.selected {
+  border-color: var(--color-accent);
+  background: var(--color-surface-sunken);
+  box-shadow: var(--ring-accent);
+}
+
+.status-radio-card input[type="radio"] {
+  margin-top: 0.2rem;
+  cursor: pointer;
+}
+
+.status-radio-desc {
+  margin: 0;
+  line-height: var(--line-height-snug);
+}

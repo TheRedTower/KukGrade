@@ -134,9 +134,12 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
   // still waiting in the queue would die with it, so every row the server has
   // not confirmed is sent at once, on its own, and kept alive past the page,
   // with a later revision than anything queued. Leaving for another screen
-  // keeps the queue, since the page and its queue live on.
+  // keeps the queue, since the page and its queue live on. A page closed while
+  // recording sends them too: the rows recording has not reached yet would
+  // otherwise be lost, and the server refuses to keep a decision already
+  // recorded, and removes the kept copy of one it records later.
   function sendChanges(target: Record<number, StagedDecision>, closing: boolean) {
-    if (restored === null || isRecording) return;
+    if (restored === null || (isRecording && !closing)) return;
     if (sent.current === null) {
       const held = Object.fromEntries(
         Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),

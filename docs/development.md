@@ -405,7 +405,8 @@ The version is a single number in `backend/kukgrade/version.py`, kept equal to
 1. **Bump the version** on `dev` in a pull request, as for any change.
    Pull requests and merges check every screen at four widths only. Before tagging, run
    the full nine-width check on `dev` (Actions, CI, Run workflow); the tag's own CI run
-   repeats it, alongside the publish.
+   repeats it, alongside the publish. It can start straight after a merge: a run started
+   by hand never cancels the one the merge started, only another run started by hand.
 2. **Cut a release candidate on `dev`**: `git tag v0.2.0-rc.1 && git push origin v0.2.0-rc.1`.
    The [Publish image](../.github/workflows/publish.yml) workflow builds
    `ghcr.io/theredtower/kukgrade:0.2.0-rc.1` for amd64 and arm64 on native runners, runs

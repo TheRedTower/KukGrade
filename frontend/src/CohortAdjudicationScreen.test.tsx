@@ -440,6 +440,27 @@ describe("CohortAdjudicationScreen", () => {
     expect(mockStage).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }), true);
   });
 
+  it("takes a decision off when the page is left, though its first save was never answered", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    // Never answers: the save of Pass stays on its way.
+    mockStage.mockImplementation(() => new Promise(() => {}));
+    renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(await within(mia).findByRole("button", { name: "Pass" }));
+    await passTypingPause();
+    expect(mockStage).toHaveBeenCalledTimes(1);
+    // Taken off, and its removal queued behind the unanswered save.
+    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await passTypingPause();
+    expect(mockDiscard).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event("pagehide"));
+
+    // The removal is sent alive past the page, so Pass cannot come back on the next visit.
+    expect(mockDiscard).toHaveBeenCalledWith(11, expect.any(Number), true);
+  });
+
   it("sends nothing again when the page is left after every save is confirmed", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

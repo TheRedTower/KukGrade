@@ -148,7 +148,11 @@ export function useStagedDecisions({ sessionId, enabled, canDecide, onFocus }: O
     const lastRevision = revisions.current;
     const onServer = sent.current;
     const held = confirmed.current ?? {};
-    const ids = [...Object.keys(target), ...Object.keys(onServer), ...Object.keys(held)].map(Number);
+    // Every row with something to say: staged now, expected on the server,
+    // confirmed there, or with a save still on its way (a decision taken off
+    // before its first save was answered is in none of the others).
+    const inFlight = Object.keys(pending.current).filter((outcomeId) => pending.current[Number(outcomeId)] > 0);
+    const ids = [...Object.keys(target), ...Object.keys(onServer), ...Object.keys(held), ...inFlight].map(Number);
     new Set(ids).forEach((outcomeId) => {
       const decision = target[outcomeId];
       const json = decision === undefined ? undefined : JSON.stringify(decision);

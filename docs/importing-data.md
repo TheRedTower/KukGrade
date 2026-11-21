@@ -116,7 +116,8 @@ KukGrade:
   found** - with the people left for later and those decided below. Each person has a page
   of their own: how they are written, their gradings in date order, the suggested
   students with the reasons, and only the decisions open to them. Next goes on through the
-  list. Split, merge and moving records have a page of their own, and so does finding a
+  list. Where there is room (a laptop), the list the person was opened from stands beside
+  their page, with them marked. Split, merge and moving records have a page of their own, and so does finding a
   student by name or WKSA ID, where each student found shows their rank now and age band
   and is flagged when that rank is below the rank the person's records gave then. A
   historical record's page opens split and merge with that record ticked, to move it to

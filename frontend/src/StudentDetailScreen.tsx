@@ -278,7 +278,7 @@ export function StudentDetailScreen() {
                     render: (item) =>
                       item.source === "LEGACY" && currentUser?.can_reconcile_imported_history ? (
                         <Link {...badgeProps("neutral")} to={`/imports/history/${item.record_id}`}>
-                          Historical · correct
+                          Historical · view record
                         </Link>
                       ) : item.session_id && item.candidate_id ? (
                         <Link

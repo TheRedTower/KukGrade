@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import type { Rank, StudentDetail, StudentListItem, StudentRankHistory } from "./api";
-import { authUser, jsonResponse, CHOICES, page, serve, stubFetch } from "./appTestSupport";
+import { ADMINISTRATOR_CAPABILITIES, authUser, jsonResponse, CHOICES, page, serve, stubFetch } from "./appTestSupport";
 
 describe("Students registry screen (/students)", () => {
   beforeEach(() => {
@@ -981,7 +981,7 @@ describe("Student detail screen (/students/:id)", () => {
 
     const answer = serve({
       "/api/choices/": CHOICES,
-      "/api/auth/me/": authUser,
+      "/api/auth/me/": { ...authUser, ...ADMINISTRATOR_CAPABILITIES },
       "/api/ranks/": page(testRanks),
       "/api/students/{id}/rank-history/": { promotions: testPromotions },
       "/api/students/{id}/grading-history/": {
@@ -1018,7 +1018,7 @@ describe("Student detail screen (/students/:id)", () => {
             source_testing_for_rank_text: "Yellow",
             outcome: "PASS",
             attendance_status: "ATTENDED",
-            result_display: "Pass",
+            result_display: "Recommended: Pass",
             comments: "",
             note: "",
             conditional_requirements: "",
@@ -1051,7 +1051,14 @@ describe("Student detail screen (/students/:id)", () => {
       "/gradings/4/assessments/12/review",
     );
     expect(tableScope.getByText("Yellow Stripe")).toBeVisible();
-    expect(tableScope.getAllByText("Pass")).toHaveLength(2);
+    expect(tableScope.getByText("Pass")).toBeVisible();
+    // An imported outcome reads as the recommendation it was, as the server says.
+    expect(tableScope.getByText("Recommended: Pass")).toBeVisible();
+    // Someone who reconciles imported history opens the record from it.
+    expect(tableScope.getByRole("link", { name: "Historical · view record" })).toHaveAttribute(
+      "href",
+      "/imports/history/7",
+    );
     expect(tableScope.getByText("Excellent forms and techniques.")).toBeVisible();
 
     // Rank history timeline

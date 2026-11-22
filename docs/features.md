@@ -145,7 +145,10 @@ same holds per age band: a student whose band has no chart for the rank they wou
 cannot be registered, and is not offered, until that band's chart is added. Which requirements
 apply depends on **rank** and **age band** (8 and under, 9–12, 13–17, 18+). Each
 grading covers the _cumulative_ syllabus: everything examinable up to the rank
-being tested, not only that rank's new material.
+being tested, not only that rank's new material. Some requirements are optional
+rather than required: at Jo Kyo Nim, the chart's "may be taught, if time allows"
+techniques - Yahng Sohn Mohk Soo and Ssahng Soo for ages 13 and over, Dahn Doh Mahk Ki
+for adults only.
 
 When an assessment is created, the full text of every requirement is copied into
 the candidate's own record. A later change to the syllabus therefore **cannot alter

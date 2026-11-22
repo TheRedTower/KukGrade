@@ -315,16 +315,63 @@ def test_all_four_age_bands_are_represented_in_seeded_requirements() -> None:
     )
 
 
-def test_ambiguous_optional_black_belt_material_is_not_seeded_as_requirement() -> None:
-    optional_codes = ["YAHNG_SOHN_MOHK_SOO", "SSAHNG_SOO", "DAHN_DOH_MAHK_KI"]
-
+def test_closing_black_belt_techniques_are_optional_for_adult_and_youth_jkn() -> None:
+    # The chart's last technique row: "may be taught, if time allows".
     requirements = SyllabusRequirement.objects.filter(
         rank__code="JKN",
-        item__code__in=optional_codes,
+        item__code__in=JKN_OPTIONAL_TECHNIQUES,
     )
 
-    assert requirements.count() == 0
-    assert SyllabusItem.objects.filter(code__in=optional_codes).count() == 3
+    # Knife defence is for adults only (owner, 2026-11-22).
+    assert sorted(requirements.values_list("age_band", "item__code")) == sorted(
+        [
+            (AgeBand.AGE_13_TO_17, "YAHNG_SOHN_MOHK_SOO"),
+            (AgeBand.AGE_13_TO_17, "SSAHNG_SOO"),
+            (AgeBand.AGE_18_AND_OVER, "YAHNG_SOHN_MOHK_SOO"),
+            (AgeBand.AGE_18_AND_OVER, "SSAHNG_SOO"),
+            (AgeBand.AGE_18_AND_OVER, "DAHN_DOH_MAHK_KI"),
+        ],
+    )
+    for requirement in requirements:
+        assert requirement.required is False
+        assert requirement.start_number is None
+        assert requirement.end_number is None
+        assert requirement.notes == "May be taught, if time allows."
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_optional_technique_seed_keeps_an_existing_mapping() -> None:
+    migration = importlib.import_module(
+        "syllabus.migrations.0003_seed_jkn_optional_techniques",
+    )
+    kept = SyllabusRequirement.objects.get(
+        rank__code="JKN",
+        age_band=AgeBand.AGE_18_AND_OVER,
+        item__code="SSAHNG_SOO",
+    )
+    kept.required = True
+    kept.start_number, kept.end_number = 1, 10
+    kept.save()
+
+    migration.unseed(apps, None)
+    assert list(
+        SyllabusRequirement.objects.filter(
+            rank__code="JKN",
+            item__code__in=JKN_OPTIONAL_TECHNIQUES,
+        ),
+    ) == [kept]
+
+    migration.seed(apps, None)
+    kept.refresh_from_db()
+    assert kept.required is True
+    assert (kept.start_number, kept.end_number) == (1, 10)
+    assert (
+        SyllabusRequirement.objects.filter(
+            rank__code="JKN",
+            item__code__in=JKN_OPTIONAL_TECHNIQUES,
+        ).count()
+        == 5
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -447,6 +494,7 @@ YOUTH_BLACK_BELT_TECHNIQUES = (
     ("KWAHN_JUHL_KI", "1-13"),
     ("TOO_KI", "1-13"),
 )
+JKN_OPTIONAL_TECHNIQUES = ("YAHNG_SOHN_MOHK_SOO", "SSAHNG_SOO", "DAHN_DOH_MAHK_KI")
 JKN_FORMS_AFTER_CHO_GEUP = (
     ("JOONG_GEUP_HYUNG", ""),
     ("GOH_GEUP_HYUNG", ""),
@@ -557,6 +605,8 @@ WORKED_EXAMPLES = [
                 "TECHNIQUE_SET",
                 *ADULT_COLOURED_BELT_TECHNIQUES,
                 *YOUTH_BLACK_BELT_TECHNIQUES,
+                ("YAHNG_SOHN_MOHK_SOO", ""),
+                ("SSAHNG_SOO", ""),
             ),
             *ledger(
                 "FORM",
@@ -578,6 +628,7 @@ WORKED_EXAMPLES = [
                 *YOUTH_BLACK_BELT_TECHNIQUES,
                 ("MOHK_JOH_LEU_KI", "1-5"),
                 ("BAHNG_TOO_KI", "1-10"),
+                *[(code, "") for code in JKN_OPTIONAL_TECHNIQUES],
             ),
             *ledger(
                 "FORM",
@@ -617,7 +668,11 @@ def test_effective_syllabus_is_everything_examinable_through_the_rank(
         "FALLING",
         "BREAKING",
     }
-    assert all(row["required"] for row in rows)
+    # Only the chart's "if time allows" techniques are optional.
+    assert all(
+        row["required"] is (row["item_code"] not in JKN_OPTIONAL_TECHNIQUES)
+        for row in rows
+    )
 
 
 @pytest.mark.parametrize("rank_code", ["WHITE", "KSN", "PKJN"])
@@ -820,7 +875,7 @@ def test_a_fresh_install_starts_with_the_wksa_2014_syllabus() -> None:
         )
 
     assert SyllabusItem.objects.count() == 32
-    assert SyllabusRequirement.objects.count() == 378
+    assert SyllabusRequirement.objects.count() == 383
     assert SyllabusRequirement.objects.filter(
         rank__code="YELLOW",
         age_band=AgeBand.AGE_9_TO_12,
@@ -837,6 +892,9 @@ def test_a_fresh_install_starts_with_the_wksa_2014_syllabus() -> None:
         ("TOO_KI", 140),
         ("MOHK_JOH_LEU_KI", 150),
         ("BAHNG_TOO_KI", 160),
+        ("YAHNG_SOHN_MOHK_SOO", 170),
+        ("SSAHNG_SOO", 180),
+        ("DAHN_DOH_MAHK_KI", 190),
     ]
 
 

@@ -1338,7 +1338,13 @@ def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
         row["item_name"] for row in rows if row["category"] == "TECHNIQUE_SET"
     ]
     assert techniques[:3] == ["Sohn Ppae Ki", "Ki Bohn Soo", "Sohn Mohk Soo"]
-    assert techniques[-2:] == ["Mohk Joh Leu Ki", "Bahng Too Ki"]
+    assert techniques[-5:] == [
+        "Mohk Joh Leu Ki",
+        "Bahng Too Ki",
+        "Yahng Sohn Mohk Soo",
+        "Ssahng Soo",
+        "Dahn Doh Mahk Ki",
+    ]
 
 
 def test_editing_assessment_notes_is_audited_with_both_versions() -> None:

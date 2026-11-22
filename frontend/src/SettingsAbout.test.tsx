@@ -51,12 +51,12 @@ describe("About: the overview", () => {
     expect(await details.findByText("Europe/London")).toBeVisible();
     expect(details.getByText("5198f1b")).toBeVisible();
     expect(details.getByText("Ready")).toBeVisible();
-    expect(details.getAllByText("0.2.0")).toHaveLength(2);
+    expect(details.getAllByText("0.3.0")).toHaveLength(2);
     expect(screen.getByText(/does not look for updates by itself/)).toBeVisible();
   });
 
   it("names a release candidate by its number, in the page, the sidebar and the support text", async () => {
-    const candidate = { ...ABOUT, release: "0.2.0-rc.4" };
+    const candidate = { ...ABOUT, release: "0.3.0-rc.4" };
     const signedIn = fetchSignedInAs(authUser);
     stubFetch(
       vi.fn(async (url: string) => (url.endsWith("/api/about/") ? jsonResponse(200, candidate) : signedIn(url))),
@@ -65,8 +65,8 @@ describe("About: the overview", () => {
     render(<App />);
 
     const details = within(await screen.findByRole("region", { name: "Version details" }));
-    expect(await details.findByText("0.2.0-rc.4")).toBeVisible();
-    expect(screen.getByText("KukGrade 0.2.0-rc.4")).toBeInTheDocument();
+    expect(await details.findByText("0.3.0-rc.4")).toBeVisible();
+    expect(screen.getByText("KukGrade 0.3.0-rc.4")).toBeInTheDocument();
   });
 
   it("takes the links from the server, each opening in a new tab", async () => {
@@ -107,7 +107,7 @@ describe("About: the overview", () => {
 
     expect(await screen.findByText("Copied.")).toBeVisible();
     const copied = await navigator.clipboard.readText();
-    expect(copied).toContain("Server: 0.2.0");
+    expect(copied).toContain("Server: 0.3.0");
     expect(copied).toContain("Commit: 5198f1b");
     expect(copied).toContain("Club time zone: Europe/London");
     expect(copied).toContain("Database: Ready");
@@ -277,7 +277,7 @@ describe("About: support", () => {
     await user.click(details.getByRole("button", { name: "Copy details" }));
 
     const copied = await navigator.clipboard.readText();
-    expect(copied).toContain("Server: 0.2.0");
+    expect(copied).toContain("Server: 0.3.0");
     expect(copied).toContain("Your browser: ");
     expect(copied).toContain("Your role: Instructor");
     expect(copied).not.toContain(authUser.email);

@@ -72,7 +72,7 @@ cp .env.example .env
 ```
 
 The compose file runs `latest`, the newest stable release (to stay on one release, name its
-tag instead, for example `ghcr.io/theredtower/kukgrade:0.2.0`). Then start it; the first run
+tag instead, for example `ghcr.io/theredtower/kukgrade:0.3.0`). Then start it; the first run
 pulls the image, which takes a minute or two:
 
 ```sh

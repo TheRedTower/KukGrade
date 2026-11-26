@@ -118,7 +118,8 @@ and running more than one application worker (the sign-in throttle needs a share
   timer: a server that is never restarted and receives no uploads keeps one until then. For a firm
   limit, run `expire_stale_import_batches` from a scheduler ([installation](installation.md#maintenance)).
 - Data erasure on request: a student's name and date of birth can be erased from older audit events with `redact_student_audit` ([Privacy](privacy.md)); deleting the student, their grading history and any other copies (backups) remains manual.
-- The emergency Django admin is view-only for grading and student data. A record that
-  needs correcting is corrected in KukGrade, or by calling the service from a shell.
+- The emergency Django admin is view-only for grading and student data, and for the role
+  groups. A record that needs correcting is corrected in KukGrade, or by calling the
+  service from a shell; a role group's permissions change only in code, by a migration.
 - The Cloudflare Tunnel and Pangolin Compose recipes follow the providers' documentation but have not
   been tried against the real services.

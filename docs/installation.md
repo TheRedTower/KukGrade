@@ -248,7 +248,9 @@ runs them on loopback only; stop the stack first and read the comments in
 [`backend/kukgrade/settings_admin.py`](../backend/kukgrade/settings_admin.py).
 Grading, student, rank and syllabus screens there are view-only: nothing is added,
 changed or deleted from them, because every such change goes through KukGrade, which
-checks it and records it. Account recovery is the one thing the admin can still do.
+checks it and records it. The role groups (Instructor and Administrator) are view-only
+too: their permissions are set in code by every migration. Account recovery is the one
+thing the admin can still do.
 
 ## Troubleshooting
 

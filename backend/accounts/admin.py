@@ -7,7 +7,9 @@ from django.contrib import admin
 from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
+from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse
 from django.template.response import TemplateResponse
@@ -26,6 +28,7 @@ from accounts.services import (
     update_platform_user,
     validate_can_reset_password,
 )
+from kukgrade.admin_mixins import ViewOnlyAdmin
 from ranks.models import Rank
 
 # Where save_model leaves the password it just issued for response_add to
@@ -331,3 +334,24 @@ class UserAdmin(DjangoUserAdmin):
         if not request.user.is_superuser:
             fields += ("is_staff", "is_superuser")
         return fields
+
+
+# Django's own Group admin is editable. Here a role group's permissions are
+# set by sync_role_groups from accounts.groups, so an edit in admin would grant
+# a whole role something - final-decision authority to every administrator,
+# say - with no audit event, until the next migration quietly undid it. The
+# groups can be looked at, never changed. (Importing django.contrib.auth.admin
+# above has already registered Django's version, so it is replaced here.)
+admin.site.unregister(Group)
+
+
+@admin.register(Group)
+class GroupAdmin(ViewOnlyAdmin):
+    list_display = ("name",)
+    search_fields = ("name",)
+    ordering = ("name",)
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Group]:
+        # Each permission is shown by name, which reads its content type.
+        groups = super().get_queryset(request)
+        return groups.prefetch_related("permissions__content_type")

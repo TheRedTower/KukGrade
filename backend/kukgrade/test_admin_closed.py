@@ -81,6 +81,8 @@ VIEW_ONLY_MODELS = [
     ("syllabus", "syllabusrequirement"),
     ("audit", "auditevent"),
     ("data_imports", "importbatch"),
+    # The role groups: sync_role_groups sets their permissions.
+    ("auth", "group"),
 ]
 
 
@@ -109,6 +111,9 @@ def test_grading_and_student_data_can_be_looked_at_but_not_changed_in_admin(
 
 
 def test_the_view_only_pages_render(settings: Any) -> None:
+    from django.contrib.auth.models import Group
+
+    from accounts.groups import INSTRUCTOR_GROUP
     from audit.models import AuditAction
     from audit.recording import record
     from data_imports.testing import legacy_batch
@@ -143,6 +148,8 @@ def test_the_view_only_pages_render(settings: Any) -> None:
         f"/admin/audit/auditevent/{event.pk}/change/",
         "/admin/data_imports/importbatch/",
         f"/admin/data_imports/importbatch/{batch.pk}/change/",
+        "/admin/auth/group/",
+        f"/admin/auth/group/{Group.objects.get(name=INSTRUCTOR_GROUP).pk}/change/",
     ]
 
     for page in pages:

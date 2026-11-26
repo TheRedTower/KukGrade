@@ -99,7 +99,7 @@ export const CHOICES: Choices = {
     {
       value: "can_override_locked_session",
       label: "Override locked sessions",
-      description: "Allow this user to make authorised corrections after locking.",
+      description: "Allow this user to withdraw candidates from, or cancel, a locked session.",
     },
     {
       value: "can_view_grading_audit_log",

@@ -58,7 +58,7 @@ AUTHORITY_WORDS: dict[str, tuple[str, str]] = {
     ),
     "can_override_locked_session": (
         "Override locked sessions",
-        "Allow this user to make authorised corrections after locking.",
+        "Allow this user to withdraw candidates from, or cancel, a locked session.",
     ),
     "can_view_grading_audit_log": (
         "View grading audit log",

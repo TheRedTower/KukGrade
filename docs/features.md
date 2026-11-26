@@ -282,19 +282,19 @@ ranks were kept show the name alone, and no audit event is rewritten. An account
 address in their details.
 
 <!-- prettier-ignore -->
-| Capability                                                                     |            Instructor             | Administrator | Master permissions |
-| ------------------------------------------------------------------------------ | :-------------------------------: | :-----------: | :----------------: |
-| View ranks, syllabus, students, history                                        |                 ✓                 |       ✓       |                    |
-| Add and edit students; manage sessions, candidates and assessments             |                 ✓                 |       ✓       |                    |
-| Propose or revise an outcome                                                   |                 ✓                 |       ✓       |                    |
-| **Make the final grading decision** (`can_make_final_grading_decision`)        |                                   |               |         ✓          |
-| **Promote a student** (`can_promote_student`)                                  |                                   |               |         ✓          |
-| **Withdraw a candidate from a locked session** (`can_override_locked_session`) |                                   |               |         ✓          |
-| Read the audit log                                                             | with `can_view_grading_audit_log` |       ✓       |         ✓          |
-| Manage users, roles and authority                                              |                                   |       ✓       |                    |
-| Import student rosters and past gradings; reconcile imported history           |                                   |       ✓       |                    |
-| Delete a user or student, or an assessment or session without final decisions  |                                   |       ✓       |                    |
-| Archive or restore a completed or cancelled session                            |                                   |       ✓       |                    |
+| Capability                                                                                 |            Instructor             | Administrator | Master permissions |
+| ------------------------------------------------------------------------------------------ | :-------------------------------: | :-----------: | :----------------: |
+| View ranks, syllabus, students, history                                                    |                 ✓                 |       ✓       |                    |
+| Add and edit students; manage sessions, candidates and assessments                         |                 ✓                 |       ✓       |                    |
+| Propose or revise an outcome                                                               |                 ✓                 |       ✓       |                    |
+| **Make the final grading decision** (`can_make_final_grading_decision`)                    |                                   |               |         ✓          |
+| **Promote a student** (`can_promote_student`)                                              |                                   |               |         ✓          |
+| **Withdraw a candidate from, or cancel, a locked session** (`can_override_locked_session`) |                                   |               |         ✓          |
+| Read the audit log                                                                         | with `can_view_grading_audit_log` |       ✓       |         ✓          |
+| Manage users, roles and authority                                                          |                                   |       ✓       |                    |
+| Import student rosters and past gradings; reconcile imported history                       |                                   |       ✓       |                    |
+| Delete a user or student, or an assessment or session without final decisions              |                                   |       ✓       |                    |
+| Archive or restore a completed or cancelled session                                        |                                   |       ✓       |                    |
 
 Notes:
 
@@ -305,8 +305,9 @@ Notes:
   Django admin site.
 - The Django admin site (a shell-only emergency tool, not served by the app) shows
   grading, student, rank and syllabus data but cannot add, change or delete it, so
-  every such change is checked and recorded by KukGrade. It still recovers accounts,
-  but deletes none: an account is deleted in KukGrade.
+  every such change is checked and recorded by KukGrade. The role groups are view-only
+  there too: their permissions are set in code by every migration. It still recovers
+  accounts, but deletes none: an account is deleted in KukGrade.
 - User-management events in the audit log are visible to administrators only.
 - Deleting never erases a recorded decision, and is itself audited.
   - _A student_ is never deleted before their final decision: while any grading they are

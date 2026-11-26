@@ -79,7 +79,10 @@ refuses an invalid status; a registration is always the same student's, and a fi
 never changes.
 
 **Permissions fail closed.** Every API viewset declares a `permission_map` per action;
-an action that is not declared is denied. The two gates applied to every request (a required password
+an action that is not declared is denied. The shared base viewset checks that map, so a
+new viewset cannot skip it, and a Master action lists its authority in the same entry
+(`finalise` needs `can_make_final_grading_decision`), so each action's whole rule is in one
+place and the permission tests see all of it. The two gates applied to every request (a required password
 change, and the demo's closed changes) are decided on the resolved view's name, never
 its path (`kukgrade/middleware.py`). Django permissions are the authority; the
 `role` field is only a label that decides group membership.

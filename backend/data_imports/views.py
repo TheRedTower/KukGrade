@@ -14,7 +14,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from accounts.models import User
-from accounts.permissions import HasRequiredPermissions
 from data_imports.legacy_checks import CheckKind, check_counts, legacy_checks
 from data_imports.mappings import STUDENT_WHOLE_FILE_FIELDS
 from data_imports.models import FINISHED_IMPORT_STATUSES, ImportBatch, ImportRow
@@ -107,7 +106,6 @@ class ImportBatchViewSet(
     """
 
     serializer_class = ImportBatchSerializer
-    permission_classes = [HasRequiredPermissions]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_map = {
         "list": ("data_imports.view_importbatch",),
@@ -414,7 +412,6 @@ class ImportRowViewSet(KukGradeViewSet[ImportRow]):
     as the imports are."""
 
     serializer_class = ImportRowSerializer
-    permission_classes = [HasRequiredPermissions]
     lookup_field = "row_number"
     lookup_value_regex = "[0-9]+"
     permission_map = {

@@ -18,10 +18,9 @@ from rest_framework.serializers import BaseSerializer
 from accounts.models import User
 from accounts.permissions import (
     DELETE_ANY_SESSION_PERMISSION,
-    CanMakeFinalGradingDecision,
-    CanOverrideLockedSession,
-    CanPromoteStudent,
-    HasRequiredPermissions,
+    FINAL_GRADING_DECISION_PERMISSION,
+    OVERRIDE_LOCKED_SESSION_PERMISSION,
+    PROMOTE_STUDENT_PERMISSION,
 )
 from gradings.assessment_services import (
     add_item_comment,
@@ -237,7 +236,6 @@ class GradingSessionViewSet(
         )
 
     serializer_class = GradingSessionSerializer
-    permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_gradingsession",),
         "retrieve": ("gradings.view_gradingsession",),
@@ -419,7 +417,6 @@ class GradingCandidateViewSet(
         )
 
     serializer_class = GradingCandidateSerializer
-    permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_gradingcandidate",),
         "retrieve": ("gradings.view_gradingcandidate",),
@@ -435,9 +432,11 @@ class GradingCandidateViewSet(
         "bulk_register": ("gradings.add_gradingcandidate",),
         "bulk_generate_assessments": ("gradings.add_candidateassessment",),
         "bulk_update_status": ("gradings.change_gradingcandidate",),
-        # The sensitive half is enforced by CanOverrideLockedSession on the
-        # action itself, which also gives a clearer message.
-        "withdraw": ("gradings.change_gradingcandidate",),
+        # Taking a candidate out of a locked session is override authority.
+        "withdraw": (
+            "gradings.change_gradingcandidate",
+            OVERRIDE_LOCKED_SESSION_PERMISSION,
+        ),
     }
 
     query_filters = (
@@ -618,7 +617,6 @@ class GradingCandidateViewSet(
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[HasRequiredPermissions, CanOverrideLockedSession],
     )
     def withdraw(
         self,
@@ -675,7 +673,6 @@ class CandidateAssessmentViewSet(
     KukGradeViewSet[CandidateAssessment],
 ):
     serializer_class = CandidateAssessmentSerializer
-    permission_classes = [HasRequiredPermissions]
     delete_service = staticmethod(delete_candidate_assessment)
 
     def perform_update(self, serializer: BaseSerializer[CandidateAssessment]) -> None:
@@ -764,7 +761,6 @@ class CandidateAssessmentItemViewSet(
     KukGradeViewSet[CandidateAssessmentItem],
 ):
     serializer_class = CandidateAssessmentItemSerializer
-    permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_candidateassessmentitem",),
         "partial_update": ("gradings.change_candidateassessmentitem",),
@@ -840,17 +836,33 @@ class CandidateAssessmentItemViewSet(
 
 class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
     serializer_class = CandidateOutcomeSerializer
-    permission_classes = [HasRequiredPermissions]
     # A Master's staged decision is a draft kept whole: PUT replaces it.
     http_method_names = [*KukGradeViewSet.http_method_names, "put"]
     permission_map = {
-        "staged_decision": ("gradings.view_candidateoutcome",),
-        "staged_decisions": ("gradings.view_candidateoutcome",),
-        # The sensitive half of these two is enforced by the dedicated
-        # permission class on the action, which also gives a better message.
-        "finalise": ("gradings.view_candidateoutcome",),
-        "promote": ("gradings.view_candidateoutcome",),
-        "bulk_promote": ("gradings.view_candidateoutcome",),
+        # Staged decisions are the Master's own drafts: only final-decision
+        # authority reads, keeps or clears them.
+        "staged_decision": (
+            "gradings.change_candidateoutcome",
+            FINAL_GRADING_DECISION_PERMISSION,
+        ),
+        "staged_decisions": (
+            "gradings.view_candidateoutcome",
+            FINAL_GRADING_DECISION_PERMISSION,
+        ),
+        "finalise": (
+            "gradings.change_candidateoutcome",
+            FINAL_GRADING_DECISION_PERMISSION,
+        ),
+        # A promotion is built on a finalised outcome; no role group grants
+        # add_promotion, so the authority is what decides who may.
+        "promote": (
+            "gradings.change_candidateoutcome",
+            PROMOTE_STUDENT_PERMISSION,
+        ),
+        "bulk_promote": (
+            "gradings.change_candidateoutcome",
+            PROMOTE_STUDENT_PERMISSION,
+        ),
         "promotion_eligibility": ("gradings.view_candidateoutcome",),
     }
 
@@ -888,7 +900,6 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         url_path="staged-decisions",
         filter_backends=[],
         pagination_class=None,
-        permission_classes=[HasRequiredPermissions, CanMakeFinalGradingDecision],
     )
     def staged_decisions(
         self, request: Request, *args: object, **kwargs: object
@@ -913,7 +924,6 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         detail=True,
         methods=["put", "delete"],
         url_path="staged-decision",
-        permission_classes=[HasRequiredPermissions, CanMakeFinalGradingDecision],
     )
     def staged_decision(
         self, request: Request, *args: object, **kwargs: object
@@ -950,7 +960,6 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
     @action(
         detail=True,
         methods=["patch"],
-        permission_classes=[HasRequiredPermissions, CanMakeFinalGradingDecision],
     )
     def finalise(
         self,
@@ -987,7 +996,6 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[HasRequiredPermissions, CanPromoteStudent],
     )
     def promote(
         self,
@@ -1021,7 +1029,6 @@ class CandidateOutcomeViewSet(KukGradeViewSet[CandidateOutcome]):
         detail=False,
         methods=["post"],
         url_path="bulk-promote",
-        permission_classes=[HasRequiredPermissions, CanPromoteStudent],
     )
     def bulk_promote(
         self,
@@ -1074,7 +1081,6 @@ class LegacyGradingRecordViewSet(
     through gradings.legacy_services."""
 
     serializer_class = LegacyGradingRecordSerializer
-    permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_legacygradingrecord",),
         "retrieve": ("gradings.view_legacygradingrecord",),
@@ -1270,7 +1276,6 @@ class HistoricalPersonViewSet(
     linked here."""
 
     serializer_class = HistoricalPersonSerializer
-    permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.can_reconcile_imported_history",),
         "retrieve": ("gradings.can_reconcile_imported_history",),

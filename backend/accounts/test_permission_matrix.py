@@ -21,14 +21,16 @@ from typing import Any
 import pytest
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from accounts.permissions import (
-    CanMakeFinalGradingDecision,
-    CanOverrideLockedSession,
-    CanPromoteStudent,
+    AUTHORITY_PERMISSIONS,
+    AUTHORITY_REFUSALS,
+    HasRequiredPermissions,
 )
+from kukgrade.viewsets import KukGradeViewSet
 
 pytestmark = pytest.mark.django_db
 
@@ -422,42 +424,93 @@ def test_every_routed_action_declares_its_permissions(
 
 
 # --------------------------------------------------------------------------
-# Sensitive actions: a permission_map entry alone is not enough
+# The map is always checked, and it carries the authority too
 # --------------------------------------------------------------------------
 
-# Actions gated by a per-user authority permission - never granted to a
-# group - are enforced by a dedicated permission class on the @action
-# itself, not by permission_map. The completeness test above only sees
-# permission_map, so it would still pass if one of these lost its class and
-# fell back to whatever ordinary permission_map entry remained, silently
-# handing final-decision, promotion or override authority to every
-# instructor. Add a new sensitive action here the day it is written.
-SENSITIVE_ACTIONS: dict[tuple[str, str], type] = {
-    ("CandidateOutcomeViewSet", "finalise"): CanMakeFinalGradingDecision,
-    ("CandidateOutcomeViewSet", "promote"): CanPromoteStudent,
-    ("GradingCandidateViewSet", "withdraw"): CanOverrideLockedSession,
-}
+
+def test_a_viewset_that_names_no_classes_still_checks_its_map() -> None:
+    """A new viewset that leaves out permission_classes inherits the check,
+    rather than the project default of "any signed-in user"."""
+
+    class Forgetful(KukGradeViewSet[User]):
+        permission_map = {"list": ("accounts.view_user",)}
+
+    assert Forgetful.permission_classes == [HasRequiredPermissions]
+
+
+@pytest.mark.parametrize("name,viewset", routed_viewsets())
+def test_every_routed_viewset_checks_its_permission_map(
+    name: str,
+    viewset: Any,
+) -> None:
+    """Without HasRequiredPermissions a permission_map is silently ignored,
+    so the completeness test above would pass over an open endpoint."""
+    assert HasRequiredPermissions in viewset.permission_classes, name
+    for extra in viewset.get_extra_actions():
+        classes = extra.kwargs.get("permission_classes")
+        if classes is not None:
+            assert HasRequiredPermissions in classes, f"{name}.{extra.__name__}"
+
+
+def authority_requests() -> list[tuple[str, str, str, str, str]]:
+    """Every routed request whose action's map names a per-user authority:
+    (viewset, action, authority, method, url), one per method the action
+    answers, so a PUT and a DELETE on the same action are each asked."""
+    authorities = set(AUTHORITY_PERMISSIONS.values())
+    requests = []
+    for router in every_router():
+        for _prefix, viewset, basename in router.registry:
+            permission_map = getattr(viewset, "permission_map", {})
+            for extra in viewset.get_extra_actions():
+                held = authorities.intersection(
+                    permission_map.get(extra.__name__, ()),
+                )
+                if not held:
+                    continue
+                kwargs = {"pk": 99999999} if extra.detail else {}
+                url = reverse(f"{basename}-{extra.url_name}", kwargs=kwargs)
+                for authority in held:
+                    for method in extra.mapping:
+                        requests.append(
+                            (viewset.__name__, extra.__name__, authority, method, url),
+                        )
+    return sorted(requests)
+
+
+def test_the_master_actions_declare_their_authority() -> None:
+    declared = {(name, action) for name, action, *_ in authority_requests()}
+    assert {
+        ("CandidateOutcomeViewSet", "finalise"),
+        ("CandidateOutcomeViewSet", "staged_decision"),
+        ("CandidateOutcomeViewSet", "staged_decisions"),
+        ("CandidateOutcomeViewSet", "promote"),
+        ("CandidateOutcomeViewSet", "bulk_promote"),
+        ("GradingCandidateViewSet", "withdraw"),
+    } <= declared
 
 
 @pytest.mark.parametrize(
-    "name,action_name,required_class",
-    [
-        (name, action_name, required_class)
-        for (name, action_name), required_class in SENSITIVE_ACTIONS.items()
-    ],
+    "name,action_name,authority,method,url",
+    authority_requests(),
 )
-def test_sensitive_actions_declare_their_authority_class(
+@pytest.mark.parametrize("role", [User.Role.INSTRUCTOR, User.Role.ADMINISTRATOR])
+def test_an_authority_action_refuses_a_role_without_that_authority(
     name: str,
     action_name: str,
-    required_class: type,
+    authority: str,
+    method: str,
+    url: str,
+    role: str,
 ) -> None:
-    viewset = next(
-        viewset for viewset_name, viewset in routed_viewsets() if viewset_name == name
-    )
-    bound_action = getattr(viewset, action_name)
-    declared_classes = bound_action.kwargs.get("permission_classes", [])
+    """Through the URL: a role's own grants are not enough, and the refusal
+    names the missing authority; the same role holding it gets past the check
+    (404 on the made-up id, or the request's own validation)."""
+    without = persona(f"no-authority-{role}@example.com", role)
+    holder = persona(f"holder-{role}@example.com", role, permissions=(authority,))
 
-    assert required_class in declared_classes, (
-        f"{name}.{action_name} must declare {required_class.__name__} - "
-        "permission_map alone is not enough for a sensitive action."
-    )
+    refused = getattr(without, method)(url, {}, format="json")
+    allowed = getattr(holder, method)(url, {}, format="json")
+
+    assert refused.status_code == 403, f"{name}.{action_name} {method.upper()}"
+    assert refused.json()["error"]["message"] == AUTHORITY_REFUSALS[authority]
+    assert allowed.status_code != 403, f"{name}.{action_name} {method.upper()}"

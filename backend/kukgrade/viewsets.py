@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
+from accounts.permissions import HasRequiredPermissions
 
 
 # The base of every viewset. (A comment, not a docstring: the schema would
@@ -28,8 +29,15 @@ from accounts.models import User
 # whole. Leaving 'put' out of http_method_names is what answers 405 for it -
 # the router still binds PUT to an update mixin's method, and these are the
 # methods dispatch checks first. A viewset that needs PUT adds it, saying why.
+#
+# Every viewset is checked against its own permission_map: an action it does
+# not declare is refused, and a viewset with no map refuses everything. Set
+# here rather than on each viewset, so a new one cannot fall back to the
+# project default of "any signed-in user". A viewset that needs a further
+# check adds its class after this one, never in place of it.
 class KukGradeViewSet[M: models.Model](GenericViewSet[M]):
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    permission_classes = [HasRequiredPermissions]
 
     @property
     def actor(self) -> User:

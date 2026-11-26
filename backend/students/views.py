@@ -12,7 +12,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
 
-from accounts.permissions import HasRequiredPermissions
 from gradings.models import GradingCandidate, GradingSession
 from gradings.read_models import (
     student_rank_timeline,
@@ -153,7 +152,6 @@ class StudentViewSet(
             **serializer.validated_data,
         )
 
-    permission_classes = [HasRequiredPermissions]
     serializer_class = StudentSerializer
     permission_map = {
         "list": ("students.view_student",),

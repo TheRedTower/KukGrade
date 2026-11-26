@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, models, transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.utils import timezone
 
@@ -28,6 +28,7 @@ from gradings.models import (
     GradingCandidate,
 )
 from gradings.service_support import each_independently, unique_violation_on
+from kukgrade import kept
 from syllabus.models import AgeBand
 from syllabus.services import (
     EffectiveSyllabusRequirement,
@@ -89,8 +90,8 @@ def delete_candidate_assessment(
     (`session_deletion_blocker`): an assessment whose outcome is finalised is
     refused, so no promotion is ever undone and no rank rolled back here. A
     proposal is removed with it. A proposal refuses ordinary delete(), so it
-    goes through the unbound base QuerySet.delete, the one sanctioned bypass
-    (administrator-gated, see accounts.groups._DATA_CLEANUP_PERMISSIONS).
+    goes through kukgrade.kept.bypass_delete (administrator-gated, see
+    accounts.groups._DATA_CLEANUP_PERMISSIONS).
     """
     locked = lock_assessment(assessment.pk)
     outcome = getattr(locked, "outcome", None)
@@ -98,7 +99,10 @@ def delete_candidate_assessment(
     if blocker is not None:
         raise ValidationError(blocker)
     if outcome is not None:
-        models.QuerySet.delete(CandidateOutcome.objects.filter(pk=outcome.pk))
+        kept.bypass_delete(
+            CandidateOutcome.objects.filter(pk=outcome.pk),
+            reason="A deleted assessment's proposal goes with it.",
+        )
 
     record(
         AuditAction.ASSESSMENT_DELETED,

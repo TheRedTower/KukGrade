@@ -18,7 +18,7 @@ flowchart LR
 <!-- prettier-ignore -->
 | Layer | Technology |
 | --- | --- |
-| Backend | Python 3.14, Django 5.2 (LTS), Django REST Framework, drf-spectacular, ReportLab (the PDFs) |
+| Backend | Python 3.14, Django 5.2 (LTS), Django REST Framework, drf-spectacular, ReportLab (the PDFs), django-pgtrigger (the kept records' database triggers) |
 | Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, openapi-fetch, plain CSS on design tokens, one shipped typeface (Pretendard) |
 | Database | PostgreSQL 17 |
 | Testing | pytest (pypdf to read the PDFs), Vitest and React Testing Library; Playwright for the width check (dev only) |
@@ -91,7 +91,11 @@ its path (`kukgrade/middleware.py`). Django permissions are the authority; the
 into immutable per-candidate rows, so editing the syllabus later cannot change a past
 grading. Promotions, finalised outcomes, item comments, mark changes and audit events
 are immutable, by one guard (`kukgrade/kept.py`); imported records are voided, never
-deleted.
+deleted. The database holds the same line with triggers (django-pgtrigger), so raw SQL,
+`psql` or a later migration is refused too. The few services that change a kept row on
+purpose (erasing a student's details, removing a proposal with its assessment) go through
+`kept.bypass_update` or `kept.bypass_delete` with their reason, and a test keeps the list
+of modules allowed to.
 
 **One lock protocol.** Concurrent grading writes lock the grading session first, then
 any students in ascending id order, and validate only against rows re-read under those

@@ -27,6 +27,7 @@ from gradings.testing import (
     student,
     user,
 )
+from kukgrade import kept
 from kukgrade.testing import results
 from students.services import create_student, delete_student
 
@@ -129,11 +130,14 @@ def test_events_written_before_the_ids_were_carried_are_still_found() -> None:
     session, (first, _second) = graded_session()
     from django.db import connection
 
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "UPDATE audit_auditevent SET metadata = metadata - 'session_id'"
-            " - 'candidate_id' - 'student_id'",
-        )
+    # As an older release wrote them: the events are kept, so only past the
+    # database's own refusal.
+    with kept.bypassing(AuditEvent, reason="Older events, as written then."):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE audit_auditevent SET metadata = metadata - 'session_id'"
+                " - 'candidate_id' - 'student_id'",
+            )
 
     events = history(administrator(), f"session:{session.pk}")
 
@@ -160,11 +164,14 @@ def test_a_removed_candidates_own_events_are_still_its_history() -> None:
     # An event written before the ids were carried: only its entity id says whose.
     from django.db import connection
 
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "UPDATE audit_auditevent SET metadata = metadata - 'candidate_id'"
-            " - 'session_id'",
-        )
+    # As an older release wrote them: the events are kept, so only past the
+    # database's own refusal.
+    with kept.bypassing(AuditEvent, reason="Older events, as written then."):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE audit_auditevent SET metadata = metadata - 'candidate_id'"
+                " - 'session_id'",
+            )
 
     events = history(administrator(), f"candidate:{removed_id}")
 

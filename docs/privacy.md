@@ -33,8 +33,8 @@ and are left as they were.
 
 Events from before 2026-11 copied a student's name into their summaries ("Student Alex
 Kim (123-4-001) created.") and a snapshot of their name, date of birth, rank and status
-into their details. They are permanent, and the app refuses every change to them.
-`redact_student_audit` is the one sanctioned way to remove a student's details.
+into their details. They are permanent: the app and the database both refuse every change
+to them. `redact_student_audit` is the one sanctioned way to remove a student's details.
 
 ### Procedure
 

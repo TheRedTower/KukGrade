@@ -6,6 +6,9 @@ license = "AGPL-3.0-only"
 requires-python = ">=3.14"
 dependencies = [
     "django>=5.2,<6.0",
+    # The kept records' refusals as Postgres triggers, declared on each model's
+    # Meta and installed by its migrations (kukgrade/kept.py).
+    "django-pgtrigger>=4.17,<5.0",
     "djangorestframework>=3.16,<4.0",
     "drf-spectacular>=0.30.0",
     "gunicorn>=26.2,<28.0",
@@ -66,6 +69,11 @@ target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "DJ"]
 ignore = ["DJ008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Generated: pgtrigger writes each trigger's SQL as one string, which no
+# formatter can wrap, and regenerating would undo a hand-wrapped one.
+"*/migrations/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.14"

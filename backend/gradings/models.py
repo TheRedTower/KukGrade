@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
+import pgtrigger
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
 
-from kukgrade.kept import KeptModel, KeptQuerySet
+from kukgrade.kept import KeptModel, KeptQuerySet, kept_triggers
 from kukgrade.modelchecks import changed_since_saved, clean_without_database_checks
 from syllabus.age import resolve_age_band
 from syllabus.models import (
@@ -539,6 +540,24 @@ class GradingOutcome(models.TextChoices):
     FAIL = "FAIL", "Fail"
 
 
+# What a final decision is: never changed once it is recorded (CandidateOutcome
+# and its database trigger both read this).
+OUTCOME_DECISION_FIELDS: tuple[str, ...] = (
+    "candidate_id",
+    "assessment_id",
+    "status",
+    "proposed_outcome",
+    "proposed_by_id",
+    "proposed_at",
+    "proposal_notes",
+    "final_outcome",
+    "decided_by_id",
+    "decided_at",
+    "decision_notes",
+    "conditional_requirements",
+)
+
+
 class CandidateOutcome(KeptModel):
     if TYPE_CHECKING:
         candidate_id: int
@@ -605,23 +624,15 @@ class CandidateOutcome(KeptModel):
     refusal_field = "status"
     change_refused = "A final decision cannot be changed."
     delete_refused = "Finalised candidate outcomes cannot be deleted."
-    _DECISION_FIELDS: ClassVar[tuple[str, ...]] = (
-        "candidate_id",
-        "assessment_id",
-        "status",
-        "proposed_outcome",
-        "proposed_by_id",
-        "proposed_at",
-        "proposal_notes",
-        "final_outcome",
-        "decided_by_id",
-        "decided_at",
-        "decision_notes",
-        "conditional_requirements",
-    )
 
     class Meta:
         ordering = candidate_order("candidate__")
+        # A final decision never changes or goes, in the database too; a
+        # proposal is free to.
+        triggers = kept_triggers(
+            kept_rows=pgtrigger.Q(old__status=CandidateOutcomeStatus.FINALISED),
+            fields=OUTCOME_DECISION_FIELDS,
+        )
         indexes = [
             models.Index(fields=["status"], name="cand_outcome_status_idx"),
             models.Index(
@@ -731,7 +742,7 @@ class CandidateOutcome(KeptModel):
         # stays here is what a final decision is: it never changes.
         if changed_since_saved(
             self,
-            self._DECISION_FIELDS,
+            OUTCOME_DECISION_FIELDS,
             saved_where=self.kept_rows(),
         ):
             errors["status"] = [self.change_refused]
@@ -1082,6 +1093,8 @@ class AssessmentItemComment(KeptModel):
 
     class Meta:
         ordering = ["created_at", "pk"]
+        # Never edited; deleted only with the item it is on.
+        triggers = kept_triggers(deleted_with="item")
         indexes = [
             models.Index(fields=["item", "created_at"], name="item_comment_item_idx"),
         ]
@@ -1162,6 +1175,8 @@ class AssessmentItemResultChange(KeptModel):
 
     class Meta:
         ordering = ["item_id", "sequence"]
+        # Never edited; deleted only with the item it is on.
+        triggers = kept_triggers(deleted_with="item")
         constraints = [
             models.UniqueConstraint(
                 fields=["item", "sequence"],
@@ -1196,6 +1211,20 @@ class AssessmentItemResultChange(KeptModel):
             raise ValidationError(
                 {"reason": ["Say why the mark is changing."]},
             )
+
+
+# A promotion as recorded: never changed (Promotion and its database trigger).
+PROMOTION_RECORDED_FIELDS: tuple[str, ...] = (
+    "student_id",
+    "outcome_id",
+    "grading_candidate_id",
+    "from_rank_id",
+    "to_rank_id",
+    "promoted_by_id",
+    "promoted_at",
+    "effective_date",
+    "notes",
+)
 
 
 class Promotion(KeptModel):
@@ -1248,20 +1277,13 @@ class Promotion(KeptModel):
     refusal_field = "promotion"
     change_refused = "A promotion cannot be changed."
     delete_refused = "A promotion cannot be deleted."
-    _RECORDED_FIELDS: ClassVar[tuple[str, ...]] = (
-        "student_id",
-        "outcome_id",
-        "grading_candidate_id",
-        "from_rank_id",
-        "to_rank_id",
-        "promoted_by_id",
-        "promoted_at",
-        "effective_date",
-        "notes",
-    )
 
     class Meta:
         ordering = ["-effective_date", "-promoted_at", "-pk"]
+        # Never changed or removed, in the database too.
+        triggers = kept_triggers(
+            fields=PROMOTION_RECORDED_FIELDS,
+        )
         indexes = [
             models.Index(
                 fields=["student", "-effective_date", "-promoted_at"],
@@ -1327,7 +1349,7 @@ class Promotion(KeptModel):
         ):
             errors["to_rank"] = [PROMOTION_SAME_RANK_MESSAGE]
 
-        if changed_since_saved(self, self._RECORDED_FIELDS):
+        if changed_since_saved(self, PROMOTION_RECORDED_FIELDS):
             errors["promotion"] = ["A promotion cannot be changed once recorded."]
 
         if errors:
@@ -1595,6 +1617,28 @@ class LegacyPerson(models.Model):
         return f"Person {self.pk} ({self.get_state_display()})"
 
 
+# What may change on an imported record after import: the decisions about who
+# it is and whether it is void. Everything else is what the workbook said
+# (LegacyGradingRecord and its database trigger both read this).
+LEGACY_RECORD_MUTABLE_FIELDS: frozenset[str] = frozenset(
+    {
+        "id",
+        "person_id",
+        "person_confirmed",
+        "student_id",
+        "current_rank_id",
+        "testing_for_rank_id",
+        "is_void",
+        "void_reason",
+        "voided_by_id",
+        "voided_by_title",
+        "voided_at",
+        "created_at",
+        "updated_at",
+    },
+)
+
+
 class LegacyGradingRecord(KeptModel):
     """One row of imported historical grading evidence - never native.
 
@@ -1621,27 +1665,9 @@ class LegacyGradingRecord(KeptModel):
         testing_for_rank_id: int | None
         voided_by_id: int | None
 
-    # Every field that is NOT here is a source fact and is immutable after
-    # creation - see clean() below, which derives the immutable set as
-    # "every model field except these" rather than hand-listing the source
-    # fields a second time.
-    _MUTABLE_FIELD_NAMES: frozenset[str] = frozenset(
-        {
-            "id",
-            "person_id",
-            "person_confirmed",
-            "student_id",
-            "current_rank_id",
-            "testing_for_rank_id",
-            "is_void",
-            "void_reason",
-            "voided_by_id",
-            "voided_by_title",
-            "voided_at",
-            "created_at",
-            "updated_at",
-        },
-    )
+    # Every field that is NOT in LEGACY_RECORD_MUTABLE_FIELDS is a source fact
+    # and is immutable after creation - see clean() below, which derives the
+    # immutable set as "every model field except these".
 
     # The person the record is about (LegacyPerson), set when it is saved
     # (gradings.legacy_people) - every record but a sheet note, which is
@@ -1760,6 +1786,9 @@ class LegacyGradingRecord(KeptModel):
 
     class Meta:
         ordering = ["-cycle_year", "-cycle_month", "source_sheet", "source_locator"]
+        # What the workbook said never changes or goes, in the database too;
+        # the fields a decision or a void sets are free to.
+        triggers = kept_triggers(exclude=sorted(LEGACY_RECORD_MUTABLE_FIELDS))
         permissions = [
             (
                 "can_reconcile_imported_history",
@@ -1842,7 +1871,7 @@ class LegacyGradingRecord(KeptModel):
             (
                 field.attname
                 for field in self._meta.fields
-                if field.attname not in self._MUTABLE_FIELD_NAMES
+                if field.attname not in LEGACY_RECORD_MUTABLE_FIELDS
             ),
         )
         if changed:

@@ -161,6 +161,8 @@ INSTALLED_APPS = [
     "data_imports",
     "demo",
     "drf_spectacular",
+    # The kept records' refusals, in the database (kukgrade.kept).
+    "pgtrigger",
 ]
 
 MIDDLEWARE = [

@@ -17,9 +17,10 @@ import re
 from typing import Any
 
 from django.apps import apps
-from django.db import models, transaction
+from django.db import transaction
 
 from audit.models import AuditAction, AuditEntity, AuditEvent
+from kukgrade import kept
 
 NAME_ERASED = "[name erased]"
 PERSONAL_KEYS = ("first_name", "last_name", "date_of_birth")
@@ -153,10 +154,10 @@ def redact_student_details(
                 continue
             changed += 1
             if not dry_run:
-                # The base QuerySet.update, not AuditEvent's guarded one: this
-                # is the single sanctioned rewrite.
-                models.QuerySet.update(
+                # The single sanctioned rewrite of an audit event.
+                kept.bypass_update(
                     AuditEvent.objects.filter(pk=event.pk),
+                    reason="A student's personal details are erased on request.",
                     summary=summary,
                     metadata=metadata,
                 )

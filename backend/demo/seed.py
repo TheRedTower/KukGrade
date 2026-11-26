@@ -24,7 +24,7 @@ from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import CommandError
-from django.db import models, transaction
+from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import User
@@ -68,6 +68,7 @@ from gradings.services import (
     create_grading_session,
     transition_grading_session,
 )
+from kukgrade import kept
 from ranks.models import Rank
 from students.models import Student
 from students.services import create_student
@@ -457,51 +458,63 @@ def decide(
             promote_candidate(outcome, club.master)
 
 
+# Why the demo moves its own records in time: the services stamp "now".
+BACKDATED = "The demo's past gradings are dated as they would have been."
+
+
 def backdate(session: GradingSession, after_audit_id: int) -> None:
     """Move a finished grading's records to its own date.
 
-    The services stamp "now". The queryset update is the same bypass the
-    application's own clean-up services use for the guarded tables.
+    The services stamp "now". The update is the same bypass the application's
+    own clean-up services use for the kept tables (kukgrade.kept).
     """
     start = local(session.grading_date)
     events = AuditEvent.objects.filter(pk__gt=after_audit_id).order_by("pk")
     for offset, pk in enumerate(events.values_list("pk", flat=True)):
-        models.QuerySet.update(
+        kept.bypass_update(
             AuditEvent.objects.filter(pk=pk),
+            reason=BACKDATED,
             occurred_at=start + timedelta(seconds=offset * 30),
         )
     candidates = GradingCandidate.objects.filter(session=session)
     assessments = CandidateAssessment.objects.filter(candidate__in=candidates)
-    models.QuerySet.update(
+    kept.bypass_update(
         assessments,
+        reason=BACKDATED,
         generated_at=start - timedelta(days=7),
     )
-    models.QuerySet.update(
+    kept.bypass_update(
         assessments.filter(started_at__isnull=False),
+        reason=BACKDATED,
         started_at=start,
     )
-    models.QuerySet.update(
+    kept.bypass_update(
         assessments.filter(completed_at__isnull=False),
+        reason=BACKDATED,
         completed_at=start + timedelta(hours=2),
     )
-    models.QuerySet.update(
+    kept.bypass_update(
         CandidateAssessmentItem.objects.filter(
             assessment__in=assessments,
             assessed_at__isnull=False,
         ),
+        reason=BACKDATED,
         assessed_at=start + timedelta(hours=1),
     )
     outcomes = CandidateOutcome.objects.filter(candidate__in=candidates)
-    models.QuerySet.update(
+    kept.bypass_update(
         outcomes.filter(proposed_at__isnull=False),
+        reason=BACKDATED,
         proposed_at=start + timedelta(hours=3),
     )
-    models.QuerySet.update(
+    kept.bypass_update(
         outcomes.filter(decided_at__isnull=False),
+        reason=BACKDATED,
         decided_at=start + timedelta(hours=4),
     )
-    models.QuerySet.update(
+    kept.bypass_update(
         Promotion.objects.filter(grading_candidate__in=candidates),
+        reason=BACKDATED,
         promoted_at=start + timedelta(hours=5),
     )
 
@@ -858,8 +871,9 @@ def build(*, today: date | None = None) -> None:
     create_students(club)
     # The club's own setting-up happened long before the first grading shown.
     long_ago = local(club.today - timedelta(days=400))
-    models.QuerySet.update(
+    kept.bypass_update(
         AuditEvent.objects.filter(pk__gt=marker),
+        reason=BACKDATED,
         occurred_at=long_ago,
     )
     history(club)

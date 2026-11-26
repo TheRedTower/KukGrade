@@ -46,6 +46,7 @@ from gradings.models import (
     StagedDecision,
 )
 from gradings.service_support import each_independently, unique_violation_on
+from kukgrade import kept
 from ranks.models import Rank
 from students.models import Student
 from syllabus.age import resolve_age_band
@@ -1073,12 +1074,12 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
     # A session holding a final decision is refused by
     # validate_session_can_be_deleted, so there is no promotion to roll back
     # here. What remains is at most a proposal, which refuses ordinary
-    # delete(), so it is stripped first, the sanctioned bypass
-    # delete_candidate_assessment uses (the unbound base QuerySet.delete).
+    # delete(), so it is stripped first, as delete_candidate_assessment does.
     locked = lock_session(session.pk)
     validate_session_can_be_deleted(locked, actor=actor)
-    models.QuerySet.delete(
+    kept.bypass_delete(
         CandidateOutcome.objects.filter(candidate__session=locked),
+        reason="A deleted session's proposals go with it; it holds no decision.",
     )
 
     # Recorded before the row goes, so the event still carries its identity.

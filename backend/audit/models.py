@@ -18,7 +18,7 @@ from django.conf import settings
 from django.db import models
 
 from accounts.permissions import USER_ADMINISTRATION_PERMISSION
-from kukgrade.kept import KeptModel, KeptQuerySet
+from kukgrade.kept import KeptModel, KeptQuerySet, kept_triggers
 from kukgrade.modelchecks import clean_without_database_checks
 
 if TYPE_CHECKING:
@@ -178,6 +178,10 @@ class AuditEvent(KeptModel):
 
     class Meta:
         ordering = ["-occurred_at", "-pk"]
+        # Append-only in the database too: no row is changed or removed but
+        # through kukgrade.kept's bypass, from the modules kukgrade/test_kept.py
+        # allows (redact_student_audit, and the demo's own club).
+        triggers = kept_triggers()
         indexes = [
             models.Index(
                 fields=["entity_type", "entity_id", "-occurred_at"],

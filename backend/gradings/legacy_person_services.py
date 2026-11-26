@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import transaction
 from django.utils import timezone
 
 from accounts.people import title_of
@@ -48,6 +48,7 @@ from gradings.models import (
     LegacyPersonState,
     LegacyRecordKind,
 )
+from kukgrade import kept
 from ranks.matching import active_rank_lookup
 from students.models import STUDENT_DELETED_MESSAGE
 
@@ -116,7 +117,7 @@ def _set_records(records: Sequence[LegacyGradingRecord], **fields: Any) -> None:
     The fields a decision changes (person, person_confirmed, student) are
     ones a record may change after import (LegacyGradingRecord's mutable
     fields), so the per-record clean() that guards the source fields has
-    nothing to check; the unbound QuerySet.update passes the queryset's
+    nothing to check; kukgrade.kept.bypass_update passes the queryset's
     refusal of a bulk change on purpose, as the cleanup services pass its
     refusal of a bulk delete.
     """
@@ -124,8 +125,9 @@ def _set_records(records: Sequence[LegacyGradingRecord], **fields: Any) -> None:
     assert set(fields) <= allowed, set(fields) - allowed
     if not records:
         return
-    models.QuerySet.update(
+    kept.bypass_update(
         LegacyGradingRecord.objects.filter(pk__in=[r.pk for r in records]),
+        reason="Who a record is about is a decision, not what the workbook said.",
         **fields,
         updated_at=timezone.now(),
     )

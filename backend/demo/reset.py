@@ -18,6 +18,7 @@ from django.db import close_old_connections, connection, transaction
 from django.db.models import Model
 
 from demo import seed
+from kukgrade import kept
 
 # The apps whose tables hold the club's own records. Accounts (people and
 # permissions), ranks and syllabus (the catalogue) are deliberately absent.
@@ -93,9 +94,10 @@ def reset() -> None:
         # it - which is what deleting the assessments first did.
         cursor.execute("SELECT id FROM gradings_gradingsession ORDER BY id FOR UPDATE")
         cursor.execute("SELECT id FROM students_student ORDER BY id FOR UPDATE")
-        for table in deletion_order():
-            name = connection.ops.quote_name(table)
-            cursor.execute(f"DELETE FROM {name}")  # noqa: S608 - our own table names
+        with kept.bypassing(reason="The demo club is emptied and built again."):
+            for table in deletion_order():
+                name = connection.ops.quote_name(table)
+                cursor.execute(f"DELETE FROM {name}")  # noqa: S608 - our own tables
     seed.build()
 
 

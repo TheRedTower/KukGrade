@@ -75,8 +75,9 @@ flowchart LR
    completed.
 8. **Complete.** A session can be completed when every candidate who was not withdrawn
    has a final decision.
-   - _Cancelling and deleting:_ a session that has recorded a final decision can no longer be
-     cancelled or deleted.
+   - _Cancelling and deleting:_ an instructor cancels a session; only an administrator can
+     delete one. A session that has recorded a final decision can no longer be cancelled or
+     deleted.
    - _Archiving:_ a completed or cancelled session can be archived by an administrator. It is
      hidden from the list of gradings (shown under "Archived gradings"), nothing is erased,
      and it can be restored.
@@ -281,20 +282,22 @@ ranks were kept show the name alone, and no audit event is rewritten. An account
 (created, changed, authority, password, deleted) name it the same way and keep its email
 address in their details.
 
+<!-- permissions-table:start (manage.py write_permissions_table) -->
 <!-- prettier-ignore -->
-| Capability                                                                                 |            Instructor             | Administrator | Master permissions |
-| ------------------------------------------------------------------------------------------ | :-------------------------------: | :-----------: | :----------------: |
-| View ranks, syllabus, students, history                                                    |                 ✓                 |       ✓       |                    |
-| Add and edit students; manage sessions, candidates and assessments                         |                 ✓                 |       ✓       |                    |
-| Propose or revise an outcome                                                               |                 ✓                 |       ✓       |                    |
-| **Make the final grading decision** (`can_make_final_grading_decision`)                    |                                   |               |         ✓          |
-| **Promote a student** (`can_promote_student`)                                              |                                   |               |         ✓          |
-| **Withdraw a candidate from, or cancel, a locked session** (`can_override_locked_session`) |                                   |               |         ✓          |
-| Read the audit log                                                                         | with `can_view_grading_audit_log` |       ✓       |         ✓          |
-| Manage users, roles and authority                                                          |                                   |       ✓       |                    |
-| Import student rosters and past gradings; reconcile imported history                       |                                   |       ✓       |                    |
-| Delete a user or student, or an assessment or session without final decisions              |                                   |       ✓       |                    |
-| Archive or restore a completed or cancelled session                                        |                                   |       ✓       |                    |
+| Capability | Instructor | Administrator | Master permissions |
+| --- | :-: | :-: | :-: |
+| View ranks, syllabus, students, history | ✓ | ✓ |  |
+| Add and edit students; manage sessions, candidates and assessments | ✓ | ✓ |  |
+| Propose or revise an outcome | ✓ | ✓ |  |
+| **Make final grading decisions** (`can_make_final_grading_decision`) |  |  | ✓ |
+| **Promote students** (`can_promote_student`) |  |  | ✓ |
+| **Override locked sessions** (`can_override_locked_session`) |  |  | ✓ |
+| Read the audit log | with `can_view_grading_audit_log` | ✓ | ✓ |
+| Manage users, roles and authority |  | ✓ |  |
+| Import student rosters and past gradings; reconcile imported history |  | ✓ |  |
+| Delete a user or student, or an assessment or session without final decisions; archive or restore a completed or cancelled session |  | ✓ |  |
+
+<!-- permissions-table:end -->
 
 Notes:
 

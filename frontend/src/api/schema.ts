@@ -247,7 +247,7 @@ export interface paths {
          * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         *     `accounts.groups._IMPORT`.
          */
         get: operations["data_imports_batches_list"];
         put?: never;
@@ -255,7 +255,7 @@ export interface paths {
          * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         *     `accounts.groups._IMPORT`.
          */
         post: operations["data_imports_batches_create"];
         delete?: never;
@@ -347,7 +347,7 @@ export interface paths {
          * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         *     `accounts.groups._IMPORT`.
          */
         get: operations["data_imports_batches_retrieve"];
         put?: never;
@@ -371,7 +371,7 @@ export interface paths {
          * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         *     `accounts.groups._IMPORT`.
          */
         post: operations["data_imports_batches_cancel_create"];
         delete?: never;

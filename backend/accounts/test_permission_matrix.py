@@ -128,7 +128,15 @@ def test_instructor_can_run_a_grading_end_to_end() -> None:
         ).status_code
         == 200
     )
-    assert client.delete(f"/api/gradings/sessions/{session_id}/").status_code == 204
+    # An instructor cancels a session; only an administrator deletes one.
+    refused = client.delete(f"/api/gradings/sessions/{session_id}/")
+    assert refused.status_code == 403
+    assert (
+        administrator("deletes-grading@example.com")
+        .delete(f"/api/gradings/sessions/{session_id}/")
+        .status_code
+        == 204
+    )
 
 
 def test_instructor_may_propose_an_outcome() -> None:

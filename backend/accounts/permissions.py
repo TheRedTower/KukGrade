@@ -55,6 +55,22 @@ AUTHORITY_PERMISSIONS: dict[str, str] = {
 # The authorities' keys, as a choice set the contract can name.
 AUTHORITY_KEYS: tuple[str, ...] = tuple(AUTHORITY_PERMISSIONS)
 
+# "Authorised Master" is these three; the grading audit log is a per-user
+# grant but not Master authority.
+MASTER_AUTHORITY_KEYS: tuple[str, ...] = (
+    "can_make_final_grading_decision",
+    "can_promote_student",
+    "can_override_locked_session",
+)
+
+# Any one of these lets a person read the audit log: the Administrator
+# group's grant, Master authority, or the grantable audit-log permission.
+AUDIT_LOG_GRANTS: tuple[str, ...] = (
+    AUDIT_LOG_PERMISSION,
+    FINAL_GRADING_DECISION_PERMISSION,
+    GRADING_AUDIT_LOG_PERMISSION,
+)
+
 # What each authority is called and does, as every screen words it.
 AUTHORITY_WORDS: dict[str, tuple[str, str]] = {
     "can_make_final_grading_decision": (
@@ -127,18 +143,13 @@ def prime_permission_cache(users: Iterable[User]) -> None:
 
 
 def can_view_audit_log(user: User) -> bool:
-    """The Administrator group's grant, Master authority, or the grantable
-    audit-log permission.
+    """Whether the user holds any of `AUDIT_LOG_GRANTS`.
 
     The one statement of this rule: the API (`CanViewAuditLog`) and Django
     admin (`audit.admin.AuditEventAdmin`) both ask it.
     """
     # has_perm refuses a closed account everything, superusers included.
-    return (
-        user.has_perm(AUDIT_LOG_PERMISSION)
-        or user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
-        or user.has_perm(GRADING_AUDIT_LOG_PERMISSION)
-    )
+    return any(user.has_perm(permission) for permission in AUDIT_LOG_GRANTS)
 
 
 def can_see_school_settings(user: User) -> bool:

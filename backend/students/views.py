@@ -136,7 +136,7 @@ class StudentViewSet(
 ):
     # DELETE is the administrator-only delete, which keeps a student with
     # history and erases only one with none - see
-    # accounts.groups._DATA_CLEANUP_PERMISSIONS.
+    # accounts.groups._DATA_CLEANUP.
     delete_service = staticmethod(delete_student)
 
     def perform_create(self, serializer: BaseSerializer[Student]) -> None:

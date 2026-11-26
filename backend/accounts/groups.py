@@ -13,6 +13,7 @@ a manual step.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import ImproperlyConfigured
@@ -23,93 +24,123 @@ if TYPE_CHECKING:  # pragma: no cover
 INSTRUCTOR_GROUP = "Instructor"
 ADMINISTRATOR_GROUP = "Administrator"
 
-# Everything to do with running a grading. Full student deletion is a
-# separate, administrator-only capability (_DATA_CLEANUP_PERMISSIONS below);
-# every relationship to a Student is PROTECT, so it cascades through a
-# service, not this ordinary CRUD grant. Ranks and the syllabus are read-only
-# while syllabus versioning is deferred.
-_KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
-    ("students", "view_student"),
-    ("students", "add_student"),
-    ("students", "change_student"),
-    ("ranks", "view_rank"),
-    ("syllabus", "view_syllabusrequirement"),
-    ("gradings", "view_gradingsession"),
-    ("gradings", "add_gradingsession"),
-    ("gradings", "change_gradingsession"),
-    ("gradings", "delete_gradingsession"),
-    ("gradings", "view_gradingcandidate"),
-    ("gradings", "add_gradingcandidate"),
-    ("gradings", "change_gradingcandidate"),
-    ("gradings", "delete_gradingcandidate"),
-    ("gradings", "view_candidateassessment"),
-    ("gradings", "add_candidateassessment"),
-    ("gradings", "change_candidateassessment"),
-    ("gradings", "view_candidateassessmentitem"),
-    ("gradings", "change_candidateassessmentitem"),
-    ("gradings", "view_candidateoutcome"),
-    ("gradings", "add_candidateoutcome"),
-    ("gradings", "change_candidateoutcome"),
-    ("gradings", "view_promotion"),
-    # Historical grading visibility matches native grading visibility
-    # - both roles may view imported
-    # legacy records; only an administrator may import/reconcile/void one
-    # (_LEGACY_GRADING_RECONCILIATION_PERMISSIONS below).
-    ("gradings", "view_legacygradingrecord"),
-    # Deliberately not "audit", "view_auditevent": instructors read the log
-    # only through a per-user grant (accounts.permissions.can_view_audit_log).
+
+@dataclass(frozen=True)
+class Grant:
+    """A set of permissions a role is given together, and what it lets the
+    holder do: each is one row of the table in docs/features.md
+    (accounts.permissions_table)."""
+
+    words: str
+    permissions: tuple[tuple[str, str], ...]
+
+
+# Everything to do with running a grading, in three parts. Ranks and the
+# syllabus are read-only while syllabus versioning is deferred.
+_VIEW = Grant(
+    "View ranks, syllabus, students, history",
+    (
+        ("students", "view_student"),
+        ("ranks", "view_rank"),
+        ("syllabus", "view_syllabusrequirement"),
+        ("gradings", "view_gradingsession"),
+        ("gradings", "view_gradingcandidate"),
+        ("gradings", "view_candidateassessment"),
+        ("gradings", "view_candidateassessmentitem"),
+        ("gradings", "view_candidateoutcome"),
+        ("gradings", "view_promotion"),
+        # Imported history is read like native history; only an
+        # administrator imports, reconciles or voids it (_IMPORT below).
+        ("gradings", "view_legacygradingrecord"),
+        # Deliberately not "audit", "view_auditevent": instructors read the
+        # log only through a per-user grant (accounts.permissions.AUDIT_LOG_GRANTS).
+    ),
 )
 
-# Administrators additionally manage people. Logistics beyond Kuk Sool.
-_USER_ADMINISTRATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
-    ("accounts", "view_user"),
-    ("accounts", "add_user"),
-    ("accounts", "change_user"),
-    ("accounts", "delete_user"),
+# Deleting a student or a session is not here: every relationship to a
+# Student is PROTECT, so it goes through a service, and only an
+# administrator deletes (_DATA_CLEANUP below). An instructor cancels.
+_RUN_GRADINGS = Grant(
+    "Add and edit students; manage sessions, candidates and assessments",
+    (
+        ("students", "add_student"),
+        ("students", "change_student"),
+        ("gradings", "add_gradingsession"),
+        ("gradings", "change_gradingsession"),
+        ("gradings", "add_gradingcandidate"),
+        ("gradings", "change_gradingcandidate"),
+        ("gradings", "delete_gradingcandidate"),
+        ("gradings", "add_candidateassessment"),
+        ("gradings", "change_candidateassessment"),
+        ("gradings", "change_candidateassessmentitem"),
+    ),
 )
 
-# Deleting grading sessions, assessments and students. Deliberately narrower
-# than _KUK_SOOL_PERMISSIONS, which both groups share: an instructor can
-# create and correct grading data, but only an administrator can delete it.
-# Deleting never erases a final decision, and a student with history is kept
-# rather than erased (gradings.services, students.services).
-_DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
-    ("gradings", "delete_any_gradingsession"),
-    ("gradings", "delete_candidateassessment"),
-    ("students", "delete_student"),
+_PROPOSE = Grant(
+    "Propose or revise an outcome",
+    (
+        ("gradings", "add_candidateoutcome"),
+        ("gradings", "change_candidateoutcome"),
+    ),
 )
 
-# Bulk data import (student rosters and legacy grading workbooks).
-# Administrator-only by decision. "can_commit_import" is a custom
-# permission (ImportBatch.Meta.permissions) rather than the auto-generated
-# "change_importbatch", so upload/preview can be separated from the
-# irreversible act of actually creating students.
-_DATA_IMPORT_PERMISSIONS: tuple[tuple[str, str], ...] = (
-    ("data_imports", "view_importbatch"),
-    ("data_imports", "add_importbatch"),
-    ("data_imports", "change_importbatch"),
-    ("data_imports", "can_commit_import"),
+# Administrators additionally manage people.
+_USER_ADMINISTRATION = Grant(
+    "Manage users, roles and authority",
+    (
+        ("accounts", "view_user"),
+        ("accounts", "add_user"),
+        ("accounts", "change_user"),
+    ),
 )
 
-# Link/unlink/resolve-rank/void a historical record - Administrator-only,
-# distinct from view_legacygradingrecord
-# above so an instructor can read imported history without being able to
-# correct it.
-_LEGACY_GRADING_RECONCILIATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
-    ("gradings", "can_reconcile_imported_history"),
+# Bulk data import (student rosters and past grading workbooks), and
+# correcting what was imported. "can_commit_import" is a custom permission
+# (ImportBatch.Meta.permissions) rather than "change_importbatch", so
+# upload and preview are apart from the irreversible act of creating
+# students; reconciling is apart from view_legacygradingrecord, so an
+# instructor reads imported history without correcting it.
+_IMPORT = Grant(
+    "Import student rosters and past gradings; reconcile imported history",
+    (
+        ("data_imports", "view_importbatch"),
+        ("data_imports", "add_importbatch"),
+        ("data_imports", "change_importbatch"),
+        ("data_imports", "can_commit_import"),
+        ("gradings", "can_reconcile_imported_history"),
+    ),
 )
+
+# An instructor creates and corrects grading data; only an administrator
+# deletes it. Deleting never erases a final decision, and a student or
+# account with history is kept rather than erased (gradings.services,
+# students.services, accounts.services). Archiving rests on the same grant.
+_DATA_CLEANUP = Grant(
+    "Delete a user or student, or an assessment or session without final "
+    "decisions; archive or restore a completed or cancelled session",
+    (
+        ("accounts", "delete_user"),
+        ("gradings", "delete_any_gradingsession"),
+        ("gradings", "delete_candidateassessment"),
+        ("students", "delete_student"),
+    ),
+)
+
+SHARED_GRANTS: tuple[Grant, ...] = (_VIEW, _RUN_GRADINGS, _PROPOSE)
+ADMINISTRATOR_GRANTS: tuple[Grant, ...] = (_USER_ADMINISTRATION, _IMPORT, _DATA_CLEANUP)
+
+ROLE_GRANTS: dict[str, tuple[Grant, ...]] = {
+    INSTRUCTOR_GROUP: SHARED_GRANTS,
+    ADMINISTRATOR_GROUP: SHARED_GRANTS + ADMINISTRATOR_GRANTS,
+}
 
 GROUP_PERMISSIONS: dict[str, tuple[tuple[str, str], ...]] = {
-    INSTRUCTOR_GROUP: _KUK_SOOL_PERMISSIONS,
-    ADMINISTRATOR_GROUP: (
-        _KUK_SOOL_PERMISSIONS
-        + _USER_ADMINISTRATION_PERMISSIONS
-        + _DATA_CLEANUP_PERMISSIONS
-        + _DATA_IMPORT_PERMISSIONS
-        + _LEGACY_GRADING_RECONCILIATION_PERMISSIONS
-        + (("audit", "view_auditevent"),)
-    ),
+    name: tuple(permission for grant in grants for permission in grant.permissions)
+    for name, grants in ROLE_GRANTS.items()
 }
+# The administrator reads the whole audit log (accounts.permissions.
+# AUDIT_LOG_GRANTS, which the table's audit-log row is drawn from).
+GROUP_PERMISSIONS[ADMINISTRATOR_GROUP] += (("audit", "view_auditevent"),)
 
 # The per-user authority permissions (accounts.permissions.AUTHORITY_PERMISSIONS)
 # are deliberately in no group: an instructor or administrator holds them

@@ -384,7 +384,7 @@ paths:
         Administrator-only bulk data import.
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+        `accounts.groups._IMPORT`.
       parameters:
       - name: finished
         required: false
@@ -437,7 +437,7 @@ paths:
         Administrator-only bulk data import.
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+        `accounts.groups._IMPORT`.
       tags:
       - data-imports
       requestBody:
@@ -679,7 +679,7 @@ paths:
         Administrator-only bulk data import.
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+        `accounts.groups._IMPORT`.
       parameters:
       - in: path
         name: id
@@ -705,7 +705,7 @@ paths:
         Administrator-only bulk data import.
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+        `accounts.groups._IMPORT`.
       parameters:
       - in: path
         name: id

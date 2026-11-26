@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from django.db import models
 from rest_framework.test import APIClient
@@ -20,14 +22,14 @@ from students.models import STUDENT_STATUS_MEANINGS, StudentStatus
 pytestmark = pytest.mark.django_db
 
 
-def _served() -> dict[str, list[dict[str, str]]]:
+def _served() -> dict[str, list[dict[str, Any]]]:
     client = APIClient()
     client.force_authenticate(
         user=User.objects.create_user(email="choices@example.com")
     )
     response = client.get("/api/choices/")
     assert response.status_code == 200
-    body: dict[str, list[dict[str, str]]] = response.json()
+    body: dict[str, list[dict[str, Any]]] = response.json()
     return body
 
 
@@ -35,7 +37,7 @@ def _pairs(choices: type[models.TextChoices]) -> list[tuple[str, str]]:
     return [(str(value), str(label)) for value, label in choices.choices]
 
 
-def _as_pairs(served: list[dict[str, str]]) -> list[tuple[str, str]]:
+def _as_pairs(served: list[dict[str, Any]]) -> list[tuple[str, str]]:
     return [(choice["value"], choice["label"]) for choice in served]
 
 
@@ -101,3 +103,99 @@ def test_each_student_status_says_what_it_means() -> None:
     assert {choice["value"]: choice["description"] for choice in served} == {
         str(status): meaning for status, meaning in STUDENT_STATUS_MEANINGS.items()
     }
+
+
+def test_the_served_rank_rule_is_the_one_the_services_apply() -> None:
+    from django.core.exceptions import ValidationError
+
+    from accounts.services import create_platform_user
+
+    for index, role in enumerate(_served()["roles"]):
+        try:
+            create_platform_user(
+                email=f"rankless-{index}@example.com",
+                first_name="Robin",
+                last_name="Rankless",
+                role=role["value"],
+                rank=None,
+            )
+        except ValidationError as refused:
+            assert "rank" in refused.message_dict
+            refused_without_rank = True
+        else:
+            refused_without_rank = False
+        assert refused_without_rank is role["rank_required"], role["value"]
+
+
+def test_the_served_authority_roles_are_the_ones_the_services_allow() -> None:
+    from django.core.exceptions import ValidationError
+
+    from accounts.services import set_user_authority
+    from ranks.models import Rank
+
+    actor = User.objects.create_user(
+        email="grants@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    rank = Rank.objects.staff().first()
+    for authority in _served()["authorities"]:
+        for role in User.Role.values:
+            target = User.objects.create_user(
+                email=f"{authority['value']}-{role}@example.com",
+                role=role,
+                rank=rank if User.role_holds_rank(role) else None,
+            )
+            try:
+                set_user_authority(target, actor, **{authority["value"]: True})
+            except ValidationError:
+                granted = False
+            else:
+                granted = True
+            assert granted is (role in authority["grantable_to"]), (
+                authority["value"],
+                role,
+            )
+
+
+def test_every_authority_is_held_to_its_served_roles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Not only final decisions: whatever the table says, the grant, the role
+    change and the screens follow it."""
+    from django.core.exceptions import ValidationError
+
+    from accounts import permissions
+    from accounts.services import set_user_authority, update_platform_user
+    from ranks.models import Rank
+
+    monkeypatch.setitem(
+        permissions.AUTHORITY_ROLES,
+        "can_override_locked_session",
+        frozenset({User.Role.INSTRUCTOR}),
+    )
+    served = {a["value"]: a for a in _served()["authorities"]}
+    assert served["can_override_locked_session"]["grantable_to"] == ["instructor"]
+
+    actor = User.objects.create_user(
+        email="table-actor@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    administrator = User.objects.create_user(
+        email="table-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    with pytest.raises(ValidationError) as granting:
+        set_user_authority(administrator, actor, can_override_locked_session=True)
+    assert "can_override_locked_session" in granting.value.message_dict
+
+    instructor = User.objects.create_user(
+        email="table-instructor@example.com",
+        rank=Rank.objects.staff().first(),
+    )
+    set_user_authority(instructor, actor, can_override_locked_session=True)
+    with pytest.raises(ValidationError) as changing:
+        update_platform_user(instructor, role=User.Role.ADMINISTRATOR, actor=actor)
+    assert changing.value.message_dict["role"] == [
+        "This user holds the authority to override locked sessions, so cannot "
+        "take the Administrator role. Revoke that authority first.",
+    ]

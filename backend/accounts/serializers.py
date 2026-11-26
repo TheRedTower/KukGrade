@@ -12,10 +12,13 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.people import MissingDetail, missing_details, name_of
 from accounts.permissions import (
+    DELETE_STUDENT_PERMISSION,
     FINAL_GRADING_DECISION_PERMISSION,
     GRADING_AUDIT_LOG_PERMISSION,
+    IMPORT_DATA_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
+    RECONCILE_IMPORTED_HISTORY_PERMISSION,
     USER_ADMINISTRATION_PERMISSION,
     can_view_audit_log,
     prime_permission_cache,
@@ -77,11 +80,11 @@ class UserSerializer(AuthorityFields, ModelSerializer):
     # permission each action checks - so the UI offers a control only when
     # the server will accept it, and never decides that from role.
     can_manage_users = HasPermission(USER_ADMINISTRATION_PERMISSION)
-    can_import_data = HasPermission("data_imports.add_importbatch")
+    can_import_data = HasPermission(IMPORT_DATA_PERMISSION)
     can_reconcile_imported_history = HasPermission(
-        "gradings.can_reconcile_imported_history",
+        RECONCILE_IMPORTED_HISTORY_PERMISSION,
     )
-    can_delete_students = HasPermission("students.delete_student")
+    can_delete_students = HasPermission(DELETE_STUDENT_PERMISSION)
     # Not a single permission: the audit-log rule, computed by the same
     # function the API and admin enforce it with.
     can_read_audit_log = serializers.SerializerMethodField()

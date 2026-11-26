@@ -8,6 +8,9 @@ import { UsersScreen } from "./UsersScreen";
 import { ApiError, NETWORK_ERROR, type ManagedUser } from "./api";
 import { CHOICES } from "./appTestSupport";
 
+// The served choices; a test that changes the server's rules swaps them.
+let mockChoices = CHOICES;
+
 const mockGetManagedUsers = vi.fn();
 const mockCreateManagedUser = vi.fn();
 
@@ -15,7 +18,7 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
-    getChoices: async () => CHOICES,
+    getChoices: async () => mockChoices,
     getManagedUsers: (...args: unknown[]) => mockGetManagedUsers(...args),
     createManagedUser: (...args: unknown[]) => mockCreateManagedUser(...args),
   };
@@ -65,6 +68,7 @@ function renderScreen() {
 
 describe("UsersScreen", () => {
   beforeEach(() => {
+    mockChoices = CHOICES;
     mockGetManagedUsers.mockReset();
     mockCreateManagedUser.mockReset();
     mockGetManagedUsers.mockResolvedValue({
@@ -209,6 +213,34 @@ describe("UsersScreen", () => {
     await user.click(within(shown).getByRole("button", { name: "Done" }));
     expect(await screen.findByRole("heading", { name: "User detail reached" })).toBeInTheDocument();
     expect(screen.queryByText("Kq7#mPx4!vRt9@Wa")).not.toBeInTheDocument();
+  });
+
+  it("waits for the served roles before adding anyone", async () => {
+    const user = userEvent.setup();
+    mockChoices = { ...CHOICES, roles: [] };
+    renderScreen();
+    await screen.findByText("KSN Riley Khan");
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+
+    // Without them the form cannot know whether a rank is needed.
+    expect(within(dialog).getByRole("button", { name: "Add user" })).toBeDisabled();
+  });
+
+  it("asks a rank for whichever roles the server says hold one", async () => {
+    const user = userEvent.setup();
+    mockChoices = {
+      ...CHOICES,
+      roles: CHOICES.roles.map((choice) => ({ ...choice, rank_required: choice.value === "administrator" })),
+    };
+    renderScreen();
+    await screen.findByText("KSN Riley Khan");
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+
+    expect(within(dialog).queryByLabelText("Rank")).not.toBeInTheDocument();
+    await user.selectOptions(within(dialog).getByLabelText("Role"), "administrator");
+    expect(within(dialog).getByLabelText("Rank")).toBeRequired();
   });
 
   it("asks an instructor's rank, and none for an administrator account", async () => {

@@ -8,6 +8,9 @@ import { UserDetailScreen } from "./UserDetailScreen";
 import { ApiError, NETWORK_ERROR, type AuthUser, type ManagedUser } from "./api";
 import { CHOICES } from "./appTestSupport";
 
+// The served choices; a test that changes the server's rules swaps them.
+let mockChoices = CHOICES;
+
 let currentUser: AuthUser;
 const mockGetManagedUser = vi.fn();
 const mockGetAuditEvents = vi.fn();
@@ -23,7 +26,7 @@ vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
   return {
     ...actual,
-    getChoices: async () => CHOICES,
+    getChoices: async () => mockChoices,
     getManagedUser: (...args: unknown[]) => mockGetManagedUser(...args),
     getAuditEvents: (...args: unknown[]) => mockGetAuditEvents(...args),
     updateManagedUser: (...args: unknown[]) => mockUpdateManagedUser(...args),
@@ -71,6 +74,7 @@ function renderScreen(id = "target-user") {
 
 describe("UserDetailScreen", () => {
   beforeEach(() => {
+    mockChoices = CHOICES;
     currentUser = {
       id: "admin-user",
       email: "admin@example.com",
@@ -178,7 +182,8 @@ describe("UserDetailScreen", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/missing details every account now needs/);
     expect(screen.getByLabelText("First name")).toBeRequired();
     expect(screen.getByLabelText("Last name")).toBeRequired();
-    expect(screen.getByLabelText("Rank")).toHaveValue("");
+    // The rank box follows the served roles, so it waits for them.
+    expect(await screen.findByLabelText("Rank")).toHaveValue("");
   });
 
   it("asks nothing of an account that has all it needs", async () => {
@@ -308,6 +313,59 @@ describe("UserDetailScreen", () => {
     expect(screen.getByLabelText("Role")).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save account details" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save authority" })).toBeDisabled();
+  });
+
+  it("greys out the authority the server says this role cannot hold", async () => {
+    mockGetManagedUser.mockResolvedValue({ ...managedUser, role: "administrator", role_display: "Administrator" });
+    renderScreen();
+
+    expect(await screen.findByRole("checkbox", { name: /Make final grading decisions/ })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /Promote students/ })).toBeEnabled();
+    expect(
+      screen.getByText(
+        "Not available for this role: Make final grading decisions. Other authority changes are audited.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("saves an authority the role cannot hold as off", async () => {
+    // A superuser administrator holds every permission, final decisions
+    // included: sending that back would refuse the whole save.
+    const user = userEvent.setup();
+    mockGetManagedUser.mockResolvedValue({
+      ...managedUser,
+      role: "administrator",
+      role_display: "Administrator",
+      can_make_final_grading_decision: true,
+    });
+    renderScreen();
+
+    await user.click(await screen.findByRole("checkbox", { name: /Promote students/ }));
+    await user.click(screen.getByRole("button", { name: "Save authority" }));
+
+    await waitFor(() => {
+      expect(mockUpdateManagedUserAuthority).toHaveBeenCalledWith("target-user", {
+        can_make_final_grading_decision: false,
+        can_promote_student: true,
+        can_override_locked_session: true,
+        can_view_grading_audit_log: false,
+      });
+    });
+    expect(screen.getByRole("checkbox", { name: /Make final grading decisions/ })).not.toBeChecked();
+  });
+
+  it("offers every authority the server says this role may hold", async () => {
+    // The screen keeps no rule of its own: were the server to allow it, an
+    // administrator could be given final-decision authority here.
+    mockChoices = {
+      ...CHOICES,
+      authorities: CHOICES.authorities.map((option) => ({ ...option, grantable_to: ["instructor", "administrator"] })),
+    };
+    mockGetManagedUser.mockResolvedValue({ ...managedUser, role: "administrator", role_display: "Administrator" });
+    renderScreen();
+
+    expect(await screen.findByRole("checkbox", { name: /Make final grading decisions/ })).toBeEnabled();
+    expect(screen.getByText("Authority changes are recorded in the audit log.")).toBeInTheDocument();
   });
 
   it("prevents self-service role, status, and authority changes", async () => {

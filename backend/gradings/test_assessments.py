@@ -17,6 +17,7 @@ from accounts.permissions import AUTHORITY_PERMISSIONS
 from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from gradings.assessment_services import (
+    assessment_deletion_blocker,
     delete_candidate_assessment,
     generate_candidate_assessment,
     update_candidate_assessment,
@@ -1106,8 +1107,12 @@ def test_deleting_an_assessment_with_a_final_decision_is_refused() -> None:
     )
     events_before = AuditEvent.objects.count()
 
-    with pytest.raises(ValidationError, match="never erased"):
+    # The delete and the screen's flag ask the same rule.
+    blocker = assessment_deletion_blocker(generated)
+    assert blocker is not None
+    with pytest.raises(ValidationError) as refusal:
         delete_candidate_assessment(generated, admin)
+    assert refusal.value.message_dict == blocker
 
     client = APIClient()
     client.force_authenticate(user=admin)
@@ -1141,6 +1146,7 @@ def test_deleting_an_assessment_removes_its_proposal() -> None:
     client.force_authenticate(user=admin)
     listed = results(client.get(f"/api/gradings/assessments/?candidate={built.id}"))
     assert listed[0]["can_delete"] is True
+    assert assessment_deletion_blocker(proposal.assessment) is None
 
     delete_candidate_assessment(proposal.assessment, admin)
 

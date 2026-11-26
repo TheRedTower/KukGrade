@@ -55,7 +55,8 @@ class UserCreationForm(forms.ModelForm):
         cleaned = super().clean() or {}
         # As create_platform_user requires, asked here so the form says so
         # beside the field rather than failing on save.
-        if cleaned.get("role") == User.Role.INSTRUCTOR and not cleaned.get("rank"):
+        role = cleaned.get("role")
+        if role and User.role_holds_rank(role) and not cleaned.get("rank"):
             self.add_error("rank", INSTRUCTOR_RANK_MESSAGE)
         return cleaned
 

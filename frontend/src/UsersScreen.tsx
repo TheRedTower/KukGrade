@@ -44,8 +44,9 @@ function CreateUserDialog({
 }): React.ReactElement {
   const queryClient = useQueryClient();
   const { roles, staff_ranks: ranks } = useChoices();
-  // Only an instructor's account holds a rank; an administrator's has none.
   const [role, setRole] = useState<UserRole>("instructor");
+  // Whether the chosen role's account holds a rank is the server's rule.
+  const rankRequired = roles.find((choice) => choice.value === role)?.rank_required ?? false;
   // gcTime 0: the response carries the temporary password, which should
   // leave memory with this dialog rather than linger in the mutation cache.
   const mutation = useMutation({
@@ -83,7 +84,7 @@ function CreateUserDialog({
               first_name: String(form.get("first_name") ?? "").trim(),
               last_name: String(form.get("last_name") ?? "").trim(),
               role,
-              ...(role === "instructor" ? { rank: Number(form.get("rank")) } : {}),
+              ...(rankRequired ? { rank: Number(form.get("rank")) } : {}),
               is_active: true,
             });
           }}
@@ -114,7 +115,7 @@ function CreateUserDialog({
                 </select>
               )}
             </Field>
-            {role === "instructor" && (
+            {rankRequired && (
               <Field className="tile-full" error={rankError} label="Rank" look="label">
                 {(control) => (
                   <select {...control} required name="rank" defaultValue="">
@@ -139,7 +140,8 @@ function CreateUserDialog({
             <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={mutation.isPending}>
+            {/* The roles, and whether each holds a rank, come with the choices. */}
+            <Button type="submit" variant="primary" disabled={mutation.isPending || roles.length === 0}>
               {mutation.isPending ? "Adding…" : "Add user"}
             </Button>
           </div>

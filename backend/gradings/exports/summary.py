@@ -18,6 +18,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Flowable, Paragraph, Table, TableStyle
 
 from accounts.models import User
+from accounts.permissions import VIEW_PROMOTION_PERMISSION
 from audit.models import AuditAction
 from gradings.exports import pdf
 from gradings.exports.making import Exported, audit_export, made_by, snapshot
@@ -30,7 +31,6 @@ from gradings.models import (
 from ranks.models import Rank
 
 KIND = "Grading summary"
-PROMOTION_PERMISSION = "gradings.view_promotion"
 SUMMARY_STATUSES = frozenset(
     {GradingSession.Status.LOCKED, GradingSession.Status.COMPLETED},
 )
@@ -69,7 +69,7 @@ def export_summary(session: GradingSession, actor: User) -> Exported:
                         current,
                         candidates,
                         final=final,
-                        shows_promotion=actor.has_perm(PROMOTION_PERMISSION),
+                        shows_promotion=actor.has_perm(VIEW_PROMOTION_PERMISSION),
                     ),
                 ),
             ],

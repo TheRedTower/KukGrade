@@ -514,3 +514,54 @@ def test_an_authority_action_refuses_a_role_without_that_authority(
     assert refused.status_code == 403, f"{name}.{action_name} {method.upper()}"
     assert refused.json()["error"]["message"] == AUTHORITY_REFUSALS[authority]
     assert allowed.status_code != 403, f"{name}.{action_name} {method.upper()}"
+
+
+# --------------------------------------------------------------------------
+# Every permission named is a real one
+# --------------------------------------------------------------------------
+
+
+def _exists(dotted: str) -> bool:
+    app_label, codename = dotted.split(".")
+    return Permission.objects.filter(
+        content_type__app_label=app_label,
+        codename=codename,
+    ).exists()
+
+
+def test_every_permission_a_map_or_a_rule_names_exists() -> None:
+    """A misspelt permission is held by nobody, so the action it guards would
+    refuse everyone (or a flag would never show) with no error anywhere."""
+    from accounts import permissions
+
+    named = {
+        permission
+        for _name, viewset in routed_viewsets()
+        for required in getattr(viewset, "permission_map", {}).values()
+        for permission in required
+    }
+    named |= {
+        value
+        for constant, value in vars(permissions).items()
+        if constant.endswith("_PERMISSION") and isinstance(value, str)
+    }
+    named |= set(AUTHORITY_PERMISSIONS.values())
+
+    assert sorted(dotted for dotted in named if not _exists(dotted)) == []
+
+
+def test_a_role_group_naming_an_unknown_permission_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from django.core.exceptions import ImproperlyConfigured
+
+    from accounts import groups
+
+    monkeypatch.setattr(
+        groups,
+        "GROUP_PERMISSIONS",
+        {groups.INSTRUCTOR_GROUP: (("students", "view_studnet"),)},
+    )
+
+    with pytest.raises(ImproperlyConfigured, match=r"students\.view_studnet"):
+        groups.sync_role_groups()

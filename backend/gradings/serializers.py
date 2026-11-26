@@ -6,14 +6,18 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.people import PersonNameField, named
-from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
+from accounts.permissions import (
+    DELETE_ASSESSMENT_PERMISSION,
+    FINAL_GRADING_DECISION_PERMISSION,
+    VIEW_PROMOTION_PERMISSION,
+)
 from gradings.assessment_services import (
     assessment_can_be_prepared,
     assessment_can_start,
+    assessment_deletion_blocker,
     assessment_marks_open,
     assessment_preparation_blocker,
     assessment_start_blocker,
-    holds_final_decision,
     item_change_needs_reason,
     item_mark_can_be_cleared,
 )
@@ -567,8 +571,9 @@ class CandidateAssessmentSerializer(ModelSerializer):
 
     def get_can_delete(self, obj: CandidateAssessment) -> bool:
         user = self.context["request"].user
-        return user.has_perm("gradings.delete_candidateassessment") and not (
-            holds_final_decision(obj.candidate)
+        return (
+            user.has_perm(DELETE_ASSESSMENT_PERMISSION)
+            and assessment_deletion_blocker(obj) is None
         )
 
 
@@ -877,7 +882,7 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
     def get_promotion(self, instance: GradingCandidate) -> dict[str, Any] | None:
         promotion = getattr(instance, "promotion", None)
         user = self.context["request"].user
-        if promotion is None or not user.has_perm("gradings.view_promotion"):
+        if promotion is None or not user.has_perm(VIEW_PROMOTION_PERMISSION):
             return None
         return cast(dict[str, Any], PromotionSerializer(promotion).data)
 

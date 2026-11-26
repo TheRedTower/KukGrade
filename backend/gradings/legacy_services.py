@@ -27,6 +27,7 @@ from audit.recording import record, student_label
 from gradings.legacy_people import assign_people, refresh_people
 from gradings.locking import lock_student
 from gradings.models import (
+    VOID_REASON_MESSAGE,
     LegacyGradingRecord,
     LegacyPerson,
     LegacyPersonState,
@@ -288,9 +289,7 @@ def resolve_legacy_rank(
 def _void_reason(reason: str) -> str:
     cleaned = (reason or "").strip()
     if not cleaned:
-        raise ValidationError(
-            {"void_reason": ["A reason is required to void a record."]}
-        )
+        raise ValidationError({"void_reason": [VOID_REASON_MESSAGE]})
     return cleaned
 
 

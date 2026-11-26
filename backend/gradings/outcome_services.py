@@ -11,6 +11,7 @@ from django.utils import timezone
 from accounts.models import User
 from accounts.people import title_of
 from accounts.permissions import (
+    AUTHORITY_REFUSALS,
     FINAL_GRADING_DECISION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
@@ -26,6 +27,9 @@ from gradings.locking import (
     require_pinned,
 )
 from gradings.models import (
+    CONDITIONS_BLANK_MESSAGE,
+    CONDITIONS_REQUIRED_MESSAGE,
+    PROMOTION_SAME_RANK_MESSAGE,
     CandidateAssessment,
     CandidateOutcome,
     GradingCandidate,
@@ -243,14 +247,14 @@ def propose_candidate_outcome(
 def validate_final_decision_actor(actor: User) -> None:
     if not actor.has_perm(FINAL_GRADING_DECISION_PERMISSION):
         raise ValidationError(
-            {"actor": ["Final grading decision authority is required."]},
+            {"actor": [AUTHORITY_REFUSALS[FINAL_GRADING_DECISION_PERMISSION]]},
         )
 
 
 def validate_promotion_actor(actor: User) -> None:
     if not actor.has_perm(PROMOTE_STUDENT_PERMISSION):
         raise ValidationError(
-            {"actor": ["Student promotion authority is required."]},
+            {"actor": [AUTHORITY_REFUSALS[PROMOTE_STUDENT_PERMISSION]]},
         )
 
 
@@ -296,20 +300,11 @@ def finalise_candidate_outcome(
     if final_outcome == CandidateOutcome.Outcome.CONDITIONAL:
         if not cleaned_conditions:
             raise ValidationError(
-                {
-                    "conditional_requirements": [
-                        "Conditional requirements are required for "
-                        "conditional outcomes.",
-                    ],
-                },
+                {"conditional_requirements": [CONDITIONS_REQUIRED_MESSAGE]},
             )
     elif cleaned_conditions:
         raise ValidationError(
-            {
-                "conditional_requirements": [
-                    "Conditional requirements must be blank for pass or fail outcomes.",
-                ],
-            },
+            {"conditional_requirements": [CONDITIONS_BLANK_MESSAGE]},
         )
 
     # Recorded, so nobody's staged copy of this decision is wanted any more.
@@ -498,7 +493,7 @@ def validate_promotion_eligibility(
     to_rank = candidate.testing_for_rank
     if from_rank == to_rank:
         raise ValidationError(
-            {"to_rank": ["Promotion target rank must differ from source rank."]},
+            {"to_rank": [PROMOTION_SAME_RANK_MESSAGE]},
         )
     if facts is not None:
         next_rank_id = facts.next_rank_ids.get(from_rank.pk)

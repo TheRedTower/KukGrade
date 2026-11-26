@@ -118,12 +118,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         ordering = ["email"]
 
+    @staticmethod
+    def role_holds_rank(role: str) -> bool:
+        """Whether an account of `role` holds a rank: an instructor's does, and
+        is named by it on every record they make (accounts.people); an
+        administrator's has none. The one statement of the rule: the services,
+        this model and the screens (through /api/choices/) all ask it."""
+        return role == User.Role.INSTRUCTOR
+
     def clean(self) -> None:
         super().clean()
         self.email = User.objects.normalize_email(self.email)
         if self.rank_id is None:
             return
-        if self.role == User.Role.ADMINISTRATOR:
+        if not User.role_holds_rank(self.role):
             raise ValidationError({"rank": [ADMINISTRATOR_RANK_MESSAGE]})
         if not Rank.objects.staff().filter(pk=self.rank_id).exists():
             raise ValidationError({"rank": [STAFF_RANK_MESSAGE]})

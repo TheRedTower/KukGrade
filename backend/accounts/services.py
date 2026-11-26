@@ -23,7 +23,8 @@ from accounts.password_policy import generate_temporary_password
 from accounts.people import name_of, person_label, require_names, title_of
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
-    FINAL_GRADING_DECISION_PERMISSION,
+    AUTHORITY_WORDS,
+    authority_grantable_to,
 )
 from audit.models import AuditAction
 from audit.recording import record
@@ -152,7 +153,7 @@ def create_platform_user(
         extra["role"] = role
     # An instructor's rank is chosen when the account is made: every record
     # they make names them by it (accounts.people).
-    if (role or User.Role.INSTRUCTOR) == User.Role.INSTRUCTOR and rank is None:
+    if User.role_holds_rank(role or User.Role.INSTRUCTOR) and rank is None:
         raise ValidationError({"rank": [INSTRUCTOR_RANK_MESSAGE]})
     extra["rank"] = rank
     if is_active is not None:
@@ -183,6 +184,13 @@ def create_platform_user(
         },
     )
     return TemporaryPassword(user, password)
+
+
+def _authority_verb(key: str) -> str:
+    """What an authority lets someone do, as a sentence carries it: "make
+    final grading decisions"."""
+    label = AUTHORITY_WORDS[key][0]
+    return label[0].lower() + label[1:]
 
 
 def _granted(user: User, permission: str) -> bool:
@@ -225,20 +233,18 @@ def update_platform_user(
     # Checked against the grant itself, and only when the role is actually
     # changing: has_perm() is true for every superuser, so it refused any
     # edit that resent a superuser's unchanged administrator role.
-    if (
-        role == User.Role.ADMINISTRATOR
-        and locked.role != User.Role.ADMINISTRATOR
-        and _granted(locked, FINAL_GRADING_DECISION_PERMISSION)
-    ):
-        raise ValidationError(
-            {
-                "role": [
-                    "This user holds final grading decision authority and "
-                    "cannot become an administrator. Revoke that authority "
-                    "first.",
-                ],
-            },
-        )
+    if role in User.Role.values and role != locked.role:
+        for key, permission in AUTHORITY_PERMISSIONS.items():
+            if not authority_grantable_to(key, role) and _granted(locked, permission):
+                raise ValidationError(
+                    {
+                        "role": [
+                            f"This user holds the authority to {_authority_verb(key)}, "
+                            f"so cannot take the {User.Role(role).label} role. "
+                            "Revoke that authority first.",
+                        ],
+                    },
+                )
 
     if email is not None:
         locked.email = email
@@ -250,8 +256,7 @@ def update_platform_user(
         locked.role = role
     if rank is not None:
         locked.rank = rank
-    if locked.role == User.Role.ADMINISTRATOR:
-        # An administrator account has no rank.
+    if not User.role_holds_rank(locked.role):
         locked.rank = None
     if is_active is not None:
         locked.is_active = is_active
@@ -375,18 +380,16 @@ def validate_authority_change(
         )
     _validate_can_manage(target, actor)
 
-    if (
-        flags.get("can_make_final_grading_decision")
-        and target.role == User.Role.ADMINISTRATOR
-    ):
-        raise ValidationError(
-            {
-                "can_make_final_grading_decision": [
-                    "Administrators cannot hold final grading decision "
-                    "authority - grant it to an instructor instead.",
-                ],
-            },
-        )
+    for key, granting in flags.items():
+        if granting and not authority_grantable_to(key, target.role):
+            raise ValidationError(
+                {
+                    key: [
+                        f"An account with the {target.get_role_display()} role "
+                        f"cannot hold the authority to {_authority_verb(key)}.",
+                    ],
+                },
+            )
 
 
 @transaction.atomic

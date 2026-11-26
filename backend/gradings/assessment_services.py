@@ -68,6 +68,16 @@ def _result_label(result: str) -> str:
     return str(CandidateAssessmentItem.Result(result).label)
 
 
+def assessment_deletion_blocker(
+    assessment: CandidateAssessment,
+) -> dict[str, list[str]] | None:
+    """Why the assessment cannot be deleted, or None when it can: the one
+    statement of the rule, asked by the delete and by the screen's flag."""
+    if holds_final_decision(assessment.candidate):
+        return {"assessment": [ASSESSMENT_HOLDS_FINAL_DECISION]}
+    return None
+
+
 @transaction.atomic
 def delete_candidate_assessment(
     assessment: CandidateAssessment,
@@ -84,8 +94,9 @@ def delete_candidate_assessment(
     """
     locked = lock_assessment(assessment.pk)
     outcome = getattr(locked, "outcome", None)
-    if holds_final_decision(locked.candidate):
-        raise ValidationError({"assessment": [ASSESSMENT_HOLDS_FINAL_DECISION]})
+    blocker = assessment_deletion_blocker(locked)
+    if blocker is not None:
+        raise ValidationError(blocker)
     if outcome is not None:
         models.QuerySet.delete(CandidateOutcome.objects.filter(pk=outcome.pk))
 

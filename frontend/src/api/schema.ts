@@ -2058,6 +2058,8 @@ export interface components {
             value: components["schemas"]["AuthorityEnum"];
             label: string;
             description: string;
+            /** @description The roles whose accounts may hold this authority. */
+            grantable_to: components["schemas"]["RoleEnum"][];
         };
         /**
          * @description * `can_make_final_grading_decision` - can_make_final_grading_decision
@@ -3932,6 +3934,8 @@ export interface components {
         RoleChoice: {
             value: components["schemas"]["RoleEnum"];
             label: string;
+            /** @description Whether an account of this role holds a rank, chosen with it. */
+            rank_required: boolean;
         };
         /**
          * @description * `instructor` - Instructor

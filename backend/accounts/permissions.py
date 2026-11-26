@@ -31,6 +31,15 @@ AUDIT_LOG_PERMISSION = "audit.view_auditevent"
 DELETE_ANY_SESSION_PERMISSION = "gradings.delete_any_gradingsession"
 # Managing people: the Administrator group's own grant (accounts.groups).
 USER_ADMINISTRATION_PERMISSION = "accounts.view_user"
+# Checked by rules outside a permission_map (services, serializer flags and
+# exports): named once here, so a typo is one place to look and the
+# permission tests can prove each one exists.
+CHANGE_SESSION_PERMISSION = "gradings.change_gradingsession"
+DELETE_ASSESSMENT_PERMISSION = "gradings.delete_candidateassessment"
+VIEW_PROMOTION_PERMISSION = "gradings.view_promotion"
+DELETE_STUDENT_PERMISSION = "students.delete_student"
+IMPORT_DATA_PERMISSION = "data_imports.add_importbatch"
+RECONCILE_IMPORTED_HISTORY_PERMISSION = "gradings.can_reconcile_imported_history"
 
 # The per-user authority flags, keyed the way /api/auth/me/ and the users
 # API's authority sub-resource spell them. Deliberately in no role group
@@ -66,6 +75,22 @@ AUTHORITY_WORDS: dict[str, tuple[str, str]] = {
         "(not user management).",
     ),
 }
+
+
+# Which roles each authority may be granted to. Final grading decisions are
+# never an administrator's: "administrators do everything" means running the
+# school, not deciding gradings. The services refuse a grant (and a role
+# change) that breaks this, and the screens grey out what it rules out
+# (served through /api/choices/), so the rule is stated here only.
+AUTHORITY_ROLES: dict[str, frozenset[str]] = {
+    **{key: frozenset(User.Role.values) for key in AUTHORITY_KEYS},
+    "can_make_final_grading_decision": frozenset({User.Role.INSTRUCTOR}),
+}
+
+
+def authority_grantable_to(key: str, role: str) -> bool:
+    """Whether the authority `key` may be held by an account of `role`."""
+    return role in AUTHORITY_ROLES[key]
 
 
 def prime_permission_cache(users: Iterable[User]) -> None:

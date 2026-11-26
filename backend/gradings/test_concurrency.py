@@ -990,7 +990,7 @@ def test_role_change_and_master_grant_cannot_both_succeed() -> None:
     )
 
     assert isinstance(granting, User)
-    refused(changing_role, "cannot become an administrator")
+    refused(changing_role, "cannot take the Administrator role")
     fresh = User.objects.get(pk=target.pk)
     assert fresh.role == User.Role.INSTRUCTOR
     assert fresh.has_perm(FINAL_GRADING_DECISION_PERMISSION)

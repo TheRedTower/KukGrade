@@ -19,6 +19,8 @@ from django.utils import timezone
 
 from accounts.models import User
 from accounts.permissions import (
+    AUTHORITY_REFUSALS,
+    CHANGE_SESSION_PERMISSION,
     DELETE_ANY_SESSION_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
 )
@@ -277,7 +279,7 @@ def session_may_move_to(
     which says what is missing."""
     if target_status not in ALLOWED_SESSION_TRANSITIONS.get(session.status, set()):
         return False
-    if not actor.has_perm("gradings.change_gradingsession"):
+    if not actor.has_perm(CHANGE_SESSION_PERMISSION):
         return False
     if target_status == GradingSession.Status.CANCELLED and cancelling_needs_reason(
         session
@@ -289,7 +291,7 @@ def session_may_move_to(
 def validate_locked_session_override_actor(actor: User | None) -> None:
     if actor is None or not actor.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION):
         raise ValidationError(
-            {"actor": ["Locked session override authority is required."]}
+            {"actor": [AUTHORITY_REFUSALS[OVERRIDE_LOCKED_SESSION_PERMISSION]]}
         )
 
 

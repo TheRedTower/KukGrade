@@ -49,9 +49,10 @@ function AccountForm({
   const [lastName, setLastName] = useState(user.last_name ?? "");
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<UserRole>(user.role ?? "instructor");
-  // Only an instructor's account holds a rank; an administrator's has none.
   const [rank, setRank] = useState(user.rank ? String(user.rank) : "");
   const { roles, staff_ranks: ranks } = useChoices();
+  // Whether the chosen role's account holds a rank is the server's rule.
+  const rankRequired = roles.find((choice) => choice.value === role)?.rank_required ?? false;
   const [isActive, setIsActive] = useState(user.is_active ?? true);
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -61,7 +62,7 @@ function AccountForm({
         last_name: lastName.trim(),
         email: email.trim(),
         role,
-        ...(role === "instructor" && rank ? { rank: Number(rank) } : {}),
+        ...(rankRequired && rank ? { rank: Number(rank) } : {}),
         is_active: isActive,
       }),
     onSuccess: (updated) => {
@@ -119,7 +120,7 @@ function AccountForm({
             ))}
           </select>
         </label>
-        {role === "instructor" && (
+        {rankRequired && (
           <Field error={rankError} label="Rank" look="label">
             {(control) => (
               <select {...control} required value={rank} onChange={(event) => setRank(event.target.value)}>
@@ -153,7 +154,8 @@ function AccountForm({
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
       {errors?.banner && <Alert>{errors.banner}</Alert>}
-      <Button type="submit" variant="primary" disabled={mutation.isPending}>
+      {/* The roles, and whether each holds a rank, come with the choices. */}
+      <Button type="submit" variant="primary" disabled={mutation.isPending || roles.length === 0}>
         {mutation.isPending ? "Saving…" : "Save account details"}
       </Button>
     </form>
@@ -175,10 +177,27 @@ function AuthorityForm({
     can_override_locked_session: user.can_override_locked_session,
     can_view_grading_audit_log: user.can_view_grading_audit_log,
   });
+  // Which roles may hold each authority is the server's rule.
+  const options = useChoices().authorities.map((option) => ({
+    ...option,
+    disabled: !option.grantable_to.includes(user.role ?? "instructor"),
+  }));
+  const unavailable = options.filter((option) => option.disabled).map((option) => option.label);
   const queryClient = useQueryClient();
-  const targetIsAdministrator = user.role === "administrator";
   const mutation = useMutation({
-    mutationFn: () => updateManagedUserAuthority(user.id, authority),
+    // An authority this role cannot hold is never granted: it is sent as
+    // off, which also takes away one held from before. (A superuser holds
+    // every permission, so sending what it reads would refuse the save.)
+    mutationFn: () =>
+      updateManagedUserAuthority(
+        user.id,
+        Object.fromEntries(
+          Object.entries(authority).map(([key, held]) => [
+            key,
+            options.some((option) => option.value === key && option.disabled) ? false : held,
+          ]),
+        ),
+      ),
     onSuccess: (updated) => {
       queryClient.setQueryData(keys.managedUser(user.id), updated);
       void queryClient.invalidateQueries({ queryKey: keys.managedUsers.all() });
@@ -186,12 +205,6 @@ function AuthorityForm({
       onSaved("Master authority saved.");
     },
   });
-
-  // Administrators cannot hold final-decision authority.
-  const options = useChoices().authorities.map((option) => ({
-    ...option,
-    disabled: option.value === "can_make_final_grading_decision" && targetIsAdministrator,
-  }));
 
   return (
     <form
@@ -209,7 +222,7 @@ function AuthorityForm({
             </span>
             <input
               type="checkbox"
-              checked={authority[option.value] ?? false}
+              checked={!option.disabled && (authority[option.value] ?? false)}
               disabled={isSelf || option.disabled}
               onChange={(event) =>
                 setAuthority((current) => ({
@@ -225,11 +238,11 @@ function AuthorityForm({
         <p className="meta">
           {isSelf
             ? "You cannot change your own authority."
-            : targetIsAdministrator
-              ? "Administrators cannot hold final-decision authority. Other authority changes are audited."
+            : unavailable.length > 0
+              ? `Not available for this role: ${unavailable.join(", ")}. Other authority changes are audited.`
               : "Authority changes are recorded in the audit log."}
         </p>
-        <Button type="submit" variant="primary" disabled={isSelf || mutation.isPending}>
+        <Button type="submit" variant="primary" disabled={isSelf || mutation.isPending || options.length === 0}>
           {mutation.isPending ? "Saving…" : "Save authority"}
         </Button>
       </div>

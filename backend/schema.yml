@@ -4083,8 +4083,14 @@ components:
           type: string
         description:
           type: string
+        grantable_to:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleEnum'
+          description: The roles whose accounts may hold this authority.
       required:
       - description
+      - grantable_to
       - label
       - value
     AuthorityEnum:
@@ -8337,8 +8343,12 @@ components:
           $ref: '#/components/schemas/RoleEnum'
         label:
           type: string
+        rank_required:
+          type: boolean
+          description: Whether an account of this role holds a rank, chosen with it.
       required:
       - label
+      - rank_required
       - value
     RoleEnum:
       enum:

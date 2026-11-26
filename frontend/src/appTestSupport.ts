@@ -82,29 +82,33 @@ export const CHOICES: Choices = {
     { value: "EXCLUDED", label: "Left out" },
   ],
   roles: [
-    { value: "instructor", label: "Instructor" },
-    { value: "administrator", label: "Administrator" },
+    { value: "instructor", label: "Instructor", rank_required: true },
+    { value: "administrator", label: "Administrator", rank_required: false },
   ],
   authorities: [
     {
       value: "can_make_final_grading_decision",
       label: "Make final grading decisions",
       description: "Allow this user to make final decisions on student gradings.",
+      grantable_to: ["instructor"],
     },
     {
       value: "can_promote_student",
       label: "Promote students",
       description: "Allow this user to promote students to the next rank.",
+      grantable_to: ["instructor", "administrator"],
     },
     {
       value: "can_override_locked_session",
       label: "Override locked sessions",
       description: "Allow this user to withdraw candidates from, or cancel, a locked session.",
+      grantable_to: ["instructor", "administrator"],
     },
     {
       value: "can_view_grading_audit_log",
       label: "View grading audit log",
       description: "Allow this user to see grading, syllabus and assessment audit events (not user management).",
+      grantable_to: ["instructor", "administrator"],
     },
   ],
   staff_ranks: [

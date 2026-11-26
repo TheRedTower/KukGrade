@@ -5,6 +5,7 @@ from typing import Any, cast
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from accounts.permissions import DELETE_STUDENT_PERMISSION
 from gradings.models import (
     CandidateOutcome,
     LegacyAttendance,
@@ -343,7 +344,7 @@ class StudentSerializer(NextRankFields, ModelSerializer[Student]):
         user = self.context["request"].user
         return (
             obj.deleted_at is None
-            and user.has_perm("students.delete_student")
+            and user.has_perm(DELETE_STUDENT_PERMISSION)
             and self.get_deletion_blocked_by(obj) is None
         )
 

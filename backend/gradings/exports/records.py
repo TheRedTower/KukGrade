@@ -23,6 +23,7 @@ from reportlab.platypus import Flowable, KeepTogether, Paragraph, Table, TableSt
 
 from accounts.models import User
 from accounts.people import named
+from accounts.permissions import VIEW_PROMOTION_PERMISSION
 from audit.models import AuditAction
 from audit.recording import student_label
 from gradings.exports import pdf
@@ -45,7 +46,6 @@ from syllabus.models import CORE_CATEGORIES, age_band_description
 
 NOT_SEALED = "Their assessment is not sealed yet."
 KIND = "Grading record"
-PROMOTION_PERMISSION = "gradings.view_promotion"
 
 
 def _assessment(candidate: GradingCandidate) -> CandidateAssessment | None:
@@ -103,7 +103,7 @@ def export_records(
             _candidates(),
             _refusal,
         )
-        shows_promotion = actor.has_perm(PROMOTION_PERMISSION)
+        shows_promotion = actor.has_perm(VIEW_PROMOTION_PERMISSION)
         document = pdf.Document(
             file_name=_file_name(current, candidates),
             kind=KIND,

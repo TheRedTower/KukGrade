@@ -17,7 +17,11 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from accounts.models import User
-from accounts.permissions import AUTHORITY_KEYS, AUTHORITY_WORDS
+from accounts.permissions import (
+    AUTHORITY_KEYS,
+    AUTHORITY_WORDS,
+    authority_grantable_to,
+)
 from data_imports.models import (
     FINISHED_IMPORT_STATUSES,
     ImportBatch,
@@ -54,6 +58,17 @@ class StudentStatusChoiceSerializer(ChoiceSerializer):
 class AuthorityChoiceSerializer(ChoiceSerializer):
     value = serializers.ChoiceField(choices=AUTHORITY_KEYS)
     description = serializers.CharField()
+    grantable_to = serializers.ListField(
+        child=serializers.ChoiceField(choices=User.Role.choices),
+        help_text="The roles whose accounts may hold this authority.",
+    )
+
+
+class RoleChoiceSerializer(ChoiceSerializer):
+    value = serializers.ChoiceField(choices=User.Role.choices)
+    rank_required = serializers.BooleanField(
+        help_text="Whether an account of this role holds a rank, chosen with it.",
+    )
 
 
 class NotAStudentReasonChoiceSerializer(ChoiceSerializer):
@@ -105,7 +120,7 @@ class ChoicesSerializer(serializers.Serializer):
         help_text="The states an import ends in; the one open state is left out.",
     )
     import_row_outcomes = _of("ImportRowOutcome", ImportRowOutcome)(many=True)
-    roles = _of("Role", User.Role)(many=True)
+    roles = RoleChoiceSerializer(many=True)
     authorities = AuthorityChoiceSerializer(
         many=True,
         help_text="The per-user authorities, keyed as the user record spells them.",
@@ -160,9 +175,21 @@ def choices(_request: Request) -> Response:
                 "import_kinds": _listed(ImportBatch.Kind),
                 "finished_import_statuses": finished,
                 "import_row_outcomes": _listed(ImportRowOutcome),
-                "roles": _listed(User.Role),
+                "roles": [
+                    {**choice, "rank_required": User.role_holds_rank(choice["value"])}
+                    for choice in _listed(User.Role)
+                ],
                 "authorities": [
-                    {"value": key, "label": label, "description": description}
+                    {
+                        "value": key,
+                        "label": label,
+                        "description": description,
+                        "grantable_to": [
+                            role
+                            for role in User.Role.values
+                            if authority_grantable_to(key, role)
+                        ],
+                    }
                     for key, (label, description) in AUTHORITY_WORDS.items()
                 ],
                 "staff_ranks": [

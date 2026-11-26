@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import ImproperlyConfigured
+
 if TYPE_CHECKING:  # pragma: no cover
     from accounts.models import User
 
@@ -136,22 +138,32 @@ def sync_role_groups(using: str | None = None) -> None:
     from django.contrib.auth.management import create_permissions
     from django.contrib.auth.models import Group, Permission
 
+    database = using or "default"
     for app_config in django_apps.get_app_configs():
-        create_permissions(app_config, verbosity=0, using=using or "default")
+        create_permissions(app_config, verbosity=0, using=database)
 
     for name, specs in GROUP_PERMISSIONS.items():
-        group, _created = Group.objects.get_or_create(name=name)
-        permissions = [
-            permission
-            for app_label, codename in specs
-            if (
-                permission := Permission.objects.filter(
+        group, _created = Group.objects.using(database).get_or_create(name=name)
+        permissions = []
+        for app_label, codename in specs:
+            permission = (
+                Permission.objects.using(database)
+                .filter(
                     content_type__app_label=app_label,
                     codename=codename,
-                ).first()
+                )
+                .first()
             )
-            is not None
-        ]
+            if permission is None:
+                # Every permission was just created, so a missing one is a
+                # misspelt grant: refusing here is noticed at once, where
+                # skipping it would leave the whole role quietly without it.
+                msg = (
+                    f"The {name} group names {app_label}.{codename}, "
+                    "which does not exist."
+                )
+                raise ImproperlyConfigured(msg)
+            permissions.append(permission)
         group.permissions.set(permissions)
 
 

@@ -56,7 +56,7 @@ def missing_details(user: User) -> list[str]:
     missing = []
     if not user.first_name.strip() or not user.last_name.strip():
         missing.append(MissingDetail.NAME.value)
-    if user.role == User.Role.INSTRUCTOR and user.rank_id is None:
+    if User.role_holds_rank(user.role) and user.rank_id is None:
         missing.append(MissingDetail.RANK.value)
     return missing
 

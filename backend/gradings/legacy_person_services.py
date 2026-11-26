@@ -383,6 +383,44 @@ def reopen_person(person_id: int, *, version: int, actor: User) -> LegacyPerson:
     return person
 
 
+def _chosen_to_move(
+    records: Sequence[LegacyGradingRecord],
+    record_ids: Sequence[int],
+    *,
+    all_of_them: str,
+) -> list[LegacyGradingRecord]:
+    """The records chosen to leave a person: some of theirs, never none and
+    never every one (`all_of_them` says what to do instead)."""
+    wanted = set(record_ids)
+    theirs = {r.pk for r in records}
+    if not wanted:
+        raise ValidationError({"records": ["Choose the records to move."]})
+    if wanted - theirs:
+        raise ValidationError(
+            {"records": ["Only this person's records, not voided, can be moved."]},
+        )
+    if wanted == theirs:
+        raise ValidationError({"records": [all_of_them]})
+    return [r for r in records if r.pk in wanted]
+
+
+def _refuse_two_results_on_a_sheet(
+    records: Sequence[LegacyGradingRecord],
+    *,
+    field: str,
+) -> None:
+    """One person sat at most one grading per sheet (a month's results)."""
+    sheets = Counter(
+        (r.cycle_year, r.cycle_month)
+        for r in records
+        if r.record_kind == LegacyRecordKind.GRADING_RESULT
+    )
+    if any(count > 1 for count in sheets.values()):
+        raise ValidationError(
+            {field: ["Two results on one sheet cannot be one person."]},
+        )
+
+
 @transaction.atomic
 def split_person(
     person_id: int,
@@ -397,19 +435,11 @@ def split_person(
     person."""
     person = _checked(_lock_people([person_id]), person_id, version)
     records = _live_records(person)
-    wanted = set(record_ids)
-    theirs = {r.pk for r in records}
-    if not wanted:
-        raise ValidationError({"records": ["Choose the records to move."]})
-    if wanted - theirs:
-        raise ValidationError(
-            {"records": ["Only this person's records, not voided, can be moved."]},
-        )
-    if wanted == theirs:
-        raise ValidationError(
-            {"records": ["Leave at least one record with this person."]},
-        )
-    moving = [r for r in records if r.pk in wanted]
+    moving = _chosen_to_move(
+        records,
+        record_ids,
+        all_of_them="Leave at least one record with this person.",
+    )
     ranks = active_rank_lookup()
     new_person = LegacyPerson.objects.create(
         **person_fields([entry_for(r, ranks) for r in moving], compared_all=True),
@@ -431,8 +461,8 @@ def split_person(
         metadata={
             "person_id": person.pk,
             "new_person_id": new_person.pk,
-            "records_moved": len(wanted),
-            "record_ids": sorted(wanted),
+            "records_moved": len(moving),
+            "record_ids": sorted(r.pk for r in moving),
             **({"student_id": unlinked} if unlinked is not None else {}),
         },
     )
@@ -464,36 +494,17 @@ def move_records(
     except ValidationError as refused:
         raise ValidationError({"to": refused.messages}) from refused
     records = _live_records(person)
-    wanted = set(record_ids)
-    theirs = {r.pk for r in records}
-    if not wanted:
-        raise ValidationError({"records": ["Choose the records to move."]})
-    if wanted - theirs:
-        raise ValidationError(
-            {"records": ["Only this person's records, not voided, can be moved."]},
-        )
-    if wanted == theirs:
-        raise ValidationError(
-            {
-                "records": [
-                    "These are all of this person's records: merge the two "
-                    "people instead.",
-                ],
-            },
-        )
+    moving = _chosen_to_move(
+        records,
+        record_ids,
+        all_of_them=(
+            "These are all of this person's records: merge the two people instead."
+        ),
+    )
     destination = _live_records(to)
     if not destination:
         raise ValidationError({"to": [NO_RECORDS_MESSAGE]})
-    moving = [r for r in records if r.pk in wanted]
-    sheets = Counter(
-        (r.cycle_year, r.cycle_month)
-        for r in (*destination, *moving)
-        if r.record_kind == LegacyRecordKind.GRADING_RESULT
-    )
-    if any(count > 1 for count in sheets.values()):
-        raise ValidationError(
-            {"to": ["Two results on one sheet cannot be one person."]},
-        )
+    _refuse_two_results_on_a_sheet((*destination, *moving), field="to")
 
     decided = _STRENGTH[LegacyPersonState(person.state)] == 2
     alike = decided and _decision(person) == _decision(to)
@@ -521,7 +532,7 @@ def move_records(
             "person_id": person.pk,
             "to_person_id": to.pk,
             "records_moved": len(moving),
-            "record_ids": sorted(wanted),
+            "record_ids": sorted(r.pk for r in moving),
             **({"student_id": left} if left is not None else {}),
         },
     )
@@ -588,15 +599,7 @@ def merge_people(
         raise ValidationError({"person": [NO_RECORDS_MESSAGE]})
     if not theirs:
         raise ValidationError({"other": [NO_RECORDS_MESSAGE]})
-    sheets = Counter(
-        (r.cycle_year, r.cycle_month)
-        for r in (*mine, *theirs)
-        if r.record_kind == LegacyRecordKind.GRADING_RESULT
-    )
-    if any(count > 1 for count in sheets.values()):
-        raise ValidationError(
-            {"other": ["Two results on one sheet cannot be one person."]},
-        )
+    _refuse_two_results_on_a_sheet((*mine, *theirs), field="other")
 
     # The firmer decision stays; ties keep this person's.
     keeper = (

@@ -220,6 +220,18 @@ CANDIDATE_STUDENT_FIXED_MESSAGE = (
     "register the right student instead."
 )
 OTHER_WITHDRAWAL_NOTE_MESSAGE = "Say what the other reason is."
+# Said by both a model's clean() and the service that checks the same rule
+# first, so the two refusals cannot drift apart.
+PROPOSED_OUTCOME_MESSAGE = "Proposed outcome is required."
+PROPOSAL_ATTRIBUTION_MESSAGE = "Proposal attribution is required."
+CONDITIONS_REQUIRED_MESSAGE = (
+    "Conditional requirements are required for conditional outcomes."
+)
+CONDITIONS_BLANK_MESSAGE = (
+    "Conditional requirements must be blank for pass or fail outcomes."
+)
+PROMOTION_SAME_RANK_MESSAGE = "Promotion target rank must differ from source rank."
+VOID_REASON_MESSAGE = "A reason is required to void a record."
 
 
 class GradingCandidateStatus(models.TextChoices):
@@ -726,20 +738,18 @@ class CandidateOutcome(KeptModel):
 
         if self.status == self.Status.PROPOSED:
             if self.proposed_outcome is None:
-                errors["proposed_outcome"] = ["Proposed outcome is required."]
+                errors["proposed_outcome"] = [PROPOSED_OUTCOME_MESSAGE]
             if self.proposed_by_id is None or self.proposed_at is None:
-                errors["proposed_by"] = [
-                    "Proposal attribution is required.",
-                ]
+                errors["proposed_by"] = [PROPOSAL_ATTRIBUTION_MESSAGE]
             if self.final_outcome is not None:
                 errors["final_outcome"] = [
                     "Proposed outcomes cannot have final decision fields.",
                 ]
         if self.status == self.Status.FINALISED:
             if self.proposed_outcome is None:
-                errors["proposed_outcome"] = ["Proposed outcome is required."]
+                errors["proposed_outcome"] = [PROPOSED_OUTCOME_MESSAGE]
             if self.proposed_by_id is None or self.proposed_at is None:
-                errors["proposed_by"] = ["Proposal attribution is required."]
+                errors["proposed_by"] = [PROPOSAL_ATTRIBUTION_MESSAGE]
             if self.final_outcome is None:
                 errors["final_outcome"] = ["Final outcome is required."]
             if self.decided_by_id is None or self.decided_at is None:
@@ -757,13 +767,9 @@ class CandidateOutcome(KeptModel):
 
         if self.final_outcome == self.Outcome.CONDITIONAL:
             if not self.conditional_requirements:
-                errors["conditional_requirements"] = [
-                    "Conditional requirements are required for conditional outcomes.",
-                ]
+                errors["conditional_requirements"] = [CONDITIONS_REQUIRED_MESSAGE]
         elif self.conditional_requirements:
-            errors["conditional_requirements"] = [
-                "Conditional requirements must be blank for pass or fail outcomes.",
-            ]
+            errors["conditional_requirements"] = [CONDITIONS_BLANK_MESSAGE]
 
         if errors:
             raise ValidationError(errors)
@@ -1319,7 +1325,7 @@ class Promotion(KeptModel):
             and self.to_rank_id
             and self.from_rank_id == self.to_rank_id
         ):
-            errors["to_rank"] = ["Promotion target rank must differ from source rank."]
+            errors["to_rank"] = [PROMOTION_SAME_RANK_MESSAGE]
 
         if changed_since_saved(self, self._RECORDED_FIELDS):
             errors["promotion"] = ["A promotion cannot be changed once recorded."]
@@ -1829,7 +1835,7 @@ class LegacyGradingRecord(KeptModel):
         if not self.source_name:
             errors["source_name"] = ["Source name is required."]
         if self.is_void and not self.void_reason.strip():
-            errors["void_reason"] = ["A reason is required to void a record."]
+            errors["void_reason"] = [VOID_REASON_MESSAGE]
 
         changed = changed_since_saved(
             self,

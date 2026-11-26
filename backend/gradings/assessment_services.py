@@ -91,7 +91,7 @@ def delete_candidate_assessment(
     refused, so no promotion is ever undone and no rank rolled back here. A
     proposal is removed with it. A proposal refuses ordinary delete(), so it
     goes through kukgrade.kept.bypass_delete (administrator-gated, see
-    accounts.groups._DATA_CLEANUP_PERMISSIONS).
+    accounts.groups._DATA_CLEANUP).
     """
     locked = lock_assessment(assessment.pk)
     outcome = getattr(locked, "outcome", None)

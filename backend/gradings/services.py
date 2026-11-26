@@ -714,6 +714,11 @@ def validate_no_unsettled_registration(candidate: GradingCandidate) -> None:
         )
 
 
+SESSION_DELETE_ADMINISTRATORS_ONLY = (
+    "Only an administrator can delete a grading session. Cancel it instead."
+)
+
+
 def session_deletion_blocker(
     session: GradingSession,
     actor: User | None,
@@ -737,9 +742,14 @@ def session_deletion_blocker(
             ],
         }
     # Without final decisions an administrator may delete a session in any
-    # status; delete_grading_session's audit event is the trail.
-    if actor is not None and actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
-        return None
+    # status; delete_grading_session's audit event is the trail. Nobody else
+    # deletes one: an instructor cancels it instead.
+    if actor is not None:
+        if actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
+            return None
+        return {"session": [SESSION_DELETE_ADMINISTRATORS_ONLY]}
+    # With no one asking (a bulk delete in code), only a session that holds
+    # no work goes.
     if session.status not in {
         GradingSession.Status.DRAFT,
         GradingSession.Status.CANCELLED,

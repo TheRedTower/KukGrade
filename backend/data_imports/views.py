@@ -102,7 +102,7 @@ class ImportBatchViewSet(
     """Administrator-only bulk data import.
 
     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-    `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+    `accounts.groups._IMPORT`.
     """
 
     serializer_class = ImportBatchSerializer

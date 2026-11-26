@@ -10,6 +10,7 @@ from django.db import IntegrityError, connection, transaction
 from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
 
+from accounts.models import User
 from accounts.permissions import DELETE_ANY_SESSION_PERMISSION
 from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
@@ -34,6 +35,7 @@ from gradings.testing import (
     complete_assessment,
     finalised_outcome,
     grading_session,
+    locked_completed_candidate,
     start_assessment,
     user,
 )
@@ -239,7 +241,8 @@ def test_authenticated_session_crud_and_created_by_spoofing_rejected() -> None:
 
     assert detail_response.status_code == 200
     assert patch_response.status_code == 200
-    assert delete_response.status_code == 400
+    # An instructor cancels a session; only an administrator deletes one.
+    assert delete_response.status_code == 403
 
 
 def test_session_api_rejects_non_draft_initial_status() -> None:
@@ -770,32 +773,38 @@ def cancelled_session(title: str, *, marked: bool) -> GradingSession:
     return session
 
 
+def decided_session(title: str) -> GradingSession:
+    built, _sat = locked_completed_candidate()
+    finalised_outcome(built)
+    GradingSession.objects.filter(pk=built.session_id).update(title=title)
+    return built.session
+
+
 def served_can_be_deleted(client: APIClient, session: GradingSession) -> bool:
     response = client.get(f"/api/gradings/sessions/{session.pk}/")
     assert response.status_code == 200
     return bool(response.json()["can_be_deleted"])
 
 
-def test_can_be_deleted_follows_the_delete_rule_for_an_ordinary_user() -> None:
+def test_an_instructor_is_offered_no_session_delete() -> None:
     client = auth_client("session-deletable-instructor@example.com")
     draft = grading_session(title="Draft")
     opened = grading_session(title="Open", status=GradingSession.Status.OPEN)
     untouched = cancelled_session("Cancelled, never started", marked=False)
     worked = cancelled_session("Cancelled, marked", marked=True)
 
-    assert served_can_be_deleted(client, draft) is True
-    assert served_can_be_deleted(client, opened) is False
-    assert served_can_be_deleted(client, untouched) is True
-    assert served_can_be_deleted(client, worked) is False
+    for session in (draft, opened, untouched, worked):
+        assert served_can_be_deleted(client, session) is False, session.title
 
 
 def test_can_be_deleted_agrees_with_what_the_delete_endpoint_does() -> None:
-    client = auth_client("session-deletable-agree@example.com")
+    client = auth_client(
+        "session-deletable-agree@example.com", role=User.Role.ADMINISTRATOR
+    )
     for session in (
         cancelled_session("Marked", marked=True),
-        cancelled_session("Unmarked", marked=False),
-        grading_session(),
         grading_session(status=GradingSession.Status.OPEN),
+        decided_session("Decided"),
     ):
         advertised = served_can_be_deleted(client, session)
         deleted = client.delete(f"/api/gradings/sessions/{session.pk}/")
@@ -816,15 +825,17 @@ def test_the_delete_any_permission_makes_every_session_deletable() -> None:
 
 
 def test_listing_sessions_decides_deletability_without_a_query_per_session() -> None:
-    client = auth_client("session-deletable-list@example.com")
-    cancelled_session("First", marked=False)
+    client = auth_client(
+        "session-deletable-list@example.com", role=User.Role.ADMINISTRATOR
+    )
+    cancelled_session("First", marked=True)
     client.get("/api/gradings/sessions/")
 
     with CaptureQueriesContext(connection) as one:
         assert client.get("/api/gradings/sessions/").status_code == 200
     one_count = len(one.captured_queries)
     for title in ("Second", "Third", "Fourth"):
-        cancelled_session(title, marked=True)
+        decided_session(title)
     with CaptureQueriesContext(connection) as many:
         response = client.get("/api/gradings/sessions/")
     many_count = len(many.captured_queries)

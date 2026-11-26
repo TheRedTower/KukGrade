@@ -37,27 +37,30 @@ from students.models import Student
 pytestmark = pytest.mark.django_db
 
 
-def test_session_api_delete_rules_work() -> None:
-    draft = grading_session(status=GradingSession.Status.DRAFT)
-    open_session = grading_session(status=GradingSession.Status.OPEN)
-    locked = grading_session(status=GradingSession.Status.LOCKED)
-    completed = grading_session(status=GradingSession.Status.COMPLETED)
-    cancelled = grading_session(status=GradingSession.Status.CANCELLED)
-    client = auth_client("session-delete@example.com")
+def test_only_an_administrator_deletes_a_session_through_the_api() -> None:
+    sessions = [grading_session(status=status) for status in GradingSession.Status]
+    instructor = auth_client("session-delete@example.com")
+    administrator = auth_client(
+        "session-delete-admin@example.com", role=User.Role.ADMINISTRATOR
+    )
 
-    open_delete_response = client.delete(f"/api/gradings/sessions/{open_session.id}/")
-    assert open_delete_response.status_code == 400
-    assert client.delete(f"/api/gradings/sessions/{locked.id}/").status_code == 400
-    assert client.delete(f"/api/gradings/sessions/{completed.id}/").status_code == 400
-    assert client.delete(f"/api/gradings/sessions/{draft.id}/").status_code == 204
-    assert client.delete(f"/api/gradings/sessions/{cancelled.id}/").status_code == 204
+    for session in sessions:
+        refused = instructor.delete(f"/api/gradings/sessions/{session.id}/")
+        assert refused.status_code == 403, session.status
+    assert GradingSession.objects.count() == len(sessions)
+    # Without final decisions, an administrator deletes a session in any status.
+    for session in sessions:
+        deleted = administrator.delete(f"/api/gradings/sessions/{session.id}/")
+        assert deleted.status_code == 204, session.status
+    assert not GradingSession.objects.exists()
 
 
-def test_delete_cancelled_session_rules() -> None:
+def test_an_administrator_deletes_a_cancelled_session_and_it_is_recorded() -> None:
     u1 = user("creator-del-1@example.com")
     u2 = user("creator-del-2@example.com")
-    u3 = user("creator-del-3@example.com")
-    client = auth_client("delete-cancelled-test@example.com")
+    client = auth_client(
+        "delete-cancelled-test@example.com", role=User.Role.ADMINISTRATOR
+    )
 
     # 1. Cancelled session with no candidates deletes cleanly
     empty_cancelled = grading_session(
@@ -85,22 +88,6 @@ def test_delete_cancelled_session_rules() -> None:
     resp2 = client.delete(f"/api/gradings/sessions/{session_with_unstarted.id}/")
     assert resp2.status_code == 204
     assert not GradingSession.objects.filter(id=session_with_unstarted.id).exists()
-
-    # 3. Cancelled session with candidate whose assessment has started cannot be deleted
-    session_with_started = grading_session(
-        status=GradingSession.Status.OPEN,
-        created_by=u3,
-    )
-    cand2 = candidate(session=session_with_started)
-    ass2 = assessment(candidate=cand2)
-    start_assessment(ass2)
-    GradingSession.objects.filter(pk=session_with_started.pk).update(
-        status=GradingSession.Status.CANCELLED
-    )
-    resp3 = client.delete(f"/api/gradings/sessions/{session_with_started.id}/")
-    assert resp3.status_code == 400
-    assert "assessment work has already been recorded" in str(resp3.data)
-    assert GradingSession.objects.filter(id=session_with_started.id).exists()
 
 
 def test_session_delete_rule_holds_from_model_delete() -> None:
@@ -189,6 +176,8 @@ def test_cancelled_session_with_recorded_marking_cannot_be_deleted() -> None:
         session.delete()
 
     assert "assessment work" in str(exc_info.value)
+    with pytest.raises(ValidationError, match="assessment work"):
+        GradingSession.objects.filter(pk=session.pk).delete()
     assert GradingSession.objects.filter(pk=session.pk).exists()
     assert GradingCandidate.objects.filter(pk=built.pk).exists()
 
@@ -239,12 +228,12 @@ def test_api_admin_can_delete_cancelled_session_with_recorded_marking() -> None:
     ).exists()
 
 
-def test_non_administrator_cannot_delete_a_locked_or_completed_session() -> None:
-    for status in (GradingSession.Status.LOCKED, GradingSession.Status.COMPLETED):
+def test_non_administrator_cannot_delete_a_session_in_any_status() -> None:
+    for status in GradingSession.Status:
         session = grading_session(status=status)
         instructor = user(f"no-cascade-delete-{status}@example.com")
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError, match="Only an administrator"):
             session.delete(actor=instructor)
 
         assert GradingSession.objects.filter(pk=session.pk).exists()

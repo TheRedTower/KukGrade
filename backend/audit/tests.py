@@ -435,7 +435,9 @@ def test_an_unknown_filter_value_returns_nothing_rather_than_everything() -> Non
 
 def test_deleting_a_session_records_what_was_cascaded_away() -> None:
     session, candidates = draft_session_with_candidates()
-    actor = User.objects.get(email="audit-creator@example.com")
+    actor = User.objects.create_user(
+        email="audit-session-deleter@example.com", role=User.Role.ADMINISTRATOR
+    )
 
     from gradings.services import delete_grading_session
 

@@ -93,7 +93,9 @@ def progress_queries(captured: CaptureQueriesContext) -> int:
 
 def test_a_session_write_does_not_count_progress_for_a_response_it_recomputes() -> None:
     built = grading_session()
-    client = auth_client("session-write-queries@example.com")
+    client = auth_client(
+        "session-write-queries@example.com", role=User.Role.ADMINISTRATOR
+    )
 
     with CaptureQueriesContext(connection) as deleting:
         assert client.delete(f"/api/gradings/sessions/{built.pk}/").status_code == 204

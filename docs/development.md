@@ -155,6 +155,11 @@ serializers and the committed frontend types match the schema.
   moves to `serve` when a change already touches it.
 - **Never hand-write an API type** in the frontend. Declare the shape in the backend
   (`@extend_schema`), regenerate `schema.yml`, then `npm run generate:types`.
+- **The "who can do what" table in [features.md](features.md#roles-and-permissions) is generated.**
+  Its rows are the role grants in `backend/accounts/groups.py` (each says what it allows),
+  the Master authorities and the audit-log rule. After changing a grant, run
+  `python manage.py write_permissions_table` from `backend/`; a test fails while the table
+  differs, or while an action checks a permission no row holds.
 - **Layout numbers live in `frontend/src/layout.css`, nowhere else**, and the page is the
   only thing that scrolls. See [Layout](#layout).
 - **Build with the shared pieces, not your own CSS.** There is one piece for each job; see

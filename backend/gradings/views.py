@@ -241,7 +241,8 @@ class GradingSessionViewSet(
         "retrieve": ("gradings.view_gradingsession",),
         "create": ("gradings.add_gradingsession",),
         "partial_update": ("gradings.change_gradingsession",),
-        "destroy": ("gradings.delete_gradingsession",),
+        # Administrators only (accounts.groups._DATA_CLEANUP).
+        "destroy": (DELETE_ANY_SESSION_PERMISSION,),
         "years": ("gradings.view_gradingsession",),
         # Whether the actor may is each service's own rule, with its own message.
         "archive": (DELETE_ANY_SESSION_PERMISSION,),

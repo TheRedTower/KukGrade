@@ -30,7 +30,6 @@ from accounts.models import User
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
-    CanMakeFinalGradingDecision,
     HasRequiredPermissions,
     can_see_school_settings,
     can_view_audit_log,
@@ -540,10 +539,16 @@ def test_repeated_wrong_current_passwords_are_throttled() -> None:
     assert throttled.status_code == 429
 
 
-def permission_result(permission: type, user: User | None) -> bool:
-    request = APIRequestFactory().get("/permission-test/")
+def may_finalise(user: User | None) -> bool:
+    """Whether the permission class lets this user through the real
+    `finalise` action, as CandidateOutcomeViewSet declares it."""
+    from gradings.views import CandidateOutcomeViewSet
+
+    request = APIRequestFactory().patch("/permission-test/")
     request.user = user if user is not None else AnonymousUser()
-    return bool(permission().has_permission(request, APIView()))
+    view = CandidateOutcomeViewSet()
+    view.action = "finalise"
+    return HasRequiredPermissions().has_permission(request, view)
 
 
 def test_role_assigns_the_matching_group() -> None:
@@ -650,19 +655,16 @@ def test_final_grading_decision_capability_is_independent_of_role() -> None:
     )
     superuser = User.objects.create_superuser("permission-superuser@example.com")
 
-    assert permission_result(CanMakeFinalGradingDecision, instructor_master) is True
-    assert (
-        permission_result(CanMakeFinalGradingDecision, administrator_without_capability)
-        is False
-    )
-    assert permission_result(CanMakeFinalGradingDecision, superuser) is True
+    assert may_finalise(instructor_master) is True
+    assert may_finalise(administrator_without_capability) is False
+    assert may_finalise(superuser) is True
 
 
 def test_inactive_users_fail_every_permission_check() -> None:
     inactive = create_user("inactive@example.com", is_active=False)
     grant_permission(inactive, FINAL_GRADING_DECISION_PERMISSION)
 
-    assert permission_result(CanMakeFinalGradingDecision, inactive) is False
+    assert may_finalise(inactive) is False
 
     request = APIRequestFactory().get("/whatever/")
     request.user = inactive

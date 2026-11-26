@@ -22,7 +22,6 @@ from accounts.models import User
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     USER_ADMINISTRATION_PERMISSION,
-    HasRequiredPermissions,
 )
 from accounts.serializers import (
     ChangePasswordSerializer,
@@ -174,7 +173,6 @@ class UserViewSet(
     """
 
     delete_service = staticmethod(delete_platform_user)
-    permission_classes = [HasRequiredPermissions]
     serializer_class = UserManagementSerializer
     permission_map = {
         "list": (USER_ADMINISTRATION_PERMISSION,),

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from rest_framework import mixins
 
-from accounts.permissions import HasRequiredPermissions
 from kukgrade.viewsets import KukGradeViewSet
 from ranks.models import Rank
 from ranks.serializers import RankSerializer
@@ -17,7 +16,6 @@ class RankViewSet(mixins.ListModelMixin, KukGradeViewSet[Rank]):
         .order_by("order")
     )
     serializer_class = RankSerializer
-    permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("ranks.view_rank",),
     }

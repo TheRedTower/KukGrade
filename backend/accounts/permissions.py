@@ -131,12 +131,24 @@ def _active_user(request: Request) -> User | None:
     return user
 
 
+# What a refusal says when the missing permission is one of the per-user
+# authorities, so the person is told which authority the action needs.
+AUTHORITY_REFUSALS: dict[str, str] = {
+    FINAL_GRADING_DECISION_PERMISSION: "Final grading decision authority is required.",
+    PROMOTE_STUDENT_PERMISSION: "Student promotion authority is required.",
+    OVERRIDE_LOCKED_SESSION_PERMISSION: (
+        "Locked session override authority is required."
+    ),
+}
+
+
 class HasRequiredPermissions(BasePermission):
     """Require the permissions a view declares for the current action.
 
     Views set `permission_map`, an action name to a tuple of permission
-    strings. An empty tuple means "authenticated is enough". A missing action
-    is denied.
+    strings, every one of which is required - the per-user authorities
+    included, so an action's whole rule is in one place. An empty tuple means
+    "authenticated is enough". A missing action is denied.
     """
 
     message = "You do not have permission to perform this action."
@@ -178,32 +190,12 @@ class HasRequiredPermissions(BasePermission):
         if action not in permission_map:
             return False
 
-        required = permission_map[action]
-        return all(user.has_perm(permission) for permission in required)
-
-
-class CanMakeFinalGradingDecision(BasePermission):
-    message = "Final grading decision authority is required."
-
-    def has_permission(self, request: Request, view: APIView) -> bool:
-        user = _active_user(request)
-        return user is not None and user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
-
-
-class CanOverrideLockedSession(BasePermission):
-    message = "Locked session override authority is required."
-
-    def has_permission(self, request: Request, view: APIView) -> bool:
-        user = _active_user(request)
-        return user is not None and user.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
-
-
-class CanPromoteStudent(BasePermission):
-    message = "Student promotion authority is required."
-
-    def has_permission(self, request: Request, view: APIView) -> bool:
-        user = _active_user(request)
-        return user is not None and user.has_perm(PROMOTE_STUDENT_PERMISSION)
+        for permission in permission_map[action]:
+            if not user.has_perm(permission):
+                # An instance per request, so the message is this refusal's.
+                self.message = AUTHORITY_REFUSALS.get(permission, self.message)
+                return False
+        return True
 
 
 class CanViewAuditLog(BasePermission):

@@ -7,7 +7,6 @@ from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from accounts.permissions import HasRequiredPermissions
 from kukgrade.filtering import read_query
 from kukgrade.viewsets import KukGradeViewSet
 from syllabus.models import AgeBand
@@ -26,7 +25,6 @@ class AgeBandViewSet(KukGradeViewSet[Any]):
     """The age bands in order, as reference data for every age-band control."""
 
     serializer_class = AgeBandSerializer
-    permission_classes = [HasRequiredPermissions]
     permission_map = {"list": ("syllabus.view_syllabusrequirement",)}
 
     def list(self, request: Request) -> Response:
@@ -41,7 +39,6 @@ class SyllabusRequirementViewSet(KukGradeViewSet[Any]):
     """Requirements are read only as the cumulative `effective` view."""
 
     serializer_class = EffectiveSyllabusRequirementSerializer
-    permission_classes = [HasRequiredPermissions]
     permission_map = {
         "effective": ("syllabus.view_syllabusrequirement",),
     }

@@ -340,8 +340,15 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
     ],
+    # Every viewset is checked against its own permission_map: an action it
+    # does not declare is refused, and a viewset with no map refuses
+    # everything. A view that is not a viewset has no actions to map, so it is
+    # refused to everyone until it names its own classes, as sign-in, health
+    # and the About pages do. DRF reads this when rest_framework.views first
+    # loads, and the class needs accounts.models: nothing loaded before the
+    # apps are ready may import a DRF view.
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "accounts.permissions.HasRequiredPermissions",
     ],
     "DEFAULT_RENDERER_CLASSES": _RENDERER_CLASSES,
     "EXCEPTION_HANDLER": "kukgrade.exceptions.custom_exception_handler",

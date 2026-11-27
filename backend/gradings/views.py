@@ -330,7 +330,12 @@ class GradingSessionViewSet(
             ),
         },
     )
-    @action(detail=True, methods=["post"], url_path="exports/records")
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="exports/records",
+        throttle_scope="pdf_export",
+    )
     def export_records(
         self, request: Request, *args: object, **kwargs: object
     ) -> HttpResponse:
@@ -352,7 +357,12 @@ class GradingSessionViewSet(
             ),
         },
     )
-    @action(detail=True, methods=["post"], url_path="exports/summary")
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="exports/summary",
+        throttle_scope="pdf_export",
+    )
     def export_summary(
         self, request: Request, *args: object, **kwargs: object
     ) -> HttpResponse:
@@ -369,7 +379,12 @@ class GradingSessionViewSet(
             ),
         },
     )
-    @action(detail=True, methods=["post"], url_path="exports/grading-sheets")
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="exports/grading-sheets",
+        throttle_scope="pdf_export",
+    )
     def export_grading_sheets(
         self, request: Request, *args: object, **kwargs: object
     ) -> HttpResponse:

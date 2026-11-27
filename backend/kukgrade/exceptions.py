@@ -60,6 +60,9 @@ def _collect_messages(value: Any) -> list[str]:
     return [str(value)]
 
 
+THROTTLED_MESSAGE = "That was asked for too often. Wait a minute and try again."
+
+
 def _error_code(exc: Exception) -> str:
     for exc_type, code in ERROR_CODES.items():
         if isinstance(exc, exc_type):
@@ -127,6 +130,9 @@ def custom_exception_handler(
 
     detail = getattr(exc, "detail", None)
     message = str(detail) if detail is not None else str(exc)
+    if isinstance(exc, exceptions.Throttled):
+        # DRF's own words ("Request was throttled...") are not for a person.
+        message = THROTTLED_MESSAGE
     response.data = error_payload(_error_code(exc), message)
     return response
 

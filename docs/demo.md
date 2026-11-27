@@ -42,7 +42,9 @@ themselves, and uploading files. The server refuses these; the page says so.
 
 ## Many people at once
 
-Any number of people can be signed in to the same account: each sign-in has its own session.
+Any number of people can be signed in to the same account: each sign-in has its own session. A rate limit counted per account (PDF exports, 60 a minute in the demo) is
+shared by everyone signed in to it, so one visitor asking too often holds the others back
+for a minute.
 Everyone shares one club, so you see each other's changes. The app runs one worker with 16
 threads in demo mode, and the sign-in limit is raised to 60 a minute for each address, because
 visitors share offices and schools.

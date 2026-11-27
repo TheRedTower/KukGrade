@@ -191,6 +191,9 @@ def test_a_final_decision_is_kept_and_a_proposal_is_not() -> None:
     table = CandidateOutcome._meta.db_table
 
     _refused(f"UPDATE {table} SET decision_notes = 'x' WHERE id = %s", decided.pk)  # noqa: S608
+    # Who decided and who proposed, as they were titled then.
+    for column in ("decided_by_title", "proposed_by_title"):
+        _refused(f"UPDATE {table} SET {column} = 'x' WHERE id = %s", decided.pk)  # noqa: S608
     _refused(f"DELETE FROM {table} WHERE id = %s", decided.pk)  # noqa: S608
     # What is not the decision itself may change.
     _sql(f"UPDATE {table} SET updated_at = now() WHERE id = %s", decided.pk)  # noqa: S608

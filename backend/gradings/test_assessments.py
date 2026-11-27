@@ -1353,7 +1353,7 @@ def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
     ]
 
 
-def test_editing_assessment_notes_is_audited_with_both_versions() -> None:
+def test_editing_assessment_notes_is_audited_without_the_words() -> None:
     generated = start_assessment(
         assessment(
             candidate=candidate(
@@ -1369,8 +1369,9 @@ def test_editing_assessment_notes_is_audited_with_both_versions() -> None:
     [event] = AuditEvent.objects.filter(action=AuditAction.ASSESSMENT_UPDATED)
     assert event.actor == actor
     assert event.metadata == {
-        "before": {"notes": ""},
-        "after": {"notes": "Strong stances"},
+        "changed_fields": ["notes"],
+        "before": {},
+        "after": {},
         "student_id": generated.candidate.student_id,
         "candidate_id": generated.candidate_id,
         "session_id": generated.candidate.session_id,

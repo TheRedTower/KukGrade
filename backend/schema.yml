@@ -108,7 +108,6 @@ paths:
           - ASSESSMENT_GENERATED
           - ASSESSMENT_STARTED
           - ASSESSMENT_UPDATED
-          - AUDIT_REDACTED
           - CANDIDATE_DELETED
           - CANDIDATE_REGISTERED
           - CANDIDATE_UPDATED
@@ -163,7 +162,6 @@ paths:
         schema:
           type: string
           enum:
-          - AuditLog
           - CandidateAssessment
           - CandidateAssessmentItem
           - CandidateOutcome
@@ -3648,7 +3646,6 @@ components:
       - LEGACY_PERSON_SPLIT
       - LEGACY_PERSON_MERGED
       - LEGACY_RECORDS_MOVED
-      - AUDIT_REDACTED
       type: string
       description: |-
         * `SESSION_CREATED` - Grading session created
@@ -3697,7 +3694,6 @@ components:
         * `LEGACY_PERSON_SPLIT` - Historical person split
         * `LEGACY_PERSON_MERGED` - Historical people merged
         * `LEGACY_RECORDS_MOVED` - Historical records moved to another person
-        * `AUDIT_REDACTED` - Personal details erased from the audit log
     AgeBand:
       type: object
       description: 'One age band, from its code: label, description and programme.'
@@ -3937,7 +3933,6 @@ components:
       - ImportBatch
       - LegacyGradingRecord
       - LegacyPerson
-      - AuditLog
       type: string
       description: |-
         * `GradingSession` - Grading session
@@ -3951,7 +3946,6 @@ components:
         * `ImportBatch` - Import
         * `LegacyGradingRecord` - Historical grading record
         * `LegacyPerson` - Historical person
-        * `AuditLog` - Audit log
     AuditEvent:
       type: object
       properties:

@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from audit.models import AuditAction
-from audit.recording import record, record_many, student_label
+from audit.recording import changes, record, record_many, student_label
 from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
 from students import wksa_ids
@@ -65,9 +65,7 @@ def _audited_change(
     rebanded: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
-        "changed_fields": [key for key in before if before[key] != after[key]],
-        "before": {k: v for k, v in before.items() if k not in _PERSONAL_FIELDS},
-        "after": {k: v for k, v in after.items() if k not in _PERSONAL_FIELDS},
+        **changes(before, after, kept_out=_PERSONAL_FIELDS),
         "rebanded": rebanded,
     }
 

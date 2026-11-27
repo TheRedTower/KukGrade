@@ -16,7 +16,7 @@ from accounts.permissions import (
     PROMOTE_STUDENT_PERMISSION,
 )
 from audit.models import AuditAction
-from audit.recording import grading_context, record, student_label
+from audit.recording import changes, grading_context, record, student_label
 from gradings.locking import (
     lock_assessment,
     lock_candidate,
@@ -185,12 +185,14 @@ def _record_proposal(
         ),
         actor=actor,
         metadata={
-            "before": before,
-            "after": {
-                "proposed_outcome": outcome.proposed_outcome,
-                "proposal_notes": outcome.proposal_notes,
-                "proposed_by": str(actor.pk),
-            },
+            **changes(
+                before,
+                {
+                    "proposed_outcome": outcome.proposed_outcome,
+                    "proposal_notes": outcome.proposal_notes,
+                    "proposed_by": str(actor.pk),
+                },
+            ),
             **grading_context(outcome.candidate),
         },
     )
@@ -335,7 +337,6 @@ def finalise_candidate_outcome(
             "proposed_outcome": locked_outcome.proposed_outcome,
             "final_outcome": final_outcome,
             "overrode_proposal": locked_outcome.proposed_outcome != final_outcome,
-            "conditional_requirements": cleaned_conditions,
             **grading_context(locked_outcome.candidate),
         },
     )

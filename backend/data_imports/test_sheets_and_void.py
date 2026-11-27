@@ -294,7 +294,7 @@ def test_a_wrong_import_is_voided_as_a_whole_each_record_audited() -> None:
     assert events.count() == 3
     assert {event.metadata["whole_import"] for event in events} == {True}
     assert {event.summary for event in events} == {
-        "Historical grading record voided with its whole import: Wrong workbook",
+        "Historical grading record voided with its whole import.",
     }
 
 

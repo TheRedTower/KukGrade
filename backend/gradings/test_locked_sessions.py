@@ -140,7 +140,7 @@ def test_locked_withdrawal_clears_an_undecided_outcome() -> None:
     discarded = event.metadata["discarded_proposal"]
     assert discarded["status"] == CandidateOutcome.Status.PROPOSED
     assert discarded["proposed_outcome"] == CandidateOutcome.Outcome.PASS
-    assert discarded["proposal_notes"] == "Strong performance, recommend a pass."
+    assert "proposal_notes" not in discarded
     assert discarded["proposed_by"] == str(proposer.pk)
 
 

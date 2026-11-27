@@ -44,7 +44,6 @@ LABELS: dict[str, str] = {
     "testing_for_rank": "Testing for",
     "withdrawal_reason": "Reason for withdrawing",
     "withdrawal_note": "Withdrawal note",
-    "note": "Note",
     "reason": "Reason",
     "discarded_proposal": "Proposal discarded",
     "cascaded_candidates": "Candidates removed",
@@ -59,7 +58,6 @@ LABELS: dict[str, str] = {
     "proposal_notes": "Proposal notes",
     "final_outcome": "Final decision",
     "overrode_proposal": "Overrode the proposal",
-    "conditional_requirements": "Conditions",
     "from_rank": "From",
     "to_rank": "To",
     "effective_date": "Effective date",
@@ -72,7 +70,6 @@ LABELS: dict[str, str] = {
     "whole_import": "Whole import voided",
     "kind": "Import type",
     "record_count": "Records created",
-    "events_changed": "Events changed",
     "records": "Records",
     "newly_confirmed": "Records newly confirmed",
     "confirmed_together": "Confirmed with others ready",
@@ -117,9 +114,6 @@ HIDDEN: frozenset[str] = frozenset(
         "student_ids",
     },
 )
-
-# Personal details a student event records only as having changed.
-_CHANGED_ONLY = ("first_name", "last_name", "date_of_birth")
 
 # Where a stored code's name is kept: (app, model, field), read by name so the
 # log keeps no import of the apps it records.
@@ -222,6 +216,11 @@ class _Words:
             return _date(str(value))
         if key in _TIMES:
             return _time(str(value))
+        if key == "discarded_proposal":
+            proposed = value.get("proposed_outcome")
+            if not proposed:
+                return "Yes"
+            return _choice(_CHOICES["proposed_outcome"], proposed)
         if key == "cascaded_candidates":
             return ", ".join(str(c.get("student_wksa_id", "")) for c in value)
         if key == "rebanded":
@@ -274,8 +273,11 @@ def event_details(event: AuditEvent, ranks: RankNames) -> list[dict[str, str]]:
         if _empty(value):
             continue
         add(key, words.value(key, value))
+    # What the event records only as having changed (typed text, a name):
+    # every changed field that `before` and `after` leave out.
+    shown = {*(metadata.get("before") or {}), *(metadata.get("after") or {})}
     for key in metadata.get("changed_fields") or []:
-        if key in _CHANGED_ONLY:
+        if key not in shown:
             add(key, "Changed")
     return details
 

@@ -44,7 +44,6 @@ BACKEND = Path(__file__).resolve().parent.parent
 
 # Where a kept record may be changed or removed on purpose, and why.
 ALLOWED = {
-    "audit/redaction.py": "a student's details erased on request",
     "demo/reset.py": "the demo club emptied and built again",
     "demo/seed.py": "the demo's past gradings dated as they were",
     "gradings/assessment_services.py": "a deleted assessment's proposal",

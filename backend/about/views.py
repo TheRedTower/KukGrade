@@ -8,7 +8,8 @@ from datetime import UTC, datetime
 from django.conf import settings
 from django.http import FileResponse, Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -38,6 +39,7 @@ def _build_time() -> datetime | None:
 
 @extend_schema(responses=AboutSerializer)
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def about(request: Request) -> Response:
     """What is running: the About page, and what to quote when asking for help.
 
@@ -75,6 +77,7 @@ def about(request: Request) -> Response:
 
 @extend_schema(responses=DocumentSerializer)
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def document(_request: Request, slug: str) -> Response:
     """One of the project's own documents: the licence, the code of conduct or
     the security policy, read from the file the repository holds."""
@@ -83,6 +86,7 @@ def document(_request: Request, slug: str) -> Response:
 
 @extend_schema(responses=PledgeSerializer)
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def pledge(_request: Request) -> Response:
     """The Kuk Sool Won pledge, in English and Korean."""
     return Response(PledgeSerializer(read_pledge()).data)
@@ -90,6 +94,7 @@ def pledge(_request: Request) -> Response:
 
 @extend_schema(responses=CreditsSerializer)
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def credits(_request: Request) -> Response:
     """The software KukGrade is built on, as written when this version was
     built. Not available when run from a checkout."""
@@ -110,6 +115,7 @@ def credits(_request: Request) -> Response:
     },
 )
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def credits_notices(_request: Request) -> FileResponse:
     """The full third-party licence notices, as a text file."""
     path = settings.CREDITS_DIR / NOTICES_FILE

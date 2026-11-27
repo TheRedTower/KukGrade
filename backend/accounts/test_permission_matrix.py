@@ -437,13 +437,37 @@ def test_every_routed_action_declares_its_permissions(
 
 
 def test_a_viewset_that_names_no_classes_still_checks_its_map() -> None:
-    """A new viewset that leaves out permission_classes inherits the check,
-    rather than the project default of "any signed-in user"."""
+    """A new viewset that leaves out permission_classes is checked against its
+    map by the project default, never opened to any signed-in user."""
 
     class Forgetful(KukGradeViewSet[User]):
         permission_map = {"list": ("accounts.view_user",)}
 
     assert Forgetful.permission_classes == [HasRequiredPermissions]
+
+
+def test_a_view_that_names_no_classes_refuses_everyone() -> None:
+    """A function view that does not name its permission classes is refused
+    by the project default, even to an administrator: it has no actions to
+    map, so a new endpoint is closed until it says who it is for, as the
+    About pages and sign-in do."""
+    from rest_framework.decorators import api_view
+    from rest_framework.request import Request
+    from rest_framework.response import Response
+    from rest_framework.test import APIRequestFactory, force_authenticate
+
+    @api_view(["GET"])
+    def forgetful(_request: Request) -> Response:
+        return Response({})
+
+    admin = User.objects.create_user(
+        email="forgetful-view-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    request = APIRequestFactory().get("/forgetful/")
+    force_authenticate(request, user=admin)
+
+    assert forgetful(request).status_code == 403
 
 
 @pytest.mark.parametrize("name,viewset", routed_viewsets())

@@ -14,14 +14,19 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from django.contrib.auth.models import AnonymousUser, Permission
 from django.db.models import F
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
-from rest_framework.views import APIView
 
 from accounts.models import User
+
+if TYPE_CHECKING:
+    # Only a type here: the project default names this module, and DRF reads
+    # that default while rest_framework.views is still loading.
+    from rest_framework.views import APIView
 
 FINAL_GRADING_DECISION_PERMISSION = "gradings.can_make_final_grading_decision"
 PROMOTE_STUDENT_PERMISSION = "gradings.can_promote_student"

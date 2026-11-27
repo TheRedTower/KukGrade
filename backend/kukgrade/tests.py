@@ -126,6 +126,11 @@ def test_production_settings_are_hardened(
     # After WhiteNoise, so the files it serves are never compressed again.
     assert settings.MIDDLEWARE[2] == "django.middleware.gzip.GZipMiddleware"
     assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 0
+    # Pinned: without it DRF falls back to AllowAny, and every viewset's
+    # permission_map would be ignored.
+    assert settings.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
+        "accounts.permissions.HasRequiredPermissions",
+    ]
     # Pinned so that deleting either half of the throttle - the class or the
     # rate - is caught here rather than only by a scoped view becoming
     # silently unthrottled. accounts/tests.py proves throttling engages;

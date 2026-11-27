@@ -238,6 +238,7 @@ const servedRoster = cohort.map((row): GradingCandidateRoster => {
     assessment: assessments.find((a) => a.candidate === row.id) ?? null,
     outcome: found,
     next_action: "REVIEW_DECISION",
+    is_withdrawn: false,
     promotion: null,
     can_be_withdrawn_after_lock: false,
     can_be_marked_absent: false,

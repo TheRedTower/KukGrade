@@ -4,8 +4,7 @@ import { useChoicesQuery } from "./queries";
 const NONE_YET: Choices = {
   session_statuses: [],
   student_statuses: [],
-  candidate_statuses: [],
-  assessment_statuses: [],
+  candidate_progress: [],
   item_results: [],
   withdrawal_reasons: [],
   not_a_student_reasons: [],

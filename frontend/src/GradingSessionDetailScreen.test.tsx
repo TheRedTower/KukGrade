@@ -358,6 +358,7 @@ function registeredCandidate(overrides: Partial<GradingCandidateRoster> = {}): G
     outcome: null,
     promotion: null,
     next_action: "PREPARE_ASSESSMENT",
+    is_withdrawn: false,
     can_be_withdrawn_after_lock: false,
     can_be_marked_absent: true,
     can_prepare_assessment: true,
@@ -525,7 +526,13 @@ describe("GradingSessionDetailScreen opening a draft session", () => {
       count: 2,
       results: [
         registeredCandidate(),
-        registeredCandidate({ id: 32, student: 132, student_display_name: "Ben Hall", status: "WITHDRAWN" }),
+        registeredCandidate({
+          id: 32,
+          student: 132,
+          student_display_name: "Ben Hall",
+          status: "WITHDRAWN",
+          is_withdrawn: true,
+        }),
       ],
     });
     const user = userEvent.setup();

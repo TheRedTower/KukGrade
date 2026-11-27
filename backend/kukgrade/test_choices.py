@@ -12,8 +12,7 @@ from accounts.models import User
 from accounts.permissions import AUTHORITY_PERMISSIONS
 from data_imports.models import ImportBatch, ImportRowOutcome
 from gradings.models import (
-    CandidateAssessmentStatus,
-    GradingCandidateStatus,
+    CandidateProgress,
     GradingSessionStatus,
     ItemResult,
 )
@@ -50,8 +49,7 @@ def test_each_list_is_the_models_own_choices() -> None:
 
     assert _as_pairs(served["session_statuses"]) == _pairs(GradingSessionStatus)
     assert _as_pairs(served["student_statuses"]) == _pairs(StudentStatus)
-    assert _as_pairs(served["candidate_statuses"]) == _pairs(GradingCandidateStatus)
-    assert _as_pairs(served["assessment_statuses"]) == _pairs(CandidateAssessmentStatus)
+    assert _as_pairs(served["candidate_progress"]) == _pairs(CandidateProgress)
     assert _as_pairs(served["item_results"]) == _pairs(ItemResult)
     assert _as_pairs(served["import_kinds"]) == _pairs(ImportBatch.Kind)
     assert _as_pairs(served["import_row_outcomes"]) == _pairs(ImportRowOutcome)

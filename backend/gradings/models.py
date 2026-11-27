@@ -343,6 +343,20 @@ class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
     def not_withdrawn(self) -> GradingCandidateQuerySet:
         return self.exclude(CANDIDATE_WITHDRAWN)
 
+    def at_progress(self, progress: str) -> GradingCandidateQuerySet:
+        """The candidates where `progress` says (`CandidateProgress`): those
+        withdrawn, or those still being graded whose assessment stands there,
+        a candidate with no assessment yet counting as not started."""
+        if progress == CandidateProgress.WITHDRAWN:
+            return self.withdrawn()
+        graded = self.not_withdrawn()
+        if progress == CandidateProgress.NOT_STARTED:
+            return graded.filter(
+                Q(assessment__isnull=True)
+                | Q(assessment__status=CandidateAssessmentStatus.NOT_STARTED)
+            )
+        return graded.filter(assessment__status=progress)
+
     def delete(self) -> tuple[int, dict[str, int]]:
         from gradings.services import validate_candidate_can_be_deleted
 
@@ -582,6 +596,28 @@ class CandidateAssessmentStatus(models.TextChoices):
     NOT_STARTED = "NOT_STARTED", "Not started"
     IN_PROGRESS = "IN_PROGRESS", "In progress"
     COMPLETED = "COMPLETED", "Completed"
+
+
+class CandidateProgress(models.TextChoices):
+    """Where a candidate stands in their grading, as the session screen's
+    filter names it: their assessment's status, unless they were withdrawn."""
+
+    NOT_STARTED = (
+        CandidateAssessmentStatus.NOT_STARTED.value,
+        (CandidateAssessmentStatus.NOT_STARTED.label),
+    )
+    IN_PROGRESS = (
+        CandidateAssessmentStatus.IN_PROGRESS.value,
+        (CandidateAssessmentStatus.IN_PROGRESS.label),
+    )
+    COMPLETED = (
+        CandidateAssessmentStatus.COMPLETED.value,
+        (CandidateAssessmentStatus.COMPLETED.label),
+    )
+    WITHDRAWN = (
+        GradingCandidateStatus.WITHDRAWN.value,
+        (GradingCandidateStatus.WITHDRAWN.label),
+    )
 
 
 class CandidateAssessment(models.Model):

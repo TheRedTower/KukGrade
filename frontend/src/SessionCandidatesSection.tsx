@@ -1,4 +1,4 @@
-import { labelOf, useChoices } from "./choices";
+import { useChoices } from "./choices";
 import { Link } from "react-router-dom";
 
 import type { GradingSession } from "./api";
@@ -112,10 +112,7 @@ export function SessionCandidatesSection({
               {...control}
               all="Any status"
               allValue="ALL"
-              options={[
-                ...choices.assessment_statuses,
-                { value: "WITHDRAWN", label: labelOf(choices.candidate_statuses, "WITHDRAWN") },
-              ]}
+              options={choices.candidate_progress}
               value={statusFilter}
               onChange={onStatusFilter}
               data-testid="gsd-status-filter"
@@ -153,7 +150,7 @@ export function SessionCandidatesSection({
             </Button>
           }
         >
-          The search could not be completed, so no candidates are shown for it.
+          The list could not be loaded, so no candidates are shown.
         </Alert>
       ) : shown.length === 0 ? (
         <EmptyState

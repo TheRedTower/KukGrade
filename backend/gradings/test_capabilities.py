@@ -135,6 +135,49 @@ def test_the_roster_filters_withdrawn_candidates_in_the_query() -> None:
     assert [row["id"] for row in roster(session, withdrawn="true")] == [gone.pk]
 
 
+def test_the_roster_filters_where_each_candidate_stands_in_the_query() -> None:
+    """A withdrawn candidate counts as withdrawn whatever their assessment
+    says, and one with no assessment yet as not started."""
+    session = grading_session(status=Status.OPEN)
+    unprepared = candidate(session=session)
+    prepared = candidate(session=session, student=student(last_name="Okafor"))
+    assessment(candidate=prepared)
+    marking = candidate(session=session)
+    start_assessment(assessment(candidate=marking))
+    marked = candidate(session=session)
+    complete_assessment(assessment(candidate=marked))
+    absent = candidate(session=session)
+    assessment(candidate=absent)
+    apply_candidate_update(
+        absent,
+        status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.ABSENT,
+        actor=user("withdrawing@example.com", is_superuser=True),
+    )
+
+    def standing(progress: str) -> set[int]:
+        return {row["id"] for row in roster(session, progress=progress)}
+
+    assert standing("NOT_STARTED") == {unprepared.pk, prepared.pk}
+    assert standing("IN_PROGRESS") == {marking.pk}
+    assert standing("COMPLETED") == {marked.pk}
+    assert standing("WITHDRAWN") == {absent.pk}
+    assert standing("SOMEWHERE") == set()
+    # With the words too, a candidate must fit both.
+    named = {
+        row["id"] for row in roster(session, progress="NOT_STARTED", search="okafor")
+    }
+    assert named == {prepared.pk}
+    served = {row["id"]: row["is_withdrawn"] for row in roster(session)}
+    assert served == {
+        unprepared.pk: False,
+        prepared.pk: False,
+        marking.pk: False,
+        marked.pk: False,
+        absent.pk: True,
+    }
+
+
 def test_a_candidate_row_serves_their_first_name() -> None:
     session = grading_session()
     candidate(session=session, student=student(first_name="Morgan", last_name="Lee"))

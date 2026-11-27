@@ -405,6 +405,7 @@ SPECTACULAR_SETTINGS = {
         "GradingCandidateStatusEnum": "gradings.models.GradingCandidate.Status",
         "WithdrawalReasonEnum": "gradings.models.GradingCandidate.WithdrawalReason",
         "CandidateAssessmentStatusEnum": "gradings.models.CandidateAssessment.Status",
+        "CandidateProgressEnum": "gradings.models.CandidateProgress",
         "CandidateOutcomeStatusEnum": "gradings.models.CandidateOutcome.Status",
         "CandidateOutcomeOutcomeEnum": "gradings.models.CandidateOutcome.Outcome",
         "ResultEnum": "gradings.models.CandidateAssessmentItem.Result",

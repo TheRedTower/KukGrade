@@ -1338,6 +1338,18 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: progress
+        required: false
+        in: query
+        description: 'Where the candidate stands: withdrawn, or still being graded
+          with their assessment not started, in progress or completed.'
+        schema:
+          type: string
+          enum:
+          - COMPLETED
+          - IN_PROGRESS
+          - NOT_STARTED
+          - WITHDRAWN
       - name: search
         required: false
         in: query
@@ -3847,19 +3859,6 @@ components:
       - reason
       - sequence
       - to_result_display
-    AssessmentStatusChoice:
-      type: object
-      description: |-
-        One of a set of choices, as every list of them is served: the value
-        sent back, and its name.
-      properties:
-        value:
-          $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
-        label:
-          type: string
-      required:
-      - label
-      - value
     AssessmentSummaryCounts:
       type: object
       description: |-
@@ -4749,24 +4748,36 @@ components:
       description: |-
         * `PROPOSED` - Proposed
         * `FINALISED` - Finalised
-    CandidatePromotionRequest:
-      type: object
-      properties:
-        notes:
-          type: string
-    CandidateStatusChoice:
+    CandidateProgressChoice:
       type: object
       description: |-
         One of a set of choices, as every list of them is served: the value
         sent back, and its name.
       properties:
         value:
-          $ref: '#/components/schemas/GradingCandidateStatusEnum'
+          $ref: '#/components/schemas/CandidateProgressEnum'
         label:
           type: string
       required:
       - label
       - value
+    CandidateProgressEnum:
+      enum:
+      - NOT_STARTED
+      - IN_PROGRESS
+      - COMPLETED
+      - WITHDRAWN
+      type: string
+      description: |-
+        * `NOT_STARTED` - Not started
+        * `IN_PROGRESS` - In progress
+        * `COMPLETED` - Completed
+        * `WITHDRAWN` - Withdrawn
+    CandidatePromotionRequest:
+      type: object
+      properties:
+        notes:
+          type: string
     ChangePasswordRequest:
       type: object
       description: |-
@@ -4814,14 +4825,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StudentStatusChoice'
-        candidate_statuses:
+        candidate_progress:
           type: array
           items:
-            $ref: '#/components/schemas/CandidateStatusChoice'
-        assessment_statuses:
-          type: array
-          items:
-            $ref: '#/components/schemas/AssessmentStatusChoice'
+            $ref: '#/components/schemas/CandidateProgressChoice'
+          description: Where a candidate may stand in their grading, as the candidates
+            list's `progress` filter takes it.
         item_results:
           type: array
           items:
@@ -4872,9 +4881,8 @@ components:
             $ref: '#/components/schemas/StaffRankChoice'
           description: The ranks an instructor's account may hold, lowest first.
       required:
-      - assessment_statuses
       - authorities
-      - candidate_statuses
+      - candidate_progress
       - finished_import_statuses
       - import_kinds
       - import_row_outcomes
@@ -5296,6 +5304,10 @@ components:
           allOf:
           - $ref: '#/components/schemas/NextActionEnum'
           readOnly: true
+        is_withdrawn:
+          type: boolean
+          readOnly: true
+          description: Whether the candidate was taken out of the grading.
         can_be_finalised:
           type: boolean
           readOnly: true
@@ -5348,6 +5360,7 @@ components:
       - from_rank
       - from_rank_name
       - id
+      - is_withdrawn
       - next_action
       - outcome
       - prepare_assessment_blocked_by

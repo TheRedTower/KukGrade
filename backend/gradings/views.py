@@ -64,7 +64,9 @@ from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
+    CandidateProgress,
     GradingCandidate,
+    GradingCandidateQuerySet,
     GradingSession,
     LegacyGradingRecord,
     LegacyPerson,
@@ -190,6 +192,12 @@ def _apply_archived(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     if value == "include":
         return queryset
     return queryset.none()
+
+
+def _apply_progress(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    if value not in CandidateProgress.values:
+        return queryset.none()
+    return cast(GradingCandidateQuerySet, queryset).at_progress(value)
 
 
 # What reading a grading's records takes: whoever can may also download them
@@ -462,6 +470,13 @@ class GradingCandidateViewSet(
             "withdrawn",
             CANDIDATE_WITHDRAWN,
             "Only withdrawn candidates, or only those still being graded.",
+        ),
+        QueryFilter(
+            "progress",
+            _apply_progress,
+            {"type": "string", "enum": sorted(CandidateProgress.values)},
+            "Where the candidate stands: withdrawn, or still being graded with "
+            "their assessment not started, in progress or completed.",
         ),
         search(
             "search",

@@ -272,6 +272,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         outcome,
         promotion: null,
         next_action: nextAction,
+        is_withdrawn: candidate.status === "WITHDRAWN",
         can_be_finalised: canBeFinalised,
         can_be_withdrawn_after_lock: canWithdraw,
         // As the server rules them (gradings.services
@@ -816,6 +817,47 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     expect(await screen.findByText("Searching…")).toBeVisible();
     expect(screen.queryByText("Alex Carter")).not.toBeInTheDocument();
+  });
+
+  it("filters by where candidates stand by asking the server", async () => {
+    const standard = setupStandardMock();
+    const asked: string[] = [];
+    const searched: string[] = [];
+    stubFetch(
+      vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        const params = new URL(String(url), "http://localhost").searchParams;
+        const progress = params.get("progress");
+        if (String(url).includes("/api/gradings/candidates/") && progress) {
+          asked.push(progress);
+          searched.push(params.get("search") ?? "");
+          const roster = (await (await standard(url, init)).json()) as {
+            results: { id: number; student_display_name: string }[];
+          };
+          const standing = roster.results.filter((row) => row.student_display_name.includes("Brooke"));
+          return jsonResponse(200, { count: standing.length, next: null, previous: null, results: standing });
+        }
+        return standard(url, init);
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.selectOptions(screen.getByTestId("gsd-status-filter"), "WITHDRAWN");
+
+    await waitFor(() => expect(asked.at(-1)).toBe("WITHDRAWN"));
+    await waitFor(() => expect(screen.queryByText("Alex Carter")).not.toBeInTheDocument());
+    const table = await screen.findByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Brooke Ellis")).toBeVisible();
+
+    // The words go in the same question, and any status asks nothing more.
+    await user.type(screen.getByTestId("gsd-candidate-search"), "ellis");
+    await waitFor(() => expect(searched.at(-1)).toBe("ellis"));
+    await user.selectOptions(screen.getByTestId("gsd-status-filter"), "ALL");
+    await user.clear(screen.getByTestId("gsd-candidate-search"));
+    const whole = await screen.findByTestId("gsd-candidates-table");
+    await waitFor(() => expect(within(whole).getByText("Alex Carter")).toBeVisible());
+    expect(asked).toEqual(["WITHDRAWN", "WITHDRAWN"]);
   });
 
   it("shows the whole roster again when the search is cleared", async () => {

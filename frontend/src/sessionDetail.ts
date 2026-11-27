@@ -35,29 +35,6 @@ export function enrichCandidates(rows: GradingCandidateRoster[]): EnrichedCandid
 }
 
 /**
- * The candidates in an assessment status, and, when a search is under way, only
- * those the server found. The words are the server's to match, as in every
- * list (`matching` is its answer: the ids that fit), so nothing here reads names.
- */
-export function filterCandidates(
-  items: EnrichedCandidate[],
-  matching: ReadonlySet<number> | null,
-  statusFilter: string,
-): EnrichedCandidate[] {
-  return items.filter((item) => {
-    const matchesSearch = matching === null || matching.has(item.candidate.id);
-
-    const assessmentStatus = item.assessment?.status || "NOT_STARTED";
-    const withdrawn = item.candidate.status === "WITHDRAWN";
-    const matchesStatus =
-      statusFilter === "ALL" ||
-      (statusFilter === "WITHDRAWN" ? withdrawn : !withdrawn && assessmentStatus === statusFilter);
-
-    return matchesSearch && matchesStatus;
-  });
-}
-
-/**
  * How a candidate's row words and links the next step. Which step it is comes
  * from the server (`next_action`), which knows where their assessment and
  * outcome stand and who is asking; this only decides the words and where it goes.

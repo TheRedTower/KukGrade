@@ -4,6 +4,7 @@ import { useDebouncedValue } from "./useDebouncedValue";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  type CandidateProgress,
   GradingSession,
   archiveGradingSession,
   deleteGradingSession,
@@ -32,7 +33,6 @@ import {
   type SessionAction,
   confirmDetails,
   enrichCandidates,
-  filterCandidates,
   nextActionFor,
   toAttendanceCandidate,
 } from "./sessionDetail";
@@ -157,28 +157,35 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     () => enrichCandidates(candidatesQuery.data?.results ?? []),
     [candidatesQuery.data],
   );
-  // Searched by the server, like every list: the roster is read whole (its
-  // counts and actions need every row), and the search says which of them fit.
+  // Searched and filtered by the server, like every list: the roster is read
+  // whole (its counts and actions need every row), and the server says which
+  // of them fit the words and where they stand.
   const searchTerm = useDebouncedValue(search.trim());
+  const progress = statusFilter === "ALL" ? undefined : (statusFilter as CandidateProgress);
+  const narrowed = searchTerm !== "" || progress !== undefined;
   const searchQuery = useQuery({
-    queryKey: keys.gradingCandidates.search(sessionId, searchTerm),
-    queryFn: () => getAllGradingCandidates({ session: sessionId, search: searchTerm }),
-    // No carrying of an earlier term's answer over to the next: until the
-    // server has answered this one, the screen says it is searching.
-    enabled: valid && searchTerm !== "",
+    queryKey: keys.gradingCandidates.search(sessionId, searchTerm, statusFilter),
+    queryFn: () => getAllGradingCandidates({ session: sessionId, search: searchTerm || undefined, progress }),
+    // No carrying of an earlier answer over to the next: until the server has
+    // answered this one, the screen says it is searching. An answer left behind
+    // is dropped, so going back to a filter never shows who stood there before.
+    enabled: valid && narrowed,
+    gcTime: 0,
   });
   // A search under way that has not answered, or failed, shows no rows and says
   // so, never the whole roster as though it were the result.
-  const searchStatus: "idle" | "searching" | "failed" =
-    searchTerm === "" ? "idle" : searchQuery.data ? "idle" : searchQuery.isError ? "failed" : "searching";
-  const matching = useMemo(
-    () => (searchTerm === "" ? null : new Set((searchQuery.data?.results ?? []).map((row) => row.id))),
-    [searchTerm, searchQuery.data],
-  );
-  const filteredCandidates = useMemo(
-    () => filterCandidates(enrichedCandidates, matching, statusFilter),
-    [enrichedCandidates, matching, statusFilter],
-  );
+  const searchStatus: "idle" | "searching" | "failed" = !narrowed
+    ? "idle"
+    : searchQuery.data
+      ? "idle"
+      : searchQuery.isError
+        ? "failed"
+        : "searching";
+  const filteredCandidates = useMemo(() => {
+    if (!narrowed) return enrichedCandidates;
+    const matching = new Set((searchQuery.data?.results ?? []).map((row) => row.id));
+    return enrichedCandidates.filter((item) => matching.has(item.candidate.id));
+  }, [narrowed, enrichedCandidates, searchQuery.data]);
 
   // The server's count (completed, outcome not finalised - see
   // with_session_progress), the same number Overview and Gradings show. A

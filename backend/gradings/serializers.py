@@ -849,6 +849,10 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "and the viewer holds the locked-session override."
         ),
     )
+    is_withdrawn = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether the candidate was taken out of the grading.",
+    )
     can_download_record = serializers.SerializerMethodField(
         help_text=(
             "Whether this candidate's record can be downloaded as a PDF: their "
@@ -869,6 +873,7 @@ class GradingCandidateRosterSerializer(GradingCandidateSerializer):
             "outcome",
             "promotion",
             "next_action",
+            "is_withdrawn",
             "can_be_finalised",
             "can_be_withdrawn_after_lock",
             "can_be_marked_absent",

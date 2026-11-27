@@ -208,7 +208,7 @@ export function SessionCandidateTable({
               )}
               {/* Why they withdrew sits with the person, so the status pill stands
                   alone in its cell, on the row's line with the other pills. */}
-              {item.candidate.status === "WITHDRAWN" && (
+              {item.candidate.is_withdrawn && (
                 <span className="gsd-withdrawal-record meta">
                   {item.candidate.withdrawal_reason_display && <span>{item.candidate.withdrawal_reason_display}</span>}
                   {item.candidate.withdrawal_note && <span>{item.candidate.withdrawal_note}</span>}
@@ -229,7 +229,7 @@ export function SessionCandidateTable({
           key: "assessment",
           header: "Assessment",
           render: (item) =>
-            item.candidate.status === "WITHDRAWN" ? (
+            item.candidate.is_withdrawn ? (
               <Badge tone="neutral">Withdrawn</Badge>
             ) : (
               <AssessmentBadge assessment={item.assessment} />
@@ -239,7 +239,7 @@ export function SessionCandidateTable({
           key: "outcome",
           header: "Outcome",
           render: (item) =>
-            item.candidate.status === "WITHDRAWN" ? (
+            item.candidate.is_withdrawn ? (
               <Badge tone="neutral">No outcome</Badge>
             ) : (
               <OutcomeBadge outcome={item.outcome} />

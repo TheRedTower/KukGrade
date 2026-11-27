@@ -102,9 +102,8 @@ def _story(
     final: bool,
     shows_promotion: bool,
 ) -> list[Flowable]:
-    withdrawn = GradingCandidate.Status.WITHDRAWN
-    graded = [c for c in candidates if c.status != withdrawn]
-    not_graded = [c for c in candidates if c.status == withdrawn]
+    graded = [c for c in candidates if not c.is_withdrawn]
+    not_graded = [c for c in candidates if c.is_withdrawn]
     awaiting = sum(1 for c in graded if _final(c) is None)
     if final:
         state = "Completed"

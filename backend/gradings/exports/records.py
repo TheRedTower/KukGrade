@@ -157,7 +157,7 @@ WITHDRAWN = ("WITHDRAWN", "Withdrawn")
 
 
 def _state(candidate: GradingCandidate) -> tuple[str, str]:
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if candidate.is_withdrawn:
         return WITHDRAWN
     outcome = _outcome(candidate)
     if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
@@ -248,7 +248,7 @@ def _outcome_rows(
 ) -> list[tuple[str, object]]:
     outcome = _outcome(candidate)
     rows: list[tuple[str, object]] = []
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if candidate.is_withdrawn:
         rows.append(("Withdrawn", _withdrawal(candidate)))
         if candidate.withdrawal_note:
             rows.append(("Withdrawal note", candidate.withdrawal_note))

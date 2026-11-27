@@ -58,6 +58,7 @@ from gradings.legacy_services import (
     void_legacy_record,
 )
 from gradings.models import (
+    CANDIDATE_WITHDRAWN,
     ROSTER_OPEN,
     SHEET_NOTE_NAME,
     CandidateAssessment,
@@ -444,7 +445,7 @@ class GradingCandidateViewSet(
         by_id("session", "session_id"),
         boolean(
             "withdrawn",
-            Q(status=GradingCandidate.Status.WITHDRAWN),
+            CANDIDATE_WITHDRAWN,
             "Only withdrawn candidates, or only those still being graded.",
         ),
         search(

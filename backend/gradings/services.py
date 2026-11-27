@@ -204,7 +204,7 @@ def validate_session_transition(
         # Locking ends grading: every result is recorded first, and the
         # session stays open for corrections until the instructors are done.
         incomplete = (
-            session.candidates.exclude(status=GradingCandidate.Status.WITHDRAWN)
+            session.candidates.not_withdrawn()
             .exclude(assessment__status=CandidateAssessment.Status.COMPLETED)
             .exists()
         )
@@ -241,7 +241,7 @@ def validate_session_transition(
         and next_status == GradingSession.Status.COMPLETED
     ):
         missing_finalised_outcome = (
-            session.candidates.exclude(status=GradingCandidate.Status.WITHDRAWN)
+            session.candidates.not_withdrawn()
             .filter(
                 Q(assessment__isnull=True)
                 | ~Q(assessment__status=CandidateAssessment.Status.COMPLETED)
@@ -399,8 +399,8 @@ def with_session_progress(
     yet finalised.
     """
     registered = GradingCandidate.objects.filter(session=OuterRef("pk"))
-    withdrawn = registered.filter(status=GradingCandidate.Status.WITHDRAWN)
-    active = registered.exclude(status=GradingCandidate.Status.WITHDRAWN)
+    withdrawn = registered.withdrawn()
+    active = registered.not_withdrawn()
     completed = active.filter(
         assessment__status=CandidateAssessment.Status.COMPLETED,
     )
@@ -515,7 +515,7 @@ def candidate_can_be_withdrawn_after_lock(
     roster. The viewer's authority is passed in, so a list asks it once."""
     if not may_override or candidate.session.status != GradingSession.Status.LOCKED:
         return False
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if candidate.is_withdrawn:
         return False
     outcome = getattr(candidate, "outcome", None)
     return outcome is None or outcome.status != CandidateOutcome.Status.FINALISED
@@ -546,7 +546,7 @@ def withdraw_locked_candidate(
                 ],
             },
         )
-    if locked_candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if locked_candidate.is_withdrawn:
         raise ValidationError({"candidate": ["Candidate is already withdrawn."]})
     if reason not in GradingCandidate.WithdrawalReason.values:
         raise ValidationError(
@@ -640,7 +640,7 @@ def unsettled_registrations() -> QuerySet[GradingCandidate]:
         | Q(promotion__isnull=False)
     )
     return (
-        GradingCandidate.objects.exclude(status=GradingCandidate.Status.WITHDRAWN)
+        GradingCandidate.objects.not_withdrawn()
         .exclude(session__status=GradingSession.Status.CANCELLED)
         .exclude(settled_by_outcome)
     )

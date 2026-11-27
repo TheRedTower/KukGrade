@@ -191,7 +191,7 @@ ROSTER_OPEN = models.Q(status__in=ROSTER_OPEN_STATUSES)
 class GradingSession(models.Model):
     if TYPE_CHECKING:
         created_by_id: int
-        candidates: models.Manager[GradingCandidate]
+        candidates: GradingCandidateManager
 
     Status = GradingSessionStatus
 
@@ -324,13 +324,36 @@ class GradingSession(models.Model):
         return self.status in {self.Status.LOCKED, self.Status.COMPLETED}
 
 
+class GradingCandidateStatus(models.TextChoices):
+    REGISTERED = "REGISTERED", "Registered"
+    WITHDRAWN = "WITHDRAWN", "Withdrawn"
+    COMPLETED = "COMPLETED", "Completed"
+
+
+# A candidate taken out of the grading: the one statement of it, for a query
+# (`GradingCandidateQuerySet.withdrawn`, `not_withdrawn`) and for a row
+# (`GradingCandidate.is_withdrawn`).
+CANDIDATE_WITHDRAWN = Q(status=GradingCandidateStatus.WITHDRAWN)
+
+
 class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
+    def withdrawn(self) -> GradingCandidateQuerySet:
+        return self.filter(CANDIDATE_WITHDRAWN)
+
+    def not_withdrawn(self) -> GradingCandidateQuerySet:
+        return self.exclude(CANDIDATE_WITHDRAWN)
+
     def delete(self) -> tuple[int, dict[str, int]]:
         from gradings.services import validate_candidate_can_be_deleted
 
         for candidate in self:
             validate_candidate_can_be_deleted(candidate)
         return super().delete()
+
+
+# The manager carries the queryset's own methods, on GradingCandidate.objects
+# and on a session's `candidates` alike.
+GradingCandidateManager = models.Manager.from_queryset(GradingCandidateQuerySet)
 
 
 def candidate_order(path: str = "") -> list[str]:
@@ -370,12 +393,6 @@ CONDITIONS_BLANK_MESSAGE = (
 )
 PROMOTION_SAME_RANK_MESSAGE = "Promotion target rank must differ from source rank."
 VOID_REASON_MESSAGE = "A reason is required to void a record."
-
-
-class GradingCandidateStatus(models.TextChoices):
-    REGISTERED = "REGISTERED", "Registered"
-    WITHDRAWN = "WITHDRAWN", "Withdrawn"
-    COMPLETED = "COMPLETED", "Completed"
 
 
 class WithdrawalReason(models.TextChoices):
@@ -453,7 +470,7 @@ class GradingCandidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = GradingCandidateQuerySet.as_manager()
+    objects = GradingCandidateManager()
 
     class Meta:
         ordering = candidate_order()
@@ -504,12 +521,9 @@ class GradingCandidate(models.Model):
                         withdrawn_by__isnull=True,
                         withdrawn_at__isnull=True,
                     )
-                    & ~Q(status=GradingCandidateStatus.WITHDRAWN)
-                    | Q(
-                        status=GradingCandidateStatus.WITHDRAWN,
-                        withdrawn_by__isnull=False,
-                        withdrawn_at__isnull=False,
-                    )
+                    & ~CANDIDATE_WITHDRAWN
+                    | CANDIDATE_WITHDRAWN
+                    & Q(withdrawn_by__isnull=False, withdrawn_at__isnull=False)
                     & ~Q(withdrawal_reason="")
                 ),
                 name="grading_candidate_withdrawal_attribution_valid",
@@ -558,6 +572,10 @@ class GradingCandidate(models.Model):
             )
             if previous_student is not None and previous_student != self.student_id:
                 raise ValidationError({"student": [CANDIDATE_STUDENT_FIXED_MESSAGE]})
+
+    @property
+    def is_withdrawn(self) -> bool:
+        return self.status == GradingCandidateStatus.WITHDRAWN
 
 
 class CandidateAssessmentStatus(models.TextChoices):

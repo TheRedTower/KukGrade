@@ -132,7 +132,7 @@ def delete_candidate_assessment(
 
 def validate_assessment_generation_candidate(candidate: GradingCandidate) -> None:
     # A withdrawal is said first: reopening the roster would not change it.
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if candidate.is_withdrawn:
         raise ValidationError(
             {
                 "candidate": [
@@ -301,7 +301,7 @@ def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
             {"status": ["Only not-started assessments can be started."]},
         )
     # A withdrawal is said first: opening the session would not change it.
-    if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if assessment.candidate.is_withdrawn:
         raise ValidationError(
             {"candidate": [WITHDRAWN_MESSAGE]},
         )
@@ -346,7 +346,7 @@ def validate_assessment_can_complete(
         raise ValidationError(
             {"session": ["Assessments can only be completed in an open session."]},
         )
-    if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if assessment.candidate.is_withdrawn:
         raise ValidationError(
             {"candidate": ["Withdrawn candidates cannot be completed."]},
         )
@@ -543,7 +543,7 @@ def _validate_assessment_open_for_item_work(
             )
     elif not session.marking_open:
         raise ValidationError({"session": [closed_message]})
-    if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if assessment.candidate.is_withdrawn:
         raise ValidationError(
             {"candidate": [WITHDRAWN_MESSAGE]},
         )

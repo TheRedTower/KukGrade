@@ -80,7 +80,7 @@ def validate_candidate_outcome_creation(candidate: GradingCandidate) -> None:
         raise ValidationError(
             {"session": ["Candidate outcomes can only be created in locked sessions."]},
         )
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if candidate.is_withdrawn:
         raise ValidationError(
             {"candidate": ["Cannot create an outcome for a withdrawn candidate."]},
         )
@@ -472,7 +472,7 @@ def validate_promotion_eligibility(
         )
     if outcome.final_outcome != CandidateOutcome.Outcome.PASS:
         raise ValidationError({"final_outcome": ["Only a pass can be promoted."]})
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if candidate.is_withdrawn:
         raise ValidationError(
             {"candidate": ["Withdrawn candidates cannot be promoted."]},
         )

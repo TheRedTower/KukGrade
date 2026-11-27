@@ -63,14 +63,11 @@ def sheets_can_be_printed(session: GradingSession) -> bool:
 
 def sheet_can_be_printed(candidate: GradingCandidate) -> bool:
     """Registered, not withdrawn, in a grading still being prepared or held."""
-    return (
-        sheets_can_be_printed(candidate.session)
-        and candidate.status != GradingCandidate.Status.WITHDRAWN
-    )
+    return sheets_can_be_printed(candidate.session) and not candidate.is_withdrawn
 
 
 def _refusal(candidate: GradingCandidate) -> str | None:
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if candidate.is_withdrawn:
         return WITHDRAWN
     return None
 

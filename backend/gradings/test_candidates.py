@@ -1607,3 +1607,24 @@ def test_moving_onto_a_session_holding_the_student_gets_the_same_message() -> No
     assert refusal.value.message_dict == {
         "student": ["Student is already registered for this session."],
     }
+
+
+def test_withdrawn_is_one_rule_for_a_query_and_a_row() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    staying = candidate(session=session)
+    leaving = apply_candidate_update(
+        candidate(session=session),
+        status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.ABSENT,
+        actor=user("withdrawn-rule@example.com"),
+    )
+
+    assert list(session.candidates.not_withdrawn()) == [staying]
+    assert list(session.candidates.withdrawn()) == [leaving]
+    assert (staying.is_withdrawn, leaving.is_withdrawn) == (False, True)
+    client = auth_client("withdrawn-rule-api@example.com")
+    for asked, expected in (("true", leaving), ("false", staying)):
+        response = client.get(
+            f"/api/gradings/candidates/?session={session.pk}&withdrawn={asked}"
+        )
+        assert [row["id"] for row in results(response)] == [expected.pk]

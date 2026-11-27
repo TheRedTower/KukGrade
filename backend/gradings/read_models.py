@@ -80,7 +80,7 @@ def candidate_next_action(
     can_make_final_decision: bool,
 ) -> str:
     # A withdrawal ends the candidate's grading: their row offers nothing more.
-    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+    if candidate.is_withdrawn:
         return CandidateNextAction.NONE
     assessment = getattr(candidate, "assessment", None)
     outcome = getattr(candidate, "outcome", None)

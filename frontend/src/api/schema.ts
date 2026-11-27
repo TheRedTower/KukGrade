@@ -1954,14 +1954,6 @@ export interface components {
             readonly after_lock: boolean;
         };
         /**
-         * @description One of a set of choices, as every list of them is served: the value
-         *     sent back, and its name.
-         */
-        AssessmentStatusChoice: {
-            value: components["schemas"]["CandidateAssessmentStatusEnum"];
-            label: string;
-        };
-        /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
          *
          *     Declared so the schema tells the truth about what the assessment `summary`
@@ -2295,16 +2287,24 @@ export interface components {
          * @enum {string}
          */
         CandidateOutcomeStatusEnum: "PROPOSED" | "FINALISED";
-        CandidatePromotionRequest: {
-            notes?: string;
-        };
         /**
          * @description One of a set of choices, as every list of them is served: the value
          *     sent back, and its name.
          */
-        CandidateStatusChoice: {
-            value: components["schemas"]["GradingCandidateStatusEnum"];
+        CandidateProgressChoice: {
+            value: components["schemas"]["CandidateProgressEnum"];
             label: string;
+        };
+        /**
+         * @description * `NOT_STARTED` - Not started
+         *     * `IN_PROGRESS` - In progress
+         *     * `COMPLETED` - Completed
+         *     * `WITHDRAWN` - Withdrawn
+         * @enum {string}
+         */
+        CandidateProgressEnum: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "WITHDRAWN";
+        CandidatePromotionRequest: {
+            notes?: string;
         };
         /**
          * @description POST /api/auth/change-password/.
@@ -2331,8 +2331,8 @@ export interface components {
         Choices: {
             session_statuses: components["schemas"]["SessionStatusChoice"][];
             student_statuses: components["schemas"]["StudentStatusChoice"][];
-            candidate_statuses: components["schemas"]["CandidateStatusChoice"][];
-            assessment_statuses: components["schemas"]["AssessmentStatusChoice"][];
+            /** @description Where a candidate may stand in their grading, as the candidates list's `progress` filter takes it. */
+            candidate_progress: components["schemas"]["CandidateProgressChoice"][];
             item_results: components["schemas"]["ItemResultChoice"][];
             /** @description Why a candidate may be withdrawn, in the order the controls offer. */
             withdrawal_reasons: components["schemas"]["WithdrawalReasonChoice"][];
@@ -2518,6 +2518,8 @@ export interface components {
             /** @description The promotion recorded for this candidate, when they have one and the viewer may see promotions; otherwise null. */
             readonly promotion: components["schemas"]["Promotion"] | null;
             readonly next_action: components["schemas"]["NextActionEnum"];
+            /** @description Whether the candidate was taken out of the grading. */
+            readonly is_withdrawn: boolean;
             /** @description Whether a final decision can be recorded for this candidate now: their outcome is proposed in a locked session. Whether the viewer may make it is their own authority. */
             readonly can_be_finalised: boolean;
             /** @description Whether the viewer may withdraw this candidate now: the session is locked, the candidate is not withdrawn and has no final decision, and the viewer holds the locked-session override. */
@@ -5352,6 +5354,8 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Where the candidate stands: withdrawn, or still being graded with their assessment not started, in progress or completed. */
+                progress?: "COMPLETED" | "IN_PROGRESS" | "NOT_STARTED" | "WITHDRAWN";
                 /** @description A candidate's name, WKSA ID, ranks or status. */
                 search?: string;
                 session?: number;

@@ -23,7 +23,8 @@ export const keys = {
     all: () => ["gradingCandidates"] as const,
     session: (sessionId: Id) => ["gradingCandidates", sessionId] as const,
     board: (sessionId: Id) => ["gradingCandidates", sessionId, "board"] as const,
-    search: (sessionId: Id, term: string) => ["gradingCandidates", sessionId, "search", term] as const,
+    search: (sessionId: Id, term: string, progress: string) =>
+      ["gradingCandidates", sessionId, "search", term, progress] as const,
     detail: (candidateId: Id) => ["gradingCandidates", "detail", candidateId] as const,
   },
   candidateAssessments: {

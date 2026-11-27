@@ -28,8 +28,7 @@ from data_imports.models import (
     ImportRowOutcome,
 )
 from gradings.models import (
-    CandidateAssessmentStatus,
-    GradingCandidateStatus,
+    CandidateProgress,
     GradingOutcome,
     GradingSessionStatus,
     ItemResult,
@@ -94,9 +93,12 @@ class StaffRankChoiceSerializer(serializers.Serializer):
 class ChoicesSerializer(serializers.Serializer):
     session_statuses = _of("SessionStatus", GradingSessionStatus)(many=True)
     student_statuses = StudentStatusChoiceSerializer(many=True)
-    candidate_statuses = _of("CandidateStatus", GradingCandidateStatus)(many=True)
-    assessment_statuses = _of("AssessmentStatus", CandidateAssessmentStatus)(
+    candidate_progress = _of("CandidateProgress", CandidateProgress)(
         many=True,
+        help_text=(
+            "Where a candidate may stand in their grading, as the candidates "
+            "list's `progress` filter takes it."
+        ),
     )
     item_results = _of("ItemResult", ItemResult)(many=True)
     withdrawal_reasons = WithdrawalReasonChoiceSerializer(
@@ -153,8 +155,7 @@ def choices(_request: Request) -> Response:
                     {**choice, "description": STUDENT_STATUS_MEANINGS[choice["value"]]}
                     for choice in _listed(StudentStatus)
                 ],
-                "candidate_statuses": _listed(GradingCandidateStatus),
-                "assessment_statuses": _listed(CandidateAssessmentStatus),
+                "candidate_progress": _listed(CandidateProgress),
                 "item_results": _listed(ItemResult),
                 "withdrawal_reasons": [
                     {

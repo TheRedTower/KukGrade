@@ -34,15 +34,11 @@ export const CHOICES: Choices = {
     },
     { value: "LEFT", label: "Left", description: "Has left. Cannot be registered for gradings; all history is kept." },
   ],
-  candidate_statuses: [
-    { value: "REGISTERED", label: "Registered" },
-    { value: "WITHDRAWN", label: "Withdrawn" },
-    { value: "COMPLETED", label: "Completed" },
-  ],
-  assessment_statuses: [
+  candidate_progress: [
     { value: "NOT_STARTED", label: "Not started" },
     { value: "IN_PROGRESS", label: "In progress" },
     { value: "COMPLETED", label: "Completed" },
+    { value: "WITHDRAWN", label: "Withdrawn" },
   ],
   item_results: [
     { value: "NOT_ASSESSED", label: "Not assessed" },

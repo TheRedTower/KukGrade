@@ -36,6 +36,7 @@ export type AuditEntity = components["schemas"]["AuditEntityEnum"];
 export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
+export type CandidateProgress = components["schemas"]["CandidateProgressEnum"];
 export type Rank = components["schemas"]["Rank"];
 export type EffectiveSyllabusRequirement = components["schemas"]["EffectiveSyllabusRequirement"];
 export type AgeBandEnum = components["schemas"]["AgeBandEnum"];

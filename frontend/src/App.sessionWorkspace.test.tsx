@@ -772,7 +772,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.type(screen.getByTestId("gsd-candidate-search"), "alex");
     expect(await screen.findByText("Searching…")).toBeVisible();
     expect(screen.queryByText("Brooke Ellis")).not.toBeInTheDocument();
-    expect(answer).toBeDefined();
+    // The note shows as soon as the search is under way, which can be a tick
+    // before the request itself is sent.
+    await waitFor(() => expect(answer).toBeDefined());
 
     // And when it fails: the failure, with a way to try again.
     failing = true;

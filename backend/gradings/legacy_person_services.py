@@ -122,7 +122,11 @@ def _set_records(records: Sequence[LegacyGradingRecord], **fields: Any) -> None:
     refusal of a bulk delete.
     """
     allowed = {"person", "person_confirmed", "student"}
-    assert set(fields) <= allowed, set(fields) - allowed
+    # Raised, not asserted: `python -O` drops an assert, and with it the rule.
+    if not set(fields) <= allowed:
+        others = sorted(set(fields) - allowed)
+        msg = f"Only who a record is about changes here, not {others}."
+        raise ValueError(msg)
     if not records:
         return
     kept.bypass_update(

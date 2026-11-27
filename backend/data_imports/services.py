@@ -729,9 +729,14 @@ def void_import_records(
     the wrong file imported, since a record is never deleted. Each is voided
     as one alone would be, with its own event; records already voided are
     left as they are. Returns how many."""
+    # Read afresh, not from the copy passed in: a finished import never
+    # changes again (its database trigger), so what is read is what holds
+    # while the records are voided, without a lock on the batch.
+    current = ImportBatch.objects.filter(pk=batch.pk).first()
     if (
-        batch.kind != ImportBatch.Kind.LEGACY_GRADINGS
-        or batch.status != ImportBatch.Status.COMMITTED
+        current is None
+        or current.kind != ImportBatch.Kind.LEGACY_GRADINGS
+        or current.status != ImportBatch.Status.COMMITTED
     ):
         raise DjangoValidationError(
             {

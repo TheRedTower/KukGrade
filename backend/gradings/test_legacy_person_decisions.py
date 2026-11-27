@@ -15,12 +15,13 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from audit.models import AuditAction, AuditEntity, AuditEvent
 from data_imports.services import choose_legacy_sheets, commit_legacy_grading_import
-from data_imports.testing import grading_workbook, legacy_batch
+from data_imports.testing import grading_workbook, legacy_batch, legacy_record
 from data_imports.tests import admin_user, instructor_user
 from gradings.legacy_people import PersonQueue, people_in
 from gradings.legacy_person_services import (
     CHANGED_MESSAGE,
     REOPEN_FIRST_MESSAGE,
+    _set_records,
     confirm_people,
     leave_for_later,
     link_person,
@@ -1014,3 +1015,13 @@ def test_each_person_says_what_can_be_decided_about_them_now() -> None:
     assert served_decisions(ada) == ["REOPEN"]
     with pytest.raises(ValidationError, match=REOPEN_FIRST_MESSAGE):
         link_person(ada.pk, ada_student, version=fresh(ada).version, actor=admin())
+
+
+def test_only_who_a_record_is_about_changes_through_the_decision_write() -> None:
+    record = legacy_record()
+
+    with pytest.raises(ValueError, match="Only who a record is about"):
+        _set_records([record], source_name="Someone else")
+
+    record.refresh_from_db()
+    assert record.source_name == "A. Example"

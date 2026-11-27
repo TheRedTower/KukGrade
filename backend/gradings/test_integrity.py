@@ -26,6 +26,7 @@ from gradings.testing import (
     start_assessment,
     user,
 )
+from kukgrade.testing import arrange
 from syllabus.models import AgeBand, SyllabusItem
 
 pytestmark = pytest.mark.django_db
@@ -82,7 +83,8 @@ def test_assessment_database_constraints_are_enforced() -> None:
     first = generated.items.get(position=1)
     for position in (0, 2):
         with pytest.raises(IntegrityError), transaction.atomic():
-            CandidateAssessmentItem.objects.filter(pk=first.pk).update(
+            arrange(
+                CandidateAssessmentItem.objects.filter(pk=first.pk),
                 position=position,
             )
     first.position = 0

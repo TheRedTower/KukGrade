@@ -5,12 +5,20 @@ import json
 from typing import TYPE_CHECKING, Any, Protocol
 
 import pgtrigger
+from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
 
-from kukgrade.kept import KeptModel, KeptQuerySet, kept_triggers
+from kukgrade.kept import (
+    NO_DELETE,
+    NO_INSERT,
+    NO_UPDATE,
+    KeptModel,
+    KeptQuerySet,
+    kept_triggers,
+)
 from kukgrade.modelchecks import changed_since_saved, clean_without_database_checks
 from syllabus.age import resolve_age_band
 from syllabus.models import (
@@ -22,6 +30,135 @@ from syllabus.models import (
 
 if TYPE_CHECKING:
     from accounts.models import User
+
+
+class _KeptOnceDecided(pgtrigger.Trigger):
+    """Refuse, in the database, changing, removing or adding to what a final
+    decision rests on once it is recorded: the registration, its assessment,
+    every mark and its log. The services stop it first (`marks_open`, the
+    roster's rules); this is the same line for `psql`, raw SQL or a later
+    migration.
+
+    A trigger's WHEN cannot hold a query, so the function asks. `to_candidate`
+    is the path of foreign keys from the row to its candidate (none for the
+    candidate itself). On a change, `always` names columns never changed at
+    all, and `links` references to live records (the syllabus a copy came
+    from), which may only be cleared, as the database does when that record
+    goes.
+    """
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        operation: pgtrigger.Operation,
+        to_candidate: tuple[str, ...],
+        always: tuple[str, ...] = (),
+        links: tuple[str, ...] = (),
+    ) -> None:
+        self.to_candidate = to_candidate
+        self.always = always
+        self.links = links
+        super().__init__(
+            name=name,
+            when=pgtrigger.Before,
+            operation=operation,
+            # Saving with nothing changed (only updated_at) is no change.
+            condition=(
+                pgtrigger.AnyChange(exclude=["updated_at"])
+                if operation == pgtrigger.Update
+                else None
+            ),
+        )
+
+    def get_func(self, model: models.Model) -> str:
+        row = "NEW" if self.operation == pgtrigger.Insert else "OLD"
+        meta = model._meta
+        candidate = f'{row}."{meta.pk.column}"'
+        for step, name in enumerate(self.to_candidate):
+            field = meta.get_field(name)
+            column = getattr(field, "column", name)
+            candidate = (
+                f'{row}."{column}"'
+                if step == 0
+                else f'(SELECT "{column}" FROM "{meta.db_table}" '
+                f'WHERE "{meta.pk.column}" = {candidate})'
+            )
+            meta = field.related_model._meta  # type: ignore[union-attr]
+        outcome = apps.get_model("gradings", "CandidateOutcome")._meta
+        refused = (
+            f'EXISTS (SELECT 1 FROM "{outcome.db_table}" '
+            f'WHERE "candidate_id" = {candidate} '
+            f"AND \"status\" = '{CandidateOutcomeStatus.FINALISED}')"
+        )
+        if self.operation == pgtrigger.Update:
+            refused = self._refused_change(model, decided=refused)
+        kept = "OLD" if self.operation == pgtrigger.Delete else "NEW"
+        return (
+            f"IF {refused} THEN RAISE EXCEPTION 'kukgrade: % rows are kept as the "
+            f"grading recorded them', TG_TABLE_NAME; END IF; RETURN {kept};"
+        )
+
+    def _refused_change(self, model: models.Model, *, decided: str) -> str:
+        def column(name: str) -> str:
+            return str(getattr(model._meta.get_field(name), "column", name))
+
+        def changed(columns: list[str]) -> str:
+            old = ", ".join(f'OLD."{c}"' for c in columns)
+            new = ", ".join(f'NEW."{c}"' for c in columns)
+            return f"(ROW({old}) IS DISTINCT FROM ROW({new}))"
+
+        links = [column(name) for name in self.links]
+        rest = [
+            field.column
+            for field in model._meta.concrete_fields
+            if field.column not in {"updated_at", *links}
+        ]
+        parts = [changed([column(name) for name in self.always])] if self.always else []
+        parts += [
+            f'(NEW."{c}" IS NOT NULL AND NEW."{c}" IS DISTINCT FROM OLD."{c}")'
+            for c in links
+        ]
+        parts.append(f"({changed(rest)} AND {decided})")
+        return " OR ".join(parts)
+
+
+def kept_once_decided(
+    *,
+    to_candidate: tuple[str, ...],
+    always: tuple[str, ...] = (),
+    links: tuple[str, ...] = (),
+    added_to: bool = False,
+) -> list[pgtrigger.Trigger]:
+    """A decided candidate's rows, refused a change or a delete; `added_to`
+    also refuses a new row under them (a mark, a comment, a mark change).
+    The kept names, so `kukgrade.kept.bypassing` passes them as the rest."""
+    triggers: list[pgtrigger.Trigger] = [
+        _KeptOnceDecided(
+            name=NO_UPDATE,
+            operation=pgtrigger.Update,
+            to_candidate=to_candidate,
+            always=always,
+            links=links,
+        ),
+        _KeptOnceDecided(
+            name=NO_DELETE,
+            operation=pgtrigger.Delete,
+            to_candidate=to_candidate,
+        ),
+    ]
+    if added_to:
+        triggers.append(no_additions_once_decided(to_candidate=to_candidate))
+    return triggers
+
+
+def no_additions_once_decided(*, to_candidate: tuple[str, ...]) -> pgtrigger.Trigger:
+    """Refuse a new row under a decided candidate."""
+    return _KeptOnceDecided(
+        name=NO_INSERT,
+        operation=pgtrigger.Insert,
+        to_candidate=to_candidate,
+    )
 
 
 class GradingSessionQuerySet(models.QuerySet["GradingSession"]):
@@ -320,6 +457,7 @@ class GradingCandidate(models.Model):
 
     class Meta:
         ordering = candidate_order()
+        triggers = kept_once_decided(to_candidate=())
         indexes = [
             models.Index(
                 fields=["session", "status"],
@@ -463,6 +601,7 @@ class CandidateAssessment(models.Model):
 
     class Meta:
         ordering = candidate_order("candidate__")
+        triggers = kept_once_decided(to_candidate=("candidate",))
         indexes = [
             models.Index(fields=["status"], name="cand_assess_status_idx"),
             models.Index(
@@ -846,6 +985,24 @@ class ItemResult(models.TextChoices):
     NOT_MET = "NOT_MET", "Not met"
 
 
+# What an item copied from the syllabus when the assessment was prepared.
+ASSESSMENT_ITEM_SNAPSHOT_FIELDS: tuple[str, ...] = (
+    "assessment",
+    "source_age_band",
+    "item_code",
+    "item_name",
+    "korean_name",
+    "category",
+    "requirement_sequence",
+    "position",
+    "required",
+    "start_number",
+    "end_number",
+    "requirement_notes",
+    "notation",
+)
+
+
 class CandidateAssessmentItem(models.Model):
     if TYPE_CHECKING:
         assessment_id: int
@@ -929,6 +1086,13 @@ class CandidateAssessmentItem(models.Model):
 
     class Meta:
         ordering = ["position", "pk"]
+        # The copy of the syllabus never changes; the marks, once decided.
+        triggers = kept_once_decided(
+            to_candidate=("assessment", "candidate"),
+            always=ASSESSMENT_ITEM_SNAPSHOT_FIELDS,
+            links=("source_requirement", "source_item", "source_rank"),
+            added_to=True,
+        )
         indexes = [
             models.Index(
                 fields=["assessment", "result"],
@@ -1028,11 +1192,13 @@ class CandidateAssessmentItem(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        self.item_code = (self.item_code or "").strip()
-        self.item_name = (self.item_name or "").strip()
-        self.korean_name = (self.korean_name or "").strip()
-        self.requirement_notes = (self.requirement_notes or "").strip()
-        self.notation = (self.notation or "").strip()
+        if self._state.adding:
+            # Tidied as it is copied; after that the copy is kept as it is.
+            self.item_code = (self.item_code or "").strip()
+            self.item_name = (self.item_name or "").strip()
+            self.korean_name = (self.korean_name or "").strip()
+            self.requirement_notes = (self.requirement_notes or "").strip()
+            self.notation = (self.notation or "").strip()
 
         errors = numbered_range_errors(self.start_number, self.end_number)
         if not self.item_code:
@@ -1096,7 +1262,10 @@ class AssessmentItemComment(KeptModel):
     class Meta:
         ordering = ["created_at", "pk"]
         # Never edited; deleted only with the item it is on.
-        triggers = kept_triggers(deleted_with="item")
+        triggers = [
+            *kept_triggers(deleted_with="item"),
+            no_additions_once_decided(to_candidate=("item", "assessment", "candidate")),
+        ]
         indexes = [
             models.Index(fields=["item", "created_at"], name="item_comment_item_idx"),
         ]
@@ -1178,7 +1347,10 @@ class AssessmentItemResultChange(KeptModel):
     class Meta:
         ordering = ["item_id", "sequence"]
         # Never edited; deleted only with the item it is on.
-        triggers = kept_triggers(deleted_with="item")
+        triggers = [
+            *kept_triggers(deleted_with="item"),
+            no_additions_once_decided(to_candidate=("item", "assessment", "candidate")),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["item", "sequence"],

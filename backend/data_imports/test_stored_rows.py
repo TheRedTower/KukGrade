@@ -43,7 +43,7 @@ from data_imports.tests import (
     upload_batch,
 )
 from gradings.models import LegacyGradingRecord
-from kukgrade.testing import interleave, page, results
+from kukgrade.testing import arrange, interleave, page, results
 from students.models import Student
 
 pytestmark = pytest.mark.django_db
@@ -264,7 +264,8 @@ def test_a_finished_imports_rows_go_after_they_are_kept_for() -> None:
     commit_student_import(old, actor=admin)
     recent = mapped(SECOND, admin=admin)
     commit_student_import(recent, actor=admin)
-    ImportBatch.objects.filter(pk=old.pk).update(
+    arrange(
+        ImportBatch.objects.filter(pk=old.pk),
         committed_at=timezone.now() - COMMITTED_ROWS_KEPT_FOR - timedelta(hours=1),
     )
 

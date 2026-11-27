@@ -54,7 +54,7 @@ from gradings.testing import (
     student,
     user,
 )
-from kukgrade.testing import results
+from kukgrade.testing import arrange, results
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
 from syllabus.services import effective_syllabus_requirements
 
@@ -976,7 +976,7 @@ def test_assessment_list_counts_in_the_database_and_agrees_with_the_summary() ->
     untouched = assessment(candidate=candidate(session=session))
     marker = user("assessment-list-marker@example.com")
     optional = list(marked.items.order_by("pk").values_list("pk", flat=True))[::4]
-    marked.items.filter(pk__in=optional).update(required=False)
+    arrange(marked.items.filter(pk__in=optional), required=False)
     everything = list(marked.items.order_by("pk"))
     # Required and optional items, each met, not met and left unassessed.
     for position, item in enumerate(everything):

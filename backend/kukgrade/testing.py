@@ -15,7 +15,9 @@ from collections.abc import Callable
 from typing import Any
 from unittest.mock import patch
 
-from django.db import connection
+from django.db import connection, models
+
+from kukgrade import kept
 
 # Test-client responses are annotated as Any: the object returned by
 # APIClient is Django's monkey-patched WSGI response, which gains .json()
@@ -123,3 +125,12 @@ def render_admin_pages(settings: Any) -> None:
     """Serve admin pages in a test: the network app does not mount the admin
     (kukgrade.urls_admin does). Call with pytest's `settings` fixture."""
     settings.ROOT_URLCONF = "kukgrade.urls_admin"
+
+
+def arrange(queryset: models.QuerySet[Any], **fields: Any) -> None:
+    """Put kept rows into the state a test needs, which the services would
+    have made another way (an optional requirement) or never make (to prove
+    a later check refuses it). It passes every refusal on the model, so it is
+    for tests only; the allowlist test (kukgrade/test_kept.py) refuses it
+    anywhere else."""
+    kept.bypass_update(queryset, reason="A test arranges the state it needs.", **fields)

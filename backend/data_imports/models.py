@@ -15,10 +15,12 @@ from collections.abc import Callable
 from datetime import timedelta
 from typing import Any, TypedDict, overload
 
+import pgtrigger
 from django.conf import settings
 from django.db import models
 
 from data_imports.storage import import_upload_path, import_upload_storage
+from kukgrade.kept import kept_triggers
 
 
 class _Setting[T]:
@@ -178,6 +180,11 @@ class ImportBatch(models.Model):
 
     class Meta:
         ordering = ["-uploaded_at", "-pk"]
+        # A finished import (imported, cancelled or expired) stays as it ended.
+        triggers = kept_triggers(
+            kept_rows=~pgtrigger.Q(old__status="UPLOADED"),
+            exclude=["updated_at"],
+        )
         indexes = [
             models.Index(
                 fields=["kind", "status"], name="import_batch_kind_status_idx"

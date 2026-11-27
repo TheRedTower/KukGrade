@@ -92,6 +92,8 @@ class KeptQuerySet(models.QuerySet[_Kept, _Kept]):
 
 NO_UPDATE = "kept_no_update"
 NO_DELETE = "kept_no_delete"
+# A new row under a kept one (a mark added to a decided grading).
+NO_INSERT = "kept_no_insert"
 GOES_WITH_PARENT = "kept_goes_with_parent"
 
 
@@ -183,8 +185,8 @@ def kept_triggers(
 
 @contextlib.contextmanager
 def bypassing(*models_: type[models.Model], reason: str) -> Iterator[None]:
-    """Let the database change or remove kept rows of `models_` (every kept
-    model when none is named) for the length of the block. `reason` says
+    """Let the database change, remove or add to kept rows of `models_` (every
+    kept model when none is named) for the length of the block. `reason` says
     why, beside the call; the allowlist test reads where it is used."""
     if not reason.strip():
         msg = "Say why the kept records are being changed."
@@ -192,7 +194,7 @@ def bypassing(*models_: type[models.Model], reason: str) -> Iterator[None]:
     uris = [
         f"{model._meta.app_label}.{model.__name__}:{name}"
         for model in models_
-        for name in (NO_UPDATE, NO_DELETE)
+        for name in (NO_UPDATE, NO_DELETE, NO_INSERT)
         if any(t.name == name for t in getattr(model._meta, "triggers", ()))
     ]
     logger.info(

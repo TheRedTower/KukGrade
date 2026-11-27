@@ -28,7 +28,7 @@ from gradings.testing import (
     start_assessment,
     user,
 )
-from kukgrade.testing import results
+from kukgrade.testing import arrange, results
 
 pytestmark = pytest.mark.django_db
 
@@ -291,7 +291,7 @@ def test_an_optional_item_of_a_completed_assessment_can_be_cleared_with_a_reason
     None
 ):
     item = open_item(completed=True)
-    CandidateAssessmentItem.objects.filter(pk=item.pk).update(required=False)
+    arrange(CandidateAssessmentItem.objects.filter(pk=item.pk), required=False)
     item.refresh_from_db()
 
     cleared = mark(

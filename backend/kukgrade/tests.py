@@ -137,6 +137,8 @@ def test_production_settings_are_hardened(
         "login": "10/min",
         "password_change": "10/min",
         "setup": "10/min",
+        "pdf_export": "20/min",
+        "import_upload": "10/min",
     }
 
 

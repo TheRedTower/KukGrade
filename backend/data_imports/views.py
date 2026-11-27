@@ -107,6 +107,8 @@ class ImportBatchViewSet(
 
     serializer_class = ImportBatchSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    # An upload is read whole and stored row by row: only it is rate limited.
+    throttle_scope = "import_upload"
     permission_map = {
         "list": ("data_imports.view_importbatch",),
         "retrieve": ("data_imports.view_importbatch",),
@@ -134,6 +136,9 @@ class ImportBatchViewSet(
             "those still open.",
         ),
     )
+
+    def get_throttles(self) -> list[Any]:
+        return super().get_throttles() if self.action == "create" else []
 
     def get_queryset(self) -> QuerySet[ImportBatch]:
         return with_row_counts(

@@ -120,7 +120,7 @@ Want something here, or something that is missing? Open an
 ## Deferred until there is a real need
 
 Certificates, notifications, payments, student or parent self-service, a background worker,
-and running more than one application worker (the sign-in throttle needs a shared cache first).
+and running more than one application worker (the rate limits need a shared cache first).
 
 ## Known limitations
 

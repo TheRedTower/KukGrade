@@ -165,8 +165,8 @@ site is not mounted on the network app. See [installation.md](installation.md).
 
 ## Decisions worth knowing
 
-- **Why one worker?** Sign-in throttling uses process-local memory. Scaling out needs a
-  shared cache first.
+- **Why one worker?** The rate limits (sign-in, password change, setup, PDF exports and
+  import uploads) count in process-local memory. Scaling out needs a shared cache first.
 - **Why no SQLite?** A SQLite fallback once existed and could not actually run this
   application, so it was removed rather than half-supported.
 - **Why no syllabus versioning?** Copying requirement text into each assessment already

@@ -38,6 +38,11 @@ from accounts.permissions import HasRequiredPermissions
 class KukGradeViewSet[M: models.Model](GenericViewSet[M]):
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     permission_classes = [HasRequiredPermissions]
+    # No rate limit unless an action names its scope, as the PDF exports do
+    # with @action(throttle_scope=...), or a viewset names one and limits it
+    # to the action it means in get_throttles (the import upload). The rates
+    # are settings.REST_FRAMEWORK's.
+    throttle_scope: str | None = None
 
     @property
     def actor(self) -> User:

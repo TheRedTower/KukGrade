@@ -18,7 +18,8 @@ over plain HTTP `sessionid` and `csrftoken`. Send the CSRF cookie's value in the
 `X-CSRFToken` header on every `POST`, `PUT`, `PATCH` and `DELETE`. There are no API keys
 or tokens, and students have no accounts.
 
-Sign-in and password change are rate-limited. A request from an account that must change
+Sign-in, first-administrator setup, password change, PDF exports and import uploads are
+rate-limited (`throttled`, 429). A request from an account that must change
 its password is refused with `password_change_required` until it does.
 
 ## Areas
@@ -97,7 +98,8 @@ Smith"), or "Jane Smith (administrator)". No record serves a person's email addr
 
 `code` is stable and machine-readable: `validation_error`, `authentication_required`,
 `authentication_failed`, `permission_denied`, `password_change_required`, `not_found`,
-`method_not_allowed`, `csrf_failed`, `throttled`, `server_error` or `error`. `fields`
+`method_not_allowed`, `csrf_failed`, `throttled` (429: sign-in, password change, setup, a
+PDF export or an import upload asked for too often), `server_error` or `error`. `fields`
 appears only on `validation_error`. When a validation failure has a single message it is
 promoted to `message`, since it is nearly always a domain rule worth showing as it is.
 Server errors reveal nothing about the cause; that belongs in the logs.

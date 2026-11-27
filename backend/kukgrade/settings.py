@@ -351,13 +351,18 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ["kukgrade.filtering.DeclaredQueryFilters"],
     # Scoped so it only throttles views that opt in with throttle_scope - a
     # view without one is never rate limited by this. Login, password change
-    # and first-administrator setup opt in to their own scopes.
+    # and first-administrator setup opt in to their own scopes, and so do the
+    # two heavy requests: a PDF export and an import upload. A signed-in
+    # request is counted per user, the rest per address.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {
         # Visitors to the demo share a few addresses (an office, a school).
         "login": "60/min" if DEMO_MODE else "10/min",
         "password_change": "10/min",
         "setup": "10/min",
+        # Visitors to the demo share its accounts.
+        "pdf_export": "60/min" if DEMO_MODE else "20/min",
+        "import_upload": "10/min",
     },
     # How many proxies sit in front, each trusted: the client address is the
     # Nth-from-last X-Forwarded-For entry (see PROXY_HOPS). Zero ignores

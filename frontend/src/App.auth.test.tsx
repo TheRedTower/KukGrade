@@ -229,7 +229,7 @@ describe("App authentication", () => {
       jsonResponse(429, {
         error: {
           code: "throttled",
-          message: "Request was throttled. Expected available in 42 seconds.",
+          message: "That was asked for too often. Wait a minute and try again.",
         },
       }),
     ]);
@@ -243,7 +243,7 @@ describe("App authentication", () => {
     await user.type(screen.getByLabelText("Password"), "wrong");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(await screen.findByText("Request was throttled. Expected available in 42 seconds.")).toBeVisible();
+    expect(await screen.findByText("That was asked for too often. Wait a minute and try again.")).toBeVisible();
     expect(screen.queryByText("Email or password is incorrect.")).not.toBeInTheDocument();
   });
 

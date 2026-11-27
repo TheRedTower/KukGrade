@@ -228,9 +228,10 @@ docker compose exec -T kukgrade python manage.py expire_stale_import_batches --h
 
 It also removes stored rows from imports finished over 30 days ago.
 
-The container runs one application worker on purpose. The sign-in throttle is
-held in that process's memory, so running several workers or replicas needs a
-shared cache first.
+The container runs one application worker on purpose. The rate limits (sign-in and
+setup by address; password change, PDF exports, 20 a minute, and import uploads,
+10 a minute, by user) are counted in that process's memory, so running several
+workers or replicas needs a shared cache first.
 
 ## The Django admin site
 

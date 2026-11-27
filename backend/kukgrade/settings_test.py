@@ -46,6 +46,8 @@ REST_FRAMEWORK = {
         "login": "1000/min",
         "password_change": "1000/min",
         "setup": "1000/min",
+        "pdf_export": "1000/min",
+        "import_upload": "1000/min",
     },
 }
 

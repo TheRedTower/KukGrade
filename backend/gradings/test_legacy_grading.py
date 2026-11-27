@@ -266,7 +266,7 @@ def test_void_requires_a_reason() -> None:
         void_legacy_record(record, reason="   ", actor=actor)
 
 
-def test_void_records_actor_reason_and_timestamp() -> None:
+def test_void_records_actor_reason_and_timestamp_and_audits_no_reason() -> None:
     record = legacy_record()
     actor = user("legacy-void-admin-2@example.com")
 
@@ -284,10 +284,9 @@ def test_void_records_actor_reason_and_timestamp() -> None:
         action=AuditAction.LEGACY_GRADING_VOIDED,
         entity_id=str(record.pk),
     )
-    assert event.metadata["reason"] == "Duplicate row in source workbook"
-    assert event.summary == (
-        "Historical grading record voided: Duplicate row in source workbook"
-    )
+    # The record holds the reason; the log records only that it was voided.
+    assert "reason" not in event.metadata
+    assert event.summary == "Historical grading record voided."
     assert "whole_import" not in event.metadata
 
 

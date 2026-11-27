@@ -101,7 +101,7 @@ changes are refused a change, a delete or an addition (`gradings.models.kept_onc
 only an item's link back to the live syllabus may clear, when that syllabus goes. A finished import (imported, cancelled or
 expired) stays as it ended. Emptying a table with `TRUNCATE` is left to its owner: it is
 how Django resets a test database. The few services that change a kept row on
-purpose (erasing a student's details, removing a proposal with its assessment) go through
+purpose (removing a proposal with its assessment, the demo's reset) go through
 `kept.bypass_update` or `kept.bypass_delete` with their reason, and a test keeps the list
 of modules allowed to.
 

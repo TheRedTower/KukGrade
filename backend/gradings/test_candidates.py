@@ -352,8 +352,9 @@ def test_real_candidate_update_records_exactly_one_event_with_full_metadata() ->
     )
     assert events.count() == 1
     metadata = events.get().metadata
-    assert metadata["before"]["notes"] == "Original note"
-    assert metadata["after"]["notes"] == "Changed note"
+    assert metadata["changed_fields"] == ["notes"]
+    assert "notes" not in metadata["before"]
+    assert "notes" not in metadata["after"]
     assert metadata["before"]["session"] == built.session_id
     assert metadata["after"]["session"] == built.session_id
 

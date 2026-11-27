@@ -11,7 +11,7 @@ from accounts.models import User
 from accounts.people import title_of
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from audit.models import AuditAction
-from audit.recording import grading_context, record, student_label
+from audit.recording import changes, grading_context, record, student_label
 from gradings.locking import (
     lock_assessment,
     lock_candidate,
@@ -447,8 +447,8 @@ def update_candidate_assessment(
             f"Assessment for {student_label(locked_assessment.candidate.student)} "
             f"{locked_assessment.get_status_display().lower()}."
         )
-    # Like an item's notes, the overall observation is a written judgement:
-    # a change keeps both versions, so it cannot be silently rewritten.
+    # The overall observation is typed text: the log records that it
+    # changed, by whom and when, and the assessment holds the words.
     record(
         recorded_action,
         locked_assessment,
@@ -457,10 +457,10 @@ def update_candidate_assessment(
         metadata={
             **grading_context(locked_assessment.candidate),
             **(
-                {
-                    "before": {"notes": previous_notes},
-                    "after": {"notes": locked_assessment.notes},
-                }
+                changes(
+                    {"notes": previous_notes},
+                    {"notes": locked_assessment.notes},
+                )
                 if notes_changed
                 else {}
             ),

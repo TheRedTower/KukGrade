@@ -96,8 +96,6 @@ class AuditAction(models.TextChoices):
         "Historical records moved to another person",
     )
 
-    AUDIT_REDACTED = "AUDIT_REDACTED", "Personal details erased from the audit log"
-
 
 class AuditEntity(models.TextChoices):
     """What an event is about: the model name `record()` stores."""
@@ -113,7 +111,6 @@ class AuditEntity(models.TextChoices):
     IMPORT_BATCH = "ImportBatch", "Import"
     LEGACY_GRADING_RECORD = "LegacyGradingRecord", "Historical grading record"
     LEGACY_PERSON = "LegacyPerson", "Historical person"
-    AUDIT_LOG = "AuditLog", "Audit log"
 
 
 # Logistics - who runs the roster - is an administrator concern, the same
@@ -180,7 +177,7 @@ class AuditEvent(KeptModel):
         ordering = ["-occurred_at", "-pk"]
         # Append-only in the database too: no row is changed or removed but
         # through kukgrade.kept's bypass, from the modules kukgrade/test_kept.py
-        # allows (redact_student_audit, and the demo's own club).
+        # allows (the demo's own club).
         triggers = kept_triggers()
         indexes = [
             models.Index(

@@ -684,6 +684,7 @@ def test_editing_a_sessions_details_is_audited_and_a_resend_is_not() -> None:
         entity_id=str(session.pk),
     )
     assert event.metadata == {
+        "changed_fields": ["location"],
         "before": {"location": "Hall A"},
         "after": {"location": "Hall B"},
     }

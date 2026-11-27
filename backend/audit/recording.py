@@ -7,7 +7,7 @@ happened when it did not is worse than no trail.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from django.db import models
@@ -39,6 +39,54 @@ def grading_context(candidate: models.Model) -> dict[str, int]:
     }
 
 
+# What a person types: notes, reasons and conditions. They can name a child or
+# say anything about one, so the log records that one was written or changed,
+# by whom and when, never the words; the record itself holds them.
+TYPED_TEXT = frozenset(
+    {
+        "notes",
+        "proposal_notes",
+        "withdrawal_note",
+        "cancellation_reason",
+        "conditional_requirements",
+        "decision_notes",
+        "void_reason",
+    },
+)
+
+
+def changes(
+    before: Mapping[str, Any],
+    after: Mapping[str, Any],
+    *,
+    kept_out: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
+    """A revision, for an event's metadata: `before` and `after`, and every
+    field that differs in `changed_fields`. Typed text and the fields in
+    `kept_out` are recorded only as having changed, never by value."""
+    left_out = TYPED_TEXT | kept_out
+    return {
+        "changed_fields": [
+            key
+            for key in [*before, *(k for k in after if k not in before)]
+            if before.get(key) != after.get(key)
+        ],
+        "before": {k: v for k, v in before.items() if k not in left_out},
+        "after": {k: v for k, v in after.items() if k not in left_out},
+    }
+
+
+def _typed_text_in(value: Any) -> set[str]:
+    if isinstance(value, Mapping):
+        found = {key for key in value if key in TYPED_TEXT}
+        for item in value.values():
+            found |= _typed_text_in(item)
+        return found
+    if isinstance(value, list):
+        return set().union(*(_typed_text_in(item) for item in value))
+    return set()
+
+
 def _build(
     action: str,
     entity: models.Model,
@@ -46,6 +94,9 @@ def _build(
     actor: User | None,
     metadata: dict[str, Any] | None = None,
 ) -> AuditEvent:
+    if typed := _typed_text_in(metadata):
+        msg = f"An audit event records typed text only as changed: {sorted(typed)}."
+        raise ValueError(msg)
     return AuditEvent(
         actor=actor,
         actor_email=actor.email if actor else "",

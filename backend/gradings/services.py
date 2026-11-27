@@ -24,6 +24,7 @@ from accounts.permissions import (
     DELETE_ANY_SESSION_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
 )
+from audit import recording
 from audit.models import AuditAction
 from audit.recording import grading_context, record, student_label
 from gradings.assessment_services import (
@@ -317,7 +318,7 @@ def transition_grading_session(
         session=locked_session,
     )
 
-    cancellation_reason = locked_session.cancellation_reason
+    previous_reason = cancellation_reason = locked_session.cancellation_reason
     if target_status == GradingSession.Status.CANCELLED and cancelling_needs_reason(
         locked_session
     ):
@@ -355,13 +356,13 @@ def transition_grading_session(
         f"{GradingSession.Status(previous_status).label} to "
         f"{GradingSession.Status(target_status).label}.",
         actor=actor,
-        metadata={
-            "before": {"status": previous_status},
-            "after": {
-                "status": target_status,
-                "cancellation_reason": cancellation_reason,
+        metadata=recording.changes(
+            {
+                "status": previous_status,
+                "cancellation_reason": previous_reason,
             },
-        },
+            {"status": target_status, "cancellation_reason": cancellation_reason},
+        ),
     )
     return locked_session
 
@@ -482,10 +483,10 @@ def update_grading_session(
             locked,
             f"Grading session {locked.title} updated.",
             actor=actor,
-            metadata={
-                "before": {field: before[field] for field in changed},
-                "after": {field: after[field] for field in changed},
-            },
+            metadata=recording.changes(
+                {field: before[field] for field in changed},
+                {field: after[field] for field in changed},
+            ),
         )
     if target_status is not None and target_status != locked.status:
         locked = transition_grading_session(
@@ -572,7 +573,6 @@ def withdraw_locked_candidate(
         discarded_proposal = {
             "status": outcome.status,
             "proposed_outcome": outcome.proposed_outcome,
-            "proposal_notes": outcome.proposal_notes,
             "proposed_by": (
                 str(outcome.proposed_by_id) if outcome.proposed_by_id else None
             ),
@@ -596,7 +596,7 @@ def withdraw_locked_candidate(
         actor=actor,
         metadata={
             "reason": reason,
-            "note": locked_candidate.withdrawal_note,
+            "note_given": bool(locked_candidate.withdrawal_note),
             "discarded_proposal": discarded_proposal,
             **grading_context(locked_candidate),
         },
@@ -1414,8 +1414,7 @@ def apply_candidate_update(
         ),
         actor=actor,
         metadata={
-            "before": before,
-            "after": after,
+            **recording.changes(before, after),
             **grading_context(updated),
         },
     )

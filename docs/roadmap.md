@@ -81,13 +81,6 @@ Want something here, or something that is missing? Open an
   Timescale `pg_textsearch`) was considered and set aside: each adds a second service or an
   extension to install on a school's own PostgreSQL, for little gain on short names and titles.
 
-- [ ] **Erasing a name from the audit log, tidied.** `redact_student_audit` stays: a name can
-      be typed into the notes the log copies word for word. What goes is its handling of the
-      event format from before 2026-11, which no club ever ran (rewriting "Name (ID)", and
-      removing name and date of birth from saved copies of the student record), and its
-      description and [privacy.md](privacy.md) are to say what it is for now. Deferred by the
-      owner on 2026-11-27.
-
 ## Needs a decision first
 
 - **Black belt syllabus.** The app holds the syllabus up to Jo Kyo Nim. The charts for the
@@ -124,7 +117,7 @@ and running more than one application worker (the rate limits need a shared cach
 - Abandoned import uploads are cleared by the next upload or the next start of the container, not on a
   timer: a server that is never restarted and receives no uploads keeps one until then. For a firm
   limit, run `expire_stale_import_batches` from a scheduler ([installation](installation.md#maintenance)).
-- Data erasure on request: a student's name and date of birth can be erased from older audit events with `redact_student_audit` ([Privacy](privacy.md)); deleting the student, their grading history and any other copies (backups) remains manual.
+- Data erasure on request: the audit log holds no names, dates of birth or typed text, so there is nothing to erase from it; the student's record and the copies outside the app (backups, PDFs) remain manual ([Privacy](privacy.md)).
 - The emergency Django admin is view-only for grading and student data, and for the role
   groups. A record that needs correcting is corrected in KukGrade, or by calling the
   service from a shell; a role group's permissions change only in code, by a migration.

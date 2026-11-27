@@ -211,10 +211,10 @@ deletions and imports. Each event is written in the same database transaction as
 the change, so there is never an event for something that did not happen, nor a
 change without an event. Events cannot be edited or deleted through the app, the API or
 the admin. It stays attributed to a person even if their account is
-later deleted. New events never hold a student's name or date of birth: they
-name the student by WKSA ID and say which fields changed, and the screens add
-the student's current name while they exist. Older events can be cleaned on
-request ([Privacy](privacy.md)). An event's summary and details are written in the
+later deleted. Events never hold a student's name or date of birth, nor anything
+typed (notes, reasons, conditions): they name the student by WKSA ID and say which
+fields changed ("Notes: Changed"), the record holds the words, and the screens add
+the student's current name while they exist ([Privacy](privacy.md)). An event's summary and details are written in the
 words the screens use ("moved from Draft to Open", "Mark: Not assessed to Met"),
 never as stored codes or ids.
 

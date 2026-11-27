@@ -143,7 +143,14 @@ def test_revising_a_proposal_records_what_it_said_before() -> None:
 
     # The second must show what it overwrote, or the Master adjudicates blind.
     assert proposals[1].metadata["before"]["proposed_outcome"] == "PASS"
-    assert proposals[1].metadata["before"]["proposal_notes"] == "Looked strong."
+    # Its notes are recorded as changed, never copied: the outcome holds them.
+    assert proposals[1].metadata["changed_fields"] == [
+        "proposed_outcome",
+        "proposal_notes",
+        "proposed_by",
+    ]
+    assert "proposal_notes" not in proposals[1].metadata["before"]
+    assert "proposal_notes" not in proposals[1].metadata["after"]
     assert proposals[1].metadata["after"]["proposed_outcome"] == "FAIL"
     assert proposals[1].actor == second
     assert proposals[1].summary.startswith(

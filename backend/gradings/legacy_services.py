@@ -311,11 +311,10 @@ def _void(
     record(
         AuditAction.LEGACY_GRADING_VOIDED,
         locked,
-        f"Historical grading record voided{how}: {reason}",
+        f"Historical grading record voided{how}.",
         actor=actor,
         metadata={
             "legacy_record_id": locked.pk,
-            "reason": reason,
             "batch_id": locked.source_batch_id,
             **({"whole_import": True} if whole_import else {}),
         },

@@ -81,6 +81,19 @@ Want something here, or something that is missing? Open an
   Timescale `pg_textsearch`) was considered and set aside: each adds a second service or an
   extension to install on a school's own PostgreSQL, for little gain on short names and titles.
 
+- [ ] **Withdrawn candidates on the session screen, decided by the server.** The screen
+      decides a candidate is withdrawn by comparing their status itself (`SessionParts.tsx`,
+      `sessionDetail.ts`), and its Assessment filter adds "Withdrawn" to the assessment
+      statuses and filters in the browser, beside the candidates list's own `withdrawn` filter
+      on the server. To do: serve what the screen needs and filter on the server, as the search
+      already does, so the rule is stated once.
+- [ ] **Erasing a name from the audit log, tidied.** `redact_student_audit` stays: a name can
+      be typed into the notes the log copies word for word. What goes is its handling of the
+      event format from before 2026-11, which no club ever ran (rewriting "Name (ID)", and
+      removing name and date of birth from saved copies of the student record), and its
+      description and [privacy.md](privacy.md) are to say what it is for now. Deferred by the
+      owner on 2026-11-27.
+
 ## Needs a decision first
 
 - **Black belt syllabus.** The app holds the syllabus up to Jo Kyo Nim. The charts for the

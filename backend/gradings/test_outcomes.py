@@ -38,6 +38,7 @@ from gradings.testing import (
     locked_session_with_undecided_candidate,
     master,
     override_master,
+    rank,
     start_assessment,
     user,
 )
@@ -522,6 +523,26 @@ def test_a_final_decision_cannot_be_changed_by_a_direct_save() -> None:
     assert "A final decision cannot be changed." in str(exc_info.value)
     outcome.refresh_from_db()
     assert outcome.final_outcome == CandidateOutcome.Outcome.PASS
+
+
+@pytest.mark.parametrize("field", ["decided_by_title", "proposed_by_title"])
+def test_who_decided_and_proposed_stay_as_they_were_titled(field: str) -> None:
+    built, _generated = locked_completed_candidate()
+    proposer = user("titled-proposer@example.com", rank=rank("JKN"))
+    decider = master("titled-master@example.com")
+    decider.rank = rank("KSN")
+    decider.save(update_fields=["rank"])
+    proposal = propose_for_candidate(built, PASS, "", proposer)
+    outcome = finalise_candidate_outcome(proposal, PASS, "", "", decider)
+    assert (outcome.proposed_by_title, outcome.decided_by_title) == ("JKN", "KSN")
+    before = getattr(outcome, field)
+    setattr(outcome, field, "")
+
+    with pytest.raises(ValidationError, match="A final decision cannot be changed."):
+        outcome.save()
+
+    outcome.refresh_from_db()
+    assert getattr(outcome, field) == before
 
 
 def test_finalising_is_the_services_alone_and_needs_authority() -> None:

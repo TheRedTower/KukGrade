@@ -348,6 +348,24 @@ def test_only_a_finished_historical_import_can_be_voided() -> None:
             void_import_records(batch, reason="Wrong file", actor=admin)
 
 
+def test_voiding_reads_the_batch_as_it_is_not_as_it_was_passed() -> None:
+    admin = admin_user()
+    still_open = upload_batch(
+        kind=ImportBatch.Kind.LEGACY_GRADINGS,
+        content=standard_workbook([["A. Example", "White", "Yellow", "Pass", ""]]),
+        uploaded_by=admin,
+    )
+    # A copy that says it is finished, when the database says otherwise.
+    still_open.status = ImportBatch.Status.COMMITTED
+    with pytest.raises(ValidationError, match="Only a finished historical"):
+        void_import_records(still_open, reason="Wrong file", actor=admin)
+
+    # And the other way: a copy from before it finished.
+    finished = finished_workbook(admin)
+    finished.status = ImportBatch.Status.UPLOADED
+    assert void_import_records(finished, reason="Wrong file", actor=admin) > 0
+
+
 def test_voiding_needs_a_reason_and_a_reconciler() -> None:
     admin = admin_user()
     batch = finished_workbook(admin)

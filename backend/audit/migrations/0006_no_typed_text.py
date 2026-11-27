@@ -4,6 +4,10 @@
 Events written before this copied notes, reasons and conditions as typed
 (see audit.recording.TYPED_TEXT). Each is rewritten to what a new event
 records: that the text changed, never the words, which the records hold.
+
+Events from before 2026-11-05, which named a student and copied their date of
+birth, are not handled: no club ran KukGrade before 0.2.0 (2026-11-22), so no
+database holds one.
 """
 
 import re

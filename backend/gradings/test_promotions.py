@@ -53,6 +53,7 @@ from gradings.testing import (
     student,
     user,
 )
+from kukgrade.testing import arrange
 from ranks.models import Rank
 from students.models import Student
 
@@ -111,7 +112,9 @@ def test_ledger_eligibility_uses_promotion_policy_and_updates_with_student_id() 
     assert ready.json()[0]["eligible"] is True
     assert ready.json()[0]["reason"] == ""
 
-    GradingCandidate.objects.filter(pk=built.pk).update(testing_for_rank=rank("BROWN"))
+    arrange(
+        GradingCandidate.objects.filter(pk=built.pk), testing_for_rank=rank("BROWN")
+    )
     wrong_rank = client.get(url)
     assert wrong_rank.json()[0]["eligible"] is False
     assert "no longer the next active rank" in wrong_rank.json()[0]["reason"]
@@ -373,7 +376,8 @@ def test_promotion_rejects_invalid_candidate_assessment_and_session_states() -> 
 
     built, generated = locked_completed_candidate()
     second_outcome = finalised_outcome(built)
-    CandidateAssessment.objects.filter(pk=generated.pk).update(
+    arrange(
+        CandidateAssessment.objects.filter(pk=generated.pk),
         status=CandidateAssessment.Status.IN_PROGRESS,
         completed_at=None,
     )
@@ -399,8 +403,9 @@ def test_promotion_rejects_invalid_candidate_assessment_and_session_states() -> 
     withdrawn, _withdrawn_assessment = locked_completed_candidate()
     withdrawn_outcome = finalised_outcome(withdrawn)
     # Unreachable through the services (a finalised outcome blocks withdrawal),
-    # so written directly - with the attribution the database requires.
-    GradingCandidate.objects.filter(pk=withdrawn.pk).update(
+    # so arranged directly - with the attribution the database requires.
+    arrange(
+        GradingCandidate.objects.filter(pk=withdrawn.pk),
         status=GradingCandidate.Status.WITHDRAWN,
         withdrawal_reason=GradingCandidate.WithdrawalReason.OTHER,
         withdrawal_note="Written directly for the test.",
@@ -423,7 +428,8 @@ def test_promotion_rejects_rank_progression_drift() -> None:
 
     skipped_built, _skipped_generated = locked_completed_candidate()
     skipped_outcome = finalised_outcome(skipped_built)
-    GradingCandidate.objects.filter(pk=skipped_built.pk).update(
+    arrange(
+        GradingCandidate.objects.filter(pk=skipped_built.pk),
         testing_for_rank=rank("YELLOW"),
     )
     with pytest.raises(ValidationError):

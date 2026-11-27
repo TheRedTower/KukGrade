@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import ast
 from collections.abc import Iterator
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,9 @@ from gradings.models import (
     AssessmentItemComment,
     AssessmentItemResultChange,
     CandidateAssessment,
+    CandidateAssessmentItem,
     CandidateOutcome,
+    GradingCandidate,
     GradingSession,
     LegacyGradingRecord,
     Promotion,
@@ -33,6 +36,7 @@ from gradings.testing import (
     user,
 )
 from kukgrade import kept
+from kukgrade.testing import arrange
 
 pytestmark = pytest.mark.django_db
 
@@ -88,12 +92,19 @@ def _calls(path: Path) -> Iterator[str]:
                     yield "kept (imported by name)"
                 if node.module == "pgtrigger" and alias.name == "ignore":
                     yield "pgtrigger.ignore"
+                # arrange() passes every refusal; tests only.
+                if node.module == "kukgrade.testing" or (
+                    node.module == "kukgrade" and alias.name == "testing"
+                ):
+                    yield "kukgrade.testing"
                 if alias.name == "QuerySet" and alias.asname:
                     yield "QuerySet (renamed)"
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name == "kukgrade.kept" and alias.asname:
                     kept_names.add(alias.asname)
+                if alias.name == "kukgrade.testing":
+                    yield "kukgrade.testing"
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             if any(words in node.value for words in TRIGGERS_OFF):
@@ -133,6 +144,7 @@ def test_only_the_allowed_modules_pass_the_kept_records_guard() -> None:
         "pgtrigger.ignore",
         "kept (imported by name)",
         "triggers off in SQL",
+        "kukgrade.testing",
     }
     silent = {where: calls & unnamed for where, calls in found.items()}
     assert {where: calls for where, calls in silent.items() if calls} == {}
@@ -153,7 +165,7 @@ def test_no_bypass_removes_a_row_that_goes_with_its_parent() -> None:
 # --------------------------------------------------------------------------
 
 
-def _sql(statement: str, *params: int, check_now: bool = False) -> None:
+def _sql(statement: str, *params: int | str, check_now: bool = False) -> None:
     """Run raw SQL in its own savepoint, as psql or a hand-written migration
     would; `check_now` runs the checks the commit would run, there and then."""
     with transaction.atomic(), connection.cursor() as cursor:
@@ -271,3 +283,170 @@ def test_the_bypass_passes_only_the_model_named() -> None:
             f"UPDATE {Promotion._meta.db_table} SET notes = 'x' WHERE id = %s",  # noqa: S608
             promotion.pk,
         )
+
+
+# --------------------------------------------------------------------------
+# What a final decision rests on, kept once it is recorded
+# --------------------------------------------------------------------------
+
+
+def _decided() -> tuple[CandidateOutcome, int]:
+    built, generated = locked_completed_candidate()
+    item = generated.items.first()
+    assert item is not None
+    return finalised_outcome(built), item.pk
+
+
+def test_a_decided_registration_assessment_and_marks_are_kept() -> None:
+    outcome, item = _decided()
+    candidate_table = outcome.candidate._meta.db_table
+    assessment_table = CandidateAssessment._meta.db_table
+    item_table = CandidateAssessmentItem._meta.db_table
+
+    for statement, row in (
+        (
+            f"UPDATE {candidate_table} SET notes = 'x' WHERE id = %s",
+            outcome.candidate_id,
+        ),
+        (f"DELETE FROM {candidate_table} WHERE id = %s", outcome.candidate_id),
+        (
+            f"UPDATE {assessment_table} SET notes = 'x' WHERE id = %s",
+            outcome.assessment_id,
+        ),
+        (f"DELETE FROM {assessment_table} WHERE id = %s", outcome.assessment_id),
+        (f"UPDATE {item_table} SET result = 'NOT_MET' WHERE id = %s", item),
+        (f"UPDATE {item_table} SET assessor_title = 'x' WHERE id = %s", item),
+        (f"DELETE FROM {item_table} WHERE id = %s", item),
+    ):
+        _refused(statement, row)
+    # Saving with nothing changed is no change.
+    _sql(f"UPDATE {item_table} SET updated_at = now() WHERE id = %s", item)  # noqa: S608
+
+
+def test_before_the_decision_the_marks_may_change_and_the_copy_never() -> None:
+    prepared = assessment(
+        candidate=candidate(session=grading_session(status=GradingSession.Status.OPEN)),
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    item = prepared.items.first()
+    assert item is not None
+    table = CandidateAssessmentItem._meta.db_table
+
+    _sql(
+        f"UPDATE {table} SET result = 'NOT_MET', assessor_id = %s, "  # noqa: S608
+        "assessed_at = now() WHERE id = %s",
+        str(user("kept-before@example.com").pk),
+        item.pk,
+    )
+    for column in ("item_name", "requirement_notes", "required"):
+        value = "false" if column == "required" else "'x'"
+        _refused(f"UPDATE {table} SET {column} = {value} WHERE id = %s", item.pk)  # noqa: S608
+    # The registration and the assessment change as the grading runs.
+    for other, row in (
+        (GradingCandidate._meta.db_table, prepared.candidate_id),
+        (CandidateAssessment._meta.db_table, prepared.pk),
+    ):
+        _sql(f"UPDATE {other} SET notes = 'x' WHERE id = %s", row)  # noqa: S608
+
+
+def test_nothing_is_added_under_a_decided_grading() -> None:
+    _outcome, item = _decided()
+    marked = CandidateAssessmentItem.objects.get(pk=item)
+    marker = user("kept-adds@example.com")
+
+    with pytest.raises(DatabaseError, match="kept"), transaction.atomic():
+        marked.pk = None
+        marked.position = 999
+        marked.save()
+    with pytest.raises(DatabaseError, match="kept"), transaction.atomic():
+        AssessmentItemComment.objects.create(item_id=item, body="Late.", author=marker)
+    with pytest.raises(DatabaseError, match="kept"), transaction.atomic():
+        AssessmentItemResultChange.objects.create(
+            item_id=item,
+            sequence=99,
+            from_result="MET",
+            to_result="NOT_MET",
+            changed_by=marker,
+            reason="Late.",
+        )
+
+
+def test_a_mark_is_saved_alone_whatever_the_copy_holds() -> None:
+    # The copy is written as the syllabus held it; marking writes only the mark.
+    from gradings.assessment_services import update_candidate_assessment_item
+
+    prepared = assessment(
+        candidate=candidate(session=grading_session(status=GradingSession.Status.OPEN)),
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    item = prepared.items.first()
+    assert item is not None
+    arrange(CandidateAssessmentItem.objects.filter(pk=item.pk), item_name="Stance ")
+    item.refresh_from_db()
+
+    update_candidate_assessment_item(
+        item, result="MET", assessor=user("kept-spaces@example.com")
+    )
+
+    item.refresh_from_db()
+    assert (item.result, item.item_name) == ("MET", "Stance ")
+
+
+def test_a_decided_items_link_to_the_syllabus_clears_when_the_syllabus_goes() -> None:
+    _outcome, item = _decided()
+    marked = CandidateAssessmentItem.objects.get(pk=item)
+    requirement = marked.source_requirement
+    assert requirement is not None
+
+    requirement.delete()
+
+    marked.refresh_from_db()
+    assert marked.source_requirement is None
+    assert marked.item_name
+    # Cleared, never pointed elsewhere.
+    other = CandidateAssessmentItem.objects.exclude(pk=item).exclude(source_rank=None)
+    elsewhere = other.values_list("source_item_id", flat=True).first()
+    assert elsewhere is not None
+    _refused(
+        f"UPDATE {CandidateAssessmentItem._meta.db_table} "  # noqa: S608
+        "SET source_item_id = %s WHERE id = %s",
+        elsewhere,
+        item,
+    )
+
+
+@pytest.mark.parametrize("ending", ["cancelled", "imported", "expired"])
+def test_a_finished_import_stays_as_it_ended(ending: str) -> None:
+    from data_imports.models import ImportBatch
+    from data_imports.services import (
+        cancel_import_batch,
+        commit_student_import,
+        expire_import_batch,
+        save_import_mapping,
+    )
+    from data_imports.tests import (
+        CLEAN_ROW,
+        STANDARD_MAPPING,
+        admin_user,
+        student_workbook,
+        upload_batch,
+    )
+
+    administrator = admin_user()
+    batch = upload_batch(
+        content=student_workbook([CLEAN_ROW]), uploaded_by=administrator
+    )
+    table = ImportBatch._meta.db_table
+    # While it is open, it changes as it is checked.
+    _sql(f"UPDATE {table} SET updated_at = now() WHERE id = %s", batch.pk)  # noqa: S608
+
+    if ending == "cancelled":
+        cancel_import_batch(batch, actor=administrator)
+    elif ending == "expired":
+        assert expire_import_batch(batch.pk, max_age=timedelta(0))
+    else:
+        mapped = save_import_mapping(batch, column_mapping=STANDARD_MAPPING)
+        commit_student_import(mapped, actor=administrator)
+    _refused(f"UPDATE {table} SET uploaded_by_title = 'x' WHERE id = %s", batch.pk)  # noqa: S608
+    _sql(f"UPDATE {table} SET updated_at = now() WHERE id = %s", batch.pk)  # noqa: S608
+    _refused(f"DELETE FROM {table} WHERE id = %s", batch.pk)  # noqa: S608

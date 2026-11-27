@@ -92,7 +92,13 @@ into immutable per-candidate rows, so editing the syllabus later cannot change a
 grading. Promotions, finalised outcomes, item comments, mark changes and audit events
 are immutable, by one guard (`kukgrade/kept.py`); imported records are voided, never
 deleted. The database holds the same line with triggers (django-pgtrigger), so raw SQL,
-`psql` or a later migration is refused too. The few services that change a kept row on
+`psql` or a later migration is refused too. It also keeps what a final decision rests on:
+an assessment item's copy of the syllabus never changes, and once a candidate's final
+decision is recorded their registration, assessment, every mark and its comments and
+changes are refused a change, a delete or an addition (`gradings.models.kept_once_decided`);
+only an item's link back to the live syllabus may clear, when that syllabus goes. A finished import (imported, cancelled or
+expired) stays as it ended. Emptying a table with `TRUNCATE` is left to its owner: it is
+how Django resets a test database. The few services that change a kept row on
 purpose (erasing a student's details, removing a proposal with its assessment) go through
 `kept.bypass_update` or `kept.bypass_delete` with their reason, and a test keeps the list
 of modules allowed to.

@@ -27,7 +27,7 @@ from gradings.testing import (
     master,
     user,
 )
-from kukgrade.testing import results
+from kukgrade.testing import arrange, results
 
 pytestmark = pytest.mark.django_db
 
@@ -110,7 +110,8 @@ def test_an_instructor_cannot_change_a_mark_or_comment_after_the_lock() -> None:
 
 def test_a_correction_after_the_lock_always_needs_a_reason_even_a_first_mark() -> None:
     item = locked_item()
-    CandidateAssessmentItem.objects.filter(pk=item.pk).update(
+    arrange(
+        CandidateAssessmentItem.objects.filter(pk=item.pk),
         required=False,
         result=NOT_ASSESSED,
         assessor=None,

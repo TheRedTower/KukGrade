@@ -8,7 +8,11 @@ a change, [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 - [Docker](https://docs.docker.com/get-docker/), for a local PostgreSQL
 - [uv](https://docs.astral.sh/uv/), which installs Python 3.14 and the backend's dependencies
-- Node 22.22.2 or newer (Vite 8 and jsdom 31 require it)
+- Node 22.22.2 or newer (Vite 8 and jsdom 31 require it). CI and the image use the 22
+  line in `.nvmrc`; `npm ci` refuses a Node older than `"engines"` in
+  `frontend/package.json` allows.
+- VS Code offers the extensions in `.vscode/extensions.json` when the repository is
+  opened; most editors also read `.editorconfig`.
 
 ## Run it locally
 
@@ -30,6 +34,10 @@ npm ci
 npm run dev
 ```
 
+The `Makefile` holds the same steps: `make setup` once (it also installs the commit
+hooks), then `make backend` and `make frontend` in two terminals. `make` alone lists
+every target.
+
 The dev server forwards `/api` to the backend, so the browser only ever talks to
 <http://localhost:5173>. Open it, enter the setup code on the setup page and create the
 first administrator. The API's health check is <http://localhost:8000/api/health/>.
@@ -46,7 +54,27 @@ file is needed. The Django browsable API is available only in debug. See
 ## Checks
 
 CI runs all of these on every push and pull request. Run them before opening a pull
-request.
+request: `make check` runs the Backend and Frontend lists below in order and stops at
+the first failure, and `make fix` applies Ruff's fixes and both formatters.
+
+**Commit hooks** (`.pre-commit-config.yaml`). `make hooks` installs them once per
+clone; they then run on the files in each commit and stop it when one fails or
+rewrites a file (stage the rewrite and commit again):
+
+- the general file checks: trailing spaces, a final newline, LF line endings, valid
+  YAML, TOML and JSON, merge-conflict markers, files over 1 MB, private keys and
+  left-over debugger calls
+- django-upgrade, which rewrites code written for an older Django to the release in
+  use (its target is raised with Django)
+- Ruff (lint, with its fixes, and format), Prettier, ESLint and Stylelint, run from
+  the project's own lockfiles so they match CI; the frontend ones need `npm ci` first
+
+Types, tests and the generated schema and types are too slow for every commit and stay
+with `make check` and CI. `uv run --project backend pre-commit run --all-files` runs
+the hooks on every file; CI runs the general and Django ones that way and skips the
+five it runs as steps of its own. The hooks live in `.git`, which every worktree
+shares, so a branch made before the hooks existed needs `dev` merged in (or
+`git commit --no-verify`) to commit.
 
 **Backend** (needs the local PostgreSQL):
 
@@ -55,6 +83,7 @@ cd backend
 uv sync --frozen
 uv export --frozen --no-emit-project -o /tmp/requirements.txt
 uvx pip-audit@2.10.1 -r /tmp/requirements.txt --disable-pip   # known vulnerabilities, like npm audit below
+SKIP=ruff-check,ruff-format,prettier,eslint,stylelint uv run pre-commit run --all-files   # the commit hooks CI runs
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy .
@@ -398,15 +427,17 @@ same change and update this table.
 
 Nobody edits dependency versions or base-image digests by hand.
 [Dependabot](../.github/dependabot.yml) opens a weekly pull request when a Python
-package, an npm package, a GitHub Action, or a base image pinned in the `Dockerfile` has
-a newer version. Each updates the manifest and its lockfile together and runs the full
+package, an npm package, a GitHub Action, a commit hook repository in
+`.pre-commit-config.yaml`, or a base image pinned in the `Dockerfile` has a newer
+version. Each updates the manifest and its lockfile together and runs the full
 CI. Merge one once its checks are green.
 
 - Minor and patch updates arrive grouped; a major version gets its own pull request.
 - A new Python or Node _line_ is never proposed automatically: it is a decision. Change
   `python:3.14-slim` in the `Dockerfile`, `requires-python` and the tool targets in
   `backend/pyproject.toml` (then `uv lock`), `backend/.python-version`, `node:22-alpine`
-  and `node-version` in `.github/workflows/ci.yml`, together.
+  and `.nvmrc` (which CI reads), together. A new Django release also raises
+  django-upgrade's `--target-version` in `.pre-commit-config.yaml`.
 - Held back on purpose (ignored in the Dependabot config): Django 6 and django-stubs 6
   (Django 5.2 is long-term support to 2028), djangorestframework-stubs 3.17 and later
   (they need django-stubs 6) and TypeScript 7 (`openapi-typescript` does

@@ -188,7 +188,7 @@ class SyllabusRequirement(models.Model):
         on_delete=models.PROTECT,
         related_name="requirements",
     )
-    age_band = models.CharField(max_length=32, choices=AgeBand.choices)
+    age_band = models.CharField(max_length=32, choices=AgeBand)
     required = models.BooleanField(default=True)
     sequence = models.PositiveIntegerField()
     start_number = models.PositiveIntegerField(null=True, blank=True)

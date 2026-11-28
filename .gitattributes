@@ -1,0 +1,9 @@
+# Text files are stored and checked out with LF endings on every system.
+* text=auto eol=lf
+
+# Generated files: GitHub collapses them in pull request diffs and leaves them
+# out of the language statistics. Regenerate them, never edit them by hand.
+backend/schema.yml linguist-generated
+frontend/src/api/schema.ts linguist-generated
+**/uv.lock linguist-generated
+**/package-lock.json linguist-generated

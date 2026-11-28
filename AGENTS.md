@@ -23,7 +23,8 @@ Before implementation, read:
 
 Implemented stack: Django, Django REST Framework, ReportLab, django-pgtrigger, React, TypeScript, Vite,
 openapi-fetch, PostgreSQL, pytest, Ruff, mypy, ESLint, Stylelint, Prettier,
-React Testing Library, Vitest, Playwright (the width check), GitHub Actions CI, local Docker Compose for PostgreSQL, and a single-container production
+React Testing Library, Vitest, Playwright (the width check), pre-commit (the
+commit hooks), a root `Makefile` for the local commands, GitHub Actions CI, local Docker Compose for PostgreSQL, and a single-container production
 image (`docs/installation.md`).
 
 ## Domain Rules

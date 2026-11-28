@@ -469,7 +469,7 @@ class GradingCandidate(models.Model):
     # (attendance) as well as after it (withdraw_locked_candidate).
     withdrawal_reason = models.CharField(
         max_length=32,
-        choices=WithdrawalReason.choices,
+        choices=WithdrawalReason,
         blank=True,
     )
     withdrawal_note = models.TextField(blank=True)
@@ -1759,7 +1759,7 @@ class LegacyPerson(models.Model):
 
     state = models.CharField(
         max_length=16,
-        choices=LegacyPersonState.choices,
+        choices=LegacyPersonState,
         default=LegacyPersonState.PROPOSED,
     )
     student = models.ForeignKey(
@@ -1771,7 +1771,7 @@ class LegacyPerson(models.Model):
     )
     confidence = models.CharField(
         max_length=8,
-        choices=LegacyPersonConfidence.choices,
+        choices=LegacyPersonConfidence,
     )
     # Why the records are grouped, in plain words (gradings.legacy_people).
     reasons = models.JSONField(default=list, blank=True)
@@ -1780,7 +1780,7 @@ class LegacyPerson(models.Model):
     version = models.PositiveIntegerField(default=1)
     not_a_student_reason = models.CharField(
         max_length=16,
-        choices=LegacyNotAStudentReason.choices,
+        choices=LegacyNotAStudentReason,
         blank=True,
     )
     note = models.CharField(max_length=500, blank=True)
@@ -1925,7 +1925,7 @@ class LegacyGradingRecord(KeptModel):
         on_delete=models.PROTECT,
         related_name="legacy_records",
     )
-    record_kind = models.CharField(max_length=32, choices=LegacyRecordKind.choices)
+    record_kind = models.CharField(max_length=32, choices=LegacyRecordKind)
 
     source_sheet = models.CharField(max_length=100)
     source_section = models.CharField(max_length=100, blank=True)
@@ -1938,7 +1938,7 @@ class LegacyGradingRecord(KeptModel):
     grading_date = models.DateField(null=True, blank=True)
     date_precision = models.CharField(
         max_length=8,
-        choices=LegacyDatePrecision.choices,
+        choices=LegacyDatePrecision,
         default=LegacyDatePrecision.MONTH,
     )
 
@@ -1969,13 +1969,13 @@ class LegacyGradingRecord(KeptModel):
     # service and is immutable alongside the other source-derived fields.
     outcome = models.CharField(  # noqa: DJ001
         max_length=16,
-        choices=LegacyOutcome.choices,
+        choices=LegacyOutcome,
         null=True,
         blank=True,
     )
     attendance_status = models.CharField(
         max_length=16,
-        choices=LegacyAttendance.choices,
+        choices=LegacyAttendance,
         default=LegacyAttendance.UNKNOWN,
     )
 

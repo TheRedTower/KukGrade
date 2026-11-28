@@ -40,12 +40,10 @@ cd ../frontend && npm ci
 4. If you change an API request or response, declare it in the backend, then
    regenerate `backend/schema.yml` and `frontend/src/api/schema.ts`. Never
    hand-write an API type in the frontend. Database changes need a migration.
-5. Run the checks (CI runs the same ones):
-
-   ```sh
-   cd backend  && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest -n auto
-   cd ../frontend && npm run lint && npm run format:check && npm run typecheck && npm run test
-   ```
+5. Run the checks with `make check` (CI runs the same ones; it needs the local
+   PostgreSQL from `make db`). `make setup` installs the commit hooks, which
+   catch formatting and lint on each commit. Every check is listed in
+   [docs/development.md](docs/development.md#checks).
 
 6. Open a pull request against `dev` (never `prod`, which only receives what
    `dev` has proved; see [Releasing](docs/development.md#releasing)) and fill in

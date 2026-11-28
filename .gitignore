@@ -37,9 +37,11 @@ htmlcov/
 .ruff_cache/
 *.tsbuildinfo
 
-# Editor and OS files
+# Editor and OS files. The recommended VS Code extensions are shared; each
+# person's own VS Code settings are not.
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 
 # Local test runs and scrape artifacts
 .playwright-cli/

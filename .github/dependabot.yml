@@ -65,7 +65,7 @@ updates:
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
       # @types/node describes one Node line, and the build and CI run Node 22
-      # (Dockerfile, ci.yml). A new major of the types is taken together with a
+      # (Dockerfile, .nvmrc). A new major of the types is taken together with a
       # new Node line, which is a decision, not a refresh.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
@@ -110,7 +110,8 @@ updates:
     ignore:
       # The tags python:3.14-slim and node:22-alpine are followed by digest
       # only. A new Python or Node line is a decision, not a refresh: it also
-      # means changing requires-python, backend/.python-version and the CI.
+      # means changing requires-python and backend/.python-version, or .nvmrc
+      # (which CI reads).
       - dependency-name: python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: node
@@ -137,3 +138,17 @@ updates:
       github-actions:
         patterns: ["*"]
         update-types: [minor, patch]
+
+  # The two remote hook repositories in .pre-commit-config.yaml (the general
+  # file checks and django-upgrade). The local hooks run tools already locked
+  # above, so Dependabot leaves them alone.
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      pre-commit-hooks:
+        patterns: ["*"]

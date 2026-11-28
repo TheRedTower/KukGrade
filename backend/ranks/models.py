@@ -68,10 +68,10 @@ class Rank(models.Model):
     # belt with a blue stripe - and Dahn Bo is a brown belt with two black
     # stripes, so every screen draws the rank from these fields rather than
     # guessing from its name. No stripe is a blank colour and a count of 0.
-    belt_colour = models.CharField(max_length=16, choices=BeltColour.choices)
+    belt_colour = models.CharField(max_length=16, choices=BeltColour)
     stripe_colour = models.CharField(
         max_length=16,
-        choices=BeltColour.choices,
+        choices=BeltColour,
         blank=True,
         default="",
     )

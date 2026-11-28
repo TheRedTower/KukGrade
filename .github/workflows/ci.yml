@@ -68,6 +68,20 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # The hook environments (.pre-commit-config.yaml) only change with it.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      # The commit hooks' general file checks and django-upgrade, on every file.
+      # The five hooks this workflow runs as steps of their own are skipped.
+      - name: Commit hooks
+        working-directory: .
+        run: uv run --project backend --frozen pre-commit run --all-files --show-diff-on-failure
+        env:
+          SKIP: ruff-check,ruff-format,prettier,eslint,stylelint
+
       # Every locked package, with its hashes, against the public advisory
       # database, as the frontend's `npm audit` does. A tool run, not a project
       # dependency, pinned so a new release cannot change what passes. It needs
@@ -122,12 +136,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Pinned to an LTS line that Vite 8 and jsdom 31 support (Node 22.22.2 or
-      # newer; "22" takes the latest 22.x). Local development is
-      # currently on a newer Node; add an .nvmrc if that drift ever bites.
+      # The Node line in .nvmrc ("22" takes the latest 22.x), one that Vite 8
+      # and jsdom 31 support. frontend/package.json's "engines" holds the
+      # oldest Node they run on (22.22.2), and npm refuses anything older.
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -183,7 +197,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: site/package-lock.json
 
@@ -221,7 +235,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -289,7 +303,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 

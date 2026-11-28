@@ -1,0 +1,86 @@
+# The quick checks, run on the files in each commit (docs/development.md):
+#   make hooks                                     # once per clone
+#   uv run --project backend pre-commit run -a     # every file, by hand
+# The slow ones (types, tests, the generated schema and types) stay with
+# `make check` and CI. Ruff, Prettier, ESLint and Stylelint run from the
+# project's own lockfiles, so a hook and CI always run the same version; the
+# two remote hook repositories are pinned to a tag and kept current by
+# Dependabot. CI runs the general and Django hooks on every file and skips the
+# five it already runs as steps of its own (ci.yml).
+minimum_pre_commit_version: "4.0.0"
+
+# Generated files are left exactly as their generators write them, and a
+# third-party licence exactly as its authors wrote it.
+exclude: |
+  (?x)^(
+    backend/schema\.yml
+    | backend/gradings/exports/fonts/OFL\.txt
+    | frontend/src/api/schema\.ts
+    | .*/uv\.lock
+    | .*/package-lock\.json
+  )$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      # Keys, and real student data, never belong in the repository (AGENTS.md).
+      - id: detect-private-key
+      - id: debug-statements
+
+  # Rewrites code written for an older Django to the release in use. Raise the
+  # target with Django itself (pyproject.toml).
+  - repo: https://github.com/adamchainz/django-upgrade
+    rev: 1.33.0
+    hooks:
+      - id: django-upgrade
+        args: [--target-version, "5.2"]
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --project backend --frozen ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        files: ^backend/
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --project backend --frozen ruff format
+        language: system
+        types_or: [python, pyi]
+        files: ^backend/
+      # The frontend's tools run from frontend/, where their configuration and
+      # ignore files are, with the paths made relative to it. They need
+      # `npm ci` in frontend/ first.
+      - id: prettier
+        name: prettier
+        entry: bash -c 'cd frontend && exec npx --no-install prettier --write --ignore-unknown "${@#frontend/}"' --
+        language: system
+        types: [text]
+        files: ^frontend/
+      - id: eslint
+        name: eslint
+        entry: bash -c 'cd frontend && exec npx --no-install eslint --no-warn-ignored "${@#frontend/}"' --
+        language: system
+        types_or: [ts, tsx, javascript]
+        files: ^frontend/
+      - id: stylelint
+        name: stylelint
+        entry: bash -c 'cd frontend && exec npx --no-install stylelint "${@#frontend/}"' --
+        language: system
+        types: [css]
+        files: ^frontend/src/

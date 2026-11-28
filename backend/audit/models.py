@@ -158,8 +158,8 @@ class AuditEvent(KeptModel):
     actor_name = models.CharField(max_length=301, blank=True)
     # Their rank then, or "administrator" (accounts.people).
     actor_title = models.CharField(max_length=100, blank=True, editable=False)
-    action = models.CharField(max_length=64, choices=AuditAction.choices)
-    entity_type = models.CharField(max_length=64, choices=AuditEntity.choices)
+    action = models.CharField(max_length=64, choices=AuditAction)
+    entity_type = models.CharField(max_length=64, choices=AuditEntity)
     entity_id = models.CharField(max_length=64)
     occurred_at = models.DateTimeField(auto_now_add=True)
     summary = models.TextField()
